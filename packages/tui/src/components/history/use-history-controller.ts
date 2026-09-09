@@ -12,7 +12,12 @@ import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import { shiftToolResultViewMode } from '../../tool-result-view-mode.js';
 import { MESSAGE_PANEL_CHROME_WIDTH } from './assistant.js';
 import type { CopyHit } from './copy-geometry.js';
-import { findCopyHit, findToolViewControl, resolveCopyPayload } from './copy-geometry.js';
+import {
+  findCopyHit,
+  findInspectHit,
+  findToolViewControl,
+  resolveCopyPayload,
+} from './copy-geometry.js';
 import type { HistoryScrollController } from './scroll-controller-types.js';
 import type { MountedCardSpan } from './scrollbar-geometry.js';
 import { selectionHitAt } from './scrollbar-geometry.js';
@@ -171,6 +176,23 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         findCopyHit(copyHitsRef.current, row, col) !== null ||
         findCopyHit(liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [], row, col) !==
           null,
+      hasInspectTargetAt: (row, col) =>
+        findInspectHit(copyHitsRef.current, row, col) !== null ||
+        findInspectHit(liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [], row, col) !==
+          null,
+      inspectAtViewportCell: (row, col) => {
+        const liveHit = findInspectHit(
+          liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [],
+          row,
+          col,
+        );
+        const hit = liveHit ?? findInspectHit(copyHitsRef.current, row, col);
+        if (hit === null) return null;
+        return {
+          entryId: hit.entryId,
+          ...(hit.entryIds && hit.entryIds.length > 0 ? { entryIds: hit.entryIds } : {}),
+        };
+      },
       copyAtViewportCell: async (row, col) => {
         const liveHit = findCopyHit(
           liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [],

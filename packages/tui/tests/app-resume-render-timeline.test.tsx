@@ -119,13 +119,13 @@ describe('Issue 005 — resumed timeline structure', () => {
 
     // ── Presence baseline (mirrors app-resume-render.test.ts) ──
     expect(frame).toContain('USER');
-    expect(frame).toContain('ASSISTANT');
+    expect(frame).not.toContain('ASSISTANT');
     expect(frame).toContain('please inspect /etc/wstack.conf');
     expect(frame).toContain('I will read the config now.');
     expect(frame).toContain('The file says provider=anthropic.');
     expect(frame).toContain('switch to the openai provider');
     expect(frame).toContain('Switching now.');
-    expect(frame).toContain('Model Reasoning');
+    expect(frame).toContain('REASONING');
 
     // tool-name + tool-input path must reach the frame
     expect(frame).toContain('read');
@@ -167,17 +167,17 @@ describe('Issue 005 — resumed timeline structure', () => {
     const frame = lastFrame() ?? '';
     const lines = frame.split('\n');
 
-    // Find every top-level panel header row. These are the substrings
-    // the existing baseline test already trusts (USER, ASSISTANT, Model
-    // Reasoning), plus a tool-name sentinel — `read` is short enough to
-    // be a substring of arbitrary text, so we additionally require that
-    // the line containing `read` is the tool header row, not a body
-    // line. In practice the ToolCard header is the only row that has
-    // the bare tool name as a heading, so a single `read` substring
-    // search is enough for the structural assertion; a false positive
-    // would require the literal word "read" to appear in another panel
-    // header, which this fixture does not produce.
-    const headerNeedles = ['USER', 'ASSISTANT', 'Model Reasoning'];
+    // Find every top-level panel header row. Assistant cards have no
+    // title row — their first body line is the panel start — so the
+    // needles are USER, REASONING, and the unique assistant
+    // body slices this fixture already asserts elsewhere.
+    const headerNeedles = [
+      'USER',
+      'REASONING',
+      'I will read the config now.',
+      'The file says provider=anthropic.',
+      'Switching now.',
+    ];
     const headerRows: number[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] ?? '';

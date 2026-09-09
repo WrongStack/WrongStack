@@ -3,7 +3,8 @@
  *
  * Ink exposes no absolute terminal coordinates, but the mouse-mode layout is
  * deterministic top-down: the chat history occupies the first `viewportRows`
- * rows of the terminal (its managed scrollbar is the last column of that band),
+ * rows of the terminal (its managed copy/inspect/scroll rail is the last
+ * columns of that band),
  * and everything below it (rows viewportRows+1 .. termRows) is the bottom region
  * — input, pickers, confirm prompt, status bar, panels. That is enough to map a
  * 1-based SGR mouse report (x,y) onto a coarse region without any DOM measuring.
@@ -33,12 +34,10 @@ type HitRegion =
   | { kind: 'bottom'; row: number };
 
 /**
- * Columns at the right edge of the history viewport reserved for the copy/scroll
- * rail. Copy icons use the first column, a blank gap separates them from the
- * scrollbar track in the last column.
+ * Columns at the right edge of the history viewport reserved for the rail.
+ * Layout: copy · gap · inspect · selection band · scrollbar track.
  */
-/** copy + selection band + scrollbar track */
-export const SCROLLBAR_HIT_WIDTH = 3;
+export const SCROLLBAR_HIT_WIDTH = 5;
 
 /** Rows available to managed history after reserving the measured bottom UI. */
 export function historyViewportRows(termRows: number, bottomHeight: number): number {

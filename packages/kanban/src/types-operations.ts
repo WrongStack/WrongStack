@@ -301,6 +301,8 @@ export interface AssignKanbanTaskInput {
   retryPolicy?: KanbanRetryPolicy | undefined;
   lastFailureKind?: string | undefined;
   status?: KanbanAgentRunStatus | undefined;
+  /** Reject atomically when a queued/running owner already holds the card. */
+  protectActiveAssignment?: boolean | undefined;
 }
 
 export interface SplitKanbanTaskInput {

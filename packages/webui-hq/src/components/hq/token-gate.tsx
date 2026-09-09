@@ -141,7 +141,7 @@ function TokenForm({
   );
 }
 
-function PasswordForm(): React.ReactElement {
+function PasswordForm({ mobile = false }: { mobile?: boolean }): React.ReactElement {
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [totpRequired, setTotpRequired] = useState(false);
@@ -162,7 +162,7 @@ function PasswordForm(): React.ReactElement {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch(mobile ? '/api/mobile/login' : '/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -199,7 +199,7 @@ function PasswordForm(): React.ReactElement {
       const payload = raw.includes('-')
         ? { recoveryCode: raw }
         : { code: raw.replace(/\D/g, '').slice(0, 6) };
-      const response = await fetch('/api/login/verify', {
+      const response = await fetch(mobile ? '/api/mobile/login/verify' : '/api/login/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -297,9 +297,11 @@ function PasswordForm(): React.ReactElement {
 
 export function TokenGate({
   hadToken,
+  passwordOnly = false,
   onAuthenticated = () => window.location.reload(),
 }: {
   hadToken: boolean;
+  passwordOnly?: boolean;
   onAuthenticated?: () => void;
 }): React.ReactElement {
   const [status, setStatus] = useState<AuthStatus | null>(null);
@@ -342,6 +344,24 @@ export function TokenGate({
 
   const showToken = status.tokenMode;
   const showPassword = status.passwordMode;
+
+  if (passwordOnly) {
+    return (
+      <GateShell>
+        {showPassword ? (
+          <PasswordForm mobile />
+        ) : (
+          <>
+            <p className="font-display text-sm font-semibold">Mobile password required</p>
+            <GateError message="Configure an HQ password on the server before using /mobile." />
+            <p className="text-[11px] text-muted-foreground">
+              Set <code className="font-mono">WRONGSTACK_HQ_PASSWORD</code> and restart HQ.
+            </p>
+          </>
+        )}
+      </GateShell>
+    );
+  }
 
   // Default tab: someone who arrived WITH a token was clearly trying to use
   // one, and pasting a token into the password field produces a confusing

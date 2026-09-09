@@ -47,6 +47,12 @@ const PICKER_MANAGED = new Set([
 const TOGGLE_PANELS: Array<{ field: string; setState: (s: ReturnType<typeof baseState>) => void }> =
   [
     {
+      field: 'inspectOverlay',
+      setState: (s) => {
+        s.inspectOverlay = { entryId: 1, scroll: 0 };
+      },
+    },
+    {
       field: 'monitorOpen',
       setState: (s) => {
         s.monitorOpen = true;

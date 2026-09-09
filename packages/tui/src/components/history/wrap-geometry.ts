@@ -2,9 +2,9 @@
  * Inline render-chrome constants shared by the chat-history renderer.
  *
  * `USER_LABEL` is the inline label entry.tsx renders before a user card's
- * text (`<Text bold>👤 USER  </Text>` then the text, one Text node) and
+ * text (`<Text bold>▸ USER  </Text>` then the text, one Text node) and
  * `INFO_PREFIX` is the inline icon before an info card's text
- * (`<Text>ℹ </Text>` then the text). Both live here so entry.tsx consumes
+ * (`<Text>· </Text>` then the text). Both live here so entry.tsx consumes
  * the single source (p3) — drift between the render and these constants
  * would silently mis-offset any column math built on them.
  *
@@ -18,7 +18,7 @@
  */
 
 /** Inline label the renderer places before a user card's text. */
-export const USER_LABEL = '👤 USER  ';
+export const USER_LABEL = '▸ USER  ';
 
 /** Inline icon the renderer places before an info card's text. */
-export const INFO_PREFIX = 'ℹ ';
+export const INFO_PREFIX = '· ';

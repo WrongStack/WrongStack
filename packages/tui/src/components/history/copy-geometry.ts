@@ -6,7 +6,16 @@
  */
 
 import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
-import { COPY_ICON_WIDTH, copyableTextForEntries, copyableTextForEntry } from './copy-icon.js';
+import {
+  COPY_ICON_WIDTH,
+  copyableTextForEntries,
+  copyableTextForEntry,
+  INSPECT_COL_OFFSET,
+  INSPECT_ICON_WIDTH,
+  inspectTextForEntries,
+  inspectTextForEntry,
+  inspectTitleForEntries,
+} from './copy-icon.js';
 import type { HistoryEntry } from './index.js';
 
 /**
@@ -23,10 +32,15 @@ export interface CopyHit {
   startRow: number;
   endRow: number;
   iconCol: number;
+  /**
+   * Column of the inspect glyph when this card can open the detail overlay
+   * (tools and the live tool stream). Absent for non-tool cards.
+   */
+  inspectCol?: number | undefined;
   /** Present only for committed tool cards/groups that expose −/+ controls. */
   toolEntryIds?: readonly number[] | undefined;
   toolViewMode?: ToolResultViewMode | undefined;
-  /** Header-local columns for the spaced `▲  ▼` controls. */
+  /** History-band columns for the spaced `▲  ▼` controls. */
   lessCol?: number | undefined;
   moreCol?: number | undefined;
 }
@@ -71,6 +85,18 @@ export function findCopyHit(hits: readonly CopyHit[], row: number, col: number):
   return null;
 }
 
+/** Resolve the inspect-icon target under a viewport cell, or null. */
+export function findInspectHit(hits: readonly CopyHit[], row: number, col: number): CopyHit | null {
+  for (let i = hits.length - 1; i >= 0; i--) {
+    const hit = hits[i];
+    if (!hit || hit.inspectCol === undefined) continue;
+    if (row < hit.startRow || row >= hit.endRow) continue;
+    if (col < hit.inspectCol || col >= hit.inspectCol + INSPECT_ICON_WIDTH) continue;
+    return hit;
+  }
+  return null;
+}
+
 /** Resolve a hit to the complete current clipboard payload without performing I/O. */
 export function resolveCopyPayload(
   hit: CopyHit,
@@ -90,6 +116,35 @@ export function resolveCopyPayload(
   return {
     entryId: hit.entryId,
     text: entries.length === 1 ? copyableTextForEntry(firstEntry) : copyableTextForEntries(entries),
+  };
+}
+
+/** Resolve a hit to the inspect overlay payload (title + full body). */
+export function resolveInspectPayload(
+  hit: CopyHit,
+  entriesById: ReadonlyMap<number, HistoryEntry>,
+  liveTool?: { name: string; text: string } | undefined,
+): { entryId: number; title: string; body: string } | null {
+  if (hit.entryId === LIVE_TOOL_STREAM_COPY_ID) {
+    if (!liveTool) return null;
+    return {
+      entryId: LIVE_TOOL_STREAM_COPY_ID,
+      title: `${liveTool.name}  streaming`,
+      body: liveTool.text.length > 0 ? liveTool.text : '(streaming…)',
+    };
+  }
+  const entryIds = hit.entryIds ?? [hit.entryId];
+  const entries = entryIds
+    .map((entryId) => entriesById.get(entryId))
+    .filter((entry): entry is HistoryEntry => entry !== undefined);
+  if (entries.length !== entryIds.length) return null;
+  const firstEntry = entries[0];
+  if (firstEntry === undefined) return null;
+  return {
+    entryId: hit.entryId,
+    title: inspectTitleForEntries(entries),
+    body:
+      entries.length === 1 ? inspectTextForEntry(firstEntry) : inspectTextForEntries(entries),
   };
 }
 
@@ -130,5 +185,6 @@ export function liveToolStreamCopyHit(opts: {
     startRow: headerRow,
     endRow: headerRow + 1,
     iconCol: opts.iconCol,
+    inspectCol: opts.iconCol + INSPECT_COL_OFFSET,
   };
 }

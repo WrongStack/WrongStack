@@ -133,6 +133,23 @@ describe('proxy-probe soft-signal active flag', () => {
     expect(getProxyConfig().active).toBe(true);
   });
 
+  it('probes the health path before query and fragment components in the configured base URL', async () => {
+    applyProxyConfig({
+      enabled: true,
+      url: 'http://127.0.0.1:3444/proxy-base?token=round-proof#ignored-fragment',
+    });
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(okResponse());
+    const runner: ProbeRunner = startProxyProbe({ ...NO_INTERVAL, fetchImpl });
+
+    await runner.poke();
+
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:3444/proxy-base/api/health',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
   it('deactivates immediately on toggle-off and does not fetch', async () => {
     applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const fetchImpl = vi

@@ -10,11 +10,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   exchangeBootstrapIfNeeded,
+  hasAuthenticatedHqBrowserSession,
   scrubTokenFromUrl,
   upgradeStoredTokenToCookie,
 } from './data/auth/index.js';
+import { useHqStore } from './data/store/index.js';
 import { connectHqDataPlane } from './data/wire.js';
-import { AppShell } from './components/hq/app-shell.js';
+import { isHqMobilePath } from './mobile/route.js';
 
 /**
  * Boot order matters.
@@ -24,25 +26,33 @@ import { AppShell } from './components/hq/app-shell.js';
  *    tab's session cookie.
  * 2. Scrub `?token=` out of the address bar so the credential stops living in
  *    history, screenshots and copied links.
- * 3. Mint a cookie for any stored token — deliberately NOT awaited. It must
- *    not delay first paint, and both orderings are correct: a WS URL built
- *    before the swap still carries a valid token, one built after rides the
- *    cookie.
- * 4. Connect the data plane, then render.
+ * 3. Mint a cookie for any stored token, then confirm the browser session.
+ *    Password-only visitors stop at the gate without generating guaranteed
+ *    401 HTTP/WS noise before they have had a chance to authenticate.
+ * 4. Connect the data plane only when authenticated, then render the desktop
+ *    or independently chunked mobile surface.
  */
 const container = document.getElementById('root');
+const mobilePath = isHqMobilePath(window.location.pathname);
 
 if (container !== null) {
-  void exchangeBootstrapIfNeeded().finally(() => {
+  void exchangeBootstrapIfNeeded().finally(async () => {
     scrubTokenFromUrl();
-    void upgradeStoredTokenToCookie();
+    await upgradeStoredTokenToCookie();
+    const authenticated = await hasAuthenticatedHqBrowserSession({ passwordOnly: mobilePath });
+    if (authenticated) connectHqDataPlane();
+    else useHqStore.getState().markAuthRequired();
 
-    connectHqDataPlane();
+    const surface = mobilePath
+      ? import('./mobile/mobile-app.js').then((module) => module.MobileApp)
+      : import('./components/hq/app-shell.js').then((module) => module.AppShell);
 
-    createRoot(container).render(
-      <StrictMode>
-        <AppShell />
-      </StrictMode>,
-    );
+    void surface.then((Surface) => {
+      createRoot(container).render(
+        <StrictMode>
+          <Surface />
+        </StrictMode>,
+      );
+    });
   });
 }

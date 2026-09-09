@@ -401,6 +401,7 @@ export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): Re
     <aside
       id="workspace-dock-inspector"
       data-testid={open ? 'workspace-dock-inspector' : undefined}
+      data-escape-owns={open ? 'true' : undefined}
       aria-hidden={!open}
       inert={!open || undefined}
       aria-label={

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createHqCommandDispatcher: vi.fn(),
+  createProjectKanbanAssignHandler: vi.fn(),
+  createProjectKanbanTransitionHandler: vi.fn(),
   startCliHqConnection: vi.fn(),
   startBrainTelemetryBridge: vi.fn(),
   startCostTelemetryBridge: vi.fn(),
@@ -26,6 +28,8 @@ vi.mock('../src/governance-hq-telemetry.js', () => ({
 }));
 vi.mock('../src/hq-command-controller.js', () => ({
   createHqCommandDispatcher: mocks.createHqCommandDispatcher,
+  createProjectKanbanAssignHandler: mocks.createProjectKanbanAssignHandler,
+  createProjectKanbanTransitionHandler: mocks.createProjectKanbanTransitionHandler,
 }));
 vi.mock('../src/hq-publisher.js', () => ({
   startCliHqConnection: mocks.startCliHqConnection,
@@ -63,7 +67,11 @@ describe('setupHqTelemetry', () => {
       return connection;
     });
     const hqOnCommand = vi.fn();
+    const kanbanTransition = vi.fn();
+    const kanbanAssign = vi.fn();
     mocks.createHqCommandDispatcher.mockReturnValue(hqOnCommand);
+    mocks.createProjectKanbanTransitionHandler.mockReturnValue(kanbanTransition);
+    mocks.createProjectKanbanAssignHandler.mockReturnValue(kanbanAssign);
 
     const firstStops = Array.from({ length: 8 }, () => vi.fn());
     const secondStops = Array.from({ length: 8 }, () => vi.fn());
@@ -126,11 +134,18 @@ describe('setupHqTelemetry', () => {
         projectRoot: path.join('/work', 'repo'),
         projectName: 'repo',
         onCommand: hqOnCommand,
+        capabilities: expect.arrayContaining(['control.receive', 'kanban.dispatch']),
       }),
     );
     expect(result.hqOnCommand).toBe(hqOnCommand);
     expect(result.hqCommandController.sessionTag()).toBe('tag:session-1');
     expect(result.hqCommandController.allowRunCommand()).toBe(true);
+    expect(result.hqCommandController.kanbanTransition).toBe(kanbanTransition);
+    expect(result.hqCommandController.kanbanAssign).toBe(kanbanAssign);
+    expect(mocks.createProjectKanbanAssignHandler).toHaveBeenCalledWith(path.join('/work', 'repo'));
+    expect(mocks.createProjectKanbanTransitionHandler).toHaveBeenCalledWith(
+      path.join('/work', 'repo'),
+    );
     expect(hqPublisherRef.current).toBe(initialPublisher);
     expect(hqPublisherRef.getKanbanSyncStats?.()).toEqual({ pushed: 3 });
 

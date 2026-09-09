@@ -16,6 +16,7 @@ import {
   resolveHqDataDir,
 } from '@wrongstack/core/hq';
 import { color, isPidAlive } from '@wrongstack/core/utils';
+import { normalizeHqPublicOrigin } from '../hq-server/utils.js';
 import { DEFAULT_PORT } from '../hq-server.js';
 import type { HqQuickTunnelHandle } from '../hq-tunnel.js';
 
@@ -82,17 +83,38 @@ export async function handleHqShortCircuit(
 
   const { startHqServer } = await import('../hq-server.js');
   const tunnelRequested = flags['tunnel'] === true;
+  const rawPublicUrl =
+    typeof flags['hq-public-url'] === 'string'
+      ? flags['hq-public-url']
+      : process.env.WRONGSTACK_HQ_PUBLIC_URL;
+  let publicOrigin: string | undefined;
+  if (rawPublicUrl !== undefined && rawPublicUrl.trim() !== '') {
+    try {
+      publicOrigin = normalizeHqPublicOrigin(rawPublicUrl);
+    } catch (cause) {
+      process.stderr.write(
+        `${color.red('✗')} ${cause instanceof Error ? cause.message : String(cause)}\n`,
+      );
+      return 1;
+    }
+  }
+  if (tunnelRequested && publicOrigin !== undefined) {
+    process.stderr.write(`${color.red('✗')} Use either --tunnel or --hq-public-url, not both.\n`);
+    return 1;
+  }
+  const externallyPublished = tunnelRequested || publicOrigin !== undefined;
   // The CLI opts into the wide bind explicitly; the library default stays loopback.
-  // Quick Tunnel is outbound-only, so keep its origin private by default.
+  // Quick Tunnel and persistent reverse proxies are outbound/local, so keep
+  // their origin private by default.
   const host =
     typeof flags['host'] === 'string'
       ? flags['host']
-      : tunnelRequested
+      : externallyPublished
         ? '127.0.0.1'
         : HQ_CLI_DEFAULT_HOST;
-  if (tunnelRequested && !isLoopbackHost(host)) {
+  if (externallyPublished && !isLoopbackHost(host)) {
     process.stderr.write(
-      `${color.red('✗')} --tunnel requires a loopback origin. Remove --host or use --host 127.0.0.1.\n`,
+      `${color.red('✗')} Public HQ publishing requires a loopback bind. Remove --host or use --host 127.0.0.1.\n`,
     );
     return 1;
   }
@@ -117,6 +139,21 @@ export async function handleHqShortCircuit(
   if (password !== undefined && password.length < 8) {
     process.stderr.write(`${color.red('✗')} HQ password must be at least 8 characters.\n`);
     return 1;
+  }
+  const rawTrustedProxyHops =
+    typeof flags['hq-trusted-proxy-hops'] === 'string'
+      ? flags['hq-trusted-proxy-hops']
+      : process.env.WRONGSTACK_HQ_TRUSTED_PROXY_HOPS;
+  let trustedProxyHops: number | undefined;
+  if (rawTrustedProxyHops !== undefined && rawTrustedProxyHops.trim() !== '') {
+    const parsed = Number.parseInt(rawTrustedProxyHops, 10);
+    if (!Number.isFinite(parsed) || parsed < 0 || String(parsed) !== rawTrustedProxyHops.trim()) {
+      process.stderr.write(
+        `${color.red('✗')} --hq-trusted-proxy-hops must be a non-negative integer.\n`,
+      );
+      return 1;
+    }
+    trustedProxyHops = parsed;
   }
   // User explicitly chose a port if they either passed --port OR accepted
   // a non-default value from the interactive prompt.
@@ -168,11 +205,12 @@ export async function handleHqShortCircuit(
       strictPort: flags['strict-port'] === true,
       exactPort: userProvidedPort,
       allowInsecureOpen: flags['insecure-open'] === true,
-      secureCookies: tunnelRequested,
-      requireBrowserAuth: tunnelRequested,
+      secureCookies: externallyPublished,
+      requireBrowserAuth: externallyPublished,
       ...(dataDir !== undefined ? { dataDir } : {}),
       ...(password !== undefined ? { password } : {}),
       ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),
+      ...(trustedProxyHops !== undefined ? { trustedProxyHops } : {}),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -186,8 +224,22 @@ export async function handleHqShortCircuit(
     return 1;
   }
 
+  if (publicOrigin !== undefined) {
+    if (handle.firstRunSetup?.passwordMode !== true) {
+      await handle.close();
+      process.stderr.write(
+        `${color.red('✗')} Persistent public HQ requires password mode. Set WRONGSTACK_HQ_PASSWORD and retry.\n`,
+      );
+      return 1;
+    }
+    handle.trustPublicOrigin(publicOrigin);
+    process.stdout.write(`\n${color.green('Persistent HQ origin ready:')} ${publicOrigin}/\n`);
+    process.stdout.write(`${color.green('Mobile:')} ${publicOrigin}/mobile\n`);
+  }
+
   let tunnel: HqQuickTunnelHandle | undefined;
-  let browserUrl = handle.firstRunSetup?.browserUrl ?? `http://${handle.host}:${handle.port}`;
+  let browserUrl =
+    publicOrigin ?? handle.firstRunSetup?.browserUrl ?? `http://${handle.host}:${handle.port}`;
   if (tunnelRequested) {
     if (
       handle.firstRunSetup !== undefined &&
@@ -215,6 +267,11 @@ export async function handleHqShortCircuit(
         handle.firstRunSetup?.passwordMode !== true,
       );
       process.stdout.write(`\n${color.green('Cloudflare Quick Tunnel ready:')} ${browserUrl}\n`);
+      const tunnelMobileUrl = new URL(tunnel.url);
+      tunnelMobileUrl.pathname = '/mobile';
+      tunnelMobileUrl.search = '';
+      tunnelMobileUrl.hash = '';
+      process.stdout.write(`${color.green('Mobile:')} ${tunnelMobileUrl.toString()}\n`);
       process.stdout.write(
         `${color.dim('Temporary development URL; DNS may need a few seconds, it changes on restart and ends when HQ stops.')}\n`,
       );

@@ -3,9 +3,39 @@ import {
   formatDelegateStartedText,
   formatDelegateSuccessText,
   formatHistoryDuration,
+  formatModelRef,
   formatSubagentCompletionText,
+  formatSubagentFallbackText,
+  formatSubagentModelFailedText,
   shortenTaskPreview,
 } from '../src/hooks/subagent-history-format.js';
+
+describe('formatSubagentFallbackText', () => {
+  it('renders a scan line with from → to, not a raw dump', () => {
+    expect(
+      formatSubagentFallbackText(
+        { providerId: 'anthropic', model: 'claude-opus-4' },
+        { providerId: 'openai', model: 'gpt-4o' },
+      ),
+    ).toBe('fallback  anthropic / claude-opus-4 → openai / gpt-4o');
+    expect(
+      formatSubagentFallbackText(undefined, { providerId: 'openai', model: 'gpt-4o' }),
+    ).toBe('fallback  openai / gpt-4o');
+    expect(formatModelRef('openai', 'gpt-4o')).toBe('openai / gpt-4o');
+  });
+});
+
+describe('formatSubagentModelFailedText', () => {
+  it('keeps a short recoverable failure, not an ERROR card dump', () => {
+    expect(formatSubagentModelFailedText(undefined)).toBe('model failed');
+    expect(formatSubagentModelFailedText('overloaded_error')).toBe('model failed · overloaded_error');
+    const long = 'x'.repeat(90);
+    const out = formatSubagentModelFailedText(long);
+    expect(out.startsWith('model failed · ')).toBe(true);
+    expect(out.endsWith('…')).toBe(true);
+    expect(out.length).toBeLessThanOrEqual(15 + 72);
+  });
+});
 
 describe('formatHistoryDuration', () => {
   it('formats short and long windows', () => {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T16:55:32.332Z",
+  "generatedAt": "2026-09-09T18:17:24.674Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3706,
-    "testFiles": 3205,
-    "sourceLines": 894213,
+    "sourceFiles": 3712,
+    "testFiles": 3214,
+    "sourceLines": 896617,
     "workspaceEdges": 127,
-    "moduleEdges": 11710,
+    "moduleEdges": 11766,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 886
+    "testOnlyExports": 895
   },
   "errors": [],
   "packageCycles": [],
@@ -145,7 +145,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 487,
-      "testFiles": 469,
+      "testFiles": 472,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -184,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 469
+          "testFiles": 472
         }
       ]
     },
@@ -757,8 +757,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 365,
-      "testFiles": 337,
+      "sourceFiles": 366,
+      "testFiles": 338,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -781,7 +781,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 337
+          "testFiles": 338
         }
       ]
     },
@@ -812,7 +812,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 541,
-      "testFiles": 367,
+      "testFiles": 368,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -835,15 +835,15 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 367
+          "testFiles": 368
         }
       ]
     },
     {
       "name": "@wrongstack/webui-hq",
       "dir": "packages/webui-hq",
-      "sourceFiles": 111,
-      "testFiles": 34,
+      "sourceFiles": 116,
+      "testFiles": 38,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/tools",
@@ -859,7 +859,7 @@
         {
           "path": "packages/webui-hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 34
+          "testFiles": 38
         }
       ]
     },
@@ -2708,6 +2708,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-kanban-command-controller.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-kanban-fanout.test.ts",
         "projects": [
           "root-node"
@@ -2738,6 +2744,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-mobile-visual-smoke.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-password-bootstrap.test.ts",
         "projects": [
           "root-node"
@@ -2763,6 +2775,12 @@
       },
       {
         "file": "packages/cli/tests/hq-preflight-expiry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-public-origin.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15212,6 +15230,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/inspect-overlay.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/interrupt-ladder-window.test.ts",
         "projects": [
           "root-node"
@@ -16767,6 +16791,30 @@
       },
       {
         "file": "packages/webui-hq/tests/mailbox-time.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/mobile-app.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/mobile-kanban.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/mobile-pwa.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/mobile-route.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18417,6 +18465,12 @@
       },
       {
         "file": "packages/webui/tests/components/fallback-editor-inactive.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/fallback-modal.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -20485,6 +20539,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/cli/src/subcommands/handlers/hq.ts",
+      "lines": 845,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/cli/src/subcommands/handlers/providers-models.ts",
       "lines": 800,
       "relativeImports": 5
@@ -20581,7 +20640,7 @@
     },
     {
       "file": "packages/core/src/hq/protocol/core.ts",
-      "lines": 945,
+      "lines": 946,
       "relativeImports": 13
     },
     {
@@ -20636,7 +20695,7 @@
     },
     {
       "file": "packages/kanban/src/manager/assignment.ts",
-      "lines": 991,
+      "lines": 999,
       "relativeImports": 13
     },
     {
@@ -20815,13 +20874,18 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/tui/src/app-action-type.ts",
+      "lines": 801,
+      "relativeImports": 13
+    },
+    {
       "file": "packages/tui/src/app-key-handler.ts",
-      "lines": 1025,
+      "lines": 1043,
       "relativeImports": 18
     },
     {
       "file": "packages/tui/src/app-state.ts",
-      "lines": 982,
+      "lines": 992,
       "relativeImports": 14
     },
     {
@@ -20841,8 +20905,8 @@
     },
     {
       "file": "packages/tui/src/components/history/code-block.tsx",
-      "lines": 854,
-      "relativeImports": 6
+      "lines": 837,
+      "relativeImports": 7
     },
     {
       "file": "packages/tui/src/components/history/utils.tsx",
@@ -20876,7 +20940,7 @@
     },
     {
       "file": "packages/tui/src/input-validation.ts",
-      "lines": 987,
+      "lines": 1013,
       "relativeImports": 13
     },
     {
@@ -21127,6 +21191,11 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/tui/src/app-key-handler.ts",
+      "lines": 1043,
+      "relativeImports": 18
+    },
+    {
       "file": "packages/tui/src/components/sidebar-content.tsx",
       "lines": 1041,
       "relativeImports": 13
@@ -21167,11 +21236,6 @@
       "relativeImports": 17
     },
     {
-      "file": "packages/tui/src/app-key-handler.ts",
-      "lines": 1025,
-      "relativeImports": 18
-    },
-    {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "lines": 1019,
       "relativeImports": 2
@@ -21207,6 +21271,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/tui/src/input-validation.ts",
+      "lines": 1013,
+      "relativeImports": 13
+    },
+    {
       "file": "packages/cli/src/webui-server.ts",
       "lines": 1008,
       "relativeImports": 21
@@ -21237,6 +21306,11 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/kanban/src/manager/assignment.ts",
+      "lines": 999,
+      "relativeImports": 13
+    },
+    {
       "file": "packages/webui/src/stores/fleet-store.ts",
       "lines": 996,
       "relativeImports": 2
@@ -21247,9 +21321,9 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/kanban/src/manager/assignment.ts",
-      "lines": 991,
-      "relativeImports": 13
+      "file": "packages/tui/src/app-state.ts",
+      "lines": 992,
+      "relativeImports": 14
     },
     {
       "file": "packages/tools/src/codebase-index/writer.ts",
@@ -21257,18 +21331,8 @@
       "relativeImports": 24
     },
     {
-      "file": "packages/tui/src/input-validation.ts",
-      "lines": 987,
-      "relativeImports": 13
-    },
-    {
       "file": "packages/tui/src/components/agents-monitor.tsx",
       "lines": 984,
-      "relativeImports": 14
-    },
-    {
-      "file": "packages/tui/src/app-state.ts",
-      "lines": 982,
       "relativeImports": 14
     },
     {
@@ -23702,6 +23766,10 @@
       "name": "applyWashTokens"
     },
     {
+      "file": "packages/tui/src/components/history/copy-icon.ts",
+      "name": "isInspectableEntry"
+    },
+    {
       "file": "packages/tui/src/components/history/replay.ts",
       "name": "replaySessionEvents"
     },
@@ -23712,6 +23780,18 @@
     {
       "file": "packages/tui/src/components/input.tsx",
       "name": "EMPTY_KEY"
+    },
+    {
+      "file": "packages/tui/src/components/inspect-overlay.tsx",
+      "name": "INSPECT_OVERLAY_MIN_ROWS"
+    },
+    {
+      "file": "packages/tui/src/components/inspect-overlay.tsx",
+      "name": "inspectOverlaySize"
+    },
+    {
+      "file": "packages/tui/src/components/inspect-overlay.tsx",
+      "name": "wrapInspectLines"
     },
     {
       "file": "packages/tui/src/components/kanban-panel.tsx",
@@ -24152,6 +24232,26 @@
     {
       "file": "packages/webui-hq/src/domain/use-session-transcript.ts",
       "name": "coalesceStreamedText"
+    },
+    {
+      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
+      "name": "canAssignKanbanTask"
+    },
+    {
+      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
+      "name": "canDispatchKanbanTask"
+    },
+    {
+      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
+      "name": "kanbanTransitionOptions"
+    },
+    {
+      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
+      "name": "mobileKanbanAssignmentTargets"
+    },
+    {
+      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
+      "name": "suggestedKanbanStage"
     },
     {
       "file": "packages/webui-server/src/server/chimera-routes.ts",

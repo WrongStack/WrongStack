@@ -249,6 +249,16 @@ export function routeModalOverlayKey(
   if (state.fallbackOverlay != null || state.rewindOverlay != null) {
     return true;
   }
+  if (state.inspectOverlay != null) {
+    if (key.mouse?.kind === 'wheel') {
+      dispatch({
+        type: 'inspectOverlayScroll',
+        delta: key.mouse.wheel > 0 ? -1 : 1,
+      });
+    }
+    if (key.escape || input === 'q') dispatch({ type: 'inspectOverlayClose' });
+    return true;
+  }
   if (state.helpOpen) {
     if (key.escape || input === '?' || input === 'q') dispatch({ type: 'toggleHelp' });
     return true;

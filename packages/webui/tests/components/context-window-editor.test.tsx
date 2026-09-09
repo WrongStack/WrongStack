@@ -150,6 +150,26 @@ describe('ContextWindowEditor', () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it('traps focus and restores the invoking control after an allowed Escape close', async () => {
+    const onClose = vi.fn();
+    const trigger = document.createElement('button');
+    trigger.textContent = 'Open context editor';
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const { rerender } = render(<ContextWindowEditor open={true} onClose={onClose} />);
+    await act(async () => {});
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    rerender(<ContextWindowEditor open={false} onClose={onClose} />);
+    await act(async () => {});
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it('renders loading state when open with no snapshot', async () => {
     render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
     expect(screen.getByRole('dialog')).toBeTruthy();

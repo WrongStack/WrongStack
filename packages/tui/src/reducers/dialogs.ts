@@ -71,6 +71,9 @@ const dialogActionTypes = [
   'fallbackOverlayOpen',
   'fallbackOverlayMove',
   'fallbackOverlayClose',
+  'inspectOverlayOpen',
+  'inspectOverlayClose',
+  'inspectOverlayScroll',
   'sendModePickerOpen',
   'sendModePickerMove',
   'sendModePickerClose',
@@ -382,6 +385,24 @@ export function reduceDialogs(state: State, action: DialogAction): State {
     }
     case 'fallbackOverlayClose':
       return { ...state, fallbackOverlay: null };
+    case 'inspectOverlayOpen':
+      return {
+        ...state,
+        ...closePanels(state),
+        inspectOverlay: {
+          entryId: action.entryId,
+          ...(action.entryIds && action.entryIds.length > 0 ? { entryIds: action.entryIds } : {}),
+          scroll: 0,
+        },
+      };
+    case 'inspectOverlayClose':
+      return { ...state, inspectOverlay: null };
+    case 'inspectOverlayScroll': {
+      if (!state.inspectOverlay) return state;
+      const next = Math.max(0, state.inspectOverlay.scroll + action.delta);
+      if (next === state.inspectOverlay.scroll) return state;
+      return { ...state, inspectOverlay: { ...state.inspectOverlay, scroll: next } };
+    }
     case 'sendModePickerOpen':
       return { ...state, sendModePicker: action.info };
     case 'sendModePickerMove': {

@@ -1,6 +1,5 @@
 import type React from 'react';
-import { Box, Text } from '../../ink.js';
-import { sanitizeTerminalText } from '../../terminal-width.js';
+import { Box } from '../../ink.js';
 import type { HistoryEntry } from './types.js';
 
 /**
@@ -9,6 +8,33 @@ import type { HistoryEntry } from './types.js';
  * and count the rest; the side panel keeps the full set.
  */
 export const MAX_MEMORY_PROOF_ROWS = 4;
+
+/** Shared open left-rail used by transcript cards (user, thinking, error, …). */
+export function HistoryRail({
+  color,
+  marginY = 0,
+  children,
+}: {
+  color: string;
+  marginY?: number;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <Box
+      flexDirection="column"
+      marginX={0}
+      marginY={marginY}
+      borderStyle="single"
+      borderTop={false}
+      borderRight={false}
+      borderBottom={false}
+      borderColor={color}
+      paddingLeft={1}
+    >
+      {children}
+    </Box>
+  );
+}
 
 /**
  * Render the signed score contributions as `metadata 0.72×0.48 +0.34 │ …`.
@@ -119,11 +145,30 @@ export function memoryLifecycleStyle(
 ): {
   icon: string;
   color: string;
+  title: string;
 } {
-  if (action === 'entered' || action === 'recovered') return { icon: '↳', color: 'green' };
-  if (action === 'exited') return { icon: '↲', color: 'red' };
-  if (action === 'related') return { icon: '◇', color: 'magenta' };
-  return { icon: '•', color: 'cyan' };
+  switch (action) {
+    case 'entered':
+      return { icon: '🧠', color: 'green', title: 'ENTERED' };
+    case 'recovered':
+      return { icon: '↺', color: 'green', title: 'RECOVERED' };
+    case 'exited':
+      return { icon: '⌫', color: 'red', title: 'EXITED' };
+    case 'related':
+      return { icon: '↔', color: 'magenta', title: 'RELATED' };
+    case 'updated':
+      return { icon: '✎', color: 'cyan', title: 'UPDATED' };
+    case 'merged':
+      return { icon: '⋈', color: 'cyan', title: 'MERGED' };
+    case 'superseded':
+      return { icon: '↻', color: 'yellow', title: 'SUPERSEDED' };
+    case 'archived':
+      return { icon: '▣', color: 'cyan', title: 'ARCHIVED' };
+    case 'staled':
+      return { icon: '⧗', color: 'yellow', title: 'STALED' };
+    case 'contradicted':
+      return { icon: '≠', color: 'red', title: 'CONTRADICTED' };
+  }
 }
 
 export function brainRiskColor(risk: Extract<HistoryEntry, { kind: 'brain' }>['risk']): string {
@@ -137,49 +182,4 @@ export function brainRiskColor(risk: Extract<HistoryEntry, { kind: 'brain' }>['r
     case 'critical':
       return 'red';
   }
-}
-
-/**
- * Full-bordered notice card for `warn`/`error` entries. A rounded box with an
- * icon + label header in the accent color and the message body below, wrapped
- * to the terminal width and split across lines so multi-line diagnostics stay
- * readable instead of overflowing a single-line strip. Slash-command output
- * is normalized before it reaches Ink so cursor/control sequences can never
- * paint outside the notice card's measured geometry.
- */
-export function NoticeCard({
-  icon,
-  label,
-  color,
-  text,
-  termWidth,
-}: {
-  icon: string;
-  label: string;
-  color: string;
-  text: string;
-  termWidth: number;
-}): React.ReactElement {
-  // 2 border columns + 2 paddingX columns of chrome.
-  const contentWidth = Math.max(1, termWidth - 4);
-  const lines = sanitizeTerminalText(text).split('\n');
-  return (
-    <Box
-      flexDirection="column"
-      marginX={0}
-      marginY={1}
-      borderStyle="round"
-      borderColor={color}
-      paddingX={1}
-    >
-      <Text bold color={color}>{`${icon} ${label}`}</Text>
-      <Box flexDirection="column" width={contentWidth}>
-        {lines.map((line, i) => (
-          <Text key={i} color={color}>
-            {line.length > 0 ? line : ' '}
-          </Text>
-        ))}
-      </Box>
-    </Box>
-  );
 }

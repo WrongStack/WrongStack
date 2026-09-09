@@ -11,9 +11,9 @@ import { useTheme } from '../ThemeProvider';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { ConnectionsHealthSection } from './ConnectionsHealthSection';
-import { ProviderHealthSection } from './ProviderHealthSection';
 import { PreferenceSelect } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
+import { ProviderHealthSection } from './ProviderHealthSection';
 
 export function ConnectionSettingsTab() {
   const { t } = useAppTranslation();

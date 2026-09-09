@@ -43,9 +43,11 @@ export {
   type CopyHit,
   copyRegistryVisibleClip,
   findCopyHit,
+  findInspectHit,
   LIVE_TOOL_STREAM_COPY_ID,
   liveToolStreamCopyHit,
   resolveCopyPayload,
+  resolveInspectPayload,
   SELECTION_COPY_ID,
 } from './history/copy-geometry.js';
 // ── Re-exports from extracted modules ────────────────────────────────────

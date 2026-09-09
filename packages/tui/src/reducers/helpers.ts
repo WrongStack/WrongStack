@@ -17,6 +17,7 @@ export function startToolStream(state: State, id: string, name: string): State {
 
 type PanelResetState = Pick<
   State,
+  | 'inspectOverlay'
   | 'monitorOpen'
   | 'agentsMonitorOpen'
   | 'helpOpen'
@@ -55,6 +56,7 @@ type PanelResetState = Pick<
 
 export function closePanels(state: State): PanelResetState {
   return {
+    inspectOverlay: null,
     monitorOpen: false,
     agentsMonitorOpen: false,
     helpOpen: false,

@@ -53,6 +53,10 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
+      // Foreground components (notably Radix Dialog) must settle their own
+      // keyboard events before app-wide shortcuts consider them. This keeps
+      // Escape from both dismissing a modal and aborting an active run.
+      if (e.defaultPrevented) return;
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName?.toLowerCase();
       const inField = tag === 'input' || tag === 'textarea' || t?.isContentEditable;
@@ -281,8 +285,18 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
           ui.shortcutsOpen ||
           ui.modelSwitcherOpen ||
           ui.promptLibraryOpen;
+        // Some modal hosts are intentionally outside ui-store. A visible
+        // modal owns Escape; non-modal overlay owners opt in explicitly.
+        const foregroundEscapeOwner = document.querySelector(
+          '[role="dialog"][aria-modal="true"], [data-escape-owns="true"]',
+        );
         const focusedBubble = document.querySelector('[data-message-id][data-focused="true"]');
-        if (!overlayOpen && !focusedBubble && useChatStore.getState().isLoading) {
+        if (
+          !overlayOpen &&
+          !foregroundEscapeOwner &&
+          !focusedBubble &&
+          useChatStore.getState().isLoading
+        ) {
           getWSClient(useConfigStore.getState().wsUrl).sendAbort();
         }
       }

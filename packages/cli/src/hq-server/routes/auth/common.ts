@@ -12,7 +12,10 @@ export const HQ_AUTH_ADMIN_CAPABILITY = 'auth.admin';
 
 export function callerCanAdministerAuth(auth: HqBrowserAuthResult): boolean {
   if (auth === undefined) return false;
-  if (auth.kind === 'cookie' && auth.tokenId === undefined) return true;
+  // Full desktop password sessions and legacy unrestricted tokens carry no
+  // capability list. Mobile password sessions deliberately do, despite also
+  // having no tokenId, so capability presence must take precedence over the
+  // old "password cookie means admin" shortcut.
   if (auth.capabilities === undefined) return true;
   return auth.capabilities.includes(HQ_AUTH_ADMIN_CAPABILITY);
 }

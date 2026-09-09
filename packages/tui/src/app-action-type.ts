@@ -95,6 +95,13 @@ export type Action =
   | { type: 'hint'; text: string }
   | { type: 'copiedNotice'; text: string; entryId: number | null }
   | {
+      type: 'inspectOverlayOpen';
+      entryId: number;
+      entryIds?: readonly number[] | undefined;
+    }
+  | { type: 'inspectOverlayClose' }
+  | { type: 'inspectOverlayScroll'; delta: number }
+  | {
       type: 'brainStatus';
       state: State['brain']['state'];
       source?: string | undefined;

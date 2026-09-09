@@ -21,6 +21,7 @@ import {
   truncateDisplay,
 } from '../../terminal-width.js';
 import { theme } from '../../theme.js';
+import { HistoryRail } from './entry-helpers.js';
 import {
   collectMultiFileDiffItems,
   countUnifiedDiffChanges,
@@ -145,16 +146,7 @@ function CodeBlockImpl({
   const hidden = Math.max(0, lines.length - MAX_CODE_LINES);
   if (hidden > 0) lines = lines.slice(0, MAX_CODE_LINES);
   const gutterW = String(lines.length).length;
-  // Pin the box to a deterministic width instead of letting Ink stretch it.
-  // The box carries marginLeft 2 + round border (1 each side) + paddingX 1 each
-  // side. Yoga's stretch does NOT subtract this marginLeft from the stretched
-  // width, so the box would grow `contentWidth` wide and then sit 2 cols past
-  // its container — the right border wraps to the next line's left edge (the
-  // "boxes overflow / extra chars on the next line" bug). An explicit width
-  // makes the box exactly fill the panel's inner area (100%) and never wrap.
-  const boxWidth = Math.max(1, contentWidth - 2);
-  // Text area inside the frame: box width − border(2) − paddingX(2) − gutter.
-  const maxW = Math.max(1, Math.min(boxWidth - 4 - gutterW - 1, 120));
+  const maxW = Math.max(1, Math.min(contentWidth - 4 - gutterW - 1, 120));
   let carry: HLState = {};
   const rows = lines.map((raw) => {
     // Expand hard tabs before measuring/truncating so a tab-indented line
@@ -166,16 +158,7 @@ function CodeBlockImpl({
     return r.tokens;
   });
   return (
-    <Box
-      flexDirection="column"
-      width={boxWidth}
-      flexShrink={0}
-      marginLeft={2}
-      marginY={0}
-      borderStyle="round"
-      borderColor={theme.borderDefault}
-      paddingX={1}
-    >
+    <HistoryRail color={theme.borderDefault}>
       {lang !== 'plain' ? <Text dimColor>{lang}</Text> : null}
       {rows.map((tokens, i) => (
         <Text key={i}>
@@ -197,7 +180,7 @@ function CodeBlockImpl({
       {hidden > 0 ? (
         <Text dimColor italic>{`… +${hidden} more line${hidden === 1 ? '' : 's'}`}</Text>
       ) : null}
-    </Box>
+    </HistoryRail>
   );
 }
 
@@ -333,7 +316,7 @@ export function DiffFileBlock({
     <Box flexDirection="column" marginTop={1}>
       <Box flexDirection="row" marginBottom={0}>
         <Text bold color={theme.accent}>
-          {`📄 ${path}`}
+          {`▸ ${path}`}
         </Text>
         {preview.added > 0 || preview.removed > 0 ? (
           <Text dimColor>

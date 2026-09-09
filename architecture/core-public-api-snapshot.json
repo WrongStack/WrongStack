@@ -1432,7 +1432,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 187,
-      "sourceLines": 53155
+      "sourceLines": 53160
     },
     {
       "directory": "core",
@@ -1481,7 +1481,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 49,
-      "sourceLines": 9401
+      "sourceLines": 9510
     },
     {
       "directory": "infrastructure",

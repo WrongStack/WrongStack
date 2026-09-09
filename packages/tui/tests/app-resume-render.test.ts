@@ -179,7 +179,7 @@ describe('Issue 005 — resumed history rendering', () => {
 
     const frame = lastFrame() ?? '';
     expect(frame).toContain('USER');
-    expect(frame).toContain('ASSISTANT');
+    expect(frame).not.toContain('ASSISTANT');
     expect(frame).toContain('restore this question');
     expect(frame).toContain('restored answer text');
 

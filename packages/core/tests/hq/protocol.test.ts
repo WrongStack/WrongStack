@@ -198,6 +198,15 @@ describe('parseHqFrame', () => {
     expect(result.frame.payload.capabilities).toContain('mailbox.serve');
   });
 
+  it('accepts a client that explicitly advertises Kanban dispatch', () => {
+    const frame = structuredClone(validHello);
+    frame.payload.capabilities = ['telemetry.publish', 'control.receive', 'kanban.dispatch'];
+    const result = parseHqFrame(JSON.stringify(frame));
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.frame.type !== 'client.hello') return;
+    expect(result.frame.payload.capabilities).toContain('kanban.dispatch');
+  });
+
   it('parses a valid client.event frame with the embedded HqEventEnvelope', () => {
     const event = {
       type: 'client.event',

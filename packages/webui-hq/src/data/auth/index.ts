@@ -2,6 +2,7 @@
 export {
   exchangeBootstrapIfNeeded,
   type HqTokenLoginResult,
+  hasAuthenticatedHqBrowserSession,
   loginWithHqToken,
   upgradeStoredTokenToCookie,
 } from './session.js';

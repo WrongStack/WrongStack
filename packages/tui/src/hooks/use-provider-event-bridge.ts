@@ -348,23 +348,21 @@ export function useProviderEventBridge({
     // Fallback hop — the chain rotated to a working model after the primary's
     // retries were exhausted. Surface which model is now answering.
     const offFallback = events.on('provider.fallback', (e) => {
-      const fallbackEvent = e as typeof e & {
-        contextWindowWarning?:
-          | { fromMaxContext: number; toMaxContext: number; currentTokens?: number | undefined }
-          | undefined;
-      };
-      const contextWarning = fallbackEvent.contextWindowWarning
-        ? `\n⚠ smaller context window: ${fallbackEvent.contextWindowWarning.fromMaxContext.toLocaleString('en-US')} → ${fallbackEvent.contextWindowWarning.toMaxContext.toLocaleString('en-US')} tokens${
-            fallbackEvent.contextWindowWarning.currentTokens
-              ? `; current request ≈ ${fallbackEvent.contextWindowWarning.currentTokens.toLocaleString('en-US')} tokens (${fmtRatioPct(fallbackEvent.contextWindowWarning.currentTokens / fallbackEvent.contextWindowWarning.toMaxContext)} of new window)`
-              : ''
-          }`
-        : '';
+      const warning = e.contextWindowWarning;
       dispatch({
         type: 'addEntry',
         entry: {
-          kind: 'warn',
-          text: `↻ rate-limited (${e.status}) — switched to ${e.to.providerId}/${e.to.model}${contextWarning}`,
+          kind: 'model-switch',
+          cause: 'fallback',
+          fromProvider: e.from.providerId,
+          fromModel: e.from.model,
+          toProvider: e.to.providerId,
+          toModel: e.to.model,
+          fromContext: warning?.fromMaxContext,
+          toContext: warning?.toMaxContext,
+          requestTokens: warning?.currentTokens,
+          runActive: true,
+          status: e.status,
         },
       });
     });

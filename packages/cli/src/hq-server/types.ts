@@ -141,7 +141,8 @@ export interface HqRouterMutableAuth {
 /**
  * Session record stored in the server-side `sessions` Map.
  *
- * - `kind: 'password'` — created by `/api/login`; full browser access.
+ * - `kind: 'password'` — created by `/api/login`; full browser access unless
+ *   the dedicated mobile endpoint stamped a least-privilege capability set.
  * - `kind: 'token'` — created by `/api/auth/bootstrap`; scoped to the
  *   originating browser token's ID and capabilities so revocation/expiry
  *   of that token invalidates the session too.
@@ -151,7 +152,7 @@ export interface HqSessionEntry {
   readonly kind: 'password' | 'token';
   /** For token sessions: the browser-token ID this session was minted from. */
   readonly tokenId?: string | undefined;
-  /** For token sessions: capabilities inherited from the source token. */
+  /** Token capabilities, or a server-stamped scope for a mobile password session. */
   readonly capabilities?: string[] | undefined;
   /**
    * Set when a password login passed but 2FA verification is still pending.

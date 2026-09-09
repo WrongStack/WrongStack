@@ -2,7 +2,7 @@ import type { EntryHeightCache } from '../../height-cache.js';
 import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import type { CopyHit } from './copy-geometry.js';
 import { copyRegistryVisibleClip, liveToolStreamCopyHit } from './copy-geometry.js';
-import { isCopyableEntry } from './copy-icon.js';
+import { INSPECT_COL_OFFSET, isCopyableEntry } from './copy-icon.js';
 import { type RenderGroup, renderGroupId } from './tool-group.js';
 
 interface CopyRegistry {
@@ -80,10 +80,11 @@ export function buildCopyRegistry(opts: {
       iconCol: opts.iconCol,
       ...(toolEntryIds.length > 0
         ? {
+            inspectCol: opts.iconCol + INSPECT_COL_OFFSET,
             toolEntryIds,
             toolViewMode: opts.viewModeForEntry?.(toolEntryIds[0]!) ?? 'normal',
-            lessCol: 3,
-            moreCol: 6,
+            lessCol: 2,
+            moreCol: 5,
           }
         : {}),
     });

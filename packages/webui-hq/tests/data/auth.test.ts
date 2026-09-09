@@ -14,6 +14,7 @@ import {
   clearHqToken,
   exchangeBootstrapIfNeeded,
   HQ_TOKEN_STORAGE_KEY,
+  hasAuthenticatedHqBrowserSession,
   loginWithHqToken,
   normalizeHqTokenInput,
   resolveHqToken,
@@ -462,5 +463,78 @@ describe('upgradeStoredTokenToCookie (WS-065)', () => {
     setUrl('/');
     expect(resolveHqToken()).toBe('tok-legacy');
     expect(authHeaders()).toEqual({ Authorization: 'Bearer tok-legacy' });
+  });
+});
+
+describe('hasAuthenticatedHqBrowserSession', () => {
+  it('accepts only an explicit logged-in auth status', async () => {
+    setHqToken('browser-token');
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ loggedIn: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(hasAuthenticatedHqBrowserSession()).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/status',
+      expect.objectContaining({
+        credentials: 'same-origin',
+        headers: { Authorization: 'Bearer browser-token' },
+      }),
+    );
+  });
+
+  it('keeps the data plane closed before password login', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ loggedIn: false, passwordMode: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ),
+      ),
+    );
+
+    await expect(hasAuthenticatedHqBrowserSession()).resolves.toBe(false);
+  });
+
+  it('requires a password-origin session for the mobile surface', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ loggedIn: true, passwordMode: true, authKind: 'token' })),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ loggedIn: true, passwordMode: true, authKind: 'password' }),
+          ),
+        ),
+    );
+
+    await expect(hasAuthenticatedHqBrowserSession({ passwordOnly: true })).resolves.toBe(false);
+    await expect(hasAuthenticatedHqBrowserSession({ passwordOnly: true })).resolves.toBe(true);
+  });
+
+  it('fails closed when auth status is unavailable or malformed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new Error('offline'))),
+    );
+    await expect(hasAuthenticatedHqBrowserSession()).resolves.toBe(false);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response('not-json'))),
+    );
+    await expect(hasAuthenticatedHqBrowserSession()).resolves.toBe(false);
   });
 });

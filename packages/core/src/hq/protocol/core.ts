@@ -156,6 +156,7 @@ const HQ_CLIENT_CAPABILITIES = new Set<HqClientCapability>([
   'mailbox.summary',
   'mailbox.serve',
   'control.receive',
+  'kanban.dispatch',
 ]);
 const HQ_COMMAND_ACK_STATUSES = new Set<HqClientCommandAckMessage['status']>([
   'accepted',

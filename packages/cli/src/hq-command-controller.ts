@@ -6,8 +6,9 @@
  * (`director`, the rebound `interruptLeader`) are not yet defined at HQ-connect
  * time.
  *
- * The five command types route through the agent's own decision loop or the
- * project mailbox, so they inherit existing guardrails. `run-command` (raw
+ * Conversational commands route through the agent's own decision loop or the
+ * project mailbox; Kanban commands route through its project IPC owner, so
+ * both inherit existing guardrails. `run-command` (raw
  * shell) is deliberately NOT wired here — it requires a separately-audited
  * escalation policy (operator flag + per-token `control.execute` + allowlist)
  * and is left as a stub that rejects until that policy exists.
@@ -74,6 +75,81 @@ export interface HqCommandController {
   ownsSession?: ((sessionId: string) => boolean) | undefined;
   /** Whether raw shell execution is explicitly opted-in by the operator. */
   allowRunCommand: () => boolean;
+  /** Apply a lifecycle transition through the project's Kanban IPC client. */
+  kanbanTransition?:
+    | ((input: {
+        boardId: string;
+        taskId: string;
+        to: 'backlog' | 'todo' | 'running' | 'review' | 'done';
+        comment: string;
+        sessionId?: string | undefined;
+      }) => Promise<string>)
+    | undefined;
+  /** Assign a card through the project owner while preserving active leases. */
+  kanbanAssign?:
+    | ((input: {
+        boardId: string;
+        taskId: string;
+        agentId: string;
+        assignee: string;
+        comment: string;
+        sessionId?: string | undefined;
+      }) => Promise<string>)
+    | undefined;
+  /** Claim and dispatch one ready card through this host's canonical Director path. */
+  kanbanDispatch?:
+    | ((input: {
+        boardId: string;
+        taskId: string;
+        comment: string;
+        sessionId?: string | undefined;
+      }) => Promise<string>)
+    | undefined;
+}
+
+/** Bind HQ transitions to the same project-scoped IPC path every other client uses. */
+export function createProjectKanbanTransitionHandler(
+  projectRoot: string,
+): NonNullable<HqCommandController['kanbanTransition']> {
+  return async (input) => {
+    const { transitionTask } = await import('@wrongstack/kanban');
+    const result = await transitionTask(projectRoot, input.boardId, input.taskId, {
+      to: input.to,
+      actor: 'hq-operator',
+      comment: input.comment,
+      sessionId: input.sessionId ?? 'hq-mobile',
+    });
+    if (result === null) throw new Error(`kanban task not found: ${input.taskId}`);
+    return `task ${input.taskId} transitioned to ${input.to}`;
+  };
+}
+
+/** Bind guarded HQ assignment to the canonical project-scoped Kanban owner. */
+export function createProjectKanbanAssignHandler(
+  projectRoot: string,
+): NonNullable<HqCommandController['kanbanAssign']> {
+  return async (input) => {
+    const { assignTask } = await import('@wrongstack/kanban');
+    const result = await assignTask(
+      projectRoot,
+      input.boardId,
+      input.taskId,
+      {
+        agentId: input.agentId,
+        name: input.assignee,
+        assignee: input.assignee,
+        status: 'assigned',
+        protectActiveAssignment: true,
+      },
+      {
+        actor: 'hq-operator',
+        note: input.comment,
+        sessionId: input.sessionId ?? 'hq-mobile',
+      },
+    );
+    if (result === null) throw new Error(`kanban task not found: ${input.taskId}`);
+    return `task ${input.taskId} assigned to ${input.assignee}`;
+  };
 }
 
 /**
@@ -306,6 +382,48 @@ async function dispatch(
       }
       const subagentId = await controller.spawnAgent(role, task, maxIterations, sessionId);
       return { commandId, status: 'completed', message: `spawned ${subagentId}` };
+    }
+
+    case 'kanban-transition': {
+      if (controller.kanbanTransition === undefined) {
+        return { commandId, status: 'rejected', message: 'kanban control is unavailable' };
+      }
+      const message = await controller.kanbanTransition({
+        boardId: payload['boardId'] as string,
+        taskId: payload['taskId'] as string,
+        to: payload['to'] as 'backlog' | 'todo' | 'running' | 'review' | 'done',
+        comment: payload['comment'] as string,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+      });
+      return { commandId, status: 'completed', message };
+    }
+
+    case 'kanban-assign': {
+      if (controller.kanbanAssign === undefined) {
+        return { commandId, status: 'rejected', message: 'kanban assignment is unavailable' };
+      }
+      const message = await controller.kanbanAssign({
+        boardId: payload['boardId'] as string,
+        taskId: payload['taskId'] as string,
+        agentId: payload['agentId'] as string,
+        assignee: payload['assignee'] as string,
+        comment: payload['comment'] as string,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+      });
+      return { commandId, status: 'completed', message };
+    }
+
+    case 'kanban-dispatch': {
+      if (controller.kanbanDispatch === undefined) {
+        return { commandId, status: 'rejected', message: 'kanban dispatch is unavailable' };
+      }
+      const message = await controller.kanbanDispatch({
+        boardId: payload['boardId'] as string,
+        taskId: payload['taskId'] as string,
+        comment: payload['comment'] as string,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+      });
+      return { commandId, status: 'completed', message };
     }
 
     case 'run-command': {

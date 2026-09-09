@@ -35,6 +35,11 @@ interface EscCloseEntry {
 }
 
 export const ESC_CLOSE_PANELS: readonly EscCloseEntry[] = [
+  {
+    name: 'inspectOverlay',
+    isOpen: (s) => s.inspectOverlay != null,
+    close: { type: 'inspectOverlayClose' },
+  },
   // Fullscreen monitors first — they hide the chat behind them.
   {
     name: 'agentsMonitor',

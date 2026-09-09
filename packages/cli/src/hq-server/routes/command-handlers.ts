@@ -97,6 +97,21 @@ export async function handleApiCommand(
 
   if (
     validated.type === 'run-command' &&
+    isCookieAuth(auth) &&
+    auth.capabilities !== undefined &&
+    !auth.capabilities.includes('control.execute')
+  ) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: 'forbidden: browser session lacks control.execute capability',
+      }),
+    );
+    return;
+  }
+
+  if (
+    validated.type === 'run-command' &&
     !tokenHasCapability(target.authToken, 'control.execute')
   ) {
     res.writeHead(403, { 'Content-Type': 'application/json' });

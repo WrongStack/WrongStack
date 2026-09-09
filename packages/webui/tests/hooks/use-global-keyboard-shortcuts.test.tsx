@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSystemPromptStore } from '../../src/stores/system-prompt-store.js';
 
 // ── module stubs ────────────────────────────────────────────────────────────
@@ -440,6 +440,31 @@ describe('useGlobalKeyboardShortcuts', () => {
       mount();
       press('Escape');
       expect(wsClient.sendAbort).toHaveBeenCalled();
+    });
+
+    it('does not abort when a foreground modal owns Escape', () => {
+      useChatStore.setState({ isLoading: true } as never);
+      const modal = document.createElement('div');
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      document.body.appendChild(modal);
+      mount();
+
+      press('Escape', {}, modal);
+
+      expect(wsClient.sendAbort).not.toHaveBeenCalled();
+    });
+
+    it('does not abort when a non-modal overlay explicitly owns Escape', () => {
+      useChatStore.setState({ isLoading: true } as never);
+      const inspector = document.createElement('aside');
+      inspector.dataset.escapeOwns = 'true';
+      document.body.appendChild(inspector);
+      mount();
+
+      press('Escape', {}, inspector);
+
+      expect(wsClient.sendAbort).not.toHaveBeenCalled();
     });
 
     it('does not abort when no run is in flight', () => {

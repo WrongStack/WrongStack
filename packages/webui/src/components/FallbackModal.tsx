@@ -7,6 +7,7 @@
  * view is active, ensuring the user sees every model switch.
  */
 import { useEffect, useRef, useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { getWSClient } from '@/lib/ws-client';
 import { resolvePendingFallback } from '@/stores/chat-lanes';
 import { useFallbackStore } from '@/stores/fallback-store';
@@ -19,12 +20,21 @@ export function FallbackModal() {
 
   const [remaining, setRemaining] = useState(0);
   const resolvedRef = useRef(false);
+  // This state-controlled dialog has no Radix trigger, so retain its opener
+  // explicitly and return focus once the pending fallback is resolved.
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
   // Track the live `selected` index so the countdown expiry closure
   // reads the current value, not the stale mount-time snapshot.
   const selectedRef = useRef(selected);
   useEffect(() => {
     selectedRef.current = selected;
   }, [selected]);
+
+  useEffect(() => {
+    if (pending || !restoreFocusRef.current?.isConnected) return;
+    restoreFocusRef.current.focus();
+    restoreFocusRef.current = null;
+  }, [pending]);
 
   // Reset countdown when a new pending event arrives.
   useEffect(() => {
@@ -57,98 +67,111 @@ export function FallbackModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending?.requestId]);
 
-  // Keyboard navigation.
-  useEffect(() => {
-    if (!pending) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (resolvedRef.current) return;
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        move(-1);
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        move(1);
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        resolvedRef.current = true;
-        const chosen = pending.candidates[selectedRef.current] ?? null;
-        sendChoice(pending.requestId, chosen);
-        clear();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        resolvedRef.current = true;
-        // Esc = accept auto-switch (null → chain head).
-        sendChoice(pending.requestId, null);
-        clear();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending?.requestId, selected]);
+  const resolve = (choice: { providerId: string; model: string } | null) => {
+    if (!pending || resolvedRef.current) return;
+    resolvedRef.current = true;
+    sendChoice(pending.requestId, choice);
+    clear();
+  };
 
-  if (!pending) return null;
-
-  const fromLabel = `${pending.from.providerId}/${pending.from.model}`;
+  const fromLabel = pending ? `${pending.from.providerId}/${pending.from.model}` : '';
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Model fallback"
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60"
+    <Dialog
+      open={pending !== null}
+      onOpenChange={(nextOpen) => {
+        // Preserve the previous contract: pointer dismissal does nothing, and
+        // the only explicit dismiss path (Escape) chooses the auto fallback.
+        if (!nextOpen) resolve(null);
+      }}
     >
-      <div className="w-full max-w-md rounded-xl border border-warning/50 bg-card p-5 shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-warning">⚠ MODEL FALLBACK</h2>
-          <span className="text-xs text-warning">{remaining}s</span>
-        </div>
+      {pending ? (
+        <DialogContent
+          showCloseButton={false}
+          className="max-w-md gap-0 overflow-hidden border-warning/50 p-5"
+          onOpenAutoFocus={() => {
+            const activeElement = document.activeElement;
+            restoreFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            const restoreTarget = restoreFocusRef.current;
+            if (!restoreTarget?.isConnected) return;
+            event.preventDefault();
+            restoreTarget.focus();
+          }}
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => {
+            event.preventDefault();
+            resolve(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              move(-1);
+            } else if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              move(1);
+            } else if (event.key === 'Enter') {
+              event.preventDefault();
+              resolve(pending.candidates[selectedRef.current] ?? null);
+            }
+          }}
+        >
+          <DialogTitle className="text-sm font-bold text-warning">⚠ MODEL FALLBACK</DialogTitle>
+          <DialogDescription className="sr-only">
+            Choose a fallback model or wait for the automatic switch.
+          </DialogDescription>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <span aria-hidden="true" />
+            <span className="text-xs text-warning">{remaining}s</span>
+          </div>
 
-        {/* Failed model */}
-        <p className="mt-2 text-xs text-muted-foreground">
-          <span className="font-mono text-card-foreground">{fromLabel}</span> returned{' '}
-          <span className="font-mono text-warning">{pending.status}</span>
-        </p>
-
-        {/* Candidate list */}
-        <div className="mt-4 space-y-1">
-          <p className="text-xs text-muted-foreground">
-            Select a fallback model (↑/↓ to move, Enter to pick, Esc for auto):
+          {/* Failed model */}
+          <p className="mt-2 text-xs text-muted-foreground">
+            <span className="font-mono text-card-foreground">{fromLabel}</span> returned{' '}
+            <span className="font-mono text-warning">{pending.status}</span>
           </p>
-          {pending.candidates.map((c, i) => {
-            const isSel = i === selected;
-            const label = `${c.providerId}/${c.model}`;
-            return (
-              <button
-                key={`fb-${i}`}
-                type="button"
-                onClick={() => {
-                  if (resolvedRef.current) return;
-                  resolvedRef.current = true;
-                  sendChoice(pending.requestId, c);
-                  clear();
-                }}
-                onMouseEnter={() => useFallbackStore.getState().setSelected(i)}
-                className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors ${
-                  isSel
-                    ? 'bg-warning/15 text-card-foreground ring-1 ring-warning/50'
-                    : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                <span className={isSel ? 'text-warning' : 'text-transparent'}>▸</span>
-                <span className="font-mono">{label}</span>
-              </button>
-            );
-          })}
-        </div>
 
-        {/* Footer */}
-        <p className="mt-4 text-[10px] text-muted-foreground">
-          Enter picks · Esc auto-switches · countdown picks highlighted entry
-        </p>
-      </div>
-    </div>
+          {/* Candidate list */}
+          <div className="mt-4 space-y-1">
+            <p className="text-xs text-muted-foreground">
+              Select a fallback model (↑/↓ to move, Enter to pick, Esc for auto):
+            </p>
+            {pending.candidates.map((c, i) => {
+              const isSel = i === selected;
+              const label = `${c.providerId}/${c.model}`;
+              return (
+                <button
+                  key={`fb-${i}`}
+                  type="button"
+                  onClick={() => {
+                    if (resolvedRef.current) return;
+                    resolvedRef.current = true;
+                    sendChoice(pending.requestId, c);
+                    clear();
+                  }}
+                  onMouseEnter={() => useFallbackStore.getState().setSelected(i)}
+                  className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors ${
+                    isSel
+                      ? 'bg-warning/15 text-card-foreground ring-1 ring-warning/50'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <span className={isSel ? 'text-warning' : 'text-transparent'}>▸</span>
+                  <span className="font-mono">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <p className="mt-4 text-[10px] text-muted-foreground">
+            Enter picks · Esc auto-switches · countdown picks highlighted entry
+          </p>
+        </DialogContent>
+      ) : null}
+    </Dialog>
   );
 }
 

@@ -22,15 +22,16 @@ export function memoryLifecycleEntry(
 ): MemoryLifecycleEntryData | null {
   const memoryId = stringValue(payload.memoryId);
   if (event === 'memory.accepted' && memoryId) {
-    return { action: 'entered', label: `${memoryId} entered`, detail: health(payload) };
+    // Title already reads ENTERED — keep the body as the id + health chips.
+    return { action: 'entered', label: memoryId, detail: health(payload) };
   }
   if (event === 'memory.merged' && memoryId) {
-    return { action: 'merged', label: `${memoryId} merged` };
+    return { action: 'merged', label: memoryId };
   }
   if (event === 'memory.recovered' && memoryId) {
     return {
       action: 'recovered',
-      label: `${memoryId} recovered`,
+      label: memoryId,
       detail: stringValue(payload.reason),
     };
   }
@@ -38,7 +39,7 @@ export function memoryLifecycleEntry(
     const removed = numberValue(payload.removedEdges);
     return {
       action: 'exited',
-      label: `${memoryId} exited`,
+      label: memoryId,
       detail:
         [
           stringValue(payload.reason),
@@ -84,28 +85,28 @@ export function memoryLifecycleEntry(
   if (event === 'memory.superseded' && memoryId) {
     return {
       action: 'superseded',
-      label: `${memoryId} → superseded`,
+      label: memoryId,
       detail: stringValue(payload.reason) ?? health(payload),
     };
   }
   if (event === 'memory.archived' && memoryId) {
     return {
       action: 'archived',
-      label: `${memoryId} → archived`,
+      label: memoryId,
       detail: stringValue(payload.reason),
     };
   }
   if (event === 'memory.staled' && memoryId) {
     return {
       action: 'staled',
-      label: `${memoryId} → staled`,
+      label: memoryId,
       detail: stringValue(payload.reason) ?? 'anchor drift detected',
     };
   }
   if (event === 'memory.contradicted' && memoryId) {
     return {
       action: 'contradicted',
-      label: `${memoryId} → contradicted`,
+      label: memoryId,
       detail: stringValue(payload.reason) ?? 'conflicting evidence',
     };
   }

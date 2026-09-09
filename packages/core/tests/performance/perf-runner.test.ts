@@ -64,6 +64,12 @@ describe('metric extractors', () => {
     );
   });
 
+  it('rejects malformed array-index segments instead of truncating them', () => {
+    const out = output({ stdout: '{"rows":[{"ms":1},{"ms":2}]}' });
+    expect(jsonPathExtractor('rows.1x.ms')(out)).toBeUndefined();
+    expect(jsonPathExtractor('rows.01.ms')(out)).toBeUndefined();
+  });
+
   it('returns undefined for a path that lands on a non-number', () => {
     expect(jsonPathExtractor('a.b')(output({ stdout: '{"a":{"b":"fast"}}' }))).toBeUndefined();
     expect(jsonPathExtractor('a.z')(output({ stdout: '{"a":{"b":1}}' }))).toBeUndefined();

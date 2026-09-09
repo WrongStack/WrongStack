@@ -8,9 +8,10 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { fmtTok } from '@/components/ChatView/utils';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useLiveContextDebug } from '@/hooks/useLiveContextDebug';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -56,6 +57,21 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
     })),
   );
   const { t } = useAppTranslation();
+  // This modal is controlled by a store-backed boolean rather than a Radix
+  // trigger, so retain the invoking element explicitly for focus restoration.
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement) {
+        restoreFocusRef.current = activeElement;
+      }
+    } else if (restoreFocusRef.current?.isConnected) {
+      restoreFocusRef.current.focus();
+      restoreFocusRef.current = null;
+    }
+  }, [open]);
 
   // Subscribe-and-poll the server's `context.debug` payload for the
   // lifetime of the open modal. The hook owns the WS subscription,
@@ -64,28 +80,6 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
   // useSessionStore (the /stats slash command and provider.response
   // events keep those store fields fresh).
   const { data, loading, error, refresh } = useLiveContextDebug(wsUrl, { active: open });
-
-  const [animateIn, setAnimateIn] = useState(false);
-
-  // Stagger entrance animation only on the open transition, not on a
-  // refresh that bumps the hook's internal generation counter.
-  useEffect(() => {
-    if (!open) {
-      setAnimateIn(false);
-      return;
-    }
-    requestAnimationFrame(() => requestAnimationFrame(() => setAnimateIn(true)));
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   // ── Category tokens for the composition ring ──
   const categories = useMemo(() => {
@@ -168,37 +162,38 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
       </section>
     ) : null;
 
-  if (!open) return null;
-
   const ctxPct =
     maxContext > 0 && lastInputTokens > 0
       ? Math.min(100, Math.round((lastInputTokens / maxContext) * 100))
       : 0;
 
   return (
-    <div
-      className={cn(
-        'fixed inset-0 z-50 flex items-start justify-center pt-[6dvh] bg-black/40 backdrop-blur-sm transition-opacity duration-300',
-        animateIn ? 'opacity-100' : 'opacity-0',
-      )}
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('activity:context.title')}
-        className={cn(
-          'w-full max-w-3xl max-h-[85dvh] overflow-hidden rounded-xl border bg-card shadow-2xl',
-          'flex flex-col',
-          'transition-all duration-300',
-          animateIn ? 'translate-y-0 scale-100' : 'translate-y-4 scale-[0.97]',
-        )}
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[85dvh] max-w-3xl flex flex-col gap-0 overflow-hidden p-0"
+        onOpenAutoFocus={() => {
+          const activeElement = document.activeElement;
+          restoreFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          const restoreTarget = restoreFocusRef.current;
+          if (!restoreTarget?.isConnected) return;
+          event.preventDefault();
+          restoreTarget.focus();
+        }}
       >
         {/* ── Header ── */}
         <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
             <BarChart3 className="h-4 w-4 text-primary" />
             {t('activity:context.title')}
-          </h3>
+          </DialogTitle>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -519,8 +514,8 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
             ) : null}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -69,6 +69,7 @@ export async function handleApiLogin(
   loginAttempts: LoginAttemptStore,
   secureCookies: boolean | undefined,
   trustedProxyHops: number,
+  sessionCapabilities?: string[],
 ): Promise<void> {
   if (!mutableAuth.passwordHash) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -140,6 +141,7 @@ export async function handleApiLogin(
       kind: 'password',
       pending2fa: true,
       lastSeenAt: Date.now(),
+      ...(sessionCapabilities !== undefined ? { capabilities: sessionCapabilities } : {}),
     });
     setHqSessionCookie(
       res,
@@ -153,7 +155,12 @@ export async function handleApiLogin(
 
   loginAttempts.clearOnSuccess(clientIp, body.password);
   const sessionId = randomUUID();
-  sessions.set(sessionId, { createdAt: Date.now(), kind: 'password', lastSeenAt: Date.now() });
+  sessions.set(sessionId, {
+    createdAt: Date.now(),
+    kind: 'password',
+    lastSeenAt: Date.now(),
+    ...(sessionCapabilities !== undefined ? { capabilities: sessionCapabilities } : {}),
+  });
   setHqSessionCookie(
     res,
     serializeHqSessionCookie(sessionId, mutableAuth.cookieSecret),

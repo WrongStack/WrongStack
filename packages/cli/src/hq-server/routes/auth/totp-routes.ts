@@ -149,6 +149,7 @@ export async function handleApiLoginVerify(
       createdAt: Date.now(),
       kind: 'password',
       lastSeenAt: Date.now(),
+      ...(session.capabilities !== undefined ? { capabilities: session.capabilities } : {}),
     });
     setHqSessionCookie(
       res,
@@ -228,6 +229,7 @@ export async function handleApiLoginVerify(
       createdAt: Date.now(),
       kind: 'password',
       lastSeenAt: Date.now(),
+      ...(session.capabilities !== undefined ? { capabilities: session.capabilities } : {}),
     });
     setHqSessionCookie(
       res,

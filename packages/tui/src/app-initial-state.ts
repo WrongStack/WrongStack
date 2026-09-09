@@ -213,6 +213,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     hint: '',
     copiedNotice: '',
     copiedEntryId: null,
+    inspectOverlay: null,
     toolResultViewOverrides: new Map(),
     brain: { state: 'idle' },
     brainPrompt: null,

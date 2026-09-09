@@ -54,6 +54,12 @@ function assetPath(
   return value as string;
 }
 
+function lazyChunkPath(script: string, name: 'app-shell' | 'mobile-app'): string {
+  const match = script.match(new RegExp(`${name}-[A-Za-z0-9_-]+\\.js`));
+  expect(match?.[0]).toBeTruthy();
+  return `/assets/${match![0]}`;
+}
+
 describe('HQ React dashboard delivery', () => {
   it('serves a local, split React shell with no CDN dependency', async () => {
     handle = await startServer();
@@ -83,11 +89,19 @@ describe('HQ React dashboard delivery', () => {
       fetch(`http://127.0.0.1:${handle.port}${stylePath}`),
     ]);
     const [script, style] = await Promise.all([scriptResponse.text(), styleResponse.text()]);
+    const desktopChunkPath = lazyChunkPath(script, 'app-shell');
+    const mobileChunkPath = lazyChunkPath(script, 'mobile-app');
+    const [desktopChunk, mobileChunk] = await Promise.all([
+      fetch(`http://127.0.0.1:${handle.port}${desktopChunkPath}`).then((value) => value.text()),
+      fetch(`http://127.0.0.1:${handle.port}${mobileChunkPath}`).then((value) => value.text()),
+    ]);
 
     expect(scriptResponse.status).toBe(200);
     expect(scriptResponse.headers.get('content-type')).toContain('application/javascript');
-    expect(script).toContain('hq-workbench');
     expect(script).toContain('/ws/browser');
+    expect(script).toContain('/mobile');
+    expect(desktopChunk).toContain('hq-workbench');
+    expect(mobileChunk).toContain('hq-mobile');
     expect(script).not.toContain('hq-activity-rail');
     expect(styleResponse.status).toBe(200);
     expect(styleResponse.headers.get('content-type')).toContain('text/css');
@@ -101,14 +115,17 @@ describe('HQ React dashboard delivery', () => {
 
   it('returns the React shell for client-side routes', async () => {
     handle = await startServer();
-    const [rootHtml, routeResponse] = await Promise.all([
+    const [rootHtml, routeResponse, mobileResponse] = await Promise.all([
       fetch(`http://127.0.0.1:${handle.port}/`).then((response) => response.text()),
       fetch(`http://127.0.0.1:${handle.port}/fleet/map`),
+      fetch(`http://127.0.0.1:${handle.port}/mobile`),
     ]);
 
     expect(routeResponse.status).toBe(200);
     expect(routeResponse.headers.get('content-type')).toContain('text/html');
     expect(await routeResponse.text()).toBe(rootHtml);
+    expect(mobileResponse.status).toBe(200);
+    expect(await mobileResponse.text()).toBe(rootHtml);
   });
 
   it('keeps API routes out of the SPA fallback', async () => {

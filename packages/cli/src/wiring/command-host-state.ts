@@ -6,6 +6,7 @@ import {
   type Director,
   FLEET_ROSTER,
   mailboxSessionTag,
+  makeKanbanQueueTool,
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import {
@@ -96,6 +97,53 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
     terminateAgent(input.getDirector(), subagentId);
   input.hqCommandController.spawnAgent = (role, task, maxIterations) =>
     spawnAgent(input.getDirector(), liveSessionId(), role, task, maxIterations);
+  input.hqCommandController.kanbanDispatch = async (request) => {
+    const director = input.getDirector();
+    const sessionId = request.sessionId ?? liveSessionId();
+    if (director === null) {
+      throw new AgentError({
+        message: 'No Director is active for Kanban dispatch.',
+        code: 'AGENT_RUN_FAILED',
+        context: { phase: 'hq-kanban-dispatch', taskId: request.taskId },
+      });
+    }
+    if (!areSubagentsAllowedForSession(sessionId)) {
+      throw new Error('Subagents are disabled for this session.');
+    }
+    const result = (await makeKanbanQueueTool(director).execute(
+      {
+        action: 'dispatch_ready',
+        boardId: request.boardId,
+        taskId: request.taskId,
+        maxTasks: 1,
+        awaitCompletion: false,
+      },
+      {
+        projectRoot: input.projectRoot,
+        eventSessionId: () => sessionId,
+      } as never,
+      { signal: new AbortController().signal },
+    )) as {
+      ok?: boolean;
+      count?: number;
+      message?: string;
+      errors?: Array<{ error?: string }>;
+      dispatched?: Array<{ subagentId?: string }>;
+    };
+    if (result.ok !== true || result.count !== 1) {
+      throw new AgentError({
+        message:
+          result.errors?.[0]?.error ?? result.message ?? 'Kanban task could not be dispatched.',
+        code: 'AGENT_RUN_FAILED',
+        context: { phase: 'hq-kanban-dispatch', taskId: request.taskId },
+      });
+    }
+    const subagentId = result.dispatched?.[0]?.subagentId;
+    const summary = subagentId
+      ? `task ${request.taskId} dispatched to ${subagentId}`
+      : `task ${request.taskId} dispatched`;
+    return `${summary} · ${request.comment}`;
+  };
 
   const enhanceController = createEnhanceController(input.getConfig());
   const statuslineConfigDeps = createStatuslineConfigDeps();

@@ -58,6 +58,10 @@
       "lines": 839,
       "relativeImports": 5
     },
+    "packages/cli/src/subcommands/handlers/hq.ts": {
+      "lines": 845,
+      "relativeImports": 7
+    },
     "packages/cli/src/subcommands/handlers/providers-models.ts": {
       "lines": 800,
       "relativeImports": 5
@@ -135,7 +139,7 @@
       "relativeImports": 7
     },
     "packages/core/src/hq/protocol/core.ts": {
-      "lines": 945,
+      "lines": 946,
       "relativeImports": 13
     },
     "packages/core/src/index.ts": {
@@ -179,7 +183,7 @@
       "relativeImports": 6
     },
     "packages/kanban/src/manager/assignment.ts": {
-      "lines": 991,
+      "lines": 999,
       "relativeImports": 13
     },
     "packages/kanban/src/server/project-server.ts": {
@@ -322,12 +326,16 @@
       "lines": 875,
       "relativeImports": 4
     },
+    "packages/tui/src/app-action-type.ts": {
+      "lines": 801,
+      "relativeImports": 13
+    },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 1025,
+      "lines": 1043,
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 982,
+      "lines": 992,
       "relativeImports": 14
     },
     "packages/tui/src/app.tsx": {
@@ -343,8 +351,8 @@
       "relativeImports": 6
     },
     "packages/tui/src/components/history/code-block.tsx": {
-      "lines": 854,
-      "relativeImports": 6
+      "lines": 837,
+      "relativeImports": 7
     },
     "packages/tui/src/components/history/utils.tsx": {
       "lines": 1030,
@@ -371,7 +379,7 @@
       "relativeImports": 8
     },
     "packages/tui/src/input-validation.ts": {
-      "lines": 987,
+      "lines": 1013,
       "relativeImports": 13
     },
     "packages/tui/src/kanban-slash.ts": {

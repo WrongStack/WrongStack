@@ -827,6 +827,24 @@ export function createAppKeyHandler(
         const pressedRailRow = copyRow !== null && key.mouse.kind === 'press' ? copyRow : null;
         if (
           pressedRailRow !== null &&
+          historyScrollRef.current?.hasInspectTargetAt?.(pressedRailRow, key.mouse.x - 1)
+        ) {
+          historyScrollRef.current.clearSelection();
+          const payload = historyScrollRef.current.inspectAtViewportCell?.(
+            pressedRailRow,
+            key.mouse.x - 1,
+          );
+          if (payload) {
+            dispatch({
+              type: 'inspectOverlayOpen',
+              entryId: payload.entryId,
+              ...(payload.entryIds ? { entryIds: payload.entryIds } : {}),
+            });
+          }
+          return;
+        }
+        if (
+          pressedRailRow !== null &&
           historyScrollRef.current?.hasCopyTargetAt(pressedRailRow, key.mouse.x - 1)
         ) {
           historyScrollRef.current?.clearSelection();

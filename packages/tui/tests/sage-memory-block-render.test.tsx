@@ -93,7 +93,7 @@ describe('SageMemoryBlock structured render', () => {
       input: { pattern: 'src/**/*.ts' },
       output: contaminated,
     });
-    expect(frame).toContain('SAGE MEMORY INJECTED · glob');
+    expect(frame).toContain('SAGE · glob');
     expect(frame).toContain('3 memories');
   });
 

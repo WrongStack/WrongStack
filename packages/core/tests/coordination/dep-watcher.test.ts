@@ -9,18 +9,18 @@
  *   - dispose cleanup
  *   - Edge cases: delete events, non-dependency files, debounce collapse
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import * as os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  makeDependencyWatcherConfig,
   DEPENDENCY_FILE_PATTERNS,
   type DepWatchEntry,
+  makeDependencyWatcherConfig,
 } from '../../src/coordination/dep-watcher.js';
-import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import type { Mailbox } from '../../src/coordination/mailbox-types.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -127,6 +127,17 @@ describe('makeDependencyWatcherConfig', () => {
       const spy = vi.spyOn(mailbox, 'send');
 
       await cfg.onChange(makeEntry({ path: 'src/components/readme.md' }));
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('ignores installed package manifests from the recursive root watch', async () => {
+      const cfg = makeDependencyWatcherConfig({ projectRoot, mailbox, debounceMs: 10 });
+      const spy = vi.spyOn(mailbox, 'send');
+
+      await cfg.onChange(makeEntry({ path: 'node_modules/transitive/package.json' }));
+      await cfg.onChange(makeEntry({ path: 'NODE_MODULES\\transitive\\package.json' }));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       expect(spy).not.toHaveBeenCalled();
     });
 

@@ -4,6 +4,7 @@ import {
   LIVE_TOOL_STREAM_COPY_ID,
   copyRegistryVisibleClip,
   findCopyHit,
+  findInspectHit,
   liveToolStreamCopyHit,
 } from '../src/components/scrollable-history.js';
 
@@ -77,6 +78,7 @@ describe('liveToolStreamCopyHit', () => {
       startRow: 3,
       endRow: 4,
       iconCol: 57,
+      inspectCol: 59,
     });
   });
 
@@ -153,5 +155,23 @@ describe('findCopyHit', () => {
     expect(findCopyHit(hits, 0, 40)?.entryId).toBe(20);
     expect(findCopyHit(hits, 3, 40)?.entryId).toBe(21);
     expect(findCopyHit(hits, 5, 40)?.entryId).toBe(22);
+  });
+});
+
+describe('findInspectHit', () => {
+  it('matches the inspect column on a tool hit and ignores the copy column', () => {
+    const hits: CopyHit[] = [
+      { entryId: 7, startRow: 1, endRow: 2, iconCol: 40, inspectCol: 42 },
+    ];
+    expect(findInspectHit(hits, 1, 42)?.entryId).toBe(7);
+    expect(findInspectHit(hits, 1, 41)).toBeNull();
+    expect(findInspectHit(hits, 1, 40)).toBeNull();
+    expect(findCopyHit(hits, 1, 40)?.entryId).toBe(7);
+    expect(findCopyHit(hits, 1, 42)).toBeNull();
+  });
+
+  it('ignores cards without an inspect column', () => {
+    const hits: CopyHit[] = [{ entryId: 8, startRow: 0, endRow: 1, iconCol: 40 }];
+    expect(findInspectHit(hits, 0, 41)).toBeNull();
   });
 });

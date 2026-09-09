@@ -123,6 +123,121 @@ describe('createHqCommandDispatcher', () => {
     expect(result.status).toBe('rejected');
   });
 
+  it('routes a kanban transition through the project IPC callback', async () => {
+    const kanbanTransition = vi.fn(async () => 'task task-1 transitioned to review');
+    const dispatch = createHqCommandDispatcher(makeController({ kanbanTransition }));
+    const result = await dispatch({
+      commandId: 'c-kanban',
+      type: 'kanban-transition',
+      payload: {
+        boardId: 'board-1',
+        taskId: 'task-1',
+        to: 'review',
+        comment: 'Ready for review from HQ mobile',
+      },
+    });
+
+    expect(kanbanTransition).toHaveBeenCalledWith({
+      boardId: 'board-1',
+      taskId: 'task-1',
+      to: 'review',
+      comment: 'Ready for review from HQ mobile',
+    });
+    expect(result).toMatchObject({
+      status: 'completed',
+      message: expect.stringContaining('review'),
+    });
+  });
+
+  it('rejects kanban transitions when the host has no project owner', async () => {
+    const dispatch = createHqCommandDispatcher(makeController());
+    const result = await dispatch({
+      commandId: 'c-kanban',
+      type: 'kanban-transition',
+      payload: { boardId: 'board-1', taskId: 'task-1', to: 'todo', comment: 'Retry' },
+    });
+    expect(result).toMatchObject({ status: 'rejected', message: 'kanban control is unavailable' });
+  });
+
+  it('routes guarded kanban assignment through the project IPC callback', async () => {
+    const kanbanAssign = vi.fn(async () => 'task task-1 assigned to Reviewer');
+    const dispatch = createHqCommandDispatcher(makeController({ kanbanAssign }));
+    const result = await dispatch({
+      commandId: 'c-assign',
+      type: 'kanban-assign',
+      payload: {
+        boardId: 'board-1',
+        taskId: 'task-1',
+        agentId: 'reviewer-1',
+        assignee: 'Reviewer',
+        comment: 'Operator assignment',
+      },
+    });
+
+    expect(kanbanAssign).toHaveBeenCalledWith({
+      boardId: 'board-1',
+      taskId: 'task-1',
+      agentId: 'reviewer-1',
+      assignee: 'Reviewer',
+      comment: 'Operator assignment',
+    });
+    expect(result).toMatchObject({
+      status: 'completed',
+      message: expect.stringContaining('Reviewer'),
+    });
+  });
+
+  it('rejects kanban assignment when the host has no project owner', async () => {
+    const dispatch = createHqCommandDispatcher(makeController());
+    const result = await dispatch({
+      commandId: 'c-assign',
+      type: 'kanban-assign',
+      payload: {
+        boardId: 'board-1',
+        taskId: 'task-1',
+        agentId: 'reviewer-1',
+        assignee: 'Reviewer',
+        comment: 'Operator assignment',
+      },
+    });
+    expect(result).toMatchObject({
+      status: 'rejected',
+      message: 'kanban assignment is unavailable',
+    });
+  });
+
+  it('routes Kanban dispatch through the host Director callback', async () => {
+    const kanbanDispatch = vi.fn(async () => 'task task-1 dispatched to worker-1');
+    const dispatch = createHqCommandDispatcher(makeController({ kanbanDispatch }));
+    const result = await dispatch({
+      commandId: 'c-dispatch',
+      type: 'kanban-dispatch',
+      payload: {
+        boardId: 'board-1',
+        taskId: 'task-1',
+        comment: 'Start approved work',
+      },
+    });
+    expect(kanbanDispatch).toHaveBeenCalledWith({
+      boardId: 'board-1',
+      taskId: 'task-1',
+      comment: 'Start approved work',
+    });
+    expect(result).toMatchObject({
+      status: 'completed',
+      message: expect.stringContaining('worker-1'),
+    });
+  });
+
+  it('rejects Kanban dispatch when no Director callback is wired', async () => {
+    const result = await createHqCommandDispatcher(makeController())({
+      commandId: 'c-dispatch',
+      type: 'kanban-dispatch',
+      payload: { boardId: 'board-1', taskId: 'task-1', comment: 'Start' },
+    });
+    expect(result).toMatchObject({ status: 'rejected', message: 'kanban dispatch is unavailable' });
+  });
+
   it('run-command rejects without operator opt-in', async () => {
     const controller = makeController({ allowRunCommand: () => false });
     const dispatch = createHqCommandDispatcher(controller);

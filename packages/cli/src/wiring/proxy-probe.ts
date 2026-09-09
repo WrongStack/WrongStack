@@ -234,11 +234,22 @@ function scheduleImmediateProbe(runner: ProbeRunner): void {
 }
 
 function buildHealthUrl(rawBase: string): string {
-  // Normalize trailing slash + append /api/health if the user gave us
-  // a bare origin. If they gave us a deeper base, respect it but still
-  // append the canonical health path segment.
-  const trimmed = rawBase.trim().replace(/\/+$/, '');
-  return `${trimmed}${HEALTH_PATH}`;
+  const trimmed = rawBase.trim();
+  try {
+    const base = new URL(trimmed);
+    // A proxy URL names the daemon origin/base path; query and fragment
+    // components are not part of its health endpoint.
+    base.search = '';
+    base.hash = '';
+    base.pathname = `${base.pathname.replace(/\/+$/, '')}${HEALTH_PATH}`;
+    return base.toString();
+  } catch {
+    // Keep the probe permissive for malformed configuration, while ensuring
+    // query/fragment data cannot swallow the endpoint path.
+    const boundary = trimmed.search(/[?#]/);
+    const pathBase = boundary === -1 ? trimmed : trimmed.slice(0, boundary);
+    return `${pathBase.replace(/\/+$/, '')}${HEALTH_PATH}`;
+  }
 }
 
 /**

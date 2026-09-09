@@ -163,6 +163,7 @@ export function reduceConversation(state: State, action: ConversationAction): St
         // surviving card (the banner) or dangle until the 2s host timer fires.
         copiedNotice: '',
         copiedEntryId: null,
+        inspectOverlay: null,
         toolResultViewOverrides: new Map(),
         // Bump the generation so <Static> remounts — without this, Ink's
         // already-written index exceeds the new (shorter) array and the

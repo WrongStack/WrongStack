@@ -6,6 +6,7 @@ import {
   copyableTextForEntries,
   copyableTextForEntry,
   isCopyableEntry,
+  isInspectableEntry,
 } from '../src/components/history/copy-icon.js';
 import type { HistoryEntry } from '../src/history-entry.js';
 
@@ -90,6 +91,7 @@ describe('copyableTextForEntry', () => {
     for (const entry of ALL_ENTRY_KINDS) {
       expect(copyableTextForEntry(entry).length, entry.kind).toBeGreaterThan(0);
       expect(isCopyableEntry(entry), entry.kind).toBe(true);
+      expect(isInspectableEntry(entry), entry.kind).toBe(entry.kind === 'tool');
     }
   });
 

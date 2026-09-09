@@ -93,8 +93,9 @@ function _waitForClose(ws: WebSocket, timeout = 3_000): Promise<number | undefin
 async function login(
   handle: HqServerHandle,
   password: string,
+  mobile = false,
 ): Promise<{ res: Response; cookie: string | null }> {
-  const res = await fetch(httpUrl(handle, '/api/login'), {
+  const res = await fetch(httpUrl(handle, mobile ? '/api/mobile/login' : '/api/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
@@ -131,6 +132,26 @@ describe('HQ server — optional browser password login', () => {
     const { res, cookie } = await login(handle, 'secret123');
     expect(res.status).toBe(200);
     expect(cookie).toMatch(/hq\.session=/);
+  });
+
+  it('scopes mobile password sessions away from auth administration', async () => {
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir, password: 'secret123' });
+    const { res, cookie } = await login(handle, 'secret123', true);
+    expect(res.status).toBe(200);
+    expect(cookie).toBeTruthy();
+
+    const snapshot = await fetch(httpUrl(handle, '/api/snapshot'), {
+      headers: { Cookie: cookie! },
+    });
+    expect(snapshot.status).toBe(200);
+
+    const admin = await fetch(httpUrl(handle, '/api/auth/sessions'), {
+      headers: { Cookie: cookie! },
+    });
+    expect(admin.status).toBe(403);
+    await expect(admin.json()).resolves.toMatchObject({
+      error: { code: 'AUTH_ADMIN_REQUIRED' },
+    });
   });
 
   it('auth/status reports password mode without leaking the hash', async () => {

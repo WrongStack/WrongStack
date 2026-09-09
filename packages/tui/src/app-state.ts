@@ -161,6 +161,16 @@ export type State = {
   /** Card whose copy icon should flash; null means no highlighted card. */
   copiedEntryId: number | null;
   /**
+   * Tool-result inspect overlay. Holds the clicked card's ids; the view
+   * resolves the full (untruncated) payload from live history / stream.
+   * Null when closed.
+   */
+  inspectOverlay: {
+    entryId: number;
+    entryIds?: readonly number[] | undefined;
+    scroll: number;
+  } | null;
+  /**
    * Per-card tool-result density overrides, keyed by immutable history id.
    * These are presentation-only: the retained/canonical payload is untouched,
    * so expanding after a compact render never loses data. Changing the global

@@ -19,7 +19,7 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 208,
+      "files": 209,
       "typeOnly": 83,
       "runtimeOrMixed": 181
     },
@@ -64,9 +64,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/hq": {
-      "files": 125,
-      "typeOnly": 81,
-      "runtimeOrMixed": 75
+      "files": 129,
+      "typeOnly": 83,
+      "runtimeOrMixed": 76
     },
     "@wrongstack/core/hq/protocol": {
       "files": 5,
@@ -2581,7 +2581,7 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/hq-server/routes.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -2899,6 +2899,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/cli-main-helpers.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/command-host-state.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4321,7 +4327,7 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/routes.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -4555,6 +4561,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-manual-entry-repro.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-mobile-visual-smoke.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4842,6 +4854,18 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/mobile/mobile-app.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/src/views/alerts.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -4963,6 +4987,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/tests/mailbox-live.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/tests/mobile-app.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

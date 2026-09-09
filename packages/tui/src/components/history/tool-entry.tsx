@@ -313,7 +313,7 @@ export function ToolEntry({
             {fullOutputLines.map((line, i) => (
               <Text key={i}>
                 <Text color={color} dimColor>
-                  {i === fullOutputLines.length - 1 ? '  └─ ' : '  ├─ '}
+                  {'  '}
                 </Text>
                 <Text dimColor={entry.ok}>{sanitizeTerminalText(line)}</Text>
               </Text>
@@ -326,7 +326,7 @@ export function ToolEntry({
           <ToolOutputLines lines={visualLines} hasFollowingBlock={Boolean(diff || multiDiffs)} />
         ) : minimal ? null : (
           outLines.map((line, i) => {
-            const connector = i === outLines.length - 1 && !diff && !multiDiffs ? '  └─ ' : '  ├─ ';
+            const connector = '  ';
             return (
               <Text key={i}>
                 <Text color={color} dimColor>

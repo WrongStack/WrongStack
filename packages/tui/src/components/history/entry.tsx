@@ -18,9 +18,9 @@ import {
   councilHeadline,
   councilSeatLine,
   formatScoreTerms,
+  HistoryRail,
   MAX_MEMORY_PROOF_ROWS,
   memoryLifecycleStyle,
-  NoticeCard,
 } from './entry-helpers.js';
 import { ToolEntry } from './tool-entry.js';
 import type { HistoryEntry } from './types.js';
@@ -126,20 +126,12 @@ export const Entry = React.memo(function Entry({
   switch (entry.kind) {
     case 'user':
       return (
-        <Box
-          marginX={0}
-          borderStyle="single"
-          borderTop={false}
-          borderRight={false}
-          borderBottom={false}
-          borderColor={theme.user}
-          paddingLeft={1}
-        >
+        <HistoryRail color={theme.user}>
           <Text>
             <Text bold color={theme.user}>
               {USER_LABEL}
             </Text>
-            <Text color="white">{sanitizeTerminalText(entry.text)}</Text>
+            <Text color={theme.textPrimary}>{sanitizeTerminalText(entry.text)}</Text>
             {entry.queued ? <Text dimColor>{' (queued)'}</Text> : null}
             {entry.pasteContent ? (
               <>
@@ -151,34 +143,21 @@ export const Entry = React.memo(function Entry({
               </>
             ) : null}
           </Text>
-        </Box>
+        </HistoryRail>
       );
     case 'thinking': {
       // Hidden when the user disables model reasoning display.
       if (showModelReasoning === false) return null;
       const contentWidth = assistantContentWidth(termWidth);
       return (
-        <Box
-          flexDirection="column"
-          marginX={0}
-          marginY={1}
-          borderStyle="single"
-          borderTop={false}
-          borderRight={false}
-          borderBottom={false}
-          borderColor={theme.textSecondary}
-          paddingLeft={1}
-        >
-          <Box flexDirection="row">
-            <Text bold color={theme.textSecondary}>
-              {'⟳ Model Reasoning'}
-            </Text>
-            <Text color={theme.textSecondary}>{'  (model reasoning…)'}</Text>
-          </Box>
+        <HistoryRail color={theme.textSecondary} marginY={1}>
+          <Text bold color={theme.textSecondary}>
+            {'⟳ REASONING'}
+          </Text>
           <Box width={contentWidth}>
             <Text color={theme.textSecondary}>{sanitizeTerminalText(entry.text)}</Text>
           </Box>
-        </Box>
+        </HistoryRail>
       );
     }
     case 'assistant': {
@@ -190,41 +169,16 @@ export const Entry = React.memo(function Entry({
       const hasNext = steps.length > 0 && !openTodos && isFinalTurnEntry;
       return (
         <Box flexDirection="column">
-          <Box
-            flexDirection="column"
-            marginX={0}
-            marginY={1}
-            borderStyle="single"
-            borderTop={false}
-            borderRight={false}
-            borderBottom={false}
-            borderColor={theme.assistant}
-            paddingLeft={1}
-          >
-            <Box flexDirection="row">
-              <Text bold color={theme.assistant}>
-                {'💬 ASSISTANT'}
-              </Text>
-            </Box>
+          <HistoryRail color={theme.assistant} marginY={1}>
             <AssistantBody text={stripped} termWidth={termWidth} contentWidth={contentWidth} />
-          </Box>
+          </HistoryRail>
           {hasNext && (
-            <Box
-              flexDirection="column"
-              marginX={0}
-              marginY={1}
-              borderStyle="single"
-              borderTop={false}
-              borderRight={false}
-              borderBottom={false}
-              borderColor={theme.accent}
-              paddingLeft={1}
-            >
+            <HistoryRail color={theme.accent} marginY={1}>
               <Box flexDirection="row" marginBottom={1}>
                 <Text bold color={theme.accent}>
-                  {'💡 NEXT STEPS  '}
+                  {'▸ NEXT  '}
                 </Text>
-                <Text dimColor>(use /next 1, /next 1 2 3 to select)</Text>
+                <Text dimColor>/next 1 · /next 1 2 3</Text>
               </Box>
               {steps.map((s, i) => (
                 <Box key={s.index} flexDirection="row" marginTop={0}>
@@ -232,16 +186,18 @@ export const Entry = React.memo(function Entry({
                     <Text bold color={theme.accent}>{`  ${s.index}. `}</Text>
                     <Text>{sanitizeTerminalText(s.text)}</Text>
                     {s.auto ? (
-                      <Text color="cyan" dimColor>
+                      <Text color={theme.accent} dimColor>
                         {' '}
                         auto
                       </Text>
                     ) : null}
-                    {autonomyMode === 'auto' && i === 0 ? <Text color="cyan">{'  ⏩'}</Text> : null}
+                    {autonomyMode === 'auto' && i === 0 ? (
+                      <Text color={theme.accent}>{'  ⏩'}</Text>
+                    ) : null}
                   </Text>
                 </Box>
               ))}
-            </Box>
+            </HistoryRail>
           )}
         </Box>
       );
@@ -286,10 +242,10 @@ export const Entry = React.memo(function Entry({
       // shipped defaults rather than crashing the whole transcript render.
       const thresholds = entry.thresholds ?? MEMORY_GATE_DEFAULTS;
       return (
-        <Box flexDirection="column" borderStyle="single" borderColor="magenta" paddingX={1}>
+        <HistoryRail color="magenta" marginY={1}>
           <Box flexDirection="row">
             <Text bold color="magenta">
-              {'🧠 MEMORY INJECTOR  '}
+              {'🧠 INJECTOR  '}
             </Text>
             <Text color="cyan">{entry.trigger}</Text>
             <Text dimColor>
@@ -330,17 +286,23 @@ export const Entry = React.memo(function Entry({
           })}
           {overflow > 0 ? <Text dimColor>{`  +${overflow} more injected`}</Text> : null}
           {rejected ? <Text dimColor>{`filtered: ${rejected}`}</Text> : null}
-        </Box>
+        </HistoryRail>
       );
     }
     case 'memory-lifecycle': {
       const style = memoryLifecycleStyle(entry.action);
+      // Single Text tree so a long ULID + health chips wrap as one stream
+      // instead of Ink splitting each flex child into its own column.
       return (
-        <Box flexDirection="row">
-          <Text bold color={style.color}>{`${style.icon} MEMORY  `}</Text>
-          <Text color={style.color}>{entry.label}</Text>
-          {entry.detail ? <Text dimColor>{`  · ${entry.detail}`}</Text> : null}
-        </Box>
+        <Text>
+          <Text bold color={style.color}>
+            {`${style.icon} ${style.title}  `}
+          </Text>
+          <Text color={style.color}>{sanitizeTerminalText(entry.label)}</Text>
+          {entry.detail ? (
+            <Text dimColor>{`  · ${sanitizeTerminalText(entry.detail)}`}</Text>
+          ) : null}
+        </Text>
       );
     }
     case 'info': {
@@ -352,43 +314,39 @@ export const Entry = React.memo(function Entry({
       );
     }
     case 'warn':
-      // Compact single-line tag for warnings. Previously rendered as a
-      // full-bordered NoticeCard that took 4+ lines — now a one-liner so
-      // common warnings (retries, rate-limits) don't dominate the history.
       return (
-        <Box flexDirection="row" marginY={0}>
+        <HistoryRail color={theme.warn}>
           <Text>
             <Text bold color={theme.warn}>
               {'⚠ '}
             </Text>
             <Text color={theme.warn}>{sanitizeTerminalText(entry.text)}</Text>
           </Text>
-        </Box>
+        </HistoryRail>
       );
     case 'error':
       return (
-        <NoticeCard
-          icon="✗"
-          label="ERROR"
-          color={theme.error}
-          text={entry.text}
-          termWidth={termWidth}
-        />
+        <HistoryRail color={theme.error} marginY={1}>
+          <Text bold color={theme.error}>
+            {'✗ ERROR'}
+          </Text>
+          {sanitizeTerminalText(entry.text)
+            .split('\n')
+            .map((line, i) => (
+              <Text key={i} color={theme.error}>
+                {line.length > 0 ? line : ' '}
+              </Text>
+            ))}
+        </HistoryRail>
       );
     case 'turn-summary':
       return (
-        <Box
-          marginX={0}
-          borderStyle="single"
-          borderColor={theme.textMuted}
-          backgroundColor={theme.surfaceRaised}
-          paddingX={1}
-        >
+        <HistoryRail color={theme.textMuted}>
           <Text>
-            <Text color={theme.brandPrimary}>{'📋 '}</Text>
+            <Text color={theme.brandPrimary}>{'▣ '}</Text>
             <Text color={theme.textSecondary}>{sanitizeTerminalText(entry.text)}</Text>
           </Text>
-        </Box>
+        </HistoryRail>
       );
     case 'model-switch': {
       const shrink =
@@ -396,7 +354,8 @@ export const Entry = React.memo(function Entry({
         entry.toContext !== undefined &&
         entry.toContext > 0 &&
         entry.toContext < entry.fromContext;
-      const accent = shrink ? theme.warn : theme.accent;
+      const fallback = entry.cause === 'fallback';
+      const accent = shrink || fallback ? theme.warn : theme.accent;
       const ctxChip = (ctx: number | undefined): string =>
         ctx && ctx > 0 ? `${fmtTok(ctx)} ctx` : '';
       const fromRef =
@@ -411,17 +370,13 @@ export const Entry = React.memo(function Entry({
           ? fmtRatioPct(entry.requestTokens / entry.toContext)
           : undefined;
       return (
-        <Box
-          flexDirection="column"
-          marginX={0}
-          marginY={1}
-          borderStyle="round"
-          borderColor={accent}
-          paddingX={1}
-        >
+        <HistoryRail color={accent} marginY={1}>
           <Text bold color={accent}>
-            {'🔄 MODEL SWITCHED'}
+            {fallback ? '↺ FALLBACK' : '↺ MODEL'}
           </Text>
+          {entry.status ? (
+            <Text dimColor>{`  HTTP ${entry.status}`}</Text>
+          ) : null}
           {fromRef ? (
             <Text>
               <Text dimColor>{'  from  '}</Text>
@@ -439,9 +394,13 @@ export const Entry = React.memo(function Entry({
             ) : null}
           </Text>
           <Text color={theme.success}>
-            {entry.runActive
-              ? '  ✓ active for next LLM request · current run continues'
-              : '  ✓ active for next LLM request'}
+            {fallback
+              ? entry.runActive
+                ? '  ✓ recovered · run continues'
+                : '  ✓ recovered'
+              : entry.runActive
+                ? '  ✓ next request · current run continues'
+                : '  ✓ next request'}
           </Text>
           {shrink ? (
             <Text color={theme.warn}>
@@ -454,7 +413,7 @@ export const Entry = React.memo(function Entry({
               }`}
             </Text>
           ) : null}
-        </Box>
+        </HistoryRail>
       );
     }
     case 'brain': {
@@ -463,17 +422,7 @@ export const Entry = React.memo(function Entry({
       // Shared left indent so nested details visually nest under the header.
       const indentWidth = 2;
       return (
-        <Box
-          flexDirection="column"
-          marginX={0}
-          marginY={1}
-          borderStyle="single"
-          borderTop={false}
-          borderRight={false}
-          borderBottom={false}
-          borderColor={theme.monitor.agents}
-          paddingLeft={1}
-        >
+        <HistoryRail color={theme.monitor.agents} marginY={1}>
           <Box flexDirection="row" gap={1}>
             <Text bold color={theme.monitor.agents}>
               {'✦ BRAIN'}
@@ -545,24 +494,18 @@ export const Entry = React.memo(function Entry({
               ))}
             </Box>
           ) : null}
-        </Box>
+        </HistoryRail>
       );
     }
     case 'confirm':
       return (
-        <Box
-          flexDirection="column"
-          borderStyle="round"
-          borderColor={theme.warn}
-          paddingX={1}
-          marginY={1}
-        >
+        <HistoryRail color={theme.warn} marginY={1}>
           <Text bold color={theme.warn}>
-            {'⚠ Confirm: '}
+            {'⚠ CONFIRM  '}
             {entry.toolName}
           </Text>
-          <Text dimColor>Waiting for y / n / a / d...</Text>
-        </Box>
+          <Text dimColor>y / n / a / d</Text>
+        </HistoryRail>
       );
     case 'banner':
       return (
@@ -573,14 +516,10 @@ export const Entry = React.memo(function Entry({
         />
       );
     case 'subagent': {
-      // Quiet single-line fleet/delegate chrome: no heavy colored rail and no
-      // vertical margin that punches holes between history items. Role color
-      // stays on the icon + label only.
       const lines = sanitizeTerminalText(entry.text).split('\n');
       return (
-        <Box flexDirection="column" marginX={0} marginY={0} paddingLeft={0}>
+        <HistoryRail color={entry.agentColor}>
           <Text>
-            <Text color={theme.borderSubtle}>│ </Text>
             <Text color={entry.agentColor}>{sanitizeTerminalText(entry.icon)}</Text>
             <Text> </Text>
             <Text bold color={entry.agentColor}>
@@ -596,12 +535,11 @@ export const Entry = React.memo(function Entry({
             ) : null}
           </Text>
           {lines.slice(1).map((line, i) => (
-            <Text key={i}>
-              <Text color={theme.borderSubtle}>│ </Text>
-              <Text color={theme.textMuted}>{line}</Text>
+            <Text key={i} color={theme.textMuted}>
+              {line}
             </Text>
           ))}
-        </Box>
+        </HistoryRail>
       );
     }
   }

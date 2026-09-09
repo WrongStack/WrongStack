@@ -191,6 +191,11 @@ export function makeDependencyWatcherConfig(
       // Only react to create/change events (not delete)
       if (entry.event === 'delete') return;
 
+      // The recursive root watch also observes installed package manifests.
+      // They are dependency artifacts, not project dependency declarations.
+      const pathSegments = entry.path.replaceAll('\\', '/').split('/');
+      if (pathSegments.some((segment) => segment.toLowerCase() === 'node_modules')) return;
+
       // Filter: only dependency files
       if (!matchesPattern(entry.path)) return;
 

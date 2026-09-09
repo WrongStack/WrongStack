@@ -289,6 +289,7 @@ function resolveSidebarLayout(
     state.cronMonitorOpen ||
     state.rewindOverlay != null ||
     state.fallbackOverlay != null ||
+    state.inspectOverlay != null ||
     state.shellCommandWarning != null ||
     state.confirmQueue.length > 0 ||
     state.clearConfirm != null ||

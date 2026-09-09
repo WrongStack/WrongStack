@@ -21,12 +21,13 @@ describe('tool result view modes', () => {
     const minimal = render(<Entry entry={tool} termWidth={90} toolResultViewMode="minimal" />);
     expect(minimal.lastFrame()).toContain('extension_tool');
     expect(minimal.lastFrame()).toContain('▲  ▼');
-    expect(minimal.lastFrame()).toMatch(/^└─/u);
+    expect(minimal.lastFrame()).not.toMatch(/^╭─/u);
+    expect(minimal.lastFrame()).not.toMatch(/^└─/u);
     expect(minimal.lastFrame()).not.toContain('first line');
     minimal.unmount();
 
     const normal = render(<Entry entry={tool} termWidth={90} toolResultViewMode="normal" />);
-    expect(normal.lastFrame()).toMatch(/^╭─/u);
+    expect(normal.lastFrame()).not.toMatch(/^╭─/u);
     expect(normal.lastFrame()).toContain('first line second line third line');
     expect(normal.lastFrame()).not.toContain('canonical tail');
     normal.unmount();
@@ -60,12 +61,12 @@ describe('tool result view modes', () => {
       iconCol: 80,
       toolEntryIds: [7],
       toolViewMode: 'normal',
-      lessCol: 3,
-      moreCol: 6,
+      lessCol: 2,
+      moreCol: 5,
     };
-    expect(findToolViewControl([hit], 3, 3)?.delta).toBe(-1);
-    expect(findToolViewControl([hit], 3, 6)?.delta).toBe(1);
-    expect(findToolViewControl([hit], 4, 6)).toBeNull();
+    expect(findToolViewControl([hit], 3, 2)?.delta).toBe(-1);
+    expect(findToolViewControl([hit], 3, 5)?.delta).toBe(1);
+    expect(findToolViewControl([hit], 4, 5)).toBeNull();
   });
 
   it('keeps overrides independent and clears them on a global change', () => {

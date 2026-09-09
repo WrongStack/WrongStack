@@ -3,7 +3,8 @@
  *
  * These reducers carry rules that were each paid for by a production bug, and
  * none of them is obvious from the type signatures:
- *   - selection reconciliation drops ids the fleet no longer knows
+ *   - transcript selections survive reconnect/completion while dead command
+ *     targets are cleared
  *   - a boot-time HTTP snapshot must never overwrite a live WS snapshot
  *   - a late broadcast must not replace a newer snapshot
  *   - `peer.*` envelopes carry a SERVER-minted seq and must not advance a
@@ -18,12 +19,12 @@ import {
   MAX_ALERTS,
   MAX_COMMAND_STATUSES,
   MAX_EVENTS,
-  SNAPSHOT_RACE_GUARD_WINDOW_MS,
   reduceAlert,
   reduceCommandStatus,
   reduceEvent,
   reduceHydrateSnapshot,
   reduceSnapshot,
+  SNAPSHOT_RACE_GUARD_WINDOW_MS,
 } from '../../src/data/store/reducers.js';
 import {
   alert,
@@ -116,15 +117,15 @@ describe('reduceSnapshot', () => {
     expect(reduceSnapshot(state, snapshot()).resumeCursors).toBeUndefined();
   });
 
-  it('clears a selected session that left liveSessions, and its agent with it', () => {
+  it('keeps a selected session and agent through a reconnect snapshot gap', () => {
     const state = fleetState({
       snapshot: liveSnapshot('sess-1', ['agent-1']),
       selectedSessionId: 'sess-1',
       selectedAgentId: 'agent-1',
     });
     const patch = reduceSnapshot(state, snapshot('2026-07-14T12:01:00.000Z'));
-    expect(patch.selectedSessionId).toBeNull();
-    expect(patch.selectedAgentId).toBeNull();
+    expect(patch.selectedSessionId).toBeUndefined();
+    expect(patch.selectedAgentId).toBeUndefined();
   });
 
   it('keeps a selection whose session survives', () => {
@@ -141,7 +142,7 @@ describe('reduceSnapshot', () => {
     expect(patch.selectedAgentId).toBeUndefined();
   });
 
-  it('clears only the agent when the agent leaves a surviving session', () => {
+  it('keeps a completed agent selected so its transcript remains inspectable', () => {
     const state = fleetState({
       snapshot: liveSnapshot('sess-1', ['agent-1']),
       selectedSessionId: 'sess-1',
@@ -152,7 +153,7 @@ describe('reduceSnapshot', () => {
       liveSnapshot('sess-1', ['agent-2'], '2026-07-14T12:01:00.000Z'),
     );
     expect(patch.selectedSessionId).toBeUndefined();
-    expect(patch.selectedAgentId).toBeNull();
+    expect(patch.selectedAgentId).toBeUndefined();
   });
 
   it('clears only the client when it disconnects', () => {

@@ -52,11 +52,11 @@ function renderEntry(opts: RenderOpts = {}): {
 }
 
 describe('<Entry /> <nextsteps> todo-gate (b0970387 render-path parity)', () => {
-  it('shows the NEXT STEPS panel and writes the store when no todos are open', () => {
+  it('shows the NEXT panel and writes the store when no todos are open', () => {
     const { frame, setSuggestions } = renderEntry();
 
     // Panel header + both items render.
-    expect(frame).toContain('NEXT STEPS');
+    expect(frame).toContain('NEXT');
     expect(frame).toContain('Add unit tests for the parser');
     expect(frame).toContain('Run the full suite');
     // The raw <nextsteps> XML block must never leak into the message body.
@@ -70,14 +70,14 @@ describe('<Entry /> <nextsteps> todo-gate (b0970387 render-path parity)', () => 
     ]);
   });
 
-  it('hides the NEXT STEPS panel and skips the store write while todos are open', () => {
+  it('hides the NEXT panel and skips the store write while todos are open', () => {
     const openTodos: TodoItem[] = [
       { id: 't1', content: 'finish the refactor', status: 'in_progress' },
     ];
     const { frame, setSuggestions } = renderEntry({ todos: openTodos });
 
     // Panel is suppressed — suggestions don't compete with in-flight todos.
-    expect(frame).not.toContain('NEXT STEPS');
+    expect(frame).not.toContain('NEXT');
     expect(frame).not.toContain('Add unit tests for the parser');
     // Store is NOT repopulated from the render path (mirrors the host callback
     // clearing it); otherwise it would immediately undo the clear.
@@ -92,7 +92,7 @@ describe('<Entry /> <nextsteps> todo-gate (b0970387 render-path parity)', () => 
     const completedTodos: TodoItem[] = [{ id: 't1', content: 'done deal', status: 'completed' }];
     const { frame, setSuggestions } = renderEntry({ todos: completedTodos });
 
-    expect(frame).toContain('NEXT STEPS');
+    expect(frame).toContain('NEXT');
     expect(setSuggestions).toHaveBeenCalledTimes(1);
   });
 });
@@ -105,7 +105,7 @@ describe('<Entry /> <nextsteps> final-message gate', () => {
       entry: { id: 2, kind: 'assistant', text: NEXT_STEPS_TEXT, final: false },
     });
 
-    expect(frame).not.toContain('NEXT STEPS');
+    expect(frame).not.toContain('NEXT');
     expect(frame).not.toContain('Add unit tests for the parser');
     expect(setSuggestions).not.toHaveBeenCalled();
     // The block is still stripped — raw XML never reaches the user, whether
@@ -124,7 +124,7 @@ describe('<Entry /> <nextsteps> final-message gate', () => {
       entry: { id: 3, kind: 'assistant', text: NEXT_STEPS_TEXT },
     });
 
-    expect(frame).not.toContain('NEXT STEPS');
+    expect(frame).not.toContain('NEXT');
     expect(setSuggestions).not.toHaveBeenCalled();
     expect(frame).not.toContain('<nextsteps>');
   });

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  HqCommandAuditLog,
-  validateHqCommand,
   type HqCommand,
+  HqCommandAuditLog,
   type HqQueuedCommand,
+  validateHqCommand,
 } from '../../src/hq/commands.js';
 
 function queued(type: string, payload: unknown): HqQueuedCommand {
@@ -68,6 +68,98 @@ describe('validateHqCommand', () => {
   it('validates a run-command command', () => {
     const c = validateHqCommand(queued('run-command', { command: 'ls', cwd: '/tmp' }));
     expect(c).toMatchObject({ type: 'run-command', command: 'ls', cwd: '/tmp' });
+  });
+
+  it('validates guarded kanban transitions and rejects incomplete payloads', () => {
+    expect(
+      validateHqCommand(
+        queued('kanban-transition', {
+          boardId: 'board-1',
+          taskId: 'task-1',
+          to: 'review',
+          comment: 'HQ mobile operator moved the task',
+          sessionId: 'session-1',
+        }),
+      ),
+    ).toMatchObject({
+      type: 'kanban-transition',
+      boardId: 'board-1',
+      taskId: 'task-1',
+      to: 'review',
+      sessionId: 'session-1',
+    });
+    expect(
+      validateHqCommand(
+        queued('kanban-transition', {
+          boardId: 'board-1',
+          taskId: 'task-1',
+          to: 'completed',
+          comment: 'invalid stage name',
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      validateHqCommand(
+        queued('kanban-transition', {
+          boardId: 'board-1',
+          taskId: 'task-1',
+          to: 'done',
+          comment: '',
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('validates guarded kanban assignments and rejects missing audit fields', () => {
+    expect(
+      validateHqCommand(
+        queued('kanban-assign', {
+          boardId: 'board-1',
+          taskId: 'task-1',
+          agentId: 'reviewer-1',
+          assignee: 'Reviewer · host-a · idle',
+          comment: 'Assign from HQ mobile',
+        }),
+      ),
+    ).toMatchObject({
+      type: 'kanban-assign',
+      taskId: 'task-1',
+      agentId: 'reviewer-1',
+    });
+    expect(
+      validateHqCommand(
+        queued('kanban-assign', {
+          boardId: 'board-1',
+          taskId: 'task-1',
+          agentId: 'reviewer-1',
+          assignee: 'Reviewer',
+          comment: ' ',
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('validates a guarded Kanban dispatch request', () => {
+    expect(
+      validateHqCommand(
+        queued('kanban-dispatch', {
+          boardId: 'board-1',
+          taskId: 'task-1',
+          comment: 'Start from HQ mobile',
+          sessionId: 'session-1',
+        }),
+      ),
+    ).toMatchObject({
+      type: 'kanban-dispatch',
+      boardId: 'board-1',
+      taskId: 'task-1',
+      sessionId: 'session-1',
+    });
+    expect(
+      validateHqCommand(
+        queued('kanban-dispatch', { boardId: 'board-1', taskId: 'task-1', comment: '' }),
+      ),
+    ).toBeNull();
   });
 
   it('rejects an unknown command type', () => {

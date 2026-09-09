@@ -2,7 +2,14 @@ import type React from 'react';
 import { Box, Text } from '../../ink.js';
 import { sanitizeTerminalText } from '../../terminal-width.js';
 import { theme } from '../../theme.js';
+import { HistoryRail } from './entry-helpers.js';
 import { type ParsedSageMemoryLine, parseSageMemoryLine } from './utils.js';
+
+/** Header the SAGE inject panel and its height estimator share. */
+export function sageInjectTitle(toolName: string, count: number, stats?: string): string {
+  const memories = `${count} ${count === 1 ? 'memory' : 'memories'}`;
+  return `🧠 SAGE · ${toolName}  ${memories}${stats ? ` · ${stats}` : ''}`;
+}
 
 /**
  * Compact magenta-bordered panel rendering SAGE memory-injection lines
@@ -10,13 +17,10 @@ import { type ParsedSageMemoryLine, parseSageMemoryLine } from './utils.js';
  *
  * Layout:
  *
- *   ┌ 🧠 SAGE MEMORY INJECTED · <tool>  N memories ────────────────┐
- *   │ [kind][importance]                                                │
- *   │     text body (wrapped to panel width)                            │
- *   │     id: mem_…  anchor: pkg/path  relation: about_file            │
- *   │     tags: t1, t2, t3                                              │
- *   │ [next memory …]                                                    │
- *   └────────────────────────────────────────────────────────────────────┘
+ *   │ 🧠 SAGE · <tool>  N memories
+ *   │ [kind][importance]
+ *   │     text body
+ *   │     id / anchor / relation / tags
  *
  * Each memory is parsed by `parseSageMemoryLine` and rendered as key/value
  * rows instead of the raw `[kind] <memory id="…">text</memory> (anchor) […]`
@@ -38,8 +42,7 @@ export function SageMemoryBlock({
   stats?: string | undefined;
   /**
    * Compact (opt-in): one magenta chip with count + first preview.
-   * Full (default): bordered panel with every memory row. The bordered form
-   * is the canonical SAGE surface and is asserted by every render test in
+   * Full (default): left-rail panel with every memory row. Asserted by
    * `tests/glob-sage-render.test.tsx` and `tests/sage-memory-block-render.test.tsx`.
    */
   compact?: boolean | undefined;
@@ -67,24 +70,10 @@ export function SageMemoryBlock({
   }
 
   return (
-    <Box
-      flexDirection="column"
-      marginY={0}
-      borderStyle="single"
-      borderColor={theme.accent}
-      paddingX={1}
-      marginTop={0}
-    >
-      <Box flexDirection="row">
-        <Text bold color={theme.accent}>
-          {`🧠 SAGE MEMORY INJECTED · ${toolName}  `}
-        </Text>
-        <Text dimColor>
-          {`${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}${
-            stats ? ` · ${stats}` : ''
-          }`}
-        </Text>
-      </Box>
+    <HistoryRail color={theme.accent}>
+      <Text bold color={theme.accent}>
+        {sageInjectTitle(toolName, memoryLines.length, stats)}
+      </Text>
       {memoryLines.map((line, i) => {
         const parsed = parseSageMemoryLine(line);
         if (!parsed) {
@@ -96,7 +85,7 @@ export function SageMemoryBlock({
         }
         return <SageMemoryRow key={i} parsed={parsed} index={i} />;
       })}
-    </Box>
+    </HistoryRail>
   );
 }
 

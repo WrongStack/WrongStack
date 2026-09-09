@@ -203,6 +203,10 @@ export type HistoryEntry =
       requestTokens?: number | undefined;
       /** The leader run was active when the switch was requested. */
       runActive?: boolean | undefined;
+      /** Automatic hop after a failed primary (rate-limit / overload). */
+      cause?: 'fallback' | undefined;
+      /** HTTP status that triggered a fallback hop, when known. */
+      status?: number | undefined;
     }
   | {
       id: number;

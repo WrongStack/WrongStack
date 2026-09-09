@@ -154,7 +154,7 @@ export function computeEntryRows(
   switch (kind) {
     // ── User entry ──
     // Left border (1) + padding (1) + content wrapped at (w - 2) + optional
-    // pasteContent line. The "👤 USER " prefix is ~10 chars, which shares the
+    // pasteContent line. The "▸ USER " prefix is ~8 chars, which shares the
     // first content row.
     case 'user': {
       const contentWidth = w - 2; // border + padding
@@ -193,58 +193,47 @@ export function computeEntryRows(
     }
 
     // ── Tool card ──
-    // Header line (1) + optional body (rail + content + footer) when expanded
+    // Header line (1) + optional body inside the left rail
     case 'tool': {
       const hasBody = meta?.hasBody ?? false;
       const simple = meta?.resultRenderMode === 'simple';
-      if (simple || !hasBody) return 2; // header + empty close (╰─)
-      // Header (1) + left rail content (wrapped text) + footer (1)
-      const contentWidth = w - 2; // left rail padding
+      if (simple || !hasBody) return 1;
+      const contentWidth = w - 2;
       const bodyRows = Math.min(MAX_ESTIMATE_ROWS, wrappedRows(text, contentWidth));
-      // Rail top border (from ToolCard header shares the header row)
-      // Rail body: bodyRows
-      // Rail footer (╰───): 1
-      return 2 + bodyRows;
+      return 1 + bodyRows;
     }
 
     // ── Tool group ──
-    // Group header (1) + entries (each: status mark + arg + meta = 1 row)
-    // + left rail (border) + rail top/footer (╭─ / ╰─)
+    // Header (1) + one row per member. Left rail adds no extra rows.
     case 'tool-group': {
       const count = meta?.groupCount ?? 1;
-      // Header row + per-entry rows + top rule + footer rule
-      // Each entry: 1 row (no wrapping — tool group items are single-line)
-      // Left rail shares the per-entry rows
-      return 2 + count + 1; // header + entries + footer rule
+      return 1 + count;
     }
 
     // ── Info / Warn / Error ──
-    // info: single-line dim text. warn: single-line bold row.
-    // error: NoticeCard (border + icon + text wrapped)
+    // info: single-line dim text. warn: single-line left-rail row.
+    // error: left-rail panel (margin + header + wrapped body)
     case 'info':
     case 'warn':
       return 1;
     case 'error': {
-      // NoticeCard: border top (1) + header (1) + wrapped body + border bottom (1)
-      const contentWidth = w - 4; // 2 border + 2 padding
+      const contentWidth = w - 2;
       const bodyRows = wrappedRows(text, contentWidth);
       return 3 + bodyRows;
     }
 
     // ── Turn summary ──
-    // Bordered box with chrome + 1 line text. marginBottom adds 1 extra.
+    // Left-rail one-liner (prefix + wrapped text).
     case 'turn-summary': {
-      const contentWidth = w - 4; // border + padding
-      const bodyRows = wrappedRows(text, contentWidth);
-      return 2 + bodyRows + 1; // border top + body + border bottom + margin
+      const contentWidth = w - 2;
+      return wrappedRows(text, contentWidth);
     }
 
-    // ── Model switch card ──
-    // Round-bordered card: top (1) + from line (1) + to line (1) + optional
-    // shrink line (1) + bottom (1)
+    // ── Model switch ──
+    // Left-rail panel: header + to + activation, plus optional from/shrink.
     case 'model-switch': {
-      let rows = 5; // top border + from + to + activation + bottom border
-      if (meta?.hasBody) rows += 1; // shrink warning
+      let rows = 5;
+      if (meta?.hasBody) rows += 1;
       return rows;
     }
 

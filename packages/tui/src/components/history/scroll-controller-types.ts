@@ -36,6 +36,11 @@ export interface HistoryScrollController {
    */
   hasCopyTargetAt(row: number, col: number): boolean;
   /**
+   * True when the viewport cell lands on a tool card's inspect icon.
+   * Same `row`/`col` contract as {@link hasCopyTargetAt}.
+   */
+  hasInspectTargetAt(row: number, col: number): boolean;
+  /**
    * Handle a left-click inside the history viewport. `row` is 0-based from the
    * viewport top; `col` is 0-based from the LEFT EDGE OF THE HISTORY BAND, not
    * the raw terminal column. In the interactive mount the band renders flush at
@@ -46,6 +51,14 @@ export interface HistoryScrollController {
    * entry id is returned; otherwise returns null.
    */
   copyAtViewportCell(row: number, col: number): Promise<number | null>;
+  /**
+   * Resolve the inspect target for the cell, or null on a miss.
+   * The host opens the overlay; the view loads the full payload from live state.
+   */
+  inspectAtViewportCell(
+    row: number,
+    col: number,
+  ): { entryId: number; entryIds?: readonly number[] } | null;
   /** Activate a committed tool card's −/+ control. */
   activateToolViewControlAt(row: number, col: number): boolean;
   /**
@@ -69,7 +82,7 @@ export interface HistoryScrollController {
    * Copy contract (block-based): the selection rect only decides WHICH
    * blocks it touches — every touched block is copied in full via
    * copyableTextForEntry (the same payload the copy icon writes), so inline
-   * chrome (card gutter, `👤 USER  ` label, `ℹ ` icon) neither leaks into
+   * chrome (card gutter, `▸ USER  ` label, `· ` icon) neither leaks into
    * nor offsets the payload. Columns still drive the GESTURE: band bounds
    * (`isOutOfBand`), the highlight band, and the drag-vs-click distinction
    * (a zero-size selection commits nothing).

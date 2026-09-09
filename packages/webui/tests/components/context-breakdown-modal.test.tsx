@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContextBreakdownModal } from '../../src/components/ContextBreakdownModal.js';
 import { useSessionStore } from '../../src/stores/session-store.js';
@@ -92,6 +92,27 @@ describe('ContextBreakdownModal', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
+  it('traps focus in the dialog and restores it to the invoking control on close', async () => {
+    const onClose = vi.fn();
+    const trigger = document.createElement('button');
+    trigger.textContent = 'Open context breakdown';
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const { rerender } = render(<ContextBreakdownModal open={true} onClose={onClose} />);
+    await act(async () => {});
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    rerender(<ContextBreakdownModal open={false} onClose={onClose} />);
+    await act(async () => {});
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it('requests a context.debug snapshot on open and then continues to poll', async () => {
     vi.useFakeTimers();
     try {
@@ -123,7 +144,7 @@ describe('ContextBreakdownModal', () => {
     vi.useFakeTimers();
     try {
       const onClose = vi.fn();
-      const { container } = render(<ContextBreakdownModal open={true} onClose={onClose} />);
+      render(<ContextBreakdownModal open={true} onClose={onClose} />);
 
       // First snapshot populates the breakdown.
       await act(async () => {
@@ -145,7 +166,7 @@ describe('ContextBreakdownModal', () => {
       // The total label renders inside the token-allocation header. The
       // production formatter renders 1_000 as "1.0k", so we assert on
       // that suffix rather than the raw "1,000".
-      expect(container.textContent).toContain('1.0k');
+      expect(document.body.textContent).toContain('1.0k');
 
       // A subsequent snapshot overwrites the prior one — latest wins.
       await act(async () => {
@@ -156,7 +177,7 @@ describe('ContextBreakdownModal', () => {
           messages: { total: 1000, count: 6, breakdown: [] },
         });
       });
-      expect(container.textContent).toContain('2.0k');
+      expect(document.body.textContent).toContain('2.0k');
     } finally {
       vi.useRealTimers();
     }

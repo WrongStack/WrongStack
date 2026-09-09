@@ -69,6 +69,7 @@ export function createTestState(
     hint: '',
     copiedNotice: '',
     copiedEntryId: null,
+    inspectOverlay: null,
     toolResultViewOverrides: new Map(),
     brain: { state: 'idle' },
     brainPrompt: null,

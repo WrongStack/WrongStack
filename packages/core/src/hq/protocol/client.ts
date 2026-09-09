@@ -16,7 +16,8 @@ export type HqClientCapability =
   | 'fleet.summary'
   | 'mailbox.summary'
   | 'mailbox.serve'
-  | 'control.receive';
+  | 'control.receive'
+  | 'kanban.dispatch';
 
 export interface HqClientIdentity {
   clientId: string;

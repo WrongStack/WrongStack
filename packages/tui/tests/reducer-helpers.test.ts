@@ -63,6 +63,7 @@ describe('closePanels', () => {
     expect(result.sessionsPanelOpen).toBe(false);
     expect(result.worktreeMonitorOpen).toBe(false);
     expect(result.cronMonitorOpen).toBe(false);
+    expect(result.inspectOverlay).toBeNull();
   });
 
   it('closes pickers with open:false', () => {

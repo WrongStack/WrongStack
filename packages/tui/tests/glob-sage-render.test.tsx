@@ -41,7 +41,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     // separate bordered memory panel.
     expect(frame).not.toContain('--- SAGE:');
     // The separate panel header must mention the tool name.
-    expect(frame).toContain('SAGE MEMORY INJECTED · glob');
+    expect(frame).toContain('SAGE · glob');
     // The memory text must appear (in the panel, not the result).
     expect(frame).toContain('remembered glob fact');
   });
@@ -60,7 +60,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     });
     expect(frame).toContain('src/a.ts');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · glob');
+    expect(frame).toContain('SAGE · glob');
     expect(frame).toContain('remembered glob decision');
   });
 
@@ -75,7 +75,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
       output: JSON.stringify({ files: ['src/x.ts'] }),
     });
     expect(frame).toContain('src/x.ts');
-    expect(frame).not.toContain('SAGE MEMORY INJECTED');
+    expect(frame).not.toContain('SAGE ·');
     expect(frame).not.toContain('--- SAGE:');
   });
 
@@ -96,7 +96,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     });
     expect(frame).toContain('a.ts');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · grep');
+    expect(frame).toContain('SAGE · grep');
     expect(frame).toContain('remembered glob fact');
   });
 
@@ -123,7 +123,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     expect(frame).toContain('3 files');
     expect(frame).toContain('1 dir');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · tree');
+    expect(frame).toContain('SAGE · tree');
   });
 
   it('renders codebase_search output with SAGE separately (regression for search tools)', () => {
@@ -145,7 +145,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     // plus the bordered SAGE panel as a separate section.
     expect(frame).toContain('count=1');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · codebase_search');
+    expect(frame).toContain('SAGE · codebase_search');
   });
 
   it('renders read JSON output with SAGE separately (regression for read tool)', () => {
@@ -163,7 +163,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     // The read body shows the path; SAGE header must not appear in it.
     expect(frame).toContain('src/foo.ts');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · read');
+    expect(frame).toContain('SAGE · read');
     expect(frame).toContain('remembered glob fact');
   });
 
@@ -181,7 +181,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     });
     expect(frame).toContain('src/foo.ts');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · read');
+    expect(frame).toContain('SAGE · read');
   });
 
   it('renders edit JSON output with SAGE separately (regression for edit tool)', () => {
@@ -204,7 +204,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     // rendered without contamination.
     expect(frame).toContain('Update(src/a.ts)');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · edit');
+    expect(frame).toContain('SAGE · edit');
     expect(frame).toContain('remembered glob decision');
   });
 
@@ -226,7 +226,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     });
     expect(frame).toContain('patch 1 file');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · patch');
+    expect(frame).toContain('SAGE · patch');
   });
 
   it('renders replace multi-file JSON output with SAGE separately (regression for replace tool)', () => {
@@ -247,7 +247,7 @@ describe('glob tool result — SAGE injection as separate section', () => {
     });
     expect(frame).toContain('replacement');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · replace');
+    expect(frame).toContain('SAGE · replace');
     expect(frame).toContain('remembered glob fact');
   });
 
@@ -269,6 +269,6 @@ describe('glob tool result — SAGE injection as separate section', () => {
     });
     expect(frame).toContain('Update(src/d.ts)');
     expect(frame).not.toContain('--- SAGE:');
-    expect(frame).toContain('SAGE MEMORY INJECTED · write');
+    expect(frame).toContain('SAGE · write');
   });
 });

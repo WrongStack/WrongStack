@@ -159,6 +159,14 @@ export async function assignTask(
     const task = findTask(board, taskId);
     if (!task) return null;
     const before = task.assignment ? { ...task.assignment } : undefined;
+    if (
+      input.protectActiveAssignment === true &&
+      (before?.status === 'queued' || before?.status === 'running')
+    ) {
+      throw new Error(
+        `Task ${taskId} has an active ${before.status} assignment; release or stop it before reassignment.`,
+      );
+    }
     const assignment = buildAssignment(input);
     task.assignment = assignment;
     task.assignedAgent = assignment.agentId ?? assignment.role ?? assignment.name;

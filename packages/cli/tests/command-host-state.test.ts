@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupCommandHostState } from '../src/wiring/command-host-state.js';
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createAgentsMonitorController: vi.fn().mockReturnValue({ agents: true }),
   createGoalHost: vi.fn().mockReturnValue({ goal: true }),
   cleanupStaleSddWorktrees: vi.fn().mockResolvedValue(undefined),
+  executeKanbanQueue: vi.fn(),
 }));
 
 vi.mock('../src/wiring/controllers.js', () => ({
@@ -26,11 +27,24 @@ vi.mock('@wrongstack/sdd', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wrongstack/sdd')>();
   return { ...actual, cleanupStaleSddWorktrees: mocks.cleanupStaleSddWorktrees };
 });
+vi.mock('@wrongstack/core/coordination', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wrongstack/core/coordination')>();
+  return {
+    ...actual,
+    makeKanbanQueueTool: () => ({ execute: mocks.executeKanbanQueue }),
+  };
+});
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
-afterEach(() => {
+beforeEach(() => {
   vi.clearAllMocks();
+  mocks.executeKanbanQueue.mockResolvedValue({
+    ok: true,
+    count: 1,
+    message: 'Dispatched 1 kanban task(s).',
+    dispatched: [{ subagentId: 'kanban-worker-1' }],
+  });
 });
 
 function harness(director: Record<string, unknown> | null) {
@@ -141,6 +155,26 @@ describe('setupCommandHostState', () => {
     ).resolves.toBe('spawned-id');
     expect(director.spawn).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'custom-role', task: 'cover', maxIterations: 3 }),
+    );
+    await expect(
+      (
+        hqCommandController.kanbanDispatch as (input: {
+          boardId: string;
+          taskId: string;
+          comment: string;
+        }) => Promise<string>
+      )({ boardId: 'board-1', taskId: 'task-1', comment: 'Start it' }),
+    ).resolves.toContain('kanban-worker-1');
+    expect(mocks.executeKanbanQueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'dispatch_ready',
+        boardId: 'board-1',
+        taskId: 'task-1',
+        maxTasks: 1,
+        awaitCompletion: false,
+      }),
+      expect.objectContaining({ projectRoot: 'D:/repo', eventSessionId: expect.any(Function) }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 

@@ -1,7 +1,7 @@
 /**
- * Right-edge rail for the managed viewport: copy, selection band, and
- * scrollbar track. All three columns are always reserved, so affordances
- * never reflow chat content.
+ * Right-edge rail for the managed viewport: copy, inspect, selection band,
+ * and scrollbar track. Columns are always reserved, so affordances never
+ * reflow chat content.
  *
  * The gap column doubles as the drag-selection highlight band: while a drag is
  * in progress, the subscribing component re-renders ONLY this rail (via
@@ -17,7 +17,7 @@ import { useSyncExternalStore } from 'react';
 import { Box, Text } from '../../ink.js';
 import { theme } from '../../theme.js';
 import type { CopyHit } from './copy-geometry.js';
-import { COPY_ICON } from './copy-icon.js';
+import { COPY_ICON, INSPECT_ICON } from './copy-icon.js';
 import { scrollbarThumb } from './scrollbar-geometry.js';
 import { createSelectionBandStore, type SelectionBandStore } from './selection-band-store.js';
 
@@ -59,6 +59,10 @@ export function Scrollbar({
               color={copyHit && copiedEntryId === copyHit.entryId ? theme.success : theme.textMuted}
             >
               {copyHit ? COPY_ICON : ' '}
+            </Text>
+            <Text> </Text>
+            <Text color={copyHit?.inspectCol !== undefined ? theme.accent : undefined}>
+              {copyHit?.inspectCol !== undefined ? INSPECT_ICON : ' '}
             </Text>
             <Text {...(inBand ? { color: theme.accent } : {})}>
               {isHead ? '█' : inBand ? '▌' : ' '}

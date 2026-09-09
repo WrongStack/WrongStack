@@ -272,6 +272,28 @@ export function buildClientWsUrl(host: string, port: number, token?: string): st
   return url.toString();
 }
 
+/**
+ * Validate and normalize a browser-facing HQ origin supplied for a persistent
+ * HTTPS reverse proxy. Paths, credentials, query strings and fragments are
+ * refused because the value becomes a Host/Origin trust-boundary entry.
+ */
+export function normalizeHqPublicOrigin(value: string): string {
+  const parsed = new URL(value.trim());
+  if (
+    parsed.protocol !== 'https:' ||
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    (parsed.pathname !== '' && parsed.pathname !== '/') ||
+    parsed.search !== '' ||
+    parsed.hash !== ''
+  ) {
+    throw new TypeError(
+      'HQ public URL must be an exact HTTPS origin without a path or credentials.',
+    );
+  }
+  return parsed.origin;
+}
+
 // ── Runtime marker ─────────────────────────────────────────────────────────
 
 export function hqRuntimeMarkerPath(dataDir: string): string {

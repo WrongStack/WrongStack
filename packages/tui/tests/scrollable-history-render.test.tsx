@@ -287,7 +287,7 @@ describe('<ScrollableHistory /> content navigation', () => {
       { columns: 70, rows: 16 },
     );
     await settle();
-    expect(view.lastFrame()).toContain('assistant · streaming');
+    expect(view.lastFrame()).not.toContain('assistant · streaming');
     expect(view.lastFrame()).toContain('I am checking the repository');
     expect(view.lastFrame()).toContain('read · running');
     view.unmount();

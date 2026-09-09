@@ -4,6 +4,7 @@ import { buildSidebarOpenFlags, resolveAppSidebarLayout } from './app-ui-state.j
 import type { AppViewProps } from './app-view-contract.js';
 import { AppViewPickers } from './app-view-pickers.js';
 import { AppViewSidebar } from './app-view-sidebar.js';
+import { InspectOverlay, resolveInspectOverlayContent } from './components/inspect-overlay.js';
 import { DEFAULT_INPUT_PROMPT, Input } from './components/input.js';
 import { PanelShortcutsProvider } from './components/monitor-shell.js';
 import { usePlanPanelData } from './components/plan-panel.js';
@@ -100,6 +101,10 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     sidebarSlotVisible('plan'),
   );
 
+  const inspectContent = state.inspectOverlay
+    ? resolveInspectOverlayContent(state.inspectOverlay, state.entries, state.toolStream)
+    : null;
+
   return (
     <PanelShortcutsProvider value={state.buffer.length === 0}>
       <Box
@@ -110,38 +115,50 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
       >
         <Box flexDirection="row" width={termCols} flexShrink={0} overflowX="hidden">
           <Box flexDirection="column" flexShrink={0} width={mainColumnWidth} overflowX="hidden">
-            <ScrollableHistory
-              key={`history-gen-${state.historyGen}`}
-              entries={state.entries}
-              toolStream={state.toolStream}
-              streamingText={state.streamingText}
-              viewportRows={state.viewportRows}
-              maxWidth={mainColumnWidth}
-              controllerRef={historyScrollRef}
-              onScrollInfo={onScrollInfo}
-              setSuggestions={setSuggestions}
-              autonomyMode={autonomyLive}
-              multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
-              todos={liveTodos}
-              showModelReasoning={
-                state.settingsPicker.open
-                  ? state.settingsPicker.showModelReasoning
-                  : (liveSettings?.showModelReasoning ?? true)
-              }
-              showSageMemoryInject={
-                state.settingsPicker.open
-                  ? state.settingsPicker.showSageMemoryInject
-                  : (liveSettings?.showSageMemoryInject ?? false)
-              }
-              toolResultViewMode={toolResultViewMode}
-              toolResultViewOverrides={state.toolResultViewOverrides}
-              onToolResultViewChange={(entryIds, mode) =>
-                runtime.dispatch({ type: 'toolResultViewSet', entryIds, mode })
-              }
-              layoutStore={layoutStore}
-              copiedEntryId={state.copiedEntryId}
-              onRequestOlderEntries={runtime.onRequestOlderEntries}
-            />
+            {inspectContent && state.inspectOverlay ? (
+              <InspectOverlay
+                title={inspectContent.title}
+                body={inspectContent.body}
+                scroll={state.inspectOverlay.scroll}
+                termCols={mainColumnWidth}
+                viewportRows={state.viewportRows}
+                onScroll={(delta) => runtime.dispatch({ type: 'inspectOverlayScroll', delta })}
+                onClose={() => runtime.dispatch({ type: 'inspectOverlayClose' })}
+              />
+            ) : (
+              <ScrollableHistory
+                key={`history-gen-${state.historyGen}`}
+                entries={state.entries}
+                toolStream={state.toolStream}
+                streamingText={state.streamingText}
+                viewportRows={state.viewportRows}
+                maxWidth={mainColumnWidth}
+                controllerRef={historyScrollRef}
+                onScrollInfo={onScrollInfo}
+                setSuggestions={setSuggestions}
+                autonomyMode={autonomyLive}
+                multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
+                todos={liveTodos}
+                showModelReasoning={
+                  state.settingsPicker.open
+                    ? state.settingsPicker.showModelReasoning
+                    : (liveSettings?.showModelReasoning ?? true)
+                }
+                showSageMemoryInject={
+                  state.settingsPicker.open
+                    ? state.settingsPicker.showSageMemoryInject
+                    : (liveSettings?.showSageMemoryInject ?? false)
+                }
+                toolResultViewMode={toolResultViewMode}
+                toolResultViewOverrides={state.toolResultViewOverrides}
+                onToolResultViewChange={(entryIds, mode) =>
+                  runtime.dispatch({ type: 'toolResultViewSet', entryIds, mode })
+                }
+                layoutStore={layoutStore}
+                copiedEntryId={state.copiedEntryId}
+                onRequestOlderEntries={runtime.onRequestOlderEntries}
+              />
+            )}
             <Box
               flexDirection="column"
               flexShrink={0}

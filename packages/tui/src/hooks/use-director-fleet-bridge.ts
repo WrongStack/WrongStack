@@ -4,6 +4,10 @@ import { useEffect, useRef } from 'react';
 import type { Action, State } from '../app-reducer.js';
 import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 import { formatToolSummary, type ToolAgg } from './fleet-chat-coalescer.js';
+import {
+  formatSubagentFallbackText,
+  formatSubagentModelFailedText,
+} from './subagent-history-format.js';
 import { useFleetGenerationGate } from './use-fleet-generation-gate.js';
 import { MAX_ASSISTANT_STREAM_RETAINED_CHARS, retainStreamTail } from '../reducers/helpers.js';
 
@@ -328,38 +332,41 @@ export function useDirectorFleetBridge({
           break;
         }
         case 'provider.error': {
-          // Emitted by the INNER provider runner when one model's own retries
-          // are exhausted — the fallback extension may still rescue the turn
-          // by hopping models (a `provider.fallback` event follows if so).
-          // Phrase it as a model failure, not a terminal subagent failure.
+          // Inner-model retries exhausted — a `provider.fallback` hop usually
+          // follows. Keep it on the subagent rail, not a full ERROR card.
           const payload = event.payload as { description?: string | undefined };
+          const label = labelFor(labelsRef, event.subagentId);
           enqueue({
             type: 'addEntry',
             entry: {
-              kind: 'error',
-              text: `subagent model failed${payload?.description ? `: ${payload.description}` : ''}`,
+              kind: 'subagent',
+              agentLabel: label.label,
+              agentColor: label.color,
+              icon: '✗',
+              text: formatSubagentModelFailedText(payload?.description),
             },
           });
           break;
         }
         case 'provider.fallback': {
-          // The fallback extension hopped this worker to the next model in
-          // its chain. Surface it so a preceding model-failure entry reads as
-          // "recovered", not as a dead worker.
           const payload = event.payload as {
             from?: { providerId?: string; model?: string } | undefined;
             to?: { providerId?: string; model?: string } | undefined;
           };
-          const from = payload?.from;
           const to = payload?.to;
           if (to?.providerId && to.model) {
-            const fromLabel =
-              from?.providerId && from.model ? `${from.providerId}/${from.model} ` : '';
+            const label = labelFor(labelsRef, event.subagentId);
             enqueue({
               type: 'addEntry',
               entry: {
-                kind: 'info',
-                text: `subagent fallback: ${fromLabel}→ ${to.providerId}/${to.model}`,
+                kind: 'subagent',
+                agentLabel: label.label,
+                agentColor: label.color,
+                icon: '↺',
+                text: formatSubagentFallbackText(payload?.from, {
+                  providerId: to.providerId,
+                  model: to.model,
+                }),
               },
             });
           }
@@ -421,24 +428,45 @@ export function useDirectorFleetBridge({
           break;
         case 'compaction.fired':
           if (chatModeRef.current !== 'off') {
+            const label = labelFor(labelsRef, event.subagentId);
             enqueue({
               type: 'addEntry',
-              entry: { kind: 'info', text: 'subagent compaction triggered' },
+              entry: {
+                kind: 'subagent',
+                agentLabel: label.label,
+                agentColor: label.color,
+                icon: '↻',
+                text: 'compaction',
+              },
             });
           }
           break;
-        case 'compaction.failed':
-          // warn-level: failures surface in every mode, including 'off'.
+        case 'compaction.failed': {
+          const label = labelFor(labelsRef, event.subagentId);
           enqueue({
             type: 'addEntry',
-            entry: { kind: 'warn', text: 'subagent compaction failed' },
+            entry: {
+              kind: 'subagent',
+              agentLabel: label.label,
+              agentColor: label.color,
+              icon: '✗',
+              text: 'compaction failed',
+            },
           });
           break;
+        }
         case 'token.threshold':
           if (chatModeRef.current === 'full') {
+            const label = labelFor(labelsRef, event.subagentId);
             enqueue({
               type: 'addEntry',
-              entry: { kind: 'info', text: 'subagent token threshold reached' },
+              entry: {
+                kind: 'subagent',
+                agentLabel: label.label,
+                agentColor: label.color,
+                icon: '⚠',
+                text: 'token threshold',
+              },
             });
           }
           break;

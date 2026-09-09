@@ -9,6 +9,7 @@
  *    already in storage on every boot.
  */
 import {
+  authHeaders,
   clearHqToken,
   normalizeHqTokenInput,
   readStoredToken,
@@ -29,6 +30,34 @@ function requestTokenCookieUpgrade(token: string): Promise<Response> {
 export interface HqTokenLoginResult {
   ok: boolean;
   message?: string;
+}
+
+/**
+ * Lightweight boot preflight used before opening the snapshot/WebSocket data
+ * plane. Password-only visitors must see the gate without first generating a
+ * guaranteed 401 fetch and failed WS upgrade in the browser console.
+ */
+export async function hasAuthenticatedHqBrowserSession(options?: {
+  passwordOnly?: boolean;
+}): Promise<boolean> {
+  try {
+    const response = await fetch('/api/auth/status', {
+      headers: authHeaders(),
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout(EXCHANGE_TIMEOUT_MS),
+    });
+    if (!response.ok) return false;
+    const body = (await response.json()) as {
+      loggedIn?: unknown;
+      passwordMode?: unknown;
+      authKind?: unknown;
+    };
+    if (body.loggedIn !== true) return false;
+    if (options?.passwordOnly !== true) return true;
+    return body.passwordMode === true && body.authKind === 'password';
+  } catch {
+    return false;
+  }
 }
 
 /**

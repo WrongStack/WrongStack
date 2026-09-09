@@ -1,9 +1,10 @@
 import React from 'react';
-import { Box, Text, useAnimation } from '../../ink.js';
+import { Text, useAnimation } from '../../ink.js';
 import { sanitizeTerminalText, truncateDisplay } from '../../terminal-width.js';
 import { theme } from '../../theme.js';
 import { getToolVisual } from '../../tool-glyph.js';
 import { fmtDuration } from './basic-format.js';
+import { HistoryRail } from './entry-helpers.js';
 
 export const MAX_STREAM_DISPLAY_CHARS = 480;
 const MAX_STREAM_LINES = 8;
@@ -13,7 +14,7 @@ const TOOL_STREAM_HEADER_ROWS = 1;
 
 const ASSISTANT_STREAM_LINES = 6;
 const ASSISTANT_STREAM_MARGIN_ROWS = 2;
-const ASSISTANT_STREAM_HEADER_ROWS = 1;
+const ASSISTANT_STREAM_HEADER_ROWS = 0;
 
 /** Fixed layout height of the live assistant-stream tail for scroll-range math. */
 export function assistantStreamBoxHeight(): number {
@@ -44,13 +45,15 @@ export const ToolPendingLine = React.memo(function ToolPendingLine({
   const { glyph, color } = getToolVisual(name);
   const spinner = ['◐', '◓', '◑', '◒'][frame % 4] ?? '◐';
   return (
-    <Text>
-      <Text color={color}>{`${spinner} ${glyph} `}</Text>
-      <Text bold color={color}>
-        {truncateDisplay(sanitizeTerminalText(name), Math.max(1, termWidth - 24))}
+    <HistoryRail color={color}>
+      <Text>
+        <Text color={color}>{`${spinner} ${glyph} `}</Text>
+        <Text bold color={theme.textPrimary}>
+          {truncateDisplay(sanitizeTerminalText(name), Math.max(1, termWidth - 24))}
+        </Text>
+        <Text dimColor>{` · running · ${fmtDuration(Date.now() - startedAt)}`}</Text>
       </Text>
-      <Text dimColor>{` · running · ${fmtDuration(Date.now() - startedAt)}`}</Text>
-    </Text>
+    </HistoryRail>
   );
 });
 
@@ -110,39 +113,28 @@ export const ToolStreamBox = React.memo(function ToolStreamBox({
   const isWritePreview = name === 'write';
 
   return (
-    <Box
-      flexDirection="column"
-      marginY={1}
-      borderStyle="single"
-      borderTop={false}
-      borderRight={false}
-      borderBottom={false}
-      borderColor={color}
-      paddingLeft={1}
-    >
-      <Box flexDirection="row">
+    <HistoryRail color={color} marginY={1}>
+      <Text>
         <Text color={color}>{glyph} </Text>
-        <Text bold color={color}>
-          {isWritePreview ? 'write · creating file' : safeName}
+        <Text bold color={theme.textPrimary}>
+          {isWritePreview ? 'write · creating' : safeName}
         </Text>
-        <Text dimColor>{`  ⏱ ${fmtDuration(elapsedMs)}`}</Text>
+        <Text dimColor>{`  · ${fmtDuration(elapsedMs)}`}</Text>
         {hidden > 0 ? (
-          <Text dimColor>{`  (${totalLines} lines, showing last ${streamLines})`}</Text>
+          <Text dimColor>{`  (${totalLines} lines, last ${streamLines})`}</Text>
         ) : null}
-      </Box>
-      <Box flexDirection="column" marginLeft={1}>
-        {rows.map((r, i) => (
-          <Text
-            key={i}
-            color={isWritePreview ? 'gray' : undefined}
-            dimColor={!isWritePreview}
-            italic={Boolean(r.italic)}
-          >
-            {r.text || ' '}
-          </Text>
-        ))}
-      </Box>
-    </Box>
+      </Text>
+      {rows.map((r, i) => (
+        <Text
+          key={i}
+          color={isWritePreview ? theme.textMuted : theme.textSecondary}
+          italic={Boolean(r.italic)}
+          dimColor={Boolean(r.italic)}
+        >
+          {r.text || ' '}
+        </Text>
+      ))}
+    </HistoryRail>
   );
 });
 
@@ -154,39 +146,22 @@ export const AssistantStreamBox = React.memo(function AssistantStreamBox({
   termWidth: number;
 }): React.ReactElement {
   const contentWidth = Math.max(1, Math.min(termWidth - 4, 100));
-  const totalLines = text.split('\n').length;
-  const hidden = Math.max(0, totalLines - ASSISTANT_STREAM_LINES);
   const rows = streamBoxRows(text, ASSISTANT_STREAM_LINES, contentWidth);
   const color = theme.assistant ?? 'cyan';
 
   return (
-    <Box
-      flexDirection="column"
-      marginY={1}
-      borderStyle="single"
-      borderTop={false}
-      borderRight={false}
-      borderBottom={false}
-      borderColor={color}
-      paddingLeft={1}
-    >
-      <Box flexDirection="row">
-        <Text color={color}>✦ </Text>
-        <Text bold color={color}>
-          assistant · streaming
+    <HistoryRail color={color} marginY={1}>
+      {rows.map((r, i) => (
+        <Text
+          key={i}
+          color={theme.textPrimary}
+          italic={Boolean(r.italic)}
+          dimColor={Boolean(r.italic)}
+        >
+          {r.text || ' '}
         </Text>
-        {hidden > 0 ? (
-          <Text dimColor>{`  (${totalLines} lines, showing last ${ASSISTANT_STREAM_LINES})`}</Text>
-        ) : null}
-      </Box>
-      <Box flexDirection="column" marginLeft={1}>
-        {rows.map((r, i) => (
-          <Text key={i} color="white" italic={Boolean(r.italic)}>
-            {r.text || ' '}
-          </Text>
-        ))}
-      </Box>
-    </Box>
+      ))}
+    </HistoryRail>
   );
 });
 

@@ -1,6 +1,6 @@
 ﻿import type { Context } from '@wrongstack/core/agent';
-import type { SessionWriter } from '@wrongstack/core/types';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
+import type { SessionWriter } from '@wrongstack/core/types';
 
 /** Exactly the config slice the session-logging resolver reads. */
 type SessionLoggingConfig = Parameters<typeof resolveSessionLoggingConfig>[0];

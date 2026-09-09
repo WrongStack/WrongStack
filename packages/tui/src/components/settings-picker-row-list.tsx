@@ -1,5 +1,5 @@
-import { Text } from '../ink.js';
 import type React from 'react';
+import { Text } from '../ink.js';
 import type { SettingsFilterResult, SettingsHighlightSegment } from './settings-picker-filter.js';
 
 export interface SettingsPickerRowData {
@@ -124,7 +124,7 @@ export function SettingsPickerRowList({
         if (fieldAtRow === -1) {
           if (!visibleSections.has(i)) return null;
           return (
-            <Text key={`section-${row.section ?? i}`} bold color="green">
+            <Text key={`section-${i}`} bold color="green">
               ── {row.section} ──
             </Text>
           );

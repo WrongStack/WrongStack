@@ -58,13 +58,13 @@ describe('<Entry /> — comprehensive coverage', () => {
         { id: 1, kind: 'thinking', text: 'thinking text' },
         { showModelReasoning: true },
       );
-      expect(frame).toContain('Model Reasoning');
+      expect(frame).toContain('REASONING');
       expect(frame).toContain('thinking text');
     });
 
     it('renders model reasoning by default', () => {
       const frame = renderEntry({ id: 1, kind: 'thinking', text: 'default thinking' });
-      expect(frame).toContain('Model Reasoning');
+      expect(frame).toContain('REASONING');
       expect(frame).toContain('default thinking');
     });
 
@@ -86,7 +86,8 @@ describe('<Entry /> — comprehensive coverage', () => {
     it('renders assistant text', () => {
       const frame = renderEntry({ id: 1, kind: 'assistant', text: 'I am an AI' });
       expect(frame).toContain('I am an AI');
-      expect(frame).toContain('ASSISTANT');
+      expect(frame).not.toContain('ASSISTANT');
+      expect(frame).not.toContain('💬');
     });
 
     it('renders next steps with auto flag', () => {
@@ -106,7 +107,7 @@ describe('<Entry /> — comprehensive coverage', () => {
         },
         { termWidth: 100 },
       );
-      expect(frame).toContain('NEXT STEPS');
+      expect(frame).toContain('NEXT');
       expect(frame).toContain('Check the logs');
       expect(frame).not.toContain('<nextsteps>');
     });
@@ -168,6 +169,28 @@ describe('<Entry /> — comprehensive coverage', () => {
     });
   });
 
+  describe('model-switch kind', () => {
+    it('renders a fallback hop as FALLBACK, not a warn dump', () => {
+      const frame = renderEntry({
+        id: 1,
+        kind: 'model-switch',
+        cause: 'fallback',
+        fromProvider: 'anthropic',
+        fromModel: 'claude-opus-4',
+        toProvider: 'openai',
+        toModel: 'gpt-4o',
+        status: 429,
+        runActive: true,
+      });
+      expect(frame).toContain('FALLBACK');
+      expect(frame).toContain('HTTP 429');
+      expect(frame).toContain('anthropic / claude-opus-4');
+      expect(frame).toContain('openai / gpt-4o');
+      expect(frame).toContain('recovered');
+      expect(frame).not.toContain('rate-limited');
+    });
+  });
+
   describe('confirm kind', () => {
     it('renders confirm entry with tool name', () => {
       const frame = renderEntry({
@@ -177,13 +200,28 @@ describe('<Entry /> — comprehensive coverage', () => {
         input: { command: 'run command?' },
         suggestedPattern: 'bash:*',
       });
-      expect(frame).toContain('Confirm');
+      expect(frame).toContain('CONFIRM');
       expect(frame).toContain('bash');
       expect(frame).toContain('y / n / a / d');
     });
   });
 
   describe('subagent kind', () => {
+    it('renders a fallback hop on the agent rail', () => {
+      const frame = renderEntry({
+        id: 1,
+        kind: 'subagent',
+        icon: '↺',
+        agentLabel: 'REVIEWER',
+        agentColor: 'cyan',
+        text: 'fallback  anthropic / claude-opus-4 → openai / gpt-4o',
+      });
+      expect(frame).toContain('REVIEWER');
+      expect(frame).toContain('fallback');
+      expect(frame).toContain('anthropic / claude-opus-4');
+      expect(frame).not.toContain('subagent fallback:');
+    });
+
     it('renders subagent entry with icon and label', () => {
       const frame = renderEntry({
         id: 1,
@@ -381,7 +419,7 @@ describe('<Entry /> — comprehensive coverage', () => {
         ].join('\n'),
       });
       expect(frame).toContain('actual tool result');
-      expect(frame).toContain('SAGE MEMORY INJECTED · extension_tool');
+      expect(frame).toContain('SAGE · extension_tool');
       expect(frame).toContain('remembered fact');
       expect(frame).not.toContain('--- SAGE:');
     });
@@ -407,7 +445,7 @@ describe('<Entry /> — comprehensive coverage', () => {
       expect(frame).toContain('Write(new.ts)');
       expect(frame).toContain('Added 1 line');
       expect(frame).not.toContain('removed');
-      expect(frame).toContain('SAGE MEMORY INJECTED · write');
+      expect(frame).toContain('SAGE · write');
       expect(frame).toContain('remembered fact');
       expect(frame).not.toContain('--- SAGE:');
       expect(frame).not.toContain('Update(new.ts)');

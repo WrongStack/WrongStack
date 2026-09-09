@@ -1,6 +1,7 @@
 import type React from 'react';
 import { Text } from '../../ink.js';
 import { sanitizeTerminalText, truncateDisplay } from '../../terminal-width.js';
+import { theme } from '../../theme.js';
 import { shortenPath } from './basic-format.js';
 import type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
 
@@ -8,7 +9,6 @@ const VISUAL_TEXT_BUDGET = 92;
 
 export function ToolOutputLines({
   lines,
-  hasFollowingBlock,
 }: {
   lines: ToolVisualLine[];
   hasFollowingBlock?: boolean | undefined;
@@ -16,7 +16,7 @@ export function ToolOutputLines({
   return (
     <>
       {lines.map((line, i) => {
-        const branch = i === lines.length - 1 && !hasFollowingBlock ? '  └─ ' : '  ├─ ';
+        const branch = '  ';
         const color = colorForVisualKind(line.kind);
         return (
           <Text key={`${line.kind}-${i}`}>
@@ -28,13 +28,13 @@ export function ToolOutputLines({
             ) : null}
             {line.path ? (
               <>
-                <Text color="cyan">{shortenPath(sanitizeTerminalText(line.path), 56)}</Text>
+                <Text color={theme.accent}>{shortenPath(sanitizeTerminalText(line.path), 56)}</Text>
                 <Text dimColor>{'  '}</Text>
               </>
             ) : null}
             {line.lineNo ? (
               <>
-                <Text color="yellow">{String(line.lineNo).padStart(4, ' ')}</Text>
+                <Text color={theme.warn}>{String(line.lineNo).padStart(4, ' ')}</Text>
                 <Text dimColor>{' │ '}</Text>
               </>
             ) : null}
@@ -51,17 +51,17 @@ export function ToolOutputLines({
 function colorForVisualKind(kind: ToolVisualLineKind): string | undefined {
   switch (kind) {
     case 'ok':
-      return 'green';
+      return theme.success;
     case 'warn':
-      return 'yellow';
+      return theme.warn;
     case 'error':
     case 'stderr':
-      return 'red';
+      return theme.error;
     case 'path':
     case 'match':
-      return 'cyan';
+      return theme.accent;
     case 'code':
-      return 'white';
+      return theme.textPrimary;
     case 'stdout':
     case 'meta':
       return undefined;

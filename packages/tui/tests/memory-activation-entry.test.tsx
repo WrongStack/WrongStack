@@ -79,7 +79,7 @@ describe('memory activation history card', () => {
   it('still surfaces a failed run, which has no panel of its own', () => {
     const frame = frameOf(memoryEntry('error'));
 
-    expect(frame).toContain('MEMORY INJECTOR');
+    expect(frame).toContain('INJECTOR');
     expect(frame).toContain('sqlite: database is locked');
   });
 
@@ -110,7 +110,7 @@ describe('memory activation history card', () => {
     (legacy.activated as Array<Record<string, unknown>>)[0]!.scoreTerms = [];
     const frame = frameOf(legacy as never as HistoryEntry);
 
-    expect(frame).toContain('MEMORY INJECTOR');
+    expect(frame).toContain('INJECTOR');
     // Falls back to the shipped gates rather than crashing the transcript.
     expect(frame).toContain('0.91 ✓ 0.72');
     expect(frame).toContain('older core build');

@@ -28,6 +28,7 @@ import {
   hqAuthAuditPath,
   hqAuthContentHash,
   hqAuthFilePath,
+  isLoopbackHost,
   logHqAuthAudit,
   mintHqToken,
   mutateHqAuthFile,
@@ -37,6 +38,7 @@ import {
 import { expectDefined } from '@wrongstack/core/utils';
 import { resolveAuditActor } from '../../hq-server/audit-actor.js';
 import type { HqServerHandle } from '../../hq-server/handle-types.js';
+import { normalizeHqPublicOrigin } from '../../hq-server/utils.js';
 import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
 export { resolveAuditActor } from '../../hq-server/audit-actor.js';
@@ -97,8 +99,32 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   const { startHqServer } = await import('../../hq-server.js');
   const dataDir = resolveDataDir(deps);
   const flags = deps.flags ?? {};
-  const host = typeof flags['host'] === 'string' ? flags['host'] : HQ_CLI_DEFAULT_HOST;
+  const rawPublicUrl =
+    typeof flags['hq-public-url'] === 'string'
+      ? flags['hq-public-url']
+      : process.env.WRONGSTACK_HQ_PUBLIC_URL;
+  let publicOrigin: string | undefined;
+  if (rawPublicUrl !== undefined && rawPublicUrl.trim() !== '') {
+    try {
+      publicOrigin = normalizeHqPublicOrigin(rawPublicUrl);
+    } catch (cause) {
+      deps.renderer.writeError(`${cause instanceof Error ? cause.message : String(cause)}\n`);
+      return 1;
+    }
+  }
+  const host =
+    typeof flags['host'] === 'string'
+      ? flags['host']
+      : publicOrigin !== undefined
+        ? '127.0.0.1'
+        : HQ_CLI_DEFAULT_HOST;
   const port = typeof flags['port'] === 'string' ? Number.parseInt(flags['port'], 10) : 3499;
+  if (publicOrigin !== undefined && !isLoopbackHost(host)) {
+    deps.renderer.writeError(
+      'Persistent public HQ requires a loopback bind. Remove --host or use --host 127.0.0.1.\n',
+    );
+    return 1;
+  }
   const strictPort = flags['strict-port'] === true;
   const open = flags['open'] === true;
   const password =
@@ -145,6 +171,8 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
       strictPort,
       dataDir,
       allowInsecureOpen,
+      secureCookies: publicOrigin !== undefined,
+      requireBrowserAuth: publicOrigin !== undefined,
       ...(password !== undefined ? { password } : {}),
       ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),
       ...(trustedProxyHops !== undefined ? { trustedProxyHops } : {}),
@@ -159,10 +187,25 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     throw err;
   }
 
+  if (publicOrigin !== undefined) {
+    if (handle.firstRunSetup?.passwordMode !== true) {
+      await handle.close();
+      deps.renderer.writeError(
+        'Persistent public HQ requires password mode. Set WRONGSTACK_HQ_PASSWORD and retry.\n',
+      );
+      return 1;
+    }
+    handle.trustPublicOrigin(publicOrigin);
+    deps.renderer.write(`Public endpoint:  ${publicOrigin}/\n`);
+    deps.renderer.write(`Public mobile:    ${publicOrigin}/mobile\n`);
+  }
+
   if (open) {
     try {
       const { openBrowser } = await import('@wrongstack/webui-server');
-      openBrowser(handle.firstRunSetup?.browserUrl ?? `http://${handle.host}:${handle.port}`);
+      openBrowser(
+        publicOrigin ?? handle.firstRunSetup?.browserUrl ?? `http://${handle.host}:${handle.port}`,
+      );
     } catch {
       // best-effort
     }
@@ -191,10 +234,18 @@ function writeStartupInfo(deps: SubcommandDeps, handle: HqServerHandle): void {
   if (!handle.firstRunSetup) {
     deps.renderer.write(`Client endpoint:  ws://${handle.host}:${handle.port}/ws/client\n`);
     deps.renderer.write(`Browser endpoint: http://${handle.host}:${handle.port}\n`);
+    deps.renderer.write(
+      `Mobile endpoint:  http://${handle.host}:${handle.port}/mobile (password required)\n`,
+    );
     return;
   }
 
+  const mobileUrl = new URL(handle.firstRunSetup.browserUrl);
+  mobileUrl.pathname = '/mobile';
+  mobileUrl.search = '';
+  mobileUrl.hash = '';
   deps.renderer.write(`Browser endpoint: ${handle.firstRunSetup.browserUrl}\n`);
+  deps.renderer.write(`Mobile endpoint:  ${mobileUrl.toString()} (password required)\n`);
   deps.renderer.write(`Client endpoint:  ${handle.firstRunSetup.clientUrl}\n`);
   deps.renderer.write(
     handle.firstRunSetup.createdAuth
@@ -694,6 +745,9 @@ function printHelp(deps: SubcommandDeps): void {
   );
   deps.renderer.write(
     `  --tunnel            Publish a temporary *.trycloudflare.com URL (requires cloudflared).\n`,
+  );
+  deps.renderer.write(
+    `  --hq-public-url <https-origin>  Trust a persistent TLS reverse-proxy origin; binds loopback and requires password mode.\n`,
   );
   deps.renderer.write(`  --password <value>  Set or rotate the browser login password.\n`);
   deps.renderer.write(

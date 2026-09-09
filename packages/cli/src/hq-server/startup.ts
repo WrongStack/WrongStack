@@ -88,17 +88,29 @@ export function writeHqStartupInfo(
   const startup = handle.firstRunSetup;
   const browserUrl = HqServerUtils.buildHttpUrl(handle.host, handle.port);
   const clientUrl = HqServerUtils.buildClientWsUrl(handle.host, handle.port);
+  const mobileUrl = new URL(browserUrl);
+  mobileUrl.pathname = '/mobile';
   write(
     `${terminalText('WrongStack HQ', 'magenta')} ${terminalText('listening on', 'green')} ${terminalLink(browserUrl)}\n`,
   );
   if (!startup) {
     write(`${terminalText('Browser endpoint:', 'blue')} ${terminalLink(browserUrl)}\n`);
+    write(
+      `${terminalText('Mobile endpoint:', 'blue')}  ${terminalLink(mobileUrl.toString())} (password required)\n`,
+    );
     write(`${terminalText('Client endpoint:', 'blue')}  ${terminalLink(clientUrl)}\n`);
     writeHqLanEndpoints(write, handle, undefined);
     return;
   }
 
+  const firstRunMobileUrl = new URL(startup.browserUrl);
+  firstRunMobileUrl.pathname = '/mobile';
+  firstRunMobileUrl.search = '';
+  firstRunMobileUrl.hash = '';
   write(`${terminalText('Browser endpoint:', 'blue')} ${terminalLink(startup.browserUrl)}\n`);
+  write(
+    `${terminalText('Mobile endpoint:', 'blue')}  ${terminalLink(firstRunMobileUrl.toString())} (password required)\n`,
+  );
   write(`${terminalText('Client endpoint:', 'blue')}  ${terminalLink(startup.clientUrl)}\n`);
   if (startup.createdAuth) {
     write(`\nFirst-run HQ auth created in ${startup.dataDir}\n`);

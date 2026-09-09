@@ -1,7 +1,12 @@
 import { mailboxSessionTag } from '@wrongstack/core/coordination';
 import type { HqClientCapability } from '@wrongstack/core/hq';
 import { createWebuiClientPresence } from '@wrongstack/webui-server';
-import { createHqCommandDispatcher, type HqCommandController } from '../hq-command-controller.js';
+import {
+  createHqCommandDispatcher,
+  createProjectKanbanAssignHandler,
+  createProjectKanbanTransitionHandler,
+  type HqCommandController,
+} from '../hq-command-controller.js';
 import { startCliHqConnection } from '../hq-publisher.js';
 
 export interface WebuiHqControlHooks {
@@ -63,6 +68,12 @@ export function createWebuiClientRegistration(
               steerMailbox: mailbox,
               interruptLeader: control.interruptLeader,
               allowRunCommand: control.allowRunCommand,
+              ...(deps.projectRoot
+                ? {
+                    kanbanTransition: createProjectKanbanTransitionHandler(deps.projectRoot),
+                    kanbanAssign: createProjectKanbanAssignHandler(deps.projectRoot),
+                  }
+                : {}),
               // The session HQ actually SHOWS for this client — the boot
               // session the telemetry bridge publishes under and the only one
               // `interruptLeader` speaks for. `getSessionId` follows whichever

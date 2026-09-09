@@ -9,6 +9,7 @@ import { useServerMessage } from '@/hooks/useServerMessage';
 import { useSessionStore } from '@/stores/session-store';
 import { useAppTranslation, i18n } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -287,6 +288,7 @@ export function ContextWindowEditor({
   // until `session.start` lands, and reading that record here left the editor
   // requesting (or worse, keeping) another tab's snapshot.
   const activeSessionId = useActiveSessionId();
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   // Subscribe FIRST, then ask. Empty sessions answer in the same tick as the
   // send (no transcript to walk), so a listener registered in a later effect
@@ -387,19 +389,6 @@ export function ContextWindowEditor({
     return () => clearTimeout(timeout);
   }, [open, store, askedFor]);
 
-  // Escape to close
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && phase !== 'applying' && phase !== 'validating') {
-        if ((removeMessages.size > 0 || removeRanges.length > 0) && phase === 'dirty') return;
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose, phase, removeMessages.size, removeRanges.length]);
-
   const handleValidate = useCallback(() => {
     const ws = getWSClient();
     if (!ws?.send || !revision) return;
@@ -432,20 +421,38 @@ export function ContextWindowEditor({
   const hasRemovals = removeMessages.size > 0 || removeRanges.length > 0;
   const canApply = phase === 'validated' && !isLoading;
   const canValidate = hasRemovals && !isBusy && !isLoading;
+  const canClose = !isBusy && !(phase === 'dirty' && hasRemovals);
+  const requestClose = () => {
+    if (canClose) onClose();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('activity:ctxEditor.contextWindowEditor')}
-        className="m-6 flex max-h-[calc(100dvh-3rem)] w-full max-w-4xl flex-col overflow-hidden rounded-lg border bg-card shadow-sm"
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && requestClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-3rem)] max-w-4xl flex flex-col gap-0 overflow-hidden p-0 sm:p-0"
+        onOpenAutoFocus={() => {
+          const activeElement = document.activeElement;
+          restoreFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          const restoreTarget = restoreFocusRef.current;
+          if (!restoreTarget?.isConnected) return;
+          event.preventDefault();
+          restoreTarget.focus();
+        }}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => {
+          if (!canClose) event.preventDefault();
+        }}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
           <div className="flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">{t('activity:ctxEditor.contextWindowEditor')}</h3>
+            <DialogTitle className="text-sm font-semibold">
+              {t('activity:ctxEditor.contextWindowEditor')}
+            </DialogTitle>
             {revision && (
               <span className="text-[10px] font-mono text-muted-foreground/60 ml-2">
                 rev {revision.slice(0, 8)}…
@@ -454,8 +461,8 @@ export function ContextWindowEditor({
           </div>
           <button
             type="button"
-            onClick={onClose}
-            disabled={isBusy}
+            onClick={requestClose}
+            disabled={!canClose}
             className="p-1.5 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-40"
             aria-label={t('common:action.close')}
           >
@@ -691,7 +698,7 @@ export function ContextWindowEditor({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

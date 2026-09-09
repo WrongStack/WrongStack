@@ -1222,6 +1222,9 @@
     "packages/tui/src/components/history/code-block.tsx": [
       "applyWashTokens"
     ],
+    "packages/tui/src/components/history/copy-icon.ts": [
+      "isInspectableEntry"
+    ],
     "packages/tui/src/components/history/replay.ts": [
       "replaySessionEvents"
     ],
@@ -1230,6 +1233,11 @@
     ],
     "packages/tui/src/components/input.tsx": [
       "EMPTY_KEY"
+    ],
+    "packages/tui/src/components/inspect-overlay.tsx": [
+      "INSPECT_OVERLAY_MIN_ROWS",
+      "inspectOverlaySize",
+      "wrapInspectLines"
     ],
     "packages/tui/src/components/kanban-panel.tsx": [
       "computeBoardColumnLayout",
@@ -1472,6 +1480,13 @@
     ],
     "packages/webui-hq/src/domain/use-session-transcript.ts": [
       "coalesceStreamedText"
+    ],
+    "packages/webui-hq/src/mobile/mobile-kanban.tsx": [
+      "canAssignKanbanTask",
+      "canDispatchKanbanTask",
+      "kanbanTransitionOptions",
+      "mobileKanbanAssignmentTargets",
+      "suggestedKanbanStage"
     ],
     "packages/webui-server/src/server/chimera-routes.ts": [
       "isPendingChimeraReport"

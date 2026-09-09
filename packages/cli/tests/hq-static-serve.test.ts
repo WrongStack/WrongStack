@@ -15,6 +15,7 @@ describe('serveHqStatic', () => {
     await fs.mkdir(path.join(distDir, 'assets'));
     await fs.writeFile(path.join(distDir, 'index.html'), '<!doctype html><title>HQ</title>');
     await fs.writeFile(path.join(distDir, 'assets', 'app.js'), 'console.log("hq");');
+    await fs.writeFile(path.join(distDir, 'manifest.webmanifest'), '{"start_url":"/mobile"}');
 
     server = http.createServer(async (req, res) => {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
@@ -45,6 +46,14 @@ describe('serveHqStatic', () => {
     expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
     expect(Number(response.headers.get('content-length'))).toBeGreaterThan(0);
     expect(await response.text()).toBe('console.log("hq");');
+  });
+
+  it('serves the mobile manifest with the installable-app MIME type', async () => {
+    const response = await fetch(`${baseUrl}/manifest.webmanifest`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('application/manifest+json; charset=utf-8');
+    expect(await response.json()).toEqual({ start_url: '/mobile' });
   });
 
   it('serves the SPA fallback without caching HTML', async () => {

@@ -9,20 +9,20 @@
  */
 
 import type * as http from 'node:http';
-import type { createMailboxHttpRouter } from '@wrongstack/core/coordination';
 import type {
+  createMailboxHttpRouter,
   Mailbox,
   MailboxHttpAccessDecision,
   MailboxHttpRateLimiter,
 } from '@wrongstack/core/coordination';
 import type {
+  createHqPersistence,
   HqAlertEngine,
   HqCommandAuditLog,
   HqEventEnvelope,
   HqSnapshot,
   HqTranscriptEntry,
 } from '@wrongstack/core/hq';
-import type { createHqPersistence } from '@wrongstack/core/hq';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { WebSocket } from 'ws';
 import { HQ_HTML } from '../hq-recovery-html.js';
@@ -243,6 +243,8 @@ export function createHqRouter(
         url.pathname !== '/api/auth/status' &&
         url.pathname !== '/api/login' &&
         url.pathname !== '/api/login/verify' &&
+        url.pathname !== '/api/mobile/login' &&
+        url.pathname !== '/api/mobile/login/verify' &&
         url.pathname !== '/api/auth/bootstrap' &&
         HqServerAuth.hqAuthRequired(mutableAuth, requireBrowserAuth)
       ) {
@@ -336,7 +338,10 @@ export function createHqRouter(
         return;
       }
 
-      if (url.pathname === '/api/login' && req.method === 'POST') {
+      if (
+        (url.pathname === '/api/login' || url.pathname === '/api/mobile/login') &&
+        req.method === 'POST'
+      ) {
         await handleApiLogin(
           req,
           res,
@@ -345,6 +350,7 @@ export function createHqRouter(
           loginAttempts,
           secureCookies,
           trustedProxyHops,
+          url.pathname === '/api/mobile/login' ? ['control.enqueue'] : undefined,
         );
         return;
       }
@@ -378,7 +384,10 @@ export function createHqRouter(
         return;
       }
 
-      if (url.pathname === '/api/login/verify' && req.method === 'POST') {
+      if (
+        (url.pathname === '/api/login/verify' || url.pathname === '/api/mobile/login/verify') &&
+        req.method === 'POST'
+      ) {
         await handleApiLoginVerify(
           req,
           res,

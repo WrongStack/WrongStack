@@ -465,7 +465,7 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       'Start the HQ server — a web dashboard for monitoring sessions, fleet ' +
       'status, and agent activity across projects — or manage browser and client authentication tokens.',
     usage:
-      'wstack hq [serve] [--port <n>] [--password <secret>] [--tunnel] [--open] | wstack hq token [create|list|revoke]',
+      'wstack hq [serve] [--port <n>] [--password <secret>] [--tunnel] [--hq-public-url <https-origin>] [--open] | wstack hq token [create|list|revoke]',
     subcommands: [
       { name: 'serve', description: 'Start the HQ dashboard server (default).' },
       {

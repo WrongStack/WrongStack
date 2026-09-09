@@ -127,23 +127,23 @@ describe('computeEntryRows', () => {
       hasBody: true,
       resultRenderMode: 'simple',
     });
-    expect(rows).toBe(2);
+    expect(rows).toBe(1);
   });
 
-  it('tool card with expanded body has rail and footer', () => {
+  it('tool card with expanded body is header plus wrapped lines', () => {
     const text = 'a\nb\nc';
     const rows = computeEntryRows('tool', text, 80, { hasBody: true });
-    expect(rows).toBe(5); // 2 (header + footer layout) + 3 (body lines)
+    expect(rows).toBe(4); // header + 3 body lines
   });
 
   it('tool card without body is compact', () => {
     const rows = computeEntryRows('tool', '', 80, { hasBody: false });
-    expect(rows).toBe(2);
+    expect(rows).toBe(1);
   });
 
-  it('tool-group includes header and footer rules', () => {
+  it('tool-group is header plus one row per member', () => {
     const rows = computeEntryRows('tool-group', 'read', 80, { groupCount: 3 });
-    expect(rows).toBe(6); // header(1) + entries(3) + rail(1) + footer rule(1)
+    expect(rows).toBe(4);
   });
 
   it('info and warn are 1 row', () => {
@@ -151,14 +151,14 @@ describe('computeEntryRows', () => {
     expect(computeEntryRows('warn', 'warn text', 80)).toBe(1);
   });
 
-  it('error is a NoticeCard with border and wrapped body', () => {
+  it('error is a left-rail panel with header and wrapped body', () => {
     const rows = computeEntryRows('error', 'error message', 80);
-    expect(rows).toBeGreaterThanOrEqual(4); // border(1) + header(1) + body + border(1)
+    expect(rows).toBeGreaterThanOrEqual(4);
   });
 
-  it('turn-summary includes border and bottom margin', () => {
+  it('turn-summary is a compact left-rail row', () => {
     const rows = computeEntryRows('turn-summary', 'summary', 80);
-    expect(rows).toBeGreaterThanOrEqual(4); // border(2) + body(1) + margin(1)
+    expect(rows).toBe(1);
   });
 
   it('model-switch has fixed layout', () => {

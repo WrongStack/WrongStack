@@ -528,6 +528,31 @@ export function validateAction(action: {
       return { valid: true, value: payload };
     }
 
+    case 'inspectOverlayOpen': {
+      const entryId = Number(action.entryId);
+      if (!Number.isInteger(entryId)) {
+        return { valid: false, error: `${type}.entryId: not an integer.` };
+      }
+      const ids = action.entryIds;
+      if (ids !== undefined) {
+        if (!Array.isArray(ids) || ids.length > 64) {
+          return { valid: false, error: `${type}.entryIds: invalid list.` };
+        }
+        if (ids.some((id) => !Number.isInteger(id))) {
+          return { valid: false, error: `${type}.entryIds: every id must be an integer.` };
+        }
+      }
+      return { valid: true, value: payload };
+    }
+
+    case 'inspectOverlayScroll': {
+      const delta = Number(action.delta);
+      if (!Number.isInteger(delta) || delta < -10_000 || delta > 10_000) {
+        return { valid: false, error: `${type}.delta: not a bounded integer.` };
+      }
+      return { valid: true, value: payload };
+    }
+
     case 'clearConfirmSetValue': {
       const value = String(action.value ?? '');
       if (value.length > 100) {
@@ -843,6 +868,7 @@ export function validateAction(action: {
     case 'exitConfirmClose':
     case 'slashConfirmClose':
     case 'escConfirmClose':
+    case 'inspectOverlayClose':
     case 'fallbackOverlayClose':
     case 'sendModePickerClose':
     case 'enhanceClose':

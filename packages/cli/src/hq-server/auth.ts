@@ -492,8 +492,12 @@ export function authenticateBrowserRequest(
             if (liveToken.capabilities !== undefined) ctx.capabilities = liveToken.capabilities;
             return ctx;
           }
-          // Password-origin sessions have full access.
-          return { kind: 'cookie' as const };
+          // Desktop password sessions have full access. The dedicated mobile
+          // login endpoint stamps a least-privilege capability list which must
+          // survive every request just like token-origin capabilities.
+          return session.capabilities === undefined
+            ? { kind: 'cookie' as const }
+            : { kind: 'cookie' as const, capabilities: session.capabilities };
         }
         // Stale session — evict so a replayed cookie doesn't linger.
         if (session) sessions.delete(sessionId);

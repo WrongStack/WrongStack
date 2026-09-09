@@ -74,7 +74,7 @@ export function jsonPathExtractor(dottedPath: string): MetricExtractor {
     let cursor: unknown = parsed;
     for (const segment of segments) {
       if (cursor === null || typeof cursor !== 'object') return undefined;
-      const index = Number.parseInt(segment, 10);
+      const index = /^(?:0|[1-9]\d*)$/.test(segment) ? Number(segment) : Number.NaN;
       cursor = Array.isArray(cursor)
         ? Number.isNaN(index)
           ? undefined

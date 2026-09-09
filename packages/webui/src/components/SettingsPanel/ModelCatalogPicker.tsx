@@ -14,13 +14,13 @@ interface CatalogMatch {
   providerName: string;
   modelId: string;
   name: string;
-  description?: string | undefined;
-  releaseDate?: string | undefined;
-  contextWindow?: number | undefined;
-  maxOutput?: number | undefined;
-  inputCost?: number | undefined;
-  outputCost?: number | undefined;
+  description?: string;
+  contextWindow?: number;
+  maxOutput?: number;
+  inputCost?: number;
+  outputCost?: number;
   capabilities: string[];
+  releaseDate?: string;
 }
 
 interface ModelCatalogPickerProps {

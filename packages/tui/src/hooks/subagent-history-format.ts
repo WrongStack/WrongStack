@@ -7,6 +7,33 @@
  * - Delegate start shows a tight task preview, not a paragraph
  */
 
+/** `provider / model` for history chips. Empty parts are dropped. */
+export function formatModelRef(
+  provider: string | undefined,
+  model: string | undefined,
+): string {
+  if (provider && model) return `${provider} / ${model}`;
+  return provider || model || '';
+}
+
+/** One-line subagent fallback hop. */
+export function formatSubagentFallbackText(
+  from: { providerId?: string | undefined; model?: string | undefined } | undefined,
+  to: { providerId: string; model: string },
+): string {
+  const dest = formatModelRef(to.providerId, to.model);
+  const src = formatModelRef(from?.providerId, from?.model);
+  return src ? `fallback  ${src} → ${dest}` : `fallback  ${dest}`;
+}
+
+/** One-line recoverable model failure (the hop usually follows). */
+export function formatSubagentModelFailedText(description: string | undefined): string {
+  if (!description) return 'model failed';
+  const one = description.replace(/\s+/g, ' ').trim();
+  if (!one) return 'model failed';
+  return one.length > 72 ? `model failed · ${one.slice(0, 71)}…` : `model failed · ${one}`;
+}
+
 /** Format a duration for a history chip. */
 export function formatHistoryDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return '0s';

@@ -25,6 +25,9 @@ export const HQ_COMMAND_TYPES = [
   'abort',
   'spawn',
   'broadcast',
+  'kanban-transition',
+  'kanban-assign',
+  'kanban-dispatch',
   'run-command',
 ] as const;
 
@@ -166,6 +169,36 @@ export interface HqRunCommandCommand {
   sessionId?: string;
 }
 
+/** Transition one managed Kanban task through the project-scoped IPC owner. */
+export interface HqKanbanTransitionCommand {
+  type: 'kanban-transition';
+  boardId: string;
+  taskId: string;
+  to: 'backlog' | 'todo' | 'running' | 'review' | 'done';
+  comment: string;
+  sessionId?: string;
+}
+
+/** Assign a Kanban card to a visible agent without dispatching or stealing an active lease. */
+export interface HqKanbanAssignCommand {
+  type: 'kanban-assign';
+  boardId: string;
+  taskId: string;
+  agentId: string;
+  assignee: string;
+  comment: string;
+  sessionId?: string;
+}
+
+/** Claim and dispatch one ready Kanban card through the client's Director. */
+export interface HqKanbanDispatchCommand {
+  type: 'kanban-dispatch';
+  boardId: string;
+  taskId: string;
+  comment: string;
+  sessionId?: string;
+}
+
 export type HqCommand =
   | HqSteerCommand
   | HqBtwCommand
@@ -173,6 +206,9 @@ export type HqCommand =
   | HqAbortCommand
   | HqSpawnCommand
   | HqBroadcastCommand
+  | HqKanbanTransitionCommand
+  | HqKanbanAssignCommand
+  | HqKanbanDispatchCommand
   | HqRunCommandCommand;
 
 // ── Validation ──────────────────────────────────────────────────────────────
@@ -287,6 +323,77 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
         result.priority = p['priority'];
       }
       return result;
+    }
+    case 'kanban-transition': {
+      if (
+        typeof p['boardId'] !== 'string' ||
+        p['boardId'].length === 0 ||
+        typeof p['taskId'] !== 'string' ||
+        p['taskId'].length === 0 ||
+        !['backlog', 'todo', 'running', 'review', 'done'].includes(String(p['to'])) ||
+        typeof p['comment'] !== 'string' ||
+        p['comment'].trim().length === 0
+      ) {
+        return null;
+      }
+      return withSessionId<HqKanbanTransitionCommand>(
+        {
+          type: 'kanban-transition',
+          boardId: p['boardId'],
+          taskId: p['taskId'],
+          to: p['to'] as HqKanbanTransitionCommand['to'],
+          comment: p['comment'],
+        },
+        p,
+      );
+    }
+    case 'kanban-assign': {
+      if (
+        typeof p['boardId'] !== 'string' ||
+        p['boardId'].length === 0 ||
+        typeof p['taskId'] !== 'string' ||
+        p['taskId'].length === 0 ||
+        typeof p['agentId'] !== 'string' ||
+        p['agentId'].trim().length === 0 ||
+        typeof p['assignee'] !== 'string' ||
+        p['assignee'].trim().length === 0 ||
+        typeof p['comment'] !== 'string' ||
+        p['comment'].trim().length === 0
+      ) {
+        return null;
+      }
+      return withSessionId<HqKanbanAssignCommand>(
+        {
+          type: 'kanban-assign',
+          boardId: p['boardId'],
+          taskId: p['taskId'],
+          agentId: p['agentId'],
+          assignee: p['assignee'],
+          comment: p['comment'],
+        },
+        p,
+      );
+    }
+    case 'kanban-dispatch': {
+      if (
+        typeof p['boardId'] !== 'string' ||
+        p['boardId'].length === 0 ||
+        typeof p['taskId'] !== 'string' ||
+        p['taskId'].length === 0 ||
+        typeof p['comment'] !== 'string' ||
+        p['comment'].trim().length === 0
+      ) {
+        return null;
+      }
+      return withSessionId<HqKanbanDispatchCommand>(
+        {
+          type: 'kanban-dispatch',
+          boardId: p['boardId'],
+          taskId: p['taskId'],
+          comment: p['comment'],
+        },
+        p,
+      );
     }
     case 'run-command': {
       if (typeof p['command'] !== 'string') return null;

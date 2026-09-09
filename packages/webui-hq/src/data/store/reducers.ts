@@ -31,33 +31,30 @@ export const MAX_COMMAND_STATUSES = 200;
 type FleetSlice = HqFleetState & HqSelectionState;
 
 /**
- * Drop selections whose target vanished from the new snapshot, so no view
- * renders against an id the fleet no longer knows.
+ * Reconcile snapshot-owned selections without throwing away transcript
+ * context.
+ *
+ * Session and agent selections are deliberately sticky. A publisher
+ * reconnect briefly removes its sessions from the server snapshot, while the
+ * Fleet/Console topology retains those nodes as "reconnecting". Clearing the
+ * ids here defeated that retention and closed the transcript the operator was
+ * reading. Finished agents also disappear from the live snapshot before their
+ * history stops being useful. The console resolves control targets from the
+ * *current* snapshot, so a sticky historical selection becomes read-only and
+ * cannot dispatch to a vanished endpoint.
+ *
+ * Client-only selections are different: Control has no historical client
+ * surface, so a disconnected command target must still be cleared.
  */
 export function reconcileSelection(
   state: FleetSlice,
   snapshot: HqSnapshot,
 ): Partial<HqSelectionState> {
-  const liveSessions = snapshot.liveSessions ?? [];
-  const selectedSession =
-    state.selectedSessionId === null
-      ? undefined
-      : liveSessions.find((session) => session.sessionId === state.selectedSessionId);
-  const agentStillExists =
-    state.selectedAgentId === null ||
-    selectedSession?.agents.some((agent) => agent.id === state.selectedAgentId) === true;
   const clientStillExists =
     state.selectedClientId === null ||
     snapshot.clients.some((client) => client.clientId === state.selectedClientId);
 
-  return {
-    ...(state.selectedSessionId !== null && selectedSession === undefined
-      ? { selectedSessionId: null, selectedAgentId: null }
-      : agentStillExists
-        ? {}
-        : { selectedAgentId: null }),
-    ...(clientStillExists ? {} : { selectedClientId: null }),
-  };
+  return clientStillExists ? {} : { selectedClientId: null };
 }
 
 /**

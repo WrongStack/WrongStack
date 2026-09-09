@@ -13,7 +13,12 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config, SessionWriter } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { startGovernanceHqTelemetry } from '../governance-hq-telemetry.js';
-import { createHqCommandDispatcher, type HqCommandController } from '../hq-command-controller.js';
+import {
+  createHqCommandDispatcher,
+  createProjectKanbanAssignHandler,
+  createProjectKanbanTransitionHandler,
+  type HqCommandController,
+} from '../hq-command-controller.js';
 import { startCliHqConnection } from '../hq-publisher.js';
 import type { KanbanHqSyncStats } from '../kanban-hq-sync.js';
 
@@ -93,6 +98,8 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
     // `ctx.session` for a new writer object and this captured one goes stale.
     sessionId: () => session.id,
     allowRunCommand: () => flags['hq-allow-exec'] === true,
+    kanbanTransition: createProjectKanbanTransitionHandler(projectRoot),
+    kanbanAssign: createProjectKanbanAssignHandler(projectRoot),
   };
   const hqOnCommand = createHqCommandDispatcher(hqCommandController);
 
@@ -108,6 +115,7 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
       'fleet.summary',
       'session.summary',
       'control.receive',
+      'kanban.dispatch',
     ],
     onConnect: (publisher) => {
       hqPublisherRef.current = publisher;

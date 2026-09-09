@@ -20,6 +20,7 @@ export interface HqKanbanTaskView {
   order: number;
   priority: string;
   status: string;
+  lifecycleStage?: 'backlog' | 'todo' | 'running' | 'review' | 'done' | undefined;
   assignee?: string | undefined;
   assignmentStatus?: string | undefined;
   labels: string[];
@@ -134,6 +135,7 @@ function parseTask(raw: Record<string, unknown>): HqKanbanTaskView | null {
   const columnId = stringValue(raw['columnId']);
   if (!id || !title || columnId === undefined) return null;
   const assignment = recordValue(raw['assignment']);
+  const lifecycle = recordValue(raw['lifecycle']);
   return {
     id,
     title,
@@ -142,6 +144,10 @@ function parseTask(raw: Record<string, unknown>): HqKanbanTaskView | null {
     order: numberValue(raw['order']) ?? 0,
     priority: enumValue(raw['priority'], TASK_PRIORITIES) ?? 'medium',
     status: enumValue(raw['status'], TASK_STATUSES) ?? 'pending',
+    lifecycleStage: enumValue(
+      lifecycle?.['currentStage'],
+      new Set(['backlog', 'todo', 'running', 'review', 'done']),
+    ) as HqKanbanTaskView['lifecycleStage'],
     assignee:
       stringValue(raw['assignee']) ??
       stringValue(raw['assignedAgent']) ??
