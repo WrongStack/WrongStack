@@ -42,9 +42,10 @@ export function ToolCard({
   const status = ok ? glyphs.success : glyphs.failure;
   const statusColor = ok ? theme.success : theme.error;
   const controlPrefix = viewMode ? '▲  ▼  ' : '';
+  const cardLead = hasBody ? '╭─ ' : '└─ ';
   const titleBudget = Math.max(
     1,
-    termWidth - displayWidth(`╭─ ${controlPrefix}${status} ${glyph} `),
+    termWidth - displayWidth(`${cardLead}${controlPrefix}${status} ${glyph} `),
   );
   const visibleTitle = truncateDisplay(safeTitle, titleBudget);
   const fixedHeader = `${controlPrefix}${status} ${glyph} ${visibleTitle}`;
@@ -60,7 +61,7 @@ export function ToolCard({
   return (
     <Box flexDirection="column" marginY={0}>
       <Text>
-        <Text color={railColor}>╭─ </Text>
+        <Text color={railColor}>{cardLead}</Text>
         {viewMode ? (
           <>
             <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>

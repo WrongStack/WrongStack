@@ -21,10 +21,12 @@ describe('tool result view modes', () => {
     const minimal = render(<Entry entry={tool} termWidth={90} toolResultViewMode="minimal" />);
     expect(minimal.lastFrame()).toContain('extension_tool');
     expect(minimal.lastFrame()).toContain('▲  ▼');
+    expect(minimal.lastFrame()).toMatch(/^└─/u);
     expect(minimal.lastFrame()).not.toContain('first line');
     minimal.unmount();
 
     const normal = render(<Entry entry={tool} termWidth={90} toolResultViewMode="normal" />);
+    expect(normal.lastFrame()).toMatch(/^╭─/u);
     expect(normal.lastFrame()).toContain('first line second line third line');
     expect(normal.lastFrame()).not.toContain('canonical tail');
     normal.unmount();

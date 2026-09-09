@@ -295,6 +295,7 @@ function ToolGroupHeader({
   const meta = `${totalDurationMs}ms`;
   const safeName = sanitizeTerminalText(name);
   const controlPrefix = '▲  ▼  ';
+  const cardLead = viewMode === 'minimal' ? '└─ ' : '╭─ ';
   const visibleName = truncateDisplay(safeName, Math.max(1, termWidth - 16 - controlPrefix.length));
   const fixedHeader = `${controlPrefix}${glyph} ${visibleName}`;
   const tailBudget = Math.max(0, termWidth - displayWidth(fixedHeader) - 10);
@@ -305,7 +306,7 @@ function ToolGroupHeader({
   return (
     <Box flexDirection="column" marginY={0}>
       <Text>
-        <Text color={railColor}>╭─ </Text>
+        <Text color={railColor}>{cardLead}</Text>
         <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>{'▲  '}</Text>
         <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>{'▼  '}</Text>
         <Text color={color}>{glyph}</Text>
