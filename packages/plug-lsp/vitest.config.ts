@@ -16,6 +16,10 @@ export default defineConfig({
       reporter: ['text', 'json', 'json-summary'],
       reportOnFailure: true,
       include: ['src/**/*.ts'],
+      // `codebase-lsp-search.ts` is excluded from the 100% threshold, not from
+      // testing: tests/unit/codebase-lsp-search.test.ts covers it with 11 cases.
+      // What the mocks cannot reach are the branches that need a live language
+      // server, and holding the file to 100% would force those to be faked.
       exclude: ['src/index.ts', 'src/types.ts', 'src/tools/codebase-lsp-search.ts'],
       thresholds: {
         lines: 100,

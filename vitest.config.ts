@@ -202,7 +202,13 @@ export default defineConfig({
         // WebUI server entry points require process/WebSocket binding.
         'packages/webui-server/src/server/index.ts',
         'packages/webui-server/src/server/entry.ts',
-        // LSP search — requires a live language server; integration-tested separately
+        // LSP search — the tool's own paths are covered by 11 unit tests in
+        // packages/plug-lsp/tests/unit/codebase-lsp-search.test.ts (they run in
+        // this suite). It stays excluded from the coverage NUMBER because the
+        // remaining uncovered lines are the live-language-server branches the
+        // mocks cannot reach, not because the file is untested. The previous
+        // comment here said "integration-tested separately", which named an
+        // integration test that does not exist.
         'packages/plug-lsp/src/tools/codebase-lsp-search.ts',
         // Tools shim — thin sqlite wrapper; exercised via integration tests
         'packages/tools/src/shim/**/*.ts',
