@@ -422,4 +422,62 @@ describe('TaskDAG', () => {
       expect(events).toHaveLength(0);
     });
   });
+
+  describe('regression: skipped dependencies and runnable notification lifecycle', () => {
+    it('unblocks downstream tasks when some dependencies are skipped and others are completed', () => {
+      const dag = new TaskDAG();
+      dag.addNode('step1', 'Step 1');
+      dag.addNode('step2', 'Step 2');
+      dag.addNode('join', 'Join Step', ['step1', 'step2']);
+
+      expect(dag.getNode('join')!.status).toBe('pending');
+
+      dag.skip('step1', 'not needed in this branch');
+      expect(dag.getNode('join')!.status).toBe('pending');
+
+      dag.complete('step2', { ok: true });
+      expect(dag.getNode('join')!.status).toBe('ready');
+    });
+
+    it('unblocks dependents when removeNode removes a node and remaining dependencies are skipped', () => {
+      const dag = new TaskDAG();
+      dag.addNode('depA', 'Dep A');
+      dag.addNode('depB', 'Dep B');
+      dag.addNode('target', 'Target', ['depA', 'depB']);
+
+      dag.skip('depA', 'skipped');
+      expect(dag.getNode('target')!.status).toBe('pending');
+
+      dag.removeNode('depB');
+      expect(dag.getNode('target')!.status).toBe('ready');
+    });
+
+    it('emits onRunnable notification when skip() unblocks a dependent node', () => {
+      const dag = new TaskDAG();
+      dag.addNode('parent', 'Parent');
+      dag.addNode('child', 'Child', ['parent']);
+
+      const dispatched: string[][] = [];
+      dag.onRunnable((nodes) => {
+        dispatched.push(nodes.map((n) => n.id));
+      });
+
+      dag.skip('parent', 'skipped parent');
+      expect(dag.getNode('child')!.status).toBe('ready');
+      expect(dispatched).toContainEqual(['child']);
+    });
+
+    it('emits graph:done when skipping the final pending node completes the DAG', () => {
+      const dag = new TaskDAG();
+      dag.addNode('task1', 'Sole task');
+
+      const events: DAGEdgeEvent[] = [];
+      dag.onEvent((e) => events.push(e));
+
+      dag.skip('task1', 'skip all');
+      expect(dag.isDone()).toBe(true);
+      expect(events).toContainEqual(expect.objectContaining({ type: 'graph:done', allDone: true }));
+    });
+  });
 });
+

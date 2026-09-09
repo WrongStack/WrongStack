@@ -808,11 +808,11 @@ describe('session board retention policy', () => {
   it('archives after a week and keeps the archive when no purge window is set', async () => {
     delete process.env[ENV];
     const board = await ensureSessionKanbanBoard(tmpRoot, TEST_CONTEXT_SESSION_ID);
-    expect(board.retention).toMatchObject({
+    expect(board?.retention).toMatchObject({
       mode: 'archive_after_ttl',
       ttlMs: 7 * 24 * 60 * 60 * 1000,
     });
-    expect(board.retention?.purgeAfterArchiveMs).toBeUndefined();
+    expect(board?.retention?.purgeAfterArchiveMs).toBeUndefined();
   });
 
   it('puts the configured purge window on the board so prune can act on it later', async () => {
@@ -820,7 +820,7 @@ describe('session board retention policy', () => {
     // policy would exist in the type and never appear on a real board.
     process.env[ENV] = '30';
     const board = await ensureSessionKanbanBoard(tmpRoot, TEST_CONTEXT_SESSION_ID);
-    expect(board.retention?.purgeAfterArchiveMs).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(board?.retention?.purgeAfterArchiveMs).toBe(30 * 24 * 60 * 60 * 1000);
   });
 
   it('ignores a zero or unparseable purge window rather than deleting immediately', async () => {
@@ -830,7 +830,7 @@ describe('session board retention policy', () => {
       try {
         const board = await ensureSessionKanbanBoard(root, TEST_CONTEXT_SESSION_ID);
         expect(
-          board.retention?.purgeAfterArchiveMs,
+          board?.retention?.purgeAfterArchiveMs,
           `value ${JSON.stringify(value)}`,
         ).toBeUndefined();
       } finally {

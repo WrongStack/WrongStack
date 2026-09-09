@@ -22,6 +22,14 @@ import type { Context } from './context.js';
 
 /** Default iteration cap. Use 0 or Infinity via config to disable. */
 export const DEFAULT_MAX_ITERATIONS = 100;
+/**
+ * How many times a single run may auto-grant itself +100 extra iterations
+ * when `autoExtendLimit` is on. The grant exists so a task that slightly
+ * overruns its budget still finishes; without a ceiling it silently turned
+ * every configured `maxIterations` into no limit at all, because nothing
+ * ever denies the grant.
+ */
+export const DEFAULT_MAX_AUTO_EXTENSIONS = 3;
 
 export interface RunResult {
   status: 'done' | 'failed' | 'max_iterations' | 'aborted';
@@ -45,6 +53,7 @@ export interface AgentInit {
   executionStrategy?: 'parallel' | 'sequential' | 'smart' | undefined;
   perIterationOutputCapBytes?: number | undefined;
   autoExtendLimit?: boolean | undefined;
+  maxAutoExtensions?: number | undefined;
   autonomousContinue?: boolean | undefined;
   /** Rebuild the host system prompt from the live direct/catalog tool surfaces before each run. */
   refreshSystemPrompt?: boolean | undefined;

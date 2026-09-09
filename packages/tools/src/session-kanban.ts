@@ -448,10 +448,21 @@ function queueLatestMirror(
       const pending = pendingMirrors.get(key);
       if (pending) {
         pendingMirrors.delete(key);
+        // Re-queue through the same coalescing path, but do NOT lose the
+        // carried completed nodes. `projectGraph` runs with
+        // `archiveMissingTasks: true`, so a graph that has shed the completed
+        // work archives those cards — which is exactly the "finished task
+        // disappeared, then came back as a new card" report. `queueLatestMirror`
+        // rebuilds the reconciliation set from the pending entry it finds, so
+        // the carried nodes have to be folded back into the graph here rather
+        // than dropped on the floor.
+        const carried = pending.reconciliationGraph
+          ? completedReconciliationGraph(pending.graph, [pending.reconciliationGraph])
+          : undefined;
         queueLatestMirror(
           pending.projectRoot,
           pending.sessionId,
-          pending.graph,
+          carried ?? pending.graph,
           pending.sourceSystem,
         );
       }

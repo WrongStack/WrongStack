@@ -138,15 +138,44 @@ export class SqliteMailbox implements Mailbox {
     return this.db.prepare(sql);
   }
 
+  private transactionDepth = 0;
+
   private transaction<T>(run: () => T): T {
+    if (this.transactionDepth > 0) {
+      const savepoint = `sp_${this.transactionDepth++}`;
+      this.db.exec(`SAVEPOINT ${savepoint}`);
+      try {
+        const result = run();
+        this.db.exec(`RELEASE ${savepoint}`);
+        return result;
+      } catch (error) {
+        try {
+          this.db.exec(`ROLLBACK TO ${savepoint}`);
+          this.db.exec(`RELEASE ${savepoint}`);
+        } catch {
+          // Suppress rollback failures if the transaction was already aborted
+        }
+        throw error;
+      } finally {
+        this.transactionDepth--;
+      }
+    }
+
+    this.transactionDepth++;
     this.db.exec('BEGIN IMMEDIATE');
     try {
       const result = run();
       this.db.exec('COMMIT');
       return result;
     } catch (error) {
-      this.db.exec('ROLLBACK');
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        // Suppress rollback failures if the transaction was already aborted
+      }
       throw error;
+    } finally {
+      this.transactionDepth--;
     }
   }
 
@@ -592,23 +621,33 @@ export class SqliteMailbox implements Mailbox {
   }
 
   async softDelete(mailId: string, by: string): Promise<MailboxMessage | null> {
-    const message = this.findMessage(mailId);
-    if (message === undefined) return null;
-    if (message.deletedAt !== undefined) return { ...message, readBy: { ...message.readBy } };
     const timestamp = new Date().toISOString();
-    message.deletedAt = timestamp;
-    message.deletedBy = by;
-    const previousState = message.recipientState[by] ?? { actorId: by };
-    const state = {
-      ...previousState,
-      readAt: previousState.readAt ?? timestamp,
-    };
-    message.readBy[by] = state.readAt;
-    message.recipientState = { ...message.recipientState, [by]: state };
-    this.transaction(() => {
-      this.persistReceipt(message.id, state);
-      this.persistMessage(message, message.legacyGlobalCompletion === true);
+    let alreadyDeleted = false;
+    const message = this.transaction(() => {
+      const found = this.findMessage(mailId);
+      if (found === undefined) return undefined;
+      if (found.deletedAt !== undefined) {
+        alreadyDeleted = true;
+        return found;
+      }
+      found.deletedAt = timestamp;
+      found.deletedBy = by;
+      const previousState = found.recipientState[by] ?? { actorId: by };
+      const state = {
+        ...previousState,
+        readAt: previousState.readAt ?? timestamp,
+      };
+      found.readBy[by] = state.readAt;
+      found.recipientState = { ...found.recipientState, [by]: state };
+      this.persistReceipt(found.id, state);
+      this.persistMessage(
+        isFanOutRecipient(found.to) ? withoutAggregateCompletion(found) : found,
+        found.legacyGlobalCompletion === true,
+      );
+      return found;
     });
+    if (message === undefined) return null;
+    if (alreadyDeleted) return { ...message, readBy: { ...message.readBy } };
     this.eventEmitter?.emit({
       type: 'message.deleted',
       messageId: message.id,
@@ -621,14 +660,24 @@ export class SqliteMailbox implements Mailbox {
   }
 
   async restore(mailId: string): Promise<MailboxMessage | null> {
-    const message = this.findMessage(mailId);
+    let wasNotDeleted = false;
+    const message = this.transaction(() => {
+      const found = this.findMessage(mailId);
+      if (found === undefined) return undefined;
+      if (found.deletedAt === undefined && found.deletedBy === undefined) {
+        wasNotDeleted = true;
+        return found;
+      }
+      delete found.deletedAt;
+      delete found.deletedBy;
+      this.persistMessage(
+        isFanOutRecipient(found.to) ? withoutAggregateCompletion(found) : found,
+        found.legacyGlobalCompletion === true,
+      );
+      return found;
+    });
     if (message === undefined) return null;
-    if (message.deletedAt === undefined && message.deletedBy === undefined) {
-      return { ...message, readBy: { ...message.readBy } };
-    }
-    delete message.deletedAt;
-    delete message.deletedBy;
-    this.persistMessage(message, message.legacyGlobalCompletion === true);
+    if (wasNotDeleted) return { ...message, readBy: { ...message.readBy } };
     const timestamp = new Date().toISOString();
     this.eventEmitter?.emit({
       type: 'message.restored',
@@ -889,7 +938,7 @@ export class SqliteMailbox implements Mailbox {
   }
 
   credentialRevoke(credentialId: string, reason?: string, by?: string): boolean {
-    return credentialRevoke(this.db, credentialId, reason, by);
+    return this.transaction(() => credentialRevoke(this.db, credentialId, reason, by));
   }
 
   credentialRotate(

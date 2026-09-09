@@ -1431,14 +1431,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 187,
-      "sourceLines": 52934
+      "sourceLines": 53155
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 53,
-      "sourceLines": 12455
+      "sourceLines": 12606
     },
     {
       "directory": "design",
@@ -1599,7 +1599,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 106,
-      "sourceLines": 23348
+      "sourceLines": 23349
     },
     {
       "directory": "tasking",
@@ -1620,7 +1620,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 72,
-      "sourceLines": 13479
+      "sourceLines": 13502
     },
     {
       "directory": "utils",

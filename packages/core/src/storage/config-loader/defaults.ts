@@ -38,6 +38,7 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     descriptionMode: DEFAULT_TOOLS_CONFIG.descriptionMode,
     disabledTools: DEFAULT_TOOLS_CONFIG.disabledTools as string[],
     autoExtendLimit: DEFAULT_TOOLS_CONFIG.autoExtendLimit,
+    maxAutoExtensions: DEFAULT_TOOLS_CONFIG.maxAutoExtensions,
     restrictToProjectRoot: DEFAULT_TOOLS_CONFIG.restrictToProjectRoot,
     kanbanGovernance: DEFAULT_TOOLS_CONFIG.kanbanGovernance,
     loopDetection: DEFAULT_TOOLS_CONFIG.loopDetection,

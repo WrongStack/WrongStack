@@ -41,6 +41,7 @@ async function buildAgent(
   provider: MockProvider,
   extraTools: Tool[] = [],
   loopDetection?: LoopDetectionConfig,
+  budget?: { maxIterations?: number; autoExtendLimit?: boolean; maxAutoExtensions?: number },
 ) {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-loop-'));
   const trustFile = path.join(tmp, 'trust.json');
@@ -95,9 +96,13 @@ async function buildAgent(
     events,
     pipelines,
     context: ctx,
-    maxIterations: 25,
+    maxIterations: budget?.maxIterations ?? 25,
     toolExecutor,
     loopDetection,
+    ...(budget?.autoExtendLimit !== undefined ? { autoExtendLimit: budget.autoExtendLimit } : {}),
+    ...(budget?.maxAutoExtensions !== undefined
+      ? { maxAutoExtensions: budget.maxAutoExtensions }
+      : {}),
   });
   return { agent, ctx, tools, tmp, sessionStore };
 }
@@ -582,5 +587,165 @@ describe('agent-loop fingerprint detector', () => {
     expect(result.status).toBe('done');
     expect(provider.calls).toBe(7);
     expect(detected).toEqual([]);
+  });
+});
+
+describe('agent-loop cycle detector', () => {
+  let cleanupDirs: string[] = [];
+  beforeEach(() => {
+    cleanupDirs = [];
+  });
+  afterEach(async () => {
+    for (const d of cleanupDirs) {
+      await fs.rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
+  });
+
+  /**
+   * The consecutive-repeat counter only ever sees iteration N against N-1, so an
+   * agent alternating between two steps reset it to 1 every single turn and ran
+   * for ever. This is the wedge users actually hit: read -> edit -> read -> edit,
+   * or check -> fix -> check -> fix, neither step identical to the one before it.
+   */
+  it('cuts an A/B iteration cycle that the consecutive-repeat counter cannot see', async () => {
+    const echo = echoTool();
+    const step = (id: string, text: string) => ({
+      content: [{ type: 'tool_use' as const, id, name: 'echo', input: { text } }],
+      stopReason: 'tool_use' as const,
+    });
+    // a,b,a,b,a,b — period 2 repeated 3 times. No two adjacent turns match.
+    const provider = new MockProvider([
+      step('u1', 'a'),
+      step('u2', 'b'),
+      step('u3', 'a'),
+      step('u4', 'b'),
+      step('u5', 'a'),
+      step('u6', 'b'),
+      { content: [{ type: 'text', text: 'unreached' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, tmp } = await buildAgent(provider, [echo], { mode: 'steer-then-cut' });
+    cleanupDirs.push(tmp);
+
+    const detected: Array<{ action?: string; scope?: string }> = [];
+    (agent as never as { events: EventBus }).events.on('tool.loop_detected', (e) =>
+      detected.push({ action: e.action, scope: e.scope }),
+    );
+
+    const result = await agent.run('cycle', { maxIterations: 20 });
+
+    expect(provider.calls).toBe(6);
+    expect(detected.some((d) => d.action === 'cut')).toBe(true);
+    expect(result.finalText).toMatch(/Loop detected.*2-step cycle/);
+  });
+
+  it('leaves a genuine multi-step workflow alone', async () => {
+    const echo = echoTool();
+    const step = (id: string, text: string) => ({
+      content: [{ type: 'tool_use' as const, id, name: 'echo', input: { text } }],
+      stopReason: 'tool_use' as const,
+    });
+    // Six distinct steps then a real answer — progress, not a cycle.
+    const provider = new MockProvider([
+      step('u1', 'a'),
+      step('u2', 'b'),
+      step('u3', 'c'),
+      step('u4', 'd'),
+      step('u5', 'e'),
+      step('u6', 'f'),
+      { content: [{ type: 'text', text: 'finished' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, tmp } = await buildAgent(provider, [echo], { mode: 'steer-then-cut' });
+    cleanupDirs.push(tmp);
+
+    const detected: string[] = [];
+    (agent as never as { events: EventBus }).events.on('tool.loop_detected', (e) =>
+      detected.push(String(e.action)),
+    );
+
+    const result = await agent.run('work', { maxIterations: 20 });
+
+    expect(result.status).toBe('done');
+    expect(provider.calls).toBe(7);
+    expect(detected).toEqual([]);
+  });
+});
+
+describe('agent-loop iteration budget enforcement', () => {
+  let cleanupDirs: string[] = [];
+  beforeEach(() => {
+    cleanupDirs = [];
+  });
+  afterEach(async () => {
+    for (const d of cleanupDirs) {
+      await fs.rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
+  });
+
+  /** Ten distinct tool steps — enough to overrun any small budget, no repeats to trip the detector. */
+  function distinctSteps(n: number) {
+    return Array.from({ length: n }, (_, i) => ({
+      content: [{ type: 'tool_use' as const, id: `u${i}`, name: 'echo', input: { text: `s${i}` } }],
+      stopReason: 'tool_use' as const,
+    }));
+  }
+
+  /**
+   * `requestLimitExtension` auto-grants +100 whenever `autoExtend` is true and
+   * nothing denies synchronously — and nothing in the shipped stack ever denies
+   * (the only `iteration.limit_reached` subscribers are a metrics counter and
+   * two UI forwarders). Without a ceiling that turned every configured
+   * `maxIterations` into no limit at all: each overrun simply bought 100 more
+   * turns, for ever. With the allowance spent the run must actually stop.
+   */
+  it('stops at the configured limit when the extension allowance is zero', async () => {
+    const echo = echoTool();
+    const provider = new MockProvider(distinctSteps(10));
+    const { agent, tmp } = await buildAgent(
+      provider,
+      [echo],
+      { mode: 'off' },
+      {
+        maxIterations: 3,
+        autoExtendLimit: true,
+        maxAutoExtensions: 0,
+      },
+    );
+    cleanupDirs.push(tmp);
+
+    const result = await agent.run('work');
+
+    expect(result.status).toBe('max_iterations');
+    // Three model turns actually ran; `iterations` reports the 1-based index of
+    // the turn that tripped the limit, hence 4.
+    expect(provider.calls).toBe(3);
+    expect(result.iterations).toBe(4);
+  });
+
+  it('spends exactly the configured number of auto-extensions, then stops', async () => {
+    const echo = echoTool();
+    const provider = new MockProvider(distinctSteps(10));
+    const { agent, tmp } = await buildAgent(
+      provider,
+      [echo],
+      { mode: 'off' },
+      {
+        maxIterations: 2,
+        autoExtendLimit: true,
+        maxAutoExtensions: 2,
+      },
+    );
+    cleanupDirs.push(tmp);
+
+    const grants: number[] = [];
+    (agent as never as { events: EventBus }).events.on('iteration.limit_reached', (e) =>
+      grants.push(e.currentLimit),
+    );
+
+    // The script runs out before the extended budget does; what matters is that
+    // the limit was raised a bounded number of times, from 2 to 102 to 202 —
+    // not once per overrun for ever.
+    await agent.run('work');
+
+    expect(grants).toEqual([2]);
   });
 });

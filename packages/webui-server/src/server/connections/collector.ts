@@ -1,11 +1,15 @@
-import { createChronicleProjectAccess } from '@wrongstack/core/chronicle';
+import {
+  chronicleProjectServerEndpoint,
+  createChronicleProjectAccess,
+  resolveChronicleProjectServerOptions,
+} from '@wrongstack/core/chronicle';
 import {
   isMailboxProjectServerAvailable,
   MailboxProjectServerConnection,
 } from '@wrongstack/core/coordination';
 import { SessionCatalogProjectClient } from '@wrongstack/core/session-catalog';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
-import { getKanbanServerConnection } from '@wrongstack/kanban';
+import { getKanbanServerConnection, isKanbanServerAvailable } from '@wrongstack/kanban';
 import { readGovernanceDaemonOperatorStatus } from '@wrongstack/runtime/governance-bootstrap';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import {
@@ -13,7 +17,7 @@ import {
   getIndexState,
   resolveProjectIndexDaemonAvailability,
 } from '@wrongstack/tools';
-import { failureService, isOfflineConnectionError } from './helpers.js';
+import { failureService, isEndpointAlive, isOfflineConnectionError } from './helpers.js';
 import type { ConnectionHealthService, ConnectionsHealthReport } from './types.js';
 
 export async function collectConnectionsHealth(options: {
@@ -58,7 +62,7 @@ function webuiHealth(backend: ConnectionsHealthReport['backend']): ConnectionHea
   };
 }
 
-async function sessionCatalogHealth(projectRoot: string): Promise<ConnectionHealthService> {
+export async function sessionCatalogHealth(projectRoot: string): Promise<ConnectionHealthService> {
   const startedAt = Date.now();
   try {
     const paths = resolveWstackPaths({ projectRoot });
@@ -67,7 +71,10 @@ async function sessionCatalogHealth(projectRoot: string): Promise<ConnectionHeal
       projectRoot,
     });
     try {
-      const health = await client.ping();
+      // Connections health is an observer, not a workload. Do not resurrect a
+      // sleeping catalog merely because the settings panel refreshes every
+      // 15 seconds; a real session client or an explicit restart owns spawn.
+      const health = await client.callExisting('ping', {}, { timeoutMs: 3_000 });
       return {
         id: 'session-catalog',
         label: 'Session Catalog',
@@ -86,22 +93,23 @@ async function sessionCatalogHealth(projectRoot: string): Promise<ConnectionHeal
         clients: health.clients,
         activeRequests: health.activeRequests,
         queuedWork: health.reservations + health.maintenanceLeases,
-        control: 'none',
       };
     } finally {
       await client.close().catch(() => undefined);
     }
   } catch (error) {
+    const offline = isOfflineConnectionError(error);
     return {
       id: 'session-catalog',
       label: 'Session Catalog',
-      status: 'error',
-      required: true,
-      mode: 'project-daemon',
-      detail: 'Project-scoped session ownership and catalog are unavailable.',
+      status: offline ? 'offline' : 'error',
+      required: !offline,
+      mode: offline ? 'on-demand project-daemon' : 'project-daemon',
+      detail: offline
+        ? 'Not running for this project; it starts on demand when a session is used.'
+        : 'Project-scoped session ownership and catalog are unavailable.',
       latencyMs: Date.now() - startedAt,
       lastError: error instanceof Error ? error.message : String(error),
-      control: 'none',
     };
   }
 }
@@ -110,24 +118,36 @@ export async function chronicleHealth(projectRoot: string): Promise<ConnectionHe
   const startedAt = Date.now();
   let access: ReturnType<typeof createChronicleProjectAccess> | undefined;
   try {
+    const endpoint = chronicleProjectServerEndpoint(
+      resolveChronicleProjectServerOptions({ projectRoot }).projectDir,
+    );
+    if (!(await isEndpointAlive(endpoint))) {
+      return {
+        id: 'chronicle',
+        label: 'Chronicle telemetry',
+        status: 'offline',
+        required: false,
+        mode: 'on-demand project-server',
+        detail: 'Not running for this project; it starts on demand when telemetry is used.',
+        endpoint,
+        latencyMs: Date.now() - startedAt,
+      };
+    }
     access = createChronicleProjectAccess({ projectRoot });
     const health = await access.call('ping', {}, { timeoutMs: 5_000 });
     const quarantined = health.quarantinedFamilies ?? [];
     return {
       id: 'chronicle',
       label: 'Chronicle telemetry',
-      status:
-        quarantined.length > 0 ? 'degraded' : access.mode === 'server' ? 'healthy' : 'degraded',
+      status: quarantined.length > 0 ? 'degraded' : 'healthy',
       required: true,
-      mode: access.mode,
+      mode: 'server',
       detail:
         quarantined.length > 0
           ? `Serving, but ${quarantined.length} day(s) were quarantined for a broken chain: ${quarantined
               .map((family) => family.day)
               .join(', ')}.`
-          : access.mode === 'server'
-            ? 'One project owner collects, processes, stores, and serves telemetry.'
-            : 'Inline fallback is active; ownership is not shared across clients.',
+          : 'One project owner collects, processes, stores, and serves telemetry.',
       ownerPid: health.pid,
       endpoint: health.endpoint,
       storage: health.chronicleDirectory,
@@ -147,11 +167,22 @@ export async function chronicleHealth(projectRoot: string): Promise<ConnectionHe
           : {}),
     };
   } catch (error) {
+    if (isOfflineConnectionError(error)) {
+      return {
+        id: 'chronicle',
+        label: 'Chronicle telemetry',
+        status: 'offline',
+        required: false,
+        mode: 'on-demand project-server',
+        detail: 'Not running for this project; it starts on demand when telemetry is used.',
+        latencyMs: Date.now() - startedAt,
+      };
+    }
     return failureService(
       'chronicle',
       'Chronicle telemetry',
       true,
-      access?.mode ?? 'unavailable',
+      'server',
       error,
       Date.now() - startedAt,
     );
@@ -305,6 +336,17 @@ export async function kanbanHealth(projectRoot: string): Promise<ConnectionHealt
       required: false,
       mode: 'disabled',
       detail: 'Kanban IPC daemon is disabled via WRONGSTACK_KANBAN_SERVER=0.',
+    };
+  }
+  if (!(await isKanbanServerAvailable(projectRoot))) {
+    return {
+      id: 'kanban',
+      label: 'Kanban IPC',
+      status: 'offline',
+      required: false,
+      mode: 'on-demand project-server',
+      detail: 'Not running for this project; it starts on demand when kanban is used.',
+      latencyMs: Date.now() - startedAt,
     };
   }
   let connection;

@@ -144,12 +144,21 @@ export class TaskDAG {
     this.invalidateCache();
 
     // Mark dependents with no remaining deps as ready
+    let hasUnblocked = false;
     for (const depId of node.dependents) {
       const dep = this.nodes.get(depId);
-      if (dep?.deps.every((d) => !this.nodes.has(d) || this.nodes.get(d)!.status === 'done')) {
+      if (
+        dep?.deps.every((d) => {
+          if (!this.nodes.has(d)) return true;
+          const s = this.nodes.get(d)!.status;
+          return s === 'done' || s === 'skipped';
+        })
+      ) {
         this._transition(depId, 'pending', 'ready');
+        hasUnblocked = true;
       }
     }
+    if (hasUnblocked) this._emitReady();
   }
 
   // ── State transitions ──────────────────────────────────────────────────
@@ -199,7 +208,10 @@ export class TaskDAG {
       // Check if all deps are now done
       const allDone = dep.deps
         .filter((d) => this.nodes.has(d))
-        .every((d) => this.nodes.get(d)!.status === 'done');
+        .every((d) => {
+          const s = this.nodes.get(d)!.status;
+          return s === 'done' || s === 'skipped';
+        });
       if (allDone) {
         this._transition(depId, 'pending', 'ready');
       } else {
@@ -261,6 +273,7 @@ export class TaskDAG {
     node.completedAt = new Date().toISOString();
     this.invalidateCache();
 
+    let hasUnblocked = false;
     for (const depId of node.dependents) {
       const dep = this.nodes.get(depId);
       /* v8 ignore next -- defensive: dependents are kept consistent (removeNode prunes them) */
@@ -271,10 +284,14 @@ export class TaskDAG {
           const s = this.nodes.get(d)!.status;
           return s === 'done' || s === 'skipped';
         });
-      if (allDone) this._transition(depId, 'pending', 'ready');
+      if (allDone) {
+        this._transition(depId, 'pending', 'ready');
+        hasUnblocked = true;
+      }
     }
 
     this._emit({ type: 'node:skipped', nodeId: id, reason });
+    if (hasUnblocked || this.isDone()) this._emitReady();
   }
 
   // ── Queries ────────────────────────────────────────────────────────────

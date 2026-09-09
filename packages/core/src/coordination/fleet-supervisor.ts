@@ -28,8 +28,8 @@
 
 import { randomUUID } from 'node:crypto';
 import type { EventBus } from '../kernel/events.js';
-import type { TaskSpec } from '../types/multi-agent.js';
 import type { FleetSupervisorConfig } from '../types/config.js';
+import type { TaskSpec } from '../types/multi-agent.js';
 import type {
   BrainArbiter,
   BrainDecision,
@@ -117,6 +117,7 @@ const DEFAULTS = {
   backlogFactor: 2,
   stuckMs: 180_000,
   failureStreak: 2,
+  loopStreak: 3,
 } as const;
 
 const HISTORY_MAX = 100;
@@ -131,6 +132,7 @@ interface ResolvedSupervisorConfig {
   backlogFactor: number;
   stuckMs: number;
   failureStreak: number;
+  loopStreak: number;
   allowSpawn: boolean;
   allowTerminate: boolean;
 }
@@ -148,6 +150,18 @@ export class FleetSupervisor {
   private readonly pendingSince = new Map<string, number>();
   /** subagentId → last observable fleet event timestamp. */
   private readonly lastActivityAt = new Map<string, number>();
+  /**
+   * subagentId → loop detections since its last successful task.
+   *
+   * The `stuck_agent` signal cannot see a loop: `lastActivityAt` is refreshed by
+   * ANY fleet event, and a worker going in circles is the loudest thing on the
+   * bus. So the one failure mode operators actually report — "the watchers
+   * never cut the loop" — had no signal at all. The per-agent loop detector
+   * already publishes `tool.loop_detected`, and `FleetBus.attach` forwards every
+   * subagent event, so the evidence was on the bus the whole time; nothing
+   * subscribed to it. Cleared on a successful task (real progress).
+   */
+  private readonly loopHits = new Map<string, number>();
   /** subagentId → consecutive non-success completions. */
   private readonly failStreaks = new Map<string, number>();
   /** Consecutive ticks the backlog condition held. */
@@ -173,6 +187,7 @@ export class FleetSupervisor {
       overloadPinnedThreshold: c.overloadPinnedThreshold ?? DEFAULTS.overloadPinnedThreshold,
       backlogFactor: c.backlogFactor ?? DEFAULTS.backlogFactor,
       stuckMs: c.stuckMs ?? DEFAULTS.stuckMs,
+      loopStreak: c.loopStreak ?? DEFAULTS.loopStreak,
       failureStreak: c.failureStreak ?? DEFAULTS.failureStreak,
       allowSpawn: c.allowSpawn !== false,
       allowTerminate: c.allowTerminate === true,
@@ -193,12 +208,23 @@ export class FleetSupervisor {
         this.lastActivityAt.set(e.subagentId, this.now());
       }),
     );
+    // Loop detections, forwarded from each worker's own detector.
+    this.offHandles.push(
+      this.opts.fleet.filter('tool.loop_detected', (e) => {
+        if (this.isCollab(e.subagentId)) return;
+        this.loopHits.set(e.subagentId, (this.loopHits.get(e.subagentId) ?? 0) + 1);
+      }),
+    );
     // Failure streaks from the host lifecycle event (terminal per-task).
     this.offHandles.push(
       this.opts.events.on('subagent.task_completed', (e) => {
         if (this.isCollab(e.subagentId)) return;
         if (e.status === 'success') {
           this.failStreaks.delete(e.subagentId);
+          // A finished task is the only proof of forward motion we get; the
+          // loop tally must not carry across it or an unlucky worker would be
+          // condemned by detections from work it already completed.
+          this.loopHits.delete(e.subagentId);
         } else {
           this.failStreaks.set(e.subagentId, (this.failStreaks.get(e.subagentId) ?? 0) + 1);
         }
@@ -261,6 +287,7 @@ export class FleetSupervisor {
   private forgetSubagent(subagentId: string): void {
     this.lastActivityAt.delete(subagentId);
     this.failStreaks.delete(subagentId);
+    this.loopHits.delete(subagentId);
     this.interventionsBySubagent.delete(subagentId);
     const suffix = `|${subagentId}`;
     for (const key of this.lastEngagedAt.keys()) {
@@ -324,6 +351,19 @@ export class FleetSupervisor {
       if (streak >= this.cfg.failureStreak) {
         this.failStreaks.delete(subagentId);
         await this.engageFailureStreak(subagentId, streak);
+        return; // one engagement per pass
+      }
+    }
+
+    // ── Signal 7: looping worker (busy, but going in circles) ────────────
+    // Deliberately ahead of the queue-shape signals: a looping worker is
+    // spending budget continuously, and unlike a starved queue it will never
+    // resolve itself.
+    for (const s of running) {
+      const hits = this.loopHits.get(s.id) ?? 0;
+      if (hits >= this.cfg.loopStreak) {
+        this.loopHits.delete(s.id);
+        await this.engageLooping(s, hits);
         return; // one engagement per pass
       }
     }
@@ -643,6 +683,103 @@ export class FleetSupervisor {
           )
           .catch(() => {});
       }
+    } catch {
+      /* never destabilize the fleet */
+    } finally {
+      this.engaging = false;
+    }
+  }
+
+  /**
+   * A worker whose own loop detector has tripped `loopStreak` times without
+   * finishing a task. Steering is the default because the detector's own cut
+   * already ends the offending turn; termination is offered only when the
+   * operator opted into it, matching the failure-streak path.
+   */
+  private async engageLooping(s: SupervisedSubagent, hits: number): Promise<void> {
+    if (!this.cooldownOk('looping_agent', s.id) || !this.interventionBudgetOk(s.id)) return;
+    this.engaging = true;
+    try {
+      this.emitSignal('looping_agent', `${hits} loop detections with no completed task`, s.id);
+      const options: BrainDecisionOption[] = [
+        {
+          id: 'steer',
+          label: 'Send a corrective steer to the worker',
+          consequence: 'A steer mail is injected before its next step.',
+          risk: 'low',
+          recommended: true,
+        },
+        { id: 'wait', label: 'Give it more time', risk: 'low' },
+      ];
+      if (this.cfg.allowTerminate) {
+        options.splice(1, 0, {
+          id: 'terminate',
+          label: 'Terminate the worker and reassign its work',
+          consequence: 'The worker is aborted; its pending tasks need reassigning.',
+          risk: 'medium',
+          recommended: false,
+        });
+      }
+      const { choice, decision } = await this.decide(
+        `Worker ${s.name} (${s.id}) has tripped its loop detector ${hits} times without completing a task — it is busy but repeating itself.`,
+        `Current task: ${s.currentTask ?? 'unknown'}`,
+        options,
+        'medium',
+      );
+      if (choice === 'terminate' && this.cfg.allowTerminate) {
+        this.recordIntervention(s.id);
+        await this.opts.actions.terminate(s.id);
+        this.emitAction('terminate', true, `${hits} loop detections`, s.id);
+        await this.opts.actions
+          .notifyLeader(
+            `Worker ${s.name} terminated for looping`,
+            `Supervisor terminated ${s.id} after ${hits} loop detections with no completed task. Reassign its pending work.`,
+            s.id,
+          )
+          .catch(() => {});
+        this.record({
+          kind: 'looping_agent',
+          subagentId: s.id,
+          proposedAction: 'terminate',
+          outcome: 'approved',
+          detail: `terminated after ${hits} loop detections`,
+        });
+        return;
+      }
+      if (choice !== 'steer') {
+        this.record({
+          kind: 'looping_agent',
+          subagentId: s.id,
+          proposedAction: this.cfg.allowTerminate ? 'steer|terminate' : 'steer',
+          outcome: decision.type === 'answer' ? 'denied' : 'escalated',
+          detail:
+            decision.type === 'answer' ? (decision.rationale ?? decision.text) : decision.type,
+        });
+        return;
+      }
+      this.recordIntervention(s.id);
+      await this.opts.actions.steerAgent(
+        s.id,
+        'Loop detected by fleet supervisor',
+        `Your loop detector has tripped ${hits} times on: ${
+          s.currentTask ?? 'your current task'
+        }. You are repeating work, not advancing it. Stop retrying the same step: state what is blocking you via mail_send to the leader, then either take a genuinely different approach or hand the task back.`,
+      );
+      this.emitAction('steer', true, 'loop nudge', s.id);
+      await this.opts.actions
+        .notifyLeader(
+          `Worker ${s.name} is looping`,
+          `${hits} loop detections with no completed task. Supervisor steered it; consider terminate_subagent + reassigning if it keeps circling.`,
+          s.id,
+        )
+        .catch(() => {});
+      this.record({
+        kind: 'looping_agent',
+        subagentId: s.id,
+        proposedAction: 'steer',
+        outcome: 'approved',
+        detail: 'steered + leader notified',
+      });
     } catch {
       /* never destabilize the fleet */
     } finally {

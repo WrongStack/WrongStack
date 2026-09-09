@@ -21,16 +21,20 @@ vi.mock('@wrongstack/core/coordination', () => ({
   isMailboxProjectServerAvailable: vi.fn(() => false),
   MailboxProjectServerConnection: vi.fn(),
 }));
+vi.mock('@wrongstack/core/session-catalog', () => ({
+  SessionCatalogProjectClient: vi.fn(),
+}));
 vi.mock('@wrongstack/tools', () => ({
   checkCodebaseIndexServerHealth: vi.fn(),
   ensureCodebaseIndexServer: vi.fn(),
   shutdownCodebaseIndexServer: vi.fn(),
 }));
 
-import * as kanban from '@wrongstack/kanban';
-import * as sage from '@wrongstack/sage';
 import * as chronicle from '@wrongstack/core/chronicle';
 import * as coordination from '@wrongstack/core/coordination';
+import * as sessionCatalog from '@wrongstack/core/session-catalog';
+import * as kanban from '@wrongstack/kanban';
+import * as sage from '@wrongstack/sage';
 import * as tools from '@wrongstack/tools';
 import {
   executeServiceAction,
@@ -40,6 +44,7 @@ import {
   killKanbanServer,
   killMailboxServer,
   killSageServer,
+  killSessionCatalogServer,
   restartKanbanServer,
 } from '../src/server/connections/service-actions.js';
 
@@ -47,6 +52,7 @@ const kanbanMock = kanban as unknown as Record<string, ReturnType<typeof vi.fn>>
 const sageMock = sage as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const chronicleMock = chronicle as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const coordinationMock = coordination as unknown as Record<string, ReturnType<typeof vi.fn>>;
+const sessionCatalogMock = sessionCatalog as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const toolsMock = tools as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
 function allowAllBoundary(): { evaluate: () => Promise<{ kind: string; reason: string }> } {
@@ -207,6 +213,85 @@ describe('executeServiceAction dispatch', () => {
   });
 });
 
+describe('killSessionCatalogServer', () => {
+  function catalogClient(methods: Record<string, unknown>) {
+    (
+      mockOf(sessionCatalogMock, 'SessionCatalogProjectClient') as unknown as {
+        mockImplementation: (impl: unknown) => void;
+      }
+    ).mockImplementation(classStub({ close: vi.fn(async () => undefined), ...methods }) as never);
+  }
+
+  it('shuts down and restarts the Session Catalog daemon', async () => {
+    catalogClient({
+      shutdown: vi.fn(async () => ({ stopped: true, pid: 42 })),
+      callExisting: vi.fn(async () => {
+        throw new Error('offline');
+      }),
+      ping: vi.fn(async () => ({})),
+    });
+
+    const shutdown = await killSessionCatalogServer('/proj', 'shutdown');
+    expect(shutdown).toMatchObject({
+      success: true,
+      message: 'Session Catalog IPC daemon shutdown requested',
+    });
+
+    const restart = await killSessionCatalogServer('/proj', 'restart');
+    expect(restart).toMatchObject({
+      success: true,
+      message: 'Session Catalog IPC daemon restarted successfully',
+    });
+  });
+
+  it('starts and verifies a sleeping Session Catalog on restart', async () => {
+    catalogClient({
+      shutdown: vi.fn(async () => ({ stopped: false })),
+      callExisting: vi.fn(async () => {
+        throw new Error('offline');
+      }),
+      ping: vi.fn(async () => ({})),
+    });
+
+    const restart = await killSessionCatalogServer('/proj', 'restart');
+    expect(restart.success).toBe(true);
+  });
+
+  it('reports restart verification failures', async () => {
+    catalogClient({
+      shutdown: vi.fn(async () => ({ stopped: true })),
+      callExisting: vi.fn(async () => {
+        throw new Error('offline');
+      }),
+      ping: vi.fn(async () => {
+        throw new Error('no pong');
+      }),
+    });
+
+    const restart = await killSessionCatalogServer('/proj', 'restart');
+    expect(restart.success).toBe(false);
+    expect(restart.message).toContain('verification failed: no pong');
+  });
+
+  it('rejects a restart when the owner PID did not change', async () => {
+    const callExisting = vi
+      .fn()
+      .mockResolvedValueOnce({ pid: 42 })
+      .mockRejectedValue(new Error('offline'));
+    catalogClient({
+      shutdown: vi.fn(async () => ({ stopped: true, pid: 42 })),
+      callExisting,
+      ping: vi.fn(async () => ({ pid: 42 })),
+    });
+
+    const restart = await killSessionCatalogServer('/proj', 'restart');
+    expect(restart).toMatchObject({
+      success: false,
+      message: 'Session Catalog IPC daemon did not restart (owner PID is still 42)',
+    });
+  });
+});
+
 describe('killKanbanServer', () => {
   it('reports the disabled daemon', async () => {
     process.env['WRONGSTACK_KANBAN_SERVER'] = '0';
@@ -323,6 +408,15 @@ describe('killSageServer', () => {
     });
   });
 
+  it('starts a sleeping SAGE server when restart is requested', async () => {
+    sageConnection({
+      shutdown: vi.fn(async () => ({ stopped: false, reason: 'not-running' })),
+      status: vi.fn(async () => null),
+      call: vi.fn(async () => ({})),
+    });
+    await expect(killSageServer('/proj', 'restart')).resolves.toMatchObject({ success: true });
+  });
+
   it('reports restart verification failures', async () => {
     sageConnection({
       shutdown: vi.fn(async () => ({ stopped: true })),
@@ -385,6 +479,16 @@ describe('killChronicleServer', () => {
       success: true,
       message: 'Chronicle telemetry server restarted successfully',
     });
+  });
+
+  it('starts a sleeping Chronicle server when restart is requested', async () => {
+    chronicleClient({ shutdown: vi.fn(async () => ({ stopped: false, reason: 'offline' })) });
+    mockOf(chronicleMock, 'createChronicleProjectAccess').mockReturnValue({
+      mode: 'server',
+      call: vi.fn(async () => ({})),
+      close: vi.fn(async () => {}),
+    });
+    await expect(killChronicleServer('/proj', 'restart')).resolves.toMatchObject({ success: true });
   });
 
   it('rejects a restart that lands in the wrong mode', async () => {
@@ -453,6 +557,19 @@ describe('killCodebaseIndexServer', () => {
     });
   });
 
+  it('starts a sleeping index server when restart is requested', async () => {
+    mockOf(toolsMock, 'shutdownCodebaseIndexServer').mockResolvedValue({
+      stopped: false,
+      reason: 'not-running',
+    });
+    mockOf(toolsMock, 'checkCodebaseIndexServerHealth')
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue({ status: 'ok' });
+    await expect(killCodebaseIndexServer('/proj', undefined, 'restart')).resolves.toMatchObject({
+      success: true,
+    });
+  });
+
   it('rejects an unresponsive restart', async () => {
     mockOf(toolsMock, 'shutdownCodebaseIndexServer').mockResolvedValue({ stopped: true });
     mockOf(toolsMock, 'checkCodebaseIndexServerHealth').mockResolvedValue({
@@ -511,6 +628,14 @@ describe('killMailboxServer', () => {
       success: true,
       message: 'Mailbox IPC server restarted successfully',
     });
+  });
+
+  it('starts a sleeping mailbox server when restart is requested', async () => {
+    mailboxConnection({
+      shutdown: vi.fn(async () => ({ stopped: false, reason: 'offline' })),
+      call: vi.fn(async () => ({})),
+    });
+    await expect(killMailboxServer('/proj', 'restart')).resolves.toMatchObject({ success: true });
   });
 
   it('reports restart verification failures', async () => {

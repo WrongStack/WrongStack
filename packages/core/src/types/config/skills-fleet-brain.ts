@@ -206,6 +206,14 @@ export interface FleetSupervisorConfig {
   stuckMs?: number | undefined;
   /** Consecutive failed/timeout results from one subagent → failure-streak signal. Default 2. */
   failureStreak?: number | undefined;
+  /**
+   * Loop detections (`tool.loop_detected`) from one subagent with no completed
+   * task in between → looping-worker signal. Default 3.
+   *
+   * The `stuckMs` signal cannot cover this: it keys on the absence of fleet
+   * activity, and a worker going in circles is the busiest thing on the bus.
+   */
+  loopStreak?: number | undefined;
   /** Allow the supervisor to spawn helper subagents. Default true. */
   allowSpawn?: boolean | undefined;
   /** Allow the supervisor to terminate subagents (highest risk). Default false. */

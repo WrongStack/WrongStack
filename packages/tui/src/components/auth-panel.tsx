@@ -59,11 +59,15 @@ export function formatExpiry(
   const msLeft = expiry - now;
 
   if (msLeft <= 0) return { text: 'expired', color: UI_COLORS.error };
-  if (msLeft < 60 * 60_000)
-    return { text: `${Math.round(msLeft / 60_000)}m left`, color: UI_COLORS.error };
-  if (msLeft < 24 * 60 * 60_000)
-    return { text: `${Math.round(msLeft / (60 * 60_000))}h left`, color: UI_COLORS.warning };
-  return { text: `${Math.round(msLeft / (24 * 60 * 60_000))}d left`, color: UI_COLORS.inactive };
+
+  const hourMs = 60 * 60_000;
+  const minutes = Math.round(msLeft / 60_000);
+  if (minutes < 60) return { text: `${minutes}m left`, color: UI_COLORS.error };
+
+  const hours = Math.round(msLeft / hourMs);
+  if (hours < 24) return { text: `${hours}h left`, color: UI_COLORS.warning };
+
+  return { text: `${Math.round(msLeft / (24 * hourMs))}d left`, color: UI_COLORS.inactive };
 }
 
 function keySummary(keyRow: AuthKeyRow): string {

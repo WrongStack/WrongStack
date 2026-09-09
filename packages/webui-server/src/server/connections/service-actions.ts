@@ -7,6 +7,7 @@ import {
   isMailboxProjectServerAvailable,
   MailboxProjectServerConnection,
 } from '@wrongstack/core/coordination';
+import { SessionCatalogProjectClient } from '@wrongstack/core/session-catalog';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   closeKanbanServerConnections,
@@ -153,6 +154,8 @@ export async function executeServiceAction(
   indexDir: string | undefined,
 ): Promise<ServiceActionResult> {
   switch (serviceId) {
+    case 'session-catalog':
+      return killSessionCatalogServer(projectRoot, action);
     case 'kanban':
       return killKanbanServer(projectRoot, action);
     case 'sage':
@@ -178,6 +181,102 @@ export async function executeServiceAction(
         success: false,
         message: `Unknown service: ${serviceId}`,
       };
+  }
+}
+
+export async function killSessionCatalogServer(
+  projectRoot: string,
+  action: 'shutdown' | 'restart',
+): Promise<ServiceActionResult> {
+  const paths = resolveWstackPaths({ projectRoot });
+  const client = new SessionCatalogProjectClient({
+    projectDir: paths.projectDir,
+    projectRoot,
+  });
+  try {
+    const previousPid =
+      action === 'restart'
+        ? await client.callExisting('ping', {}, { timeoutMs: 1_000 }).then(
+            (health) => health.pid,
+            () => undefined,
+          )
+        : undefined;
+    const result = await client.shutdown(`WebUI request: ${action}`);
+    if (!result.stopped && action === 'shutdown') {
+      return {
+        serviceId: 'session-catalog',
+        action,
+        success: false,
+        message: 'Session Catalog IPC daemon is not running',
+      };
+    }
+    if (action === 'restart') return await restartSessionCatalogServer(projectRoot, previousPid);
+    return {
+      serviceId: 'session-catalog',
+      action,
+      success: true,
+      message: 'Session Catalog IPC daemon shutdown requested',
+    };
+  } catch (error) {
+    return {
+      serviceId: 'session-catalog',
+      action,
+      success: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  } finally {
+    await client.close().catch(() => undefined);
+  }
+}
+
+async function restartSessionCatalogServer(
+  projectRoot: string,
+  previousPid?: number,
+): Promise<ServiceActionResult> {
+  const paths = resolveWstackPaths({ projectRoot });
+  const probe = () => {
+    const client = new SessionCatalogProjectClient({
+      projectDir: paths.projectDir,
+      projectRoot,
+    });
+    return client
+      .callExisting('ping', {}, { timeoutMs: 1_000 })
+      .then(
+        () => true,
+        () => false,
+      )
+      .finally(() => client.close().catch(() => undefined));
+  };
+  await waitForShutdown(probe);
+  const verify = new SessionCatalogProjectClient({
+    projectDir: paths.projectDir,
+    projectRoot,
+  });
+  try {
+    const health = await verify.ping();
+    if (previousPid !== undefined && health.pid === previousPid) {
+      return {
+        serviceId: 'session-catalog',
+        action: 'restart',
+        success: false,
+        message: `Session Catalog IPC daemon did not restart (owner PID is still ${previousPid})`,
+      };
+    }
+    return {
+      serviceId: 'session-catalog',
+      action: 'restart',
+      success: true,
+      message: 'Session Catalog IPC daemon restarted successfully',
+    };
+  } catch (error) {
+    return {
+      serviceId: 'session-catalog',
+      action: 'restart',
+      success: false,
+      message: `Session Catalog IPC daemon restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  } finally {
+    await verify.close().catch(() => undefined);
   }
 }
 
@@ -290,6 +389,9 @@ export async function killSageServer(
   try {
     const result = await connection.shutdown(`WebUI request: ${action}`);
     if (!result.stopped) {
+      if (action === 'restart' && result.reason === 'not-running') {
+        return await restartSageServer(projectRoot);
+      }
       return {
         serviceId: 'sage',
         action,
@@ -361,6 +463,9 @@ export async function killChronicleServer(
   try {
     const result = await client.shutdown(`WebUI request: ${action}`);
     if (!result.stopped) {
+      if (action === 'restart' && result.reason === 'offline') {
+        return await restartChronicleServer(projectRoot);
+      }
       return {
         serviceId: 'chronicle',
         action,
@@ -435,6 +540,9 @@ export async function killCodebaseIndexServer(
       `websocket-request:${action}`,
     );
     if (!result.stopped) {
+      if (action === 'restart' && result.reason === 'not-running') {
+        return await restartCodebaseIndexServer(projectRoot, indexDir);
+      }
       return {
         serviceId: 'codebase-index',
         action,
@@ -522,6 +630,9 @@ export async function killMailboxServer(
   try {
     const result = await connection.shutdown(`WebUI request: ${action}`);
     if (!result.stopped) {
+      if (action === 'restart' && result.reason === 'offline') {
+        return await restartMailboxServer(projectRoot);
+      }
       return {
         serviceId: 'mailbox',
         action,

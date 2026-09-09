@@ -95,11 +95,11 @@
       "relativeImports": 42
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
-      "lines": 834,
+      "lines": 971,
       "relativeImports": 6
     },
     "packages/core/src/coordination/sqlite-mailbox.ts": {
-      "lines": 923,
+      "lines": 972,
       "relativeImports": 15
     },
     "packages/core/src/coordination/subagent-budget.ts": {
@@ -315,7 +315,7 @@
       "relativeImports": 8
     },
     "packages/tools/src/session-kanban.ts": {
-      "lines": 864,
+      "lines": 875,
       "relativeImports": 4
     },
     "packages/tui/src/app-key-handler.ts": {

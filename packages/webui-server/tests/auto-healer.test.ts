@@ -1,9 +1,9 @@
-import type { Logger } from '@wrongstack/core/types';
 import type { TrustBoundary } from '@wrongstack/core/security';
+import type { Logger } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  AUTO_HEAL_ENV_FLAG,
   AUTO_HEAL_DEFAULT_COOLDOWN_MS,
+  AUTO_HEAL_ENV_FLAG,
   createAutoHealer,
   isAutoHealEnabled,
 } from '../src/server/connections/auto-healer.js';
@@ -149,7 +149,7 @@ describe('auto-healer', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it('skips non-restartable services even when they report error', async () => {
+  it('restarts Session Catalog but skips non-restartable services', async () => {
     const collect = vi.fn(async () =>
       report([
         service('webui', 'error'),
@@ -157,7 +157,7 @@ describe('auto-healer', () => {
         service('governance', 'error'),
       ]),
     );
-    const execute = vi.fn(async () => okResult('webui'));
+    const execute = vi.fn(async () => okResult('session-catalog'));
     const healer = createAutoHealer({
       projectRoot: () => '/project',
       indexDir: () => undefined,
@@ -168,7 +168,12 @@ describe('auto-healer', () => {
     });
 
     await healer.tick();
-    expect(execute).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledExactlyOnceWith(
+      'session-catalog',
+      'restart',
+      '/project',
+      undefined,
+    );
   });
 
   it('escalates after maxAttempts consecutive failures and re-arms on recovery', async () => {

@@ -52,14 +52,58 @@ export interface LoopDetectorResult {
   steerMessage?: string;
 }
 
+/**
+ * Shortest cycle length the periodic detector looks for beyond the trivial
+ * consecutive repeat (which `toolLoopCount` already covers).
+ */
+const MIN_CYCLE_PERIOD = 2;
+/** Longest cycle length considered. Beyond this the pattern is plausibly real work. */
+const MAX_CYCLE_PERIOD = 5;
+/** How many times a cycle must repeat back-to-back before the turn is cut. */
+const CYCLE_REPEATS = 3;
+
 export class AgentLoopDetector {
   private lastToolSignature = '';
   private toolLoopCount = 0;
   private iterationSteerDone = false;
   private readonly recentCallKeys: string[] = [];
   private readonly steeredCallKeys = new Set<string>();
+  /**
+   * Rolling iteration fingerprints, newest last. `toolLoopCount` only ever sees
+   * CONSECUTIVE identical iterations, so the most common real-world wedge —
+   * read → edit → read → edit, or check → fix → check → fix — reset the counter
+   * to 1 on every step and was never detected. This window is what makes a
+   * repeating cycle visible.
+   */
+  private readonly recentIterationSigs: string[] = [];
+  /** Per-call-key repeat counts, for escalating a steered key to a cut. */
+  private readonly callKeyTotals = new Map<string, number>();
 
   constructor(private readonly a: AgentInternals) {}
+
+  /**
+   * Detect a cycle of period `p` repeated `CYCLE_REPEATS` times at the end of
+   * the fingerprint window. Returns the period, or 0 when there is no cycle.
+   * Period 1 is deliberately excluded — that is the consecutive-repeat case,
+   * already handled (and counted) by `toolLoopCount`.
+   */
+  private detectCyclePeriod(): number {
+    const sigs = this.recentIterationSigs;
+    for (let period = MIN_CYCLE_PERIOD; period <= MAX_CYCLE_PERIOD; period++) {
+      const span = period * CYCLE_REPEATS;
+      if (sigs.length < span) break;
+      const tail = sigs.slice(sigs.length - span);
+      let matches = true;
+      for (let i = period; i < span && matches; i++) {
+        if (tail[i] !== tail[i - period]) matches = false;
+      }
+      // A "cycle" whose every element is identical is the period-1 case wearing
+      // a longer period; leave it to the consecutive-repeat path so the reported
+      // repeat count and message stay accurate.
+      if (matches && new Set(tail).size > 1) return period;
+    }
+    return 0;
+  }
 
   checkIteration(
     iterationIndex: number,
@@ -72,6 +116,37 @@ export class AgentLoopDetector {
 
     const sig = iterationFingerprint(content);
     if (sig !== '__empty__') {
+      this.recentIterationSigs.push(sig);
+      const sigWindow = Math.max(loopCfg.windowSize, MAX_CYCLE_PERIOD * CYCLE_REPEATS);
+      while (this.recentIterationSigs.length > sigWindow) this.recentIterationSigs.shift();
+
+      // Periodic cycle: the agent is alternating between a small set of steps
+      // and getting nowhere. Cut regardless of mode (except 'off', handled
+      // above) — a steer cannot help here, the model has already "changed
+      // approach" on every step of the cycle and come back around.
+      const cyclePeriod = this.detectCyclePeriod();
+      if (cyclePeriod > 0) {
+        const names = toolUses.map((t) => t.name).join(', ') || '(no tools)';
+        const detail =
+          `a repeating ${cyclePeriod}-step cycle ran ${CYCLE_REPEATS} times without progress ` +
+          `(last step: ${names})`;
+        this.a.logger.warn(`Loop detected: ${detail} — stopping to prevent infinite loop.`);
+        this.a.events.emit('tool.loop_detected', {
+          sessionId: resolveEventSessionId(this.a.ctx),
+          ctx: this.a.ctx,
+          tools: names,
+          repeatCount: CYCLE_REPEATS,
+          iteration: iterationIndex,
+          kind: toolUses.length > 0 ? 'tool' : 'message',
+          action: 'cut',
+          scope: 'iteration',
+        });
+        return {
+          cut: true,
+          cutSummary: `[Loop detected: ${detail} — stopping to prevent infinite repetition.]`,
+        };
+      }
+
       if (sig === this.lastToolSignature) {
         this.toolLoopCount++;
       } else {
@@ -151,6 +226,9 @@ export class AgentLoopDetector {
       this.lastToolSignature = '';
       this.toolLoopCount = 0;
       this.iterationSteerDone = false;
+      // An empty iteration breaks any cycle in progress — clear the window so a
+      // pattern from before the pause cannot join up with one after it.
+      this.recentIterationSigs.length = 0;
     }
 
     if (loopCfg.mode === 'steer-then-cut') {
@@ -158,7 +236,6 @@ export class AgentLoopDetector {
         const key = `${u.name}:${hashSmall(stableStringify(u.input ?? {}))}`;
         this.recentCallKeys.push(key);
         if (this.recentCallKeys.length > loopCfg.windowSize) this.recentCallKeys.shift();
-        if (this.steeredCallKeys.has(key)) continue;
         let count = 0;
         for (const k of this.recentCallKeys) if (k === key) count++;
         const tool = this.a.tools.get(u.name);
@@ -167,6 +244,31 @@ export class AgentLoopDetector {
           (tool.riskTier === 'safe' || (tool.capabilities?.length ?? 0) > 0)
             ? loopCfg.callRepeatThreshold * 2
             : loopCfg.callRepeatThreshold;
+        // A key that was already steered used to be skipped for ever, so an
+        // agent that ignored the steer could repeat the identical call
+        // unboundedly and the detector never escalated. Count total repeats
+        // and cut once it has ignored the steer for another full threshold.
+        const total = (this.callKeyTotals.get(key) ?? 0) + 1;
+        this.callKeyTotals.set(key, total);
+        if (this.steeredCallKeys.has(key) && total >= observationThreshold * 2) {
+          const detail = `"${u.name}" called with identical arguments ${total} times despite a steer`;
+          this.a.logger.warn(`Loop detected: ${detail} — stopping to prevent infinite loop.`);
+          this.a.events.emit('tool.loop_detected', {
+            sessionId: resolveEventSessionId(this.a.ctx),
+            ctx: this.a.ctx,
+            tools: u.name,
+            repeatCount: total,
+            iteration: iterationIndex,
+            kind: 'tool',
+            action: 'cut',
+            scope: 'call',
+          });
+          return {
+            cut: true,
+            cutSummary: `[Loop detected: ${detail} — stopping to prevent infinite repetition.]`,
+          };
+        }
+        if (this.steeredCallKeys.has(key)) continue;
         if (count < observationThreshold) continue;
         this.steeredCallKeys.add(key);
         const preview = JSON.stringify(u.input ?? {}).slice(0, 160);

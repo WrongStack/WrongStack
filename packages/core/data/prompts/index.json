@@ -1527,7 +1527,7 @@
       "description": "Generalize a one-off prompt into a parameterized template.",
       "category": "meta-prompting",
       "tags": ["template", "reuse", "variables"],
-      "checksum": "ae6ef347d819537062d3908ae95dda300791b036378120da7a276032571190b8",
+      "checksum": "bee9f7ab775f735e56f8b4163bdf2f804143081cffe5cff59192d715ab808bf5",
       "file": "prompts/meta-prompting/write-reusable-prompt-template.json"
     },
     {

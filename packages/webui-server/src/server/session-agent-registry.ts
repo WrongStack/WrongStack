@@ -368,6 +368,7 @@ export function createSessionAgentRegistry(
       executionStrategy: template.executionStrategy,
       perIterationOutputCapBytes: template.perIterationOutputCapBytes,
       autoExtendLimit: template.autoExtendLimit,
+      maxAutoExtensions: template.maxAutoExtensions,
       loopDetection: template.loopDetection,
       refreshSystemPrompt: true,
       toolExecutor: template.toolExecutor,

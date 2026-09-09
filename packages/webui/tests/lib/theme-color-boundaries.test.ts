@@ -14,6 +14,7 @@ const ISOLATED_COLOR_SURFACES = new Set([
   'components/KanbanContractGraphDashboard.tsx', // Rendered SVG contract graph nodes.
   'components/KanbanContractGraphView.ts', // Graph canvas node colors and canvas backgrounds.
   'components/KanbanWorkbench.tsx', // Kanban status badge highlights.
+  'components/RepositoryHistoryView.tsx', // Git topology graph lanes and branch/tag badge tones.
   'components/SetupScreen/ProviderKeyCard.tsx', // QR encoder requires explicit dark/light colors.
   'components/TerminalPanel.tsx', // xterm owns a complete terminal ANSI palette.
   'components/vector-memory-panel/index.tsx', // Data-viz heatmap: similarity scores map to an inline grayscale+blue-tint HSL ramp independent of the theme.

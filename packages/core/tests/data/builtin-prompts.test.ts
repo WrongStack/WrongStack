@@ -119,6 +119,29 @@ describe('builtin prompt dataset', () => {
     }
   });
 
+  it('every content hole the renderer can match is declared in variables', () => {
+    // The mirror of the check above, and the one that let `{{double-brace}}` ship
+    // inside write-reusable-prompt-template: the variable form is built from
+    // `variables`, so a hole that renderPrompt's regex matches but no variable
+    // declares can NEVER be filled. renderPrompt returns it verbatim and reports
+    // no `missing`, so the raw token reaches the model silently.
+    // The pattern is copied from renderPrompt
+    // (packages/core/src/execution/prompt-loader.ts) on purpose: if that regex
+    // ever widens, this guard has to widen with it.
+    const RENDERABLE_HOLE = /\{\{\s*([\w.-]+)\s*\}\}/g;
+    const failures: string[] = [];
+    for (const file of files) {
+      const entry = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const declared = new Set<string>((entry.variables ?? []).map((v) => v.name));
+      for (const hole of entry.content.matchAll(RENDERABLE_HOLE)) {
+        if (!declared.has(hole[1])) {
+          failures.push(`${entry.slug}: content hole {{${hole[1]}}} is not declared in variables`);
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
   it('ships the Proof-Driven Bug Hunter round and cleanup contract', () => {
     const entry = JSON.parse(
       fs.readFileSync(path.join(promptsDir, 'debugging', 'proof-driven-bug-hunter.json'), 'utf8'),

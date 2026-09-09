@@ -227,6 +227,8 @@ export function createAgent(params: {
       /** Opt-in Kanban governance gate; see ToolsConfig.kanbanGovernance. */
       kanbanGovernance?: boolean | undefined;
       loopDetection?: import('@wrongstack/core/types').LoopDetectionConfig | undefined;
+      autoExtendLimit?: boolean | undefined;
+      maxAutoExtensions?: number | undefined;
     };
   };
   confirmAwaiter: import('@wrongstack/core/agent').AgentInit['confirmAwaiter'];
@@ -315,6 +317,16 @@ export function createAgent(params: {
     executionStrategy: params.config.tools.defaultExecutionStrategy,
     perIterationOutputCapBytes: params.config.tools.perIterationOutputCapBytes,
     loopDetection: params.config.tools.loopDetection,
+    // Previously unwired: the Agent fell back to `autoExtendLimit: false`, so
+    // `tools.autoExtendLimit` did nothing on the CLI/TUI host while the WebUI
+    // host honoured it — the same config produced two different budget
+    // behaviours depending on the surface.
+    ...(params.config.tools.autoExtendLimit !== undefined
+      ? { autoExtendLimit: params.config.tools.autoExtendLimit }
+      : {}),
+    ...(params.config.tools.maxAutoExtensions !== undefined
+      ? { maxAutoExtensions: params.config.tools.maxAutoExtensions }
+      : {}),
     confirmAwaiter: params.confirmAwaiter,
     toolExecutor,
     tracer: params.tracer,

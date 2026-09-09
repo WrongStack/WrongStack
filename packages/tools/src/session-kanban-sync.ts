@@ -216,10 +216,18 @@ export function applySessionKanbanBoardToTodos(
     ),
   ).map((task) => sessionTodoFromTask(task, board));
 
+  // Two ways this projection is already applied and must not re-fire:
+  // `context.todos` still holds the rows verbatim, or `replaceTodos` auto-cleared
+  // them because they were all completed. Comparing against only the collapsed
+  // form re-notified on every board event whenever the todo list had NOT been
+  // auto-cleared (an all-done board reached through a path that left the rows in
+  // place) — the same churn the managed projection suffered.
   const allCompleted =
     projectedTodos.length > 0 && projectedTodos.every((todo) => todo.status === 'completed');
   const effectiveTodos = allCompleted ? [] : projectedTodos;
-  if (sameTodos(context.todos, effectiveTodos)) return [...context.todos];
+  if (sameTodos(context.todos, projectedTodos) || sameTodos(context.todos, effectiveTodos)) {
+    return [...context.todos];
+  }
   options.suppressedTodoMirrors.add(context);
   try {
     context.state.replaceTodos(projectedTodos);
@@ -271,7 +279,21 @@ export function applyManagedKanbanBoardToTodos(
     ),
   ).map((task) => managedTodoFromTask(task, board));
 
-  if (sameTodos(context.todos, projectedTodos)) return [...context.todos];
+  // `replaceTodos` auto-clears an all-completed list to `[]` (see
+  // ConversationState.replaceTodos). So once every card is done, `context.todos`
+  // is empty while `projectedTodos` still holds the completed rows — the
+  // comparison below could never match, and every board event re-ran the
+  // replace, re-injected the "[KANBAN TODO UPDATE] … reassess your current
+  // plan" turn and re-broadcast the mailbox status. On a finished managed
+  // board that is a self-sustaining loop: the agent is told the board changed
+  // for ever and never stops working it. The session projection already
+  // carries this guard; the managed one was missing it.
+  const allCompleted =
+    projectedTodos.length > 0 && projectedTodos.every((todo) => todo.status === 'completed');
+  const effectiveTodos = allCompleted ? [] : projectedTodos;
+  if (sameTodos(context.todos, projectedTodos) || sameTodos(context.todos, effectiveTodos)) {
+    return [...context.todos];
+  }
   suppressedTodoMirrors.add(context);
   try {
     context.state.replaceTodos(projectedTodos);

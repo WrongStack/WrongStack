@@ -36,8 +36,10 @@ export class DirectorBudgetPolicy {
   /**
    * Per-(subagentId:budgetKind) extension-grant counter. Tracks how many times
    * the director has granted an extension for a specific kind so the
-   * `maxBudgetExtensions` ceiling is enforced per kind. Reset to 0 on deny.
-   * Promoted from a closure-local so `removeSubagent` can clean stale entries.
+   * `maxBudgetExtensions` ceiling is enforced per kind — including the two
+   * timeout kinds, whose heartbeat gate cannot tell a busy loop from progress.
+   * Survives a deny (a reset would uncap the ceiling); cleared per subagent in
+   * `removeSubagent`.
    */
   private readonly extendCounts = new Map<string, number>();
   /**
@@ -88,8 +90,12 @@ export class DirectorBudgetPolicy {
         const guardKey = `${event.subagentId}:${payload.kind}`;
         const prior = this.extendCounts.get(guardKey) ?? 0;
         if (prior >= this.deps.maxBudgetExtensions) {
+          // Deny, but KEEP the counter. Deleting it reset the ceiling to zero,
+          // so the very next threshold event for this kind started a fresh
+          // allowance of `maxBudgetExtensions` grants — the cap could never
+          // latch and a subagent that survived the stop kept buying budget.
+          // The entry is cleared in `removeSubagent` when the agent retires.
           payload.deny();
-          this.extendCounts.delete(guardKey);
           return;
         }
         if (payload.kind === 'cost' && this.deps.maxFleetCostUsd < Number.POSITIVE_INFINITY) {
@@ -140,12 +146,24 @@ export class DirectorBudgetPolicy {
     payload: BudgetThresholdPayload,
   ): void {
     const heartbeatKey = `${subagentId}:${payload.kind}`;
+    // The heartbeat gate alone is not a runaway guard. Its "progress" signal is
+    // the raw `tool.executed` count, which a wedged agent spinning on the same
+    // tool advances just as fast as one doing real work — so a looping subagent
+    // always looked alive and kept doubling its deadline up to the 24h ceiling.
+    // That is the hour-scale runaway. Bound the number of grants the same way
+    // every other budget kind is bounded, so a loop dies in minutes, not hours.
+    const prior = this.extendCounts.get(heartbeatKey) ?? 0;
+    if (prior >= this.deps.maxBudgetExtensions) {
+      payload.deny();
+      return;
+    }
     const progress = this.progressBySubagent.get(subagentId) ?? 0;
     const lastProgress = this.lastTimeoutProgress.get(heartbeatKey) ?? -1;
     if (progress <= lastProgress) {
       payload.deny();
       return;
     }
+    this.extendCounts.set(heartbeatKey, prior + 1);
     this.lastTimeoutProgress.set(heartbeatKey, progress);
     const field = payload.kind === 'timeout' ? 'timeoutMs' : 'idleTimeoutMs';
     setImmediate(() => {

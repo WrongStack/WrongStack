@@ -473,3 +473,123 @@ describe('FleetSupervisor', () => {
     h.supervisor.stop();
   });
 });
+
+describe('FleetSupervisor looping-worker signal', () => {
+  /** Emit a loop detection for one worker, as its own detector would. */
+  function emitLoop(h: ReturnType<typeof makeHarness>, subagentId: string) {
+    h.fleet.emit({
+      subagentId,
+      ts: h.clock.now,
+      type: 'tool.loop_detected',
+      payload: { tools: 'read', repeatCount: 5, action: 'cut', scope: 'iteration' },
+    });
+  }
+
+  /**
+   * The gap this closes: `stuck_agent` keys on the ABSENCE of fleet activity,
+   * and `lastActivityAt` is refreshed by any event — so a worker going in
+   * circles, the noisiest thing on the bus, could never trip it. A busy loop
+   * had no signal at all.
+   */
+  it('engages a busy worker that keeps tripping its own loop detector', async () => {
+    const h = makeHarness(approveBrain(), { loopStreak: 3 });
+    h.supervisor.start();
+    h.state.subagents = [sub('w1', 'running', 'refactor the parser')];
+
+    emitLoop(h, 'w1');
+    emitLoop(h, 'w1');
+    await h.supervisor.evaluate();
+    expect(h.actions.steerAgent).not.toHaveBeenCalled();
+
+    emitLoop(h, 'w1');
+    await h.supervisor.evaluate();
+
+    expect(h.signals).toContain('looping_agent');
+    expect(h.actions.steerAgent).toHaveBeenCalledWith(
+      'w1',
+      expect.stringContaining('Loop detected'),
+      expect.stringContaining('repeating work'),
+    );
+    expect(h.actions.notifyLeader).toHaveBeenCalledWith(
+      expect.stringContaining('looping'),
+      expect.stringContaining('3 loop detections'),
+      'w1',
+    );
+    h.supervisor.stop();
+  });
+
+  it('never fires on the stuck signal for a looping worker (the old blind spot)', async () => {
+    const h = makeHarness(approveBrain(), { stuckMs: 180_000, loopStreak: 99 });
+    h.supervisor.start();
+    h.state.subagents = [sub('w1', 'running', 'spin')];
+
+    // A loop is loud: activity keeps arriving, so the stuck clock never expires.
+    for (let tick = 0; tick < 20; tick++) {
+      h.clock.now += 30_000;
+      emitLoop(h, 'w1');
+      await h.supervisor.evaluate();
+    }
+    expect(h.signals).not.toContain('stuck_agent');
+    h.supervisor.stop();
+  });
+
+  it('clears the tally when the worker actually completes a task', async () => {
+    const h = makeHarness(approveBrain(), { loopStreak: 3 });
+    h.supervisor.start();
+    h.state.subagents = [sub('w1', 'running', 'work')];
+
+    emitLoop(h, 'w1');
+    emitLoop(h, 'w1');
+    // Real forward motion — detections before it must not condemn the worker.
+    h.events.emit('subagent.task_completed', {
+      subagentId: 'w1',
+      taskId: 't1',
+      status: 'success',
+    } as never);
+    emitLoop(h, 'w1');
+    emitLoop(h, 'w1');
+    await h.supervisor.evaluate();
+
+    expect(h.signals).not.toContain('looping_agent');
+    expect(h.actions.steerAgent).not.toHaveBeenCalled();
+    h.supervisor.stop();
+  });
+
+  it('terminates instead of steering only when allowTerminate is on', async () => {
+    const h = makeHarness(
+      {
+        async decide(req): Promise<BrainDecision> {
+          const terminate = req.options?.find((o) => o.id === 'terminate');
+          return terminate
+            ? { type: 'answer', optionId: 'terminate', text: 'terminate' }
+            : { type: 'answer', optionId: 'steer', text: 'steer' };
+        },
+      },
+      { loopStreak: 2, allowTerminate: true },
+    );
+    h.supervisor.start();
+    h.state.subagents = [sub('w1', 'running', 'spin')];
+
+    emitLoop(h, 'w1');
+    emitLoop(h, 'w1');
+    await h.supervisor.evaluate();
+
+    expect(h.actions.terminate).toHaveBeenCalledWith('w1');
+    expect(h.actions.steerAgent).not.toHaveBeenCalled();
+    h.supervisor.stop();
+  });
+
+  it('leaves collab subagents alone', async () => {
+    const h = makeHarness(approveBrain(), { loopStreak: 2 });
+    h.supervisor.start();
+    h.state.subagents = [sub('critic-1', 'running', 'review')];
+
+    emitLoop(h, 'critic-1');
+    emitLoop(h, 'critic-1');
+    emitLoop(h, 'critic-1');
+    await h.supervisor.evaluate();
+
+    expect(h.signals).not.toContain('looping_agent');
+    h.supervisor.stop();
+  });
+});

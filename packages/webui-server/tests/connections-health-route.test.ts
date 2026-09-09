@@ -114,10 +114,12 @@ describe('connections health kanban service', () => {
     const getKanbanServerConnection = vi.fn(async () => ({
       request: (_method: string, _params: unknown, _opts?: unknown) => ping(),
     }));
+    const isKanbanServerAvailable = vi.fn(async () => true);
     const getKanbanDir = vi.fn((root: string) => `${root}/.wrongstack/kanbans`);
     vi.doMock('@wrongstack/kanban', async (importOriginal) => ({
       ...(await importOriginal<typeof import('@wrongstack/kanban')>()),
       getKanbanServerConnection,
+      isKanbanServerAvailable,
       getKanbanDir,
     }));
     const { collectConnectionsHealth: collectFresh } = await import(
@@ -151,10 +153,12 @@ describe('connections health kanban service', () => {
     const getKanbanServerConnection = vi.fn(async () => ({
       request: () => Promise.reject(new Error('boom')),
     }));
+    const isKanbanServerAvailable = vi.fn(async () => true);
     const getKanbanDir = vi.fn((root: string) => `${root}/.wrongstack/kanbans`);
     vi.doMock('@wrongstack/kanban', async (importOriginal) => ({
       ...(await importOriginal<typeof import('@wrongstack/kanban')>()),
       getKanbanServerConnection,
+      isKanbanServerAvailable,
       getKanbanDir,
     }));
     const { collectConnectionsHealth: collectFresh } = await import(
@@ -173,6 +177,30 @@ describe('connections health kanban service', () => {
       mode: 'project-server',
     });
     expect(kanban?.lastError).toBe('boom');
+  });
+
+  it('reports a sleeping daemon without spawning a connection', async () => {
+    vi.resetModules();
+    const getKanbanServerConnection = vi.fn();
+    vi.doMock('@wrongstack/kanban', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('@wrongstack/kanban')>()),
+      getKanbanServerConnection,
+      isKanbanServerAvailable: vi.fn(async () => false),
+    }));
+    const { collectConnectionsHealth: collectFresh } = await import(
+      '../src/server/connections-health-route.js'
+    );
+    const fresh = await collectFresh({
+      projectRoot: '/project',
+      indexDir: undefined,
+      backend: 'cli-embedded',
+    });
+
+    expect(fresh.services.find((service) => service.id === 'kanban')).toMatchObject({
+      status: 'offline',
+      required: false,
+    });
+    expect(getKanbanServerConnection).not.toHaveBeenCalled();
   });
 });
 

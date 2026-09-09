@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 314,
-      "typeOnly": 250,
+      "files": 315,
+      "typeOnly": 251,
       "runtimeOrMixed": 81
     },
     "@wrongstack/core/agent-catalog": {
@@ -19,8 +19,8 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 207,
-      "typeOnly": 82,
+      "files": 208,
+      "typeOnly": 83,
       "runtimeOrMixed": 181
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -144,9 +144,9 @@
       "runtimeOrMixed": 117
     },
     "@wrongstack/core/session-catalog": {
-      "files": 8,
+      "files": 10,
       "typeOnly": 0,
-      "runtimeOrMixed": 8
+      "runtimeOrMixed": 10
     },
     "@wrongstack/core/skills": {
       "files": 8,
@@ -1525,6 +1525,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/replace-rg.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/session-kanban-completed-churn.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -3195,6 +3201,12 @@
       "file": "packages/tools/tests/install.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tools/tests/session-kanban-completed-churn.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -9108,6 +9120,12 @@
     },
     {
       "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/webui-server/src/server/connections/service-actions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
       "file": "packages/webui-server/tests/fleet-control-endpoints.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9115,6 +9133,12 @@
     {
       "specifier": "@wrongstack/core/session-catalog",
       "file": "packages/webui-server/tests/http-server.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/webui-server/tests/service-actions.gaps.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

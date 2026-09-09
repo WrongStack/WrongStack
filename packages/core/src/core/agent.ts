@@ -24,6 +24,7 @@ import {
   type AgentInit,
   type AgentInput,
   type AgentPipelines,
+  DEFAULT_MAX_AUTO_EXTENSIONS,
   DEFAULT_MAX_ITERATIONS,
   normalizeInput,
   type ResolvedLoopDetectionConfig,
@@ -38,6 +39,7 @@ export {
   type AgentInput,
   type AgentPipelines,
   createDefaultPipelines,
+  DEFAULT_MAX_AUTO_EXTENSIONS,
   DEFAULT_MAX_ITERATIONS,
   normalizeInput,
   type ResolvedLoopDetectionConfig,
@@ -62,6 +64,8 @@ export class Agent {
   private readonly plugins: { plugin: Plugin; api: PluginAPI }[] = [];
   readonly toolExecutor: ToolExecutorLike;
   readonly autoExtendLimit: boolean;
+  /** Bounded auto-grants of +100 iterations per run (see `tools.maxAutoExtensions`). */
+  readonly maxAutoExtensions: number;
   /** Resolved loop-detector settings (see `tools.loopDetection`). */
   readonly loopDetection: ResolvedLoopDetectionConfig;
   private readonly autonomousContinue: boolean;
@@ -113,6 +117,13 @@ export class Agent {
     // A missing host policy must not turn a finite iteration budget into an
     // unbounded autonomous run. Hosts/users can still opt in explicitly.
     this.autoExtendLimit = init.autoExtendLimit ?? false;
+    // Auto-extension is a courtesy for a task that slightly overruns, not a
+    // licence to ignore the configured budget: without a ceiling the loop
+    // granted +100 turns on every overrun for ever.
+    this.maxAutoExtensions = Math.max(
+      0,
+      Math.trunc(init.maxAutoExtensions ?? DEFAULT_MAX_AUTO_EXTENSIONS),
+    );
     this.loopDetection = resolveLoopDetection(init.loopDetection);
     this.autonomousContinue = init.autonomousContinue ?? false;
     this.refreshSystemPrompt = init.refreshSystemPrompt ?? false;

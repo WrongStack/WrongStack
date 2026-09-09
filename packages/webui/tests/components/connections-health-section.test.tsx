@@ -90,6 +90,15 @@ describe('ConnectionsHealthSection', () => {
           projectRoot: '/project',
           services: [
             {
+              id: 'session-catalog',
+              label: 'Session Catalog',
+              status: 'healthy',
+              required: true,
+              mode: 'project-daemon',
+              detail: 'catalog ready',
+              ownerPid: 41,
+            },
+            {
               id: 'webui',
               label: 'WebUI transport',
               status: 'healthy',
@@ -142,6 +151,7 @@ describe('ConnectionsHealthSection', () => {
     });
 
     expect(screen.getByText('Connection health')).toBeTruthy();
+    expect(screen.getByText('Session Catalog')).toBeTruthy();
     expect(screen.getByText('Chronicle telemetry')).toBeTruthy();
     expect(screen.getByText('SAGE memory')).toBeTruthy();
     expect(screen.getByText('Governance control plane')).toBeTruthy();
@@ -149,6 +159,12 @@ describe('ConnectionsHealthSection', () => {
     expect(screen.getByText('investigate')).toBeTruthy();
     expect(screen.getByText('continue')).toBeTruthy();
     expect(screen.queryByTitle(/Reset Governance control plane/u)).toBeNull();
+    const restartCatalog = screen.getByTitle(/Session Catalog/u);
+    act(() => restartCatalog.click());
+    expect(send).toHaveBeenCalledWith({
+      type: 'connections.service_action',
+      payload: { serviceId: 'session-catalog', action: 'restart' },
+    });
     expect(screen.getByText('server')).toBeTruthy();
     expect(screen.getByText('on-demand project-server')).toBeTruthy();
     expect(screen.getByText('/state/project/chronicle')).toBeTruthy();

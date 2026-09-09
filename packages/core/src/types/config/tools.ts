@@ -54,8 +54,19 @@ export interface ToolsConfig {
   /**
    * When true (default), the agent automatically extends its iteration
    * limit by 100 when hit. Set to false to require user confirmation.
+   *
+   * The grant is bounded by `maxAutoExtensions` — on its own this flag would
+   * make `maxIterations` unenforceable, since nothing in the shipped stack
+   * denies the grant.
    */
   autoExtendLimit?: boolean | undefined;
+  /**
+   * How many +100 auto-grants a single run may take before it stops at
+   * `max_iterations`. Default 3. `0` disables auto-extension entirely (the
+   * configured `maxIterations` becomes a hard stop); raise it for genuinely
+   * long autonomous runs. Only consulted when `autoExtendLimit` is true.
+   */
+  maxAutoExtensions?: number | undefined;
   /**
    * When true, file tools (read/write/edit/grep/glob/install) are confined to
    * the project root and `set_working_dir` may not leave it. Default: false —

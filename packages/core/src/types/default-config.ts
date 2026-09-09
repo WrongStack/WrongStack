@@ -20,6 +20,10 @@ export const DEFAULT_TOOLS_CONFIG = Object.freeze({
   // allowed and the confinement guard is off. Users can re-enable either via
   // /settings; see ToolsConfig.restrictToProjectRoot for the boundary.
   autoExtendLimit: true,
+  // Ceiling on those auto-grants. `autoExtendLimit` on its own grants +100
+  // iterations on EVERY overrun and no shipped listener ever denies it, so
+  // without this a configured `maxIterations` could never end a run.
+  maxAutoExtensions: 3,
   restrictToProjectRoot: false,
   // Off by default: the board is a record of the work, not a permit for it.
   // See ToolsConfig.kanbanGovernance for what turning it on costs and gates.

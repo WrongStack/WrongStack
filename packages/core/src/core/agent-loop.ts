@@ -158,19 +158,43 @@ export function createAgentLoopHandler(
     hasHardLimit: boolean,
     currentIterations: number,
     delegateSummaries: Array<{ summary: string; ok: boolean }>,
-  ): Promise<{ limit: number; exit?: RunResult | undefined }> {
+    extensionsUsed: number,
+  ): Promise<{ limit: number; exit?: RunResult | undefined; extended?: boolean }> {
     if (hasHardLimit && iterationIndex >= limit) {
+      // The auto-grant is BOUNDED. `requestLimitExtension` resolves to +100
+      // whenever `autoExtend` is true and no listener denies synchronously —
+      // and no shipped listener ever denies (the only subscribers are a
+      // metrics counter and two UI forwarders). Passing `autoExtend: true`
+      // unconditionally therefore turned every configured `maxIterations`
+      // into "no limit at all": each overrun bought another 100 turns, for
+      // ever. Once this run has spent its extension allowance, stop asking
+      // and let the run end at `max_iterations` — that is the only thing
+      // that makes a configured iteration budget mean anything.
+      const allowanceLeft = extensionsUsed < a.maxAutoExtensions;
       const extendBy = await requestLimitExtension({
         events: a.events,
         sessionId: resolveEventSessionId(a.ctx),
         currentIterations,
         currentLimit: limit,
-        autoExtend: a.autoExtendLimit,
+        autoExtend: a.autoExtendLimit && allowanceLeft,
+        // With the allowance spent there is nothing to wait for: no listener
+        // grants today, so the default 30s window would only stall the exit.
+        ...(allowanceLeft ? {} : { timeoutMs: 0 }),
       });
       if (extendBy > 0) {
         const newLimit = limit + extendBy;
-        a.logger.info(`Iteration limit extended by ${extendBy} (new limit: ${newLimit})`);
-        return { limit: newLimit };
+        a.logger.info(
+          `Iteration limit extended by ${extendBy} (new limit: ${newLimit}, ` +
+            `extension ${extensionsUsed + 1}/${a.maxAutoExtensions})`,
+        );
+        return { limit: newLimit, extended: true };
+      }
+      if (!allowanceLeft) {
+        a.logger.warn(
+          `Iteration limit reached at ${currentIterations} turns after ` +
+            `${extensionsUsed} extension(s) — stopping. Raise tools.maxIterations or ` +
+            'tools.maxAutoExtensions if this task legitimately needs more turns.',
+        );
       }
       return {
         limit,
@@ -218,6 +242,8 @@ export function createAgentLoopHandler(
     let effectiveLimit = opts.maxIterations ?? a.maxIterations;
     const hasHardLimit = effectiveLimit > 0 && Number.isFinite(effectiveLimit);
     let recoveryRetries = 0;
+    /** Auto-grants spent on this run; capped by `a.maxAutoExtensions`. */
+    let limitExtensionsUsed = 0;
     const pendingMailboxBlocks: TextBlock[] = [];
 
     function clearEvaluatedMailboxBlocks(): void {
@@ -310,8 +336,10 @@ export function createAgentLoopHandler(
           hasHardLimit,
           iterations,
           delegateSummaries,
+          limitExtensionsUsed,
         );
         effectiveLimit = limitCheck.limit;
+        if (limitCheck.extended) limitExtensionsUsed++;
         if (limitCheck.exit) {
           return { ...limitCheck.exit, finalText };
         }

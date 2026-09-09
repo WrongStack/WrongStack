@@ -725,3 +725,99 @@ describe('SqliteMailbox session-affinity read-path filtering', () => {
     expect(await mb.unreadCount('leader-a', 'session-cur')).toBe(1);
   });
 });
+
+describe('SqliteMailbox transaction safety and statement edge cases', () => {
+  it('supports nested transactions via savepoints and propagates committed changes', () => {
+    let innerRan = false;
+    const result = (mb as unknown as { transaction: <T>(fn: () => T) => T }).transaction(() => {
+      return (mb as unknown as { transaction: <T>(fn: () => T) => T }).transaction(() => {
+        innerRan = true;
+        return 'success';
+      });
+    });
+    expect(innerRan).toBe(true);
+    expect(result).toBe('success');
+  });
+
+  it('isolates inner transaction rollback without aborting the outer transaction', () => {
+    let outerValue = 0;
+    (mb as unknown as { transaction: <T>(fn: () => T) => T }).transaction(() => {
+      outerValue = 1;
+      try {
+        (mb as unknown as { transaction: <T>(fn: () => T) => T }).transaction(() => {
+          throw new Error('inner-failure');
+        });
+      } catch (err: unknown) {
+        expect((err as Error).message).toBe('inner-failure');
+      }
+      outerValue = 2;
+    });
+    expect(outerValue).toBe(2);
+  });
+
+  it('preserves the original error when rollback encounters an inactive transaction', () => {
+    expect(() =>
+      (mb as unknown as { transaction: <T>(fn: () => T) => T }).transaction(() => {
+        // Force transaction to be rolled back behind the scenes (e.g. timeout / aborted by SQLite)
+        (mb as unknown as { db: { exec: (sql: string) => void } }).db.exec('ROLLBACK');
+        throw new Error('root-cause-statement-error');
+      }),
+    ).toThrow('root-cause-statement-error');
+  });
+
+  it('preserves fan-out recipient completion isolation across softDelete and restore', async () => {
+    const msg = await mb.send({
+      from: 'sender-1',
+      to: '*',
+      type: 'note',
+      subject: 'broadcast-isolation',
+      body: 'body',
+    });
+
+    // Mark completed by actor A
+    await mb.ack({
+      messageId: msg.id,
+      readerId: 'actor-a',
+      completed: true,
+    } as never);
+
+    // Soft-delete by actor B
+    const deleted = await mb.softDelete(msg.id, 'actor-b');
+    expect(deleted?.deletedAt).toBeDefined();
+
+    // The messages row completed column in DB must still be 0 (fan-out isolation)
+    const getCompleted = () =>
+      (
+        (
+          mb as unknown as {
+            stmt: (sql: string) => { get: (...params: unknown[]) => { completed: number } };
+          }
+        )
+          .stmt('SELECT completed FROM messages WHERE id = ?')
+          .get(msg.id)
+      ).completed;
+
+    expect(getCompleted()).toBe(0);
+
+    // Restore message
+    const restored = await mb.restore(msg.id);
+    expect(restored?.deletedAt).toBeUndefined();
+    expect(getCompleted()).toBe(0);
+  });
+
+  it('wraps credentialRevoke in a transaction', () => {
+    const issued = mb.credentialIssue({
+      principalId: 'p1',
+      kind: 'agent',
+      ttlMs: 60_000,
+    });
+
+    const revoked = mb.credentialRevoke(issued.credential.credentialId, 'testing revocation');
+    expect(revoked).toBe(true);
+
+    const check = mb.credentialGet(issued.credential.credentialId);
+    expect(check?.status).toBe('revoked');
+    expect(check?.statusReason).toBe('testing revocation');
+  });
+});
+

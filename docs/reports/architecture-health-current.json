@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T10:50:58.872Z",
+  "generatedAt": "2026-09-09T12:23:46.800Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3704,
-    "testFiles": 3197,
-    "sourceLines": 892044,
+    "testFiles": 3200,
+    "sourceLines": 892652,
     "workspaceEdges": 127,
     "moduleEdges": 11686,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 882
+    "testOnlyExports": 884
   },
   "errors": [],
   "packageCycles": [],
@@ -215,7 +215,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 846,
-      "testFiles": 725,
+      "testFiles": 726,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -230,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 725
+          "testFiles": 726
         }
       ]
     },
@@ -734,7 +734,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 212,
-      "testFiles": 213,
+      "testFiles": 214,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -750,7 +750,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 213
+          "testFiles": 214
         }
       ]
     },
@@ -888,7 +888,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 224,
-      "testFiles": 205,
+      "testFiles": 206,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -914,7 +914,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 205
+          "testFiles": 206
         }
       ]
     },
@@ -5325,6 +5325,12 @@
       },
       {
         "file": "packages/core/tests/coordination/director-budget-policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/director-budget-runaway.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14258,6 +14264,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/session-kanban-completed-churn.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/session-kanban-degradation.test.ts",
         "projects": [
           "root-node"
@@ -17672,6 +17684,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/session-catalog-connections.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/session-child-discovery.test.ts",
         "projects": [
           "root-node"
@@ -20483,12 +20501,12 @@
     },
     {
       "file": "packages/core/src/coordination/fleet-supervisor.ts",
-      "lines": 834,
+      "lines": 971,
       "relativeImports": 6
     },
     {
       "file": "packages/core/src/coordination/sqlite-mailbox.ts",
-      "lines": 923,
+      "lines": 972,
       "relativeImports": 15
     },
     {
@@ -20758,7 +20776,7 @@
     },
     {
       "file": "packages/tools/src/session-kanban.ts",
-      "lines": 864,
+      "lines": 875,
       "relativeImports": 4
     },
     {
@@ -21239,6 +21257,16 @@
       "relativeImports": 12
     },
     {
+      "file": "packages/core/src/coordination/sqlite-mailbox.ts",
+      "lines": 972,
+      "relativeImports": 15
+    },
+    {
+      "file": "packages/core/src/coordination/fleet-supervisor.ts",
+      "lines": 971,
+      "relativeImports": 6
+    },
+    {
       "file": "packages/core/src/coordination/director.ts",
       "lines": 970,
       "relativeImports": 42
@@ -21247,16 +21275,6 @@
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
       "lines": 968,
       "relativeImports": 8
-    },
-    {
-      "file": "packages/webui-server/src/server/routes.ts",
-      "lines": 967,
-      "relativeImports": 47
-    },
-    {
-      "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
-      "lines": 965,
-      "relativeImports": 0
     }
   ],
   "testOnlyExports": [
@@ -24129,6 +24147,10 @@
       "name": "isAutoHealEnabled"
     },
     {
+      "file": "packages/webui-server/src/server/connections/collector.ts",
+      "name": "sessionCatalogHealth"
+    },
+    {
       "file": "packages/webui-server/src/server/connections/service-actions.ts",
       "name": "killChronicleServer"
     },
@@ -24147,6 +24169,10 @@
     {
       "file": "packages/webui-server/src/server/connections/service-actions.ts",
       "name": "killSageServer"
+    },
+    {
+      "file": "packages/webui-server/src/server/connections/service-actions.ts",
+      "name": "killSessionCatalogServer"
     },
     {
       "file": "packages/webui-server/src/server/connections/service-actions.ts",
