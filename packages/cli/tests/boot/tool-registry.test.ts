@@ -27,15 +27,19 @@ const { registerBuiltinTools } = await import('../../src/boot/tool-registry.js')
 
 function makeFakeToolRegistry() {
   const calls: { kind: string; toolName: string; isDefault: boolean; toolCount?: number }[] = [];
+  const registeredTools: unknown[] = [];
   return {
     registry: {
       registerAllOrThrow: vi.fn((tools: unknown[], packName: string) => {
+        registeredTools.push(...tools);
         calls.push({ kind: 'bulk', toolName: packName, isDefault: false, toolCount: tools.length });
       }),
-      registerDefault: vi.fn((_tool: unknown) => {
+      registerDefault: vi.fn((tool: unknown) => {
+        registeredTools.push(tool);
         calls.push({ kind: 'default', toolName: '<default>', isDefault: true });
       }),
       register: vi.fn((tool: unknown) => {
+        registeredTools.push(tool);
         // Record the tool's own name. Counting anonymous registrations was
         // the weaker assertion: adding `session_note` broke three tests with
         // "expected 5 to be 4", which says nothing about what changed.
@@ -46,6 +50,7 @@ function makeFakeToolRegistry() {
           isDefault: false,
         });
       }),
+      list: vi.fn(() => registeredTools),
       setProviderToolNames: vi.fn(),
       // The canonical registration path also configures the registry it is
       // handed. A fake that answers only the register* calls made

@@ -127,7 +127,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       id: 'threat-modeler',
       name: 'Threat Modeler',
       role: 'threat-modeler',
-      tools: [...TOOLS.read, 'write', 'document'],
+      tools: [...TOOLS.read, 'write'],
       prompt: agentPrompt('threat-modeler'),
     },
     budget: LIGHT_BUDGET,

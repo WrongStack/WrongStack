@@ -27,7 +27,6 @@ import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import { Context } from '../../src/core/context.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
-import type { ErrorHandler } from '../../src/types/error-handler.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import { Container } from '../../src/kernel/container.js';
@@ -38,6 +37,7 @@ import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
+import type { ErrorHandler } from '../../src/types/error-handler.js';
 import { MockProvider } from '../helpers/mock-provider.js';
 
 /** ErrorHandler stub that never recovers — errors propagate out of the loop. */
@@ -56,10 +56,16 @@ class CountingProvider extends MockProvider {
   /** Total `complete()` invocations, including failed attempts. */
   attemptCount = 0;
   private failuresLeft: number;
+  private readonly afterComplete?: (() => void) | undefined;
 
-  constructor(failFirst: number, responses: ConstructorParameters<typeof MockProvider>[0]) {
+  constructor(
+    failFirst: number,
+    responses: ConstructorParameters<typeof MockProvider>[0],
+    afterComplete?: () => void,
+  ) {
     super(responses);
     this.failuresLeft = failFirst;
+    this.afterComplete = afterComplete;
   }
 
   override async complete(
@@ -71,7 +77,9 @@ class CountingProvider extends MockProvider {
       this.failuresLeft--;
       throw new Error('simulated provider failure');
     }
-    return super.complete(req, opts);
+    const result = await super.complete(req, opts);
+    this.afterComplete?.();
+    return result;
   }
 }
 
@@ -145,21 +153,32 @@ describe('Agent.run input-dedup burst window', { retry: 1 }, () => {
     cleanupDirs = [];
   });
 
-  it('still suppresses an accidental back-to-back duplicate inside the burst window', async () => {
-    const provider = new CountingProvider(0, [
-      { content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' },
-    ]);
-    const { agent, tmp } = await buildDedupAgent(provider);
-    cleanupDirs.push(tmp);
+  it('still suppresses an accidental back-to-back duplicate when the first run outlasts the burst window', async () => {
+    let now = 10_000;
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      const provider = new CountingProvider(
+        0,
+        [{ content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' }],
+        () => {
+          now += Agent.INPUT_DEDUP_WINDOW_MS + 1;
+        },
+      );
+      const { agent, tmp } = await buildDedupAgent(provider);
+      cleanupDirs.push(tmp);
 
-    const first = await agent.run('continue');
-    const second = await agent.run('continue');
+      const first = await agent.run('continue');
+      const second = await agent.run('continue');
 
-    expect(first.status).toBe('done');
-    // The immediate repeat lands inside the dedup window: no second run.
-    expect(second.status).toBe('done');
-    expect(second.iterations).toBe(0);
-    expect(provider.attemptCount).toBe(1);
+      expect(first.status).toBe('done');
+      // The immediate repeat lands inside the completion-relative dedup
+      // window even though the provider run itself took longer than it.
+      expect(second.status).toBe('done');
+      expect(second.iterations).toBe(0);
+      expect(provider.attemptCount).toBe(1);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it('executes the same input again once the burst window has passed', async () => {

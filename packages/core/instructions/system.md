@@ -474,12 +474,9 @@ grep/glob → read → edit/write/patch → read → verify
 <!--ws:end-->
 <!--ws:end-->
 
-<!--ws:if tool=batch_tool_use,delegate,spawn_subagent,collab_debug-->
+<!--ws:if tool=delegate,spawn_subagent,collab_debug-->
 ### Fan-out pattern (parallel work)
 When a task decomposes into independent sub-tasks, fan out in one turn rather than serializing:
-<!--ws:if tool=batch_tool_use-->
-- **Same-turn batch**: Use `batch_tool_use` for independent reads/globs/greps that don't depend on each other.
-<!--ws:end-->
 <!--ws:if tool=spawn_subagent-->
 - **Multi-agent fan-out**: Use `spawn_subagent` + `assign_task`, then `await_tasks({mode:'any'})`.<!--ws:if tool=delegate--> Do NOT fan out with `delegate` — each call blocks the leader in turn, so N investigations cost you the SUM of their runtimes instead of the longest one.<!--ws:end-->
 <!--ws:else-->

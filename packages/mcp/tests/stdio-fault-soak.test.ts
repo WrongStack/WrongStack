@@ -214,10 +214,11 @@ rl.createInterface({ input: process.stdin, terminal: false }).on('line', (line) 
     if (slot) slot.cfg.env = { MCP_CRASH_AFTER: '9999' };
 
     let successes = 0;
-    for (let i = 0; i < 30; i++) {
-      if (successes >= 3) break;
+    const recoveryDeadline = Date.now() + 12_000;
+    while (successes < 3 && Date.now() < recoveryDeadline) {
       const client = getClient(reg, 'recover');
-      if (!client) {
+      const health = reg.health()[0];
+      if (!client || (health && !health.alive)) {
         await new Promise((r) => setTimeout(r, 50));
         continue;
       }

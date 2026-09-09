@@ -283,14 +283,13 @@ describe('MultiAgentHost', () => {
     expect(s.pending).toHaveLength(1);
     expect(s.pending[0]!.description).toBe('do a thing');
     expect(s.summary).toMatch(/1 pending/);
-    // The agent factory runs on task dispatch (async, and it does real
-    // mailbox I/O before building the prompt) — wait for it rather than
-    // asserting the call landed within spawn()'s own promise chain.
-    await vi.waitFor(() =>
-      expect(
-        (deps.systemPromptBuilder as { build: ReturnType<typeof vi.fn> }).build,
-      ).toHaveBeenCalled(),
-    );
+    // The agent factory runs on task dispatch and does real mailbox I/O before
+    // building the prompt. Await the assigned task instead of racing that I/O
+    // against vi.waitFor's fixed timeout.
+    await host.getDirector()!.awaitTasks([taskId]);
+    expect(
+      (deps.systemPromptBuilder as { build: ReturnType<typeof vi.fn> }).build,
+    ).toHaveBeenCalled();
     await host.stopAll();
   });
 
@@ -680,6 +679,7 @@ describe('MultiAgentHost', () => {
         'assign_task',
         'await_tasks',
         'collab_debug',
+        'define_subagent',
         'fleet',
         'fleet_emit',
         'kanban_queue',
@@ -769,6 +769,7 @@ describe('MultiAgentHost', () => {
           'assign_task',
           'await_tasks',
           'collab_debug',
+          'define_subagent',
           'fleet',
           'fleet_emit',
           'kanban_queue',

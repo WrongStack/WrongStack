@@ -41,8 +41,8 @@ export {
   DEFAULT_MAX_ITERATIONS,
   normalizeInput,
   type ResolvedLoopDetectionConfig,
-  resolveLoopDetection,
   type RunResult,
+  resolveLoopDetection,
   type ToolCallPipelinePayload,
   type UserInputPayload,
 } from './agent-types.js';
@@ -92,9 +92,10 @@ export class Agent {
   static readonly INPUT_DEDUP_WINDOW_MS = 1_500;
 
   /**
-   * SHA-256 + submission time of the last committed input content. The pair
+   * SHA-256 + completion time of the last successful input content. The pair
    * powers burst-only dedup: identical text skips a run solely when it lands
-   * within {@link Agent.INPUT_DEDUP_WINDOW_MS} of the previous submission.
+   * within {@link Agent.INPUT_DEDUP_WINDOW_MS} of the previous successful
+   * completion.
    */
   private _lastInputHash: string | undefined;
   private _lastInputHashAt: number | undefined;
@@ -214,7 +215,7 @@ export class Agent {
     let newInputHash: string | undefined;
 
     // Dedup: skip a run whose input is byte-identical to the immediately
-    // preceding submission AND lands within the burst window — terminal
+    // preceding successful run AND lands within the burst window — terminal
     // \r\n re-entrancy, stuck-key bursts, client-side resubmission loops.
     // Identical text submitted LATER is a deliberate repeat ("continue"
     // nudges after a model switch, retry-after-error) and must execute;
@@ -337,7 +338,7 @@ export class Agent {
       // can detect a changed input. If anything above threw, the hash stays
       // unchanged so the next run retries the refresh instead of skipping it.
       this._lastInputHash = newInputHash;
-      this._lastInputHashAt = Date.now();
+      this._lastInputHashAt = undefined;
 
       this.events.emit('agent.run.started', {
         sessionId,
@@ -364,6 +365,11 @@ export class Agent {
       span?.setAttribute('agent.status', result.status);
       span?.setAttribute('agent.iterations', result.iterations);
       await this.extensions.runAfterRun(this.ctx, result);
+      // Measure the burst window from successful completion, not from the
+      // start of the provider run. A slow first run can exceed the whole
+      // window under load; an immediately queued duplicate must still be
+      // suppressed once that run finishes.
+      if (newInputHash !== undefined) this._lastInputHashAt = Date.now();
       this.events.emit('agent.run.completed', {
         sessionId,
         ctx: this.ctx,

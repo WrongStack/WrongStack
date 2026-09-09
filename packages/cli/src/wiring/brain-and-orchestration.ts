@@ -5,7 +5,6 @@ import {
   type BrainEscalationMode,
   BrainMonitor,
   BrainTraceRecorder,
-  createDefineSubagentTool,
   createDelegateTool,
   EscalationRoutingBrainArbiter,
   ObservableBrainArbiter,
@@ -485,14 +484,9 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
   );
   toolRegistry.exposeToProvider('delegate');
 
-  // Define subagent tool — dynamic/ad-hoc subagent definition
-  toolRegistry.register(
-    createDefineSubagentTool({
-      roster: multiAgentHost.getRoster(),
-      projectRoot: deps.projectRoot,
-      events,
-    }),
-  );
+  // The Director's canonical toolset owns define_subagent registration during
+  // activation. Marking a future name as direct is supported by ToolRegistry
+  // and avoids registering the same tool in two boot phases.
   toolRegistry.exposeToProvider('define_subagent');
 
   // mcp_control tool
