@@ -88,10 +88,13 @@ export function Sidebar({ state }: SidebarProps) {
           visible.map((node) => (
             <ProjectRow
               key={node.root}
-              node={node}
+              root={node.root}
+              name={node.name}
+              status={node.status}
+              active={node.active}
+              primaryRuntimeId={node.primaryRuntimeId}
               expanded={state.expanded.has(node.root)}
               sessions={state.sessions.get(node.root)}
-              activeRuntimeId={state.desktop.activeRuntimeId}
               busy={state.busy}
             />
           ))
@@ -121,39 +124,53 @@ export function Sidebar({ state }: SidebarProps) {
   );
 }
 
+/**
+ * Primitives, not the `ProjectNode` object.
+ *
+ * `buildProjectTree` constructs fresh node objects on every snapshot, so a
+ * `node` prop changes identity for EVERY row whenever anything changes and
+ * `memo` never holds. Spreading the fields the row actually reads lets memo
+ * compare values, so one project going from starting to running re-renders
+ * that row and leaves the rest alone.
+ */
 interface ProjectRowProps {
-  node: ProjectNode;
+  root: string;
+  name: string;
+  status: ProjectNode['status'];
+  active: boolean;
+  primaryRuntimeId: string | null;
   expanded: boolean;
   sessions: SessionListState | undefined;
-  activeRuntimeId: string | null;
   busy: boolean;
 }
 
 const ProjectRow = memo(function ProjectRow({
-  node,
+  root,
+  name,
+  status,
+  active,
+  primaryRuntimeId: runtimeId,
   expanded,
   sessions,
-  activeRuntimeId,
   busy,
 }: ProjectRowProps) {
   const t = useT();
-  const runtimeId = node.primaryRuntimeId;
 
   // A row click means "take me to this project": activate what is already
   // running, otherwise start it. One gesture, not a start button plus a
   // separate select.
   const open = useCallback(() => {
     if (runtimeId) void actions.activate(runtimeId);
-    else void actions.openProject(node.root);
-  }, [runtimeId, node.root]);
+    else void actions.openProject(root);
+  }, [runtimeId, root]);
 
   return (
-    <div className={`project${node.active ? ' is-active' : ''}`}>
+    <div className={`project${active ? ' is-active' : ''}`}>
       <div className="project-row">
         <button
           type="button"
           className="disclosure"
-          onClick={() => toggleExpanded(node.root)}
+          onClick={() => toggleExpanded(root)}
           aria-expanded={expanded}
           title={expanded ? t('collapse') : t('expand')}
         >
@@ -165,10 +182,10 @@ const ProjectRow = memo(function ProjectRow({
           className="project-main"
           onClick={open}
           disabled={busy}
-          title={node.root}
+          title={root}
         >
-          <span className={`dot ${node.status}`} aria-hidden="true" />
-          <span className="project-name">{node.name}</span>
+          <span className={`dot ${status}`} aria-hidden="true" />
+          <span className="project-name">{name}</span>
         </button>
 
         <div className="row-actions">
@@ -196,12 +213,7 @@ const ProjectRow = memo(function ProjectRow({
       </div>
 
       {expanded ? (
-        <SessionRows
-          sessions={sessions}
-          root={node.root}
-          runtimeId={runtimeId}
-          activeRuntimeId={activeRuntimeId}
-        />
+        <SessionRows sessions={sessions} root={root} runtimeId={runtimeId} />
       ) : null}
     </div>
   );
@@ -215,7 +227,6 @@ function SessionRows({
   sessions: SessionListState | undefined;
   root: string;
   runtimeId: string | null;
-  activeRuntimeId: string | null;
 }) {
   const t = useT();
   if (!sessions || sessions.status === 'loading') {
