@@ -378,14 +378,6 @@ export {
   setBtwNote,
 } from './core/btw.js';
 export {
-  buildSessionNoteBlock,
-  consumeSessionNotes,
-  enqueueSessionNote,
-  pendingSessionNoteCount,
-  type SessionNote,
-  type SessionNoteKind,
-} from './core/session-notes.js';
-export {
   Context,
   type ContextInit,
   type ProviderMemoryEvidence,
@@ -467,6 +459,14 @@ export {
   setQueuedMessagesSnapshot,
 } from './core/queued-messages.js';
 export { extractRunEnv, type RunEnv } from './core/run-env.js';
+export {
+  buildSessionNoteBlock,
+  consumeSessionNotes,
+  enqueueSessionNote,
+  pendingSessionNoteCount,
+  type SessionNote,
+  type SessionNoteKind,
+} from './core/session-notes.js';
 export {
   DefaultSystemPromptBuilder,
   type DefaultSystemPromptBuilderOptions,
@@ -712,7 +712,6 @@ export {
 } from './infrastructure/provider-cache-ledger.js';
 export * from './kernel/index.js';
 export { attachMailboxChecker } from './mailbox-attach.js';
-export { attachSessionNotes } from './session-note-attach.js';
 // ---- Notifications (one-way channel-agnostic delivery) ----
 export {
   type NotificationChannel,
@@ -838,7 +837,9 @@ export { ProviderAuthRegistry } from './registry/provider-auth-registry.js';
 export { type ProviderFactory, ProviderRegistry } from './registry/provider-registry.js';
 export {
   type SlashCommand,
+  type SlashCommandNotice,
   SlashCommandRegistry,
+  type SlashCommandRegistryOptions,
 } from './registry/slash-command-registry.js';
 export type { ToolWrapper } from './registry/tool-registry.js';
 export { ToolRegistry } from './registry/tool-registry.js';
@@ -887,6 +888,7 @@ export type {
   SessionLiveStatus,
   SessionRegistryEntry,
 } from './session-catalog/session-registry.js';
+export { attachSessionNotes } from './session-note-attach.js';
 export * from './skills/index.js';
 export * from './storage/index.js';
 // Explicit re-exports for the new session audit bridge (helps some consumers

@@ -437,7 +437,11 @@ export class DefaultPluginAPI implements PluginAPI {
             ]) {
               commandsIOwn.delete(key);
             }
-            return scr.unregister(name);
+            // Pass the plugin's tier through: `name` may resolve to a
+            // built-in's entry (a bare name refused a core-owned alias at
+            // registration), and the registry decides ownership by caller,
+            // not by key spelling.
+            return scr.unregister(name, owner);
           },
           get: (name) => scr.get(name),
           list: () => scr.list(),

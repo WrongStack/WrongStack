@@ -139,9 +139,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 141,
+      "files": 147,
       "typeOnly": 27,
-      "runtimeOrMixed": 117
+      "runtimeOrMixed": 124
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1061,
-      "typeOnly": 982,
-      "runtimeOrMixed": 277
+      "files": 1062,
+      "typeOnly": 983,
+      "runtimeOrMixed": 276
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -8436,6 +8436,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/slash-commands/command-context.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/slash-commands/effort.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8496,6 +8502,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/slash-commands/yolo.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/subcommands/handlers/helpers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8539,6 +8551,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/webui-server/provider-config.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/wiring/command-host-state.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8922,6 +8940,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/context-meta.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/embedded-message-router.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8996,7 +9020,7 @@
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/routes.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -9080,6 +9104,18 @@
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/tests/terminal-ws-handler.test.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/tests/yolo-confirm-prefs-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui/tests/components/yolo-confirm-list.test.tsx",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -11702,7 +11738,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -16567,6 +16603,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/wrongproxy-prefs-e2e.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/yolo-confirm-prefs-e2e.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

@@ -58,7 +58,14 @@ export interface MCPRegistryView {
 
 export interface SlashCommandRegistryView {
   register(cmd: SlashCommand): void;
-  unregister(name: string): boolean;
+  /**
+   * `callerOwner` is the tier making the removal. The host-supplied view fills
+   * it in automatically; omit it only when the caller is the core itself. A
+   * plugin that omits it keeps the historical behaviour, but it cannot delete
+   * an entry owned by core either way (the registry refuses core-owned entries
+   * for any non-core caller).
+   */
+  unregister(name: string, callerOwner?: string): boolean;
   get(name: string): SlashCommand | undefined;
   list(): SlashCommand[];
 }

@@ -9,6 +9,7 @@ import type { PluginHostHandle } from '@wrongstack/core/plugin';
 import {
   type ProviderAuthRegistry,
   type ProviderRegistry,
+  type SlashCommandNotice,
   SlashCommandRegistry,
   type ToolRegistry,
 } from '@wrongstack/core/registry';
@@ -25,9 +26,9 @@ import type {
   SessionWriter,
   SkillLoader,
 } from '@wrongstack/core/types';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import {
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
+  normalizeTokenSavingTier,
   resolveContextWindowPolicy,
 } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
@@ -55,13 +56,13 @@ import type { HqPublisherRef } from './hq-telemetry.js';
 import { registerMcpObservability } from './metrics.js';
 import { createAgent, setupCompaction } from './pipeline.js';
 import { setupPlugins } from './plugins.js';
-import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
 import {
   createPromptJournalRecorder,
   createPromptJournalToolCallRecorder,
 } from './prompt-journal-recorder.js';
-import { createWrongTraceHookPair } from './wrongtrace-hooks.js';
+import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
 import { recordGateDecision } from './wrongtrace-gate-counters.js';
+import { createWrongTraceHookPair } from './wrongtrace-hooks.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -429,7 +430,12 @@ export async function setupLifecycleAndPlugins(
   registerMcpObservability(healthRegistry, metricsSink, mcpRegistry);
 
   // ── Slash registry + mailbox + plugins ───────────────────────────────────
-  const slashRegistry = new SlashCommandRegistry();
+  // Route slash-command refusal notices into the logger so they land in the app
+  // log instead of only on stderr, which a hosted surface may not show. The
+  // registry keeps `process.emitWarning` as the fallback for hosts that pass no
+  // sink (tests, minimal embedders).
+  const onSlashNotice: SlashCommandNotice = (message) => logger.warn(message);
+  const slashRegistry = new SlashCommandRegistry({ onNotice: onSlashNotice });
   const hqPublisherRef: HqPublisherRef = { current: undefined };
   const brainMailbox = getSharedProjectMailbox(
     wpaths.projectDir,

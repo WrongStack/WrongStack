@@ -85,7 +85,10 @@ export async function applyWrongStackPack(
       unregisterExtensions[i]!();
     }
     for (let i = registeredCommandNames.length - 1; i >= 0; i--) {
-      host.slashCommands.unregister(registeredCommandNames[i]!);
+      // Attribute the removal to this pack's owner: a tracked key can resolve
+      // to a built-in's entry (a bare name refused a core-owned alias), and an
+      // unattributed call would let this rollback sweep core's keys away.
+      host.slashCommands.unregister(registeredCommandNames[i]!, owner);
     }
     for (let i = registeredToolNames.length - 1; i >= 0; i--) {
       host.tools.unregister(registeredToolNames[i]!);

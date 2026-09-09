@@ -19,7 +19,7 @@
       "relativeImports": 18
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 868,
+      "lines": 870,
       "relativeImports": 34
     },
     "packages/cli/src/execution.ts": {
@@ -67,8 +67,8 @@
       "relativeImports": 21
     },
     "packages/core/src/boot.ts": {
-      "lines": 826,
-      "relativeImports": 14
+      "lines": 837,
+      "relativeImports": 15
     },
     "packages/core/src/chronicle/file-observer.ts": {
       "lines": 807,
@@ -139,16 +139,20 @@
       "relativeImports": 13
     },
     "packages/core/src/index.ts": {
-      "lines": 1049,
+      "lines": 1051,
       "relativeImports": 164
     },
     "packages/core/src/plugin/api.ts": {
-      "lines": 919,
+      "lines": 923,
       "relativeImports": 22
     },
     "packages/core/src/security/secret-vault.ts": {
       "lines": 865,
       "relativeImports": 9
+    },
+    "packages/core/src/security/yolo-risk.ts": {
+      "lines": 952,
+      "relativeImports": 1
     },
     "packages/core/src/types/provider.ts": {
       "lines": 906,
@@ -351,7 +355,7 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/settings-picker.tsx": {
-      "lines": 821,
+      "lines": 826,
       "relativeImports": 12
     },
     "packages/tui/src/components/sidebar-content.tsx": {
@@ -467,7 +471,7 @@
       "relativeImports": 2
     },
     "packages/webui/src/stores/local-prefs.ts": {
-      "lines": 905,
+      "lines": 925,
       "relativeImports": 0
     },
     "packages/webui/src/stores/session-tab-store.ts": {
@@ -503,7 +507,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 967,
+      "lines": 975,
       "relativeImports": 47
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

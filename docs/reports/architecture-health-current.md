@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-09T13:46:40.455Z
+**Generated:** 2026-09-09T16:55:32.332Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3705 |
-| Production source lines | 893258 |
-| Test files | 3202 |
+| Production source files | 3706 |
+| Production source lines | 894213 |
+| Test files | 3205 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11704 |
+| Relative module edges | 11710 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -31,7 +31,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 26 | 52 | @wrongstack/core |
 | @wrongstack/cli | 487 | 469 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 846 | 726 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 846 | 727 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 40 | 27 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
@@ -57,10 +57,10 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 212 | 214 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 365 | 337 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 18 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 540 | 366 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 541 | 367 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
-| @wrongstack/webui-server | 224 | 206 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 224 | 207 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/wrongtrace | 11 | 6 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
 
@@ -93,8 +93,8 @@ None.
 | 1057 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 1055 | `packages/cli/src/slash-commands/settings-mutations.ts` |
 | 1055 | `packages/mcp/src/client.ts` |
+| 1051 | `packages/core/src/index.ts` |
 | 1051 | `packages/webui/src/components/SkillDetailView.tsx` |
-| 1049 | `packages/core/src/index.ts` |
 | 1049 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
 | 1044 | `packages/webui/src/components/ContextDashboard.tsx` |
@@ -130,15 +130,15 @@ None.
 | 981 | `packages/sage/src/tools/memory-tools.ts` |
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 978 | `packages/core/src/execution/eternal-autonomy.ts` |
+| 975 | `packages/webui-server/src/server/routes.ts` |
 | 973 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 972 | `packages/core/src/coordination/sqlite-mailbox.ts` |
 | 971 | `packages/core/src/coordination/fleet-supervisor.ts` |
 | 970 | `packages/core/src/coordination/director.ts` |
-| 968 | `packages/tools/src/codebase-index/background-indexer.ts` |
 
 ## Exports only tests reference
 
-- 884 runtime exports are referenced by tests and by no other production file.
+- 886 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
