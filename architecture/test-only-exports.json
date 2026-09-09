@@ -76,6 +76,9 @@
     "packages/acp/src/version.ts": [
       "versionCoverage"
     ],
+    "packages/cli/src/acp-mcp-servers.ts": [
+      "acpMcpServerToConfig"
+    ],
     "packages/cli/src/acp-server-agent.ts": [
       "ACPClientPermissionPolicy"
     ],

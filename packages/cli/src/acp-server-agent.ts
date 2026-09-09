@@ -8,13 +8,15 @@
  * module is that factory, reusing the same boot pieces the interactive CLI
  * uses (`setupProvider`, `createDefaultContainer`, builtin tools).
  *
- * Scope: a minimal but real agent. It deliberately does NOT wire MCP servers,
- * compaction middleware, model-runtime overlays, or lifecycle hooks — those
- * belong in the interactive host. The ACP server is a headless single-turn
- * surface; a future PR can layer richer session behaviour if needed.
+ * Scope: a minimal but real agent. It deliberately does NOT wire compaction
+ * middleware, model-runtime overlays, or lifecycle hooks — those belong in the
+ * interactive host. It DOES wire the MCP servers the ACP client supplies with
+ * `session/new`, because the spec makes those part of the session contract:
+ * the client hands over its MCP configuration and expects the tools to be
+ * there (see `acp-mcp-servers.ts`).
  */
 
-import type { RunTurnApi } from '@wrongstack/acp/agent';
+import type { McpServer, RunTurnApi } from '@wrongstack/acp/agent';
 import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
 import { ToolExecutor } from '@wrongstack/core/execution';
 import { wireKanbanPorts } from '@wrongstack/runtime';
@@ -31,6 +33,8 @@ import {
 } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { createDefaultContainer } from '@wrongstack/runtime';
+import type { MCPRegistry } from '@wrongstack/mcp';
+import { connectAcpSessionMcpServers } from './acp-mcp-servers.js';
 import type { SubcommandDeps } from './subcommands/contracts.js';
 import { setupProvider } from './wiring/provider.js';
 
@@ -44,6 +48,22 @@ export class AcpServerConfigError extends Error {
     super(message);
     this.name = 'AcpServerConfigError';
   }
+}
+
+/**
+ * The per-session Agent factory, plus the teardown hook for anything the
+ * session owns outside the Agent itself (currently the client's MCP servers).
+ * `dispose` on the turn adapter drops the Agent; this drops the connections.
+ */
+export interface AcpServerAgentFactory {
+  (
+    sessionId: string,
+    cwd: string,
+    api?: RunTurnApi,
+    mcpServers?: readonly McpServer[],
+  ): Promise<Agent>;
+  /** Stop and forget the MCP servers connected for this ACP session. */
+  disposeSession(sessionId: string): void;
 }
 
 interface AcpAgentFactoryOptions {
@@ -263,7 +283,7 @@ function makeAcpBash(base: Tool, api: RunTurnApi): Tool {
 export function buildAcpServerAgentFactory(
   deps: SubcommandDeps,
   options: AcpAgentFactoryOptions = {},
-): (sessionId: string, cwd: string, api?: RunTurnApi) => Promise<Agent> {
+): AcpServerAgentFactory {
   const config = deps.config;
   if (!config.provider || !config.model) {
     throw new AcpServerConfigError(
@@ -297,10 +317,16 @@ export function buildAcpServerAgentFactory(
     modelsRegistry: deps.modelsRegistry,
   });
 
-  return async function agentFor(
-    _sessionId: string,
+  // Per-session MCP registries, keyed by ACP session id. Held here (not on the
+  // Agent) because teardown is driven by `session/close`, which reaches this
+  // module through `disposeSession` rather than through the Agent.
+  const sessionMcp = new Map<string, MCPRegistry>();
+
+  const agentFor = async function agentFor(
+    sessionId: string,
     cwd: string,
     api?: RunTurnApi,
+    mcpServers?: readonly McpServer[],
   ): Promise<Agent> {
     await container.resolve(TOKENS.MemoryStore).initialize();
     const { provider, providerRegistry } = await bootProvider();
@@ -320,6 +346,22 @@ export function buildAcpServerAgentFactory(
     const tools = source.clone();
     if (api) {
       wireClientBackedTools(tools, api);
+    }
+
+    // The client's own MCP servers, connected before the Context below
+    // snapshots `listForProvider()` — a tool registered after that snapshot
+    // would be missing from the first turn's provider payload.
+    if (mcpServers && mcpServers.length > 0) {
+      const previous = sessionMcp.get(sessionId);
+      if (previous) void previous.stopAll().catch(() => {});
+      const mcp = await connectAcpSessionMcpServers({
+        servers: mcpServers,
+        toolRegistry: tools,
+        events,
+        logger,
+        ...(wpaths.cacheDir ? { cacheDir: wpaths.cacheDir } : {}),
+      });
+      if (mcp) sessionMcp.set(sessionId, mcp);
     }
 
     // Permission posture: when the ACP client exposes a permission channel
@@ -382,5 +424,18 @@ export function buildAcpServerAgentFactory(
       toolExecutor,
       loopDetection: config.tools?.loopDetection,
     });
+  } as AcpServerAgentFactory;
+
+  agentFor.disposeSession = (sessionId: string): void => {
+    const mcp = sessionMcp.get(sessionId);
+    if (!mcp) return;
+    sessionMcp.delete(sessionId);
+    // Fire-and-forget: `session/close` must not block on child processes
+    // shutting down, and a stuck server would otherwise stall the client.
+    void mcp.stopAll().catch((err) => {
+      logger.warn(`ACP session ${sessionId}: MCP teardown failed`, err);
+    });
   };
+
+  return agentFor;
 }

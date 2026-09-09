@@ -12,6 +12,7 @@ import {
   createRunTurnApi,
   DEFAULT_MODE_ID,
   errorToJsonRpc,
+  parseMcpServers,
   resolveSessionCwd,
 } from './protocol-session-ops.js';
 
@@ -61,6 +62,8 @@ export async function handleSessionNewOp(
     }
     cwd = resolved;
   }
+  const skipped: string[] = [];
+  const mcpServers = parseMcpServers(p.mcpServers, (reason) => skipped.push(reason));
   const sessionId = `sess_${ctx.allocId()}`;
   const now = new Date().toISOString();
   const state: SessionState = {
@@ -70,6 +73,7 @@ export async function handleSessionNewOp(
     modeId: DEFAULT_MODE_ID,
     createdAt: now,
     updatedAt: now,
+    ...(mcpServers.length > 0 ? { mcpServers } : {}),
   };
   ctx.sessions.set(sessionId, state);
   ctx.onSessionNew(state);
@@ -91,6 +95,7 @@ export async function handleSessionNewOp(
       },
     });
   }
+  await reportSkippedMcpServers(ctx, sessionId, skipped);
 
   await ctx.sendResult(id, {
     sessionId,
@@ -108,6 +113,8 @@ export async function handleSessionLoadOp(
   const p = (params ?? {}) as { sessionId?: unknown; cwd?: unknown; mcpServers?: unknown };
   const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
   const loadCwd = typeof p.cwd === 'string' ? p.cwd : undefined;
+  const loadSkipped: string[] = [];
+  const loadMcpServers = parseMcpServers(p.mcpServers, (reason) => loadSkipped.push(reason));
   const existing = sessionId ? ctx.sessions.get(sessionId) : undefined;
 
   if (!existing && sessionId && ctx.store) {
@@ -131,6 +138,7 @@ export async function handleSessionLoadOp(
         createdAt: persisted.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...(persisted.title !== undefined ? { title: persisted.title } : {}),
+        ...(loadMcpServers.length > 0 ? { mcpServers: loadMcpServers } : {}),
       };
       ctx.sessions.set(sessionId, restored);
       ctx.seedFor?.(sessionId, persisted.history ?? []);
@@ -141,6 +149,7 @@ export async function handleSessionLoadOp(
         sessionId,
         update: { sessionUpdate: 'current_mode_update', modeId: restored.modeId },
       });
+      await reportSkippedMcpServers(ctx, sessionId, loadSkipped);
       await ctx.sendResult(id, {
         initialMode: { currentModeId: restored.modeId, availableModes: ctx.modes },
       });
@@ -150,6 +159,14 @@ export async function handleSessionLoadOp(
 
   if (existing) {
     existing.updatedAt = new Date().toISOString();
+    // A warm `session/load` carries the client's current server set; honour it
+    // so a client that added a server since `session/new` is not stuck with
+    // the old list. An empty array means "nothing to add", not "drop mine" —
+    // the spec has no removal verb, and tearing down live connections on a
+    // reconnect would be worse than keeping them.
+    if (loadMcpServers.length > 0) {
+      existing.mcpServers = loadMcpServers;
+    }
     const replay = ctx.replayFor?.(sessionId!);
     if (replay) {
       for (const update of replay) {
@@ -170,6 +187,7 @@ export async function handleSessionLoadOp(
         modeId: existing.modeId,
       },
     });
+    await reportSkippedMcpServers(ctx, sessionId!, loadSkipped);
     await ctx.sendResult(id, {
       initialMode: {
         currentModeId: existing.modeId,
@@ -209,6 +227,12 @@ export async function handleSessionForkOp(
     }
     forkCwd = resolved;
   }
+  const forkSkipped: string[] = [];
+  const forkRequested = parseMcpServers(p.mcpServers, (reason) => forkSkipped.push(reason));
+  // A fork inherits the source session's servers unless the client names its
+  // own set — the fork is a continuation, and dropping the parent's tools
+  // would silently change what the agent can do mid-conversation.
+  const forkMcpServers = forkRequested.length > 0 ? forkRequested : source.mcpServers;
 
   const now = new Date().toISOString();
   const sessionId = `sess_${ctx.allocId()}`;
@@ -220,6 +244,7 @@ export async function handleSessionForkOp(
     createdAt: now,
     updatedAt: now,
     ...(source.title !== undefined ? { title: source.title } : {}),
+    ...(forkMcpServers && forkMcpServers.length > 0 ? { mcpServers: forkMcpServers } : {}),
   };
   const history = (ctx.replayFor?.(sourceId) ?? []).map((update) => ({
     sessionUpdate: update.sessionUpdate,
@@ -234,6 +259,7 @@ export async function handleSessionForkOp(
     sessionId,
     update: { sessionUpdate: 'current_mode_update', modeId: forked.modeId },
   });
+  await reportSkippedMcpServers(ctx, sessionId, forkSkipped);
   await ctx.sendResult(id, {
     sessionId,
     modes: ctx.modes,
@@ -284,6 +310,7 @@ export async function handleSessionPromptOp(
         prompt: p.prompt as ContentBlock[],
         signal: turnSignal.signal,
         cwd: session.cwd,
+        ...(session.mcpServers ? { mcpServers: session.mcpServers } : {}),
       },
       emit,
       api,
@@ -353,4 +380,36 @@ export async function handleSetConfigOptionOp(
   });
   await ctx.sendResult(id, { configOptions: [...ctx.configOptions] });
   return false;
+}
+
+/**
+ * Tell the client about MCP server entries we refused to connect.
+ *
+ * `parseMcpServers` drops malformed entries so one bad config cannot fail the
+ * whole session, but dropping without saying so is how an editor ends up
+ * believing it has tools it does not have. Best-effort: a notification failure
+ * must not fail `session/new`.
+ */
+async function reportSkippedMcpServers(
+  ctx: ProtocolSessionContext,
+  sessionId: string,
+  skipped: readonly string[],
+): Promise<void> {
+  if (skipped.length === 0) return;
+  try {
+    await ctx.sendNotification({
+      sessionId,
+      update: {
+        sessionUpdate: 'agent_message_chunk',
+        content: {
+          type: 'text',
+          text: `Ignored ${skipped.length} malformed mcpServers entr${
+            skipped.length === 1 ? 'y' : 'ies'
+          }: ${skipped.join('; ')}`,
+        },
+      },
+    });
+  } catch {
+    // best-effort
+  }
 }

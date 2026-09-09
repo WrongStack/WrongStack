@@ -32,11 +32,13 @@ import {
   DEFAULT_MAX_SESSIONS,
   DEFAULT_MODES,
   errorToJsonRpc,
+  parseMcpServers,
 } from './protocol-session-ops.js';
 
 export type {
   AgentCapabilities,
   ClientCapabilities,
+  McpServer,
   PromptCapabilities,
   ProtocolHandlerOptions,
   RunTurn,
@@ -314,6 +316,13 @@ export class ACPProtocolHandler {
 
     if (existing) {
       existing.updatedAt = new Date().toISOString();
+      // Same rule as a warm `session/load`: a resumed session adopts the
+      // client's current server list when it sends one, and keeps its own
+      // when the array is empty.
+      const resumeServers = parseMcpServers(p.mcpServers);
+      if (resumeServers.length > 0) {
+        existing.mcpServers = resumeServers;
+      }
       await this.sendResult(id, {
         initialMode: {
           currentModeId: existing.modeId,

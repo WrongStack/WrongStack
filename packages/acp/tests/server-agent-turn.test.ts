@@ -94,7 +94,25 @@ describe('makeACPServerAgentTurn', () => {
       },
       () => {},
     );
-    expect(agentFor).toHaveBeenCalledWith('s-cwd', '/workspace/app', undefined);
+    // Fourth argument is the client's `mcpServers`; this input carries none.
+    expect(agentFor).toHaveBeenCalledWith('s-cwd', '/workspace/app', undefined, undefined);
+  });
+
+  it('forwards the session mcpServers to agentFor so they can be connected', async () => {
+    const agentFor = vi.fn(async () => makeFakeAgent('ok') as never as Agent);
+    const turn = makeACPServerAgentTurn({ agentFor });
+    const servers = [{ name: 'files', command: 'node' }];
+    await turn(
+      {
+        sessionId: 's-mcp',
+        prompt: [{ type: 'text', text: 'hi' }],
+        signal: new AbortController().signal,
+        cwd: '/workspace/app',
+        mcpServers: servers,
+      },
+      () => {},
+    );
+    expect(agentFor).toHaveBeenCalledWith('s-mcp', '/workspace/app', undefined, servers);
   });
 
   it('drops agent and replay state when the protocol session closes', async () => {

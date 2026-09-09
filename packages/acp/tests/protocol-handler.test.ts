@@ -125,7 +125,7 @@ describe('ACPProtocolHandler', () => {
         agentCapabilities: {
           loadSession: true,
           promptCapabilities: { image: true, audio: false, embeddedContext: true },
-          mcpCapabilities: { http: false, sse: false },
+          mcpCapabilities: { http: true, sse: true },
           sessionCapabilities: { close: {}, list: {}, delete: {}, resume: {} },
           auth: { logout: {} },
         },

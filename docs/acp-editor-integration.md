@@ -140,6 +140,16 @@ configured. ✅ = expected behavior.
 - [ ] With the editor advertising `fs` capabilities, file reads/writes go through the **editor's** buffers (unsaved edits are visible to the agent), not a stale on-disk copy.
 - [ ] With `terminal: true`, `bash`-style tools run in the **editor's** terminal.
 
+### Client-supplied MCP servers
+- [ ] Pass `mcpServers` with `session/new` (stdio, `http`, or `sse` — the agent
+      advertises `mcpCapabilities: {http: true, sse: true}`). The server's tools
+      appear to the model as `mcp__<server>__<tool>` for that session only, and
+      the child process is stopped on `session/close`.
+- [ ] A malformed entry does not fail the session: the agent connects the rest
+      and reports what it skipped as an `agent_message_chunk`.
+- [ ] `session/fork` inherits the parent's servers; passing a new `mcpServers`
+      array on `fork` / `load` / `resume` replaces the set.
+
 ### Multimodal (B5)
 - [ ] If the editor + your model support vision, attaching an image to a prompt reaches the model (the agent advertises `promptCapabilities.image: true`).
 

@@ -7,6 +7,7 @@ import type { ACPMessage } from '../types/acp-messages.js';
 import {
   ACP_PROTOCOL_VERSION,
   type ContentBlock,
+  type McpServer,
   type PermissionOption,
   type PlanEntry,
   type RequestPermissionOutcome,
@@ -17,7 +18,7 @@ import {
 import { ACP_PACKAGE_VERSION } from '../version.js';
 import type { AgentServerTransport } from './stdio-transport.js';
 
-export type { ACPMessage, ContentBlock, RequestPermissionOutcome };
+export type { ACPMessage, ContentBlock, McpServer, RequestPermissionOutcome };
 export { ACP_PROTOCOL_VERSION };
 
 // Transport's `send` is typed `ACPMessage` which predates v1 and
@@ -57,6 +58,17 @@ export interface RunTurnInput {
   signal: AbortSignal;
   /** Session working directory from `session/new` (absolute). */
   cwd?: string | undefined;
+  /**
+   * MCP servers the CLIENT asked this session to connect to, as supplied in
+   * `session/new` / `session/load` / `session/fork`. Validated at the wire
+   * boundary (see `parseMcpServers`), so entries here are well-formed.
+   *
+   * The runTurn implementation owns the connection: it is what holds the tool
+   * registry these servers' tools must land in. Nothing here is optional
+   * decoration — an editor that passes a server and gets no tools has been
+   * told a successful `session/new` about work that never happened.
+   */
+  mcpServers?: readonly McpServer[] | undefined;
 }
 
 export interface RunTurnResult {
@@ -140,6 +152,13 @@ export interface SessionState {
   updatedAt: string;
   /** Optional human title. */
   title?: string;
+  /**
+   * The client's MCP servers for this session, captured at `session/new`
+   * (or `load`/`fork`) and replayed into every turn. Held on the session
+   * because the connection is session-scoped: two ACP sessions may ask for
+   * different servers, and closing one must not tear down the other's.
+   */
+  mcpServers?: readonly McpServer[] | undefined;
 }
 
 /** MCP-style session mode advertised in current_mode_update. */

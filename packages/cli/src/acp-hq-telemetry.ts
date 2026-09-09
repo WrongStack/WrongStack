@@ -28,8 +28,19 @@ import { startSessionTelemetryBridge } from '@wrongstack/core/hq';
 import type { Config } from '@wrongstack/core/types';
 import { startCliHqConnection } from './hq-publisher.js';
 
-/** The per-session Agent factory shape `makeACPServerAgentTurn` consumes. */
-type AcpAgentFactory = (sessionId: string, cwd: string, api?: never) => Promise<Agent>;
+/**
+ * The per-session Agent factory shape `makeACPServerAgentTurn` consumes.
+ *
+ * Typed on `...args` rather than a fixed parameter list on purpose: the
+ * wrapper below must forward every argument the adapter passes, and the list
+ * has grown (it now carries the client's `mcpServers`). A wrapper that names
+ * its parameters silently drops the ones added after it was written.
+ */
+type AcpAgentFactory = (
+  sessionId: string,
+  cwd: string,
+  ...rest: never[]
+) => Promise<Agent>;
 
 export interface AcpHqTelemetryOptions {
   projectRoot: string;
@@ -120,8 +131,12 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
 
   return {
     wrapAgentFactory<T extends AcpAgentFactory>(agentFor: T): T {
-      const wrapped = async (sessionId: string, cwd: string, api?: never): Promise<Agent> => {
-        const agent = await agentFor(sessionId, cwd, api);
+      const wrapped = async (
+        sessionId: string,
+        cwd: string,
+        ...rest: never[]
+      ): Promise<Agent> => {
+        const agent = await agentFor(sessionId, cwd, ...rest);
         try {
           attach(sessionId, agent, cwd);
         } catch {
@@ -130,7 +145,10 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
         }
         return agent;
       };
-      return wrapped as T;
+      // Carry over own properties the factory exposes alongside the call
+      // signature (`disposeSession`), so wrapping does not amputate them.
+      Object.assign(wrapped, agentFor);
+      return wrapped as unknown as T;
     },
     wrapDispose(dispose: (sessionId: string) => void): (sessionId: string) => void {
       return (sessionId: string) => {

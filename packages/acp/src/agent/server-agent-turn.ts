@@ -39,7 +39,14 @@
  * `{stopReason: 'cancelled'}`.
  */
 import type { Agent, AgentInput } from '@wrongstack/core/agent';
-import type { ContentBlock, PlanEntry, StopReason, ToolKind, UsageCost } from '../types/acp-v1.js';
+import type {
+  ContentBlock,
+  McpServer,
+  PlanEntry,
+  StopReason,
+  ToolKind,
+  UsageCost,
+} from '../types/acp-v1.js';
 import type { RunTurn, RunTurnApi, RunTurnResult } from './protocol-handler.js';
 
 export interface ACPServerAgentTurnOptions {
@@ -54,8 +61,17 @@ export interface ACPServerAgentTurnOptions {
    * advertises those capabilities. A factory that wires it builds a
    * client-backed permission policy and ACP-backed fs/terminal tools
    * instead of silently auto-approving against the local disk.
+   *
+   * `mcpServers` is the client's per-session MCP server list from
+   * `session/new`. The factory owns the session's tool registry, so it is the
+   * only place those servers can be connected and their tools registered.
    */
-  agentFor: (sessionId: string, cwd: string, api?: RunTurnApi) => Promise<Agent> | Agent;
+  agentFor: (
+    sessionId: string,
+    cwd: string,
+    api?: RunTurnApi,
+    mcpServers?: readonly McpServer[],
+  ) => Promise<Agent> | Agent;
   /**
    * Hard wall-clock cap for one turn. The agent's own provider
    * timeout is layered under this; this cap is a safety belt.
@@ -128,7 +144,12 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     // Lazily create an agent for this session on the first turn.
     let agent = agents.get(input.sessionId);
     if (!agent) {
-      agent = await opts.agentFor(input.sessionId, input.cwd ?? process.cwd(), api);
+      agent = await opts.agentFor(
+        input.sessionId,
+        input.cwd ?? process.cwd(),
+        api,
+        input.mcpServers,
+      );
       agents.set(input.sessionId, agent);
       // Cold-load priming: re-feed the restored conversation into the new
       // agent's context so the MODEL resumes (not just the client UI).

@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import {
   ACP_PROTOCOL_VERSION,
   type ClientCapabilities,
+  type McpServer,
   type RequestPermissionOutcome,
   type RunTurnApi,
   type SessionConfigOption,
@@ -31,6 +32,89 @@ export const DEFAULT_MODES: readonly SessionMode[] = [
     description: 'Default agent mode for code-generation tasks.',
   },
 ];
+
+/**
+ * Validate the `mcpServers` array a client sends with `session/new`,
+ * `session/load` or `session/fork`.
+ *
+ * Malformed entries are dropped rather than rejecting the whole request: an
+ * editor that ships one bad server config should still get a working session.
+ * A dropped entry is reported through `onSkipped` so the caller can tell the
+ * client instead of silently discarding what it asked for — silent discard is
+ * exactly how this array came to be ignored in the first place.
+ */
+export function parseMcpServers(raw: unknown, onSkipped?: (reason: string) => void): McpServer[] {
+  if (!Array.isArray(raw)) return [];
+  const out: McpServer[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) {
+      onSkipped?.('entry is not an object');
+      continue;
+    }
+    const e = entry as Record<string, unknown>;
+    const name = typeof e.name === 'string' ? e.name.trim() : '';
+    if (name === '') {
+      onSkipped?.('entry has no name');
+      continue;
+    }
+    const type = typeof e.type === 'string' ? e.type : 'stdio';
+    if (type === 'http' || type === 'sse') {
+      if (typeof e.url !== 'string' || e.url === '') {
+        onSkipped?.(`"${name}": ${type} server has no url`);
+        continue;
+      }
+      const headers = parseNameValuePairs(e.headers);
+      const url = e.url;
+      // Written as two pushes rather than one with a `type` variable: the
+      // discriminated union only narrows against a literal.
+      out.push(
+        type === 'http'
+          ? { type: 'http', name, url, ...(headers ? { headers } : {}) }
+          : { type: 'sse', name, url, ...(headers ? { headers } : {}) },
+      );
+      continue;
+    }
+    if (type !== 'stdio') {
+      onSkipped?.(`"${name}": unknown transport "${type}"`);
+      continue;
+    }
+    if (typeof e.command !== 'string' || e.command === '') {
+      onSkipped?.(`"${name}": stdio server has no command`);
+      continue;
+    }
+    const args = Array.isArray(e.args)
+      ? e.args.filter((a): a is string => typeof a === 'string')
+      : undefined;
+    const env = parseNameValuePairs(e.env);
+    out.push({
+      name,
+      command: e.command,
+      ...(args && args.length > 0 ? { args } : {}),
+      ...(env ? { env } : {}),
+    });
+  }
+  return out;
+}
+
+/**
+ * ACP passes env vars and headers as `{name, value}[]`, not as an object.
+ * The wire shape is kept as-is here — converting to a record is the
+ * consumer's job — so this only drops entries that are not two strings.
+ * Returns undefined when there is nothing usable so callers can spread
+ * conditionally under `exactOptionalPropertyTypes`.
+ */
+function parseNameValuePairs(raw: unknown): Array<{ name: string; value: string }> | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: Array<{ name: string; value: string }> = [];
+  for (const pair of raw) {
+    if (typeof pair !== 'object' || pair === null) continue;
+    const p = pair as Record<string, unknown>;
+    if (typeof p.name === 'string' && p.name !== '' && typeof p.value === 'string') {
+      out.push({ name: p.name, value: p.value });
+    }
+  }
+  return out.length > 0 ? out : undefined;
+}
 
 export async function resolveSessionCwd(requested: string): Promise<string | null> {
   if (!path.isAbsolute(requested)) return null;
@@ -130,9 +214,16 @@ export function buildInitializeResult(
         audio: false,
         embeddedContext: true,
       },
+      // All three ACP transports are supported. stdio is mandatory per spec
+      // and cannot be declined; http and sse are declared here because the
+      // agent now actually connects them (see `parseMcpServers` above and the
+      // per-session MCP registry in `buildAcpServerAgentFactory`). Before that
+      // wiring existed the array was destructured and thrown away at every
+      // entry point, so a client got a successful `session/new` and no tools —
+      // flip these back to false if that connection path is ever removed.
       mcpCapabilities: {
-        http: false,
-        sse: false,
+        http: true,
+        sse: true,
       },
       sessionCapabilities: {
         close: {},

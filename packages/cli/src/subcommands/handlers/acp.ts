@@ -40,7 +40,11 @@ import {
   loadCachedAcpRegistry,
   refreshAcpRegistry,
 } from '../../acp-registry-cache.js';
-import { AcpServerConfigError, buildAcpServerAgentFactory } from '../../acp-server-agent.js';
+import {
+  AcpServerConfigError,
+  type AcpServerAgentFactory,
+  buildAcpServerAgentFactory,
+} from '../../acp-server-agent.js';
 import { createGracefulShutdown } from '../../shutdown-cleanup.js';
 import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 import { createAcpConnectionGate } from './acp-connection-gate.js';
@@ -151,6 +155,26 @@ function parseWsPort(flag: unknown): number | null {
 }
 
 /**
+ * Chain the turn adapter's per-session teardown with the agent factory's.
+ *
+ * `turn.dispose` drops the session's Agent; `factory.disposeSession` stops the
+ * MCP servers the ACP client supplied for it. Both must run on
+ * `session/close`, and neither may throw into the protocol handler.
+ */
+function composeDispose(
+  disposeTurn: (sessionId: string) => void,
+  factory: AcpServerAgentFactory | undefined,
+): (sessionId: string) => void {
+  return (sessionId: string): void => {
+    try {
+      disposeTurn(sessionId);
+    } finally {
+      factory?.disposeSession(sessionId);
+    }
+  };
+}
+
+/**
  * Serve WrongStack as an ACP agent over WebSocket. Unlike the HTTP transport
  * (one POST per message, notifications buffered), a WebSocket is full-duplex:
  * the agent streams `session/update` and makes `session/request_permission`
@@ -162,6 +186,10 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
   const echo = deps.flags?.echo === true || deps.flags?.echo === 'true';
 
   let turnFactory: (() => ReturnType<typeof makeACPServerAgentTurn>) | undefined;
+  // Kept alongside the turn factory so `session/close` can stop the MCP
+  // servers the client supplied — the turn adapter's `dispose` only drops the
+  // Agent, and a dropped Agent leaves its stdio servers running.
+  let wsAgentFactory: AcpServerAgentFactory | undefined;
   let echoTurn: RunTurn | undefined;
   let store: ACPSessionStore | undefined;
   let hqTelemetry: AcpHqTelemetry | undefined;
@@ -187,6 +215,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
       appConfig: deps.config,
     });
     const tracked = hqTelemetry.wrapAgentFactory(agentFor);
+    wsAgentFactory = agentFor;
     turnFactory = () => makeACPServerAgentTurn({ agentFor: tracked });
     store = deps.paths?.projectDir
       ? new ACPSessionStore({ dir: path.join(deps.paths.projectDir, 'acp-sessions') })
@@ -231,7 +260,10 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
         ? {
             replayFor: connectionTurn.replay,
             seedFor: connectionTurn.seed,
-            disposeFor: hqTelemetry?.wrapDispose(connectionTurn.dispose) ?? connectionTurn.dispose,
+            disposeFor: composeDispose(
+              hqTelemetry?.wrapDispose(connectionTurn.dispose) ?? connectionTurn.dispose,
+              wsAgentFactory,
+            ),
           }
         : {}),
       ...(store ? { store } : {}),
@@ -325,6 +357,7 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
             projectName: path.basename(deps.cwd ?? process.cwd()),
             appConfig: deps.config,
           });
+          const stdioAgentFactory = agentFor;
           const turn = makeACPServerAgentTurn({
             agentFor: stdioHqTelemetry.wrapAgentFactory(agentFor),
           });
@@ -337,7 +370,10 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
             runTurn: turn,
             replayFor: turn.replay,
             seedFor: turn.seed,
-            disposeFor: stdioHqTelemetry!.wrapDispose(turn.dispose),
+            disposeFor: composeDispose(
+              stdioHqTelemetry!.wrapDispose(turn.dispose),
+              stdioAgentFactory,
+            ),
             ...(store ? { store } : {}),
           };
         })(),
