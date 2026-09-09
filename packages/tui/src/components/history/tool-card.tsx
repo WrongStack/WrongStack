@@ -4,6 +4,13 @@ import { displayWidth, sanitizeTerminalText, truncateDisplay } from '../../termi
 import { theme } from '../../theme.js';
 import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import { glyphs } from '../../ui-glyphs.js';
+import {
+  CARD_LEAD_CLOSED,
+  CARD_LEAD_OPEN,
+  VIEW_CONTROL_LESS,
+  VIEW_CONTROL_MORE,
+  VIEW_CONTROL_PREFIX,
+} from './tool-card-geometry.js';
 
 interface ToolCardProps {
   glyph: string;
@@ -41,8 +48,8 @@ export function ToolCard({
   const safeMeta = meta ? sanitizeTerminalText(meta) : undefined;
   const status = ok ? glyphs.success : glyphs.failure;
   const statusColor = ok ? theme.success : theme.error;
-  const controlPrefix = viewMode ? '▲  ▼  ' : '';
-  const cardLead = hasBody ? '╭─ ' : '└─ ';
+  const controlPrefix = viewMode ? VIEW_CONTROL_PREFIX : '';
+  const cardLead = hasBody ? CARD_LEAD_OPEN : CARD_LEAD_CLOSED;
   const titleBudget = Math.max(
     1,
     termWidth - displayWidth(`${cardLead}${controlPrefix}${status} ${glyph} `),
@@ -65,9 +72,11 @@ export function ToolCard({
         {viewMode ? (
           <>
             <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>
-              {'▲  '}
+              {VIEW_CONTROL_LESS}
             </Text>
-            <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>{'▼  '}</Text>
+            <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>
+              {VIEW_CONTROL_MORE}
+            </Text>
           </>
         ) : null}
         <Text bold color={statusColor}>

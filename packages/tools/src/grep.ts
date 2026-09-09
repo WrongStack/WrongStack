@@ -11,7 +11,7 @@ import {
 } from '@wrongstack/core/utils';
 import { mapWithConcurrency } from './_concurrency.js';
 import { capSubject, compileUserRegex } from './_regex.js';
-import { isBinaryBuffer, safeResolveReal } from './_util.js';
+import { isBinaryBuffer, makeRootRelativizer, safeResolveReal } from './_util.js';
 import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 
 export type GrepOutputMode = 'content' | 'files_with_matches' | 'count';
@@ -57,7 +57,8 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
     '- Use `"files_with_matches"` when you only need the list of files.\n' +
     '- Use `"count"` for quick statistics.\n' +
     '- `glob` and `path` let you narrow the search scope significantly.\n' +
-    '- Always prefer this over `bash grep` when searching code.',
+    '- Always prefer this over `bash grep` when searching code.\n' +
+    '- Result paths are relative to the project root.',
   selection: {
     doNotUseWhen: 'you only need to locate files by name or path pattern.',
     useInstead: ['glob'],
@@ -142,17 +143,22 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
     }
 
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    // Match lines are emitted relative to the project root: the absolute
+    // prefix is identical on every line and costs context for nothing. Paths
+    // outside the root (`safeResolveReal` also admits `~/.wrongstack`) stay
+    // absolute — see `makeRootRelativizer`.
+    const relativize = makeRootRelativizer(ctx.cwd);
     const rgAvailable = await detectRg();
     if (rgAvailable) {
       try {
-        yield* runRgStream(input, base, mode, limit, signal);
+        yield* runRgStream(input, base, mode, limit, signal, relativize);
         return;
       } catch {
         // fall through to native
       }
     }
     yield { type: 'log', text: 'Falling back to native grep…' };
-    const out = await runNative(input, base, mode, limit, signal);
+    const out = await runNative(input, base, mode, limit, signal, relativize);
     yield { type: 'final', output: out };
   },
 };
@@ -201,6 +207,7 @@ async function* runRgStream(
   mode: 'content' | 'files_with_matches' | 'count',
   limit: number,
   signal: AbortSignal,
+  relativize: (absPath: string) => string,
 ): AsyncGenerator<ToolStreamEvent<GrepOutput>> {
   if (signal.aborted) {
     yield {
@@ -355,8 +362,12 @@ async function* runRgStream(
         totalLines++;
         if (mode === 'count') totalCount += parseRgCountLine(line);
         if (matches.length < limit) {
-          matches.push(line);
-          pendingBatch.push(line);
+          // rg prints `<base><sep>rest`, so the root prefix sits at the start
+          // of the line and can be stripped without parsing the line's shape
+          // (content / count / files-only all share it).
+          const shortened = relativize(line);
+          matches.push(shortened);
+          pendingBatch.push(shortened);
           batchSinceFlush++;
         }
       }
@@ -377,8 +388,9 @@ async function* runRgStream(
         totalLines++;
         if (mode === 'count') totalCount += parseRgCountLine(line);
         if (matches.length < limit) {
-          matches.push(line);
-          pendingBatch.push(line);
+          const shortened = relativize(line);
+          matches.push(shortened);
+          pendingBatch.push(shortened);
         }
       }
     }
@@ -437,6 +449,7 @@ async function runNative(
   mode: 'content' | 'files_with_matches' | 'count',
   limit: number,
   signal: AbortSignal,
+  relativize: (absPath: string) => string,
 ): Promise<GrepOutput> {
   if (signal.aborted) {
     return {
@@ -521,9 +534,9 @@ async function runNative(
             total++;
 
             if (mode === 'content') {
-              if (matches.length < limit) matches.push(`${full}:${lineNumber}:${ln}`);
+              if (matches.length < limit) matches.push(`${relativize(full)}:${lineNumber}:${ln}`);
             } else if (mode === 'files_with_matches') {
-              if (fileHits === 1 && matches.length < limit) matches.push(full);
+              if (fileHits === 1 && matches.length < limit) matches.push(relativize(full));
               break;
             }
 
@@ -544,9 +557,9 @@ async function runNative(
             fileHits++;
             total++;
             if (mode === 'content') {
-              if (matches.length < limit) matches.push(`${full}:${lineNumber}:${ln}`);
+              if (matches.length < limit) matches.push(`${relativize(full)}:${lineNumber}:${ln}`);
             } else if (mode === 'files_with_matches') {
-              if (matches.length < limit) matches.push(full);
+              if (matches.length < limit) matches.push(relativize(full));
             }
           }
         }
@@ -554,7 +567,7 @@ async function runNative(
         if (fileHits > 0) {
           if (mode === 'count') {
             if (matches.length < limit) {
-              matches.push(`${full}:${fileHits}`);
+              matches.push(`${relativize(full)}:${fileHits}`);
             } else {
               countTruncated = true;
             }

@@ -400,3 +400,36 @@ export function normalizeCommandOutput(
   text = text.replace(/\n{3,}/g, '\n\n'); // >=2 blank lines → 1
   return truncateHeadTail(text, opts.maxBytes ?? COMMAND_OUTPUT_MAX_BYTES);
 }
+
+/**
+ * Build a project-root-relative path shortener for search tool output.
+ *
+ * `grep` and `glob` emit one path per match, and the absolute project prefix
+ * (`D:\long\path\to\project\`) is repeated on every single line — pure token
+ * waste in the model's context, since the agent already works from the project
+ * root. Stripping it makes match lines read like the paths the user and the
+ * other tools use (`packages/tools/src/grep.ts:42:…`).
+ *
+ * Only paths that actually live under `root` are shortened. The search tools
+ * resolve their base through `safeResolveReal`, which also admits
+ * `~/.wrongstack`; turning those into a `../../..` chain would be strictly
+ * worse than the absolute path, so they are returned untouched. Windows path
+ * comparison is case-insensitive (a drive letter can arrive as `d:\` from one
+ * source and `D:\` from another) but the returned suffix always preserves the
+ * original casing.
+ */
+export function makeRootRelativizer(root: string): (absPath: string) => string {
+  const resolved = path.resolve(root);
+  const prefix = resolved.endsWith(path.sep) ? resolved : resolved + path.sep;
+  const compare = process.platform === 'win32' ? prefix.toLowerCase() : prefix;
+  return (absPath: string): string => {
+    if (absPath.length <= prefix.length) return absPath;
+    const head =
+      process.platform === 'win32'
+        ? absPath.slice(0, prefix.length).toLowerCase()
+        : absPath.slice(0, prefix.length);
+    if (head !== compare) return absPath;
+    const rest = absPath.slice(prefix.length);
+    return rest.length > 0 ? rest : absPath;
+  };
+}

@@ -819,5 +819,70 @@ describe('SqliteMailbox transaction safety and statement edge cases', () => {
     expect(check?.status).toBe('revoked');
     expect(check?.statusReason).toBe('testing revocation');
   });
+
+  it('tolerates malformed or non-object legacy readBy values in query and unreadCount without throwing', async () => {
+    // Insert messages with non-object readBy fields directly via internal db
+    const rawDb = (mb as unknown as { db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } } }).db;
+    const now = new Date().toISOString();
+    
+    // Message with readBy as null
+    rawDb.prepare(`
+      INSERT INTO messages(
+        id, from_id, to_id, type, priority, timestamp, completed, data
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('msg-null-readby', 'sender-1', 'agent-a', 'note', 'normal', now, 0, JSON.stringify({
+      id: 'msg-null-readby',
+      from: 'sender-1',
+      to: 'agent-a',
+      type: 'note',
+      priority: 'normal',
+      timestamp: now,
+      completed: false,
+      readBy: null,
+    }));
+
+    // Message with readBy as string (invalid legacy schema)
+    rawDb.prepare(`
+      INSERT INTO messages(
+        id, from_id, to_id, type, priority, timestamp, completed, data
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('msg-string-readby', 'sender-1', 'agent-a', 'note', 'normal', now, 0, JSON.stringify({
+      id: 'msg-string-readby',
+      from: 'sender-1',
+      to: 'agent-a',
+      type: 'note',
+      priority: 'normal',
+      timestamp: now,
+      completed: false,
+      readBy: 'not-an-object',
+    }));
+
+    // Message with valid readBy containing agent-a
+    rawDb.prepare(`
+      INSERT INTO messages(
+        id, from_id, to_id, type, priority, timestamp, completed, data
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('msg-read-by-a', 'sender-1', 'agent-a', 'note', 'normal', now, 0, JSON.stringify({
+      id: 'msg-read-by-a',
+      from: 'sender-1',
+      to: 'agent-a',
+      type: 'note',
+      priority: 'normal',
+      timestamp: now,
+      completed: false,
+      readBy: { 'agent-a': now },
+    }));
+
+    // Query unreadBy agent-a should not throw malformed JSON and should correctly count/find unread
+    const unreadMessages = await mb.query({ unreadBy: 'agent-a' });
+    const unreadIds = unreadMessages.map((m) => m.id);
+    expect(unreadIds).toContain('msg-null-readby');
+    expect(unreadIds).toContain('msg-string-readby');
+    expect(unreadIds).not.toContain('msg-read-by-a');
+
+    // unreadCount should also succeed and count only unread messages
+    const count = await mb.unreadCount('agent-a');
+    expect(count).toBe(2);
+  });
 });
 

@@ -16,6 +16,8 @@ import {
   resolveHqDataDir,
 } from '@wrongstack/core/hq';
 import { color, isPidAlive } from '@wrongstack/core/utils';
+import { parseHqIpAllowlist } from '../hq-server/ip-allowlist.js';
+import { resolveHqPasswordInput } from '../hq-server/secret-input.js';
 import { normalizeHqPublicOrigin } from '../hq-server/utils.js';
 import { DEFAULT_PORT } from '../hq-server.js';
 import type { HqQuickTunnelHandle } from '../hq-tunnel.js';
@@ -24,6 +26,15 @@ interface HqRuntimeMarker {
   url?: string;
   pid?: number;
   updatedAt?: string;
+}
+
+/** Detect a PID-namespace collision with a marker left by a prior container. */
+export function isReusedContainerPid(
+  markerPid: number | undefined,
+  containerMode: string | undefined,
+  currentPid = process.pid,
+): boolean {
+  return containerMode === '1' && markerPid === currentPid;
 }
 
 /**
@@ -45,6 +56,11 @@ async function isHqAlreadyRunning(dataDir: string): Promise<HqRuntimeMarker | nu
   // distinction is now visible instead of accidental.
   const marker = readHqRuntimeFileSync(dataDir);
   if (!marker) return null;
+  // A recreated container commonly starts its only process as PID 1 again.
+  // A runtime marker left by an ungraceful predecessor therefore appears
+  // alive even though it belongs to the previous PID namespace. The port
+  // probe below remains the authoritative collision check in container mode.
+  if (isReusedContainerPid(marker.pid, process.env.WRONGSTACK_HQ_CONTAINER)) return null;
   // `isPidAlive` treats EPERM as alive: an HQ owned by another user must not
   // read as dead, or we start a second one on top of it.
   if (marker.pid && isPidAlive(marker.pid)) return marker;
@@ -134,8 +150,33 @@ export async function handleHqShortCircuit(
   } else port = DEFAULT_PORT;
 
   const dataDir = typeof flags['data-dir'] === 'string' ? flags['data-dir'] : undefined;
-  const password =
-    typeof flags['password'] === 'string' ? flags['password'] : process.env.WRONGSTACK_HQ_PASSWORD;
+  let password: string | undefined;
+  try {
+    password = await resolveHqPasswordInput({
+      ...(typeof flags['password'] === 'string' ? { explicitPassword: flags['password'] } : {}),
+    });
+  } catch (cause) {
+    process.stderr.write(
+      `${color.red('✗')} ${cause instanceof Error ? cause.message : String(cause)}\n`,
+    );
+    return 1;
+  }
+  const bootstrapPasswordOnly = /^(?:1|true)$/i.test(
+    process.env.WRONGSTACK_HQ_BOOTSTRAP_PASSWORD_ONLY?.trim() ?? '',
+  );
+  let ipAllowlist: string[] | undefined;
+  try {
+    ipAllowlist = parseHqIpAllowlist(
+      typeof flags['hq-allowlist'] === 'string'
+        ? flags['hq-allowlist']
+        : process.env.WRONGSTACK_HQ_ALLOWLIST,
+    );
+  } catch (cause) {
+    process.stderr.write(
+      `${color.red('✗')} ${cause instanceof Error ? cause.message : String(cause)}\n`,
+    );
+    return 1;
+  }
   if (password !== undefined && password.length < 8) {
     process.stderr.write(`${color.red('✗')} HQ password must be at least 8 characters.\n`);
     return 1;
@@ -209,8 +250,10 @@ export async function handleHqShortCircuit(
       requireBrowserAuth: externallyPublished,
       ...(dataDir !== undefined ? { dataDir } : {}),
       ...(password !== undefined ? { password } : {}),
+      ...(bootstrapPasswordOnly ? { bootstrapPasswordOnly: true } : {}),
       ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),
       ...(trustedProxyHops !== undefined ? { trustedProxyHops } : {}),
+      ...(ipAllowlist !== undefined ? { ipAllowlist } : {}),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

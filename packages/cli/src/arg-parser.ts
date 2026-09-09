@@ -16,7 +16,6 @@ export const BOOLEAN_FLAGS = new Set([
   'version',
   'yes',
   'no-banner',
-  'no-features',
   'tui',
   'no-tui',
   // Recovery switches. `--recover` reopens the most recent session with no

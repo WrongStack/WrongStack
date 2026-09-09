@@ -99,6 +99,8 @@ interface HqServerOptions {
   clientCleanupIntervalMs?: number;
   sessionSnapshotTtlMs?: number;
   password?: string;
+  /** Keep an existing Settings-managed password instead of reapplying the startup secret. */
+  bootstrapPasswordOnly?: boolean;
   allowInsecureOpen?: boolean;
   secureCookies?: boolean;
   requireBrowserAuth?: boolean;

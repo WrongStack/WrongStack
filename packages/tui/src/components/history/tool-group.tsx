@@ -29,6 +29,13 @@ import { getToolVisual } from '../../tool-glyph.js';
 import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import { glyphs } from '../../ui-glyphs.js';
 import { DIFF_MAX_LINES, MULTI_DIFF_MAX_ROWS } from './code-block.js';
+import {
+  CARD_LEAD_CLOSED,
+  CARD_LEAD_OPEN,
+  VIEW_CONTROL_LESS,
+  VIEW_CONTROL_MORE,
+  VIEW_CONTROL_PREFIX,
+} from './tool-card-geometry.js';
 import type { HistoryEntry } from './types.js';
 import { formatToolArgs, parseSageMemoryLine, resolveEntrySage } from './utils.js';
 
@@ -294,8 +301,8 @@ function ToolGroupHeader({
   const allOk = failCount === 0;
   const meta = `${totalDurationMs}ms`;
   const safeName = sanitizeTerminalText(name);
-  const controlPrefix = '▲  ▼  ';
-  const cardLead = viewMode === 'minimal' ? '└─ ' : '╭─ ';
+  const controlPrefix = VIEW_CONTROL_PREFIX;
+  const cardLead = viewMode === 'minimal' ? CARD_LEAD_CLOSED : CARD_LEAD_OPEN;
   const visibleName = truncateDisplay(safeName, Math.max(1, termWidth - 16 - controlPrefix.length));
   const fixedHeader = `${controlPrefix}${glyph} ${visibleName}`;
   const tailBudget = Math.max(0, termWidth - displayWidth(fixedHeader) - 10);
@@ -307,8 +314,12 @@ function ToolGroupHeader({
     <Box flexDirection="column" marginY={0}>
       <Text>
         <Text color={railColor}>{cardLead}</Text>
-        <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>{'▲  '}</Text>
-        <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>{'▼  '}</Text>
+        <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>
+          {VIEW_CONTROL_LESS}
+        </Text>
+        <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>
+          {VIEW_CONTROL_MORE}
+        </Text>
         <Text color={color}>{glyph}</Text>
         <Text> </Text>
         <Text bold color={theme.textPrimary}>

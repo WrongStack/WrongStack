@@ -40,6 +40,7 @@ import { expectDefined } from '@wrongstack/core/utils';
 import { resolveAuditActor } from '../../hq-server/audit-actor.js';
 import type { HqServerHandle } from '../../hq-server/handle-types.js';
 import { parseHqIpAllowlist } from '../../hq-server/ip-allowlist.js';
+import { resolveHqPasswordInput } from '../../hq-server/secret-input.js';
 import { normalizeHqPublicOrigin } from '../../hq-server/utils.js';
 import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
@@ -134,8 +135,18 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   }
   const strictPort = flags['strict-port'] === true;
   const open = flags['open'] === true;
-  const password =
-    typeof flags['password'] === 'string' ? flags['password'] : process.env.WRONGSTACK_HQ_PASSWORD;
+  let password: string | undefined;
+  try {
+    password = await resolveHqPasswordInput({
+      ...(typeof flags['password'] === 'string' ? { explicitPassword: flags['password'] } : {}),
+    });
+  } catch (cause) {
+    deps.renderer.writeError(`${cause instanceof Error ? cause.message : String(cause)}\n`);
+    return 1;
+  }
+  const bootstrapPasswordOnly = /^(?:1|true)$/i.test(
+    process.env.WRONGSTACK_HQ_BOOTSTRAP_PASSWORD_ONLY?.trim() ?? '',
+  );
   const allowInsecureOpen = flags['insecure-open'] === true;
   const rawAllowlist =
     typeof flags['hq-allowlist'] === 'string'
@@ -192,6 +203,7 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
       secureCookies: publicOrigin !== undefined,
       requireBrowserAuth: publicOrigin !== undefined,
       ...(password !== undefined ? { password } : {}),
+      ...(bootstrapPasswordOnly ? { bootstrapPasswordOnly: true } : {}),
       ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),
       ...(trustedProxyHops !== undefined ? { trustedProxyHops } : {}),
       ...(ipAllowlist !== undefined ? { ipAllowlist } : {}),

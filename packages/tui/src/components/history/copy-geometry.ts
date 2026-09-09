@@ -17,6 +17,7 @@ import {
   inspectTitleForEntries,
 } from './copy-icon.js';
 import type { HistoryEntry } from './index.js';
+import { VIEW_CONTROL_HIT_WIDTH } from './tool-card-geometry.js';
 
 /**
  * A clickable copy-icon target resolved in viewport coordinates during the
@@ -45,16 +46,26 @@ export interface CopyHit {
   moreCol?: number | undefined;
 }
 
+/**
+ * Resolve a click on a committed tool card's view-mode control.
+ *
+ * The control spans {@link VIEW_CONTROL_HIT_WIDTH} cells, not one: an exact
+ * single-column match on a one-row header is a target the user cannot
+ * reliably hit even when the column is right (and it was not — the columns
+ * used to be hard-coded one cell left of the glyphs).
+ */
 export function findToolViewControl(
   hits: readonly CopyHit[],
   row: number,
   col: number,
 ): { hit: CopyHit; delta: -1 | 1 } | null {
+  const within = (start: number | undefined): boolean =>
+    start !== undefined && col >= start && col < start + VIEW_CONTROL_HIT_WIDTH;
   for (let i = hits.length - 1; i >= 0; i--) {
     const hit = hits[i];
     if (!hit?.toolEntryIds || !hit.toolViewMode || row !== hit.startRow) continue;
-    if (col === hit.lessCol) return { hit, delta: -1 };
-    if (col === hit.moreCol) return { hit, delta: 1 };
+    if (within(hit.lessCol)) return { hit, delta: -1 };
+    if (within(hit.moreCol)) return { hit, delta: 1 };
   }
   return null;
 }
@@ -143,8 +154,7 @@ export function resolveInspectPayload(
   return {
     entryId: hit.entryId,
     title: inspectTitleForEntries(entries),
-    body:
-      entries.length === 1 ? inspectTextForEntry(firstEntry) : inspectTextForEntries(entries),
+    body: entries.length === 1 ? inspectTextForEntry(firstEntry) : inspectTextForEntries(entries),
   };
 }
 

@@ -13,6 +13,7 @@ interface HqPreflightOptions {
   port?: number;
   dataDir?: string;
   password?: string;
+  bootstrapPasswordOnly?: boolean;
   tokenTtlMs?: number;
   requireBrowserAuth?: boolean;
   allowInsecureOpen?: boolean;
@@ -45,6 +46,9 @@ export async function prepareHqServerStart(
       ),
     actor: resolveAuditActor(),
     ...(options.password !== undefined ? { password: options.password } : {}),
+    ...(options.bootstrapPasswordOnly !== undefined
+      ? { bootstrapPasswordOnly: options.bootstrapPasswordOnly }
+      : {}),
     ...(options.tokenTtlMs !== undefined ? { tokenTtlMs: options.tokenTtlMs } : {}),
   });
   const { authFile } = firstRunAuth;

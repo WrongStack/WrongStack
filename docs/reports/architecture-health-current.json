@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T19:05:47.711Z",
+  "generatedAt": "2026-09-09T20:41:22.561Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3714,
-    "testFiles": 3217,
-    "sourceLines": 897398,
+    "sourceFiles": 3716,
+    "testFiles": 3221,
+    "sourceLines": 897673,
     "workspaceEdges": 127,
-    "moduleEdges": 11776,
+    "moduleEdges": 11785,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 895
+    "testOnlyExports": 897
   },
   "errors": [],
   "packageCycles": [],
@@ -144,8 +144,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 489,
-      "testFiles": 474,
+      "sourceFiles": 490,
+      "testFiles": 476,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -184,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 474
+          "testFiles": 476
         }
       ]
     },
@@ -734,7 +734,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 212,
-      "testFiles": 214,
+      "testFiles": 215,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -750,15 +750,15 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 214
+          "testFiles": 215
         }
       ]
     },
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 366,
-      "testFiles": 339,
+      "sourceFiles": 367,
+      "testFiles": 340,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -781,7 +781,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 339
+          "testFiles": 340
         }
       ]
     },
@@ -2702,6 +2702,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-docker-deployment.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-governance-snapshot.test.ts",
         "projects": [
           "root-node"
@@ -2823,6 +2829,12 @@
       },
       {
         "file": "packages/cli/tests/hq-runtime-marker-single-authority.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-secret-input.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14294,6 +14306,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/search-relative-paths.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/search.test.ts",
         "projects": [
           "root-node"
@@ -16197,6 +16215,12 @@
       },
       {
         "file": "packages/tui/tests/tool-result-view-mode.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/tool-view-control-geometry.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -20558,8 +20582,8 @@
     },
     {
       "file": "packages/cli/src/subcommands/handlers/hq.ts",
-      "lines": 892,
-      "relativeImports": 9
+      "lines": 904,
+      "relativeImports": 10
     },
     {
       "file": "packages/cli/src/subcommands/handlers/providers-models.ts",
@@ -20573,7 +20597,7 @@
     },
     {
       "file": "packages/core/src/boot.ts",
-      "lines": 837,
+      "lines": 828,
       "relativeImports": 15
     },
     {
@@ -20613,7 +20637,7 @@
     },
     {
       "file": "packages/core/src/coordination/sqlite-mailbox.ts",
-      "lines": 972,
+      "lines": 982,
       "relativeImports": 15
     },
     {
@@ -20653,7 +20677,7 @@
     },
     {
       "file": "packages/core/src/hq/auth-store.ts",
-      "lines": 837,
+      "lines": 844,
       "relativeImports": 7
     },
     {
@@ -21354,6 +21378,11 @@
       "relativeImports": 14
     },
     {
+      "file": "packages/core/src/coordination/sqlite-mailbox.ts",
+      "lines": 982,
+      "relativeImports": 15
+    },
+    {
       "file": "packages/sage/src/tools/memory-tools.ts",
       "lines": 981,
       "relativeImports": 4
@@ -21377,11 +21406,6 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 973,
       "relativeImports": 12
-    },
-    {
-      "file": "packages/core/src/coordination/sqlite-mailbox.ts",
-      "lines": 972,
-      "relativeImports": 15
     },
     {
       "file": "packages/core/src/coordination/fleet-supervisor.ts",
@@ -21638,6 +21662,10 @@
     {
       "file": "packages/cli/src/boot/short-circuit-desktop.ts",
       "name": "stripDesktopLauncherArgs"
+    },
+    {
+      "file": "packages/cli/src/boot/short-circuit-hq.ts",
+      "name": "isReusedContainerPid"
     },
     {
       "file": "packages/cli/src/boot/system-prompt-menu.ts",
@@ -23586,6 +23614,10 @@
     {
       "file": "packages/tools/src/codebase-index/writer-refs.ts",
       "name": "FAMILY_MATCH_SQL"
+    },
+    {
+      "file": "packages/tools/src/grep.ts",
+      "name": "__setRgAvailableForTests"
     },
     {
       "file": "packages/tools/src/kanban-task-inputs.ts",

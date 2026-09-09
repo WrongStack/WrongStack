@@ -364,15 +364,6 @@ export function flagsToConfigPatch(flags: Record<string, string | boolean>): Par
       yoloConfirm: Object.fromEntries(ALL_DESTRUCTIVE_KINDS.map((kind) => [kind, false])),
     };
   }
-  if (flags['no-features']) {
-    patch.features = {
-      mcp: false,
-      plugins: false,
-      memory: false,
-      modelsRegistry: false,
-      skills: false,
-    };
-  }
   if (flags['token-saving-mode']) {
     patch.features ??= {} as Config['features'];
     patch.features.tokenSavingMode = true;

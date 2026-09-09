@@ -55,6 +55,30 @@ describe('HQ IP allowlist', () => {
     );
   });
 
+  it('serves only a data-free health response before browser authentication', async () => {
+    const writeHead = vi.fn();
+    const end = vi.fn();
+    const router = createHqRouter({
+      host: '0.0.0.0',
+      listeningPort: () => 3499,
+      trustedPublicOrigins: new Set(),
+    } as never);
+    await router(
+      {
+        method: 'GET',
+        url: '/healthz',
+        headers: { host: '127.0.0.1:3499' },
+        socket: { remoteAddress: '127.0.0.1' },
+      } as never,
+      { setHeader: vi.fn(), writeHead, end } as never,
+    );
+    expect(writeHead).toHaveBeenCalledWith(200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+    });
+    expect(end).toHaveBeenCalledWith(JSON.stringify({ status: 'ok' }));
+  });
+
   it('rejects both WebSocket surfaces before their auth handshake', () => {
     for (const pathname of ['/ws/browser', '/ws/client']) {
       const write = vi.fn();

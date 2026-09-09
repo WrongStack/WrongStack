@@ -236,6 +236,17 @@ export function createHqRouter(
         return;
       }
 
+      // Minimal liveness/readiness endpoint for container supervisors. It is
+      // intentionally data-free and still sits behind the TCP-peer allowlist.
+      if (url.pathname === '/healthz' && req.method === 'GET') {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        });
+        res.end(JSON.stringify({ status: 'ok' }));
+        return;
+      }
+
       // ── Origin guard (DNS-rebinding / CSRF boundary) ───────────────
       if (
         !HqServerAuth.hasTrustedBrowserOrigin(

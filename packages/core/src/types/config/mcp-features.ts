@@ -125,9 +125,7 @@ export interface PluginManagerConfig {
 /**
  * Optional subsystems that the CLI can boot without. The core flow
  * (provider + agent loop + bundled tools + session) always works; these
- * just add capabilities. `--no-features` flips all of these off, which
- * is the minimum viable WrongStack: a single provider, a fixed config,
- * no network calls at startup.
+ * settings add capabilities and can be configured independently.
  */
 export interface FeaturesConfig {
   /** Load MCP servers declared in `mcpServers`. */

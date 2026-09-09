@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] — 2026-09-09
+
+### Added
+
+- **Atlas adds ranked codebase context.** Repo-map and context tools rank the
+  most relevant parts of a repository, while `/codebase-map` makes that view
+  available from the CLI.
+- **LSP integration supports TypeScript 7 and arbitrary stdio servers.** Native
+  TypeScript language-server operation, custom commands and file extensions,
+  semantic agent tools, and dynamic tool availability are covered end to end.
+- **Codex can execute over WebSockets.** Account-aware model discovery remains
+  authoritative, while child threads keep independent request identities and
+  share only the intended session cache partition.
+- **ACP sessions can complete terminal-based authentication and attach MCP
+  servers supplied by the client.** Authentication and MCP lifecycles now stay
+  scoped to the ACP session that created them.
+- **The desktop shell now uses React for project and session navigation.** It
+  keeps one WebUI view alive, reclaims unused project servers, and ships through
+  the desktop packaging pipeline with the WrongStack application icon.
+
+### Changed
+
+- **Profile switches hot-rebind provider configuration.** Watcher-owned state is
+  preserved while settings from the abandoned profile are removed.
+- **Owner-profile defaults and section-aware settings management are now the
+  standard configuration path.** Operators can reset confirmed sections and
+  transfer settings with `wstack config-export` and `wstack config-import`.
+- **`tokenSavingMode` now defaults to `auto`.** Agent guidance and LSP
+  documentation were expanded to match the runtime behavior.
+- **The release pipeline no longer builds or advertises a Windows portable ZIP.**
+  End-to-end Playwright coverage moved from a dedicated CI job to the explicit
+  `check:e2e` gate.
+
+### Fixed
+
+- **Interactive boot exposes the canonical Director toolset without duplicate
+  registrations or stale tool references.** Lazy-catalog tools are wired
+  through their real gateway.
+- **Session and board storage remain bounded.** Session-store retention prevents
+  unbounded growth, and archived Kanban boards gain a second retention stage.
+- **MCP transport is more robust.** Protocol versions are negotiated correctly,
+  JSON-RPC request IDs stay within JavaScript's safe integer range, and unused
+  configuration was removed.
+- **Provider, desktop, and daemon lifecycle faults are visible and recoverable.**
+  Codex WebSocket listeners are type-safe, desktop packaging includes the full
+  application, and an unexpected codebase-index daemon exit is reported.
+
+### Security
+
+- **Destructive YOLO approval is configured per action kind and owned by the
+  user.** Documentation no longer describes YOLO as blanket auto-approval.
+- **CLI WebSocket handshakes are verified before a session is accepted.**
+- **Runtime safety and quota primitives were extended across CLI and UI
+  surfaces,** including observable slash-command refusal notices.
+
 ## [1.0.0] — 2026-09-05
 
 > **WrongStack 1.0.0 — The stable, production-ready release.** This milestone

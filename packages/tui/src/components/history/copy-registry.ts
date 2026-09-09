@@ -3,6 +3,7 @@ import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import type { CopyHit } from './copy-geometry.js';
 import { copyRegistryVisibleClip, liveToolStreamCopyHit } from './copy-geometry.js';
 import { INSPECT_COL_OFFSET, isCopyableEntry } from './copy-icon.js';
+import { viewControlColumns } from './tool-card-geometry.js';
 import { type RenderGroup, renderGroupId } from './tool-group.js';
 
 interface CopyRegistry {
@@ -83,8 +84,7 @@ export function buildCopyRegistry(opts: {
             inspectCol: opts.iconCol + INSPECT_COL_OFFSET,
             toolEntryIds,
             toolViewMode: opts.viewModeForEntry?.(toolEntryIds[0]!) ?? 'normal',
-            lessCol: 2,
-            moreCol: 5,
+            ...viewControlColumns(),
           }
         : {}),
     });

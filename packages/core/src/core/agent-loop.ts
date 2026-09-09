@@ -314,6 +314,7 @@ export function createAgentLoopHandler(
           return {
             status: 'aborted',
             iterations,
+            error: toWrongStackError(controller.signal.reason ?? 'aborted', 'AGENT_ABORTED'),
             abortReason: signalAbortReason(controller.signal),
           };
         }
@@ -604,15 +605,38 @@ export function createAgentLoopHandler(
           await handlers.tools.executeTools(toolUses);
         } catch (toolErr) {
           if (controller.signal.aborted) {
+            a.events.emit('error', {
+              sessionId: resolveEventSessionId(a.ctx),
+              err: toError(toolErr),
+              phase: 'tool',
+            });
             return {
               status: 'aborted',
               iterations,
+              error: toWrongStackError(toolErr, 'AGENT_ABORTED'),
               finalText,
               delegateSummaries,
               abortReason: signalAbortReason(controller.signal),
             };
           }
           throw toolErr;
+        }
+
+        if (controller.signal.aborted) {
+          const abortErr = toError(controller.signal.reason ?? 'aborted');
+          a.events.emit('error', {
+            sessionId: resolveEventSessionId(a.ctx),
+            err: abortErr,
+            phase: 'tool',
+          });
+          return {
+            status: 'aborted',
+            iterations,
+            error: toWrongStackError(controller.signal.reason ?? 'aborted', 'AGENT_ABORTED'),
+            finalText,
+            delegateSummaries,
+            abortReason: signalAbortReason(controller.signal),
+          };
         }
 
         if (autonomousContinue && consumeAutonomousContinue(a.ctx)) {

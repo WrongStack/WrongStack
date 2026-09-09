@@ -307,6 +307,32 @@ describe('HQ auth-store — ensureHqFirstRunAuthFile', () => {
       expect(rotated.authFile.cookieSecret).not.toBe(firstSecret);
     });
   });
+
+  it('uses a service password only for bootstrap and preserves a Settings change', async () => {
+    await withTempDir(async (dir) => {
+      const first = await ensureHqFirstRunAuthFile(dir, {
+        password: 'initial-service-password',
+        bootstrapPasswordOnly: true,
+      });
+      expect(first.created).toBe(true);
+      expect(
+        await verifyHqPassword('initial-service-password', first.authFile.passwordHash ?? ''),
+      ).toBe(true);
+
+      await ensureHqFirstRunAuthFile(dir, { password: 'settings-managed-password' });
+      const restarted = await ensureHqFirstRunAuthFile(dir, {
+        password: 'initial-service-password',
+        bootstrapPasswordOnly: true,
+      });
+
+      expect(
+        await verifyHqPassword('settings-managed-password', restarted.authFile.passwordHash ?? ''),
+      ).toBe(true);
+      expect(
+        await verifyHqPassword('initial-service-password', restarted.authFile.passwordHash ?? ''),
+      ).toBe(false);
+    });
+  });
 });
 
 describe('HQ auth-store — mutateHqAuthFile', () => {

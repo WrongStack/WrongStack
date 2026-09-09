@@ -586,6 +586,41 @@ describe('Agent', () => {
     expect(result.status).toBe('aborted');
   });
 
+  it('aborts cleanly when signal is triggered during tool execution and attaches error', async () => {
+    const ctrl = new AbortController();
+    const abortingTool: Tool = {
+      name: 'long_task',
+      description: '',
+      inputSchema: { type: 'object' },
+      permission: 'auto',
+      mutating: false,
+      async execute(_input, _ctx, options) {
+        ctrl.abort(new Error('user interrupted tool'));
+        // If tool throws when aborted or signal triggers abort
+        const err = new Error('tool aborted by signal');
+        (err as unknown as { code: string }).code = 'AGENT_ABORTED';
+        throw err;
+      },
+    };
+    const provider = new MockProvider([
+      {
+        content: [{ type: 'tool_use', id: 'u-abort', name: 'long_task', input: {} }],
+        stopReason: 'tool_use',
+      },
+    ]);
+    const { agent, tmp } = await buildAgent(provider, [abortingTool]);
+    cleanupDirs.push(tmp);
+
+    const errorEvents: Array<{ phase: string; err: Error }> = [];
+    agent.events.on('error', (e) => errorEvents.push(e as { phase: string; err: Error }));
+
+    const result = await agent.run('start', { signal: ctrl.signal });
+    expect(result.status).toBe('aborted');
+    expect(result.error).toBeDefined();
+    expect(result.error?.code).toBe('AGENT_ABORTED');
+    expect(errorEvents.some((e) => e.phase === 'tool')).toBe(true);
+  });
+
   it('captures tool errors as error tool_result and continues', async () => {
     const exploding: Tool = {
       name: 'boom',

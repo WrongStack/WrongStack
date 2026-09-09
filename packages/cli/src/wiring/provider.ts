@@ -155,7 +155,7 @@ export async function setupProvider(params: {
       throw new ConfigError({
         message:
           `Failed to load models.dev registry: ${err instanceof Error ? err.message : err}\n` +
-          `Try \`wstack models refresh\` once you have network access, or run with --no-features.`,
+          `Try \`wstack models refresh\` once you have network access.`,
         code: 'CONFIG_INVALID',
         context: { phase: 'registry-build', provider: config.provider },
         cause: err,

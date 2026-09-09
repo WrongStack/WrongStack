@@ -1,11 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { compileGlob, DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
+import { compileGlob, DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 import { mapWithConcurrency } from './_concurrency.js';
+import { assertRealInsideRoot, makeRootRelativizer, safeResolveReal } from './_util.js';
 import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
-import { assertRealInsideRoot, safeResolveReal } from './_util.js';
 
 export interface GlobInput {
   pattern: string;
@@ -34,6 +34,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     '- When `codebase-search` is live, use it first for code concepts; use `glob` for filenames, path patterns, and non-indexed files.\n' +
     '- Combine with `path` and `limit`.\n' +
     '- Default ignores common build/dependency directories.\n' +
+    '- Returned paths are relative to the project root.\n' +
     'Much more efficient than shell `find` for most use cases inside the agent.',
   selection: {
     doNotUseWhen: 'you need to search inside file contents.',
@@ -188,6 +189,11 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     };
     await walk(base, '');
     results.sort((a, b) => b.mtime - a.mtime);
-    return { files: results.map((r) => r.rel), truncated };
+    // Emit project-root-relative paths: the absolute prefix repeats on every
+    // one of up to 5000 result lines and carries no information the agent
+    // does not already have. Anything outside the root (`~/.wrongstack`)
+    // stays absolute — see `makeRootRelativizer`.
+    const relativize = makeRootRelativizer(ctx.cwd);
+    return { files: results.map((r) => relativize(r.rel)), truncated };
   },
 };

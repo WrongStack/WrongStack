@@ -1,0 +1,22 @@
+[Unit]
+Description=Pull, health-check and atomically roll back WrongStack HQ container
+Documentation=https://github.com/WrongStack/WrongStack
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/wrongstack-hq
+EnvironmentFile=-/opt/wrongstack-hq/.env
+ExecStart=/bin/sh /opt/wrongstack-hq/update.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+PrivateTmp=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

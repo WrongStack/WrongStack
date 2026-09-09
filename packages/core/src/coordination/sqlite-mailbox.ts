@@ -333,7 +333,12 @@ export class SqliteMailbox implements Mailbox {
         )`);
         params.push(query.unreadBy);
         where.push(`NOT EXISTS (
-          SELECT 1 FROM json_each(json_extract(data, '$.readBy')) AS legacy_read
+          SELECT 1 FROM json_each(
+            CASE WHEN json_type(data, '$.readBy') = 'object'
+                 THEN json_extract(data, '$.readBy')
+                 ELSE NULL
+            END
+          ) AS legacy_read
           WHERE legacy_read.key = ?
         )`);
         params.push(query.unreadBy);
@@ -577,7 +582,12 @@ export class SqliteMailbox implements Mailbox {
     )`);
     params.push(forAgentId);
     where.push(`NOT EXISTS (
-      SELECT 1 FROM json_each(json_extract(data, '$.readBy')) AS legacy_read
+      SELECT 1 FROM json_each(
+        CASE WHEN json_type(data, '$.readBy') = 'object'
+             THEN json_extract(data, '$.readBy')
+             ELSE NULL
+        END
+      ) AS legacy_read
       WHERE legacy_read.key = ?
     )`);
     params.push(forAgentId);

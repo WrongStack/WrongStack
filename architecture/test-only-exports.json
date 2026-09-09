@@ -122,6 +122,9 @@
     "packages/cli/src/boot/short-circuit-desktop.ts": [
       "stripDesktopLauncherArgs"
     ],
+    "packages/cli/src/boot/short-circuit-hq.ts": [
+      "isReusedContainerPid"
+    ],
     "packages/cli/src/boot/system-prompt-menu.ts": [
       "isSystemPromptPinned",
       "runSystemPromptMenu",
@@ -1130,6 +1133,9 @@
     ],
     "packages/tools/src/codebase-index/writer-refs.ts": [
       "FAMILY_MATCH_SQL"
+    ],
+    "packages/tools/src/grep.ts": [
+      "__setRgAvailableForTests"
     ],
     "packages/tools/src/kanban-task-inputs.ts": [
       "mergedDependsOn"

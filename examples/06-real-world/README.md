@@ -111,7 +111,7 @@ wrongstack --tui --yolo --provider groq --model llama-3.3-70b-versatile \
 # Director + eternal — runs indefinitely against the goal
 wstack --goal --eternal "migrate the test suite from Jest to Vitest one package at a time, verifying tests pass before moving on"
 
-# Reduced-feature run; also skip the startup models.dev refresh
-wrongstack --no-features --no-models-refresh --provider anthropic --model claude-opus-4-7 \
+# Skip the startup models.dev refresh
+wrongstack --no-models-refresh --provider anthropic --model claude-opus-4-7 \
   "explain the kernel architecture using only what's in packages/core/src/"
 ```

@@ -172,16 +172,6 @@ describe('bootConfig', () => {
     expect(result.config.log.level).toBe('warn');
   });
 
-  it('--no-features disables every optional subsystem', async () => {
-    const projectDir = await mkTempDir('wstack-boot-features-');
-    const result = await bootConfig({ cwd: projectDir, 'no-features': true });
-    expect(result.config.features?.mcp).toBe(false);
-    expect(result.config.features?.plugins).toBe(false);
-    expect(result.config.features?.memory).toBe(false);
-    expect(result.config.features?.modelsRegistry).toBe(false);
-    expect(result.config.features?.skills).toBe(false);
-  });
-
   it('writes a project meta file under the resolved project dir', async () => {
     const projectDir = await mkTempDir('wstack-boot-meta-');
     const result = await bootConfig({ cwd: projectDir });

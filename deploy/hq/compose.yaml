@@ -1,0 +1,40 @@
+services:
+  hq:
+    image: ${WRONGSTACK_HQ_IMAGE:-wrongstack-hq:local}
+    build:
+      context: ../..
+      dockerfile: deploy/hq/Dockerfile
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${WRONGSTACK_HQ_BIND_IP:-0.0.0.0}:${WRONGSTACK_HQ_PORT:-3499}:3499"
+    environment:
+      WRONGSTACK_HQ_PASSWORD_FILE: /run/secrets/hq_password
+      WRONGSTACK_HQ_BOOTSTRAP_PASSWORD_ONLY: "1"
+      WRONGSTACK_HQ_ALLOWLIST: ${WRONGSTACK_HQ_ALLOWLIST:-}
+      WRONGSTACK_HQ_SUPPRESS_STARTUP_SECRETS: "1"
+    secrets:
+      - hq_password
+    volumes:
+      - wrongstack_hq_data:/var/lib/wrongstack-hq
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    stop_grace_period: 35s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+secrets:
+  hq_password:
+    file: ./secrets/hq_password.txt
+
+volumes:
+  wrongstack_hq_data:

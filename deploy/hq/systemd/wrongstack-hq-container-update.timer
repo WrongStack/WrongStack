@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily WrongStack HQ container image update
+
+[Timer]
+OnBootSec=15min
+OnCalendar=*-*-* 04:37:00
+RandomizedDelaySec=1h
+Persistent=true
+Unit=wrongstack-hq-container-update.service
+
+[Install]
+WantedBy=timers.target

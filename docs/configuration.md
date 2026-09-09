@@ -1027,7 +1027,7 @@ enabled and at no tier when it is disabled.
 **Deprecated:** `true`/`false` boolean values for `tokenSavingMode` are still
 accepted and mapped: `true` -> `"medium"`, `false` -> `"off"`.
 
-All flags are independent. `--no-features` sets all to `false`.
+All feature flags are independent and can be configured separately.
 
 ---
 

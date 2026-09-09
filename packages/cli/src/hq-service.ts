@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { constants as fsConstants } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { buildChildEnv } from '@wrongstack/core/utils';
+import { resolveHqPasswordInput } from './hq-server/secret-input.js';
 import type { SubcommandDeps, SubcommandHandler } from './subcommands/contracts.js';
 import {
   detectUpdatePackageManager,
@@ -233,6 +235,7 @@ echo "WrongStack HQ updated: $PREVIOUS_VERSION -> $UPDATED_VERSION"
   const environment = [
     `# ${MANAGED_MARKER}`,
     `WRONGSTACK_HQ_PASSWORD=${envQuote(options.password)}`,
+    'WRONGSTACK_HQ_BOOTSTRAP_PASSWORD_ONLY=1',
     ...(options.publicOrigin ? [`WRONGSTACK_HQ_PUBLIC_URL=${envQuote(options.publicOrigin)}`] : []),
     ...(options.ipAllowlist ? [`WRONGSTACK_HQ_ALLOWLIST=${envQuote(options.ipAllowlist)}`] : []),
   ].join('\n');
@@ -248,7 +251,11 @@ interface CommandResult {
 
 async function runCommand(command: string, args: string[]): Promise<CommandResult> {
   return await new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'pipe', windowsHide: true });
+    const child = spawn(command, args, {
+      stdio: 'pipe',
+      windowsHide: true,
+      env: buildChildEnv(),
+    });
     let stdout = '';
     let stderr = '';
     child.stdout?.on('data', (chunk) => {
@@ -340,7 +347,13 @@ function serviceHelp(deps: Pick<SubcommandDeps, 'renderer'>): void {
 
 async function installService(deps: SubcommandDeps): Promise<number> {
   if (!requireLinuxRoot(deps)) return 1;
-  const password = process.env.WRONGSTACK_HQ_PASSWORD;
+  let password: string | undefined;
+  try {
+    password = await resolveHqPasswordInput();
+  } catch (cause) {
+    deps.renderer.writeError(`${cause instanceof Error ? cause.message : String(cause)}\n`);
+    return 1;
+  }
   if (!password || password.length < 8) {
     deps.renderer.writeError(
       'Set WRONGSTACK_HQ_PASSWORD to at least 8 characters; it will be stored root-only.\n',

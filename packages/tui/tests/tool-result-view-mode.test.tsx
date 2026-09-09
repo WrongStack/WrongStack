@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { reducer } from '../src/app-reducer.js';
 import { type CopyHit, findToolViewControl } from '../src/components/history/copy-geometry.js';
 import { Entry } from '../src/components/history/entry.js';
+import { viewControlColumns } from '../src/components/history/tool-card-geometry.js';
 import { shiftToolResultViewMode } from '../src/tool-result-view-mode.js';
 import { createTestState } from './helpers/create-test-state.js';
 
@@ -21,13 +22,16 @@ describe('tool result view modes', () => {
     const minimal = render(<Entry entry={tool} termWidth={90} toolResultViewMode="minimal" />);
     expect(minimal.lastFrame()).toContain('extension_tool');
     expect(minimal.lastFrame()).toContain('▲  ▼');
-    expect(minimal.lastFrame()).not.toMatch(/^╭─/u);
-    expect(minimal.lastFrame()).not.toMatch(/^└─/u);
+    // Collapsed cards close the rail (`└─ `) instead of opening a
+    // continuation one (`╭─ `) — b315ce08c inverted BOTH assertions into
+    // `not.toMatch`, which no frame can satisfy: the header always starts
+    // with one lead or the other.
+    expect(minimal.lastFrame()).toMatch(/^└─/u);
     expect(minimal.lastFrame()).not.toContain('first line');
     minimal.unmount();
 
     const normal = render(<Entry entry={tool} termWidth={90} toolResultViewMode="normal" />);
-    expect(normal.lastFrame()).not.toMatch(/^╭─/u);
+    expect(normal.lastFrame()).toMatch(/^╭─/u);
     expect(normal.lastFrame()).toContain('first line second line third line');
     expect(normal.lastFrame()).not.toContain('canonical tail');
     normal.unmount();
@@ -54,6 +58,7 @@ describe('tool result view modes', () => {
   });
 
   it('maps the spaced tool-header cells to less/more actions', () => {
+    const { lessCol, moreCol } = viewControlColumns();
     const hit: CopyHit = {
       entryId: 7,
       startRow: 3,
@@ -61,12 +66,20 @@ describe('tool result view modes', () => {
       iconCol: 80,
       toolEntryIds: [7],
       toolViewMode: 'normal',
-      lessCol: 2,
-      moreCol: 5,
+      lessCol,
+      moreCol,
     };
-    expect(findToolViewControl([hit], 3, 2)?.delta).toBe(-1);
-    expect(findToolViewControl([hit], 3, 5)?.delta).toBe(1);
-    expect(findToolViewControl([hit], 4, 5)).toBeNull();
+    expect(findToolViewControl([hit], 3, lessCol)?.delta).toBe(-1);
+    expect(findToolViewControl([hit], 3, moreCol)?.delta).toBe(1);
+    // One cell of slack to the right of each glyph — a one-cell target on a
+    // one-row header is not reliably clickable.
+    expect(findToolViewControl([hit], 3, lessCol + 1)?.delta).toBe(-1);
+    expect(findToolViewControl([hit], 3, moreCol + 1)?.delta).toBe(1);
+    // The dead cell between the controls fires neither.
+    expect(findToolViewControl([hit], 3, moreCol - 1)).toBeNull();
+    // Cells left of the controls belong to the card lead.
+    expect(findToolViewControl([hit], 3, lessCol - 1)).toBeNull();
+    expect(findToolViewControl([hit], 4, moreCol)).toBeNull();
   });
 
   it('keeps overrides independent and clears them on a global change', () => {

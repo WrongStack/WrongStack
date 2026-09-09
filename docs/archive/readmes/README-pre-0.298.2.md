@@ -36,7 +36,7 @@ WrongStack is **free, open source, and MIT licensed**. It drives **autonomous go
 - 🔑 **Sign in with a subscription** — authenticate with a **ChatGPT (Codex)**, **Claude Pro/Max**, or **GitHub Copilot** subscription over OAuth, *alongside* (not instead of) API keys. See [`docs/oauth-signin.md`](docs/oauth-signin.md).
 - 🔎 **Fast model switching** — the startup provider/model picker and TUI `/model` support search + scroll-window navigation, the numbered fallback picker shares the responsive boxed look, and `wstack models` supports pagination.
 - 🔐 **Locked down by default** — encrypted secrets, SSRF guards on every redirect hop, fail-closed subagents, symlink containment, plugin trust tiers, WebUI redaction, and cloud-sync path guards.
-- 🪶 **A compact kernel** — `Container · Pipeline · EventBus · RunController` (~1670 lines including the full event type catalog). Everything above it is swappable; `--no-features` boots it fully offline.
+- 🪶 **A compact kernel** — `Container · Pipeline · EventBus · RunController` (~1670 lines including the full event type catalog). Everything above it is swappable and independently configurable.
 
 ## What's new (unreleased fixes)
 
@@ -503,12 +503,6 @@ Toggle it at launch with `--token-saving-mode` (or `features.tokenSavingMode` in
 config), or live from the TUI settings panel — the status bar shows a token-
 saving indicator and the current registered-tool count.
 
-### `--no-features` minimal kernel
-
-Flips off MCP, plugins, memory tools, models.dev fetch, and skill discovery. What's left: kernel (`Container` + `Pipeline` + `EventBus` + `RunController`, ~1670 lines incl. events) + agent (525 lines) + 59 built-in tools (subject to the selected token-saving tier) + permission policy + curated system prompt. The minimal-viable WrongStack runs offline with no network calls at startup. Provider family must be declared explicitly in config when using this mode.
-
----
-
 ## Recent changes
 
 **Current package line: 0.295.0.** Highlights include repository-stable project
@@ -596,7 +590,6 @@ wrongstack --provider openrouter --model anthropic/claude-opus-4-7
 --open               Open the browser for --webui / --hq
 --no-interactive     Skip interactive provider/model setup; require saved config
 --no-banner          Suppress the startup banner
---no-features        Minimal kernel — no MCP, plugins, memory, models.dev, skills
 --no-models-refresh  Skip the boot-time models.dev catalog refresh (offline/CI)
 --skip-index         Skip codebase indexing and large-codebase prompt
 --token-saving-mode  Lean prompt: 10 Tier-1 tools, compact skills, lazy MCP (mcp_use)
@@ -765,7 +758,7 @@ Commit this file to share project conventions with the agent across all develope
 
 **3. Standalone sufficiency.** Works with 59 built-in tools, 4 wire-family transports, permission policy, and a curated system prompt — no plugins required.
 
-**4. Layered, not monolithic.** `--no-features` flips off MCP, plugins, memory tools, models.dev fetch, and skill discovery. The minimal-viable WrongStack runs offline with no network calls at startup.
+**4. Layered, not monolithic.** Optional subsystems are independently configurable.
 
 ## Packages
 

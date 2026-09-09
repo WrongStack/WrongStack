@@ -477,6 +477,13 @@ export interface EnsureHqFirstRunAuthOptions {
   /** Optional browser password login. Hashed with scrypt before storage. */
   password?: string;
   /**
+   * Treat `password` as a first-run bootstrap secret only. When auth.json
+   * already exists, its password remains authoritative. This lets a service
+   * retain the initial secret across restarts without undoing password
+   * changes made through HQ Settings.
+   */
+  bootstrapPasswordOnly?: boolean;
+  /**
    * Optional time-to-live (milliseconds) stamped on the first-run browser
    * and client tokens. When set, both tokens carry an `expiresAt` and the
    * HQ server will refuse them once it passes. Default: no expiry.
@@ -521,7 +528,7 @@ export async function ensureHqFirstRunAuthFile(
   try {
     await fs.access(file);
     const existing = await readHqAuthFile(dataDir, opts);
-    if (opts.password) {
+    if (opts.password && !opts.bootstrapPasswordOnly) {
       const passwordUnchanged =
         existing.passwordHash !== undefined &&
         (await verifyHqPassword(opts.password, existing.passwordHash));

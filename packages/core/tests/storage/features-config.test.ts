@@ -64,7 +64,7 @@ describe('Config.features defaults', () => {
     expect(cfg.features.allowOutsideProjectRoot).toBe(!cfg.tools.restrictToProjectRoot);
   });
 
-  it('--no-features patch turns every subsystem off', async () => {
+  it('CLI feature overrides can turn every optional subsystem off', async () => {
     const paths = resolveWstackPaths({
       userHome: tmp,
       projectRoot: tmp,
