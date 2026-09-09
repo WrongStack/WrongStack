@@ -43,9 +43,22 @@ export async function ensureDirectorAndAnnounce(args: {
   const director = await multiAgentHost.ensureDirector();
   if (director) {
     if (priorFleetState) director.setCheckpointState(priorFleetState);
+    // Registration alone does not put a tool in front of the model. Below the
+    // `off` token-saving tier the registry carries an explicit direct-surface
+    // name set (see registerCanonicalHostTools), and it is built before the
+    // Director exists — so every orchestration tool registered here landed in
+    // the executable catalog and nowhere else. On a modern context window the
+    // resolved tier is `minimal`, which meant `spawn_subagent`, `assign_task`,
+    // `await_tasks` and the rest of the fleet surface never reached a single
+    // provider request: the leader had the whole roster and no way to call it.
+    // `exposeToProvider` is a no-op when the surface is unrestricted (tier
+    // `off`), so this is safe at every tier.
+    const directorToolNames: string[] = [];
     for (const tool of director.tools(FLEET_ROSTER)) {
       toolRegistry.register(tool);
+      directorToolNames.push(tool.name);
     }
+    toolRegistry.exposeToProvider(directorToolNames);
     const browserSurface = flags.webui === true || flags.simpleui === true;
     if (browserSurface) {
       renderer.writeInfo(

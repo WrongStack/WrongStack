@@ -284,6 +284,10 @@ export {
   makeTerminateTool,
   makeWorkCompleteTool,
 } from './director-tools.js';
+// The canonical orchestration toolset. `Director.tools()` returns exactly this;
+// exporting the builder lets a host assert the surface it is about to register
+// without standing up a live Director.
+export { buildDirectorToolset } from './director/director-toolset.js';
 export {
   DEFAULT_DISPATCH_ROLE,
   type DispatchCandidate,

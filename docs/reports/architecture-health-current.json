@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T05:38:28.455Z",
+  "generatedAt": "2026-09-09T05:40:00.893Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3701,
-    "testFiles": 3183,
-    "sourceLines": 890043,
+    "testFiles": 3184,
+    "sourceLines": 890060,
     "workspaceEdges": 127,
-    "moduleEdges": 11666,
+    "moduleEdges": 11667,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -145,7 +145,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 484,
-      "testFiles": 463,
+      "testFiles": 464,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -184,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 463
+          "testFiles": 464
         }
       ]
     },
@@ -1983,6 +1983,12 @@
       },
       {
         "file": "packages/cli/tests/boot/container-wiring.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/boot/director-tool-surface.test.ts",
         "projects": [
           "root-node"
         ]

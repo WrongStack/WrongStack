@@ -182,7 +182,10 @@ describe('remaining CLI wiring boundaries', () => {
     };
     const infoLines: string[] = [];
     const renderer = { writeInfo: (msg: string) => infoLines.push(msg) };
-    const toolRegistry = { register: vi.fn() };
+    // Registering a Director tool and exposing it to the provider are two
+    // separate registry calls; the surface contract itself is covered by
+    // tests/boot/director-tool-surface.test.ts against a real ToolRegistry.
+    const toolRegistry = { register: vi.fn(), exposeToProvider: vi.fn() };
 
     // Terminal surface with prior fleet state
     const director = await ensureDirectorAndAnnounce({

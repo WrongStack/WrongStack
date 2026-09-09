@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 205,
+      "files": 206,
       "typeOnly": 81,
-      "runtimeOrMixed": 180
+      "runtimeOrMixed": 181
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/registry": {
-      "files": 123,
+      "files": 124,
       "typeOnly": 60,
-      "runtimeOrMixed": 65
+      "runtimeOrMixed": 66
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -2881,6 +2881,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/slash-commands.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/boot/director-tool-surface.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7670,6 +7676,12 @@
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/acp-server-agent.test.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/boot/director-tool-surface.test.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
