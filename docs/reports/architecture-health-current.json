@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T07:12:32.036Z",
+  "generatedAt": "2026-09-09T07:13:19.434Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3697,
-    "testFiles": 3179,
-    "sourceLines": 889639,
+    "testFiles": 3182,
+    "sourceLines": 889672,
     "workspaceEdges": 127,
     "moduleEdges": 11674,
     "nonCommandSlashImports": 0,
@@ -352,7 +352,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 37,
-      "testFiles": 36,
+      "testFiles": 37,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -365,7 +365,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 36
+          "testFiles": 37
         }
       ]
     },
@@ -414,7 +414,7 @@
       "name": "@wrongstack/plugin-sdk",
       "dir": "packages/plugin-sdk",
       "sourceFiles": 11,
-      "testFiles": 1,
+      "testFiles": 3,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/tools"
@@ -428,7 +428,7 @@
         {
           "path": "packages/plugin-sdk/tsconfig.test.json",
           "error": null,
-          "testFiles": 1
+          "testFiles": 3
         }
       ]
     },
@@ -9620,6 +9620,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/protocol-version-negotiation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/protocol.test.ts",
         "projects": [
           "root-node"
@@ -10011,6 +10017,18 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/workspace-edit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugin-sdk/tests/runtime-guards.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugin-sdk/tests/runtime-sandbox.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20500,7 +20518,7 @@
     },
     {
       "file": "packages/mcp/src/server.ts",
-      "lines": 834,
+      "lines": 836,
       "relativeImports": 2
     },
     {

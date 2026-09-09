@@ -21,8 +21,12 @@ export interface ContextConfig {
    * maxContext. Defaults to the provider's reported maxContext.
    */
   effectiveMaxContext?: number | undefined;
-  maxSessionTokens?: number | undefined;
-  maxDailyTokens?: number | undefined;
+  // `maxSessionTokens` / `maxDailyTokens` were declared here and documented in
+  // configuration.md as per-session and per-day token budgets. Nothing ever
+  // read either one: setting them silently did nothing, which is worse than
+  // not offering them. Removed rather than implemented — budget enforcement
+  // already lives in the fleet budget and the budget watchdog, and a second
+  // half-wired ceiling would only compete with those.
   preserveK: number;
   eliseThreshold: number;
   /** Compactor strategy: 'hybrid' (default, fast rules), 'intelligent' (LLM summarization), 'selective' (LLM-driven selection). */

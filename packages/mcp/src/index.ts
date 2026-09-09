@@ -43,7 +43,11 @@ export {
   type MCPRequestOptions,
   type Transport,
 } from './client.js';
-export { MCP_CONSTANTS } from './constants.js';
+export {
+  MCP_CONSTANTS,
+  negotiateProtocolVersion,
+  SUPPORTED_PROTOCOL_VERSIONS,
+} from './constants.js';
 export {
   DEFAULT_MCP_INSERTION_MAX_BYTES,
   DEFAULT_MCP_RESOURCE_SCHEMES,

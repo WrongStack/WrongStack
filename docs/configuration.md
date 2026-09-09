@@ -574,9 +574,7 @@ Controls compaction behavior, token thresholds, and context window modes.
     "eliseThreshold": 2000,
     "strategy": "hybrid",
     "llmSelector": false,
-    "effectiveMaxContext": 200000,
-    "maxSessionTokens": 1000000,
-    "maxDailyTokens": 5000000
+    "effectiveMaxContext": 200000
   }
 }
 ```
@@ -593,8 +591,6 @@ Controls compaction behavior, token thresholds, and context window modes.
 | `strategy` | `string` | `"hybrid"` | Compaction strategy. `hybrid` (default) is **lossless rule-based, no LLM** — it elides oversized old tool results and collapses ancient turns into a digest that keeps all text and drops only raw tool I/O (still in the session log). `intelligent` adds LLM summarization (needs a provider; falls back to the lossless digest on failure). `selective` adds LLM-driven keep/collapse selection. |
 | `llmSelector` | `boolean` | `false` | Shortcut for `strategy: "selective"` when `strategy` is unset. An explicit `strategy` wins. |
 | `effectiveMaxContext` | `number` | provider-reported or unknown for custom `baseUrl` | Override the effective context window size in tokens. Use this for proxies/account-gated endpoints whose real limit differs from models.dev. Runtime override: `/context limit`. |
-| `maxSessionTokens` | `number` | — | Maximum tokens per session. |
-| `maxDailyTokens` | `number` | — | Maximum tokens per day. |
 | `summarizerModel` | `string` | active model | Model used for LLM-assisted summarization. |
 
 ### Context modes

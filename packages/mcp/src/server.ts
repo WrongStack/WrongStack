@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { expectDefined, toErrorMessage, validateAgainstSchema } from '@wrongstack/core/utils';
-import { MCP_CONSTANTS } from './constants.js';
+import { MCP_CONSTANTS, negotiateProtocolVersion } from './constants.js';
 import type { MCPPromptArgument, MCPPromptMessage, MCPResourceContents } from './protocol.js';
 /**
  * Server-side MCP. The mirror image of `MCPClient`: instead of consuming a
@@ -160,7 +160,9 @@ export class MCPServer {
     switch (method) {
       case 'initialize':
         return {
-          protocolVersion: MCP_CONSTANTS.PROTOCOL_VERSION,
+          protocolVersion: negotiateProtocolVersion(
+            (params as { protocolVersion?: unknown } | undefined)?.protocolVersion,
+          ),
           capabilities: {
             tools: { listChanged: false },
             ...(this.resources.length > 0

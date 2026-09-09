@@ -93,25 +93,14 @@ export interface ProviderConfig {
    * capability overrides. The model id is the key, not a fully qualified id.
    */
   customModels?: Record<string, CustomModelDefinition>;
-  /**
-   * Per-provider OAuth configuration. When present, `wstack auth login <id>`
-   * uses this instead of prompting for a raw API key. Set by the catalog or
-   * by the user via `/settings`.
-   */
-  oauthConfig?:
-    | {
-        /** OAuth client id registered with the provider. */
-        clientId?: string | undefined;
-        /** Device authorization endpoint (RFC 8628). */
-        deviceCodeEndpoint?: string | undefined;
-        /** Token endpoint for code exchange and refresh. */
-        tokenEndpoint?: string | undefined;
-        /** Authorization server URL shown to the user for opening in browser. */
-        authorizationEndpoint?: string | undefined;
-        /** Default OAuth scopes to request. */
-        scopes?: string[] | undefined;
-      }
-    | undefined;
+  // A generic `oauthConfig` block (clientId / deviceCodeEndpoint /
+  // tokenEndpoint / authorizationEndpoint / scopes) was declared here and
+  // documented as what `wstack auth login <id>` uses instead of an API-key
+  // prompt. Nothing read it, and there is no `auth login` subcommand: the
+  // OAuth that actually ships is per-provider and lives in
+  // packages/providers/src/oauth/ (Anthropic, OpenAI Codex, GitHub Copilot),
+  // driven by their own flows rather than by user-supplied endpoints. Removed
+  // so config no longer advertises a hook that reaches nothing.
 }
 
 /**
