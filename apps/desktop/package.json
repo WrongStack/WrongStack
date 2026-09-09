@@ -26,6 +26,7 @@
     "wstack-desktop": "./bin/wrongstack-desktop.js"
   },
   "files": [
+    "assets",
     "bin",
     "dist",
     "!dist/**/*.map"
