@@ -27,8 +27,8 @@
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
-      "lines": 858,
-      "relativeImports": 24
+      "lines": 872,
+      "relativeImports": 25
     },
     "packages/cli/src/goal-host.ts": {
       "lines": 931,

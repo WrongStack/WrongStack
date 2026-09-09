@@ -22,6 +22,12 @@ vi.mock('@wrongstack/acp', () => ({
   runAcpBench: (...a: unknown[]) => runAcpBench(...a),
   renderAcpBenchText: (...a: unknown[]) => renderAcpBenchText(...a),
   defaultPermissionPolicy: { evaluate: () => ({ permission: 'auto' }) },
+  REGISTRY_ID_ALIASES: {
+    'claude-code': 'claude-acp',
+    'gemini-cli': 'gemini',
+    'codex-cli': 'codex-acp',
+    copilot: 'github-copilot-cli',
+  },
   EnsembleRegistry: class {
     list = ensembleList;
   },
@@ -81,6 +87,50 @@ describe('/acp dispatch', () => {
     expect((res as { message?: string })?.message).toContain(
       '1 of 2 bundled agents installed locally',
     );
+    expect((res as { message?: string })?.message).toContain('Bundled offline catalog');
+  });
+
+  it('lists the official registry after sync, not the bundled catalog', async () => {
+    loadCachedAcpRegistry.mockResolvedValue({
+      fetchedAt: '2026-09-09T12:00:00.000Z',
+      byId: {
+        gemini: { command: 'gemini', args: ['--acp'] },
+        'grok-build': { command: 'npx', args: ['-y', '@xai-official/grok@1.0.24'] },
+        'claude-acp': { command: 'npx', args: ['-y', '@agentclientprotocol/claude-agent-acp'] },
+      },
+      agents: [
+        {
+          id: 'gemini',
+          displayName: 'Gemini CLI',
+          acp: { command: 'gemini', args: ['--acp'] },
+        },
+        {
+          id: 'grok-build',
+          displayName: 'Grok Build',
+          acp: { command: 'npx', args: ['-y', '@xai-official/grok@1.0.24'] },
+        },
+        {
+          id: 'claude-acp',
+          displayName: 'Claude Agent',
+          acp: { command: 'npx', args: ['-y', '@agentclientprotocol/claude-agent-acp'] },
+        },
+      ],
+    });
+    ensembleList.mockResolvedValue([
+      { id: 'gemini-cli', displayName: 'Gemini CLI', installed: true, version: '0.59.0' },
+      { id: 'openhands', displayName: 'OpenHands', installed: false, reason: 'binary not found' },
+    ]);
+    const res = await cmd().run('list', {} as never);
+    const message = (res as { message?: string })?.message ?? '';
+    expect(message).toContain('Official ACP registry — 3 agents');
+    expect(message).toContain('grok-build');
+    expect(message).toContain('claude-acp');
+    expect(message).toContain('(also claude-code)');
+    expect(message).toContain('gemini');
+    expect(message).toContain('0.59.0');
+    expect(message).toContain('openhands');
+    expect(message).not.toContain('bundled agents installed locally');
+    expect(message).not.toContain('more ids:');
   });
 
   it('shows help for `help`', async () => {
@@ -116,6 +166,57 @@ describe('/acp dispatch', () => {
     expect(arg.agentIds).toBe('gemini-cli,codex-cli');
     expect(arg.task).toBe('review diff');
     expect((res as { message?: string })?.message).toBe('ENSEMBLE_TEXT');
+  });
+
+  it('parallel --bg dispatches every agent as a background subagent', async () => {
+    resolveAcpAgentCommand.mockReturnValue({ command: 'gemini', role: 'gemini-cli' });
+    const onSpawn = vi.fn(async () => 'Spawned subagent #1');
+    const opts = fakeOpts();
+    (opts as { onSpawn: unknown }).onSpawn = onSpawn;
+    const res = await cmd(opts).run(
+      'parallel gemini-cli,codex-cli --bg "review this diff"',
+      {} as never,
+    );
+    expect(onSpawn).toHaveBeenCalledTimes(2);
+    expect(onSpawn).toHaveBeenNthCalledWith(1, 'review this diff', {
+      provider: 'acp',
+      name: 'gemini-cli',
+    });
+    expect(onSpawn).toHaveBeenNthCalledWith(2, 'review this diff', {
+      provider: 'acp',
+      name: 'codex-cli',
+    });
+    expect(runEnsemble).not.toHaveBeenCalled();
+    const message = (res as { message?: string })?.message ?? '';
+    expect(message).toContain('Dispatched 2 ACP agents as background subagents');
+    expect(message).toContain('gemini-cli');
+    expect(message).toContain('codex-cli');
+  });
+
+  it('parallel --bg skips unknown agents but still dispatches the known ones', async () => {
+    resolveAcpAgentCommand.mockImplementation((id: string) =>
+      id === 'gemini-cli' ? { command: 'gemini', role: id } : null,
+    );
+    const onSpawn = vi.fn(async () => 'ok');
+    const opts = fakeOpts();
+    (opts as { onSpawn: unknown }).onSpawn = onSpawn;
+    const res = await cmd(opts).run(
+      'parallel gemini-cli,made-up --bg "task"',
+      {} as never,
+    );
+    expect(onSpawn).toHaveBeenCalledTimes(1);
+    expect(onSpawn).toHaveBeenCalledWith('task', { provider: 'acp', name: 'gemini-cli' });
+    const message = (res as { message?: string })?.message ?? '';
+    expect(message).toContain('Dispatched 1 ACP agent as background subagents');
+    expect(message).toContain('made-up (unknown agent)');
+    expect(runEnsemble).not.toHaveBeenCalled();
+  });
+
+  it('parallel --bg without fleet wiring explains that background mode needs the fleet', async () => {
+    const res = await cmd().run('parallel gemini-cli --bg "task"', {} as never);
+    const message = (res as { message?: string })?.message ?? '';
+    expect(message).toContain('needs the fleet');
+    expect(runEnsemble).not.toHaveBeenCalled();
   });
 
   it('runs a single agent inline and renders the result', async () => {
@@ -212,8 +313,9 @@ describe('/acp dispatch', () => {
       ],
     });
     const res = await cmd().run('', {} as never);
-    expect((res as { message?: string })?.message).toContain('Synced registry: 2 agents');
+    expect((res as { message?: string })?.message).toContain('Official ACP registry — 2 agents');
     expect((res as { message?: string })?.message).toContain('factory-droid');
+    expect((res as { message?: string })?.message).not.toContain('bundled agents installed locally');
   });
 
   it('resolves a single run through the live registry byId map', async () => {

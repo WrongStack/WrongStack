@@ -35,6 +35,7 @@ import {
 } from '@wrongstack/acp/agent';
 import { WebSocketServer } from 'ws';
 import { type AcpHqTelemetry, startAcpHqTelemetry } from '../../acp-hq-telemetry.js';
+import { formatAcpAgentList } from '../../acp-agent-list.js';
 import {
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
@@ -425,31 +426,9 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
 }
 
 async function listACPAgents(deps: SubcommandDeps): Promise<number> {
-  const registry = new EnsembleRegistry();
-  const detected = await registry.list();
-  deps.renderer.write('Detected ACP agents:\n\n');
-  // Print installed first, then not-installed with a "not installed" note.
-  const installed = detected.filter((a) => a.installed);
-  const missing = detected.filter((a) => !a.installed);
-  for (const a of installed) {
-    const ver = a.version ? `  (${a.version.split('\n')[0]})` : '';
-    deps.renderer.write(`  ✓ ${a.id.padEnd(16)} ${a.displayName}${ver}\n`);
-  }
-  for (const a of missing) {
-    deps.renderer.write(
-      `  ✗ ${a.id.padEnd(16)} ${a.displayName}  (${a.reason ?? 'not installed'})\n`,
-    );
-  }
-  deps.renderer.write(`\n${installed.length} of ${detected.length} agents available.\n`);
+  const detected = await new EnsembleRegistry().list();
   const live = await loadLive(deps);
-  if (live && live.agents.length > 0) {
-    deps.renderer.write(
-      `Synced registry: ${live.agents.length} agents available (run \`wstack acp spawn <id> <task>\`).\n`,
-    );
-  } else {
-    deps.renderer.write('Run `wstack acp sync` to pull the full official registry (37+ agents).\n');
-  }
-  deps.renderer.write('Use `wstack acp spawn <agent-id> <task>` to delegate a task.\n');
+  deps.renderer.write(`${formatAcpAgentList({ live, detected })}\n`);
   return 0;
 }
 

@@ -325,6 +325,7 @@ describe('makeACPSubagentRunnerWithStop', () => {
 
   it('forwards permission, MCP, progress, and activity updates', async () => {
     const onProgress = vi.fn();
+    const publishLive = vi.fn();
     const permissionPolicy = vi.fn();
     const mcpServers = [{ name: 'tools', command: 'server', args: [] }];
     hoisted.progressEvent = { kind: 'text', text: 'working' };
@@ -337,12 +338,25 @@ describe('makeACPSubagentRunnerWithStop', () => {
       permissionPolicy: permissionPolicy as never,
       mcpServers,
       onProgress,
+      publishLive,
     });
 
     await runner(TASK, ctx);
     expect(markActivity).toHaveBeenCalledOnce();
     expect(onProgress).toHaveBeenCalledWith(hoisted.progressEvent);
+    expect(publishLive).toHaveBeenCalledWith(ctx, TASK, hoisted.progressEvent);
     expect(hoisted.startCalls).toHaveLength(1);
+  });
+
+  it('does not fail the turn when publishLive throws', async () => {
+    hoisted.progressEvent = { type: 'message', text: 'hi' };
+    const { runner } = await makeACPSubagentRunnerWithStop({
+      command: 'agent',
+      publishLive: () => {
+        throw new Error('ui bus down');
+      },
+    });
+    await expect(runner(TASK, makeCtx().ctx)).resolves.toMatchObject({ result: 'ok' });
   });
 
   it('guards activity and one-shot close failures', async () => {

@@ -77,16 +77,16 @@ the second line of defense).
 
 ## Installation
 
-`@huggingface/transformers` is listed as an **optional** dependency so
-the package installs and typechecks even without it. In this monorepo
-it's installed by default; in downstream packages, ensure it's present:
+`@huggingface/transformers` is an **opt-in** backend. It is not installed
+automatically because its Node runtime currently pulls in an unpatched ZIP
+extraction advisory. The hashing provider remains available without it. To
+explicitly enable local ONNX embeddings while skipping ONNX's CUDA installer:
 
 ```sh
-pnpm add @huggingface/transformers
+$env:ONNXRUNTIME_NODE_INSTALL='skip'; pnpm add @huggingface/transformers
 ```
 
-The package itself is a workspace member; no extra install step is
-needed inside the monorepo.
+On POSIX shells, prefix the command with `ONNXRUNTIME_NODE_INSTALL=skip`.
 
 ## Quick start
 

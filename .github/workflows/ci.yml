@@ -92,7 +92,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Lint
         run: pnpm biome lint .
@@ -153,7 +153,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       # Build first so cross-package type declarations exist. Several packages
       # (e.g. @wrongstack/kanban) import workspace deps like
@@ -213,7 +213,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Assert clean artifact lineage
         run: pnpm check:clean-dist
@@ -302,7 +302,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -373,7 +373,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       # Download verified build artifacts so workspace dist/ folders exist
       # before the coverage run. Without this, 257+ test files that import
@@ -417,7 +417,11 @@ jobs:
       # WRONGSTACK_VECTOR_INTEGRATION because the model download is slow and
       # optional for contributors — but nothing set that variable anywhere, so
       # the embedding path had 0 automated coverage while 135 unit tests around
-      # it stayed green. Run it here, where onnxruntime-node is already rebuilt.
+      # it stayed green. Install the backend only for this isolated job without
+      # lifecycle scripts; the CPU runtime binaries are already in the package.
+      - name: Install opt-in vector backend
+        run: pnpm --filter @wrongstack/vector-memory add @huggingface/transformers@4.2.0 --lockfile=false --ignore-scripts
+
       - name: Test (vector-memory ONNX integration)
         run: npx vitest run packages/vector-memory/tests/integration.test.ts
         env:
@@ -463,7 +467,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -527,7 +531,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -697,7 +701,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       # Warm up workspace dist artifacts before the heap-soak benchmark
       # runs esbuild. The benchmark script imports entry points like
@@ -792,7 +796,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -876,7 +880,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -926,7 +930,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Audit dependencies
         run: pnpm audit --audit-level=moderate

@@ -36,10 +36,29 @@ export interface InMemoryMetricsSinkOptions {
   maxSeriesPerMetric?: number | undefined;
 }
 
+/**
+ * The three characters that carry structure in a label key: `,` separates
+ * pairs, `=` separates a pair, and `\` escapes both. A key or value containing
+ * any of them is written backslash-escaped, which is what makes the encoding
+ * injective — without it, `{a:'1', b:'2'}` and `{a:'1,b=2'}` both encode to
+ * `a=1,b=2` and are the SAME series.
+ */
+const LABEL_STRUCTURAL_RE = /[\\,=]/g;
+
+function escapeLabelToken(token: string): string {
+  return token.replace(LABEL_STRUCTURAL_RE, '\\$&');
+}
+
+/**
+ * Canonical identity of a label SET. Order-insensitive (keys are sorted) and
+ * injective over `Record<string, string>`, so two label sets that differ in
+ * any key or value get different keys, and {@link parseLabelKey} is its exact
+ * inverse.
+ */
 function labelKey(labels: MetricLabels | undefined): string {
   if (!labels) return '';
   const keys = Object.keys(labels).sort();
-  return keys.map((k) => `${k}=${labels[k]}`).join(',');
+  return keys.map((k) => `${escapeLabelToken(k)}=${escapeLabelToken(labels[k] ?? '')}`).join(',');
 }
 
 function quantile(sorted: number[], q: number): number {
@@ -232,13 +251,46 @@ export class InMemoryMetricsSink implements MetricsSink {
   }
 }
 
+/** Reverse of {@link escapeLabelToken}. */
+const LABEL_ESCAPE_RE = /\\([\\,=])/g;
+
+function unescapeLabelToken(token: string): string {
+  return token.replace(LABEL_ESCAPE_RE, '$1');
+}
+
+/**
+ * Exact inverse of {@link labelKey}. Pair boundaries and key/value separators
+ * are only the `,` / `=` characters that are NOT backslash-escaped, so a value
+ * may contain either delimiter and survive the round-trip. A naive
+ * `split(',')` + `indexOf('=')` cannot: it truncated `{job:'deploy, notify'}`
+ * to `{job:'deploy'}` and silently merged `{a:'1,b=2'}` into `{a:'1', b:'2'}`.
+ */
 function parseLabelKey(key: string): MetricLabels {
-  if (!key) return {};
   const labels: MetricLabels = {};
-  for (const pair of key.split(',')) {
-    const eq = pair.indexOf('=');
-    if (eq > 0) labels[pair.slice(0, eq)] = pair.slice(eq + 1);
+  if (!key) return labels;
+  let pairStart = 0;
+  let sep = -1;
+  const emit = (pairEnd: number): void => {
+    if (sep === -1) return;
+    labels[unescapeLabelToken(key.slice(pairStart, sep))] = unescapeLabelToken(
+      key.slice(sep + 1, pairEnd),
+    );
+  };
+  for (let i = 0; i < key.length; i++) {
+    const ch = key[i];
+    if (ch === '\\') {
+      i++; // escaped char is data, never a delimiter
+      continue;
+    }
+    if (ch === '=') {
+      if (sep === -1) sep = i;
+    } else if (ch === ',') {
+      emit(i);
+      pairStart = i + 1;
+      sep = -1;
+    }
   }
+  emit(key.length);
   return labels;
 }
 

@@ -13,6 +13,7 @@ import {
 } from '@wrongstack/acp';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { formatAcpAgentList } from '../acp-agent-list.js';
 import {
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
@@ -30,6 +31,9 @@ import type { SlashCommandContext } from './command-context.js';
  *   /acp <agent-id> <task>       run a task on one agent (inline, streamed)
  *   /acp <agent-id> --bg <task>  run it as a background fleet subagent
  *   /acp parallel <csv> <task>   fan a task out to several agents at once
+ *   /acp parallel <csv> --bg <task>  same, but each agent runs as a background
+ *                             fleet subagent — live progress shows in /agents,
+ *                             the TUI fleet panel and the WebUI Agents panel
  *   /acp probe [csv]             handshake-test agents (what actually works)
  *   /acp bench [csv] [--fs]      end-to-end verify each agent + graded report
  *   /acp sync                    pull the official agentclientprotocol/registry
@@ -45,7 +49,7 @@ export function buildAcpCommand(opts: SlashCommandContext): SlashCommand {
     category: 'Agent',
     description:
       'Discover and assign tasks to installed ACP coding agents (claude-code, codex-cli, gemini-cli, …).',
-    argsHint: '[list | probe | <agent-id> [--bg] <task> | parallel <csv> <task>]',
+    argsHint: '[list | probe | <agent-id> [--bg] <task> | parallel <csv> [--bg] <task>]',
     help: [
       'Use the ACP-supporting CLIs already installed on this machine as',
       'subagents — they run with their own login, so no API key is spent here.',
@@ -55,6 +59,7 @@ export function buildAcpCommand(opts: SlashCommandContext): SlashCommand {
       '  /acp <agent-id> <task>        Run a task on ONE agent, inline + streamed',
       '  /acp <agent-id> --bg <task>   Run it as a background fleet subagent (/agents)',
       '  /acp parallel <csv> <task>    Fan one task out to several agents at once',
+      '  /acp parallel <csv> --bg <task>  Same, as background fleet subagents',
       '  /acp probe [csv]              Handshake-test agents — shows what truly works',
       '  /acp bench [csv] [--fs]       End-to-end verify each agent + graded report',
       '  /acp sync                     Pull the official agentclientprotocol/registry',
@@ -66,6 +71,7 @@ export function buildAcpCommand(opts: SlashCommandContext): SlashCommand {
       '  /acp gemini-cli "explain src/agent.ts"',
       '  /acp claude-code --bg "refactor auth/session.ts and run the tests"',
       '  /acp parallel claude-code,gemini-cli,codex-cli "review this diff"',
+      '  /acp parallel claude-code,gemini-cli --bg "review this diff"',
       '  /acp probe',
       '',
       'If an agent is detected but `probe` shows it failing, its catalog entry',
@@ -91,7 +97,7 @@ export function buildAcpCommand(opts: SlashCommandContext): SlashCommand {
 
       if (head === 'probe') return probeAgents(rest, overrides, live, opts);
       if (head === 'bench') return benchAgents(rest, overrides, live, opts);
-      if (head === 'parallel') return parallelAgents(rest, overrides, live);
+      if (head === 'parallel') return parallelAgents(rest, overrides, live, opts);
 
       // Otherwise `head` is an agent id and `rest` is the task (+ optional --bg).
       return runSingle(head, rest, overrides, live, opts);
@@ -125,47 +131,8 @@ async function syncRegistry(opts: SlashCommandContext): Promise<{ message: strin
 }
 
 async function listAgents(live: LoadedAcpRegistry | null): Promise<{ message: string }> {
-  // Probe only the bundled static catalog — those are real local installs.
-  // npx/uvx-distributed registry agents can't be meaningfully "installed"
-  // probed (the launcher is always present), so we list them separately.
   const detected = await new EnsembleRegistry().list();
-  const installed = detected.filter((a) => a.installed);
-  const missing = detected.filter((a) => !a.installed);
-  const lines: string[] = ['Detected ACP agents (local installs):', ''];
-  for (const a of installed) {
-    const ver = a.version ? `  (${a.version.split('\n')[0]})` : '';
-    lines.push(`  ✓ ${a.id.padEnd(16)} ${a.displayName}${ver}`);
-  }
-  for (const a of missing) {
-    lines.push(`  ✗ ${a.id.padEnd(16)} ${a.displayName}  (${a.reason ?? 'not installed'})`);
-  }
-  lines.push('');
-  lines.push(`${installed.length} of ${detected.length} bundled agents installed locally.`);
-
-  if (live && live.agents.length > 0) {
-    const localIds = new Set(detected.map((a) => a.id));
-    const aliases: Record<string, string> = {
-      'claude-acp': 'claude-code',
-      gemini: 'gemini-cli',
-      'codex-acp': 'codex-cli',
-      'github-copilot-cli': 'copilot',
-    };
-    const extra = live.agents.filter(
-      (a) => !localIds.has(a.id) && !localIds.has(aliases[a.id] ?? ''),
-    );
-    lines.push('');
-    lines.push(
-      `Synced registry: ${live.agents.length} agents available (use \`/acp <id> <task>\`).`,
-    );
-    if (extra.length > 0) {
-      lines.push(`  more ids: ${extra.map((a) => a.id).join(', ')}`);
-    }
-  } else {
-    lines.push('');
-    lines.push('Run `/acp sync` to pull the full official registry (37+ agents).');
-  }
-  lines.push('Run `/acp <agent-id> <task>` to assign a task, or `/acp probe` to test handshakes.');
-  return { message: lines.join('\n') };
+  return { message: formatAcpAgentList({ live, detected }) };
 }
 
 async function probeAgents(
@@ -272,21 +239,73 @@ async function parallelAgents(
   rest: string,
   overrides: AcpAgentCommandOverrides | undefined,
   live: LoadedAcpRegistry | null,
+  opts: SlashCommandContext,
 ): Promise<{ message: string }> {
-  const spaceIdx = rest.search(/\s/);
+  // Detect a `--bg` flag anywhere in the tokens; the rest is `<csv> <task>`.
+  const tokens = rest.split(/\s+/).filter(Boolean);
+  const bg = tokens.includes('--bg');
+  const withoutFlag = tokens.filter((t) => t !== '--bg').join(' ');
+  const spaceIdx = withoutFlag.search(/\s/);
   if (spaceIdx === -1) {
     return {
       message:
-        'Usage: /acp parallel <agent-ids-csv> <task>\nExample: /acp parallel claude-code,gemini-cli "review this diff"',
+        'Usage: /acp parallel <agent-ids-csv> [--bg] <task>\nExample: /acp parallel claude-code,gemini-cli --bg "review this diff"',
     };
   }
-  const agentIds = rest.slice(0, spaceIdx);
-  const task = stripQuotes(rest.slice(spaceIdx + 1).trim());
-  if (!task) return { message: 'Task description is required.' };
+  const idsCsv = withoutFlag.slice(0, spaceIdx).trim();
+  const agentIds = dedup(
+    idsCsv
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  const task = stripQuotes(withoutFlag.slice(spaceIdx + 1).trim());
+  if (agentIds.length === 0 || !task) {
+    return { message: 'Task description is required.' };
+  }
   const liveById = live?.byId;
+
+  // Background path: dispatch every known agent as its own fleet subagent
+  // (provider:'acp') and return immediately. Live progress for each subagent
+  // streams through the same fleet/host buses as any other background worker.
+  if (bg) {
+    if (!opts.onSpawn) {
+      return {
+        message: 'Background mode needs the fleet (director). Director Mode is always active.',
+      };
+    }
+    const dispatched: string[] = [];
+    const skipped: Array<{ id: string; reason: string }> = [];
+    for (const id of agentIds) {
+      if (!resolveAcpAgentCommand(id, overrides, liveById)) {
+        skipped.push({ id, reason: 'unknown agent' });
+        continue;
+      }
+      try {
+        const summary = await opts.onSpawn(task, { provider: 'acp', name: id });
+        dispatched.push(`  • ${id}: ${summary}`);
+      } catch (err) {
+        skipped.push({ id, reason: toErrorMessage(err) });
+      }
+    }
+    const lines = [
+      dispatched.length === 0
+        ? 'No ACP agents dispatched.'
+        : `Dispatched ${dispatched.length} ACP agent${dispatched.length === 1 ? '' : 's'} as background subagents.`,
+      ...dispatched,
+    ];
+    if (skipped.length > 0) {
+      lines.push(
+        `Skipped ${skipped.length}: ${skipped.map((s) => `${s.id} (${s.reason})`).join(', ')}`,
+      );
+    }
+    lines.push('Live progress is visible in /agents, the TUI fleet panel and the WebUI Agents panel.');
+    return { message: lines.join('\n') };
+  }
+
   try {
     const result = await runEnsemble({
-      agentIds,
+      agentIds: idsCsv,
       task,
       resolveCmd: (id) => resolveAcpAgentCommand(id, overrides, liveById),
     });

@@ -57,6 +57,14 @@ export interface ACPSubagentRunnerOptions {
    */
   onProgress?: ACPProgressHandler | undefined;
   /**
+   * Host live-view hook. Called with the run context so a fleet/TUI/WebUI
+   * publisher can attribute tool calls and text to the right subagent.
+   * Invoked in addition to `onProgress`.
+   */
+  publishLive?:
+    | ((ctx: SubagentRunContext, task: TaskSpec, event: ACPProgressEvent) => void)
+    | undefined;
+  /**
    * Permission policy for the external agent's `session/request_permission`
    * calls. Defaults to the session's own default. Inject the host's
    * confirm/trust UI here so an external agent's file writes / commands
@@ -196,6 +204,11 @@ export async function makeACPSubagentRunnerWithStop(
         // markActivity never throws today; guard defensively anyway.
       }
       options.onProgress?.(event);
+      try {
+        options.publishLive?.(ctx, task, event);
+      } catch {
+        // Live UI must never fail the ACP turn.
+      }
     };
 
     try {

@@ -5,7 +5,7 @@
  * already emits 384-dimensional vectors — the width `file_vectors` stores. It
  * arrives here rather than inside `packages/tools` for two reasons:
  *
- *  - `@huggingface/transformers` is an **optional** dependency. A repository
+ *  - `@huggingface/transformers` is an **opt-in** backend. A repository
  *    that never enables semantic search should not have to install a model
  *    runtime, and `packages/tools` must stay importable without one.
  *  - A function cannot cross the project daemon's IPC boundary. The daemon
@@ -28,7 +28,7 @@ const EXPECTED_DIMENSIONS = 384;
  * Build the embedding port, or `undefined` when semantic search is off or
  * unavailable.
  *
- * The dynamic import is what keeps `@huggingface/transformers` optional: a
+ * The dynamic import is what keeps `@huggingface/transformers` opt-in: a
  * missing package throws here and is reported as "unavailable", never as a
  * startup failure.
  */

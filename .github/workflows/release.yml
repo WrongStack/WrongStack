@@ -188,7 +188,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Kept in sync with pnpm-workspace.yaml allowBuilds — pinned by
         # packages/core/tests/architecture/build-allowlist-freshness.test.ts.
-        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+        run: pnpm rebuild esbuild node-pty
 
       - name: Build
         run: pnpm build

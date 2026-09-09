@@ -36,9 +36,8 @@ describe('TransformersEmbeddingProvider', () => {
       cacheDir: path.join(os.tmpdir(), `vt-${Date.now()}`),
     });
     const available = await provider.isAvailable();
-    // In this monorepo @huggingface/transformers is installed as an
-    // optionalDependency, so isAvailable() should be true. If a future
-    // environment strips optional deps, this will be false instead.
+    // The transformers backend is opt-in, so availability depends on the
+    // environment running the test.
     expect(typeof available).toBe('boolean');
   });
 });

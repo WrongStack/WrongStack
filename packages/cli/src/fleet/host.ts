@@ -33,6 +33,7 @@ import {
 } from '@wrongstack/core/types';
 
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { publishAcpLiveProgress } from './acp-live-progress.js';
 import type { BuildAcpSubagentRunnerOptions } from './host-acp.js';
 import { HostAcpRunnerCache } from './host-acp-runner-cache.js';
 import { normalizeMaxConcurrent } from './host-concurrency.js';
@@ -442,7 +443,20 @@ export class MultiAgentHost {
     } catch {
       overrides = undefined;
     }
-    return { ...(overrides ? { overrides } : {}) };
+    return {
+      ...(overrides ? { overrides } : {}),
+      publishLive: (ctx, task, event) => {
+        publishAcpLiveProgress({
+          event,
+          subagentId: ctx.subagentId,
+          agentName: ctx.config.name ?? ctx.config.role ?? ctx.subagentId,
+          sessionId: ctx.sessionId,
+          taskId: task.id,
+          fleet: this.getDirector()?.fleet,
+          hostEvents: this.deps.events,
+        });
+      },
+    };
   }
 
   async spawnACP(subagentId: string, task: string, config: Config): Promise<string> {

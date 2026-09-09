@@ -9,7 +9,7 @@
  * to validate the model loading path on the supported platforms.
  *
  * What it checks:
- *  - The optional `@huggingface/transformers` dependency is installed.
+ *  - The opt-in `@huggingface/transformers` backend is installed.
  *  - `TransformersEmbeddingProvider.isAvailable()` returns true.
  *  - `embed()` returns a Float32Array of the expected dimensions
  *    (384 for `Xenova/all-MiniLM-L6-v2`).

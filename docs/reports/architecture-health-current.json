@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T08:14:31.496Z",
+  "generatedAt": "2026-09-09T08:20:38.969Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3698,
-    "testFiles": 3184,
-    "sourceLines": 890195,
+    "sourceFiles": 3700,
+    "testFiles": 3187,
+    "sourceLines": 890555,
     "workspaceEdges": 127,
-    "moduleEdges": 11675,
+    "moduleEdges": 11680,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 873
+    "testOnlyExports": 872
   },
   "errors": [],
   "packageCycles": [],
@@ -144,8 +144,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 485,
-      "testFiles": 466,
+      "sourceFiles": 487,
+      "testFiles": 468,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -184,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 466
+          "testFiles": 468
         }
       ]
     },
@@ -215,7 +215,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 846,
-      "testFiles": 723,
+      "testFiles": 724,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -230,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 723
+          "testFiles": 724
         }
       ]
     },
@@ -1748,6 +1748,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/acp-agent-list.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/acp-connection-gate.test.ts",
         "projects": [
           "root-node"
@@ -1761,6 +1767,12 @@
       },
       {
         "file": "packages/cli/tests/acp-hq-telemetry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-live-progress.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7107,6 +7119,12 @@
       },
       {
         "file": "packages/core/tests/observability/health.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/observability/metrics-label-identity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20320,8 +20338,8 @@
     },
     {
       "file": "packages/cli/src/fleet/host.ts",
-      "lines": 858,
-      "relativeImports": 24
+      "lines": 872,
+      "relativeImports": 25
     },
     {
       "file": "packages/cli/src/goal-host.ts",
@@ -21465,10 +21483,6 @@
     {
       "file": "packages/cli/src/fleet-statusline.ts",
       "name": "renderFleetLine"
-    },
-    {
-      "file": "packages/cli/src/fleet/host-event-bridge.ts",
-      "name": "compactBridgeToolInput"
     },
     {
       "file": "packages/cli/src/fleet/host-helpers.ts",

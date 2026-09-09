@@ -3,8 +3,8 @@
  * feature-extraction pipeline as a sage `EmbeddingProvider`.
  *
  * The provider is lazy: nothing is imported until `embed()` is first called.
- * If `@huggingface/transformers` is not installed (it's listed as an
- * optionalDependency), `isAvailable()` returns false and `embed()` throws
+ * If the opt-in `@huggingface/transformers` package is not installed,
+ * `isAvailable()` returns false and `embed()` throws
  * a descriptive `VectorMemoryProviderUnavailableError` so callers can
  * fall back to `HashingEmbeddingProvider`.
  *
@@ -183,9 +183,12 @@ export class TransformersEmbeddingProvider implements EmbeddingProvider {
 
   private async loadModule(): Promise<TransformersModule> {
     try {
-      // The optional dependency may be absent — surface that as a typed
+      // The opt-in backend may be absent — surface that as a typed
       // error so callers can swap in a fallback provider cleanly.
-      return (await import('@huggingface/transformers')) as unknown as TransformersModule;
+      // Keep the specifier indirect: this backend is intentionally opt-in, so
+      // builds must not require the package to be present for module resolution.
+      const packageName = '@huggingface/transformers';
+      return (await import(packageName)) as unknown as TransformersModule;
     } catch (err) {
       throw new VectorMemoryProviderUnavailableError(
         '@huggingface/transformers is not installed. Install it (pnpm add @huggingface/transformers) or wire a fallback EmbeddingProvider.',

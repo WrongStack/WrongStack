@@ -177,7 +177,7 @@ export interface IndexingConceptsConfig {
  * Semantic embeddings for the codebase index — one vector per file, over the
  * concept layer's description of what that file is FOR.
  *
- * Off by default because it needs the optional `@huggingface/transformers`
+ * Off by default because it needs the opt-in `@huggingface/transformers`
  * runtime and downloads a model on first use. Without it, retrieval stays
  * lexical, which is what shipped before.
  */

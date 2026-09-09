@@ -146,9 +146,6 @@
     "packages/cli/src/fleet-statusline.ts": [
       "renderFleetLine"
     ],
-    "packages/cli/src/fleet/host-event-bridge.ts": [
-      "compactBridgeToolInput"
-    ],
     "packages/cli/src/fleet/host-helpers.ts": [
       "DEFAULT_SUBAGENT_HIDDEN_TOOLS",
       "NEVER_SUBAGENT_TOOLS"

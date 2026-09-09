@@ -48,6 +48,11 @@ export function buildEnsembleCommand(opts: SlashCommandContext): SlashCommand {
       '  --timeout <sec>      Per-agent hard timeout (default 300s).',
       '  --concurrency <n>    Max agents running at once (default 4).',
       '',
+      'This command is blocking: you wait for every agent, then get a text dump.',
+      'To watch Claude Code / Gemini / Kimi live in the TUI fleet panel or WebUI',
+      'Agents panel while they run in the background, use:',
+      '  /acp parallel claude-code,gemini-cli,kimi --bg "the task"',
+      '',
       'Use /acp list (or wstack acp list) to see which agents are detected.',
     ].join('\n'),
     async run(args) {

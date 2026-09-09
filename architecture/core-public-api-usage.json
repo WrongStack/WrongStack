@@ -19,8 +19,8 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 206,
-      "typeOnly": 81,
+      "files": 207,
+      "typeOnly": 82,
       "runtimeOrMixed": 181
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -79,8 +79,8 @@
       "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
-      "files": 259,
-      "typeOnly": 138,
+      "files": 260,
+      "typeOnly": 139,
       "runtimeOrMixed": 134
     },
     "@wrongstack/core/kernel/events.js": {
@@ -2437,6 +2437,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/execution.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/fleet/acp-live-progress.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5395,6 +5401,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/fleet-statusline.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/fleet/acp-live-progress.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

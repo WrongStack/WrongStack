@@ -42,6 +42,12 @@ vi.mock('@wrongstack/acp', () => ({
     };
     return catalog[id] ?? null;
   },
+  REGISTRY_ID_ALIASES: {
+    'claude-code': 'claude-acp',
+    'gemini-cli': 'gemini',
+    'codex-cli': 'codex-acp',
+    copilot: 'github-copilot-cli',
+  },
 }));
 vi.mock('@wrongstack/acp/agent', () => ({
   WrongStackACPServer: class {
@@ -199,7 +205,8 @@ describe('acpCmd — dispatch', () => {
     expect(out).toContain('claude-code');
     expect(out).toContain('gemini-cli');
     expect(out).toContain('2.1.178');
-    expect(out).toContain('2 of 3 agents available');
+    expect(out).toContain('2 of 3 bundled agents installed locally');
+    expect(out).toContain('Bundled offline catalog');
   });
 });
 

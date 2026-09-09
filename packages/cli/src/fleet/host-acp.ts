@@ -1,16 +1,24 @@
 import {
+  type ACPProgressEvent,
   type AcpAgentCommandOverrides,
   type AcpLiveCatalog,
   defaultPermissionPolicy,
   makeACPSubagentRunner,
   resolveAcpAgentCommand,
 } from '@wrongstack/acp';
-import type { SubagentRunner } from '@wrongstack/core/types';
+import type { SubagentRunContext, SubagentRunner, TaskSpec } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
+
+export type AcpLivePublisher = (
+  ctx: SubagentRunContext,
+  task: TaskSpec,
+  event: ACPProgressEvent,
+) => void;
 
 export interface BuildAcpSubagentRunnerOptions {
   overrides?: AcpAgentCommandOverrides | undefined;
   live?: AcpLiveCatalog | undefined;
+  publishLive?: AcpLivePublisher | undefined;
 }
 
 /**
@@ -34,5 +42,9 @@ export function buildAcpSubagentRunner(
   // host-acp-runner-cache.ts) — pass the auto-approve policy explicitly.
   // Without it ACPSession falls back to readOnlyPermissionPolicy and
   // denies every file write / command the subagent requests.
-  return makeACPSubagentRunner({ ...cmd, permissionPolicy: defaultPermissionPolicy });
+  return makeACPSubagentRunner({
+    ...cmd,
+    permissionPolicy: defaultPermissionPolicy,
+    ...(options?.publishLive ? { publishLive: options.publishLive } : {}),
+  });
 }
