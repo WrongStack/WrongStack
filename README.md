@@ -2,7 +2,7 @@
 
 # WrongStack
 
-### Ships with a Brain, a Memory, and 70 tools. Yours to run anywhere.
+### Ships with a Brain, a Memory, and 67 tools. Yours to run anywhere.
 
 **A free, open-source AI coding agent that gets better at _your_ codebase over time. It reads code, runs tools, and coordinates specialist agents — with durable memory, visible permission boundaries, and no subscription required.**
 
@@ -27,7 +27,7 @@ loops, parallel subagent fan-out, and Brain-governed policy decisions — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
 Kanban boards** with atomic verification, an **inter-agent mailbox** that links
 every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with **70 built-in tools**, **29 bundled skills**, **73 managed first-party
+It ships with **67 built-in tools**, **29 bundled skills**, **73 managed first-party
 plugins**, and **~140 providers** pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
 boots fully offline with `--no-features`.
@@ -35,7 +35,7 @@ boots fully offline with `--no-features`.
 **Built from scratch, stands on its own.** WrongStack is not a plugin layer or an
 orchestration kit bolted onto another coding tool — it's a complete agent written
 top to bottom: its own compact kernel, its own provider transports (4 wire
-families, real SSE), its own 70-tool executor, permission policy, memory system,
+families, real SSE), its own 67-tool executor, permission policy, memory system,
 and multi-agent runtime. Nothing here wraps a third-party CLI; everything works
 standalone, and `--no-features` even runs it fully offline.
 
@@ -43,7 +43,7 @@ standalone, and `--no-features` even runs it fully offline.
 
 Not a thin wrapper — a real engine. To put it in perspective: the codebase spans
 **34 packages and 2 apps** of first-party, TypeScript-strict source, with **tens of
-thousands of tests** guarding it. You get **70 built-in tools**, a **77-role agent
+thousands of tests** guarding it. You get **67 built-in tools**, a **77-role agent
 roster**, **~140 providers**, and **six surfaces** — all sharing **one compact
 kernel** (~1,670 lines) that boots **fully offline** with `--no-features`.
 
@@ -116,7 +116,7 @@ See the complete [1.0.0 release notes](CHANGELOG.md).
 - 🔌 **~140 providers, zero lock-in** — Anthropic, OpenAI, Google, and ~125 OpenAI-compatible endpoints, catalog refreshed from models.dev at boot.
 - 🏠 **Local & custom endpoints** — one-command presets for **Ollama / vLLM / LM Studio**, plus any custom `baseUrl` or **OmniRoute**-style gateway; run fully on localhost.
 - 🔑 **Sign in with a subscription** — authenticate with a **ChatGPT (Codex)**, **Claude Pro/Max**, or **GitHub Copilot** subscription over OAuth, *alongside* API keys. See [OAuth sign-in](docs/oauth-signin.md).
-- 🔐 **Locked down by default** — encrypted secrets, a permission policy on every tool call, and project-root containment that YOLO can't override.
+- 🔐 **Locked down where it counts** — encrypted secrets and a permission policy on every tool call, both always on. Project-root containment is opt-in (`/settings` → Filesystem access); once you enable it, neither YOLO nor a repo-committed config can turn it back off.
 - 🪶 **A compact kernel** — `Container · Pipeline · EventBus · RunController` (~1670 lines incl. the full event catalog). Everything above it is swappable; `--no-features` boots it fully offline.
 
 ---
@@ -286,12 +286,18 @@ required**. Deep reference lives in [`docs/reference.md`](docs/reference.md).
 
 ### Tools & code intelligence
 
-**70 built-in tools** span filesystem edits, code quality (`lint`/`format`/
+**67 built-in tools** span filesystem edits, code quality (`lint`/`format`/
 `typecheck`/`test`), execution, web search/fetch, git, packages, browser/E2E
 controls, and a project-owned Codebase Index. The index combines SQLite/FTS5
 substring search, local semantic ranking, content-hash invalidation, symbol and
 call-graph navigation, and bounded parser workers for large repositories. Full map:
-[reference → tools](docs/reference.md#built-in-tools-61).
+[reference → tools](docs/reference.md#built-in-tools-67).
+
+All 67 are registered and callable at every setting. How many are *described* to
+the model on each request depends on the token-saving tier: the default trims
+that to a working set (26 on a large context window) and keeps the rest one
+`tool_search` away, so a long session does not pay for 67 schemas every turn.
+Set `features.tokenSavingMode: "off"` to describe them all directly.
 
 ### Autonomy & goals
 
@@ -506,7 +512,7 @@ Services  → deterministic local IPC → one owner each → SQLite-backed proje
 
 1. **Minimal kernel** — the four primitives + token table total ~1670 lines; the agent loop adds ~525.
 2. **Zero non-overridable behavior** — 16 services bound through `Container`, 6 pipelines as middleware, all extension points in registries.
-3. **Standalone sufficiency** — works with 70 built-in tools and no plugins.
+3. **Standalone sufficiency** — works with 67 built-in tools and no plugins.
 4. **Layered, not monolithic** — `--no-features` runs offline with zero startup network calls.
 
 Full walk-through: [`docs/architecture.md`](docs/architecture.md).
@@ -520,7 +526,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/core` | Kernel, agent, types, registries, plugin contract |
 | `@wrongstack/runtime` | Default runtime implementations + host composition |
 | `@wrongstack/providers` | Anthropic/OpenAI/OpenAI-compatible/Google adapters + SSE |
-| `@wrongstack/tools` | 70 built-in tools (incl. browser/E2E + SQLite codebase index) |
+| `@wrongstack/tools` | 67 built-in tools (incl. browser/E2E + SQLite codebase index) |
 | `@wrongstack/mcp` | MCP server registry + reconnection logic |
 | `@wrongstack/acp` | Agent Client Protocol client + agent support |
 | `@wrongstack/bench` | Benchmark harness (Aider polyglot + SWE-bench Verified) |
@@ -544,8 +550,8 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 ## Status
 
 - **v1.0.0** — first production-ready release
-- **Tens of thousands of tests** passing in the release gate across ~1,900 test files
-- Coverage thresholds (root Vitest): ≥73% lines / ≥73% functions / ≥64% branches / ≥72% statements
+- **Tens of thousands of tests** passing in the release gate across ~3,180 test files
+- Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
 - All 34 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`
 - Node 22.19+ only, ESM-only, no CommonJS bundles
 - Threat model: [`SECURITY.md`](SECURITY.md)

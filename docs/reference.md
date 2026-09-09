@@ -14,9 +14,9 @@ Use this as a map; the deep docs it links to are authoritative.
 
 ---
 
-## Built-in tools (70)
+## Built-in tools (67)
 
-WrongStack ships **70 built-in tools** — no plugins required. They fall into
+WrongStack ships **67 built-in tools** — no plugins required. They fall into
 these families:
 
 | Family | Examples |
@@ -30,9 +30,9 @@ these families:
 | Planning | `todo`, `plan`, `task`, `kanban` |
 | Git | `git` |
 | Packages | `install`, `audit`, `outdated`, `logs` |
-| Generation | `document`, `scaffold`, `design` |
+| Generation | `design` |
 | Browser / E2E | `browser_open`, `browser_navigate`, `browser_click`, `browser_screenshot`, `browser_evaluate`, `e2e_plan`, … |
-| Meta & tooling | `clarify`, `tool_search`, `tool_use`, `batch_tool_use`, `tool_help`, `set_working_dir` |
+| Meta & tooling | `clarify`, `tool_search`, `tool_use` |
 | Structured edits | `codebase-ast-replace`, `codebase-invariant-check` |
 
 Related surfaces that are **not** built-in tools: `git_autocommit` /
@@ -41,6 +41,12 @@ Related surfaces that are **not** built-in tools: `git_autocommit` /
 `pin_add` comes from the `context-pins` plugin; `delegate` /
 `spawn_subagent` / `assign_task` / `await_tasks` are the runtime agent
 layer.
+
+Every one of the 67 is registered and callable. How many are *described* to the
+model per request depends on `features.tokenSavingMode`: the default withholds
+the specialized schemas and the model reaches them through `tool_search` (find
+it) and `tool_use` (call it), which is why that pair is always present. Set the
+mode to `off` to describe the whole catalog directly.
 
 Run `wstack tools` for the live, version-specific list.
 

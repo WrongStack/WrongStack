@@ -52,7 +52,7 @@ pick the right one for a job without scrolling through 65 entries.
 | 37 | [`token-throttle`](../packages/plugins/src/token-throttle) | performance | — | `token_throttle_status` |
 | 38 | [`plugin-stack-observer`](../packages/plugins/src/plugin-stack-observer) | observability | — | `plugin_stack_status` |
 | 39 | [`knowledge-graph`](../packages/plugins/src/knowledge-graph) | utilities | — | `kg_add_fact`, `kg_query`, `kg_remove_fact`, `kg_status` |
-| 40 | [`pr-drafter`](../packages/plugins/src/pr-drafter) | developer workflow | — | `pr_draft`, `pr_draft` |
+| 40 | [`pr-drafter`](../packages/plugins/src/pr-drafter) | developer workflow | — | `pr_draft` |
 | 41 | [`test-coverage-gate`](../packages/plugins/src/test-coverage-gate) | quality | — | `coverage_gate_status` |
 | 42 | [`type-gate`](../packages/plugins/src/type-gate) | quality | — | `type_gate_status` |
 | 43 | [`agent-handoff`](../packages/plugins/src/agent-handoff) | cross-agent | — | `handoff_note`, `handoff_status` |
