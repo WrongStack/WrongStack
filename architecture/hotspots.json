@@ -19,7 +19,7 @@
       "relativeImports": 18
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 862,
+      "lines": 868,
       "relativeImports": 34
     },
     "packages/cli/src/execution.ts": {

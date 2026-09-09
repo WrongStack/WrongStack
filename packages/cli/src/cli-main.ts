@@ -633,6 +633,12 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     agentMonitor,
     onPanelOpen,
     configStore,
+    // `/profile switch` mutates the store; adopt the resulting config into the
+    // host's own `config` closure exactly the way setupProviderRuntime's
+    // onConfigUpdate does, so the two copies cannot drift apart.
+    onActiveProfileChange: (nextConfig) => {
+      config = nextConfig;
+    },
     secretInputController,
     vault,
     brain,

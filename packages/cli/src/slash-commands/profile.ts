@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { Config, SlashCommand } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { atomicWrite, color, readJsonObjectFile } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
@@ -28,11 +28,19 @@ function sanitizeProfileName(raw: string): string | null {
  *   /profile list                  Show available profiles (● = active)
  *   /profile switch <name>         Switch to an existing profile
  *   /profile copy <name>           Copy the active profile's settings to a new profile
+ *
+ * `switch` writes the bootstrap (the durable selection read at next boot) and
+ * then pushes `activeProfile` through the live ConfigStore, which is the only
+ * event source the provider-runtime rebind watcher observes. `syncConfig` is
+ * the host's own copy of the merged config; it is a separate object from the
+ * store, so it has to be told too or the host keeps routing against the
+ * profile that was active when it booted.
  */
 export function buildProfileCommand(opts: SlashCommandContext): SlashCommand {
   const wpaths: WstackPaths | undefined = opts.paths;
   const configStore = opts.configStore;
   const renderer = opts.renderer;
+  const syncConfig = opts.onActiveProfileChange;
 
   return {
     name: 'profile',
@@ -46,8 +54,10 @@ export function buildProfileCommand(opts: SlashCommandContext): SlashCommand {
       '',
       'Profiles store all your settings (provider, model, fallbacks, features, etc.)',
       'in ~/.wrongstack/profiles/<name>/config.json.',
-      'A successful /profile switch closes the current session so every service',
-      'restarts against the newly selected profile.',
+      'A successful /profile switch rebinds the live config watchers to the newly',
+      'selected profile, so provider credentials and routing apply immediately.',
+      'Profile-owned state resolved at boot (memory, skills, prompts, statusline)',
+      'still needs a restart to follow the new profile.',
     ].join('\n'),
     async run(args) {
       if (!wpaths || !configStore) {
@@ -70,7 +80,7 @@ export function buildProfileCommand(opts: SlashCommandContext): SlashCommand {
 
       // ── switch <name> ────────────────────────────────────────────────────
       if (sub === 'switch') {
-        return switchProfile(wpaths, rest, renderer);
+        return switchProfile(wpaths, rest, renderer, configStore, syncConfig);
       }
 
       // ── copy <name> ──────────────────────────────────────────────────────
@@ -143,7 +153,9 @@ async function switchProfile(
   wpaths: WstackPaths,
   nameArg: string,
   renderer: { write: (msg: string) => void; writeWarning: (msg: string) => void },
-): Promise<{ message: string; exit?: boolean }> {
+  configStore: SlashCommandContext['configStore'],
+  syncConfig: ((next: Config) => void) | undefined,
+): Promise<{ message: string }> {
   const safe = sanitizeProfileName(nameArg);
   if (!safe) {
     const msg = formatNameError(nameArg);
@@ -168,7 +180,7 @@ async function switchProfile(
     return { message: msg };
   }
 
-  // Write the bootstrap.
+  // 1. Write the bootstrap: the durable selection every surface reads at boot.
   const bootstrap = { version: 1, activeProfile: safe };
   try {
     await atomicWrite(wpaths.globalConfig, JSON.stringify(bootstrap, null, 2), { mode: 0o600 });
@@ -178,11 +190,58 @@ async function switchProfile(
     return { message: msg };
   }
 
+  // 2. Tell the live ConfigStore. This is the ONLY thing that can reach
+  // `configStore.watch`, and the provider-runtime rebind watcher
+  // (wiring/provider-runtime-setup.ts) keys off `activeProfile` there to
+  // close the old profile's file watchers, rebuild the config layers against
+  // the new one, and re-read credentials/routing. Returning `exit: true` used
+  // to make this step unreachable, which is why switching looked inert until a
+  // full restart.
+  // `activeProfile` rides the shallow merge inside update(), so a plain patch
+  // is enough; it must not be routed through the watcher's `?? null` clear
+  // convention, which writes null for absent fields.
+  let next: Config;
+  try {
+    next = configStore.update({ activeProfile: safe } as Partial<Config>);
+  } catch (err) {
+    return finishSwitchFailure(renderer, safe, err);
+  }
+
+  // 3. Keep the host's own merged-config copy in sync. It is a distinct object
+  // from the store's snapshot; without this the host keeps routing against the
+  // profile that was active when it booted. Optional: surfaces that never wire
+  // it (bare TUI, WebUI route context) fall back to bootstrap-on-next-boot.
+  try {
+    syncConfig?.(next);
+  } catch (err) {
+    return finishSwitchFailure(renderer, safe, err);
+  }
+
   const msg =
     `${color.green('✓')} Switched to profile "${color.bold(safe)}"\n` +
-    `  ${color.dim('Closing this session; restart WrongStack to activate it.')}`;
+    `  ${color.dim('Provider credentials and routing reloaded; boot-resolved profile state (memory, skills, prompts) applies on next start.')}`;
   renderer.write(msg);
-  return { message: msg, exit: true };
+  return { message: msg };
+}
+
+/**
+ * A failed in-process rebind is NOT a failed switch: the bootstrap already
+ * names the new profile, so the next boot lands there regardless. Say so, or
+ * the user reads the exception as "nothing happened" and the session silently
+ * keeps running against the profile they just left.
+ */
+function finishSwitchFailure(
+  renderer: { write: (msg: string) => void; writeWarning: (msg: string) => void },
+  name: string,
+  err: unknown,
+): { message: string } {
+  const detail = err instanceof Error ? err.message : String(err);
+  const msg =
+    `${color.red('⚠')} Profile "${color.bold(name)}" is selected on disk, ` +
+    `but it could not be applied to this session: ${detail}\n` +
+    `  ${color.dim('Restart WrongStack to finish the switch.')}`;
+  renderer.writeWarning(msg);
+  return { message: msg };
 }
 
 // ─── copy ────────────────────────────────────────────────────────────────────

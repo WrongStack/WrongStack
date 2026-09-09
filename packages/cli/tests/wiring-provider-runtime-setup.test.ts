@@ -44,8 +44,17 @@ vi.mock('@wrongstack/sage', () => ({
   getSageService: vi.fn(() => undefined),
 }));
 
+// The bootstrap watcher reads ~/.wrongstack/config.json off disk. Mock only
+// that one reader and keep every other core/utils export real, so transitive
+// consumers (atomicWrite and friends) stay intact.
+vi.mock('@wrongstack/core/utils', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  readJsonObjectFile: vi.fn(async () => ({})),
+}));
+
 const storageMod = await import('@wrongstack/core/storage');
 const readProviderSnapshot = vi.mocked(storageMod.readProviderSnapshot);
+const utilsMod = await import('@wrongstack/core/utils');
 const watchProviderConfig = vi.mocked(storageMod.watchProviderConfig);
 const agentsMod = await import('@wrongstack/core/agent');
 const createFallbackModelExtension = vi.mocked(agentsMod.createFallbackModelExtension);
@@ -98,6 +107,9 @@ function makeDeps(overrides: Partial<ProviderRuntimeDeps> = {}) {
         return () => {};
       }),
       update: vi.fn(),
+      // The bootstrap watcher compares the disk selection against the store's
+      // current one, so the fixture must satisfy the real ConfigStore contract.
+      get: (): Config => fakeConfig(),
     },
     fallbackProfileManager: { reload: vi.fn() },
     providerRegistry: {} as never,
@@ -108,6 +120,7 @@ function makeDeps(overrides: Partial<ProviderRuntimeDeps> = {}) {
     refreshActiveReasoningConfig: vi.fn(async () => {}),
     wpaths: {
       profileConfig: (profile: string) => `/home/profiles/${profile}.json`,
+      globalConfig: '/home/config.json',
       projectLocalConfig: '/proj/.wrongstack/config.local.json',
       inProjectConfig: '/proj/.wrongstack/config.json',
     },
@@ -327,13 +340,16 @@ describe('setupProviderRuntime — extensions and consolidation', () => {
 });
 
 describe('setupProviderRuntime — config watchers', () => {
-  it('watches profile, project-local, and in-project layers', () => {
+  it('watches the profile, project-local, in-project, and bootstrap layers', () => {
     const deps = makeDeps();
     setupProviderRuntime(deps);
     expect(createdWatchers.map((w) => w.path)).toEqual([
       '/home/profiles/default.json',
       '/proj/.wrongstack/config.local.json',
       '/proj/.wrongstack/config.json',
+      // The root bootstrap is watched for the profile SELECTION only; it is
+      // deliberately not a ProviderConfigSnapshot merge layer.
+      '/home/config.json',
     ]);
   });
 
@@ -490,6 +506,29 @@ describe('setupProviderRuntime — config watchers', () => {
     expect(createdWatchers.map((w) => w.path)).toContain('/home/profiles/work.json');
     await flushAsync();
     expect(deps.configStore.update).toHaveBeenCalled();
+  });
+
+  it('adopts an external bootstrap profile edit and rebinds the layers', async () => {
+    // A desktop/external edit changes the selection in the root bootstrap only;
+    // ConfigStore is never touched, so only the bootstrap watcher can see it.
+    utilsMod.readJsonObjectFile = vi.fn(
+      async () => ({ version: 1, activeProfile: 'work' }) as Record<string, unknown>,
+    );
+    snapshotByPath['/home/profiles/work.json'] = {
+      providers: { anthropic: { apiKey: TOKEN_WORK } },
+      apiKey: TOKEN_WORK,
+    };
+    const deps = makeDeps();
+    setupProviderRuntime(deps);
+
+    expect(createdWatchers.map((w) => w.path)).toContain('/home/config.json');
+    createdWatchers.find((w) => w.path === '/home/config.json')?.trigger();
+    await flushAsync();
+
+    // The selection reaches the store WITHOUT the bootstrap's `version` field:
+    // routing `version` through a watcher patch is what could trip the
+    // ConfigStore guard (storage/config-store.ts:62) that requires version 1.
+    expect(deps.configStore.update).toHaveBeenCalledWith({ activeProfile: 'work' });
   });
 
   it('pushes watcher teardown and fallback-reload subscriptions onto teardownHandlers', () => {

@@ -62,20 +62,38 @@ describe('/profile', () => {
     );
   });
 
-  it('switches only the bootstrap and exits for a consistent restart', async () => {
+  it('switches the bootstrap and rebinds the live config without a restart', async () => {
     const workDir = path.join(paths.profilesDir, 'work');
     await fs.mkdir(workDir, { recursive: true });
     await fs.writeFile(
       path.join(workDir, 'config.json'),
       JSON.stringify({ provider: 'openai', model: 'gpt' }),
     );
+    const sync = vi.fn();
+    const cmd = buildProfileCommand({
+      paths,
+      configStore: {
+        get: () => ({ activeProfile: 'default' }),
+        update,
+      },
+      onActiveProfileChange: sync,
+      renderer: {
+        write: (message: string) => messages.push(message),
+        writeWarning: (message: string) => messages.push(message),
+      },
+    } as never as SlashCommandContext);
 
-    const result = await command().run('switch work');
+    const result = await cmd.run('switch work');
     const bootstrap = JSON.parse(await fs.readFile(paths.globalConfig, 'utf8'));
 
+    // Durable selection for the next boot.
     expect(bootstrap).toEqual({ version: 1, activeProfile: 'work' });
-    expect(update).not.toHaveBeenCalled();
-    expect(result?.exit).toBe(true);
-    expect(stripAnsi(result?.message ?? '')).toContain('restart WrongStack');
+    // The store write is the only event source the provider-runtime rebind
+    // watcher sees, so it must fire and it must not be skipped by an exit.
+    expect(update).toHaveBeenCalledWith({ activeProfile: 'work' });
+    expect(sync).toHaveBeenCalledTimes(1);
+    expect(result?.exit).toBeUndefined();
+    expect(stripAnsi(result?.message ?? '')).toContain('reloaded');
+    expect(stripAnsi(result?.message ?? '')).not.toContain('restart WrongStack');
   });
 });

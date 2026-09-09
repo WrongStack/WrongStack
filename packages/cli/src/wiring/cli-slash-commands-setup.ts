@@ -62,6 +62,12 @@ export function setupCliSlashCommands(params: {
   agentMonitor: B['agentMonitor'];
   onPanelOpen: B['onPanelOpen'];
   configStore: B['configStore'];
+  /**
+   * Forwards the store's new merged config back to the host after an in-process
+   * selection change (`/profile switch`). Optional: hosts without a live merged
+   * config leave it unset and the selection still applies on their next boot.
+   */
+  onActiveProfileChange?: B['onActiveProfileChange'];
   secretInputController: {
     readSecret: NonNullable<B['readSecret']>;
     readText: NonNullable<B['readText']>;
@@ -265,6 +271,7 @@ export function setupCliSlashCommands(params: {
     ...(agentMonitor ? { agentMonitor } : {}),
     onPanelOpen,
     configStore,
+    onActiveProfileChange: params.onActiveProfileChange,
     reader,
     readSecret: secretInputController.readSecret,
     readText: secretInputController.readText,

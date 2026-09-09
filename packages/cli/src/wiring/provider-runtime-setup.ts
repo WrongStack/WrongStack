@@ -17,7 +17,7 @@ import type {
   ProviderConfig,
   SecretVault,
 } from '@wrongstack/core/types';
-import type { WstackPaths } from '@wrongstack/core/utils';
+import { readJsonObjectFile, type WstackPaths } from '@wrongstack/core/utils';
 import { createProxyInstantApply } from '@wrongstack/core/wiring/proxy-rewrite';
 import { withCatalogCapabilities } from '@wrongstack/providers';
 import { getSageService } from '@wrongstack/sage';
@@ -551,6 +551,35 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
             void onAnyConfigChange();
           },
           { warn: (msg) => logger.warn(`Config watcher (${layer.path}): ${msg}`) },
+        ),
+      );
+      // The root bootstrap (~/.wrongstack/config.json) carries the profile
+      // SELECTION, not provider settings, so it cannot join `configLayers`:
+      // `readProviderSnapshot` builds its snapshot from an explicit whitelist
+      // that drops both `version` and `activeProfile`, and a 4th
+      // `{providers:{}, snapshotHasProviders:false}` layer at priority 0 would
+      // become the seed snapshot and clobber the providers carry-forward.
+      // It gets a dedicated subscription instead — which is also what keeps
+      // the ConfigStore `version` guard safe, since `version` never enters a
+      // merge here.
+      watchers.push(
+        watchProviderConfig(
+          wpaths.globalConfig,
+          vault,
+          async () => {
+            // Lenient read: a missing or torn bootstrap yields {} and is
+            // treated as "no selection change" rather than throwing out of an
+            // async watcher callback, where nothing would await it.
+            const bootstrap = await readJsonObjectFile(wpaths.globalConfig);
+            const selected = bootstrap['activeProfile'];
+            const current = configStore.get().activeProfile ?? 'default';
+            if (typeof selected !== 'string' || !selected || selected === current) return;
+            // The store update is the only event source the rebind watcher
+            // below observes; this watcher deliberately knows nothing about
+            // layers so there is a single path to a rebind.
+            configStore.update({ activeProfile: selected } as Partial<Config>);
+          },
+          { warn: (msg) => logger.warn(`Config watcher (bootstrap): ${msg}`) },
         ),
       );
     };

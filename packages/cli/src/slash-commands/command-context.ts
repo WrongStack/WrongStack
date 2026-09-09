@@ -609,6 +609,18 @@ export interface SlashCommandContext {
   /** Config store for reading/writing config sections at runtime (e.g. settings menu). */
   configStore: import('@wrongstack/core/types').ConfigStore;
   /**
+   * Host hook that adopts the store's new merged config after an in-process
+   * selection change (today only `/profile switch`). The host's own `config`
+   * object is a distinct snapshot from the store's, so a command that mutates
+   * the store must hand the result back or the host keeps reading the values
+   * it booted with.
+   *
+   * Optional by design: only the interactive CLI has a live merged config to
+   * keep in step. Surfaces that leave it unset still persist the selection to
+   * the bootstrap and pick it up on their next start.
+   */
+  onActiveProfileChange?: ((next: import('@wrongstack/core/types').Config) => void) | undefined;
+  /**
    * Optional accessor for the Chronicle metrics store. When wired, the
    * `/tool autothin candidates` and `apply` commands can read the
    * cross-session `tool_daily` rollup. Hosts that have not opened

@@ -85,6 +85,7 @@ interface SlashCommandsDeps {
     compact(ctx: Context, opts?: { aggressive?: boolean | undefined }): Promise<CompactReport>;
   };
   configStore: ConfigStore;
+  onActiveProfileChange?: BuiltinSlashCommandDeps['onActiveProfileChange'];
   /** Called by /clear after wiping the session on disk — tells the TUI to reset its UI state. */
   onNewSession?: (() => Promise<void>) | undefined;
   /**
@@ -129,6 +130,7 @@ export async function setupSlashCommands(params: SlashCommandsDeps): Promise<voi
     shadowController,
     compactor,
     configStore,
+    onActiveProfileChange,
     onNewSession,
     onPanelOpen,
   } = params;
@@ -227,6 +229,7 @@ export async function setupSlashCommands(params: SlashCommandsDeps): Promise<voi
       return lines.length > 0 ? lines.join('\n') : 'No active subagents.';
     },
     configStore,
+    onActiveProfileChange,
     reader,
     readSecret,
     vault,
