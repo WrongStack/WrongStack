@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "thresholdLines": 800,
   "files": {
+    "packages/acp/src/client/acp-session.ts": {
+      "lines": 821,
+      "relativeImports": 19
+    },
     "packages/cli/src/auth-menu/panel-service.ts": {
       "lines": 1039,
       "relativeImports": 7
@@ -23,8 +27,8 @@
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
-      "lines": 843,
-      "relativeImports": 23
+      "lines": 858,
+      "relativeImports": 24
     },
     "packages/cli/src/goal-host.ts": {
       "lines": 931,

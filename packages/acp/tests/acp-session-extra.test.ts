@@ -455,12 +455,9 @@ describe('ACPSession — focused coverage', () => {
     });
     const t = lastTransport();
 
-    // 1. Authenticate when state !== 'ready'
+    // 1. Already-authenticated is a no-op (retry after auth_required).
     (session as any).state = 'authenticated';
-    await expect(session.authenticate('token')).rejects.toMatchObject({
-      kind: 'protocol_error',
-      message: expect.stringContaining("state=authenticated (expected 'ready')"),
-    });
+    await expect(session.authenticate('token')).resolves.toBeUndefined();
 
     // Reset state to ready
     (session as any).state = 'ready';

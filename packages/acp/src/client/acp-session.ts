@@ -20,6 +20,7 @@ import {
   type SessionInfo,
   type StopReason,
 } from '../types/acp-v1.js';
+import { ACP_PACKAGE_VERSION } from '../version.js';
 import { isBestEffortAckMethod } from './acp-message-routing.js';
 import {
   type ACPCallbackOptions,
@@ -29,7 +30,7 @@ import {
   handleAcpTerminalRequest,
 } from './acp-session-callbacks.js';
 import { emptyRunResult } from './acp-session-content.js';
-import { ACPSessionError, isJsonRpcError } from './acp-session-errors.js';
+import { ACPSessionError, isAuthRequiredError, isJsonRpcError } from './acp-session-errors.js';
 import {
   type ACPSessionOpContext,
   executeCreateSession,
@@ -282,7 +283,7 @@ export class ACPSession {
         fs: { readTextFile: true, writeTextFile: true },
         terminal: true,
       },
-      clientInfo: { name: 'wrongstack', title: 'WrongStack', version: '0.287.0' },
+      clientInfo: { name: 'wrongstack', title: 'WrongStack', version: ACP_PACKAGE_VERSION },
     });
     if (isJsonRpcError(result)) {
       throw new ACPSessionError('init_failed', `initialize failed: ${result.message}`, result);
@@ -325,12 +326,13 @@ export class ACPSession {
     if (this.state === 'closed') {
       throw new ACPSessionError('closed', 'session is closed');
     }
-    if (this.state !== 'ready') {
+    if (this.state !== 'ready' && this.state !== 'authenticated') {
       throw new ACPSessionError(
         'protocol_error',
         `authenticate called in state=${this.state} (expected 'ready')`,
       );
     }
+    if (this.state === 'authenticated') return;
     if (!this.authMethods.some((m) => m.id === methodId)) {
       throw new ACPSessionError(
         'auth_failed',
@@ -465,7 +467,7 @@ export class ACPSession {
     }
 
     if (!this.sessionId) {
-      this.sessionId = await executeCreateSession(this.opContext());
+      this.sessionId = await this.createSessionWithAuth();
     }
 
     // Re-check after the await: an abort landing during session/new never
@@ -634,6 +636,61 @@ export class ACPSession {
     });
   }
 
+  /**
+   * `session/new`, then one authenticate+retry if the agent demands login.
+   * Logged-in CLIs succeed on the first call even when they advertise
+   * `authMethods`; we do not pop OAuth on every spawn.
+   */
+  private async createSessionWithAuth(): Promise<SessionId> {
+    try {
+      return await executeCreateSession(this.opContext());
+    } catch (err) {
+      if (this.state === 'authenticated' || !isAuthRequiredError(err)) {
+        throw err instanceof ACPSessionError
+          ? err
+          : new ACPSessionError(
+              'session_create_failed',
+              err instanceof Error ? err.message : String(err),
+              err,
+            );
+      }
+      await this.ensureAuthenticated();
+      return executeCreateSession(this.opContext());
+    }
+  }
+
+  /**
+   * Pick a non-terminal auth method and run `authenticate`. Terminal-only
+   * agents need an out-of-band login CLI (registry AUTHENTICATION.md) —
+   * we refuse rather than hang a TUI inside the JSON-RPC child.
+   */
+  private async ensureAuthenticated(): Promise<void> {
+    if (this.state === 'authenticated') return;
+    if (this.authMethods.length === 0) {
+      throw new ACPSessionError(
+        'auth_failed',
+        'This agent requires authentication before a session can start, but advertised no authMethods. Log into the CLI, then retry.',
+      );
+    }
+    const inProcess = this.authMethods.find(
+      (m) => m.type === undefined || m.type === 'agent' || m.type === 'oauth' || m.type === 'http',
+    );
+    if (inProcess) {
+      await this.authenticate(inProcess.id);
+      return;
+    }
+    const terminal = this.authMethods.find((m) => m.type === 'terminal');
+    const setupArgs = terminal?.args?.length ? terminal.args.join(' ') : undefined;
+    const setup =
+      setupArgs !== undefined
+        ? `${this.opts.command} ${setupArgs}`
+        : `${this.opts.command}${this.opts.args?.length ? ` ${this.opts.args.join(' ')}` : ''}`;
+    throw new ACPSessionError(
+      'auth_failed',
+      `This agent requires a terminal login before ACP can start. Run \`${setup}\` (or the CLI's /login), then retry.`,
+    );
+  }
+
   private sendResult(id: string | number, result: unknown): Promise<void> {
     return this.transport.send({ jsonrpc: '2.0', id, result } as never as ACPMessage);
   }
@@ -668,7 +725,16 @@ export class ACPSession {
       clearTimeout(pending.timeoutHandle);
       this.pending.delete(msg.id);
       if (msg.error !== undefined) {
-        pending.reject(new Error(msg.error.message ?? 'unknown JSON-RPC error'));
+        const method = pending.method;
+        const kind =
+          method === 'session/new'
+            ? 'session_create_failed'
+            : method === 'authenticate'
+              ? 'auth_failed'
+              : 'protocol_error';
+        pending.reject(
+          new ACPSessionError(kind, msg.error.message ?? 'unknown JSON-RPC error', msg.error),
+        );
       } else {
         pending.resolve(msg.result);
       }

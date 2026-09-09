@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   installDesignStudioMiddleware: vi.fn(),
   acpCommands: {} as Record<string, unknown>,
   findAgentDescriptor: vi.fn(),
+  resolveAcpAgentCommand: vi.fn(),
   makeACPSubagentRunner: vi.fn(),
   defaultPermissionPolicy: { mode: 'default' },
   fallbackProfileChain: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock('@wrongstack/acp', () => ({
   ACP_AGENT_COMMANDS: mocks.acpCommands,
   defaultPermissionPolicy: mocks.defaultPermissionPolicy,
   findAgentDescriptor: mocks.findAgentDescriptor,
+  resolveAcpAgentCommand: mocks.resolveAcpAgentCommand,
   makeACPSubagentRunner: mocks.makeACPSubagentRunner,
 }));
 
@@ -104,27 +106,30 @@ describe('small non-WebUI CLI modules', () => {
     });
   });
 
-  it('builds ACP runners from built-in and discovered descriptors', async () => {
+  it('builds ACP runners from resolveAcpAgentCommand (same path as spawn)', async () => {
     const builtInRunner = { run: vi.fn() };
-    mocks.acpCommands.builtin = {
-      command: 'builtin-agent',
-      args: ['--stdio'],
-      role: 'builtin',
-    };
+    mocks.resolveAcpAgentCommand.mockReturnValueOnce({
+      command: 'gemini',
+      args: ['--acp'],
+      role: 'gemini-cli',
+    });
     mocks.makeACPSubagentRunner.mockReturnValueOnce(builtInRunner);
 
-    expect(buildAcpSubagentRunner('builtin')).toBe(builtInRunner);
-    expect(mocks.findAgentDescriptor).not.toHaveBeenCalled();
+    expect(buildAcpSubagentRunner('gemini-cli')).toBe(builtInRunner);
+    expect(mocks.resolveAcpAgentCommand).toHaveBeenCalledWith('gemini-cli', undefined, undefined);
     expect(mocks.makeACPSubagentRunner).toHaveBeenNthCalledWith(1, {
-      command: 'builtin-agent',
-      args: ['--stdio'],
-      role: 'builtin',
+      command: 'gemini',
+      args: ['--acp'],
+      role: 'gemini-cli',
       permissionPolicy: mocks.defaultPermissionPolicy,
     });
 
     const discoveredRunner = { run: vi.fn() };
-    mocks.findAgentDescriptor.mockReturnValueOnce({
-      acp: { command: 'custom-agent', args: ['run'], env: { TOKEN: 'test' } },
+    mocks.resolveAcpAgentCommand.mockReturnValueOnce({
+      command: 'custom-agent',
+      args: ['run'],
+      role: 'custom',
+      env: { TOKEN: 'test' },
     });
     mocks.makeACPSubagentRunner.mockReturnValueOnce(discoveredRunner);
 
@@ -138,13 +143,17 @@ describe('small non-WebUI CLI modules', () => {
     });
   });
 
-  it('handles descriptor defaults and rejects unknown ACP agents', async () => {
-    mocks.findAgentDescriptor.mockReturnValueOnce({
-      acp: { command: 'minimal-agent' },
+  it('forwards user overrides and rejects unknown ACP agents', async () => {
+    mocks.resolveAcpAgentCommand.mockReturnValueOnce({
+      command: 'minimal-agent',
+      args: [],
+      role: 'minimal',
     });
     mocks.makeACPSubagentRunner.mockReturnValueOnce({ run: vi.fn() });
 
-    buildAcpSubagentRunner('minimal');
+    const overrides = { minimal: { command: 'minimal-agent' } };
+    buildAcpSubagentRunner('minimal', { overrides });
+    expect(mocks.resolveAcpAgentCommand).toHaveBeenCalledWith('minimal', overrides, undefined);
     expect(mocks.makeACPSubagentRunner).toHaveBeenCalledWith({
       command: 'minimal-agent',
       args: [],
@@ -152,29 +161,8 @@ describe('small non-WebUI CLI modules', () => {
       permissionPolicy: mocks.defaultPermissionPolicy,
     });
 
-    mocks.findAgentDescriptor.mockReturnValueOnce(undefined);
+    mocks.resolveAcpAgentCommand.mockReturnValueOnce(null);
     expect(() => buildAcpSubagentRunner('missing')).toThrow(ToolValidationError);
-  });
-
-  it('does not resolve ACP agent ids from the command catalog prototype chain', () => {
-    const runner = { run: vi.fn() };
-    Object.setPrototypeOf(mocks.acpCommands, {
-      inherited: { command: 'prototype-agent', role: 'inherited' },
-    });
-    mocks.findAgentDescriptor.mockReturnValueOnce({
-      acp: { command: 'descriptor-agent', args: ['--stdio'] },
-    });
-    mocks.makeACPSubagentRunner.mockReturnValueOnce(runner);
-
-    expect(buildAcpSubagentRunner('inherited')).toBe(runner);
-    expect(mocks.findAgentDescriptor).toHaveBeenCalledWith('inherited');
-    expect(mocks.makeACPSubagentRunner).toHaveBeenCalledWith({
-      command: 'descriptor-agent',
-      args: ['--stdio'],
-      role: 'inherited',
-      permissionPolicy: mocks.defaultPermissionPolicy,
-    });
-    Object.setPrototypeOf(mocks.acpCommands, Object.prototype);
   });
 
   it('suppresses routine storage telemetry and surfaces failures with inherited and payload trace IDs', () => {

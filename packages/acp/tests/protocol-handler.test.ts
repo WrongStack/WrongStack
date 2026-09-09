@@ -168,13 +168,13 @@ describe('ACPProtocolHandler', () => {
   });
 
   describe('authenticate', () => {
-    it('returns the unauthenticated outcome', async () => {
+    it('returns success so editors can proceed to session/new', async () => {
       const { handler, transport } = makeHandler();
       await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
       transport.sent.length = 0; // clear the initialize response
       await handler.handleMessage({ id: 2, method: 'authenticate', params: {} });
-      const resp = transport.sent[0] as { result?: { outcome: string } };
-      expect(resp.result).toEqual({ outcome: 'unauthenticated' });
+      const resp = transport.sent[0] as { result?: unknown };
+      expect(resp.result).toEqual({});
     });
   });
 

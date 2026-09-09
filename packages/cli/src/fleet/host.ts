@@ -33,6 +33,7 @@ import {
 } from '@wrongstack/core/types';
 
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import type { BuildAcpSubagentRunnerOptions } from './host-acp.js';
 import { HostAcpRunnerCache } from './host-acp-runner-cache.js';
 import { normalizeMaxConcurrent } from './host-concurrency.js';
 import { createHostFleetManager, prepareHostDirectorRuntime } from './host-director-builder.js';
@@ -105,7 +106,7 @@ export class MultiAgentHost {
    *  creating a new transport process on every ACP task dispatch. Stores the
    *  pending promise so concurrent calls for the same subagentId share one spawn.
    *  Bounded to 20 entries with LRU eviction to prevent unbounded memory growth. */
-  private readonly acpRunnerCache = new HostAcpRunnerCache();
+  private readonly acpRunnerCache: HostAcpRunnerCache;
   private readonly learningRoles = new HostLearningRoleTracker();
   private readonly learningScheduler: HostLearningScheduler;
   /** Adaptive concurrency controller — created in buildDirector() when config has
@@ -139,6 +140,7 @@ export class MultiAgentHost {
   ) {
     this.opts = opts;
     this.roster = createProjectAgentRoster(FLEET_ROSTER, deps.projectRoot);
+    this.acpRunnerCache = new HostAcpRunnerCache(20, () => this.acpCommandOpts());
     this.learningScheduler = new HostLearningScheduler(deps);
     this.shadowManager = new HostShadowManager({
       deps,
@@ -433,6 +435,16 @@ export class MultiAgentHost {
     return this.acpRunnerCache.get(subagentId);
   }
 
+  private acpCommandOpts(): BuildAcpSubagentRunnerOptions {
+    let overrides: BuildAcpSubagentRunnerOptions['overrides'];
+    try {
+      overrides = this.deps.configStore.get()?.acp?.agents;
+    } catch {
+      overrides = undefined;
+    }
+    return { ...(overrides ? { overrides } : {}) };
+  }
+
   async spawnACP(subagentId: string, task: string, config: Config): Promise<string> {
     const taskId = randomUUID();
     await this.ensureCoordinator(config);
@@ -544,9 +556,12 @@ export class MultiAgentHost {
         taskId: this.shadowManager.getTaskId(originSessionId) ?? 'shadow-active',
       };
     }
+    const isAcp = opts?.provider === 'acp';
     const subagentConfig = {
       name: opts?.name ?? 'adhoc',
-      role: isShadowSpawn ? 'shadow-agent' : 'general',
+      // ACP `--bg` passes the catalog id as `name`. Routing looks up the
+      // runner by role, so that id must be the role — not 'general'.
+      role: isShadowSpawn ? 'shadow-agent' : isAcp ? (opts?.name ?? 'general') : 'general',
       provider: opts?.provider,
       model: opts?.model,
       fallbackModels: opts?.fallbackModels,

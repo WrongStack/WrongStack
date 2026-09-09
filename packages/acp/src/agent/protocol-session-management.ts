@@ -279,7 +279,12 @@ export async function handleSessionPromptOp(
   };
   try {
     result = await ctx.runTurn(
-      { sessionId, prompt: p.prompt as ContentBlock[], signal: turnSignal.signal },
+      {
+        sessionId,
+        prompt: p.prompt as ContentBlock[],
+        signal: turnSignal.signal,
+        cwd: session.cwd,
+      },
       emit,
       api,
     );

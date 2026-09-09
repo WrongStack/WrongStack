@@ -117,7 +117,15 @@ export interface AuthMethod {
   id: string;
   name: string;
   description?: string | undefined;
-  type?: 'agent' | 'oauth' | 'http' | undefined;
+  /**
+   * Registry agents advertise `agent` (OAuth in-process) or `terminal`
+   * (separate login CLI). `oauth`/`http` are spec aliases; `env_var` is
+   * used by some agents but is not a registry-supported setup path.
+   */
+  type?: 'agent' | 'oauth' | 'http' | 'terminal' | 'env_var' | undefined;
+  /** Extra argv for `type: 'terminal'` setup (replaces the ACP entry args). */
+  args?: string[] | undefined;
+  env?: Record<string, string> | undefined;
 }
 
 export interface AuthenticateRequest {

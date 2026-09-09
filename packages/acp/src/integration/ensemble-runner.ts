@@ -325,20 +325,23 @@ export async function runEnsemble(opts: EnsembleRunnerOptions): Promise<Ensemble
   //    'failed' (unknown_agent).
   const runnable: { id: string; cmd: ACPSubagentRunnerOptions }[] = [];
   for (const id of requested) {
+    const cmd = resolveCmd(id);
     const det = detectedById.get(id);
-    if (!det?.installed) {
+    const pkgLauncher = cmd?.command === 'npx' || cmd?.command === 'uvx';
+    // Bundled-catalog PATH miss: skip. npx/uvx and registry-only ids that
+    // resolved to a command are runnable (sync'd registry is not in the
+    // PATH probe catalog).
+    if (det && !det.installed && !pkgLauncher) {
       setResult(results, id, {
         status: 'skipped',
-        reason: det?.reason ?? 'not in catalog',
+        reason: det.reason ?? 'binary not found',
       });
       continue;
     }
-    const cmd = resolveCmd(id);
     if (!cmd) {
       setResult(results, id, {
-        status: 'failed',
-        error: { kind: 'unknown_agent', message: `Unknown ACP agent: ${id}` },
-        durationMs: 0,
+        status: 'skipped',
+        reason: det?.reason ?? 'not in catalog',
       });
       continue;
     }

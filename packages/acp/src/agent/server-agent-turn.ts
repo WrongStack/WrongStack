@@ -128,7 +128,7 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     // Lazily create an agent for this session on the first turn.
     let agent = agents.get(input.sessionId);
     if (!agent) {
-      agent = await opts.agentFor(input.sessionId, process.cwd(), api);
+      agent = await opts.agentFor(input.sessionId, input.cwd ?? process.cwd(), api);
       agents.set(input.sessionId, agent);
       // Cold-load priming: re-feed the restored conversation into the new
       // agent's context so the MODEL resumes (not just the client UI).

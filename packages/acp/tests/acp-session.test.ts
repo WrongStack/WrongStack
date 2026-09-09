@@ -297,6 +297,62 @@ describe('ACPSession', () => {
     await session.close();
   });
 
+  it('authenticates with an agent-type method then retries session/new on auth_required', async () => {
+    const session = await startSession({
+      protocolVersion: 1,
+      agentCapabilities: { loadSession: true },
+      agentInfo: { name: 'fake-agent', version: '0.0.1' },
+      authMethods: [{ id: 'oauth', name: 'OAuth', type: 'agent' }],
+    });
+    const t = lastTransport();
+    const promptP = session.prompt([textContent('hello')], new AbortController().signal);
+
+    await new Promise((r) => setImmediate(r));
+    const newMsg = t.sent.find((m) => m.method === 'session/new');
+    t.respondError(newMsg!.id!, 'session/new', { code: -32000, message: 'Authentication required' });
+
+    await new Promise((r) => setImmediate(r));
+    const authMsg = t.sent.find((m) => m.method === 'authenticate');
+    expect(authMsg).toBeDefined();
+    expect((authMsg as { params?: { methodId?: string } }).params?.methodId).toBe('oauth');
+    t.respond(authMsg!.id!, 'authenticate', {});
+
+    await new Promise((r) => setImmediate(r));
+    const retryNew = t.sent.filter((m) => m.method === 'session/new');
+    expect(retryNew.length).toBe(2);
+    t.respond(retryNew[1]!.id!, 'session/new', { sessionId: 'sess_authed' });
+
+    await new Promise((r) => setImmediate(r));
+    const promptMsg = t.sent.find((m) => m.method === 'session/prompt');
+    t.respond(promptMsg!.id!, 'session/prompt', { stopReason: 'end_turn' });
+
+    const result = await promptP;
+    expect(result.stopReason).toBe('end_turn');
+    await session.close();
+  });
+
+  it('fails with a terminal-login hint when only terminal auth is advertised', async () => {
+    const session = await startSession({
+      protocolVersion: 1,
+      agentCapabilities: {},
+      agentInfo: { name: 'kimi', version: '1' },
+      authMethods: [{ id: 'login', name: 'Login', type: 'terminal', args: ['--setup'] }],
+    });
+    const t = lastTransport();
+    const promptP = session.prompt([textContent('hello')], new AbortController().signal);
+
+    await new Promise((r) => setImmediate(r));
+    const newMsg = t.sent.find((m) => m.method === 'session/new');
+    t.respondError(newMsg!.id!, 'session/new', { code: -32000, message: 'auth_required' });
+
+    await expect(promptP).rejects.toMatchObject({
+      kind: 'auth_failed',
+      message: expect.stringContaining('terminal login'),
+    });
+    expect(t.sent.some((m) => m.method === 'authenticate')).toBe(false);
+    await session.close();
+  });
+
   it('captures tool calls, diffs and thoughts, and streams them via onProgress', async () => {
     const session = await startSession();
     const t = lastTransport();

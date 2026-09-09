@@ -128,7 +128,7 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
     id: 'cline',
     displayName: 'Cline',
     vendor: 'community',
-    probe: { command: 'npx', args: ['--version'] },
+    probe: { command: 'cline', args: ['--version'] },
     // Registry id `cline`: the `cline` npm package speaks ACP behind `--acp`.
     acp: {
       command: 'npx',
@@ -171,7 +171,8 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       fs: true,
     },
     integration: 'experimental',
-    // Canonical repo URL — the org renamed; All-Hands-AI/OpenHands 301-redirects here.
+    // Not in the official agentclientprotocol/registry (2026-09). Keep as a
+    // local-PATH fallback; probe/spawn may hang if the binary has no ACP entry.
     docs: 'https://github.com/OpenHands/OpenHands',
   },
 
@@ -205,6 +206,7 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       fs: true,
     },
     integration: 'experimental',
+    // Not in the official agentclientprotocol/registry (2026-09).
     docs: 'https://kiro.dev',
   },
   {
@@ -227,8 +229,9 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
     id: 'mistral-vibe',
     displayName: 'Mistral Vibe',
     vendor: 'community',
-    probe: { command: 'vibe', args: ['--version'] },
-    acp: { command: 'vibe', args: [] },
+    probe: { command: 'vibe-acp', args: ['--version'] },
+    // Official registry ships a dedicated `vibe-acp` binary, not bare `vibe`.
+    acp: { command: 'vibe-acp', args: [] },
     supports: {
       loadSession: false,
       promptImages: false,

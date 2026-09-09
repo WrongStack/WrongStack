@@ -322,7 +322,7 @@ export function describeAgent(id: string): {
   args: readonly string[];
   role: string;
 } | null {
-  const entry = ACP_AGENT_COMMANDS[id];
+  const entry = resolveAcpAgentCommand(id);
   if (!entry) return null;
   return {
     command: entry.command,
@@ -367,10 +367,13 @@ export const REGISTRY_ID_ALIASES: Readonly<Record<string, string>> = {
   'gemini-cli': 'gemini',
   'codex-cli': 'codex-acp',
   copilot: 'github-copilot-cli',
-  // Kimi's live registry id is `kimi` — same as our catalog id, so the
-  // alias is identity. Listed explicitly so `resolveAcpAgentCommand`
-  // finds the live entry when the registry is synced.
   kimi: 'kimi',
+  cline: 'cline',
+  goose: 'goose',
+  opencode: 'opencode',
+  cursor: 'cursor',
+  'qwen-code': 'qwen-code',
+  'mistral-vibe': 'mistral-vibe',
 };
 
 /**

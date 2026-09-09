@@ -27,6 +27,20 @@ describe('mapRegistryEntry', () => {
     expect(d?.id).toBe('cline');
   });
 
+  it('forwards npx distribution env onto the spawn command', () => {
+    const d = mapRegistryEntry({
+      id: 'auggie',
+      distribution: {
+        npx: {
+          package: '@augmentcode/auggie@0.36.0',
+          args: ['--acp'],
+          env: { AUGMENT_DISABLE_AUTO_UPDATE: '1' },
+        },
+      },
+    });
+    expect(d?.acp.env).toEqual({ AUGMENT_DISABLE_AUTO_UPDATE: '1' });
+  });
+
   it('maps a uvx distribution to `uvx <pkg> <args>`', () => {
     const d = mapRegistryEntry({
       id: 'minion-code',

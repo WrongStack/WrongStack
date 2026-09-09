@@ -295,7 +295,10 @@ export class ACPProtocolHandler {
   }
 
   private async handleAuthenticate(id: string | number, _params: unknown): Promise<boolean> {
-    await this.sendResult(id, { outcome: 'unauthenticated' });
+    // Auth is the host's `wstack auth` provider config, already loaded when
+    // the real agent factory is wired. Returning `unauthenticated` stalled
+    // editors that wait for a successful authenticate before session/new.
+    await this.sendResult(id, {});
     return false;
   }
 

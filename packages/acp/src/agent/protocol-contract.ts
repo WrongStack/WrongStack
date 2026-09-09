@@ -55,6 +55,8 @@ export interface RunTurnInput {
   prompt: readonly ContentBlock[];
   /** Cancelled when the client sends `session/cancel` for this session. */
   signal: AbortSignal;
+  /** Session working directory from `session/new` (absolute). */
+  cwd?: string | undefined;
 }
 
 export interface RunTurnResult {

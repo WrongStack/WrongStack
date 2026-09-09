@@ -40,8 +40,8 @@ export interface RegistryAgentEntry {
   website?: string;
   authors?: string[];
   distribution?: {
-    npx?: { package: string; args?: string[] };
-    uvx?: { package: string; args?: string[] };
+    npx?: { package: string; args?: string[]; env?: Record<string, string> };
+    uvx?: { package: string; args?: string[]; env?: Record<string, string> };
     binary?: Record<
       string,
       { archive?: string; cmd: string; args?: string[]; env?: Record<string, string> }
@@ -99,9 +99,17 @@ export function mapRegistryEntry(
   let acp: { command: string; args?: string[]; env?: Record<string, string> } | null = null;
 
   if (dist?.npx?.package) {
-    acp = { command: 'npx', args: ['-y', dist.npx.package, ...(dist.npx.args ?? [])] };
+    acp = {
+      command: 'npx',
+      args: ['-y', dist.npx.package, ...(dist.npx.args ?? [])],
+      ...(dist.npx.env ? { env: dist.npx.env } : {}),
+    };
   } else if (dist?.uvx?.package) {
-    acp = { command: 'uvx', args: [dist.uvx.package, ...(dist.uvx.args ?? [])] };
+    acp = {
+      command: 'uvx',
+      args: [dist.uvx.package, ...(dist.uvx.args ?? [])],
+      ...(dist.uvx.env ? { env: dist.uvx.env } : {}),
+    };
   } else if (dist?.binary) {
     const target = dist.binary[platformKey];
     if (target?.cmd) {

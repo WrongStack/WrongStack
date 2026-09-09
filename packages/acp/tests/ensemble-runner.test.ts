@@ -91,16 +91,31 @@ describe('runEnsemble — skip / fail classification', () => {
     expect(makeACPSubagentRunnerWithStop).toHaveBeenCalledTimes(1);
   });
 
-  it('marks an agent as failed when the resolver returns null', async () => {
+  it('skips an agent when the resolver returns null', async () => {
     mockList.mockResolvedValue([{ id: 'a', installed: true }]);
     const r = await runEnsemble({
       agentIds: 'a',
       task: 't',
       resolveCmd: () => null, // pretend nothing in the catalog knows this id
     });
-    expect(r.summary).toEqual({ succeeded: 0, failed: 1, skipped: 0, cancelled: 0 });
-    expect(r.results[0]!.status).toBe('failed');
-    expect(r.results[0]!.error?.kind).toBe('unknown_agent');
+    expect(r.summary).toEqual({ succeeded: 0, failed: 0, skipped: 1, cancelled: 0 });
+    expect(r.results[0]!.status).toBe('skipped');
+    expect(r.results[0]!.reason).toBe('not in catalog');
+  });
+
+  it('runs a registry-only id that resolved to a command even if the PATH probe missed it', async () => {
+    mockList.mockResolvedValue([]);
+    makeACPSubagentRunnerWithStop.mockResolvedValue({
+      runner: async () => ({ result: 'ok', iterations: 1, toolCalls: 0 }),
+      stop: () => undefined,
+    });
+    const r = await runEnsemble({
+      agentIds: 'grok-build',
+      task: 't',
+      resolveCmd: (id) => ({ command: 'npx', args: ['-y', '@xai-official/grok'], role: id }),
+    });
+    expect(r.summary.succeeded).toBe(1);
+    expect(makeACPSubagentRunnerWithStop).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -343,7 +358,7 @@ describe('ensemble runner completion coverage', () => {
     const result = await runEnsemble({
       agentIds: 'missing',
       task: 't',
-      resolveCmd: fakeCmd,
+      resolveCmd: () => null,
     });
     expect(result.results[0]!.reason).toBe('not in catalog');
   });

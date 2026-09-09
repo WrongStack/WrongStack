@@ -1,27 +1,28 @@
 import {
-  ACP_AGENT_COMMANDS,
+  type AcpAgentCommandOverrides,
+  type AcpLiveCatalog,
   defaultPermissionPolicy,
-  findAgentDescriptor,
   makeACPSubagentRunner,
+  resolveAcpAgentCommand,
 } from '@wrongstack/acp';
 import type { SubagentRunner } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 
-export function buildAcpSubagentRunner(subagentId: string): Promise<SubagentRunner> {
-  let cmd = Object.hasOwn(ACP_AGENT_COMMANDS, subagentId)
-    ? ACP_AGENT_COMMANDS[subagentId]
-    : undefined;
-  if (!cmd) {
-    const desc = findAgentDescriptor(subagentId);
-    if (desc) {
-      cmd = {
-        command: desc.acp.command,
-        args: [...(desc.acp.args ?? [])],
-        role: subagentId,
-        ...(desc.acp.env ? { env: desc.acp.env } : {}),
-      };
-    }
-  }
+export interface BuildAcpSubagentRunnerOptions {
+  overrides?: AcpAgentCommandOverrides | undefined;
+  live?: AcpLiveCatalog | undefined;
+}
+
+/**
+ * Same command resolution as `wstack acp spawn` / `/acp` — user override,
+ * bundled catalog, synced registry, then the legacy map. Director / `--bg`
+ * must not use a different argv than the CLI spawn path.
+ */
+export function buildAcpSubagentRunner(
+  subagentId: string,
+  options?: BuildAcpSubagentRunnerOptions,
+): Promise<SubagentRunner> {
+  const cmd = resolveAcpAgentCommand(subagentId, options?.overrides, options?.live);
   if (!cmd) {
     throw new ToolValidationError({
       message: `Unknown ACP agent: ${subagentId}`,

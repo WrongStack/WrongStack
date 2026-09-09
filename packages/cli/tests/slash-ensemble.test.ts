@@ -13,6 +13,11 @@ const mockRenderEnsembleText = vi.fn(
 vi.mock('@wrongstack/acp', () => ({
   runEnsemble: mockRunEnsemble,
   renderEnsembleText: mockRenderEnsembleText,
+  resolveAcpAgentCommand: vi.fn(() => ({ command: 'gemini', args: ['--acp'] })),
+}));
+
+vi.mock('../src/acp-registry-cache.js', () => ({
+  loadCachedAcpRegistry: vi.fn(async () => null),
 }));
 
 const { buildEnsembleCommand } = await import('../src/slash-commands/ensemble.js');
@@ -67,10 +72,12 @@ describe('buildEnsembleCommand', () => {
     mockRunEnsemble.mockResolvedValueOnce(okEnsemble(2));
     const cmd = buildEnsembleCommand(ctx());
     const res = await cmd.run('claude-code,gemini-cli "review this diff"');
-    expect(mockRunEnsemble).toHaveBeenCalledWith({
-      agentIds: 'claude-code,gemini-cli',
-      task: 'review this diff',
-    });
+    expect(mockRunEnsemble).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentIds: 'claude-code,gemini-cli',
+        task: 'review this diff',
+      }),
+    );
     expect(res?.message).toContain('RENDERED: ok=2 fail=0 skip=0 cancel=0');
   });
 
@@ -78,20 +85,24 @@ describe('buildEnsembleCommand', () => {
     mockRunEnsemble.mockResolvedValueOnce(okEnsemble(3));
     const cmd = buildEnsembleCommand(ctx());
     await cmd.run('claude-code,gemini-cli,codex-cli "explain v1 protocol"');
-    expect(mockRunEnsemble).toHaveBeenCalledWith({
-      agentIds: 'claude-code,gemini-cli,codex-cli',
-      task: 'explain v1 protocol',
-    });
+    expect(mockRunEnsemble).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentIds: 'claude-code,gemini-cli,codex-cli',
+        task: 'explain v1 protocol',
+      }),
+    );
   });
 
   it('preserves internal spaces in the task description', async () => {
     mockRunEnsemble.mockResolvedValueOnce(okEnsemble(1));
     const cmd = buildEnsembleCommand(ctx());
     await cmd.run('claude-code "fix  the   auth bug  in session.ts"');
-    expect(mockRunEnsemble).toHaveBeenCalledWith({
-      agentIds: 'claude-code',
-      task: 'fix  the   auth bug  in session.ts',
-    });
+    expect(mockRunEnsemble).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentIds: 'claude-code',
+        task: 'fix  the   auth bug  in session.ts',
+      }),
+    );
   });
 
   it('surfaces a per-agent failure summary', async () => {

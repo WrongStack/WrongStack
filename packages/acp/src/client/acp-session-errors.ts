@@ -25,3 +25,28 @@ export function isJsonRpcError(v: unknown): v is JsonRpcError {
     typeof (v as { message?: unknown }).message === 'string'
   );
 }
+
+/**
+ * True when an agent refused `session/new` (or similar) because the user
+ * must authenticate first. Official registry agents often return this
+ * (~19/31 in the 2026-09 protocol matrix) instead of creating a session.
+ */
+export function isAuthRequiredError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/auth(_|-)?required|authentication required/i.test(message)) return true;
+  const cause =
+    err instanceof ACPSessionError
+      ? err.cause
+      : err && typeof err === 'object' && 'cause' in err
+        ? (err as { cause: unknown }).cause
+        : err;
+  if (!cause || typeof cause !== 'object') return false;
+  const data = (cause as { data?: unknown }).data;
+  if (data === 'auth_required' || data === 'AUTH_REQUIRED') return true;
+  if (data && typeof data === 'object') {
+    const d = data as { authRequired?: unknown; code?: unknown };
+    if (d.authRequired === true) return true;
+    if (d.code === 'auth_required' || d.code === 'AUTH_REQUIRED') return true;
+  }
+  return false;
+}

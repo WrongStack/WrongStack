@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T06:48:22.346Z",
+  "generatedAt": "2026-09-09T07:12:32.036Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 36,
     "sourceFiles": 3697,
     "testFiles": 3179,
-    "sourceLines": 889477,
+    "sourceLines": 889639,
     "workspaceEdges": 127,
-    "moduleEdges": 11671,
+    "moduleEdges": 11674,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -20259,6 +20259,11 @@
   "nonCommandSlashImports": [],
   "hotspotCandidates": [
     {
+      "file": "packages/acp/src/client/acp-session.ts",
+      "lines": 821,
+      "relativeImports": 19
+    },
+    {
       "file": "packages/cli/src/auth-menu/panel-service.ts",
       "lines": 1039,
       "relativeImports": 7
@@ -20285,8 +20290,8 @@
     },
     {
       "file": "packages/cli/src/fleet/host.ts",
-      "lines": 843,
-      "relativeImports": 23
+      "lines": 858,
+      "relativeImports": 24
     },
     {
       "file": "packages/cli/src/goal-host.ts",

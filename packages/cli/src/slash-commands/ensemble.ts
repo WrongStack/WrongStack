@@ -1,6 +1,12 @@
-import { renderEnsembleText, runEnsemble } from '@wrongstack/acp';
+import {
+  type AcpAgentCommandOverrides,
+  renderEnsembleText,
+  resolveAcpAgentCommand,
+  runEnsemble,
+} from '@wrongstack/acp';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { loadCachedAcpRegistry } from '../acp-registry-cache.js';
 import type { SlashCommandContext } from './command-context.js';
 
 /**
@@ -16,7 +22,7 @@ import type { SlashCommandContext } from './command-context.js';
  *
  * Run /ensemble (no args) to see usage and the list of available agents.
  */
-export function buildEnsembleCommand(_opts: SlashCommandContext): SlashCommand {
+export function buildEnsembleCommand(opts: SlashCommandContext): SlashCommand {
   return {
     name: 'ensemble',
     category: 'Agent',
@@ -84,9 +90,12 @@ export function buildEnsembleCommand(_opts: SlashCommandContext): SlashCommand {
       }
 
       try {
+        const overrides = readEnsembleOverrides(opts);
+        const live = opts.paths ? await loadCachedAcpRegistry(opts.paths) : null;
         const result = await runEnsemble({
           agentIds,
           task,
+          resolveCmd: (id) => resolveAcpAgentCommand(id, overrides, live?.byId),
           ...(timeoutMs !== undefined ? { timeoutMs } : {}),
           ...(maxConcurrency !== undefined ? { maxConcurrency } : {}),
         });
@@ -104,6 +113,14 @@ export function buildEnsembleCommand(_opts: SlashCommandContext): SlashCommand {
  * claude-code "review this diff"`); users naturally type the quotes and
  * would be confused if the literal `"` characters ended up in the task.
  */
+function readEnsembleOverrides(opts: SlashCommandContext): AcpAgentCommandOverrides | undefined {
+  try {
+    return opts.configStore?.get()?.acp?.agents;
+  } catch {
+    return undefined;
+  }
+}
+
 function stripSurroundingQuotes(s: string): string {
   if (s.length < 2) return s;
   const first = s[0];

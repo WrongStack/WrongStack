@@ -82,6 +82,21 @@ function makeHandlerWithFactory(agentFor: (sessionId: string) => FakeAgent) {
 }
 
 describe('makeACPServerAgentTurn', () => {
+  it('passes the session cwd from RunTurnInput into agentFor', async () => {
+    const agentFor = vi.fn(async () => makeFakeAgent('ok') as never as Agent);
+    const turn = makeACPServerAgentTurn({ agentFor });
+    await turn(
+      {
+        sessionId: 's-cwd',
+        prompt: [{ type: 'text', text: 'hi' }],
+        signal: new AbortController().signal,
+        cwd: '/workspace/app',
+      },
+      () => {},
+    );
+    expect(agentFor).toHaveBeenCalledWith('s-cwd', '/workspace/app', undefined);
+  });
+
   it('drops agent and replay state when the protocol session closes', async () => {
     const agentFor = vi.fn(async () => makeFakeAgent('bounded') as never as Agent);
     const turn = makeACPServerAgentTurn({ agentFor });
