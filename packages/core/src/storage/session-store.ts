@@ -28,6 +28,11 @@ import { withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import type { EventBus } from './event-bus-port.js';
 import { SessionCheckpointCas } from './session-checkpoint-cas.js';
+import {
+  type CheckpointGcResult,
+  collectReachableManifestHashes,
+  sweepCheckpointCas,
+} from './session-checkpoint-gc.js';
 import { captureCheckpoint, materializeCheckpoint, sessionContentText } from './session-helpers.js';
 import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
 import { scrubPersistedSessionSummary } from './session-read-scrubber.js';
@@ -316,6 +321,28 @@ export class DefaultSessionStore implements SessionStore {
 
   async materializeWorkspaceCheckpoint(checkpoint: WorkspaceCheckpointRef, targetRoot: string) {
     return materializeCheckpoint(this.checkpointCas, checkpoint, targetRoot);
+  }
+
+  /**
+   * Reclaim workspace checkpoints no surviving transcript references.
+   *
+   * Deleting a session removed its transcript but never the manifest and blobs
+   * that transcript pointed at, so the CAS only ever grew. This is explicit and
+   * user-initiated (`/prune --checkpoints`) rather than part of boot: a full
+   * reachability scan on a real store took 101 seconds.
+   *
+   * `maxAgeDays` is an age floor for the sweep, not a filter for what counts as
+   * garbage — anything younger survives regardless, so a checkpoint captured
+   * mid-sweep or referenced from a transcript the scan could not read is safe.
+   */
+  async collectCheckpointGarbage(maxAgeDays = 30): Promise<CheckpointGcResult> {
+    const casRoot = path.join(this.dir, '_cas');
+    const reachableManifestHashes = await collectReachableManifestHashes(this.dir);
+    return sweepCheckpointCas({
+      casRoot,
+      reachableManifestHashes,
+      keepNewerThanMs: Date.now() - Math.max(0, maxAgeDays) * 86_400_000,
+    });
   }
 
   async resolveId(query: string): Promise<string> {

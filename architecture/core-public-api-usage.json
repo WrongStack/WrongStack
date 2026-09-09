@@ -159,8 +159,8 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/storage": {
-      "files": 120,
-      "typeOnly": 32,
+      "files": 121,
+      "typeOnly": 33,
       "runtimeOrMixed": 118
     },
     "@wrongstack/core/tasking": {
@@ -9369,6 +9369,12 @@
       "file": "packages/cli/src/slash-commands/plan.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/slash-commands/prune.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/storage",

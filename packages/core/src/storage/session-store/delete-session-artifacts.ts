@@ -9,6 +9,18 @@ export type DeleteSessionArtifactsOptions = {
   jsonlPath: string;
 };
 
+/**
+ * Per-session JSON sidecars written next to the transcript, all of which die
+ * with it. Exported so the prune sweep can recognize the same set when it
+ * decides whether a date directory still holds anything worth keeping.
+ */
+export const SESSION_SIDECAR_SUFFIXES: readonly string[] = Object.freeze([
+  '.plan.json',
+  '.tasks.json',
+  '.todos.json',
+  '.completed-work.json',
+]);
+
 export async function deleteSessionArtifacts({
   rootDir,
   id,
@@ -28,9 +40,13 @@ export async function deleteSessionArtifacts({
   ];
   const deletions: Array<Promise<void>> = [
     ...uniquePaths.map((target) => fsp.unlink(target)),
-    fsp.unlink(sessionStorePath(rootDir, id, '.plan.json')),
-    fsp.unlink(sessionStorePath(rootDir, id, '.tasks.json')),
-    fsp.unlink(sessionStorePath(rootDir, id, '.todos.json')),
+    // Every per-session sidecar written next to the transcript. A suffix
+    // missing here does not fail loudly — it just outlives the session it
+    // belongs to, keeps its date directory from ever being removed, and
+    // accumulates. `.completed-work.json` did exactly that.
+    ...SESSION_SIDECAR_SUFFIXES.map((suffix) =>
+      fsp.unlink(sessionStorePath(rootDir, id, suffix)),
+    ),
     fsp.unlink(shardManifestPath(rootDir, path.dirname(id) === '.' ? '' : path.dirname(id))),
   ];
 

@@ -943,6 +943,7 @@
         "export { type AuditLevel, CORE_RECONSTRUCT_EVENTS, createSessionEventBridge, resolveAuditLevel, resolveSessionLoggingConfig, type SessionEventBridge, type SessionEventBridgeOptions, type SessionSamplingOptions, STANDARD_AUDIT_EVENTS, type ToolProgressSamplingOptions, } from './session-event-bridge.js';",
         "export { type BoardStorePort, boardStore, setBoardStorePort, } from './board-store-port.js';",
         "export { type CatalogSessionRecord, type MaintenanceLease, type ResumeReservation, type SessionCatalogHealth, SessionCatalogProjectClient, type SessionCatalogProjectClientOptions, type SessionLeaseCredential, type SessionResumeClaim, } from '../session-catalog/index.js';",
+        "export { type CheckpointGcResult, collectReachableManifestHashes, sweepCheckpointCas, } from './session-checkpoint-gc.js';",
         "export { type CheckpointGitResult, SessionCheckpointCas, type SessionCheckpointCasOptions, } from './session-checkpoint-cas.js';",
         "export { type CompletedWorkCheckpointFile, loadCompletedWorkCheckpoint, saveCompletedWorkCheckpoint, } from './completed-work-checkpoint.js';",
         "export { type ConfigMigration, ConfigMigrationError, DEFAULT_CONFIG_MIGRATIONS, type MigrationContext, type MigrationResult, runConfigMigrations, } from './config-migration.js';",
@@ -1597,8 +1598,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 105,
-      "sourceLines": 23028
+      "sourceFiles": 106,
+      "sourceLines": 23348
     },
     {
       "directory": "tasking",

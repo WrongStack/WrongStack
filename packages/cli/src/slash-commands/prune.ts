@@ -1,6 +1,14 @@
+import type { CheckpointGcResult } from '@wrongstack/core/storage';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
+
+/** Shared by session pruning and the checkpoint sweep; default 30 days. */
+function parseMaxAgeDays(parts: readonly string[]): number {
+  const numPart = parts.find((p) => /^\d+$/.test(p));
+  if (!numPart) return 30;
+  return Math.max(1, Math.min(365, Number.parseInt(numPart, 10)));
+}
 
 export function buildPruneCommand(opts: SlashCommandContext): SlashCommand {
   return {
@@ -13,11 +21,52 @@ export function buildPruneCommand(opts: SlashCommandContext): SlashCommand {
       '  /prune               Delete sessions older than 30 days.\n' +
       '  /prune 14            Delete sessions older than 14 days.\n' +
       '  /prune --dry-run     Show what would be deleted without deleting.\n' +
-      '  /prune --rebuild-index  Rebuild the session index from disk.',
+      '  /prune --rebuild-index  Rebuild the session index from disk.\n' +
+      '  /prune --checkpoints Reclaim workspace checkpoints no session references.',
     async run(args) {
       const parts = args.split(/\s+/).filter(Boolean);
       const rebuildIndex = parts.includes('--rebuild-index') || parts.includes('--rebuild');
       const dryRun = parts.includes('--dry-run');
+      const checkpoints = parts.includes('--checkpoints');
+
+      if (checkpoints) {
+        // Deleting a session removed its transcript but never the workspace
+        // checkpoints it pointed at, so the CAS only ever grew. This is a
+        // separate, explicit sweep because it has to read every surviving
+        // transcript to know what is still referenced — 101 seconds on a real
+        // store, which is why it is not part of boot or of a plain /prune.
+        const store = opts.sessionStore as
+          | { collectCheckpointGarbage?: (maxAgeDays: number) => Promise<CheckpointGcResult> }
+          | undefined;
+        if (!store?.collectCheckpointGarbage) {
+          return { message: color.yellow('Session store does not support checkpoint GC.') };
+        }
+        const ageDays = parseMaxAgeDays(parts);
+        const gc = await store.collectCheckpointGarbage(ageDays);
+        if (gc.manifestsDeleted === 0 && gc.objectsDeleted === 0) {
+          return {
+            message: color.dim(
+              `No unreferenced checkpoints older than ${ageDays} day${ageDays === 1 ? '' : 's'} ` +
+                `(${gc.manifestsScanned} manifest${gc.manifestsScanned === 1 ? '' : 's'}, ` +
+                `${gc.objectsScanned} object${gc.objectsScanned === 1 ? '' : 's'} checked).`,
+            ),
+          };
+        }
+        const mib = (gc.bytesReclaimed / (1024 * 1024)).toFixed(1);
+        const lines = [
+          `Reclaimed ${color.green(`${mib} MiB`)} from the checkpoint store: ` +
+            `${color.cyan(String(gc.manifestsDeleted))}/${gc.manifestsScanned} manifests and ` +
+            `${color.cyan(String(gc.objectsDeleted))}/${gc.objectsScanned} objects.`,
+        ];
+        if (gc.errors.length > 0) {
+          lines.push(
+            color.dim(
+              `${gc.errors.length} item${gc.errors.length === 1 ? '' : 's'} were kept because they could not be read.`,
+            ),
+          );
+        }
+        return { message: lines.join('\n') };
+      }
 
       if (rebuildIndex) {
         if (!opts.sessionStore?.rebuildIndex) {
@@ -34,12 +83,7 @@ export function buildPruneCommand(opts: SlashCommandContext): SlashCommand {
         };
       }
 
-      // Parse custom max age (default 30 days).
-      let maxAgeDays = 30;
-      const numPart = parts.find((p) => /^\d+$/.test(p));
-      if (numPart) {
-        maxAgeDays = Math.max(1, Math.min(365, Number.parseInt(numPart, 10)));
-      }
+      const maxAgeDays = parseMaxAgeDays(parts);
 
       if (dryRun) {
         if (!opts.sessionStore) {

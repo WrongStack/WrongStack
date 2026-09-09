@@ -229,6 +229,11 @@ export {
   type SessionCheckpointCasOptions,
 } from './session-checkpoint-cas.js';
 export {
+  type CheckpointGcResult,
+  collectReachableManifestHashes,
+  sweepCheckpointCas,
+} from './session-checkpoint-gc.js';
+export {
   type DiagnoseSessionsOptions,
   diagnoseSessions,
   repairSessionSummaries,

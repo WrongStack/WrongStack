@@ -552,16 +552,23 @@ describe('subcommands', () => {
     expect(stripAnsi(rig.out.buf)).toContain('No projects');
   });
 
-  it('projects lists entries with meta.json', async () => {
+  it('projects lists manifest entries and ignores scratch directories', async () => {
     const rig = withRig();
     const globalRoot = path.join(tmp, 'g');
-    const projectsRoot = path.join(globalRoot, 'projects');
-    await fs.mkdir(path.join(projectsRoot, 'abc123'), { recursive: true });
+    await fs.mkdir(globalRoot, { recursive: true });
     await fs.writeFile(
-      path.join(projectsRoot, 'abc123', 'meta.json'),
-      JSON.stringify({ root: '/some/path', lastSeen: '2026-05-13T00:00:00Z' }),
+      path.join(globalRoot, 'projects.json'),
+      JSON.stringify({
+        projects: [
+          { name: 'p', root: '/some/path', slug: 'abc123', lastSeen: '2026-05-13T00:00:00Z' },
+        ],
+      }),
     );
-    await fs.mkdir(path.join(projectsRoot, 'def456'), { recursive: true });
+    // Per-run scratch state for ephemeral roots lives under `projects/` too and
+    // is not a project: listing it buried the real entries 50:1.
+    await fs.mkdir(path.join(globalRoot, 'projects', 'chimera-def456-c0ffee'), {
+      recursive: true,
+    });
     const paths = resolveWstackPaths({
       projectRoot: process.cwd(),
       globalRoot,
@@ -572,8 +579,8 @@ describe('subcommands', () => {
     const text = stripAnsi(rig.out.buf);
     expect(text).toContain('abc123');
     expect(text).toContain('/some/path');
-    expect(text).toContain('def456');
-    expect(text).toContain('(no meta)');
+    expect(text).not.toContain('chimera');
+    expect(text).not.toContain('(no meta)');
   });
 
   it('mcp lists configured servers', async () => {

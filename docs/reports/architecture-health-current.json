@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T05:57:39.290Z",
+  "generatedAt": "2026-09-09T06:48:22.346Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3696,
-    "testFiles": 3177,
-    "sourceLines": 889084,
+    "sourceFiles": 3697,
+    "testFiles": 3179,
+    "sourceLines": 889477,
     "workspaceEdges": 127,
-    "moduleEdges": 11667,
+    "moduleEdges": 11671,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -145,7 +145,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 484,
-      "testFiles": 464,
+      "testFiles": 465,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -184,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 464
+          "testFiles": 465
         }
       ]
     },
@@ -214,8 +214,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 845,
-      "testFiles": 722,
+      "sourceFiles": 846,
+      "testFiles": 723,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -230,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 722
+          "testFiles": 723
         }
       ]
     },
@@ -4059,6 +4059,12 @@
       },
       {
         "file": "packages/cli/tests/subcommands/permissions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/subcommands/projects.test.ts",
         "projects": [
           "root-node"
         ]
@@ -8019,6 +8025,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-checkpoint-cas.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-checkpoint-gc.test.ts",
         "projects": [
           "root-node"
         ]

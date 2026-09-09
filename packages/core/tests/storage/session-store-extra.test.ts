@@ -781,6 +781,66 @@ describe('DefaultSessionStore — best-effort cleanup paths', () => {
     await expect(fs.stat(shard)).rejects.toBeDefined();
   });
 
+  it('deletes every per-session sidecar, including completed-work', async () => {
+    // A suffix missing from the delete list does not fail loudly: the sidecar
+    // simply outlives the session, keeps its date shard alive forever, and
+    // accumulates. `.completed-work.json` did exactly that.
+    const shard = path.join(tmp, '2020-02-02');
+    await fs.mkdir(shard, { recursive: true });
+    await writeRawSession(shard, '00-00-00Z_stale', [
+      {
+        type: 'session_start',
+        ts: '2020-02-02T00:00:00.000Z',
+        id: '2020-02-02/00-00-00Z_stale',
+        model: 'm',
+        provider: 'p',
+      },
+    ]);
+    const sidecars = ['.plan.json', '.tasks.json', '.todos.json', '.completed-work.json'].map(
+      (suffix) => path.join(shard, `00-00-00Z_stale${suffix}`),
+    );
+    for (const file of sidecars) await fs.writeFile(file, '[]');
+    const old = new Date('2020-02-02T00:00:00.000Z');
+    await fs.utimes(path.join(shard, '00-00-00Z_stale.jsonl'), old, old);
+
+    await store.prune(30);
+
+    for (const file of sidecars) {
+      await expect(fs.stat(file), `${path.basename(file)} outlived its session`).rejects.toBeDefined();
+    }
+    await expect(fs.stat(shard)).rejects.toBeDefined();
+  });
+
+  it('prune sweeps a date shard that older versions left holding only leftovers', async () => {
+    // No transcript here at all — this is the shape a store is already in when
+    // an earlier version pruned the transcripts but could not remove their
+    // sidecars. Nothing will ever call deleteSession for these again, so the
+    // directory sweep is the only thing that can reclaim them. A working store
+    // carried 36 of these, the oldest more than two months past retention.
+    const shard = path.join(tmp, '2020-04-04');
+    await fs.mkdir(shard, { recursive: true });
+    await fs.writeFile(path.join(shard, '_manifest.json'), '{}');
+    await fs.writeFile(path.join(shard, '00-00-00Z_ghost.completed-work.json'), '[]');
+    await fs.writeFile(path.join(shard, '00-00-00Z_ghost.todos.json'), '[]');
+
+    await store.prune(30);
+    await expect(fs.stat(shard)).rejects.toBeDefined();
+  });
+
+  it('prune keeps a leftover-only shard that still holds something unrecognized', async () => {
+    // The sweep must not become a blanket delete: anything it cannot account
+    // for keeps the directory, so an unexpected artifact survives.
+    const shard = path.join(tmp, '2020-05-05');
+    await fs.mkdir(shard, { recursive: true });
+    await fs.writeFile(path.join(shard, '_manifest.json'), '{}');
+    await fs.writeFile(path.join(shard, 'operator-notes.md'), 'keep me');
+
+    await store.prune(30);
+    await expect(fs.readFile(path.join(shard, 'operator-notes.md'), 'utf8')).resolves.toBe(
+      'keep me',
+    );
+  });
+
   it('prune skips aged sessions that are still in use', async () => {
     await writeRawSession(tmp, 'live-old', [
       {

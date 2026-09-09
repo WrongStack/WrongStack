@@ -4,6 +4,7 @@ import {
   isSessionTranscriptFileName,
   stripSessionTranscriptExtension,
 } from '../../utils/session-scoped-path.js';
+import { SESSION_SIDECAR_SUFFIXES } from './delete-session-artifacts.js';
 
 /**
  * Prunable === is a transcript. This module held the only complete sidecar
@@ -62,10 +63,25 @@ export async function pruneSessionFiles(
     if (!entry.isDirectory()) continue;
     const dateDir = path.join(storeDir, entry.name);
     try {
-      const remaining = await fsp.readdir(dateDir);
+      const remaining = await fsp.readdir(dateDir, { withFileTypes: true });
       if (remaining.length === 0) {
         /* v8 ignore next -- best-effort: rmdir of a confirmed-empty dir does not reject */
         await fsp.rmdir(dateDir).catch(() => undefined);
+        continue;
+      }
+      // A pruned date directory is rarely literally empty: the shard's own
+      // `_manifest.json` stays behind, and so does any per-session sidecar
+      // whose suffix the delete path did not know about. Requiring an empty
+      // directory therefore never fired — a real store carried 36 date
+      // directories holding nothing but those leftovers, the oldest more than
+      // two months past the retention window.
+      //
+      // Remove the directory when nothing session-bearing is left. Anything
+      // unrecognized — a subdirectory, a file that is neither the shard
+      // manifest nor a known sidecar — keeps it, so an unexpected artifact is
+      // preserved rather than swept up.
+      if (remaining.every((child) => child.isFile() && isDisposableLeftover(child.name))) {
+        await fsp.rm(dateDir, { recursive: true, force: true }).catch(() => undefined);
       }
     } catch {
       // best-effort
@@ -73,4 +89,15 @@ export async function pruneSessionFiles(
   }
 
   return deleted;
+}
+
+/**
+ * True for a file that only exists to describe sessions in this directory, and
+ * so has nothing left to describe once every transcript is gone.
+ */
+function isDisposableLeftover(name: string): boolean {
+  if (name === '_manifest.json') return true;
+  const lower = name.toLowerCase();
+  return SESSION_SIDECAR_SUFFIXES.some((suffix) => lower.endsWith(suffix)) ||
+    lower.endsWith('.summary.json');
 }
