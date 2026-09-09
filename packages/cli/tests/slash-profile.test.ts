@@ -69,6 +69,12 @@ describe('/profile', () => {
       path.join(workDir, 'config.json'),
       JSON.stringify({ provider: 'openai', model: 'gpt' }),
     );
+    // A key only the OUTGOING profile defines. The store merges shallowly, so
+    // without an explicit clear this survives into "work".
+    await fs.writeFile(
+      path.join(paths.profilesDir, 'default', 'config.json'),
+      JSON.stringify({ provider: 'anthropic', model: 'claude', tools: { maxIterations: 7 } }),
+    );
     const sync = vi.fn();
     const cmd = buildProfileCommand({
       paths,
@@ -90,7 +96,14 @@ describe('/profile', () => {
     expect(bootstrap).toEqual({ version: 1, activeProfile: 'work' });
     // The store write is the only event source the provider-runtime rebind
     // watcher sees, so it must fire and it must not be skipped by an exit.
-    expect(update).toHaveBeenCalledWith({ activeProfile: 'work' });
+    expect(update).toHaveBeenCalledWith({
+      provider: 'openai',
+      model: 'gpt',
+      activeProfile: 'work',
+      tools: null,
+    });
+    // `version` is never carried: nulling it trips the ConfigStore guard.
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('version');
     expect(sync).toHaveBeenCalledTimes(1);
     expect(result?.exit).toBeUndefined();
     expect(stripAnsi(result?.message ?? '')).toContain('reloaded');

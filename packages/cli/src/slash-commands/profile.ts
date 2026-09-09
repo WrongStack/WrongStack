@@ -197,12 +197,33 @@ async function switchProfile(
   // the new one, and re-read credentials/routing. Returning `exit: true` used
   // to make this step unreachable, which is why switching looked inert until a
   // full restart.
-  // `activeProfile` rides the shallow merge inside update(), so a plain patch
-  // is enough; it must not be routed through the watcher's `?? null` clear
-  // convention, which writes null for absent fields.
+  // The store merges shallowly (storage/config-store.ts:60), so a bare
+  // `{ activeProfile }` patch would leave every top-level key the PREVIOUS
+  // profile defined live in the new one: `tools`, `features`, `context`,
+  // `autonomy`, `extensions`, `mcpServers`… Carry the incoming profile's own
+  // values in, and null out the outgoing profile's keys that it does not
+  // redefine, so a switch drops the abandoned profile's settings instead of
+  // inheriting them.
+  // `version` and `activeProfile` are excluded: nulling `version` trips the
+  // ConfigStore guard (config-store.ts:62) and nulling the selection defeats
+  // the switch. The credential/routing whitelist is excluded because
+  // `onAnyConfigChange` force-propagates those fields itself, including the
+  // absent case (`mergedPatch[key] = merged[key] ?? null`); nulling them here
+  // would fight that authoritative re-read.
+  const KEEP: readonly string[] = ['version', 'activeProfile'];
+  const patch: Record<string, unknown> = { ...profileData, activeProfile: safe };
+  const previous = configStore.get();
+  const previousProfileRaw = await readJsonObjectFile(
+    wpaths.profileConfig(previous.activeProfile ?? 'default'),
+  );
+  for (const key of Object.keys(previousProfileRaw)) {
+    if (KEEP.includes(key) || key in patch) continue;
+    patch[key] = null;
+  }
+
   let next: Config;
   try {
-    next = configStore.update({ activeProfile: safe } as Partial<Config>);
+    next = configStore.update(patch as Partial<Config>);
   } catch (err) {
     return finishSwitchFailure(renderer, safe, err);
   }
