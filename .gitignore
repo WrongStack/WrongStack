@@ -2,6 +2,12 @@ node_modules/
 dist/
 artifacts/
 coverage/
+# electron-builder output (apps/desktop/release): the packaged app plus the
+# extracted Electron runtime — ~365 MB per build, entirely reproducible from
+# `pnpm --filter @wrongstack/desktop package`. Never belongs in the repo.
+release/
+# Staging tree for desktop packaging (materialised workspace closure).
+apps/desktop/.package-stage/
 .DS_Store
 .report/
 

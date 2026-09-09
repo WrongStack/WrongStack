@@ -17,6 +17,23 @@ appId: dev.wrongstack.desktop
 productName: WrongStack
 copyright: Copyright © WrongStack contributors
 
+# Native modules are NOT rebuilt against Electron's ABI at package time.
+#
+# The only native module in the tree is `node-pty` (WebUI terminal panel),
+# reached transitively through @wrongstack/webui-server. Rebuilding it requires
+# MSVC + Python + the winpty build scripts on every machine that packages —
+# precisely the burden the `node-pty: true` entry in pnpm-workspace.yaml exists
+# to avoid, since that package ships prebuilt binaries.
+#
+# KNOWN LIMITATION, stated rather than hidden: the WebUI server child is spawned
+# with ELECTRON_RUN_AS_NODE, so it runs Electron's Node and needs Electron-ABI
+# natives. A packaged build therefore carries a Node-ABI node-pty, and the
+# terminal panel is expected to fail there while the rest of the app works.
+# Fixing it properly means either an Electron-ABI prebuild for node-pty or
+# spawning the server with a system Node instead. Do not flip this to `true`
+# without also providing the build toolchain in CI.
+npmRebuild: false
+
 directories:
   # Where Info.plist / entitlements.mac.plist / icon overrides are read from.
   buildResources: build
@@ -30,6 +47,15 @@ files:
   - '!dist/**/*.map'
   - assets/**/*
   - package.json
+  # Trim what the runtime never reads. The bundle carries the whole WrongStack
+  # tree (core pulls providers/sage/mcp/kanban/plugins), so these add up:
+  # sourcemaps and .d.ts alone were ~2,900 and ~1,300 files.
+  - '!node_modules/**/*.map'
+  - '!node_modules/**/*.d.ts'
+  - '!node_modules/**/*.md'
+  - '!node_modules/**/{test,tests,__tests__,spec,coverage,example,examples,docs}/**'
+  - '!node_modules/**/{.github,.vscode,.idea}/**'
+  - '!node_modules/**/*.{tsbuildinfo,flow}'
 
 # `icon` is a single 1024x1024 PNG; electron-builder derives .icns and .ico from
 # it. See apps/desktop/assets/icon.svg for the editable source — Electron's
