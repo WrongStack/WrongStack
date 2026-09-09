@@ -2013,14 +2013,21 @@ describe('TechStack 100% Coverage Suite', () => {
       const port = addr.port;
 
       try {
+        // The port belongs in `port`, not smuggled into `path`. Written the
+        // other way this request went to 127.0.0.1:80 with a path of
+        // `/:<port>/test` — it never touched the server started above, and
+        // whether it "passed" depended on what happened to be listening on
+        // port 80 of the developer's machine (nothing on CI: connection
+        // refused, which rejects and looks like the timeout under test).
         await expect(
           requestWithRetry({
             hostname: '127.0.0.1',
-            path: `:${port}/test`,
+            port,
+            path: '/test',
             timeoutMs: 20,
             maxAttempts: 1,
           }),
-        ).rejects.toThrow();
+        ).rejects.toThrow(/timeout/i);
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
       }

@@ -12,6 +12,13 @@ export interface HttpResponse {
 
 export interface HttpRequestOptions {
   readonly hostname: string;
+  /**
+   * Non-default port. Omit for the registries this client normally talks to
+   * (443 / 80). Required to reach anything local: the `isHttp` branch below
+   * switches to plain HTTP for localhost, but a local server is never on port
+   * 80, so without this the localhost path could not be used at all.
+   */
+  readonly port?: number | undefined;
   readonly path: string;
   readonly method?: 'GET' | 'POST' | undefined;
   readonly headers?: Readonly<Record<string, string>> | undefined;
@@ -68,6 +75,7 @@ function requestOnce(options: HttpRequestOptions): Promise<HttpResponse> {
     const method = options.method ?? 'GET';
     const requestOptions: RequestOptions = {
       hostname: options.hostname,
+      ...(options.port !== undefined ? { port: options.port } : {}),
       path: options.path,
       method,
       headers: options.headers,
