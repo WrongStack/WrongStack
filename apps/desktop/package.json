@@ -3,6 +3,7 @@
   "version": "1.0.4",
   "license": "MIT",
   "description": "WrongStack Desktop - Electron shell for managing multiple local WrongStack runtimes.",
+  "author": "WrongStack contributors",
   "keywords": [
     "wrongstack",
     "desktop",
@@ -38,6 +39,8 @@
     "test": "vitest run --config vitest.config.ts",
     "test:coverage": "node ../../scripts/coverage-lock.mjs node ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
+    "package": "pnpm run build && electron-builder --config electron-builder.yml",
+    "package:dir": "pnpm run build && electron-builder --config electron-builder.yml --dir",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
@@ -45,13 +48,17 @@
     "@wrongstack/webui": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
-    "electron": "^43.4.1",
     "ws": "^8.21.3",
     "zod": "^4.4.3"
   },
+  "peerDependencies": {
+    "electron": "^43.4.1"
+  },
   "devDependencies": {
     "@types/node": "^22.19.0",
+    "electron": "^43.4.1",
     "@types/ws": "^8.18.1",
+    "electron-builder": "^26.15.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.2"
   },

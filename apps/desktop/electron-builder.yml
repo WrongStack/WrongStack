@@ -1,0 +1,84 @@
+# electron-builder configuration for WrongStack Desktop.
+#
+# Before this file existed, `build/Info.plist` and `build/entitlements.mac.plist`
+# were complete, carefully commented, and referenced by nothing: there was no
+# packaging step to merge or apply them. This is the step.
+#
+# Signing is OPT-IN and driven entirely by the environment, so an unsigned local
+# build needs no credentials and no decisions:
+#   macOS   CSC_LINK / CSC_KEY_PASSWORD (or a keychain identity) + APPLE_ID,
+#           APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID to notarize
+#   Windows CSC_LINK / CSC_KEY_PASSWORD
+# With none of those set, electron-builder produces unsigned artifacts and says
+# so. `afterSign` notarization is therefore not wired here — adding it would
+# make every credential-less build fail.
+
+appId: dev.wrongstack.desktop
+productName: WrongStack
+copyright: Copyright © WrongStack contributors
+
+directories:
+  # Where Info.plist / entitlements.mac.plist / icon overrides are read from.
+  buildResources: build
+  output: release
+
+# The app is built by `pnpm --filter @wrongstack/desktop build` (vite + esbuild)
+# into dist/. Only the built output, the runtime assets the main process reads,
+# and the manifest go into the bundle.
+files:
+  - dist/**/*
+  - '!dist/**/*.map'
+  - assets/**/*
+  - package.json
+
+# `icon` is a single 1024x1024 PNG; electron-builder derives .icns and .ico from
+# it. See apps/desktop/assets/icon.svg for the editable source — Electron's
+# nativeImage cannot decode SVG, which is why the raster is the shipped asset.
+mac:
+  icon: assets/icon.png
+  category: public.app-category.developer-tools
+  # Applies build/entitlements.mac.plist. Both keys are required: the inherit
+  # file covers the helper processes, which crash on launch without it.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo: build/Info.plist
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+
+win:
+  icon: assets/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+linux:
+  icon: assets/icon.png
+  category: Development
+  synopsis: Electron shell for managing multiple local WrongStack runtimes
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+
+# Release feed. electron-builder only uploads with an explicit
+# `--publish always`, so declaring the provider here does not arm anything; it
+# is what lets a future `electron-updater` client know where to look.
+publish:
+  provider: github
+  owner: WrongStack
+  repo: WrongStack
