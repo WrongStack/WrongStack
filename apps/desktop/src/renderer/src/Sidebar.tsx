@@ -15,7 +15,8 @@ import type { DesktopSessionEntry } from '../../shared/types.js';
 import {
   buildProjectTree,
   filterProjectTree,
-  type ProjectNode,
+  type ProjectRowProps,
+  projectRowProps,
   relativeTime,
 } from './project-tree.js';
 import {
@@ -86,17 +87,7 @@ export function Sidebar({ state }: SidebarProps) {
           <p className="tree-empty">{state.filter ? t('noMatches') : t('noProject')}</p>
         ) : (
           visible.map((node) => (
-            <ProjectRow
-              key={node.root}
-              root={node.root}
-              name={node.name}
-              status={node.status}
-              active={node.active}
-              primaryRuntimeId={node.primaryRuntimeId}
-              expanded={state.expanded.has(node.root)}
-              sessions={state.sessions.get(node.root)}
-              busy={state.busy}
-            />
+            <ProjectRow key={node.root} {...projectRowProps(node, state)} />
           ))
         )}
       </nav>
@@ -122,26 +113,6 @@ export function Sidebar({ state }: SidebarProps) {
       </footer>
     </aside>
   );
-}
-
-/**
- * Primitives, not the `ProjectNode` object.
- *
- * `buildProjectTree` constructs fresh node objects on every snapshot, so a
- * `node` prop changes identity for EVERY row whenever anything changes and
- * `memo` never holds. Spreading the fields the row actually reads lets memo
- * compare values, so one project going from starting to running re-renders
- * that row and leaves the rest alone.
- */
-interface ProjectRowProps {
-  root: string;
-  name: string;
-  status: ProjectNode['status'];
-  active: boolean;
-  primaryRuntimeId: string | null;
-  expanded: boolean;
-  sessions: SessionListState | undefined;
-  busy: boolean;
 }
 
 const ProjectRow = memo(function ProjectRow({

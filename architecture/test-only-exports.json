@@ -1780,6 +1780,9 @@
       "TAB_STORAGE_KEY",
       "writeStoredTabs"
     ],
+    "packages/webui/src/stores/viz-graph-helpers.ts": [
+      "shallowEqual"
+    ],
     "packages/wrongtrace/src/adapters/ipc.ts": [
       "_connectSocket"
     ],

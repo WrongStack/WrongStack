@@ -11,6 +11,7 @@
  * (the shell allows it) share a row and contribute their combined status.
  */
 import type { DesktopRuntimeRecord, DesktopStateSnapshot } from '../../shared/types.js';
+import type { SessionList, ShellState } from './store.js';
 
 /** What the status dot on a project row means. */
 export type ProjectStatus = 'running' | 'starting' | 'error' | 'stopped';
@@ -160,4 +161,45 @@ export function relativeTime(iso: string | undefined, now = Date.now()): string 
   const weeks = Math.round(days / 7);
   if (weeks < 5) return `${weeks}w`;
   return `${Math.round(days / 30)}mo`;
+}
+
+/**
+ * The props one project row receives.
+ *
+ * Primitives, not the `ProjectNode` object. `buildProjectTree` constructs
+ * fresh nodes on every snapshot, so passing `node` would change identity for
+ * EVERY row whenever anything changed and `React.memo` would never hold.
+ * Spreading the fields the row actually reads lets memo compare values.
+ *
+ * `sessions` is the one non-primitive, and it is safe for the same reason
+ * memo works at all: `loadSessions` rebuilds the Map but carries the existing
+ * entry objects over for untouched roots, so a load for one project does not
+ * change this prop's identity for any other. `sidebar-row-memo.test.ts` pins
+ * both halves of that.
+ */
+export interface ProjectRowProps {
+  root: string;
+  name: string;
+  status: ProjectStatus;
+  active: boolean;
+  primaryRuntimeId: string | null;
+  expanded: boolean;
+  sessions: SessionList | undefined;
+  busy: boolean;
+}
+
+/** Derive one row's props. Lives here, beside the tree, so it can be tested
+ * without rendering — `React.memo`'s bailout is exactly shallow equality of
+ * this object, so comparing two of them IS the render-count assertion. */
+export function projectRowProps(node: ProjectNode, state: ShellState): ProjectRowProps {
+  return {
+    root: node.root,
+    name: node.name,
+    status: node.status,
+    active: node.active,
+    primaryRuntimeId: node.primaryRuntimeId,
+    expanded: state.expanded.has(node.root),
+    sessions: state.sessions.get(node.root),
+    busy: state.busy,
+  };
 }

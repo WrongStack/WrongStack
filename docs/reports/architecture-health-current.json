@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T10:15:54.226Z",
+  "generatedAt": "2026-09-09T10:27:43.715Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3704,
-    "testFiles": 3195,
-    "sourceLines": 891902,
+    "testFiles": 3196,
+    "sourceLines": 891915,
     "workspaceEdges": 127,
-    "moduleEdges": 11685,
+    "moduleEdges": 11686,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 880
+    "testOnlyExports": 881
   },
   "errors": [],
   "packageCycles": [],
@@ -238,7 +238,7 @@
       "name": "@wrongstack/desktop",
       "dir": "apps/desktop",
       "sourceFiles": 40,
-      "testFiles": 26,
+      "testFiles": 27,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/webui",
@@ -254,7 +254,7 @@
         {
           "path": "apps/desktop/tsconfig.test.json",
           "error": null,
-          "testFiles": 26
+          "testFiles": 27
         }
       ]
     },
@@ -1197,6 +1197,12 @@
       },
       {
         "file": "apps/desktop/tests/shell-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop/tests/sidebar-row-memo.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24755,6 +24761,10 @@
     {
       "file": "packages/webui/src/stores/session-tab-store.ts",
       "name": "writeStoredTabs"
+    },
+    {
+      "file": "packages/webui/src/stores/viz-graph-helpers.ts",
+      "name": "shallowEqual"
     },
     {
       "file": "packages/wrongtrace/src/adapters/ipc.ts",
