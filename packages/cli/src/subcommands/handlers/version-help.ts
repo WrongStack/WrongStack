@@ -68,7 +68,7 @@ export const helpCmd: SubcommandHandler = async (_args, deps) => {
     '  --tui / --no-tui             Force or disable TUI mode',
     '  --mouse                      Full mouse mode in the TUI (in-app scroll + clickable UI)',
     '  --desktop                    Open WrongStack Desktop (requires @wrongstack/desktop)',
-    '  --hq [--host <h>] [--port <n>] [--password <secret>] [--tunnel] [--hq-public-url <https-origin>] [--open]',
+    '  --hq [--host <h>] [--port <n>] [--password <secret>] [--hq-allowlist <ip,cidr,...>] [--tunnel] [--hq-public-url <https-origin>] [--open]',
     '                               Start HQ; publish through a temporary tunnel or persistent TLS proxy',
     '  --webui [--host <h>] [--port <n>] [--webui-token <t>] [--open]',
     '          [--webui-public-url <url>] [--webui-public-ws-url <url>] [--webui-require-token]',

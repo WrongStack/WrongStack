@@ -11,6 +11,7 @@
  *   wstack hq token list --client   → list issued client tokens
  *   wstack hq token revoke <id>    → revoke a browser token (prefix match)
  *   wstack hq token revoke --client <id> → revoke a client token
+ *   wstack hq service install|status|update|uninstall → Ubuntu systemd lifecycle
  *
  * All subcommands accept `--data-dir <path>` to override the HQ data
  * directory (default `~/.wrongstack/hq`, honors `WRONGSTACK_HOME` /
@@ -38,6 +39,7 @@ import {
 import { expectDefined } from '@wrongstack/core/utils';
 import { resolveAuditActor } from '../../hq-server/audit-actor.js';
 import type { HqServerHandle } from '../../hq-server/handle-types.js';
+import { parseHqIpAllowlist } from '../../hq-server/ip-allowlist.js';
 import { normalizeHqPublicOrigin } from '../../hq-server/utils.js';
 import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
@@ -85,6 +87,11 @@ export const hqCmd: SubcommandHandler = async (args, deps) => {
     return hqAuditCmd(args.slice(1), deps);
   }
 
+  if (sub === 'service') {
+    const { hqServiceCmd } = await import('../../hq-service.js');
+    return hqServiceCmd(args.slice(1), deps);
+  }
+
   if (sub === 'help' || sub === '--help') {
     printHelp(deps);
     return 0;
@@ -130,6 +137,17 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   const password =
     typeof flags['password'] === 'string' ? flags['password'] : process.env.WRONGSTACK_HQ_PASSWORD;
   const allowInsecureOpen = flags['insecure-open'] === true;
+  const rawAllowlist =
+    typeof flags['hq-allowlist'] === 'string'
+      ? flags['hq-allowlist']
+      : process.env.WRONGSTACK_HQ_ALLOWLIST;
+  let ipAllowlist: string[] | undefined;
+  try {
+    ipAllowlist = parseHqIpAllowlist(rawAllowlist);
+  } catch (cause) {
+    deps.renderer.writeError(`${cause instanceof Error ? cause.message : String(cause)}\n`);
+    return 1;
+  }
   const rawTtl = typeof flags['hq-token-ttl'] === 'string' ? flags['hq-token-ttl'] : undefined;
   let tokenTtlMs: number | undefined;
   if (rawTtl !== undefined && rawTtl.length > 0) {
@@ -176,6 +194,7 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
       ...(password !== undefined ? { password } : {}),
       ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),
       ...(trustedProxyHops !== undefined ? { trustedProxyHops } : {}),
+      ...(ipAllowlist !== undefined ? { ipAllowlist } : {}),
     });
   } catch (err) {
     // A refusal is operator-actionable guidance, not a crash — print the
@@ -212,6 +231,11 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   }
 
   writeStartupInfo(deps, handle);
+  deps.renderer.write(
+    ipAllowlist === undefined
+      ? 'Network allowlist: disabled (authentication remains required when configured).\n'
+      : `Network allowlist: active (${ipAllowlist.length} configured rule${ipAllowlist.length === 1 ? '' : 's'} + loopback).\n`,
+  );
 
   // Keep the process alive until SIGINT/SIGTERM
   await new Promise<void>((resolve) => {
@@ -236,6 +260,18 @@ function writeStartupInfo(deps: SubcommandDeps, handle: HqServerHandle): void {
     deps.renderer.write(`Browser endpoint: http://${handle.host}:${handle.port}\n`);
     deps.renderer.write(
       `Mobile endpoint:  http://${handle.host}:${handle.port}/mobile (password required)\n`,
+    );
+    return;
+  }
+
+  if (process.env.WRONGSTACK_HQ_SUPPRESS_STARTUP_SECRETS === '1') {
+    deps.renderer.write(`Browser endpoint: http://${handle.host}:${handle.port}\n`);
+    deps.renderer.write(
+      `Mobile endpoint:  http://${handle.host}:${handle.port}/mobile (password required)\n`,
+    );
+    deps.renderer.write(`Client endpoint:  ws://${handle.host}:${handle.port}/ws/client\n`);
+    deps.renderer.write(
+      `Startup credentials suppressed; auth state is stored in ${handle.firstRunSetup.dataDir}.\n`,
     );
     return;
   }
@@ -716,7 +752,7 @@ async function tokenRevoke(args: string[], deps: SubcommandDeps): Promise<number
 }
 
 function printHelp(deps: SubcommandDeps): void {
-  deps.renderer.write(`Usage: wstack hq <serve | token | audit>\n`);
+  deps.renderer.write(`Usage: wstack hq <serve | token | audit | service>\n`);
   deps.renderer.write('\n');
   deps.renderer.write(`  wstack hq                      Start the HQ command center server.\n`);
   deps.renderer.write(`  wstack hq serve                Same as above (explicit form).\n`);
@@ -734,6 +770,14 @@ function printHelp(deps: SubcommandDeps): void {
   deps.renderer.write(`  wstack hq token revoke --client <id>  Revoke a client token.\n`);
   deps.renderer.write(
     `  wstack hq audit verify         Re-derive auth.json contentHash for forensic comparison.\n`,
+  );
+  deps.renderer.write(
+    `  wstack hq service install      Install persistent Ubuntu/systemd service + updater timer.\n`,
+  );
+  deps.renderer.write(`  wstack hq service status       Show service and updater status.\n`);
+  deps.renderer.write(`  wstack hq service update       Run the guarded update job now.\n`);
+  deps.renderer.write(
+    `  wstack hq service uninstall    Remove units but preserve HQ data and secret file.\n`,
   );
   deps.renderer.write('\n');
   deps.renderer.write(`Flags (apply to all subcommands):\n`);
@@ -762,6 +806,9 @@ function printHelp(deps: SubcommandDeps): void {
     `  --hq-trusted-proxy-hops <n>  Trust the rightmost n X-Forwarded-For entries when rate-limiting logins.\n` +
       `                        Default 0 (ignore the header). Set to the real hop count behind a tunnel,\n` +
       `                        otherwise every user shares one backoff bucket. Never guess high.\n`,
+  );
+  deps.renderer.write(
+    `  --hq-allowlist <csv>  Optional source IP/CIDR allowlist (for example 203.0.113.4,10.0.0.0/8).\n`,
   );
   deps.renderer.write(`  --open              Open the dashboard in the default browser.\n`);
   deps.renderer.write(

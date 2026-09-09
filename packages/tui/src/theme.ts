@@ -48,6 +48,9 @@ export const sidebarCardHairline = (current: Theme = theme): string =>
 
 let currentPresetName: ThemeName = 'catppuccin';
 
+/** Time between automatic palette changes while no preset is configured. */
+export const RANDOM_THEME_ROTATION_MS = 15 * 60 * 1_000;
+
 export function resolveSyntaxColor(role: SyntaxRole, palette: Theme = theme): string {
   return resolveSyntaxColorFn(role, palette);
 }
@@ -66,6 +69,17 @@ export function getActiveTheme(): Theme {
 
 function isThemeName(name: string): name is ThemeName {
   return name in themePresets;
+}
+
+/**
+ * Choose a preset at random, optionally excluding the current preset so
+ * automatic rotation always results in a visible palette change.
+ */
+export function setRandomTheme(exclude: ThemeName | undefined = currentPresetName): ThemeName {
+  const candidates = (Object.keys(themePresets) as ThemeName[]).filter((name) => name !== exclude);
+  const available = candidates.length > 0 ? candidates : (Object.keys(themePresets) as ThemeName[]);
+  const index = Math.min(available.length - 1, Math.floor(Math.random() * available.length));
+  return setActiveTheme(available[index]);
 }
 
 export function setActiveTheme(name: string | undefined): ThemeName {

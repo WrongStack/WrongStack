@@ -72,6 +72,29 @@ leave it at the default `0` if the proxy does not supply a trusted
 Do not expose cleartext HQ directly to the Internet. The desktop workbench
 remains available at `/`.
 
+On Ubuntu, install HQ as an always-on system service after globally installing
+WrongStack:
+
+```bash
+sudo -E WRONGSTACK_HQ_PASSWORD='use-a-long-random-password' \
+  wstack hq service install
+```
+
+The generated `wrongstack-hq.service` starts at boot, restarts without a rate
+limit after failures, runs with a dynamic unprivileged identity, persists its
+state below `/var/lib/wrongstack-hq`, and logs to journald. A separate
+root-owned timer checks daily for updates; it stops HQ only during replacement
+and rolls back to the prior package version if the updated service does not
+stay active. Bootstrap URLs and client-token secrets are suppressed from the
+service's journald startup output.
+
+The system service binds `0.0.0.0:3499`. Set
+`WRONGSTACK_HQ_ALLOWLIST=ip,cidr,...` during `service install` to restrict both
+HTTP and browser/client WebSocket admission. The list is optional and loopback
+remains implicitly allowed. It deliberately checks the TCP peer rather than a
+forwarded header, so a directly reachable listener cannot spoof its way into
+the list.
+
 Mobile password sessions are server-scoped to conversational operations. They
 can read HQ data, send mailbox/control messages, interrupt a selected run and
 request lifecycle-gated Kanban transitions and guarded task assignments, but cannot administer

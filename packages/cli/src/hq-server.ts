@@ -39,6 +39,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { HQ_HTML } from './hq-recovery-html.js';
 import * as HqServerAuth from './hq-server/auth.js';
 import { createHqAuthState } from './hq-server/auth-state.js';
+import { createHqIpAllowlist } from './hq-server/ip-allowlist.js';
 import { LoginAttemptStore } from './hq-server/login-attempt-store.js';
 import { MailboxGatewayManager } from './hq-server/mailbox-gateway-manager.js';
 import { prepareHqServerStart } from './hq-server/preflight.js';
@@ -104,6 +105,8 @@ interface HqServerOptions {
   allowFileOrigin?: boolean;
   tokenTtlMs?: number;
   trustedProxyHops?: number;
+  /** Optional exact-IP/CIDR admission list. Empty/absent means unrestricted. */
+  ipAllowlist?: readonly string[];
 }
 
 // Public HQ server handle types live in a dedicated leaf module so callers (notably
@@ -137,6 +140,7 @@ async function startHqServerWithAuth(
   const trustBoundary =
     options.trustBoundary ??
     createCompatibilityTrustBoundary({ policyId: 'hq-trusted-host-compat-v1' });
+  const ipAllowlist = createHqIpAllowlist(options.ipAllowlist);
   const authFile = firstRunAuth.authFile;
 
   const reassessExposureFloor = (live: typeof mutableAuth): void => {
@@ -208,6 +212,8 @@ async function startHqServerWithAuth(
       browserTokenMode: mutableAuth.browserTokens.size > 0,
       clientTokenMode: mutableAuth.clientTokens.size > 0,
       passwordMode: mutableAuth.passwordHash !== undefined,
+      ipAllowlistActive: ipAllowlist !== undefined,
+      ipAllowlistRules: ipAllowlist?.entries.length ?? 0,
       timestamp: new Date().toISOString(),
     }),
   );
@@ -426,6 +432,7 @@ async function startHqServerWithAuth(
       getTokenStats: () => authState.tokenStats(),
       applyAuthFile: (next) => authState.apply(next),
       trustedProxyHops: options.trustedProxyHops ?? 0,
+      ipAllowlist,
       bootstrapStore,
     };
     const handleRequest = createHqRouter(routerDeps);
@@ -466,6 +473,7 @@ async function startHqServerWithAuth(
       auditLog,
       snapshotBroadcaster,
       wss,
+      ipAllowlist,
     };
 
     httpServer.on('upgrade', (req, socket, head) => {

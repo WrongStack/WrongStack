@@ -103,6 +103,17 @@ export function writeHqStartupInfo(
     return;
   }
 
+  if (process.env.WRONGSTACK_HQ_SUPPRESS_STARTUP_SECRETS === '1') {
+    write(`${terminalText('Browser endpoint:', 'blue')} ${terminalLink(browserUrl)}\n`);
+    write(
+      `${terminalText('Mobile endpoint:', 'blue')}  ${terminalLink(mobileUrl.toString())} (password required)\n`,
+    );
+    write(`${terminalText('Client endpoint:', 'blue')}  ${terminalLink(clientUrl)}\n`);
+    write(`Startup credentials suppressed; auth state is stored in ${startup.dataDir}.\n`);
+    writeHqLanEndpoints(write, handle, undefined);
+    return;
+  }
+
   const firstRunMobileUrl = new URL(startup.browserUrl);
   firstRunMobileUrl.pathname = '/mobile';
   firstRunMobileUrl.search = '';

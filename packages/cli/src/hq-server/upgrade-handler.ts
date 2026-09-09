@@ -6,10 +6,12 @@
 
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { isLoopbackHost, type HqToken, hqTokenVerifier } from '@wrongstack/core/hq';
+import { type HqToken, hqTokenVerifier, isLoopbackHost } from '@wrongstack/core/hq';
 import type { WebSocket, WebSocketServer } from 'ws';
 import * as HqServerAuth from './auth.js';
 import type { HqAuthState } from './auth-state.js';
+import { resolveSocketAddress } from './client-address.js';
+import type { HqIpAllowlist } from './ip-allowlist.js';
 import { hasTrustedBrowserOrigin, parseHqSessionCookie } from './routes.js';
 import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './types.js';
 import * as HqServerWs from './ws.js';
@@ -33,6 +35,7 @@ interface HqUpgradeHandlerDeps {
   auditLog: import('@wrongstack/core/hq').HqCommandAuditLog;
   snapshotBroadcaster: ReturnType<typeof import('./snapshot.js').createSnapshotBroadcaster>;
   wss: WebSocketServer;
+  ipAllowlist?: HqIpAllowlist | undefined;
 }
 
 export function handleHqUpgrade(
@@ -45,6 +48,17 @@ export function handleHqUpgrade(
   const pathname = url.pathname;
 
   if (pathname !== '/ws/client' && pathname !== '/ws/browser') {
+    socket.destroy();
+    return;
+  }
+
+  if (deps.ipAllowlist && !deps.ipAllowlist.allows(resolveSocketAddress(req))) {
+    socket.write(
+      'HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n' +
+        JSON.stringify({
+          error: { code: 'IP_NOT_ALLOWED', message: 'Source IP is not allowed.' },
+        }),
+    );
     socket.destroy();
     return;
   }

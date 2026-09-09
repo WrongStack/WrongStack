@@ -460,12 +460,12 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
   // -- HQ (dashboard server) ──────────────────────────────────────────
   hq: {
     name: 'hq',
-    title: 'wstack hq — start HQ command center or manage tokens',
+    title: 'wstack hq — serve HQ, manage authentication, or install its system service',
     description:
       'Start the HQ server — a web dashboard for monitoring sessions, fleet ' +
-      'status, and agent activity across projects — or manage browser and client authentication tokens.',
+      'status, and agent activity across projects; manage browser/client authentication, or install the persistent Ubuntu systemd service.',
     usage:
-      'wstack hq [serve] [--port <n>] [--password <secret>] [--tunnel] [--hq-public-url <https-origin>] [--open] | wstack hq token [create|list|revoke]',
+      'wstack hq [serve] [...] | wstack hq token [create|list|revoke] | wstack hq service [install|status|update|uninstall]',
     subcommands: [
       { name: 'serve', description: 'Start the HQ dashboard server (default).' },
       {
@@ -474,6 +474,16 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       },
       { name: 'token list', description: 'List active HQ authentication tokens.' },
       { name: 'token revoke <id>', description: 'Revoke an issued HQ authentication token.' },
+      {
+        name: 'service install',
+        description: 'Install an always-on systemd service and guarded automatic updater.',
+      },
+      { name: 'service status', description: 'Inspect the HQ service and update timer.' },
+      { name: 'service update', description: 'Run the guarded update job immediately.' },
+      {
+        name: 'service uninstall',
+        description: 'Remove systemd units while preserving HQ data and secrets.',
+      },
     ],
     seeAlso: 'wstack sessions fleet (CLI equivalent for fleet status)',
   },

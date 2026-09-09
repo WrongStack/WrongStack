@@ -44,6 +44,11 @@ function normalizeAddress(raw: string): string {
   return trimmed.replace(/^::ffff:/i, '');
 }
 
+/** The actual TCP peer, with IPv4-mapped IPv6 normalized. Never reads headers. */
+export function resolveSocketAddress(req: http.IncomingMessage): string | undefined {
+  return req.socket.remoteAddress ? normalizeAddress(req.socket.remoteAddress) : undefined;
+}
+
 /**
  * Parse one `X-Forwarded-For` element into a bare address, or `undefined` when
  * it is not one. Handles `1.2.3.4`, `1.2.3.4:5678`, `[::1]`, and `[::1]:5678`.
@@ -96,9 +101,7 @@ function forwardedChain(req: http.IncomingMessage): string[] {
  *   should throttle, not exempt.
  */
 export function resolveClientAddress(req: http.IncomingMessage, trustedProxyHops = 0): string {
-  const socketAddress = req.socket.remoteAddress
-    ? normalizeAddress(req.socket.remoteAddress)
-    : undefined;
+  const socketAddress = resolveSocketAddress(req);
 
   const hops = Number.isFinite(trustedProxyHops) ? Math.max(0, Math.trunc(trustedProxyHops)) : 0;
   if (hops === 0) return socketAddress ?? 'unknown';

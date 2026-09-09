@@ -307,6 +307,43 @@ describe('wstack hq — dispatch + help', () => {
     }
   });
 
+  it('passes an optional IP/CIDR allowlist to the HQ server', async () => {
+    const realOn = process.on;
+    const handlers: { type: string; cb: () => void }[] = [];
+    process.on = ((type: string, cb: () => void) => {
+      if (type === 'SIGINT' || type === 'SIGTERM') handlers.push({ type, cb });
+      return process;
+    }) as never;
+    try {
+      const deps = makeDeps({
+        flags: {
+          'data-dir': dataDir,
+          password: 'secret123',
+          'hq-allowlist': '203.0.113.9,10.20.0.0/16',
+        },
+      });
+      const promise = hqCmd(['serve'], deps);
+      await new Promise((resolve) => setImmediate(resolve));
+      for (const handler of handlers) handler.cb();
+      expect(await promise).toBe(0);
+      expect(startHqServerMock.mock.calls[0]?.[0]).toMatchObject({
+        host: '0.0.0.0',
+        ipAllowlist: ['203.0.113.9', '10.20.0.0/16'],
+      });
+    } finally {
+      process.on = realOn;
+    }
+  });
+
+  it('rejects a malformed IP allowlist before starting HQ', async () => {
+    const deps = makeDeps({
+      flags: { 'data-dir': dataDir, password: 'secret123', 'hq-allowlist': '10.0.0.0/99' },
+    });
+    expect(await hqCmd(['serve'], deps)).toBe(1);
+    expect(startHqServerMock).not.toHaveBeenCalled();
+    expect(deps.renderer.captured.err.join('')).toContain('Invalid HQ allowlist prefix');
+  });
+
   it('unknown subcommand exits 1 and prints help', async () => {
     const deps = makeDeps();
     const code = await hqCmd(['bogus'], deps);

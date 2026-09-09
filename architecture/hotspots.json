@@ -59,8 +59,8 @@
       "relativeImports": 5
     },
     "packages/cli/src/subcommands/handlers/hq.ts": {
-      "lines": 845,
-      "relativeImports": 7
+      "lines": 892,
+      "relativeImports": 9
     },
     "packages/cli/src/subcommands/handlers/providers-models.ts": {
       "lines": 800,

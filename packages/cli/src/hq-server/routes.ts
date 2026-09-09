@@ -101,6 +101,8 @@ export const hqRuntimeMarkerPath = HqServerUtils.hqRuntimeMarkerPath;
 
 // ── Shared helpers used in routes ──────────────────────────────────────────
 
+import { resolveSocketAddress } from './client-address.js';
+import type { HqIpAllowlist } from './ip-allowlist.js';
 import type { LoginAttemptStore } from './login-attempt-store.js';
 import type {
   ConnectedClient,
@@ -174,6 +176,8 @@ export interface HqRouterDeps {
    * Defaults to 0, which ignores `X-Forwarded-For` entirely.
    */
   trustedProxyHops?: number | undefined;
+  /** TCP-peer allowlist shared by HTTP and WebSocket admission. */
+  ipAllowlist?: HqIpAllowlist | undefined;
 }
 
 // ── Route handler factory ──────────────────────────────────────────────────
@@ -215,12 +219,22 @@ export function createHqRouter(
     bootstrapStore,
     applyAuthFile,
     trustedProxyHops = 0,
+    ipAllowlist,
   } = deps;
 
   return async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     try {
       const url = new URL(req.url ?? '/', `http://${host}:${listeningPort()}`);
       HqServerAuth.setHqSecurityHeaders(res);
+
+      // Evaluate the real TCP peer before origin/auth. Forwarded headers are
+      // deliberately irrelevant here: on a wildcard bind they are supplied
+      // by the caller and therefore cannot be an admission credential.
+      if (ipAllowlist && !ipAllowlist.allows(resolveSocketAddress(req))) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'forbidden: source IP is not allowed' }));
+        return;
+      }
 
       // ── Origin guard (DNS-rebinding / CSRF boundary) ───────────────
       if (

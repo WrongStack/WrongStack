@@ -4,12 +4,18 @@ import { terminalFormattingEnabled, terminalLink, terminalText } from '../src/te
 
 const originalNoColor = process.env.NO_COLOR;
 const originalForceColor = process.env.FORCE_COLOR;
+const originalSuppressStartupSecrets = process.env.WRONGSTACK_HQ_SUPPRESS_STARTUP_SECRETS;
 
 afterEach(() => {
   if (originalNoColor === undefined) delete process.env.NO_COLOR;
   else process.env.NO_COLOR = originalNoColor;
   if (originalForceColor === undefined) delete process.env.FORCE_COLOR;
   else process.env.FORCE_COLOR = originalForceColor;
+  if (originalSuppressStartupSecrets === undefined) {
+    delete process.env.WRONGSTACK_HQ_SUPPRESS_STARTUP_SECRETS;
+  } else {
+    process.env.WRONGSTACK_HQ_SUPPRESS_STARTUP_SECRETS = originalSuppressStartupSecrets;
+  }
 });
 
 describe('terminal formatting', () => {
@@ -18,6 +24,32 @@ describe('terminal formatting', () => {
     expect(terminalFormattingEnabled({ FORCE_COLOR: '0' }, false)).toBe(true);
     expect(terminalFormattingEnabled({}, true)).toBe(true);
     expect(terminalFormattingEnabled({}, false)).toBe(false);
+  });
+
+  it('suppresses bootstrap and client token secrets for a managed service', () => {
+    process.env.WRONGSTACK_HQ_SUPPRESS_STARTUP_SECRETS = '1';
+    process.env.NO_COLOR = '1';
+    const lines: string[] = [];
+    writeHqStartupInfo((line) => lines.push(line), {
+      host: '127.0.0.1',
+      port: 3499,
+      firstRunSetup: {
+        dataDir: '/var/lib/wrongstack-hq/hq',
+        browserUrl: 'http://127.0.0.1:3499/#bootstrap=browser-secret',
+        clientUrl: 'ws://127.0.0.1:3499/ws/client?token=client-secret',
+        clientEnv: {
+          WRONGSTACK_HQ_URL: 'http://127.0.0.1:3499',
+          WRONGSTACK_HQ_TOKEN: 'client-secret',
+        },
+        createdAuth: true,
+        browserTokenMode: true,
+        passwordMode: true,
+      },
+    });
+    const output = lines.join('');
+    expect(output).toContain('Startup credentials suppressed');
+    expect(output).not.toContain('browser-secret');
+    expect(output).not.toContain('client-secret');
   });
 
   it('preserves plain text and URLs when formatting is disabled', { timeout: 5000 }, () => {

@@ -162,6 +162,42 @@ npm i -g wrongstack
 pnpm add -g wrongstack
 ```
 
+### Always-on HQ service (Ubuntu)
+
+Install the globally available CLI as a boot-persistent, automatically
+restarting systemd service. The password is written to a root-only environment
+file rather than the unit or process arguments:
+
+```bash
+sudo npm install -g wrongstack
+sudo -E WRONGSTACK_HQ_PASSWORD='use-a-long-random-password' \
+  wstack hq service install
+```
+
+The service listens on `0.0.0.0:3499`. Password authentication remains
+mandatory. An optional comma-separated exact-IP/CIDR admission list can reject
+traffic before HTTP/WebSocket authentication:
+
+```bash
+sudo -E WRONGSTACK_HQ_PASSWORD='use-a-long-random-password' \
+  WRONGSTACK_HQ_ALLOWLIST='198.51.100.42,10.20.0.0/16,2001:db8::/48' \
+  wstack hq service install
+```
+
+Without `WRONGSTACK_HQ_ALLOWLIST`, no network allowlist is applied. Loopback is
+always admitted when a list is active. Matching uses the real TCP peer, never
+`X-Forwarded-For`; when a reverse proxy is used, allow its source network here
+and perform end-user IP filtering at that proxy.
+
+The installation creates `wrongstack-hq.service` plus a persistent daily
+update timer. Updates stop HQ only for the replacement window, verify that the
+new CLI starts, and reinstall the previous version when startup fails. Inspect
+or trigger it with `wstack hq service status` and
+`sudo wstack hq service update`. `service uninstall` removes the units while
+preserving `/var/lib/wrongstack-hq` and `/etc/wrongstack/hq.env`.
+Runtime logs remain in journald (`journalctl -u wrongstack-hq -f`); managed
+service startup suppresses bootstrap URLs and client-token secrets.
+
 This pulls the full stack. The TUI ships but is lazy-loaded behind `--tui`, so
 plain-REPL users pay no React/Ink cost at startup. The browser UI, HQ, and
 Desktop shell are available through their launch flags (see [Surfaces](#surfaces)).

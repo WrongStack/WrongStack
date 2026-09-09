@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T18:17:24.674Z",
+  "generatedAt": "2026-09-09T19:05:47.711Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3712,
-    "testFiles": 3214,
-    "sourceLines": 896617,
+    "sourceFiles": 3714,
+    "testFiles": 3217,
+    "sourceLines": 897398,
     "workspaceEdges": 127,
-    "moduleEdges": 11766,
+    "moduleEdges": 11776,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -144,8 +144,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 487,
-      "testFiles": 472,
+      "sourceFiles": 489,
+      "testFiles": 474,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -184,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 472
+          "testFiles": 474
         }
       ]
     },
@@ -758,7 +758,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 366,
-      "testFiles": 338,
+      "testFiles": 339,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -781,7 +781,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 338
+          "testFiles": 339
         }
       ]
     },
@@ -2708,6 +2708,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-ip-allowlist.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-kanban-command-controller.test.ts",
         "projects": [
           "root-node"
@@ -2841,6 +2847,12 @@
       },
       {
         "file": "packages/cli/tests/hq-server.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-service.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16136,6 +16148,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/theme-state.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/thinking-word.test.ts",
         "projects": [
           "root-node"
@@ -20540,8 +20558,8 @@
     },
     {
       "file": "packages/cli/src/subcommands/handlers/hq.ts",
-      "lines": 845,
-      "relativeImports": 7
+      "lines": 892,
+      "relativeImports": 9
     },
     {
       "file": "packages/cli/src/subcommands/handlers/providers-models.ts",
@@ -21738,6 +21756,10 @@
       "name": "isSafeSessionId"
     },
     {
+      "file": "packages/cli/src/hq-service.ts",
+      "name": "renderHqServiceAssets"
+    },
+    {
       "file": "packages/cli/src/hq-tunnel.ts",
       "name": "extractQuickTunnelUrl"
     },
@@ -21940,10 +21962,6 @@
     {
       "file": "packages/cli/src/subcommands/handlers/per-subcommand-help.ts",
       "name": "subcommandsWithFocusedHelp"
-    },
-    {
-      "file": "packages/cli/src/subcommands/handlers/update.ts",
-      "name": "detectUpdatePackageManager"
     },
     {
       "file": "packages/cli/src/terminal-format.ts",

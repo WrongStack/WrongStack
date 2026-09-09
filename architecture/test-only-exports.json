@@ -187,6 +187,9 @@
     "packages/cli/src/hq-server/utils.ts": [
       "isSafeSessionId"
     ],
+    "packages/cli/src/hq-service.ts": [
+      "renderHqServiceAssets"
+    ],
     "packages/cli/src/hq-tunnel.ts": [
       "extractQuickTunnelUrl",
       "hasRegisteredQuickTunnelConnection"
@@ -285,9 +288,6 @@
       "renderBlockToString",
       "renderGenericHelp",
       "subcommandsWithFocusedHelp"
-    ],
-    "packages/cli/src/subcommands/handlers/update.ts": [
-      "detectUpdatePackageManager"
     ],
     "packages/cli/src/terminal-format.ts": [
       "terminalFormattingEnabled"
