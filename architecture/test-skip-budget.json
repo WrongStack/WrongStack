@@ -2,16 +2,6 @@
   "schemaVersion": 1,
   "declarations": [
     {
-      "file": "apps/desktop/tests/app-icon.test.ts",
-      "kind": "conditional-suite-alias",
-      "fingerprint": "1bc807cff96b4097"
-    },
-    {
-      "file": "apps/desktop/tests/app-icon.test.ts",
-      "kind": "skip",
-      "fingerprint": "492072a80623b06c"
-    },
-    {
       "file": "packages/acp/tests/ensemble-registry.test.ts",
       "kind": "runIf",
       "fingerprint": "fe294960de54574e"
@@ -320,21 +310,6 @@
       "file": "packages/tools/tests/exec-spawn.test.ts",
       "kind": "skip",
       "fingerprint": "e9dd96a56b23b9cb"
-    },
-    {
-      "file": "packages/tools/tests/parser-batch.test.ts",
-      "kind": "runIf",
-      "fingerprint": "49f2952817ccabdf"
-    },
-    {
-      "file": "packages/tools/tests/parser-batch.test.ts",
-      "kind": "runIf",
-      "fingerprint": "5d73d6f64f8c803c"
-    },
-    {
-      "file": "packages/tools/tests/parser-batch.test.ts",
-      "kind": "runIf",
-      "fingerprint": "d6ab49a134965756"
     },
     {
       "file": "packages/tools/tests/parser-worker-pool-failover.test.ts",
