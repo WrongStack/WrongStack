@@ -3,6 +3,7 @@
   "files": {
     "apps/desktop/src/main/runtime-manager.ts": [
       "normalizeProjectManifest",
+      "SNAPSHOT_LOG_LINES",
       "waitForChildExit"
     ],
     "apps/desktop/src/main/state/constants.ts": [

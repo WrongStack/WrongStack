@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T08:46:28.805Z",
+  "generatedAt": "2026-09-09T09:05:42.653Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3700,
-    "testFiles": 3187,
-    "sourceLines": 890579,
+    "testFiles": 3188,
+    "sourceLines": 890616,
     "workspaceEdges": 127,
     "moduleEdges": 11680,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 872
+    "testOnlyExports": 873
   },
   "errors": [],
   "packageCycles": [],
@@ -238,7 +238,7 @@
       "name": "@wrongstack/desktop",
       "dir": "apps/desktop",
       "sourceFiles": 37,
-      "testFiles": 20,
+      "testFiles": 21,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/webui",
@@ -254,7 +254,7 @@
         {
           "path": "apps/desktop/tsconfig.test.json",
           "error": null,
-          "testFiles": 20
+          "testFiles": 21
         }
       ]
     },
@@ -1173,6 +1173,12 @@
       },
       {
         "file": "apps/desktop/tests/runtime-operations.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop/tests/snapshot-payload-budget.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20938,7 +20944,7 @@
     },
     {
       "file": "apps/desktop/src/main/runtime-manager.ts",
-      "lines": 983,
+      "lines": 1020,
       "relativeImports": 4
     },
     {
@@ -21054,6 +21060,11 @@
       "relativeImports": 18
     },
     {
+      "file": "apps/desktop/src/main/runtime-manager.ts",
+      "lines": 1020,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "lines": 1019,
       "relativeImports": 2
@@ -21144,11 +21155,6 @@
       "relativeImports": 14
     },
     {
-      "file": "apps/desktop/src/main/runtime-manager.ts",
-      "lines": 983,
-      "relativeImports": 4
-    },
-    {
       "file": "packages/tui/src/app-state.ts",
       "lines": 982,
       "relativeImports": 14
@@ -21203,6 +21209,10 @@
     {
       "file": "apps/desktop/src/main/runtime-manager.ts",
       "name": "normalizeProjectManifest"
+    },
+    {
+      "file": "apps/desktop/src/main/runtime-manager.ts",
+      "name": "SNAPSHOT_LOG_LINES"
     },
     {
       "file": "apps/desktop/src/main/runtime-manager.ts",

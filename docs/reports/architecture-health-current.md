@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-09T08:46:28.805Z
+**Generated:** 2026-09-09T09:05:42.653Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3700 |
-| Production source lines | 890579 |
-| Test files | 3187 |
+| Production source lines | 890616 |
+| Test files | 3188 |
 | Workspace dependency edges | 127 |
 | Relative module edges | 11680 |
 | Non-command slash imports | 0 |
@@ -32,7 +32,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/cli | 487 | 468 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/core | 846 | 724 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop | 37 | 20 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop | 37 | 21 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 5 | 5 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
@@ -106,6 +106,7 @@ None.
 | 1030 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1030 | `packages/tui/src/components/history/utils.tsx` |
 | 1025 | `packages/tui/src/app-key-handler.ts` |
+| 1020 | `apps/desktop/src/main/runtime-manager.ts` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1019 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
 | 1015 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
@@ -124,7 +125,6 @@ None.
 | 991 | `packages/tools/src/codebase-index/writer.ts` |
 | 987 | `packages/tui/src/input-validation.ts` |
 | 984 | `packages/tui/src/components/agents-monitor.tsx` |
-| 983 | `apps/desktop/src/main/runtime-manager.ts` |
 | 982 | `packages/tui/src/app-state.ts` |
 | 981 | `packages/sage/src/tools/memory-tools.ts` |
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
@@ -138,7 +138,7 @@ None.
 
 ## Exports only tests reference
 
-- 872 runtime exports are referenced by tests and by no other production file.
+- 873 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

@@ -99,9 +99,12 @@ export class DesktopRuntimeManager extends EventEmitter {
   }
 
   snapshot(): DesktopStateSnapshot {
+    const activeId = this.activeRuntimeId;
     return {
-      activeRuntimeId: this.activeRuntimeId,
-      runtimes: Array.from(this.runtimes.values()).map(publicRuntime),
+      activeRuntimeId: activeId,
+      runtimes: Array.from(this.runtimes.values()).map((runtime) =>
+        publicRuntime(runtime, runtime.id === activeId),
+      ),
       recentProjects: [...this.recentProjects],
       registeredProjects: [...this.registeredProjects],
       restoring: this.restoring,
@@ -167,7 +170,8 @@ export class DesktopRuntimeManager extends EventEmitter {
 
   getRuntime(id: string): DesktopRuntimeRecord | undefined {
     const runtime = this.runtimes.get(id);
-    return runtime ? publicRuntime(runtime) : undefined;
+    // Single record by id: including logs costs one runtime's worth, not N.
+    return runtime ? publicRuntime(runtime, true) : undefined;
   }
 
   getRuntimeUrlWithToken(id: string): string | undefined {
@@ -219,7 +223,7 @@ export class DesktopRuntimeManager extends EventEmitter {
           await this.persistWorkspaceState();
         }
         this.emitChanged();
-        return publicRuntime(existing);
+        return publicRuntime(existing, true);
       }
       const staleSameRoot = Array.from(this.runtimes.values()).filter(
         (runtime) => samePath(runtime.root, resolved) && runtime.kind === kind,
@@ -349,7 +353,7 @@ export class DesktopRuntimeManager extends EventEmitter {
       runtime.status = 'running';
       await this.persistWorkspaceState();
       this.emitChanged();
-      return publicRuntime(runtime);
+      return publicRuntime(runtime, true);
     } catch (err) {
       if (runtime.status !== 'stopped' && runtime.status !== 'error') {
         runtime.status = 'error';
@@ -555,11 +559,26 @@ export class DesktopRuntimeManager extends EventEmitter {
     this.emit('changed');
   }
 
+  /**
+   * Notify the shell that a runtime produced output.
+   *
+   * Only the ACTIVE runtime's logs reach the renderer (see `publicRuntime`), so
+   * output from a background project has nothing to show and must not cost a
+   * broadcast. Before this guard, every project writing to stdout scheduled its
+   * own 250 ms timer, and each one fired a FULL snapshot: N chatty projects
+   * produced 4N broadcasts per second carrying N x 40 log lines each, for a
+   * panel that displays one runtime's output.
+   *
+   * The 250 ms debounce is per-runtime by construction (the timer lives on the
+   * runtime record) but only one runtime can be active, so at most one such
+   * timer is ever armed now.
+   */
   private scheduleLogChanged(runtime: RuntimeInternal): void {
+    if (runtime.id !== this.activeRuntimeId) return;
     if (runtime.logNotifyTimer) return;
     runtime.logNotifyTimer = setTimeout(() => {
       runtime.logNotifyTimer = null;
-      if (this.runtimes.get(runtime.id) === runtime) {
+      if (this.runtimes.get(runtime.id) === runtime && runtime.id === this.activeRuntimeId) {
         this.emitChanged();
       }
     }, 250);
@@ -642,7 +661,24 @@ async function terminateProcessTree(child: ChildProcess | null): Promise<void> {
   });
 }
 
-function publicRuntime(runtime: RuntimeInternal): DesktopRuntimeRecord {
+/** Log lines carried in a snapshot, for the one runtime that can display them. */
+export const SNAPSHOT_LOG_LINES = 40;
+
+/**
+ * Project a runtime for the renderer.
+ *
+ * `recentLogs` is attached ONLY for the runtime the shell is currently
+ * showing. Exactly one place renders them — the active project's collapsed
+ * "WebUI output" panel (`renderRuntimeLogs`) — but they used to be attached to
+ * every record in every snapshot. With N projects that meant every state
+ * change serialised N x 40 log lines to display 40 of them, so the cost of one
+ * project writing to stdout grew with how many other projects were open.
+ *
+ * Background runtimes keep accumulating their logs in memory (bounded at 120
+ * by `appendRuntimeLog`); they are simply not shipped until that runtime
+ * becomes active, at which point the activation itself emits a change.
+ */
+function publicRuntime(runtime: RuntimeInternal, includeLogs: boolean): DesktopRuntimeRecord {
   const {
     child: _child,
     token: _token,
@@ -653,9 +689,10 @@ function publicRuntime(runtime: RuntimeInternal): DesktopRuntimeRecord {
   void _child;
   void _token;
   void _logNotifyTimer;
+  if (!includeLogs) return record;
   return {
     ...record,
-    recentLogs: logs.slice(-40),
+    recentLogs: logs.slice(-SNAPSHOT_LOG_LINES),
   };
 }
 
