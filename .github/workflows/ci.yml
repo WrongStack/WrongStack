@@ -412,6 +412,18 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
+      # vector-memory's headline capability is local ONNX embeddings via
+      # @huggingface/transformers. Its integration test is gated behind
+      # WRONGSTACK_VECTOR_INTEGRATION because the model download is slow and
+      # optional for contributors — but nothing set that variable anywhere, so
+      # the embedding path had 0 automated coverage while 135 unit tests around
+      # it stayed green. Run it here, where onnxruntime-node is already rebuilt.
+      - name: Test (vector-memory ONNX integration)
+        run: npx vitest run packages/vector-memory/tests/integration.test.ts
+        env:
+          WRONGSTACK_VECTOR_INTEGRATION: '1'
+          NODE_OPTIONS: --max-old-space-size=4096
+
   # Focused plugin-guard matrix (issues #360 / #363): Windows .cmd shims
   # and kill-defense parsers only fire on their native OS. Keep this job
   # narrow so the full coverage suite stays on ubuntu-latest.
@@ -467,10 +479,19 @@ jobs:
 
 
   # -----------------------------------------------------------------
-  # TUI smoke test — verifies --tui exits cleanly with code 2 and no
-  # ANSI sequences when stdin is not a TTY (e.g. piped invocation).
-  # Catches: raw-mode hangs, escape-sequence leaks to redirected stdout,
-  # and SGR persistence after abnormal exit.
+  # Two smokes over the built CLI binary.
+  #
+  # 1. TUI non-TTY guard — verifies --tui exits cleanly with code 2 and no
+  #    ANSI sequences when stdin is not a TTY (e.g. piped invocation).
+  #    Catches: raw-mode hangs, escape-sequence leaks to redirected stdout,
+  #    and SGR persistence after abnormal exit.
+  #
+  # 2. Boot wiring — the TUI guard above returns at the TTY check, BEFORE any
+  #    agent wiring runs, so it cannot see a broken boot. Two defects shipped
+  #    through that blind spot: a tool registered by two boot phases (which
+  #    threw on every interactive start) and an orchestration toolset that was
+  #    registered but never exposed to the provider. The second step drives the
+  #    real composition root far enough to catch both.
   # -----------------------------------------------------------------
   tui-smoke:
     name: TUI Smoke (non-TTY)
@@ -569,6 +590,73 @@ jobs:
           echo "PASS: TUI exits cleanly in non-TTY mode (exit 2, clear message, no ANSI leaks)"
           rm -f "$STDOUT_FILE" "$STDERR_FILE"
 
+      - name: Run boot wiring smoke
+        run: |
+          # No credentials in CI, so point a throwaway home at an
+          # openai-compatible provider on a closed port. The run reaches the
+          # provider and fails there — deliberately. What matters is everything
+          # BEFORE that: config load, tool registry, plugin/skill wiring, Brain
+          # and orchestration setup, and Director activation. The exit code is
+          # therefore not the signal; the markers below are.
+          SMOKE_HOME=$(mktemp -d)
+          mkdir -p "$SMOKE_HOME/.wrongstack"
+          cat > "$SMOKE_HOME/.wrongstack/config.json" <<'JSON'
+          {
+            "version": 1,
+            "provider": "ci-boot-smoke",
+            "model": "ci-boot-smoke-model",
+            "providers": {
+              "ci-boot-smoke": {
+                "type": "ci-boot-smoke",
+                "family": "openai-compatible",
+                "baseUrl": "http://127.0.0.1:9/v1",
+                "apiKeys": [{ "label": "default", "apiKey": "ci-boot-smoke" }],
+                "activeKey": "default"
+              }
+            },
+            "features": {
+              "mcp": false,
+              "plugins": false,
+              "memory": false,
+              "modelsRegistry": false,
+              "skills": false
+            }
+          }
+          JSON
+
+          OUT=$(mktemp)
+          HOME="$SMOKE_HOME" USERPROFILE="$SMOKE_HOME" \
+            timeout 180 node packages/cli/dist/index.js \
+              --no-tui --no-menu --skip-index "boot smoke" > "$OUT" 2>&1 || true
+
+          # A duplicate registration throws out of the composition root. This is
+          # the exact failure that broke every interactive surface.
+          # Booting starts the project daemons, which hold their SQLite files
+          # open past this step; removing the throwaway home is best-effort so
+          # a busy file cannot fail an otherwise passing smoke. The runner is
+          # ephemeral, so leftovers cost nothing.
+          cleanup() { rm -rf "$SMOKE_HOME" "$OUT" 2>/dev/null || true; }
+
+          if grep -q "already registered" "$OUT"; then
+            echo "FAIL: a tool was registered twice during boot"
+            grep -n "already registered" "$OUT"
+            cleanup
+            exit 1
+          fi
+
+          # Director activation is the last wiring phase before the first
+          # provider call, so reaching its announcement proves the whole
+          # composition root ran.
+          if ! grep -q "Director mode enabled" "$OUT"; then
+            echo "FAIL: boot did not reach Director activation"
+            tail -n 40 "$OUT"
+            cleanup
+            exit 1
+          fi
+
+          echo "PASS: boot reaches Director activation with no duplicate registration"
+          cleanup
+
   # -----------------------------------------------------------------
   # TUI heap-soak regression gate — runs the quick profile (120 entries,
   # 2 plateau samples per width) and asserts the plateau slope stays
@@ -663,6 +751,103 @@ jobs:
           retention-days: 14
 
   # -----------------------------------------------------------------
+  # WebUI end-to-end smoke. The e2e/ suite and playwright.config.ts have
+  # existed for a while — e2e/global-setup.ts even documents E2E_PROVIDER /
+  # E2E_MODEL as "set in ci.yml" — but no workflow ever ran them, so the
+  # browser surface had no automated coverage at all.
+  #
+  # Only smoke.spec.ts runs here: it boots the real WebUI server through the
+  # CLI and asserts the page loads without a crash or a console error. The
+  # rest of the suite drives multi-tab session behaviour and is too slow and
+  # too flaky-prone for the default gate; adding it is a separate decision.
+  #
+  # No credentials: a throwaway HOME declares an openai-compatible provider on
+  # a closed port. The smoke never sends a prompt, so the dead endpoint is
+  # never reached — it exists only so boot skips the auth gate and the server
+  # comes up in the chat state instead of the setup screen.
+  # -----------------------------------------------------------------
+  e2e-smoke:
+    name: WebUI E2E Smoke
+    needs: [build, reuse-checks]
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
+        with:
+          # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
+          # scripts run in this job and would be able to read it (WS-042).
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        # Same rationale as every other job: lifecycle scripts stay off and
+        # only the reviewed native set is rebuilt (VF-31).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
+
+      - name: Download verified build lineage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
+        with:
+          name: wrongstack-build-${{ github.sha }}
+
+      - name: Verify artifact lineage
+        run: pnpm check:build-manifest
+
+      - name: Install Playwright browser
+        # Chromium only — playwright.config.ts defines a single chromium project.
+        run: npx playwright install --with-deps chromium
+
+      - name: Run WebUI smoke
+        run: |
+          E2E_HOME=$(mktemp -d)
+          mkdir -p "$E2E_HOME/.wrongstack"
+          cat > "$E2E_HOME/.wrongstack/config.json" <<'JSON'
+          {
+            "version": 1,
+            "provider": "ci-e2e",
+            "model": "ci-e2e-model",
+            "providers": {
+              "ci-e2e": {
+                "type": "ci-e2e",
+                "family": "openai-compatible",
+                "baseUrl": "http://127.0.0.1:9/v1",
+                "apiKeys": [{ "label": "default", "apiKey": "ci-e2e" }],
+                "activeKey": "default"
+              }
+            },
+            "features": {
+              "mcp": false,
+              "plugins": false,
+              "memory": false,
+              "modelsRegistry": false,
+              "skills": false
+            }
+          }
+          JSON
+
+          HOME="$E2E_HOME" \
+          E2E_PROVIDER=ci-e2e \
+          E2E_MODEL=ci-e2e-model \
+            npx playwright test e2e/smoke.spec.ts --reporter=list
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (Node 24 runtime, pinned 2026-09-06)
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 7
+
+  # -----------------------------------------------------------------
   # Repo security scan (VF-20): run the repo's own analyzers against the
   # repo's own source — hardcoded secrets, unsafe dynamic execution, SQL
   # interpolation, prototype pollution, ReDoS-shaped regexes. Before this
@@ -755,7 +940,20 @@ jobs:
   # status check rather than listing every job individually.
   gate:
     name: CI Gate
-    needs: [lint, typecheck, build, manifests, plugin-guards, test, tui-smoke, tui-heap-soak, security-scan, audit]
+    needs:
+      [
+        lint,
+        typecheck,
+        build,
+        manifests,
+        plugin-guards,
+        test,
+        tui-smoke,
+        tui-heap-soak,
+        e2e-smoke,
+        security-scan,
+        audit,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     if: always()
@@ -772,6 +970,7 @@ jobs:
           echo "  test:          ${{ needs.test.result }}"
           echo "  tui-smoke:     ${{ needs.tui-smoke.result }}"
           echo "  tui-heap-soak: ${{ needs.tui-heap-soak.result }}"
+          echo "  e2e-smoke:     ${{ needs['e2e-smoke'].result }}"
           echo "  security-scan: ${{ needs.security-scan.result }}"
           echo "  audit:         ${{ needs.audit.result }}"
           exit 1
