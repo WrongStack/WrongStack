@@ -48,6 +48,8 @@ import { securityAstScanTool } from './security-ast-scan-tool.js';
 import { taskTool } from './task.js';
 import { testTool } from './test.js';
 import { todoTool } from './todo.js';
+import { toolSearchTool } from './tool-search.js';
+import { toolUseTool } from './tool-use.js';
 import { treeTool } from './tree.js';
 import { typecheckTool } from './typecheck.js';
 import { writeTool } from './write.js';
@@ -174,6 +176,10 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
   logs: 'Read or tail configured local, container, or process logs with bounded output. Use it to investigate a known runtime failure or service behavior.',
   design:
     'Choose, preview, or materialize a UI design kit (e.g. minimal-clarity, neo-brutalist) for the active stack. Lists available kits, previews tokens, or writes a design-token source file to the project.',
+  tool_search:
+    'Search the full tool catalog by name or description, including tools whose schemas were withheld from this request to save tokens. Use it before concluding a capability is unavailable; invoke what you find with tool_use.',
+  tool_use:
+    'Invoke a registered tool by its exact name, including one not listed in this request. Use it for a tool found through tool_search; the call still goes through the same permission and capability checks as a direct call.',
 };
 
 /**
@@ -183,8 +189,10 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
  *
  * These tools are useful but not critical for core development flow:
  * package management (install/audit/outdated run once per session at most),
- * meta-tools (toolSearch/toolUse/batchToolUse/toolHelp duplicate built-in
- * model capabilities), scaffolding, logging, and auto-documentation.
+ * browser automation, the E2E planner, and log tailing. The `tool_search` /
+ * `tool_use` gateway is deliberately NOT here — it is what makes everything
+ * omitted below tier `off` reachable, so withholding it would strand the
+ * tools this list exists to withhold.
  */
 export const OPTIONAL_TOOLS: Tool[] = [
   ...browserTools,
@@ -204,12 +212,12 @@ export const OFF_ONLY_TOOLS: Tool[] = [...browserTools, e2ePlanTool];
 
 /**
  * Tier 1 (Token Saving) tool set — the absolute minimum for useful work.
- * 23 tools covering core file ops, indexed project discovery, structured
- * edits, shell, search, and utilities. Codebase index lifecycle tools stay
- * available at every tier so token saving does not force broad filesystem
- * scans. Saves ~3500-5500 tokens vs full mode by omitting specialized
- * schemas from direct provider exposure; hosts may retain those tools in a
- * lazy catalog.
+ * 26 tools covering core file ops, indexed project discovery, structured
+ * edits, shell, search, utilities, and the lazy-catalog gateway. Codebase
+ * index lifecycle tools stay available at every tier so token saving does not
+ * force broad filesystem scans. Saves ~3500-5500 tokens vs full mode by
+ * omitting specialized schemas from direct provider exposure; the withheld
+ * tools stay executable and are reachable through the gateway pair.
  *
  * Tier 1 tools:
  *   read, write, edit, clarify                 — file operations
@@ -219,6 +227,7 @@ export const OFF_ONLY_TOOLS: Tool[] = [...browserTools, e2ePlanTool];
  *   bash, grep, glob                           — shell + exact/path fallback
  *   diff, patch, json                          — utility
  *   search                                     — web research
+ *   tool_search, tool_use                      — reach the withheld catalog
  */
 export const TIER1_TOOLS: Tool[] = [
   readTool,
@@ -245,6 +254,11 @@ export const TIER1_TOOLS: Tool[] = [
   patchTool,
   jsonTool,
   searchTool,
+  // The gateway pair must be in the smallest tier: every tier below `off`
+  // withholds tool schemas, and these two are the only way the model can find
+  // and call what was withheld.
+  toolSearchTool,
+  toolUseTool,
 ];
 
 /**
@@ -282,12 +296,12 @@ export const TIER2_TOOLS: Tool[] = [
 
 /**
  * Tier 3 tool set — specialized, administrative, and exploratory tools.
- * Adds 10 tools: outdated, logs, document, scaffold, dead-code-scan,
- * tool-search, tool-use, batch-tool-use, tool-help, set-working-dir.
+ * Adds 3 tools: outdated, logs, dead-code-scan.
  *
- * These tools are situational (e.g. documentation generation, scaffolding,
- * log tailing, dependency audits). Omitting them in standard tier saves
- * tokens while keeping all core capabilities available.
+ * These tools are situational (log tailing, dependency maintenance, dead-code
+ * sweeps). Omitting their schemas below tier `off` saves tokens; they stay
+ * registered and executable, and the model reaches them through `tool_search`
+ * / `tool_use` — which is why that pair lives in TIER1 rather than here.
  */
 export const TIER3_TOOLS: Tool[] = [
   outdatedTool,
@@ -346,6 +360,8 @@ const rawBuiltinTools: Tool[] = [
   outdatedTool,
   logsTool,
   designTool,
+  toolSearchTool,
+  toolUseTool,
 ];
 
 /** The executable catalog always exposes the reviewed description above. */

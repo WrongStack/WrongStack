@@ -25,15 +25,16 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
   name: 'tool_search',
   category: 'Meta',
   description:
-    'Search the catalog of available tools by name or description. Use this to discover which tool to use for a task. ' +
-    'For the full schema and usage details of a specific tool, use `tool_help` instead.',
+    'Search the catalog of available tools by name or description. Use this to discover which tool to use for a task, ' +
+    'including tools whose schemas were withheld from this request to save tokens.',
   usageHint:
     'SELF-DISCOVERY TOOL:\n\n' +
     '- Use when you need to find the right tool for a job.\n' +
     '- `query` searches names and descriptions.\n' +
     '- You can filter by `tags` (category), `permission`, or `mutating`.\n' +
-    '- Once you find the right tool name, use `tool_help` with that name for full schema details.\n' +
-    'Call this before guessing tool names. It helps you discover the best tool for the current situation.',
+    '- The catalog searched here is the full registry, not just the tools listed in this request.\n' +
+    '- Once you find the right tool name, invoke it with `tool_use`.\n' +
+    'Call this before concluding a capability is unavailable.',
   permission: 'auto',
   mutating: false,
   timeoutMs: 1_000,
@@ -106,12 +107,12 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     }));
 
     // When no tools match, give the model actionable guidance so it
-    // doesn't spiral through random queries. Point it at tool-help
-    // which lists every available tool with descriptions.
+    // doesn't spiral through random queries. Tell it how many tools exist and
+    // how to list them, so the next call narrows instead of guessing again.
     const totalAvailable = tools.length;
     const hint =
       results.length === 0 && query
-        ? `No tools matched "${input.query}". Use tool-help (without arguments) to see all ${totalAvailable} available tools.`
+        ? `No tools matched "${input.query}". ${totalAvailable} tools are available; call tool_search with no query to list them all.`
         : undefined;
 
     return {

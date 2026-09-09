@@ -19,9 +19,13 @@ function toolNameSet(tools: readonly (Tool | null | undefined)[]): Set<string> {
  *
  * `TIER3_TOOLS` deliberately appears in no tier below `off`: the specialized
  * tools it names reach the model through `tool_search` / `tool_use` instead of
- * costing a schema on every request. `aggressive` selects the same Tier-1 set
- * as `minimal` - the two differ only in how far tool descriptions are trimmed
- * by the prompt builder, not in which tools are exposed.
+ * costing a schema on every request. That pair therefore lives in
+ * `TIER1_TOOLS` and in `DIRECT_LAZY_GATEWAYS`
+ * (packages/runtime/src/tool-registration.ts) — while it did not, this comment
+ * described a route that did not exist and every withheld tool was simply
+ * unreachable. `aggressive` selects the same Tier-1 set as `minimal` - the two
+ * differ only in how far tool descriptions are trimmed by the prompt builder,
+ * not in which tools are exposed.
  */
 export const BUILTIN_TIER_COUNTS: Readonly<Record<ConcreteTokenSavingTier, number>> = {
   off: builtinToolsPack.tools?.length ?? 0,

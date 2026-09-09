@@ -25,7 +25,18 @@ import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '@wrongstack/
 import { createVectorMemoryTools, type VectorMemoryStore } from '@wrongstack/vector-memory';
 import { wireKanbanPorts } from './kanban-ports.js';
 
-const DIRECT_LAZY_GATEWAYS: readonly string[] = [];
+/**
+ * Names kept on the direct provider surface at every tier because they are how
+ * the model reaches everything the tier withheld.
+ *
+ * Below `off`, only the tier's own tools are serialized into a request; the
+ * rest stay registered and executable but invisible. This list was empty while
+ * the tier documentation claimed the withheld tools were reachable through
+ * `tool_search` / `tool_use`, so on a default (`minimal`) session roughly two
+ * thirds of the built-in catalog — `git`, `test`, `lint`, `typecheck`, `exec`
+ * and the rest — could not be found or called by the leader at all.
+ */
+const DIRECT_LAZY_GATEWAYS: readonly string[] = ['tool_search', 'tool_use'];
 
 export interface CanonicalHostToolRegistrationOptions {
   registry: ToolRegistry;

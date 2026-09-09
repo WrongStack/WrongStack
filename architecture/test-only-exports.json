@@ -1070,9 +1070,6 @@
     "packages/tools/src/bash-kill-guard.ts": [
       "parseKillCommand"
     ],
-    "packages/tools/src/batch-tool-use.ts": [
-      "batchToolUseTool"
-    ],
     "packages/tools/src/browser/artifacts.ts": [
       "_resetArtifactSweepForTests"
     ],
@@ -1104,9 +1101,6 @@
       "isLspKind",
       "LSPSymbolKind"
     ],
-    "packages/tools/src/codebase-index/parser-batch.ts": [
-      "__batchScriptPathsForTest"
-    ],
     "packages/tools/src/codebase-index/parser-worker-pool.ts": [
       "ParserWorkerPool"
     ],
@@ -1126,9 +1120,6 @@
     "packages/tools/src/codebase-index/writer-refs.ts": [
       "FAMILY_MATCH_SQL"
     ],
-    "packages/tools/src/document.ts": [
-      "documentTool"
-    ],
     "packages/tools/src/kanban-task-inputs.ts": [
       "mergedDependsOn"
     ],
@@ -1141,9 +1132,6 @@
     "packages/tools/src/ps-slash.ts": [
       "getGlobalProcessStatus"
     ],
-    "packages/tools/src/scaffold.ts": [
-      "scaffoldTool"
-    ],
     "packages/tools/src/search.ts": [
       "__clearSearchCache"
     ],
@@ -1152,21 +1140,9 @@
       "cleanupSessionKanbanBoard",
       "cleanupSessionKanbanBoardIfEmpty"
     ],
-    "packages/tools/src/set-working-dir.ts": [
-      "setWorkingDirTool"
-    ],
     "packages/tools/src/tool-diff.ts": [
       "DIFF_LINE_SAFETY_CAP",
       "TOOL_DIFF_BROWSER_SRC"
-    ],
-    "packages/tools/src/tool-help.ts": [
-      "toolHelpTool"
-    ],
-    "packages/tools/src/tool-search.ts": [
-      "toolSearchTool"
-    ],
-    "packages/tools/src/tool-use.ts": [
-      "toolUseTool"
     ],
     "packages/tui/src/app-ui-state.ts": [
       "effectiveShowSidebar",

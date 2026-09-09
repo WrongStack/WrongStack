@@ -116,6 +116,18 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     tools: ['todo', 'plan', 'task', 'kanban', 'nextsteps'],
   },
   {
+    // The lazy-catalog gateway. Below the `off` token-saving tier only a
+    // subset of the built-in catalog is serialized into each request; these
+    // two are what make the rest reachable at all — `tool_search` finds a
+    // withheld tool by name or description, `tool_use` invokes it through the
+    // governed executor, so permission and capability checks still apply.
+    // They are `direct` on purpose: a gateway nobody can see gates nothing.
+    id: 'tool.catalog',
+    pack: 'core',
+    exposure: 'direct',
+    tools: ['tool_search', 'tool_use'],
+  },
+  {
     id: 'coordination.mailbox',
     pack: 'fleet',
     exposure: 'direct',

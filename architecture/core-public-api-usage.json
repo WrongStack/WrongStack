@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 318,
-      "typeOnly": 252,
-      "runtimeOrMixed": 83
+      "files": 314,
+      "typeOnly": 250,
+      "runtimeOrMixed": 81
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 62,
+      "files": 61,
       "typeOnly": 18,
-      "runtimeOrMixed": 59
+      "runtimeOrMixed": 58
     },
     "@wrongstack/core/extension": {
       "files": 7,
@@ -74,9 +74,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/infrastructure": {
-      "files": 44,
+      "files": 43,
       "typeOnly": 6,
-      "runtimeOrMixed": 43
+      "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
       "files": 258,
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1067,
-      "typeOnly": 986,
-      "runtimeOrMixed": 278
+      "files": 1060,
+      "typeOnly": 981,
+      "runtimeOrMixed": 276
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 564,
+      "files": 562,
       "typeOnly": 55,
-      "runtimeOrMixed": 536
+      "runtimeOrMixed": 534
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1230,12 +1230,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/tools/src/batch-tool-use.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/browser/tools.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1251,12 +1245,6 @@
       "file": "packages/tools/src/diff.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/tools/src/document.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1339,12 +1327,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/session-kanban.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/tools/src/set-working-dir.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1569,12 +1551,6 @@
       "file": "packages/tools/tests/session-kanban.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/tools/tests/set-working-dir.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3900,12 +3876,6 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
-      "file": "packages/tools/tests/batch-tool-use.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/execution",
       "file": "packages/tools/tests/builtin-executor-smoke.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5257,12 +5227,6 @@
     {
       "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/runtime/tests/tool-registration.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/infrastructure",
-      "file": "packages/tools/tests/set-working-dir.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14682,12 +14646,6 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/tools/src/batch-tool-use.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/browser/tools.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14793,12 +14751,6 @@
       "file": "packages/tools/src/diff.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/tools/src/document.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14982,12 +14934,6 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/tools/src/scaffold.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/search.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -15018,12 +14964,6 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/tools/src/set-working-dir.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/skill.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -15045,12 +14985,6 @@
       "file": "packages/tools/src/todo.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/tools/src/tool-help.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -15093,12 +15027,6 @@
       "file": "packages/tools/tests/bash.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/tools/tests/batch-tool-use.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -15153,12 +15081,6 @@
       "file": "packages/tools/tests/read.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/tools/tests/set-working-dir.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -19494,12 +19416,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/scaffold.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/search.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -19527,12 +19443,6 @@
       "file": "packages/tools/src/session-kanban.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/set-working-dir.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

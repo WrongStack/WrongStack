@@ -160,14 +160,6 @@
       "types": "./dist/logs.d.ts",
       "import": "./dist/logs.js"
     },
-    "./document": {
-      "types": "./dist/document.d.ts",
-      "import": "./dist/document.js"
-    },
-    "./scaffold": {
-      "types": "./dist/scaffold.d.ts",
-      "import": "./dist/scaffold.js"
-    },
     "./tool-search": {
       "types": "./dist/tool-search.d.ts",
       "import": "./dist/tool-search.js"
@@ -175,14 +167,6 @@
     "./tool-use": {
       "types": "./dist/tool-use.d.ts",
       "import": "./dist/tool-use.js"
-    },
-    "./batch-tool-use": {
-      "types": "./dist/batch-tool-use.d.ts",
-      "import": "./dist/batch-tool-use.js"
-    },
-    "./tool-help": {
-      "types": "./dist/tool-help.d.ts",
-      "import": "./dist/tool-help.js"
     },
     "./memory": {
       "types": "./dist/memory.d.ts",

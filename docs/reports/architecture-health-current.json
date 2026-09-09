@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T05:40:00.893Z",
+  "generatedAt": "2026-09-09T05:57:39.290Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,9 +12,9 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3701,
-    "testFiles": 3184,
-    "sourceLines": 890060,
+    "sourceFiles": 3696,
+    "testFiles": 3177,
+    "sourceLines": 889084,
     "workspaceEdges": 127,
     "moduleEdges": 11667,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 880
+    "testOnlyExports": 872
   },
   "errors": [],
   "packageCycles": [],
@@ -733,8 +733,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 217,
-      "testFiles": 219,
+      "sourceFiles": 212,
+      "testFiles": 212,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -750,7 +750,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 219
+          "testFiles": 212
         }
       ]
     },
@@ -13196,12 +13196,6 @@
         ]
       },
       {
-        "file": "packages/tools/tests/batch-tool-use.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/tools/tests/browser-artifact-retention.test.ts",
         "projects": [
           "root-node"
@@ -13575,12 +13569,6 @@
       },
       {
         "file": "packages/tools/tests/diff.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/document.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13964,12 +13952,6 @@
         ]
       },
       {
-        "file": "packages/tools/tests/parser-batch.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/tools/tests/parser-worker-pool-failover.test.ts",
         "projects": [
           "root-node"
@@ -14150,18 +14132,6 @@
         ]
       },
       {
-        "file": "packages/tools/tests/scaffold-substitution.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/scaffold.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/tools/tests/search.test.ts",
         "projects": [
           "root-node"
@@ -14193,12 +14163,6 @@
       },
       {
         "file": "packages/tools/tests/session-kanban.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/set-working-dir.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14259,12 +14223,6 @@
       },
       {
         "file": "packages/tools/tests/tool-diff.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/tool-help.test.ts",
         "projects": [
           "root-node"
         ]
@@ -23254,10 +23212,6 @@
       "name": "parseKillCommand"
     },
     {
-      "file": "packages/tools/src/batch-tool-use.ts",
-      "name": "batchToolUseTool"
-    },
-    {
       "file": "packages/tools/src/browser/artifacts.ts",
       "name": "_resetArtifactSweepForTests"
     },
@@ -23310,10 +23264,6 @@
       "name": "LSPSymbolKind"
     },
     {
-      "file": "packages/tools/src/codebase-index/parser-batch.ts",
-      "name": "__batchScriptPathsForTest"
-    },
-    {
       "file": "packages/tools/src/codebase-index/parser-worker-pool.ts",
       "name": "ParserWorkerPool"
     },
@@ -23350,10 +23300,6 @@
       "name": "FAMILY_MATCH_SQL"
     },
     {
-      "file": "packages/tools/src/document.ts",
-      "name": "documentTool"
-    },
-    {
       "file": "packages/tools/src/kanban-task-inputs.ts",
       "name": "mergedDependsOn"
     },
@@ -23368,10 +23314,6 @@
     {
       "file": "packages/tools/src/ps-slash.ts",
       "name": "getGlobalProcessStatus"
-    },
-    {
-      "file": "packages/tools/src/scaffold.ts",
-      "name": "scaffoldTool"
     },
     {
       "file": "packages/tools/src/search.ts",
@@ -23390,28 +23332,12 @@
       "name": "cleanupSessionKanbanBoardIfEmpty"
     },
     {
-      "file": "packages/tools/src/set-working-dir.ts",
-      "name": "setWorkingDirTool"
-    },
-    {
       "file": "packages/tools/src/tool-diff.ts",
       "name": "DIFF_LINE_SAFETY_CAP"
     },
     {
       "file": "packages/tools/src/tool-diff.ts",
       "name": "TOOL_DIFF_BROWSER_SRC"
-    },
-    {
-      "file": "packages/tools/src/tool-help.ts",
-      "name": "toolHelpTool"
-    },
-    {
-      "file": "packages/tools/src/tool-search.ts",
-      "name": "toolSearchTool"
-    },
-    {
-      "file": "packages/tools/src/tool-use.ts",
-      "name": "toolUseTool"
     },
     {
       "file": "packages/tui/src/app-ui-state.ts",
