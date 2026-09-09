@@ -26,13 +26,13 @@ export function useT(): (key: string) => string {
  * One icon.
  *
  * The inner markup comes from `icons.ts`, which stores each glyph as a literal
- * SVG fragment — `<path>`, and for some glyphs `<circle>` / `<rect>`. It is a
- * compile-time constant record keyed by the `IconName` union, so the only
- * values that can reach `dangerouslySetInnerHTML` here are the ones written in
- * that file; nothing user-, disk- or network-supplied can index into it, and a
- * name that is not in the union does not typecheck. Hand-converting the same
- * glyphs into JSX would be a second copy free to drift from the one the
- * main-process menu code also reads.
+ * SVG fragment — mostly `<path>`, but several use `<circle>` or `<rect>`, so
+ * extracting path data alone would silently drop parts of those glyphs.
+ *
+ * On `dangerouslySetInnerHTML`: `ICON_PATHS` is a compile-time constant record
+ * keyed by the `IconName` union. The only values that can reach this call are
+ * the literals written in that file; nothing user-, disk- or network-supplied
+ * can index into it, and a name outside the union does not typecheck.
  */
 export const Icon = memo(function Icon({
   name,

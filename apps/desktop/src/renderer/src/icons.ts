@@ -1,6 +1,9 @@
 /**
- * Desktop renderer SVG icons — extracted from renderer.ts for maintainability.
- * Each icon is a Lucide-style SVG path string (24×24 viewBox).
+ * Desktop shell SVG icons.
+ *
+ * Each glyph is stored as the inner markup of a 24x24 Lucide-style icon —
+ * usually a `<path>`, sometimes a `<circle>` or `<rect>`. The `<svg>` wrapper
+ * is supplied by the `Icon` component in `ui.tsx`, the only consumer.
  */
 
 const ICON_NAMES = [
@@ -133,14 +136,10 @@ const ICON_PATHS: Record<IconName, string> = {
 /**
  * The inner SVG fragment for one glyph, without the wrapping `<svg>`.
  *
- * Exposed for the React `Icon` component, which supplies its own wrapper. The
- * return value is always one of the literals in `ICON_PATHS` below — there is
- * no path by which caller-supplied text becomes markup here.
+ * The return value is always one of the literals in `ICON_PATHS` below, so
+ * there is no path by which caller-supplied text becomes markup here.
  */
 export function iconMarkup(name: IconName): string {
   return ICON_PATHS[name];
 }
 
-export function iconSvg(name: IconName): string {
-  return `<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
-}

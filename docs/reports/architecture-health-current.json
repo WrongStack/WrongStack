@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T09:50:21.244Z",
+  "generatedAt": "2026-09-09T09:56:45.644Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3704,
+    "sourceFiles": 3703,
     "testFiles": 3193,
-    "sourceLines": 890669,
+    "sourceLines": 890603,
     "workspaceEdges": 127,
-    "moduleEdges": 11682,
+    "moduleEdges": 11681,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -237,7 +237,7 @@
     {
       "name": "@wrongstack/desktop",
       "dir": "apps/desktop",
-      "sourceFiles": 41,
+      "sourceFiles": 40,
       "testFiles": 26,
       "workspaceDependencies": [
         "@wrongstack/core",
