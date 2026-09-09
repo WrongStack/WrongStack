@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T09:27:37.810Z",
+  "generatedAt": "2026-09-09T09:45:18.799Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3704,
-    "testFiles": 3191,
-    "sourceLines": 890539,
+    "testFiles": 3192,
+    "sourceLines": 890563,
     "workspaceEdges": 127,
     "moduleEdges": 11682,
     "nonCommandSlashImports": 0,
@@ -238,7 +238,7 @@
       "name": "@wrongstack/desktop",
       "dir": "apps/desktop",
       "sourceFiles": 41,
-      "testFiles": 24,
+      "testFiles": 25,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/webui",
@@ -254,7 +254,7 @@
         {
           "path": "apps/desktop/tsconfig.test.json",
           "error": null,
-          "testFiles": 24
+          "testFiles": 25
         }
       ]
     },
@@ -1227,6 +1227,12 @@
       },
       {
         "file": "apps/desktop/tests/webui-controller-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop/tests/webui-view-lifecycle-budget.test.ts",
         "projects": [
           "root-node"
         ]

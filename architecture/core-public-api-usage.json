@@ -139,8 +139,8 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 140,
-      "typeOnly": 26,
+      "files": 141,
+      "typeOnly": 27,
       "runtimeOrMixed": 117
     },
     "@wrongstack/core/session-catalog": {
@@ -8257,6 +8257,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "apps/desktop/tests/webui-controller-lifecycle.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "apps/desktop/tests/webui-view-lifecycle-budget.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

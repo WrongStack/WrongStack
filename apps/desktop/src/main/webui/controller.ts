@@ -174,12 +174,31 @@ export class DesktopWebuiController {
     return [...this.views.values()].find((entry) => entry.view.webContents.id === senderId);
   }
 
+  /**
+   * Point the window at the active runtime's WebUI, and keep no other view.
+   *
+   * Only views whose runtime had STOPPED were released here. A view for a
+   * running-but-background project stayed alive for the life of the app — a
+   * full Chromium renderer process each, hidden purely by setting its width to
+   * zero in `layoutViews`. Ten open projects meant ten renderer processes to
+   * show one, and memory grew with every project ever visited.
+   *
+   * Now exactly one view exists: the active one. Switching projects releases
+   * the previous view and loads the next, which costs a page load on the way
+   * back — the deliberate trade for a footprint that does not grow with how
+   * many projects are open. The shell covers that load with its own
+   * `loading` state, so the gap is visible as progress rather than as a blank
+   * window.
+   *
+   * Queued WebUI commands are not at risk: `dispatch` only ever targets
+   * `activeEntry()`, so a disposed background view cannot have had any.
+   */
   syncActive(): void {
     if (!this.ctx.getMainWindow()) return;
     const snapshot = this.ctx.manager.snapshot();
-    const live = new Set(snapshot.runtimes.filter((r) => r.status === 'running').map((r) => r.id));
-    for (const [id, entry] of this.views) if (!live.has(id)) this.dispose(entry);
     const active = snapshot.runtimes.find((runtime) => runtime.id === snapshot.activeRuntimeId);
+    const keep = active?.status === 'running' ? active.id : null;
+    for (const [id, entry] of this.views) if (id !== keep) this.dispose(entry);
     if (active?.status !== 'running') {
       this.activeRuntimeId = active?.id ?? null;
       this.publishStatus({ runtimeId: active?.id ?? null, status: 'idle' });

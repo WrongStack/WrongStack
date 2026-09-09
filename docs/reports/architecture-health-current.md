@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-09T09:27:37.810Z
+**Generated:** 2026-09-09T09:45:18.799Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3704 |
-| Production source lines | 890539 |
-| Test files | 3191 |
+| Production source lines | 890563 |
+| Test files | 3192 |
 | Workspace dependency edges | 127 |
 | Relative module edges | 11682 |
 | Non-command slash imports | 0 |
@@ -32,7 +32,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/cli | 487 | 468 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/core | 846 | 724 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop | 41 | 24 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop | 41 | 25 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 5 | 5 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |

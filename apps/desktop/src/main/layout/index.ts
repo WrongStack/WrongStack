@@ -55,9 +55,14 @@ export function layoutWebuiViews(
     const runtime = snapshot.runtimes.find((r) => r.id === entry.runtimeId);
     if (active?.id === entry.runtimeId && runtime?.status === 'running') {
       entry.view.setBounds({ x: sidebarWidth, y: 0, width: contentWidth, height });
-    } else {
-      entry.view.setBounds({ x: sidebarWidth, y: 0, width: 0, height });
+      continue;
     }
+    // Reaching here means a view outlived its turn as the active one, which
+    // `syncActive` no longer allows — it disposes every non-active view rather
+    // than parking it at zero width, because a parked view is still a live
+    // Chromium renderer process. Collapsing it stays as a belt-and-braces
+    // measure for the window between a runtime changing and the next sync.
+    entry.view.setBounds({ x: sidebarWidth, y: 0, width: 0, height });
   }
 }
 
