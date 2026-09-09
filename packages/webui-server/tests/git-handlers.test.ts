@@ -2,17 +2,20 @@ import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { WebSocket } from 'ws';
 import {
   handleGitChanges,
   handleGitCommit,
+  handleGitCommitDetail,
+  handleGitCommitFileDiff,
   handleGitDiff,
   handleGitDiscard,
+  handleGitHistory,
   handleGitStage,
   handleGitUnstage,
   repoRelativePrefix,
 } from '@wrongstack/webui-server';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { WebSocket } from 'ws';
 
 /** Minimal ws mock that records parsed JSON sends. */
 function createMockWs() {
@@ -194,6 +197,88 @@ describe('git change-set handlers', () => {
       } finally {
         fsSync.rmSync(notRepo, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe('repository history handlers', () => {
+    it('returns topology, refs, pagination, and commit file details', async () => {
+      git(repo, ['branch', 'feature/history']);
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'history line\n');
+      git(repo, ['add', 'keep.txt']);
+      git(repo, ['commit', '-q', '-m', 'feat: history graph']);
+      git(repo, ['tag', 'v1.0.0']);
+
+      const ws = createMockWs();
+      await handleGitHistory(ws, repo, { limit: 10 });
+      const history = ws.sent[0]?.payload as {
+        commits: Array<{ hash: string; parents: string[]; subject: string; refs: string[] }>;
+        refs: Array<{ name: string; kind: string }>;
+        currentBranch: string;
+        hasMore: boolean;
+      };
+      expect(history.commits[0]?.subject).toBe('feat: history graph');
+      expect(history.commits[0]?.parents).toHaveLength(1);
+      expect(history.commits[0]?.refs).toContain('tag: v1.0.0');
+      expect(history.refs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'refs/heads/feature/history', kind: 'local' }),
+          expect.objectContaining({ name: 'refs/tags/v1.0.0', kind: 'tag' }),
+        ]),
+      );
+      expect(history.currentBranch).toBeTruthy();
+      expect(history.hasMore).toBe(false);
+
+      const detailWs = createMockWs();
+      await handleGitCommitDetail(detailWs, repo, history.commits[0]?.hash ?? '');
+      expect(detailWs.sent[0]?.type).toBe('git.commit_detail');
+      expect(detailWs.sent[0]?.payload).toMatchObject({
+        body: 'feat: history graph',
+        files: [expect.objectContaining({ path: 'keep.txt', added: 1 })],
+      });
+
+      const diffWs = createMockWs();
+      await handleGitCommitFileDiff(diffWs, repo, {
+        hash: history.commits[0]?.hash ?? '',
+        path: 'keep.txt',
+      });
+      expect(diffWs.sent[0]?.type).toBe('git.commit_file_diff');
+      expect(diffWs.sent[0]?.payload).toMatchObject({
+        path: 'keep.txt',
+        oldText: 'line1\nline2\nline3\n',
+        newText: 'history line\n',
+      });
+    });
+
+    it('rejects a non-hash commit detail request', async () => {
+      const ws = createMockWs();
+      await handleGitCommitDetail(ws, repo, '--all');
+      expect(ws.sent[0]?.payload.error).toBe('invalid commit hash');
+    });
+
+    it('reports rename paths and reads the first-parent revision pair', async () => {
+      git(repo, ['mv', 'keep.txt', 'renamed.txt']);
+      git(repo, ['commit', '-q', '-m', 'refactor: rename file']);
+      const hash = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: repo,
+        encoding: 'utf8',
+      }).trim();
+
+      const detailWs = createMockWs();
+      await handleGitCommitDetail(detailWs, repo, hash);
+      expect(detailWs.sent[0]?.payload.files).toEqual([
+        expect.objectContaining({ path: 'renamed.txt', previousPath: 'keep.txt' }),
+      ]);
+
+      const diffWs = createMockWs();
+      await handleGitCommitFileDiff(diffWs, repo, {
+        hash,
+        path: 'renamed.txt',
+        previousPath: 'keep.txt',
+      });
+      expect(diffWs.sent[0]?.payload).toMatchObject({
+        oldText: 'line1\nline2\nline3\n',
+        newText: 'line1\nline2\nline3\n',
+      });
     });
   });
 

@@ -197,8 +197,11 @@ export {
 export {
   handleGitChanges,
   handleGitCommit,
+  handleGitCommitDetail,
+  handleGitCommitFileDiff,
   handleGitDiff,
   handleGitDiscard,
+  handleGitHistory,
   handleGitInfo,
   handleGitStage,
   handleGitUnstage,

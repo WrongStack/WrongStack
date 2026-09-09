@@ -1,6 +1,6 @@
-import type { WebSocket } from 'ws';
-import { describe, expect, it, vi } from 'vitest';
 import { handleShellGitRoute, type ShellGitRouteHandlers } from '@wrongstack/webui-server';
+import { describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 
 function mockWs() {
   return {
@@ -19,6 +19,9 @@ function handlers(): ShellGitRouteHandlers {
   return {
     gitInfo: vi.fn(async () => undefined),
     gitChanges: vi.fn(async () => undefined),
+    gitHistory: vi.fn(async () => undefined),
+    gitCommitDetail: vi.fn(async () => undefined),
+    gitCommitFileDiff: vi.fn(async () => undefined),
     gitDiff: vi.fn(async () => undefined),
     gitStage: vi.fn(async () => undefined),
     gitUnstage: vi.fn(async () => undefined),
@@ -43,6 +46,9 @@ describe('handleShellGitRoute dispatcher characterization', () => {
   it.each([
     ['git.info', 'gitInfo'],
     ['git.changes', 'gitChanges'],
+    ['git.history', 'gitHistory'],
+    ['git.commit_detail', 'gitCommitDetail'],
+    ['git.commit_file_diff', 'gitCommitFileDiff'],
     ['git.diff', 'gitDiff'],
     ['git.stage', 'gitStage'],
     ['git.unstage', 'gitUnstage'],

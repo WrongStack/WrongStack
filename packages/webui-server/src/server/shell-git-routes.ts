@@ -3,6 +3,9 @@ import type { WSClientMessage } from './types.js';
 
 export interface ShellGitRouteHandlers {
   gitInfo: (ws: WebSocket) => Promise<void>;
+  gitHistory: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  gitCommitDetail: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  gitCommitFileDiff: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   gitChanges: (ws: WebSocket) => Promise<void>;
   gitDiff: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   gitStage?: ((ws: WebSocket, msg: WSClientMessage) => Promise<void>) | undefined;
@@ -23,6 +26,15 @@ export async function handleShellGitRoute(
       return true;
     case 'git.changes':
       await handlers.gitChanges(ws);
+      return true;
+    case 'git.history':
+      await handlers.gitHistory(ws, msg);
+      return true;
+    case 'git.commit_detail':
+      await handlers.gitCommitDetail(ws, msg);
+      return true;
+    case 'git.commit_file_diff':
+      await handlers.gitCommitFileDiff(ws, msg);
       return true;
     case 'git.diff':
       await handlers.gitDiff(ws, msg);

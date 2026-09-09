@@ -23,7 +23,8 @@ export type MainView =
   | 'chronicle'
   | 'intake'
   | 'prompts'
-  | 'chimera';
+  | 'chimera'
+  | 'history';
 
 /**
  * A view with no bar affordance at all — reached from the command palette, a
@@ -56,9 +57,7 @@ export type AppView = View;
 type AssertNever<T extends never> = T;
 type UnroutableView = AssertNever<Exclude<View, PanelMainView | MainView | UnlistedView>>;
 /** Guards the other direction: a bucket may not name a view the store lost. */
-type UnknownNavigationView = AssertNever<
-  Exclude<PanelMainView | MainView | UnlistedView, View>
->;
+type UnknownNavigationView = AssertNever<Exclude<PanelMainView | MainView | UnlistedView, View>>;
 
 export const PANEL_VIEW_BY_ACTIVITY: Record<Activity, PanelMainView> = {
   chat: 'chat',

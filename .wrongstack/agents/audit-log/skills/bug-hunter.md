@@ -1,0 +1,2 @@
+- Test slash-command lifecycle in `packages/tui/src/hooks/use-core-tui-commands.ts` and `packages/tui/src/hooks/use-tui-slash-commands.ts`: pre-register canonical, simulate cleanup/rerender, verify bare UI and typed fallback forms.
+- Avoid factory-only tests; they miss stale closures, ignored same-owner registrations, lost canonical handlers.

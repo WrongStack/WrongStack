@@ -144,6 +144,13 @@ export const toolCatalog = [
     category: 'Files & search',
   },
   {
+    name: 'read_url_content',
+    summary: 'Fetch a public URL and convert HTML into clean, bounded markdown.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Shell, Git & web',
+  },
+  {
     name: 'write',
     summary: 'Write or completely overwrite a file on disk.',
     permission: 'confirm',
@@ -362,21 +369,6 @@ export const toolCatalog = [
     category: 'Dependencies & operations',
   },
   {
-    name: 'document',
-    summary: 'DEPRECATED — read-only preview stub that lists undocumented symbols; writes nothing.',
-    permission: 'auto',
-    mutating: false,
-    category: 'Generation & design',
-  },
-  {
-    name: 'scaffold',
-    summary:
-      'Generate new files and folder structures from built-in templates or custom definitions.',
-    permission: 'confirm',
-    mutating: true,
-    category: 'Generation & design',
-  },
-  {
     name: 'design',
     summary: 'Browse, load, customize, and enforce curated frontend/mobile UI design kits.',
     permission: 'confirm',
@@ -403,21 +395,6 @@ export const toolCatalog = [
     summary: 'Directly execute any registered tool by its exact name, bypassing normal discovery.',
     permission: 'confirm',
     mutating: true,
-    category: 'Discovery & index',
-  },
-  {
-    name: 'batch_tool_use',
-    summary: 'Execute a batch of tool calls either sequentially or in parallel.',
-    permission: 'confirm',
-    mutating: true,
-    category: 'Discovery & index',
-  },
-  {
-    name: 'tool_help',
-    summary:
-      'Get detailed help for a specific tool, including its full input schema and usage guidance.',
-    permission: 'auto',
-    mutating: false,
     category: 'Discovery & index',
   },
   {
@@ -527,13 +504,6 @@ export const toolCatalog = [
     mutating: false,
     category: 'Discovery & index',
   },
-  {
-    name: 'set_working_dir',
-    summary: 'Change the current working directory for all subsequent file operations.',
-    permission: 'confirm',
-    mutating: true,
-    category: 'Work & state',
-  },
 ] as const;
 
 export const pluginSources = ['Core', 'Suite', 'Bridge'] as const;
@@ -578,6 +548,13 @@ export const pluginCatalog = [
     name: 'wstack-auto-review',
     risk: 'medium',
     summary: 'Tracks changed files and requests bounded mid-session Chimera reviews.',
+    defaultState: 'inactive',
+    source: 'Core',
+  },
+  {
+    name: 'wstack-specialist-triggers',
+    risk: 'medium',
+    summary: 'Spawns roster specialists when files matching their patterns change.',
     defaultState: 'inactive',
     source: 'Core',
   },

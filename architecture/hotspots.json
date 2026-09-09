@@ -475,7 +475,7 @@
       "relativeImports": 16
     },
     "packages/webui/src/types/client-message.ts": {
-      "lines": 871,
+      "lines": 880,
       "relativeImports": 7
     },
     "packages/webui-server/src/server/backend-services.ts": {
@@ -487,8 +487,12 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/embedded-message-router.ts": {
-      "lines": 832,
+      "lines": 857,
       "relativeImports": 52
+    },
+    "packages/webui-server/src/server/git-handlers.ts": {
+      "lines": 1014,
+      "relativeImports": 2
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {
       "lines": 1019,
@@ -499,7 +503,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 938,
+      "lines": 967,
       "relativeImports": 47
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

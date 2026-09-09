@@ -22,4 +22,26 @@ describe('WrongStackWebSocketClient git requests', () => {
       payload: { path: 'packages/webui/src/App.tsx' },
     });
   });
+
+  it('requests repository history and commit detail', () => {
+    const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
+    const send = vi.spyOn(client, 'send').mockImplementation(() => true);
+
+    client.getGitHistory({ ref: 'refs/heads/main', limit: 80, skip: 20 });
+    client.getGitCommitDetail('abc1234');
+    client.getGitCommitFileDiff('abc1234', 'src/new.ts', 'src/old.ts');
+
+    expect(send).toHaveBeenNthCalledWith(1, {
+      type: 'git.history',
+      payload: { ref: 'refs/heads/main', limit: 80, skip: 20 },
+    });
+    expect(send).toHaveBeenNthCalledWith(2, {
+      type: 'git.commit_detail',
+      payload: { hash: 'abc1234' },
+    });
+    expect(send).toHaveBeenNthCalledWith(3, {
+      type: 'git.commit_file_diff',
+      payload: { hash: 'abc1234', path: 'src/new.ts', previousPath: 'src/old.ts' },
+    });
+  });
 });

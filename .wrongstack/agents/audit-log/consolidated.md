@@ -2,20 +2,19 @@
 
 ### Memory-Boundedness Audits
 
-- **Every module-scope `Map`/`Set` in long-lived host processes must have a matching delete site, not just an initial clear in the shutdown path.** Before reporting a structure as "bounded," locate and quote the cleanup site that fires during normal operation.
-- **Map the known cleanup patterns per host process** so audits are systematic rather than ad-hoc:
-  - `packages/cli/src/hq-server/` — `ws.ts` close handlers for clients/browsers; age sweeps in `hq-server.ts` around lines 243–252; `evictOldest` helper in `utils.ts` for transcripts/agentMessages; splice caps for `eventLog`/`commandQueue`.
-- **Flag Maps whose only lifecycle event is a final clear on server close.** Example: `mailboxGateways` in `hq-server.ts` had no per-entry eviction and must be marked as a retention risk, not as bounded.
-- **Standard evidence format for a bounded structure:** state the map name, the module, and the exact cleanup function/line that evicts entries during steady-state operation. Without that citation, do not certify it.
-
-### WrongStack Frontend (`packages/webui/`)
-
-- **Every `Map`-backed suppression/echo/coalescer must carry either a TTL sweep or a per-key array cap.** Deletion only on consume is insufficient.
-- **Concrete risk shape:** `suppressedChatEchoes` in `packages/webui/src/lib/ws-client.ts` accumulates per-key arrays that grow unbounded under sustained silent-response failures because `consumeSuppressedChatEcho` is the sole release point.
-- **Required remediation pattern when a consume-only delete is in place:** add either a reconnect-time prune of all per-key arrays, or an explicit per-key cap inside the structure. Verify the chosen mechanism is wired before closing the audit item.
+- Treat a module-scope `Map` or `Set` in a long-lived host process as bounded only when there is a delete or eviction path during steady-state operation; a shutdown-only clear is a retention risk.
+- Audit systematically by mapping cleanup patterns, including close handlers, age sweeps, splice caps, and explicit helpers such as `evictOldest` in `packages/cli/src/hq-server/`.
+- For `packages/webui/` frontend state, every `Map`-backed suppression, echo, or coalescer needs a TTL sweep, per-key array cap, or reconnect-time prune; deletion only on consume is insufficient.
+- Before closing an item, verify the chosen eviction mechanism is actually wired in, not merely present as an unused helper.
 
 ### Audit Reporting Conventions
 
-- Tie every retention claim to a named code site; never assert "bounded" or "unbounded" in the abstract.
-- Distinguish steady-state eviction from shutdown-only clear — these are different risk profiles.
-- Prefer listing the exact cleanup function name (`evictOldest`, `consumeSuppressedChatEcho`, etc.) over describing the behavior in prose, so future audits can grep for the same names.
+- Tie every retention claim to a named code site and, when possible, a named cleanup function or event handler so future audits can grep for it.
+- Distinguish steady-state eviction from shutdown-only clear; they are different risk profiles and should not be reported with the same verdict.
+- Prefer concrete evidence such as file path plus function or event name over prose descriptions of behavior.
+
+### React-owned Slash Command Verification
+
+- Test React-owned slash command registration against the registry’s actual collision and teardown semantics, not only through factory tests.
+- Cover pre-registering a canonical command, effect cleanup and rerender, bare UI forms, and typed fallback forms.
+- Use lifecycle tests anchored in `packages/tui/src/hooks/use-core-tui-commands.ts` and `packages/tui/src/hooks/use-tui-slash-commands.ts`; factory-only tests can miss stale closures, ignored same-owner registrations, and lost canonical handlers.

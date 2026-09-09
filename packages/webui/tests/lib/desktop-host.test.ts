@@ -5,12 +5,12 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  DESKTOP_COMMAND_VIEWS,
   DESKTOP_COMMAND_DOCKS,
+  DESKTOP_COMMAND_VIEWS,
   DESKTOP_COMMAND_WORK_TABS,
+  publishDesktopCommandAck,
   publishDesktopPrefsSnapshot,
   publishDesktopReady,
-  publishDesktopCommandAck,
 } from '../../src/lib/desktop-host';
 import { useLocalPrefs } from '../../src/stores/local-prefs';
 
@@ -23,7 +23,8 @@ describe('constants', () => {
     expect(DESKTOP_COMMAND_VIEWS.has('sddboard')).toBe(false);
     expect(DESKTOP_COMMAND_VIEWS.has('sddwizard')).toBe(false);
     expect(DESKTOP_COMMAND_VIEWS.has('specs')).toBe(false);
-    expect(DESKTOP_COMMAND_VIEWS.size).toBe(16);
+    expect(DESKTOP_COMMAND_VIEWS.has('history')).toBe(true);
+    expect(DESKTOP_COMMAND_VIEWS.size).toBe(17);
   });
 
   it('DESKTOP_COMMAND_DOCKS contains dock section names', () => {

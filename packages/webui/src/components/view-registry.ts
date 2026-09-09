@@ -26,7 +26,7 @@
  * See docs/audit/webui-full-review-2026-09-03.md B-17 for the context and
  * view-router/shell examples.
  */
-import { lazy, type ComponentType } from 'react';
+import { type ComponentType, lazy } from 'react';
 import type { View } from '@/stores/ui-store';
 
 // Lazy at module scope: one chunk per view, identical to the previous
@@ -39,6 +39,9 @@ const AgentRosterView = lazy(() =>
   import('./AgentRosterView').then((m) => ({ default: m.AgentRosterView })),
 );
 const ChangesView = lazy(() => import('./ChangesView').then((m) => ({ default: m.ChangesView })));
+const RepositoryHistoryView = lazy(() =>
+  import('./RepositoryHistoryView').then((m) => ({ default: m.RepositoryHistoryView })),
+);
 const ChronicleDashboard = lazy(() =>
   import('./ChronicleDashboard').then((m) => ({ default: m.ChronicleDashboard })),
 );
@@ -255,6 +258,12 @@ const VIEW_REGISTRY_STRICT = {
     loadingLabelKey: 'activity:panels.changes',
     props: { className: 'h-full min-h-0' },
   },
+  history: {
+    Component: RepositoryHistoryView,
+    wrapperClassName: 'flex-1 min-h-0 min-w-0 overflow-hidden',
+    boundaryNameKey: 'activity:nav.repositoryHistory',
+    loadingLabelKey: 'activity:nav.repositoryHistory',
+  },
   mailbox: {
     Component: MailboxDetailView,
     wrapperClassName: 'flex-1 min-h-0 min-w-0 overflow-hidden',
@@ -328,9 +337,7 @@ export const VIEW_REGISTRY: Partial<Record<View, ViewMeta>> = VIEW_REGISTRY_STRI
  * has lost.
  */
 type AssertNever<T extends never> = T;
-type UnroutedView = AssertNever<
-  Exclude<Exclude<View, 'chat'>, keyof typeof VIEW_REGISTRY_STRICT>
->;
+type UnroutedView = AssertNever<Exclude<Exclude<View, 'chat'>, keyof typeof VIEW_REGISTRY_STRICT>>;
 type StaleRegistryEntry = AssertNever<Exclude<keyof typeof VIEW_REGISTRY_STRICT, View>>;
 
 /**

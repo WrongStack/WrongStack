@@ -8,6 +8,7 @@ import {
   Command,
   FolderOpen,
   GitCompare,
+  GitFork,
   Keyboard,
   Layers,
   LayoutGrid,
@@ -88,6 +89,7 @@ const PANELS: PanelDef[] = [
 // "…" utilities menu (Ctrl+9 / palette unchanged) — its standalone icon was
 // redundant with that menu's full Settings section.
 const VIEWS: ViewDef[] = [
+  { id: 'history', icon: <GitFork size={16} />, label: 'Repository History' },
   // Agent Roster is a primary surface — it must stay visible on typical
   // viewports instead of silently falling into the "…" overflow menu.
   { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },

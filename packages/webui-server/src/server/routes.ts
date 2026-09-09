@@ -61,7 +61,7 @@ import { type AutonomyRouteHandlers, createAutonomyRouteHandlers } from './auton
 import { patchConfig } from './boot.js';
 import type { BrainHandlerContext } from './brain-handlers.js';
 import { type BrainRouteHandlers, createBrainRouteHandlers } from './brain-routes.js';
-import { createChimeraRouteHandlers, type ChimeraRouteHandlers } from './chimera-routes.js';
+import { type ChimeraRouteHandlers, createChimeraRouteHandlers } from './chimera-routes.js';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { handleConfigDoctor } from './config-doctor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
@@ -69,8 +69,11 @@ import { emitFallbackChoice } from './fallback-choice.js';
 import {
   handleGitChanges,
   handleGitCommit,
+  handleGitCommitDetail,
+  handleGitCommitFileDiff,
   handleGitDiff,
   handleGitDiscard,
+  handleGitHistory,
   handleGitInfo,
   handleGitStage,
   handleGitUnstage,
@@ -761,6 +764,32 @@ export function buildRoutes(
     },
     gitChanges: async (ws) => {
       await handleGitChanges(ws, state.getProjectRoot());
+    },
+    gitHistory: async (ws, msg) => {
+      const payload = msg.payload as { ref?: unknown; limit?: unknown; skip?: unknown } | undefined;
+      await handleGitHistory(ws, state.getProjectRoot(), {
+        ref: typeof payload?.ref === 'string' ? payload.ref : undefined,
+        limit: typeof payload?.limit === 'number' ? payload.limit : undefined,
+        skip: typeof payload?.skip === 'number' ? payload.skip : undefined,
+      });
+    },
+    gitCommitDetail: async (ws, msg) => {
+      const payload = msg.payload as { hash?: unknown } | undefined;
+      await handleGitCommitDetail(
+        ws,
+        state.getProjectRoot(),
+        typeof payload?.hash === 'string' ? payload.hash : '',
+      );
+    },
+    gitCommitFileDiff: async (ws, msg) => {
+      const payload = msg.payload as
+        | { hash?: unknown; path?: unknown; previousPath?: unknown }
+        | undefined;
+      await handleGitCommitFileDiff(ws, state.getProjectRoot(), {
+        hash: typeof payload?.hash === 'string' ? payload.hash : '',
+        path: typeof payload?.path === 'string' ? payload.path : '',
+        previousPath: typeof payload?.previousPath === 'string' ? payload.previousPath : undefined,
+      });
     },
     gitDiff: async (ws, msg) => {
       const parsed = validateGitDiffPayload(msg.payload);

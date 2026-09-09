@@ -149,7 +149,7 @@ export const modeCatalog = [
     name: 'UI Design Deep',
     family: 'deep',
     description: 'Design-first frontend and mobile UI work with tokens, kits and accessibility.',
-    toolPreferences: ['design', 'write', 'edit', 'read', 'scaffold'],
+    toolPreferences: ['design', 'write', 'edit', 'read'],
     suggestedSkills: ['react-modern'],
   },
   {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T10:13:26.158Z",
+  "generatedAt": "2026-09-09T10:15:54.226Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3703,
-    "testFiles": 3193,
-    "sourceLines": 890614,
+    "sourceFiles": 3704,
+    "testFiles": 3195,
+    "sourceLines": 891902,
     "workspaceEdges": 127,
-    "moduleEdges": 11681,
+    "moduleEdges": 11685,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 878
+    "testOnlyExports": 880
   },
   "errors": [],
   "packageCycles": [],
@@ -215,7 +215,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 846,
-      "testFiles": 724,
+      "testFiles": 725,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -230,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 724
+          "testFiles": 725
         }
       ]
     },
@@ -811,8 +811,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 539,
-      "testFiles": 365,
+      "sourceFiles": 540,
+      "testFiles": 366,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -835,7 +835,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 365
+          "testFiles": 366
         }
       ]
     },
@@ -7731,6 +7731,12 @@
       },
       {
         "file": "packages/core/tests/session-agents.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/session-catalog-client-probe-wait.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18710,6 +18716,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/repository-history-graph.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/requirement-intake-view.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -20934,7 +20946,7 @@
     },
     {
       "file": "packages/webui/src/types/client-message.ts",
-      "lines": 871,
+      "lines": 880,
       "relativeImports": 7
     },
     {
@@ -20949,8 +20961,13 @@
     },
     {
       "file": "packages/webui-server/src/server/embedded-message-router.ts",
-      "lines": 832,
+      "lines": 857,
       "relativeImports": 52
+    },
+    {
+      "file": "packages/webui-server/src/server/git-handlers.ts",
+      "lines": 1014,
+      "relativeImports": 2
     },
     {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
@@ -20964,7 +20981,7 @@
     },
     {
       "file": "packages/webui-server/src/server/routes.ts",
-      "lines": 938,
+      "lines": 967,
       "relativeImports": 47
     },
     {
@@ -21115,6 +21132,11 @@
       "relativeImports": 6
     },
     {
+      "file": "packages/webui-server/src/server/git-handlers.ts",
+      "lines": 1014,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/tools/src/codebase-index/indexer.ts",
       "lines": 1013,
       "relativeImports": 11
@@ -21215,19 +21237,14 @@
       "relativeImports": 8
     },
     {
+      "file": "packages/webui-server/src/server/routes.ts",
+      "lines": 967,
+      "relativeImports": 47
+    },
+    {
       "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
       "lines": 965,
       "relativeImports": 0
-    },
-    {
-      "file": "packages/core/src/core/system-prompt-builder.ts",
-      "lines": 957,
-      "relativeImports": 24
-    },
-    {
-      "file": "packages/plugins/src/prompt-firewall/index.ts",
-      "lines": 955,
-      "relativeImports": 2
     }
   ],
   "testOnlyExports": [
@@ -24238,6 +24255,14 @@
     {
       "file": "packages/webui/src/components/ProviderWaitingRoom.tsx",
       "name": "siblingTriggerOf"
+    },
+    {
+      "file": "packages/webui/src/components/RepositoryHistoryView.tsx",
+      "name": "COMMIT_DETAIL_PANEL_CLASS"
+    },
+    {
+      "file": "packages/webui/src/components/RepositoryHistoryView.tsx",
+      "name": "layoutCommitGraph"
     },
     {
       "file": "packages/webui/src/components/SearchOverlay.tsx",

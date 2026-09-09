@@ -139,6 +139,68 @@ export type WSFilesGitServerMessage =
       };
     }
   | {
+      type: 'git.history';
+      payload: {
+        commits: Array<{
+          hash: string;
+          parents: string[];
+          author: string;
+          email: string;
+          authoredAt: string;
+          subject: string;
+          refs: string[];
+        }>;
+        refs: Array<{
+          name: string;
+          shortName: string;
+          kind: 'local' | 'remote' | 'tag';
+          hash: string;
+          current: boolean;
+        }>;
+        currentBranch: string;
+        repoRoot: string;
+        hasMore: boolean;
+        skip: number;
+        error?: string | undefined;
+      };
+    }
+  | {
+      type: 'git.commit_detail';
+      payload: {
+        hash: string;
+        fullHash?: string | undefined;
+        parents?: string[] | undefined;
+        author?: string | undefined;
+        email?: string | undefined;
+        authoredAt?: string | undefined;
+        body?: string | undefined;
+        files?:
+          | Array<{
+              path: string;
+              previousPath?: string | undefined;
+              added: number;
+              deleted: number;
+              binary?: boolean | undefined;
+            }>
+          | undefined;
+        truncated?: boolean | undefined;
+        error?: string | undefined;
+      };
+    }
+  | {
+      type: 'git.commit_file_diff';
+      payload: {
+        hash: string;
+        path: string;
+        previousPath?: string | undefined;
+        oldText?: string | undefined;
+        newText?: string | undefined;
+        binary?: boolean | undefined;
+        tooLarge?: boolean | undefined;
+        error?: string | undefined;
+      };
+    }
+  | {
       type: 'git.diff';
       payload: {
         path: string;

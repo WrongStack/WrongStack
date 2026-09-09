@@ -21,6 +21,7 @@ export const DESKTOP_COMMAND_VIEWS = new Set([
   'sddhub',
   'files',
   'changes',
+  'history',
   'sessions',
   'setup',
   'skill',

@@ -61,77 +61,31 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Always use `filter` (regex) when possible to reduce noise and token usage.',
     ],
   },
-  document: {
+  read_url_content: {
     longDescription:
-      'DEPRECATED — read-only preview stub that lists undocumented symbols as `skipped` candidates. It never writes files and does not generate real docstrings. If the auto-doc plugin is enabled, use its `auto_doc` tool (with `dry_run: true` to preview) instead.',
+      'Fetch public HTTP content without opening an interactive browser and convert HTML into clean markdown. Scripts, styles, navigation, headers, footers and other boilerplate are removed to keep the result focused.',
     params: [
       {
-        name: 'target',
-        type: "'file' | 'function' | 'class' | 'type' | 'all'",
-        description: 'What to document',
-      },
-      {
-        name: 'path',
+        name: 'url',
         type: 'string',
-        description: 'Specific file path to document',
+        required: true,
+        description: 'Public URL to retrieve.',
       },
       {
-        name: 'files',
+        name: 'Url',
         type: 'string',
-        description: 'File(s) to process: single path, comma-separated list, or glob',
+        description: 'Case-tolerant alias for url.',
       },
       {
-        name: 'style',
-        type: "'jsdoc' | 'tsdoc' | 'block'",
-        description: 'Documentation style (default: jsdoc)',
-      },
-      {
-        name: 'cwd',
-        type: 'string',
-        description: 'Working directory (default: cwd)',
+        name: 'maxBytes',
+        type: 'number',
+        description: 'Maximum response size to retrieve (default: 128 KiB).',
       },
     ],
     notes: [
-      'Deprecated: this tool only lists undocumented symbols with placeholder comments — it does not generate real JSDoc/TSDoc and writes nothing. When the auto-doc plugin is enabled, prefer its `auto_doc` tool (`dry_run: true` for previewing, without it for writing).',
-    ],
-  },
-  scaffold: {
-    longDescription:
-      'Generate new files and folder structures from built-in templates or custom definitions. This is the recommended way to bootstrap new packages, components, or modules instead of creating files one by one with `write`.',
-    params: [
-      {
-        name: 'template',
-        type: 'string',
-        required: true,
-        description:
-          'Template name (npm-package, cli-tool, react-component) or path to template directory',
-      },
-      {
-        name: 'name',
-        type: 'string',
-        required: true,
-        description: 'Project/component name (used in generated files)',
-      },
-      {
-        name: 'cwd',
-        type: 'string',
-        description: 'Working directory (default: cwd)',
-      },
-      {
-        name: 'vars',
-        type: 'object',
-        description: 'Template variables for custom templates',
-      },
-      {
-        name: 'dry_run',
-        type: 'boolean',
-        description: 'Preview generated files without creating (default: false)',
-      },
-    ],
-    notes: [
-      'Use built-in templates when they match your needs (e.g. react-component, npm-package).',
-      'Supports `dry_run` so you can preview exactly what will be created.',
-      'Has the powerful `fs.write.outside-project` capability — review paths carefully.',
+      'Use for static pages, documentation and text extraction where visual interaction is unnecessary.',
+      'No JavaScript execution or authenticated browser session is available.',
+      'Interactive, login-gated or visually inspected pages belong in the browser tools.',
     ],
   },
   design: {
@@ -185,7 +139,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
   },
   tool_search: {
     longDescription:
-      'Search the catalog of available tools by name or description. Use this to discover which tool to use for a task. For the full schema and usage details of a specific tool, use `tool_help` instead.',
+      'Search the full registered tool catalog by name or description, including tools whose schemas were withheld from the current provider request to save tokens.',
     params: [
       {
         name: 'query',
@@ -240,61 +194,6 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Only use when you are certain of the exact tool name and its expected input shape.',
       'Prefer using the normal tool calling mechanism when possible.',
       'Very useful in batch-tool-use or when orchestrating complex workflows programmatically.',
-    ],
-  },
-  batch_tool_use: {
-    longDescription:
-      'Execute a batch of tool calls either sequentially or in parallel. Returns structured results for every call.',
-    params: [
-      {
-        name: 'calls',
-        type: 'object[]',
-        required: true,
-        description: 'Array of tool calls to execute',
-      },
-      {
-        name: 'stop_on_error',
-        type: 'boolean',
-        description: 'Stop execution on first error (default: false)',
-      },
-      {
-        name: 'parallel',
-        type: 'boolean',
-        description: 'Execute calls in parallel (default: true)',
-      },
-    ],
-    notes: [
-      'Useful when you have a clear list of independent operations to perform.',
-      '`parallel: true` (default) runs them concurrently for speed.',
-      '`stop_on_error: true` makes it fail fast on the first error.',
-    ],
-  },
-  tool_help: {
-    longDescription:
-      'Get detailed help for a specific tool, including its full input schema and usage guidance. If you do not know which tool to use, search with `tool_search` first, then call this with the tool name.',
-    params: [
-      {
-        name: 'tool',
-        type: 'string',
-        description:
-          'Specific tool name to get detailed help for. Omit to get a list of all tools.',
-      },
-      {
-        name: 'format',
-        type: "'short' | 'full' | 'markdown'",
-        description:
-          'Level of detail: "short" (summary), "full" (with full schema), "markdown" (human readable).',
-      },
-      {
-        name: 'include_examples',
-        type: 'boolean',
-        description: 'Whether to include example usage in the response.',
-      },
-    ],
-    notes: [
-      'Call with a specific `tool` name when you want the full schema and current usageHint.',
-      'Omit `tool` to get an overview of all available tools.',
-      'Different `format` options give you different levels of detail.',
     ],
   },
   'codebase-index': {
@@ -376,21 +275,6 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Use to see if the index is up-to-date or needs a refresh.',
       'No arguments required.',
       'Helps avoid wasting tokens on searches against a stale index.',
-    ],
-  },
-  set_working_dir: {
-    longDescription:
-      'Change the current working directory for all subsequent file operations. The new directory must be inside the project root. Use this to navigate between subdirectories when working on files in different parts of the project.',
-    params: [
-      {
-        name: 'path',
-        type: 'string',
-        description:
-          'Directory to navigate to. Can be relative (to projectRoot) or absolute. If omitted, returns the current working directory without changing it.',
-      },
-    ],
-    notes: [
-      'Change the working directory so relative paths in subsequent tool calls resolve from a different directory. Pass `path` to set a new directory, or omit to query the current one.',
     ],
   },
   'dead-code-scan': {

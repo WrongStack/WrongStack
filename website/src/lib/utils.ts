@@ -77,7 +77,7 @@ export const skills = [
   },
 ] as const;
 
-/** The 71 built-in tools from packages/tools/src/builtin.ts, grouped. */
+/** The 67 built-in tools from packages/tools/src/builtin.ts, grouped. */
 export const toolGroups = [
   {
     label: 'Browser & E2E',
@@ -105,10 +105,13 @@ export const toolGroups = [
     label: 'Files & search',
     tools: ['read', 'write', 'edit', 'replace', 'glob', 'grep', 'patch', 'diff', 'tree', 'json'],
   },
-  { label: 'Shell, Git & web', tools: ['bash', 'exec', 'pwsh', 'git', 'fetch', 'search'] },
+  {
+    label: 'Shell, Git & web',
+    tools: ['bash', 'exec', 'pwsh', 'git', 'fetch', 'read_url_content', 'search'],
+  },
   {
     label: 'Work & state',
-    tools: ['todo', 'plan', 'kanban', 'task', 'clarify', 'set_working_dir'],
+    tools: ['todo', 'plan', 'kanban', 'task', 'clarify'],
   },
   {
     label: 'Quality & language',
@@ -125,14 +128,12 @@ export const toolGroups = [
     ],
   },
   { label: 'Dependencies', tools: ['install', 'audit', 'outdated', 'logs'] },
-  { label: 'Generation', tools: ['document', 'scaffold', 'design'] },
+  { label: 'Generation', tools: ['design'] },
   {
     label: 'Discovery & index',
     tools: [
       'tool_search',
       'tool_use',
-      'batch_tool_use',
-      'tool_help',
       'codebase-index',
       'codebase-search',
       'codebase-skeleton',

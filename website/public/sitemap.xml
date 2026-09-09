@@ -146,6 +146,7 @@
   <url><loc>https://wrongstack.com/plugins/wstack-chimera</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-skills</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-auto-review</loc><priority>0.8</priority></url>
+  <url><loc>https://wrongstack.com/plugins/wstack-specialist-triggers</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/agent-handoff</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/auto-doc</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/auto-i18n-extractor</loc><priority>0.8</priority></url>
@@ -239,6 +240,7 @@
   <url><loc>https://wrongstack.com/tools/bash</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/exec</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/fetch</loc><priority>0.8</priority></url>
+  <url><loc>https://wrongstack.com/tools/read-url-content</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/search</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/todo</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/plan</loc><priority>0.8</priority></url>
@@ -260,17 +262,12 @@
   <url><loc>https://wrongstack.com/tools/audit</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/outdated</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/logs</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/tools/document</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/tools/scaffold</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/design</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/tool-search</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/tool-use</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/tools/batch-tool-use</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/tools/tool-help</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/codebase-index</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/codebase-search</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/tools/codebase-stats</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/tools/set-working-dir</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/modes/default</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/modes/brief</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/modes/review-lite</loc><priority>0.8</priority></url>

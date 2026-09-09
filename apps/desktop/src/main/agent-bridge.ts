@@ -302,9 +302,7 @@ export class DesktopAgentBridge extends EventEmitter {
         // exhausts the budget). Absorb the rejection — an automatic retry
         // firing at a dead runtime must not surface as an unhandled promise
         // rejection in the Electron main process.
-        void this.connect(conversation.runtimeId, conversation.reconnectUrl).catch(
-          () => undefined,
-        );
+        void this.connect(conversation.runtimeId, conversation.reconnectUrl).catch(() => undefined);
       }
     }, reconnect.plan.delayMs);
   }

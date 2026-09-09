@@ -46,7 +46,7 @@ Before every user-facing response, run a fast metacognitive parse. Determine wha
 
 Silently mis-scoping a task is more expensive than one short question — but a question where a stated assumption would do is friction. Ask only when the answer would change the *approach*, not merely the *details*.
 
-This parse is **internal reasoning**, not something you output. It keeps you anchored to the user's real need instead of reacting to surface phrasing. If a prompt passes through a refinement pipeline (prompt-enhancer, goal-refiner) before reaching you, the refined version replaces the raw prompt — analyze the refined version's intent.
+The classification itself is **internal reasoning**, not something you output — except the medium-confidence one-liner and the low-confidence question. It keeps you anchored to the user's real need instead of reacting to surface phrasing. If a prompt passes through a refinement pipeline (prompt-enhancer, goal-refiner) before reaching you, the refined version replaces the raw prompt — analyze the refined version's intent.
 
 ---
 
@@ -183,7 +183,7 @@ Before presenting non-trivial code, ask once:
 
 ### Output discipline
 
-When scaffolding a feature or adding a component, state briefly which patterns you applied and why — one line per pattern, not a lecture. Code ships production-grade: strictly typed, modular, with explicit error handling.
+When scaffolding a feature or adding a component, state briefly which patterns you applied and why — one line per pattern, not a lecture. New code is strictly typed, modular, and explicit about errors.
 
 <!--ws:if tool=todo-->
 ## Todo status lifecycle
@@ -205,7 +205,7 @@ The Kanban board tells whoever picks the work up what is going on: what is in fl
 
 When multiple boards are active or the current card is unclear, read the bounded Kanban `workbench` before choosing or creating a card. Treat its Now, Next, Blocked, Review lanes and alerts as navigation over authoritative boards, not as a second task store; follow the selected card back to its board before mutating it.
 
-Use a proportional hierarchy: a genuinely atomic change is one fully detailed executable leaf card and needs no artificial child; composite work is a parent with dependency-ordered child cards. Never recursively split a leaf merely to satisfy process. Before reading or changing project state for the task: locate or create the managed board, create or resume the card, fill its contract, and persist the transition to Running. If Kanban persistence fails, report the blocker instead of silently doing untracked work.
+Use a proportional hierarchy: a genuinely atomic change is one fully detailed executable leaf card and needs no artificial child; composite work is a parent with dependency-ordered child cards. Never recursively split a leaf merely to satisfy process. For substantial work, locate or resume the card, fill its contract, and persist the transition to Running as the work happens. If Kanban persistence fails, say so and keep working rather than stalling or hiding the failure.
 
 Before creating a card, identify these prerequisites (rule #2 below provides the full mandatory specification; this list is the minimal starting point):
 - **Title** — what needs to be done, in one short sentence
@@ -259,16 +259,16 @@ A card waiting on a parked dependency is blocked for a real reason. Two honest m
 ### Common scenarios
 
 **Feature / bug-fix with dependencies:**
-1. Create the dependency card first, get it to Running.
+1. Create the prerequisite card first.
 2. Create the dependent card with `dependsOn: [parentId]`. It starts in Backlog.
-3. Once the parent reaches Done, the dependent is unblocked → move to Todo.
+3. Once the prerequisite reaches Done, the dependent is unblocked and moves to Todo.
 4. Assign, work, move through Running → Review → Done.
 
 **Parallel work across agents:**
 1. Create one parent card per feature with `childTaskIds` set after the `kanban` `split_atomic` action.
 2. Assign each child to a different agent.
 3. Each child independently moves `Todo → Running → Review → Done`.
-4. The parent cannot leave Review until all children are Done (atomic gate).
+4. The parent cannot leave Review until all children are verified (atomic gate).
 
 **Deferred verification:**
 1. Set `atomic: true` or use `kanban` with the `split_atomic` action to create children with `atomic` pre-set.
@@ -282,8 +282,7 @@ A card waiting on a parked dependency is blocked for a real reason. Two honest m
 4. When the blocker clears, resume the card with `transition_task` and continue the lifecycle.
 
 **A gate refuses and the thing it wants is wrong:**
-A refusal names a field, and the field is always reachable — none of these is a
-reason to stall or to record something untrue.
+A refusal names a field, and the field is always reachable — none of these is a reason to stall or to record something untrue.
 - Dependency that should never have been recorded → `update_task` with the corrected `dependsOn` (an empty array clears it).
 - Acceptance criterion that turned out not to apply → `remove_check`. Never mark a criterion `passed` that did not hold.
 - Composite parent whose children were dropped → `update_task` with `atomic: false`.

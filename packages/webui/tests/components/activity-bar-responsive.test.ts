@@ -26,7 +26,7 @@ describe('ActivityBar desktop responsive overflow (compact / desktop shell)', ()
   it('keeps core project workflow icons visible on very short desktop shells', () => {
     const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(320, true));
 
-    // agents and history were removed from the icon bar; core is now 4 panels
+    // agents was removed from the panel icon group; core is now 4 panels
     expect(split.visiblePanelIds).toEqual(['chat', 'files', 'changes', 'mailbox']);
     expect(split.overflowPanelIds).toContain('skills');
     expect(split.overflowViewIds).toContain('roster');
@@ -36,10 +36,12 @@ describe('ActivityBar desktop responsive overflow (compact / desktop shell)', ()
     const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(520, true));
 
     expect(split.overflowPanelIds).toEqual([]);
-    // At 520px compact: 10 slots → 6 panels + 4 views fit (roster…goal)
+    // At 520px compact: 10 slots → 6 panels + 4 views fit. Repository History
+    // is intentionally first so source-control topology stays directly reachable.
+    expect(split.visibleViewIds).toContain('history');
     expect(split.visibleViewIds).toContain('roster');
-    expect(split.visibleViewIds).toContain('goal');
-    expect(split.overflowViewIds).toContain('codemap');
+    expect(split.visibleViewIds).toContain('kanban');
+    expect(split.overflowViewIds).toContain('goal');
   });
 
   it('promotes hidden panels and views when the desktop shell is tall enough', () => {

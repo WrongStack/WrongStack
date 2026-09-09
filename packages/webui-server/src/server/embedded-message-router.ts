@@ -37,8 +37,11 @@ import { emitFallbackChoice } from './fallback-choice.js';
 import {
   handleGitChanges,
   handleGitCommit,
+  handleGitCommitDetail,
+  handleGitCommitFileDiff,
   handleGitDiff,
   handleGitDiscard,
+  handleGitHistory,
   handleGitInfo,
   handleGitStage,
   handleGitUnstage,
@@ -360,6 +363,28 @@ export function createEmbeddedMessageRouter(
   const shellGit: ShellGitRouteHandlers = {
     gitInfo: (ws) => handleGitInfo(ws, projectRoot()),
     gitChanges: (ws) => handleGitChanges(ws, projectRoot()),
+    gitHistory: (ws, msg) => {
+      const payload = msg.payload as { ref?: unknown; limit?: unknown; skip?: unknown } | undefined;
+      return handleGitHistory(ws, projectRoot(), {
+        ref: typeof payload?.ref === 'string' ? payload.ref : undefined,
+        limit: typeof payload?.limit === 'number' ? payload.limit : undefined,
+        skip: typeof payload?.skip === 'number' ? payload.skip : undefined,
+      });
+    },
+    gitCommitDetail: (ws, msg) => {
+      const hash = (msg.payload as { hash?: unknown } | undefined)?.hash;
+      return handleGitCommitDetail(ws, projectRoot(), typeof hash === 'string' ? hash : '');
+    },
+    gitCommitFileDiff: (ws, msg) => {
+      const payload = msg.payload as
+        | { hash?: unknown; path?: unknown; previousPath?: unknown }
+        | undefined;
+      return handleGitCommitFileDiff(ws, projectRoot(), {
+        hash: typeof payload?.hash === 'string' ? payload.hash : '',
+        path: typeof payload?.path === 'string' ? payload.path : '',
+        previousPath: typeof payload?.previousPath === 'string' ? payload.previousPath : undefined,
+      });
+    },
     gitDiff: (ws, msg) =>
       handleGitDiff(ws, projectRoot(), (msg.payload as { path?: string } | undefined)?.path ?? ''),
     gitStage: (ws, msg) => {

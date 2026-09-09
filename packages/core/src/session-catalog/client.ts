@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isPidAlive } from '../utils/pid.js';
 import {
   sessionCatalogProjectServerEndpoint,
   sessionCatalogProjectServerMetadataPath,
@@ -217,23 +218,58 @@ export class SessionCatalogProjectClient {
       } catch (error) {
         lastError = error;
       }
-      if (!spawnIfMissing) break;
-      if (!spawned) {
-        try {
-          this.spawnDetached();
-          spawned = true;
-        } catch (error) {
-          // A concurrent workspace rebuild can transiently remove the built
-          // project-server artifact; this deadline loop exists to absorb
-          // exactly that window, so record the failure and retry the spawn
-          // once the artifact re-emerges instead of letting the throw bypass
-          // the loop (hq-mailbox-mutation flake, bug-hunt round 18).
-          lastError = error;
+      if (spawnIfMissing) {
+        if (!spawned) {
+          try {
+            this.spawnDetached();
+            spawned = true;
+          } catch (error) {
+            // A concurrent workspace rebuild can transiently remove the built
+            // project-server artifact; this deadline loop exists to absorb
+            // exactly that window, so record the failure and retry the spawn
+            // once the artifact re-emerges instead of letting the throw bypass
+            // the loop (hq-mailbox-mutation flake, bug-hunt round 18).
+            lastError = error;
+          }
         }
+      } else if (!this.ownerPidIsAlive()) {
+        // Probe path (`callExisting`): must NEVER spawn, so it retries only
+        // while a live process still owns this endpoint. `project-server.ts`
+        // binds the endpoint before it writes metadata, so an absent metadata
+        // file is ambiguous between "no daemon" and "daemon pre-bind" and the
+        // ambiguous reading has to stay fast — cross-project discovery probes
+        // every known project and cannot stall on each. Metadata naming a
+        // still-living pid is not ambiguous: the owner exists, so the
+        // endpoint's absence is transient and worth one bounded window.
+        break;
       }
       await delay(75);
     }
     throw lastError;
+  }
+
+  /**
+   * Whether the daemon that last claimed this project's endpoint is still
+   * running. Only consulted by the probe path, after a connect has already
+   * failed.
+   *
+   * Deliberately cheap and failure-closed: any read or parse problem answers
+   * "no live owner", so an absent daemon keeps failing fast. `isPidAlive` is
+   * the repo's single liveness predicate (`utils/pid.ts`) precisely because an
+   * inline `catch { return false }` reports a live process we may not signal
+   * (EPERM) as dead — which here would silently drop the bounded wait.
+   */
+  private ownerPidIsAlive(): boolean {
+    try {
+      const raw = fs.readFileSync(
+        sessionCatalogProjectServerMetadataPath(this.options.projectDir),
+        'utf8',
+      );
+      const pid = (JSON.parse(raw) as { pid?: unknown }).pid;
+      return typeof pid === 'number' && isPidAlive(pid);
+    } catch {
+      return false;
+    }
   }
 
   private connectOnce(): Promise<void> {

@@ -104,8 +104,43 @@ export default defineConfig({
         ? {
             count: 2,
             delay: 250,
+            // `connect ENOENT` on a `\\.\pipe\wrongstack-session-catalog-*`
+            // endpoint is one deliberate addition to the errno list above: on
+            // Windows a named pipe that is not bound *yet* surfaces as ENOENT
+            // rather than ECONNREFUSED, so no existing alternative can see it.
+            // Measured 2026-09-09: 1 fatal occurrence across 10 iterations of
+            // packages/cli/tests/hq-mailbox-mutation.test.ts run alongside
+            // concurrent vitest load (~10%), green in isolation. It struck two
+            // different cases with two different pipe hashes across
+            // occurrences, i.e. a bind race hitting whichever test is in
+            // flight, not a defect in one case. The pattern stays narrowed to
+            // this pipe family on purpose — bare `ENOENT` would also retry
+            // genuine missing-fixture bugs. This is a mitigation, NOT a
+            // root-cause fix: the throwing site is still unidentified — the two
+            // cross-project probe sites in session-catalog/registry.ts (:310 in
+            // try/catch, :334 with .catch) already swallow this error, so
+            // neither produced the fatal failure.
+            // Related: `connectWithElection(spawnIfMissing=false)` no longer
+            // breaks on its first connect failure; it retries while the daemon
+            // that owns the endpoint is still alive (`ownerPidIsAlive`). Gating
+            // on pid LIVENESS is not the same as gating on metadata PRESENCE,
+            // and presence would be wrong: project-server.ts binds the endpoint
+            // (L588) strictly BEFORE writing metadata (L608), so ENOENT with
+            // metadata present means an owner that already bound and is leaving
+            // (shutdown closes the endpoint at :550 before removing metadata at
+            // :553) — waiting on it stalls exactly the fast-fail that
+            // cross-project discovery needs, since it probes every known
+            // project. ENOENT with metadata absent is no better: "no daemon"
+            // and "daemon not yet bound" look identical, so presence has no
+            // usable polarity in either state. Liveness does — a live pid names
+            // a specific process that can still (re)bind, and no live owner is
+            // precisely the absent-daemon case to fail fast on. It fails closed
+            // (unreadable metadata = no owner), and probes never spawn, so a
+            // dead owner yields no event to wait for. It does NOT cover the
+            // cold-start pre-bind window, where no metadata exists yet; that
+            // needs a pre-bind ownership marker. Hence this retry stays.
             condition:
-              /ENOBUFS|EADDRINUSE|EADDRNOTAVAIL|EACCES|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE/i,
+              /ENOBUFS|EADDRINUSE|EADDRNOTAVAIL|EACCES|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|connect ENOENT.*session-catalog/i,
           }
         : 0,
     // Bump Node heap to 4 GB for child processes spawned BY tests (vitest

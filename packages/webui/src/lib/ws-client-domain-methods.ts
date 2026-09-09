@@ -26,6 +26,29 @@ const domainMethods = {
     this.send({ type: 'git.changes' });
   },
 
+  getGitHistory(
+    this: WsClientDomainHost,
+    options?: { ref?: string | undefined; limit?: number | undefined; skip?: number | undefined },
+  ) {
+    this.send({ type: 'git.history', payload: options });
+  },
+
+  getGitCommitDetail(this: WsClientDomainHost, hash: string) {
+    this.send({ type: 'git.commit_detail', payload: { hash } });
+  },
+
+  getGitCommitFileDiff(
+    this: WsClientDomainHost,
+    hash: string,
+    path: string,
+    previousPath?: string,
+  ) {
+    this.send({
+      type: 'git.commit_file_diff',
+      payload: { hash, path, ...(previousPath ? { previousPath } : {}) },
+    });
+  },
+
   getGitDiff(this: WsClientDomainHost, path: string) {
     this.send({ type: 'git.diff', payload: { path } });
   },

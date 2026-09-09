@@ -12,10 +12,10 @@ import {
 import { useMemo, useState } from 'react';
 import {
   ExternalDoc,
+  heroTitleFontSize,
   PageHero,
   PageNext,
   SectionIntro,
-  heroTitleFontSize,
 } from '@/components/site/primitives';
 import {
   PLUGIN_COUNT,
@@ -268,12 +268,6 @@ export function ToolsPage() {
                           </span>
                           <span>·</span>
                           <span>JSON Schema</span>
-                          {tool.name === 'document' && (
-                            <>
-                              <span>·</span>
-                              <span className="text-amber-500">deprecated preview</span>
-                            </>
-                          )}
                         </div>
                       </Link>
                     ))}

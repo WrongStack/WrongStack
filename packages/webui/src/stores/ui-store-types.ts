@@ -62,6 +62,7 @@ export const VIEWS = [
   'sddhub',
   'files',
   'changes',
+  'history',
   'sessions',
   'session-inspect',
   'setup',
@@ -88,7 +89,14 @@ export function coerceView(value: unknown): View {
   return (VIEWS as readonly string[]).includes(value as string) ? (value as View) : 'chat';
 }
 
-export const DOCK_SECTIONS = ['goal', 'goal-state', 'fleet', 'work', 'worktrees', 'collab'] as const;
+export const DOCK_SECTIONS = [
+  'goal',
+  'goal-state',
+  'fleet',
+  'work',
+  'worktrees',
+  'collab',
+] as const;
 
 export function coerceDockSection(value: unknown): DockSection | null {
   return value === null || value === undefined || !DOCK_SECTIONS.includes(value as DockSection)

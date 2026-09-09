@@ -650,6 +650,15 @@ export type WSClientMessageCore =
   | { type: 'process.killAll'; payload?: SessionScopedPayload }
   | { type: 'git.info' }
   | { type: 'git.changes' }
+  | {
+      type: 'git.history';
+      payload?: { ref?: string; limit?: number; skip?: number; path?: string };
+    }
+  | { type: 'git.commit_detail'; payload: { hash: string } }
+  | {
+      type: 'git.commit_file_diff';
+      payload: { hash: string; path: string; previousPath?: string | undefined };
+    }
   | { type: 'git.diff'; payload: { path: string } }
   | { type: 'git.stage'; payload: { paths?: string[] | undefined; path?: string | undefined } }
   | { type: 'git.unstage'; payload: { paths?: string[] | undefined; path?: string | undefined } }

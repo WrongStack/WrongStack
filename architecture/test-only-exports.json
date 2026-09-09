@@ -1565,6 +1565,10 @@
     "packages/webui/src/components/ProviderWaitingRoom.tsx": [
       "siblingTriggerOf"
     ],
+    "packages/webui/src/components/RepositoryHistoryView.tsx": [
+      "COMMIT_DETAIL_PANEL_CLASS",
+      "layoutCommitGraph"
+    ],
     "packages/webui/src/components/SearchOverlay.tsx": [
       "messageSearchText"
     ],
