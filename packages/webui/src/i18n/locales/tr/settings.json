@@ -381,7 +381,7 @@
     "autoProceedDelayLabel": "Otomatik ilerleme gecikmesi",
     "autoProceedDelayHint": "Otomatik modda ajan otomatik ilerlemeden önceki milisaniye. 0 = anında.",
     "yoloLabel": "YOLO modu",
-    "yoloHint": "Araç onay istemlerini atla — ajan sormadan çalışır.",
+    "yoloHint": "Arac cagrilarini sormadan calistir - asagida listelenen zarar turleri haric.",
     "yoloConfirmHeading": "Yine de sor",
     "yoloConfirmIntro": "YOLO geri kalan her seyi sormadan calistirir. Bunlar durup once sana sordugu zarar turleri.",
     "yoloConfirmLockedNote": "Bu ikisi her zaman sorar. Sana sorulup sorulmayacagina karar veren dosyalari yazdiklari icin, kapatmak ajanin kendi onay sistemini kapatmasina izin vermek olurdu.",

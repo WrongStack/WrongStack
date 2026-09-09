@@ -381,7 +381,7 @@
     "autoProceedDelayLabel": "Ritardo auto-procedere",
     "autoProceedDelayHint": "Millisecondi prima che l'agent proceda automaticamente in modalità Auto. 0 = immediato.",
     "yoloLabel": "Modalità YOLO",
-    "yoloHint": "Ignora i prompt di conferma degli strumenti — l'agent gira senza chiedere.",
+    "yoloHint": "Esegui le chiamate agli strumenti senza chiedere, tranne i tipi di danno elencati sotto.",
     "yoloConfirmHeading": "Chiedi comunque per",
     "yoloConfirmIntro": "YOLO esegue tutto il resto senza supervisione. Questi sono i tipi di danno davanti ai quali si ferma e ti chiede.",
     "yoloConfirmLockedNote": "Questi due chiedono sempre. Scrivono i file che decidono se ti verra chiesto qualcosa, quindi disattivarli lascerebbe all'agente spegnere il proprio sistema di approvazione.",

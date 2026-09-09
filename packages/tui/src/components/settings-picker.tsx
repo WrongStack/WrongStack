@@ -291,7 +291,12 @@ export function SettingsPicker({
     {
       label: 'YOLO mode',
       value: boolVal(yolo),
-      detail: 'Skip all confirmation prompts',
+      // Not "skip all" — damage of a gated kind still prompts. The per-kind
+      // list is not a row of its own because this picker is positional (every
+      // `settings-picker-jumps` binding names a fixed field index), so it lives
+      // behind `/yolo confirm`. Keep this string short: `settings-overflow-24x80`
+      // pins that a longer detail wraps and pushes rows out of the capped box.
+      detail: 'Damage still asks: /yolo confirm',
     },
     {
       label: 'Fleet chat',

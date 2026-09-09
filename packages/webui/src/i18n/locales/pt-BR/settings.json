@@ -381,7 +381,7 @@
     "autoProceedDelayLabel": "Atraso de auto-prosseguir",
     "autoProceedDelayHint": "Milissegundos antes de o agente auto-prosseguir no modo Auto. 0 = imediato.",
     "yoloLabel": "Modo YOLO",
-    "yoloHint": "Ignorar os prompts de confirmação de ferramentas — o agente roda sem perguntar.",
+    "yoloHint": "Executar chamadas de ferramentas sem perguntar, exceto os tipos de dano listados abaixo.",
     "yoloConfirmHeading": "Ainda perguntar sobre",
     "yoloConfirmIntro": "O YOLO executa todo o resto sem supervisao. Estes sao os tipos de dano diante dos quais ele para e pergunta.",
     "yoloConfirmLockedNote": "Estes dois sempre perguntam. Eles escrevem os arquivos que decidem se voce sera consultado, entao desliga-los deixaria o agente desligar o proprio sistema de aprovacao.",

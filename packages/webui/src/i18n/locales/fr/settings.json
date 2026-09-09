@@ -381,7 +381,7 @@
     "autoProceedDelayLabel": "Délai d'avance automatique",
     "autoProceedDelayHint": "Millisecondes avant que l'agent avance automatiquement en mode Auto. 0 = immédiat.",
     "yoloLabel": "Mode YOLO",
-    "yoloHint": "Contourner les confirmations d'outils — l'agent s'exécute sans demander.",
+    "yoloHint": "Executer les appels d'outils sans demander, sauf les types de degats listes ci-dessous.",
     "yoloConfirmHeading": "Demander quand meme pour",
     "yoloConfirmIntro": "YOLO execute tout le reste sans surveillance. Voici les types de degats devant lesquels il s'arrete et vous demande.",
     "yoloConfirmLockedNote": "Ces deux-la demandent toujours. Ils ecrivent les fichiers qui decident si on vous demande quoi que ce soit - les desactiver laisserait l'agent couper son propre systeme d'approbation.",

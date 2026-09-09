@@ -381,7 +381,7 @@
     "autoProceedDelayLabel": "Auto-proceed delay",
     "autoProceedDelayHint": "Milliseconds before the agent auto-proceeds in Auto mode. 0 = immediate.",
     "yoloLabel": "YOLO mode",
-    "yoloHint": "Bypass tool confirmation prompts — the agent runs without asking.",
+    "yoloHint": "Run tool calls without asking — except the damaging kinds listed below.",
     "yoloConfirmHeading": "Still ask about",
     "yoloConfirmIntro": "YOLO runs everything else unattended. These are the kinds of damage it stops and asks you about first.",
     "yoloConfirmLockedNote": "These two always ask. They write the files that decide whether you get asked at all, so turning them off would let the agent switch its own approval system off.",
