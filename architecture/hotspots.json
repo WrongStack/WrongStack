@@ -147,7 +147,7 @@
       "relativeImports": 164
     },
     "packages/core/src/plugin/api.ts": {
-      "lines": 923,
+      "lines": 924,
       "relativeImports": 22
     },
     "packages/core/src/security/secret-vault.ts": {

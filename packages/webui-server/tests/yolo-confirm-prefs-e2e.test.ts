@@ -46,7 +46,8 @@ function makeContext(policy: DefaultPermissionPolicy) {
     snapshot: () => ({ ...meta }),
     persist: vi.fn(async () => {}),
     pendingConfirms: new Map(),
-    setYoloConfirm: (preference) => policy.setYoloConfirmKinds(resolveYoloConfirmKinds(preference)),
+    setYoloConfirm: (preference: Record<string, boolean>) =>
+      policy.setYoloConfirmKinds(resolveYoloConfirmKinds(preference)),
     send: () => {},
     broadcast: () => {},
   } as unknown as PrefsHandlerContext;

@@ -1530,7 +1530,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2465
+      "sourceLines": 2466
     },
     {
       "directory": "plugins",
@@ -1558,7 +1558,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
       "sourceFiles": 5,
-      "sourceLines": 1147
+      "sourceLines": 1153
     },
     {
       "directory": "replay",
@@ -1621,7 +1621,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 72,
-      "sourceLines": 13543
+      "sourceLines": 13548
     },
     {
       "directory": "utils",

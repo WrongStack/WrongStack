@@ -57,7 +57,12 @@ export interface MCPRegistryView {
 }
 
 export interface SlashCommandRegistryView {
-  register(cmd: SlashCommand): void;
+  /**
+   * Register a command. Official plugins may set `bare: false` when a
+   * compatibility command should remain available only as `/owner:name`.
+   * External plugins are always namespaced regardless of this option.
+   */
+  register(cmd: SlashCommand, opts?: { bare?: boolean | undefined }): void;
   /**
    * `callerOwner` is the tier making the removal. The host-supplied view fills
    * it in automatically; omit it only when the caller is the core itself. A

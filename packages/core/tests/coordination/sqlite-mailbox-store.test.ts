@@ -809,6 +809,7 @@ describe('SqliteMailbox transaction safety and statement edge cases', () => {
     const issued = mb.credentialIssue({
       principalId: 'p1',
       kind: 'agent',
+      capabilities: ['mail.read.self'],
       ttlMs: 60_000,
     });
 

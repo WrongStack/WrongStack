@@ -444,6 +444,31 @@ describe('DefaultPluginAPI', () => {
     expect(api.slashCommands.get('p:plugcmd')).toBeUndefined();
   });
 
+  it('slashCommands view forwards an official plugin namespaced-only registration', async () => {
+    const { SlashCommandRegistry } = await import('../../src/index.js');
+    const scr = new SlashCommandRegistry();
+    const api = new DefaultPluginAPI({
+      ownerName: '@wrongstack/plug-lsp',
+      official: true,
+      container: new Container(),
+      events: new EventBus(),
+      pipelines: {} as never,
+      toolRegistry: new ToolRegistry(),
+      providerRegistry: new ProviderRegistry(),
+      config: baseConfig,
+      log: new DefaultLogger({ level: 'error' }),
+      slashCommandRegistry: scr,
+    });
+
+    api.slashCommands.register(
+      { name: 'stop', description: 'Stop LSP', run: async () => ({}) },
+      { bare: false },
+    );
+
+    expect(scr.get('stop')).toBeUndefined();
+    expect(scr.ownerOf('@wrongstack/plug-lsp:stop')).toBe('@wrongstack/plug-lsp');
+  });
+
   it('slashCommands falls back to noop view when no host registry is provided', () => {
     const { api } = mkApi();
     expect(() =>

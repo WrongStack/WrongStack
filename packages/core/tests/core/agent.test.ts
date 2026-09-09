@@ -594,7 +594,7 @@ describe('Agent', () => {
       inputSchema: { type: 'object' },
       permission: 'auto',
       mutating: false,
-      async execute(_input, _ctx, options) {
+      async execute(_input, _ctx, _options) {
         ctrl.abort(new Error('user interrupted tool'));
         // If tool throws when aborted or signal triggers abort
         const err = new Error('tool aborted by signal');

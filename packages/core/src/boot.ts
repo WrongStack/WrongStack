@@ -47,7 +47,7 @@ import {
 export interface BootConfigOptions {
   /**
    * Parsed CLI flags. `cwd` relocates path resolution; `provider`/`model`/
-   * `log-level`/`verbose`/`trace`/`yolo`/`no-features` are patched into the
+   * `log-level`/`verbose`/`trace`/`yolo` are patched into the
    * loaded config (see {@link flagsToConfigPatch}). Defaults to `{}` (the
    * WebUI server passes no flags).
    */

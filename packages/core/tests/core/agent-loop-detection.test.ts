@@ -626,7 +626,7 @@ describe('agent-loop cycle detector', () => {
     const { agent, tmp } = await buildAgent(provider, [echo], { mode: 'steer-then-cut' });
     cleanupDirs.push(tmp);
 
-    const detected: Array<{ action?: string; scope?: string }> = [];
+    const detected: Array<{ action?: string | undefined; scope?: string | undefined }> = [];
     (agent as never as { events: EventBus }).events.on('tool.loop_detected', (e) =>
       detected.push({ action: e.action, scope: e.scope }),
     );

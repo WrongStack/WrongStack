@@ -404,7 +404,7 @@ describe('WebUI preference persistence helpers', () => {
         yoloConfirm: { 'git-history': false, publish: true, 'disk-wipe': true },
       });
       const config = await readConfig();
-      expect(config.autonomy?.yoloConfirm).toEqual({
+      expect((config.autonomy as Record<string, unknown>).yoloConfirm).toEqual({
         'git-history': false,
         publish: true,
         'disk-wipe': true,
@@ -419,9 +419,10 @@ describe('WebUI preference persistence helpers', () => {
       );
       await persistPrefsToConfig(deps, holder, { yoloConfirm: { publish: false } });
       const config = await readConfig();
-      expect(config.autonomy?.defaultMode).toBe('auto');
-      expect(config.autonomy?.autoProceedDelayMs).toBe(9000);
-      expect(config.autonomy?.yoloConfirm).toEqual({ publish: false });
+      const autonomy = config.autonomy as Record<string, unknown>;
+      expect(autonomy.defaultMode).toBe('auto');
+      expect(autonomy.autoProceedDelayMs).toBe(9000);
+      expect(autonomy.yoloConfirm).toEqual({ publish: false });
     });
   });
 

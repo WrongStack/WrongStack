@@ -34,9 +34,12 @@ import {
  * managed one did not.
  */
 
+// The fixture is deliberately structural: it carries only the fields the two
+// projections read, so `extra` stays loose rather than claiming to be a real
+// `Partial<KanbanBoard>` (the cast below is what makes it a board).
 function boardWith(
   statuses: Array<'todo' | 'completed'>,
-  extra: Partial<KanbanBoard> = {},
+  extra: Record<string, unknown> = {},
 ): KanbanBoard {
   return {
     id: 'board-1',
@@ -151,10 +154,9 @@ describe('completed Kanban board stops re-notifying', () => {
   });
 
   it('holds the same line for the session projection when todos were not auto-cleared', () => {
-    const board = boardWith(['completed', 'completed'], {
-      tags: ['session:session-a'],
-      lifecycle: { mode: 'session' },
-    } as Partial<KanbanBoard>);
+    // The session projection is selected by the `session:` tag; it never reads
+    // `lifecycle` (only the managed path does).
+    const board = boardWith(['completed', 'completed'], { tags: ['session:session-a'] });
     // Rows still present verbatim — the state that the collapse-only guard missed.
     const context = makeContext([
       { id: 'task-1', content: 'Task 1', status: 'completed' },

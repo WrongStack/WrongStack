@@ -105,7 +105,8 @@ export class SlashCommandRegistry {
    *    loaded from the built-in factory list) claim the **bare** command name
    *    (`/prompts`). They may override one another — last write wins — so an
    *    official plugin can replace a built-in. Official plugins are *also*
-   *    reachable under their `owner:name` namespace.
+   *    reachable under their `owner:name` namespace. An official plugin may
+   *    opt a compatibility command out of the bare form with `opts.bare=false`.
    *  - **External plugins** (any other `owner`) are isolated under the
    *    `owner:name` namespace: invocable only as `/owner:cmd`, never by bare
    *    name, and unable to shadow or override a built-in or official command.
@@ -114,11 +115,16 @@ export class SlashCommandRegistry {
    * self-declared by the plugin — an external plugin cannot name itself into
    * the official tier.
    */
-  register(cmd: SlashCommand, owner = 'core', opts?: { official?: boolean | undefined }): void {
+  register(
+    cmd: SlashCommand,
+    owner = 'core',
+    opts?: { official?: boolean | undefined; bare?: boolean | undefined },
+  ): void {
     const isPlugin = owner !== 'core';
     const official = !isPlugin || opts?.official === true;
+    const exposeBare = official && (!isPlugin || opts?.bare !== false);
 
-    if (official) {
+    if (exposeBare) {
       // A core built-in must not clobber a bare name an official plugin has
       // already claimed (the plugin's override wins regardless of load order).
       // Two core registrations of the same name are a silent no-op (guards

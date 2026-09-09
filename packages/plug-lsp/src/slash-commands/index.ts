@@ -25,6 +25,10 @@ export function registerSlashCommands(
     restartCommand(registry),
     diagnosticsCommand(registry),
   ];
-  for (const command of commands) api.slashCommands.register(command);
+  for (const command of commands) {
+    // `/stop` is a core alias for `/interrupt`. Keep the legacy LSP command
+    // namespaced while `/lsp stop` remains the primary short form.
+    api.slashCommands.register(command, command.name === 'stop' ? { bare: false } : undefined);
+  }
   return commands.map((cmd) => cmd.name);
 }

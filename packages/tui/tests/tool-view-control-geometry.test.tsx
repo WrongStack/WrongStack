@@ -75,10 +75,11 @@ describe('tool view-mode control geometry', () => {
           { id: 1, kind: 'tool', name: 'read', durationMs: 1, ok: true, output: 'a' },
           { id: 2, kind: 'tool', name: 'read', durationMs: 2, ok: true, output: 'b' },
         ],
+        totalDurationMs: 3,
+        okCount: 2,
+        failCount: 0,
       };
-      const view = render(
-        React.createElement(ToolGroup, { data, termWidth: 80, viewModeForEntry: () => viewMode }),
-      );
+      const view = render(React.createElement(ToolGroup, { data, termWidth: 80, viewMode }));
       const header = headerOf(view.lastFrame());
       view.unmount();
       const { lessCol, moreCol } = viewControlColumns();

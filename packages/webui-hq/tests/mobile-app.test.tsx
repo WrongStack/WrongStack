@@ -271,8 +271,14 @@ describe('HQ mobile app', () => {
     await mount([
       client('control-client', ['telemetry.publish', 'session.summary', 'control.receive']),
     ]);
-    const session = liveSession();
-    session.agents[1] = { ...session.agents[1]!, status: 'waiting_user' };
+    const base = liveSession();
+    // `agents` is readonly on the summary type, so rebuild rather than mutate.
+    const session = {
+      ...base,
+      agents: base.agents.map((agent, index) =>
+        index === 1 ? { ...agent, status: 'waiting_user' as const } : agent,
+      ),
+    };
     act(() => {
       useHqStore.setState((state) => ({
         snapshot: state.snapshot === null ? null : { ...state.snapshot, liveSessions: [session] },

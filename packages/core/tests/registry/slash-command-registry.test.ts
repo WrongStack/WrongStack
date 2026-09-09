@@ -335,6 +335,43 @@ describe('SlashCommandRegistry', () => {
     expect(received).toBe('view');
   });
 
+  it('an official plugin can keep a compatibility command namespaced-only', async () => {
+    const warn = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    try {
+      const r = new SlashCommandRegistry();
+      let builtinRan = false;
+      let pluginRan = false;
+      r.register(
+        {
+          name: 'stop',
+          description: '',
+          async run() {
+            pluginRan = true;
+          },
+        },
+        '@wrongstack/plug-lsp',
+        { official: true, bare: false },
+      );
+      r.register({
+        name: 'interrupt',
+        aliases: ['stop'],
+        description: '',
+        async run() {
+          builtinRan = true;
+        },
+      });
+
+      await r.dispatch('/stop', {} as Context);
+      expect(builtinRan).toBe(true);
+      expect(pluginRan).toBe(false);
+      await r.dispatch('/@wrongstack/plug-lsp:stop', {} as Context);
+      expect(pluginRan).toBe(true);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('an external plugin command is NOT invocable by bare name', async () => {
     const r = new SlashCommandRegistry();
     let ran = false;

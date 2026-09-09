@@ -217,16 +217,6 @@ describe('flagsToConfigPatch — all branches', () => {
     expect(flagsToConfigPatch({ yolo: true, 'no-yolo': true }).yolo).toBe(false);
   });
 
-  it('no-features disables every feature', () => {
-    expect(flagsToConfigPatch({ 'no-features': true }).features).toEqual({
-      mcp: false,
-      plugins: false,
-      memory: false,
-      modelsRegistry: false,
-      skills: false,
-    });
-  });
-
   it('token-saving-mode → boolean true', () => {
     expect(flagsToConfigPatch({ 'token-saving-mode': true }).features?.tokenSavingMode).toBe(true);
   });

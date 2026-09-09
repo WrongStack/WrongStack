@@ -57,14 +57,22 @@ describe('slash commands', () => {
 
   it('registers command set and returns bare names', () => {
     const registered: string[] = [];
+    const options = new Map<string, { bare?: boolean } | undefined>();
     const names = registerSlashCommands(
       {
-        slashCommands: { register: (cmd: { name: string }) => registered.push(cmd.name) },
+        slashCommands: {
+          register: (cmd: { name: string }, opts?: { bare?: boolean }) => {
+            registered.push(cmd.name);
+            options.set(cmd.name, opts);
+          },
+        },
       } as never,
       { list: () => [] } as never,
     );
     expect(names).toEqual(['lsp', 'list', 'start', 'stop', 'restart', 'diagnostics']);
     expect(registered).toEqual(names);
+    expect(options.get('stop')).toEqual({ bare: false });
+    expect(options.get('lsp')).toBeUndefined();
   });
 });
 

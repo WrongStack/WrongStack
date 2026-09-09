@@ -413,12 +413,13 @@ export class DefaultPluginAPI implements PluginAPI {
 
     this.slashCommands = scr
       ? {
-          register: (cmd) => {
-            scr.register(cmd, owner, { official });
-            // The registry indexes a plugin command under its bare name, its
-            // `owner:name` namespaced form, and every alias in both forms —
-            // and callers legitimately unregister by any of them. Record all
-            // of them so the ownership check below matches whichever is used.
+          register: (cmd, opts) => {
+            scr.register(cmd, owner, { official, bare: opts?.bare });
+            // The registry always indexes a plugin command under its
+            // `owner:name` namespaced form and may also index its bare name.
+            // Record both candidate forms so callers can legitimately request
+            // teardown through either spelling; the registry checks the
+            // resolved entry's actual owner before deleting anything.
             for (const key of [cmd.name, ...(cmd.aliases ?? [])]) {
               commandsIOwn.add(key);
               commandsIOwn.add(`${owner}:${key}`);

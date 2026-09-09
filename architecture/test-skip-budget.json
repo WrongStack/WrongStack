@@ -32,6 +32,11 @@
       "fingerprint": "6ec5e9ce19834641"
     },
     {
+      "file": "packages/cli/tests/hq-mobile-visual-smoke.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "a2e2879eb3e716ce"
+    },
+    {
       "file": "packages/cli/tests/hq-visual-smoke.test.ts",
       "kind": "skipIf",
       "fingerprint": "cdceee059ef2523c"
@@ -335,6 +340,11 @@
       "file": "packages/tools/tests/project-server-idle.test.ts",
       "kind": "skipIf",
       "fingerprint": "d6d5511c7bbb4262"
+    },
+    {
+      "file": "packages/tools/tests/search-relative-paths.test.ts",
+      "kind": "runIf",
+      "fingerprint": "a3f36827f2063016"
     },
     {
       "file": "packages/tools/tests/win32-resolve.test.ts",

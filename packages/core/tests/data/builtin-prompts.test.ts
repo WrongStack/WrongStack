@@ -132,7 +132,9 @@ describe('builtin prompt dataset', () => {
     const failures: string[] = [];
     for (const file of files) {
       const entry = JSON.parse(fs.readFileSync(file, 'utf8'));
-      const declared = new Set<string>((entry.variables ?? []).map((v) => v.name));
+      const declared = new Set<string>(
+        ((entry.variables ?? []) as { name: string }[]).map((v) => v.name),
+      );
       for (const hole of entry.content.matchAll(RENDERABLE_HOLE)) {
         if (!declared.has(hole[1])) {
           failures.push(`${entry.slug}: content hole {{${hole[1]}}} is not declared in variables`);

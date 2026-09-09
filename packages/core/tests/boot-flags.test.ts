@@ -68,17 +68,6 @@ describe('flagsToConfigPatch', () => {
     expect(flagsToConfigPatch({ 'no-yolo': true, yolo: true }).yolo).toBe(false);
   });
 
-  it('maps no-features flag', () => {
-    const patch = flagsToConfigPatch({ 'no-features': true });
-    expect(patch.features).toEqual({
-      mcp: false,
-      plugins: false,
-      memory: false,
-      modelsRegistry: false,
-      skills: false,
-    });
-  });
-
   it('maps token-saving-mode flag', () => {
     const patch = flagsToConfigPatch({ 'token-saving-mode': true });
     expect(patch.features?.tokenSavingMode).toBe(true);
