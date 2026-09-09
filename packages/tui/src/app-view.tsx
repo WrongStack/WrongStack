@@ -17,8 +17,8 @@ import {
 import { useTerminalSize } from './hooks/use-terminal-size.js';
 import { Box } from './ink.js';
 import { theme } from './theme.js';
-import { glyphs } from './ui-glyphs.js';
 import { PANEL_IDS, type PanelId, SIDEBAR_PANEL_LIMIT } from './ui-contracts.js';
+import { glyphs } from './ui-glyphs.js';
 
 const INPUT_PROMPT = DEFAULT_INPUT_PROMPT;
 /** Bash-mode composer: shell-prompt glyph, dedicated rail label, run/exit hint. */
@@ -48,6 +48,9 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   // Bash mode relabels the whole composer (`$` prompt, warn-colored rail,
   // BASH MODE title) so the shell-command state is unmistakable at a glance.
   const bashMode = state.bashMode;
+  const toolResultViewMode = state.settingsPicker.open
+    ? state.settingsPicker.toolResultViewMode
+    : (liveSettings?.toolResultViewMode ?? 'normal');
 
   // ── Sidebar layout ──────────────────────────────────────────────────
   const { columns: termCols } = useTerminalSize({ fallbackColumns: 80 });
@@ -129,6 +132,11 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                 state.settingsPicker.open
                   ? state.settingsPicker.showSageMemoryInject
                   : (liveSettings?.showSageMemoryInject ?? false)
+              }
+              toolResultViewMode={toolResultViewMode}
+              toolResultViewOverrides={state.toolResultViewOverrides}
+              onToolResultViewChange={(entryIds, mode) =>
+                runtime.dispatch({ type: 'toolResultViewSet', entryIds, mode })
               }
               layoutStore={layoutStore}
               copiedEntryId={state.copiedEntryId}

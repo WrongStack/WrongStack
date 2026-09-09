@@ -13,6 +13,8 @@ export {
   DEFAULT_PANEL_POSITIONS,
   PANEL_IDS,
 } from './ui-contracts.js';
+
+import type { ToolResultViewMode } from './tool-result-view-mode.js';
 import type { PanelPositionMap } from './ui-contracts.js';
 
 export type { AgentSwarmPanelMode } from './settings-contracts.js';
@@ -93,6 +95,8 @@ export type Settings = {
   /** Single word shown in the TUI rainbow working-state chip. */
   thinkingWord: string;
   showModelReasoning: boolean;
+  /** Default presentation density for committed TUI tool results. */
+  toolResultViewMode?: ToolResultViewMode | undefined;
   /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right
    *  sidebar, vertical), or 'off' (hidden). Default: 'bottom'.
    *  Backward-compat: old boolean configs are coerced — true→'bottom', false→'off'. */

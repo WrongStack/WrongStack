@@ -32,6 +32,7 @@ import type {
   ReasoningEffort,
   SettingsMode,
   StatuslineMode,
+  ToolResultViewMode,
 } from './settings-contracts.js';
 import type {
   AutonomyOption,
@@ -155,21 +156,18 @@ export type State = {
     partialAssistantText: string;
   } | null;
   hint: string;
-  /**
-   * Transient "Copied" confirmation shown when a chat card's copy icon is
-   * clicked and its content lands on the clipboard. Separate from `hint` so it
-   * takes precedence over the running-tools indicator (copying tool output
-   * mid-run is a prime use case) and never races another hint producer. Empty
-   * string = no notice. Auto-cleared by a host timer.
-   */
+  /** Transient clipboard confirmation; separate from competing hint producers. */
   copiedNotice: string;
-  /**
-   * Entry id of the card whose copy icon was just clicked, so ScrollableHistory
-   * can flash that specific icon in the success color while the "Copied" notice
-   * is active. `null` = no card highlighted. Set and cleared in lockstep with
-   * `copiedNotice`.
-   */
+  /** Card whose copy icon should flash; null means no highlighted card. */
   copiedEntryId: number | null;
+  /**
+   * Per-card tool-result density overrides, keyed by immutable history id.
+   * These are presentation-only: the retained/canonical payload is untouched,
+   * so expanding after a compact render never loses data. Changing the global
+   * menu setting or clearing the session drops every local override.
+   * Group controls write the same override to each member id.
+   */
+  toolResultViewOverrides: ReadonlyMap<number, ToolResultViewMode>;
   brain: {
     state: 'idle' | 'deciding' | 'answered' | 'ask_human' | 'denied';
     source?: string | undefined;
@@ -389,6 +387,8 @@ export type State = {
      * (API-level provisioning). Default: true.
      */
     showModelReasoning: boolean;
+    /** Global default for all committed tool-result cards. */
+    toolResultViewMode: ToolResultViewMode;
     /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right sidebar), or 'off'. Default: 'bottom'. */
     showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
     /** Right sidebar visibility (mirrors Settings.showSidebar). Default: true. */

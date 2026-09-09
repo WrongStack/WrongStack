@@ -87,11 +87,13 @@ export const History = memo(function History({
   todos,
   showModelReasoning,
   showSageMemoryInject,
+  toolResultViewMode,
+  toolResultViewOverrides,
 }: HistoryProps): React.ReactElement {
   const termSize = useTerminalSize();
   const termWidth = termSize.columns;
 
-  const presentationKey = `w${termWidth}-mr${showModelReasoning}`;
+  const presentationKey = `w${termWidth}-mr${showModelReasoning}-tv${toolResultViewMode ?? 'normal'}`;
   const emissionRef = useRef<{
     generation: number;
     presentationKey: string;
@@ -193,6 +195,11 @@ export const History = memo(function History({
               todos={todos}
               showModelReasoning={showModelReasoning}
               showSageMemoryInject={showSageMemoryInject}
+              toolResultViewMode={
+                entry.kind === 'tool'
+                  ? (toolResultViewOverrides?.get(entry.id) ?? toolResultViewMode)
+                  : undefined
+              }
             />
           </Box>
         )}

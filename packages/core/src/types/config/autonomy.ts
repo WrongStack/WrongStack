@@ -90,6 +90,8 @@ export interface AutonomyConfig {
    * Default: false.
    */
   showModelReasoning?: boolean | undefined;
+  /** Default TUI tool-result density. Full remains visually capped. */
+  toolResultViewMode?: 'minimal' | 'normal' | 'full' | undefined;
   /**
    * Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right sidebar), or 'off' (hidden).
    * Backward-compat: legacy boolean values are coerced — true→'bottom', false→'off'. Default: 'bottom'.

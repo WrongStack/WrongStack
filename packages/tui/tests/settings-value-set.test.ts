@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PANEL_POSITIONS } from '../src/ui-contracts.js';
 import {
   getSettingsFieldValue,
   resolveSettingsFieldValue,
   SETTINGS_FIELD_LABELS,
   type SettingsPickerValues,
 } from '../src/components/settings-picker.js';
+import { DEFAULT_PANEL_POSITIONS } from '../src/ui-contracts.js';
 
 describe('resolveSettingsFieldValue', () => {
   // ── Boolean fields ──────────────────────────────────────────────
@@ -219,8 +219,8 @@ describe('resolveSettingsFieldValue', () => {
       if (!r.ok) expect(r.error).toContain('99');
     });
 
-    it('SETTINGS_FIELD_LABELS has 62 entries', () => {
-      expect(SETTINGS_FIELD_LABELS.length).toBe(62);
+    it('SETTINGS_FIELD_LABELS has 63 entries', () => {
+      expect(SETTINGS_FIELD_LABELS.length).toBe(63);
     });
 
     it('trims whitespace from input', () => {
@@ -304,6 +304,7 @@ describe('getSettingsFieldValue', () => {
     breakerEnabled: false,
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
+    toolResultViewMode: 'normal',
     showAgentSwarmPanel: 'off',
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
@@ -470,6 +471,7 @@ describe('formatAllSettingsSummary', () => {
     breakerEnabled: false,
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
+    toolResultViewMode: 'normal',
     showAgentSwarmPanel: 'bottom',
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
@@ -503,10 +505,10 @@ describe('formatAllSettingsSummary', () => {
     }
   });
 
-  it('renders exactly 62 value lines (one per field)', () => {
+  it('renders exactly 63 value lines (one per field)', () => {
     const out = formatAllSettingsSummary(testValues);
     const fieldLines = out.split('\n').filter((l) => l.startsWith('  ') && l.trim().length > 0);
-    expect(fieldLines).toHaveLength(62);
+    expect(fieldLines).toHaveLength(63);
   });
 
   it('includes the thinking word value', () => {
@@ -588,8 +590,8 @@ describe('resetSettingsFieldValue', () => {
     if (!r.ok) expect(r.error).toContain('99');
   });
 
-  it('SETTINGS_DEFAULTS has all 50 keys (48 legacy + panelPositions + wrongProxy + showSidebar)', () => {
-    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(50);
+  it('SETTINGS_DEFAULTS has all 51 keys including tool result view', () => {
+    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(51);
   });
 
   it('every field 0-57 can be reset', () => {

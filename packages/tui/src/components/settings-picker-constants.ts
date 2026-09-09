@@ -2,6 +2,13 @@ import type { ReasoningEffort as CoreReasoningEffort } from '@wrongstack/core/ty
 import { TOTAL_SETTINGS_FIELD_COUNT } from '../ui-contracts.js';
 import { ANIMATION_STYLE_DESCS, ANIMATION_STYLES } from './animation-style.js';
 
+export {
+  DEFAULT_TOOL_RESULT_VIEW_MODE,
+  TOOL_RESULT_VIEW_MODE_DESCS,
+  TOOL_RESULT_VIEW_MODES,
+  type ToolResultViewMode,
+} from '../tool-result-view-mode.js';
+
 /** Selectable presets for the auto-proceed delay, so the field is fully
  *  keyboard-cyclable (←/→) instead of needing typed numeric input. */
 export const DELAY_PRESETS_MS = [0, 15_000, 30_000, 45_000, 60_000, 120_000];
@@ -257,4 +264,5 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'WrongProxy / WrongTrace', // 59
   'WrongProxy URL', // 60
   'Right sidebar', // 61
+  'Tool result view', // 62
 ];

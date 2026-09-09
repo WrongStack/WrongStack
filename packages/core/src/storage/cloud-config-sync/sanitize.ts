@@ -154,6 +154,7 @@ const UI_PREFERENCES_TREE: ContractNode = {
     refinerProvider: true,
     refinerModel: true,
     showModelReasoning: true,
+    toolResultViewMode: true,
     shellBangWarningDontShowAgain: true,
     showAgentSwarmPanel: true,
     showSageMemoryInject: true,

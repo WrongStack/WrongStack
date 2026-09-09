@@ -76,6 +76,8 @@ export interface LiveSettingsInput {
   cacheTtl?: 'default' | '5m' | '1h' | undefined;
   /** Show "Model Reasoning" blocks in chat history. Default: true. */
   showModelReasoning?: boolean | undefined;
+  /** Default presentation density for committed TUI tool results. */
+  toolResultViewMode?: 'minimal' | 'normal' | 'full' | undefined;
   /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right sidebar), or 'off' (hidden).
    * Backward-compat: legacy boolean values are coerced by the TUI settings adapter. Default: 'bottom'. */
   showAgentSwarmPanel?: 'bottom' | 'sidebar' | 'off' | boolean | undefined;

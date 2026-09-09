@@ -20,6 +20,7 @@ import type {
   SettingsMode,
   StatuslineMode,
   TokenSavingTierTui,
+  ToolResultViewMode,
 } from './settings-picker-model.js';
 import {
   CONTEXT_MODE_DESCS,
@@ -36,6 +37,7 @@ import {
   SETTINGS_FIELD_LABELS,
   STATUSLINE_MODE_DESCS,
   TOKEN_SAVING_TIER_DESCS,
+  toolResultViewSettingRow,
 } from './settings-picker-model.js';
 import {
   deriveSettingsSectionFieldStarts,
@@ -123,14 +125,10 @@ export interface SettingsPickerProps {
   breakerEnabled: boolean;
   /** Auto kill/reset delay (ms) when the breaker trips. 0 = manual recovery. */
   breakerAutoKillResetMs: number;
-  // ── Display ──
   /** Show the "Model Reasoning" blocks in chat history. Default: true. */
   showModelReasoning: boolean;
-  /**
-   * Show the Mission Queue section (todo items) in the right sidebar. The
-   * lower-region FleetPanel is always visible when there is fleet activity;
-   * this toggle controls only the sidebar mission queue. Default: 'bottom'.
-   */
+  toolResultViewMode: ToolResultViewMode;
+  /** Agent swarm placement. */
   showAgentSwarmPanel: import('../app-settings-type.js').AgentSwarmPanelMode;
   /** Right sidebar master toggle. */
   showSidebar?: boolean | undefined;
@@ -253,6 +251,7 @@ export function SettingsPicker({
   breakerEnabled,
   breakerAutoKillResetMs,
   showModelReasoning,
+  toolResultViewMode,
   showAgentSwarmPanel,
   showSidebar,
   showSageMemoryInject,
@@ -548,11 +547,10 @@ export function SettingsPicker({
     // ── Integrations (fields 59–60) ─────────────────────────────────────
     // WrongProxy / WrongTrace. Appended at the end so the existing
     // field indices 0–58 (including the panel-position block 46–58)
-    // remain stable — see the SettingsPicker "Appended to preserve"
-    // comment above. The runtime probe (see
+    // remain stable. The runtime probe (see
     // `runtime-controller-deps.ts:applyLiveSettings`) reads both keys
-    // from the same SettingsPicker slice, so adding them at the
-    // destructuring level keeps the mid-session effect coherent.
+    // from the same picker slice so mid-session state stays coherent.
+    { section: 'Integrations' },
     {
       label: 'WrongProxy / WrongTrace',
       value: boolVal(wrongProxyEnabled),
@@ -566,11 +564,13 @@ export function SettingsPicker({
         ? 'type a URL · Enter ✓ · Esc ✗ (http://host:port or https://host:port)'
         : 'Where the local proxy daemon listens. Probed at <url>/api/health every 30s.',
     },
+    { section: 'Display' },
     {
       label: 'Right sidebar',
       value: boolVal(showSidebar ?? true),
       detail: 'Show or hide the right sidebar in the TUI (chat history takes full width when off)',
     },
+    toolResultViewSettingRow(toolResultViewMode),
   ];
 
   // Build field → row index mapping. `rows` includes section headers

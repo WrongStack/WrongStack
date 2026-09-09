@@ -26,6 +26,7 @@ const conversationActionTypes = [
   'resetInterrupts',
   'hint',
   'copiedNotice',
+  'toolResultViewSet',
   'brainStatus',
 ] as const satisfies readonly Action['type'][];
 
@@ -162,6 +163,7 @@ export function reduceConversation(state: State, action: ConversationAction): St
         // surviving card (the banner) or dangle until the 2s host timer fires.
         copiedNotice: '',
         copiedEntryId: null,
+        toolResultViewOverrides: new Map(),
         // Bump the generation so <Static> remounts — without this, Ink's
         // already-written index exceeds the new (shorter) array and the
         // committed entries stay on screen even though `state.entries` no
@@ -253,6 +255,11 @@ export function reduceConversation(state: State, action: ConversationAction): St
       return { ...state, hint: action.text };
     case 'copiedNotice':
       return { ...state, copiedNotice: action.text, copiedEntryId: action.entryId };
+    case 'toolResultViewSet': {
+      const overrides = new Map(state.toolResultViewOverrides);
+      for (const entryId of action.entryIds) overrides.set(entryId, action.mode);
+      return { ...state, toolResultViewOverrides: overrides };
+    }
     case 'brainStatus':
       return {
         ...state,

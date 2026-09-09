@@ -46,6 +46,8 @@ export interface HistoryScrollController {
    * entry id is returned; otherwise returns null.
    */
   copyAtViewportCell(row: number, col: number): Promise<number | null>;
+  /** Activate a committed tool card's −/+ control. */
+  activateToolViewControlAt(row: number, col: number): boolean;
   /**
    * Begin a drag-to-select gesture at `row`,`col` (history-band viewport cell).
    * The cell must be inside a card's row range and inside the rendered band

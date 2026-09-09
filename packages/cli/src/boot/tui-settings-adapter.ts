@@ -264,6 +264,10 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       breakerEnabled: cfg.circuitBreaker?.enabled === true,
       breakerAutoKillResetMs: cfg.circuitBreaker?.autoKillResetMs ?? 60_000,
       showModelReasoning: autonomy?.showModelReasoning ?? false,
+      toolResultViewMode:
+        autonomy?.toolResultViewMode === 'minimal' || autonomy?.toolResultViewMode === 'full'
+          ? autonomy.toolResultViewMode
+          : 'normal',
       showAgentSwarmPanel: coerceAgentSwarmMode(autonomy?.showAgentSwarmPanel),
       showSidebar: autonomy?.showSidebar ?? true,
       // Migrate the legacy `autonomy.showAgentSwarmPanel: 'sidebar'` into
@@ -348,6 +352,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.breakerEnabled !== undefined ||
         s.breakerAutoKillResetMs !== undefined ||
         s.showModelReasoning !== undefined ||
+        s.toolResultViewMode !== undefined ||
         s.showAgentSwarmPanel !== undefined ||
         s.showSidebar !== undefined ||
         s.panelPositions !== undefined ||
@@ -416,6 +421,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           autonomy.thinkingWord = normalizeTuiThinkingWord(s.thinkingWord);
         if (s.animationStyle !== undefined) autonomy.animationStyle = s.animationStyle;
         if (s.showModelReasoning !== undefined) autonomy.showModelReasoning = s.showModelReasoning;
+        if (s.toolResultViewMode !== undefined) autonomy.toolResultViewMode = s.toolResultViewMode;
         if (s.showAgentSwarmPanel !== undefined)
           autonomy.showAgentSwarmPanel = s.showAgentSwarmPanel;
         if (s.showSidebar !== undefined) autonomy.showSidebar = s.showSidebar;

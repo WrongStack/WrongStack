@@ -1,4 +1,7 @@
 import type { ReasoningEffort as CoreReasoningEffort } from '@wrongstack/core/types';
+import type { ToolResultViewMode } from './tool-result-view-mode.js';
+
+export type { ToolResultViewMode } from './tool-result-view-mode.js';
 
 export type SettingsMode = 'off' | 'suggest' | 'auto';
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace';
@@ -74,6 +77,8 @@ export type SettingsPickerPatch = Partial<{
   breakerEnabled: boolean;
   breakerAutoKillResetMs: number;
   showModelReasoning: boolean;
+  /** Default presentation density for every committed TUI tool result. */
+  toolResultViewMode: ToolResultViewMode;
   showAgentSwarmPanel: AgentSwarmPanelMode;
   showSidebar: boolean;
   /**

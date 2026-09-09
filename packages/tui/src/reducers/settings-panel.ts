@@ -1,7 +1,7 @@
 import type { Action } from '../app-action-type.js';
+import { coercePanelPositionMap } from '../app-settings-type.js';
 import type { State } from '../app-state.js';
 import { SETTINGS_FIELD_COUNT } from '../components/settings-picker.js';
-import { coercePanelPositionMap } from '../app-settings-type.js';
 import { closePanels } from './helpers.js';
 
 const settingsPanelActionTypes = [
@@ -91,6 +91,7 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
           breakerEnabled: action.breakerEnabled,
           breakerAutoKillResetMs: action.breakerAutoKillResetMs,
           showModelReasoning: action.showModelReasoning,
+          toolResultViewMode: action.toolResultViewMode,
           showAgentSwarmPanel: action.showAgentSwarmPanel,
           showSidebar: action.showSidebar ?? true,
           panelPositions: coercePanelPositionMap(action.panelPositions),

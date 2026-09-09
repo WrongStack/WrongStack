@@ -2,8 +2,8 @@ import type { TokenSavingTier } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import React, { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
-import { coerceAgentSwarmMode, coercePanelPositionMap } from '../app-settings-type.js';
 import type { AppProps } from '../app-props.js';
+import { coerceAgentSwarmMode, coercePanelPositionMap } from '../app-settings-type.js';
 import type { State } from '../app-state.js';
 import { type ContextMode, DEFAULT_STATUSLINE_MODE } from '../components/settings-picker.js';
 import { createPanelOpenDispatcher } from '../on-panel-open.js';
@@ -196,6 +196,7 @@ export function usePanelControllers({
       breakerEnabled: s.breakerEnabled ?? false,
       breakerAutoKillResetMs: s.breakerAutoKillResetMs ?? 60_000,
       showModelReasoning: s.showModelReasoning ?? false,
+      toolResultViewMode: s.toolResultViewMode ?? 'normal',
       showAgentSwarmPanel: coerceAgentSwarmMode(s.showAgentSwarmPanel),
       // Migrate the legacy `showAgentSwarmPanel: 'sidebar'` tri-state into
       // the new per-panel `panelPositions.fleet` map so users with old

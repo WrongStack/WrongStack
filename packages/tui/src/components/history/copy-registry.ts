@@ -1,4 +1,5 @@
 import type { EntryHeightCache } from '../../height-cache.js';
+import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import type { CopyHit } from './copy-geometry.js';
 import { copyRegistryVisibleClip, liveToolStreamCopyHit } from './copy-geometry.js';
 import { isCopyableEntry } from './copy-icon.js';
@@ -28,6 +29,7 @@ export function buildCopyRegistry(opts: {
   iconCol: number;
   showModelReasoning?: boolean | undefined;
   liveToolVisible: boolean;
+  viewModeForEntry?: ((entryId: number) => ToolResultViewMode) | undefined;
 }): CopyRegistry {
   const mountedGroupRows = opts.renderGroups.reduce(
     (rows, group) => rows + (opts.heightCache.getHeight(renderGroupId(group)) ?? 0),
@@ -64,12 +66,24 @@ export function buildCopyRegistry(opts: {
           : [];
     const entryId = groupEntryIds[0];
     if (entryId === undefined || startRow < 0 || startRow >= opts.viewportRows) continue;
+    const toolEntryIds =
+      group.type === 'tool-group'
+        ? group.data.entries.filter((entry) => entry.kind === 'tool').map((entry) => entry.id)
+        : group.entry.kind === 'tool'
+          ? [group.entry.id]
+          : [];
     hits.push({
       entryId,
       ...(groupEntryIds.length > 1 ? { entryIds: groupEntryIds } : {}),
       startRow,
       endRow: startRow + 1,
       iconCol: opts.iconCol,
+      ...(toolEntryIds.length > 0
+        ? {
+            toolEntryIds,
+            toolViewMode: opts.viewModeForEntry?.(toolEntryIds[0]!) ?? 'normal',
+          }
+        : {}),
     });
   }
   return {

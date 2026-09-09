@@ -45,6 +45,7 @@ import type {
   SettingsMode,
   SettingsPickerPatch,
   StatuslineMode,
+  ToolResultViewMode,
 } from './settings-contracts.js';
 import type {
   AutonomyOption,
@@ -292,6 +293,7 @@ export type Action =
       breakerEnabled: boolean;
       breakerAutoKillResetMs: number;
       showModelReasoning: boolean;
+      toolResultViewMode: ToolResultViewMode;
       showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
       showSidebar?: boolean | undefined;
       panelPositions: import('./ui-contracts.js').PanelPositionMap;
@@ -321,6 +323,11 @@ export type Action =
    * before dispatch, so the reducer just spreads it.
    */
   | { type: 'settingsValueSet'; patch: SettingsPickerPatch }
+  | {
+      type: 'toolResultViewSet';
+      entryIds: readonly number[];
+      mode: ToolResultViewMode;
+    }
   /**
    * Update the live row-search filter. Empty string clears the filter.
    * Setting any non-empty value while the filter is empty also implicitly

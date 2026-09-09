@@ -1,4 +1,9 @@
 import type { SettingsPickerPatch } from '../settings-contracts.js';
+import type { ToolResultViewMode } from '../tool-result-view-mode.js';
+
+export type { ToolResultViewMode } from '../tool-result-view-mode.js';
+export { cycleToolResultViewMode } from '../tool-result-view-mode.js';
+
 import { DEFAULT_PANEL_POSITIONS, PANEL_IDS, PANEL_POSITION_FIELD_START } from '../ui-contracts.js';
 import {
   DEFAULT_STATUSLINE_MODE,
@@ -89,6 +94,7 @@ export function getSettingsFieldValue(
     [35, 'configScope'],
     [36, 'animationStyle'],
     [40, 'showAgentSwarmPanel'],
+    [62, 'toolResultViewMode'],
   ];
   for (const [f, key] of ENUM_KEYS) {
     if (field !== f) continue;
@@ -200,7 +206,7 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   },
   {
     name: 'Display',
-    fields: [39, 40, 41, 43, 44, 61],
+    fields: [39, 40, 41, 43, 44, 61, 62],
   },
   {
     name: 'Panels',
@@ -256,6 +262,18 @@ export function formatSageThreshold(t: number): string {
   return t.toFixed(2);
 }
 
+export function toolResultViewSettingRow(mode: ToolResultViewMode): {
+  label: string;
+  value: string;
+  detail: string;
+} {
+  return {
+    label: 'Tool result view',
+    value: mode,
+    detail: 'minimal = one line · normal = preview · full = capped expanded result',
+  };
+}
+
 /**
  * Default values for all configurable settings fields, in the same
  * shape as {@link SettingsPickerValues}. Extracted from the reducer's
@@ -307,6 +325,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   breakerEnabled: false,
   breakerAutoKillResetMs: 60_000,
   showModelReasoning: false,
+  toolResultViewMode: 'normal',
   showAgentSwarmPanel: 'bottom',
   panelPositions: DEFAULT_PANEL_POSITIONS,
   readSymbols: false,
@@ -407,6 +426,7 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
     // `/settings reset sidebar` returns null and the field is
     // unresettable even though BOOL_FIELDS accepts on/off for it.
     [61, 'showSidebar'],
+    [62, 'toolResultViewMode'],
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {

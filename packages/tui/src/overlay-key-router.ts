@@ -348,6 +348,7 @@ export function routeSettingsOverlayKey(
     breakerEnabled: config.breakerEnabled ?? false,
     breakerAutoKillResetMs: config.breakerAutoKillResetMs ?? 60_000,
     showModelReasoning: config.showModelReasoning ?? false,
+    toolResultViewMode: config.toolResultViewMode ?? 'normal',
     showAgentSwarmPanel: coerceAgentSwarmMode(config.showAgentSwarmPanel),
     // Migrate the legacy `showAgentSwarmPanel: 'sidebar'` tri-state into
     // the new per-panel `panelPositions.fleet` map so users with old

@@ -8,9 +8,11 @@ import {
   scrollAnchorBy,
   scrollAnchorToTop,
 } from '../../scroll-anchor.js';
+import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
+import { shiftToolResultViewMode } from '../../tool-result-view-mode.js';
 import { MESSAGE_PANEL_CHROME_WIDTH } from './assistant.js';
 import type { CopyHit } from './copy-geometry.js';
-import { findCopyHit, resolveCopyPayload } from './copy-geometry.js';
+import { findCopyHit, findToolViewControl, resolveCopyPayload } from './copy-geometry.js';
 import type { HistoryScrollController } from './scroll-controller-types.js';
 import type { MountedCardSpan } from './scrollbar-geometry.js';
 import { selectionHitAt } from './scrollbar-geometry.js';
@@ -48,6 +50,9 @@ interface UseHistoryControllerOptions {
   setAnchor: (anchor: { id: number; clip: number } | null) => void;
   setMountBump: (bump: number) => void;
   controllerRef?: { current: HistoryScrollController | null } | undefined;
+  onToolResultViewChange?:
+    | ((entryIds: readonly number[], mode: ToolResultViewMode) => void)
+    | undefined;
 }
 
 export function useHistoryController(opts: UseHistoryControllerOptions): {
@@ -73,6 +78,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
     setAnchor,
     setMountBump,
     controllerRef,
+    onToolResultViewChange,
   } = opts;
 
   const geometryRef = useRef(geometry);
@@ -181,6 +187,15 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         if (payload === null) return null;
         return (await writeClipboardText(payload.text)) ? payload.entryId : null;
       },
+      activateToolViewControlAt: (row, col) => {
+        const control = findToolViewControl(copyHitsRef.current, row, col);
+        const ids = control?.hit.toolEntryIds;
+        const mode = control?.hit.toolViewMode;
+        if (!control || !ids || !mode || !onToolResultViewChange) return false;
+        const next = shiftToolResultViewMode(mode, control.delta);
+        if (next !== mode) onToolResultViewChange(ids, next);
+        return true;
+      },
       beginSelection: (row, col) => {
         if (isOutOfBand(col, termWidth)) {
           selectionRef.current = { anchor: null, head: null, inProgress: false };
@@ -276,6 +291,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
       selectionRef,
       entriesByIdRef,
       toolStreamRef,
+      onToolResultViewChange,
     ],
   );
 

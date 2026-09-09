@@ -818,27 +818,20 @@ export function createAppKeyHandler(
           key.mouse.x,
           key.mouse.y,
         );
-        // Copy icons live in the first of the three reserved scrollbar-rail
-        // columns (icon + gap + track). Give a fresh press on that exact cell
-        // priority over track jumping; the actual track remains the final
-        // column and drags still scrub.
         const copyRow =
           region?.kind === 'history'
             ? region.row
             : region?.kind === 'scrollbar'
               ? region.cell
               : null;
+        const pressedRailRow = copyRow !== null && key.mouse.kind === 'press' ? copyRow : null;
         if (
-          copyRow !== null &&
-          key.mouse.kind === 'press' &&
-          historyScrollRef.current?.hasCopyTargetAt(copyRow, key.mouse.x - 1)
+          pressedRailRow !== null &&
+          historyScrollRef.current?.hasCopyTargetAt(pressedRailRow, key.mouse.x - 1)
         ) {
-          // A copy-icon press also clears any pending drag-selection: starting
-          // a fresh click cancels the previous gesture rather than letting the
-          // user accidentally copy an unrelated selection they no longer want.
           historyScrollRef.current?.clearSelection();
           void historyScrollRef.current
-            .copyAtViewportCell(copyRow, key.mouse.x - 1)
+            .copyAtViewportCell(pressedRailRow, key.mouse.x - 1)
             .then((entryId) => {
               // Non-null id means the clipboard write succeeded — surface the
               // transient "Copied" confirmation and flash that card's icon. A
@@ -846,6 +839,13 @@ export function createAppKeyHandler(
               if (entryId !== null) onHistoryCopy?.(entryId);
             })
             .catch(() => null);
+          return;
+        }
+        if (
+          pressedRailRow !== null &&
+          historyScrollRef.current?.activateToolViewControlAt(pressedRailRow, key.mouse.x - 1)
+        ) {
+          historyScrollRef.current.clearSelection();
           return;
         }
         // Drag-to-select: the press must land inside the history band on a

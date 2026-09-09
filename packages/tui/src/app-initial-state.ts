@@ -12,6 +12,7 @@ import type { AutonomyAgentStatus } from './components/history/types.js';
 import { type ContextMode, DEFAULT_STATUSLINE_MODE } from './components/settings-picker.js';
 import { retainTuiHistory, TUI_RESUME_HISTORY_BUDGET } from './history-retention.js';
 import { rehydrateHistory } from './rehydrate-history.js';
+import { DEFAULT_TOOL_RESULT_VIEW_MODE } from './tool-result-view-mode.js';
 import { DEFAULT_PANEL_POSITIONS } from './ui-contracts.js';
 
 export type RestoredToolCall = {
@@ -212,6 +213,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     hint: '',
     copiedNotice: '',
     copiedEntryId: null,
+    toolResultViewOverrides: new Map(),
     brain: { state: 'idle' },
     brainPrompt: null,
     nextId: initialNextId,
@@ -311,6 +313,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       breakerEnabled: false,
       breakerAutoKillResetMs: 60_000,
       showModelReasoning: false,
+      toolResultViewMode: DEFAULT_TOOL_RESULT_VIEW_MODE,
       showAgentSwarmPanel: 'bottom',
       showSidebar: true,
       panelPositions: DEFAULT_PANEL_POSITIONS,

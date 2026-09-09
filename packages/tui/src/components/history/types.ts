@@ -1,6 +1,8 @@
 import type { TodoItem } from '@wrongstack/core/agent';
 import type { Lang } from '../../highlight.js';
 import type { HistoryEntry } from '../../history-entry.js';
+import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
+
 export type {
   AutonomyAgentStatus,
   HistoryEntry,
@@ -68,6 +70,12 @@ export interface HistoryProps {
    * Default: false.
    */
   showSageMemoryInject?: boolean | undefined;
+  /** Global default; individual entry ids may override it. */
+  toolResultViewMode?: ToolResultViewMode | undefined;
+  toolResultViewOverrides?: ReadonlyMap<number, ToolResultViewMode> | undefined;
+  onToolResultViewChange?:
+    | ((entryIds: readonly number[], mode: ToolResultViewMode) => void)
+    | undefined;
 }
 
 export interface BodySegment {

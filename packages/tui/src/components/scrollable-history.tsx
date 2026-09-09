@@ -17,11 +17,16 @@ import { setTuiHistoryMemoryGauges } from '../tui-memory-counters.js';
 import { EntryErrorBoundary } from './entry-error-boundary.js';
 import { buildCopyRegistry } from './history/copy-registry.js';
 import {
+  createSelectionBandStore,
+  type SelectionBandStore,
+} from './history/selection-band-store.js';
+import {
   estimateRenderGroupRows,
   groupEntries,
   renderGroupId,
   ToolGroup,
 } from './history/tool-group.js';
+import { useHistoryController } from './history/use-history-controller.js';
 import {
   AssistantStreamBox,
   assistantStreamBoxHeight,
@@ -32,44 +37,39 @@ import {
   tailForDisplay,
   toolStreamBoxHeight,
 } from './history.js';
-import { useHistoryController } from './history/use-history-controller.js';
-import {
-  createSelectionBandStore,
-  type SelectionBandStore,
-} from './history/selection-band-store.js';
 
+export {
+  type CopyHit,
+  copyRegistryVisibleClip,
+  findCopyHit,
+  LIVE_TOOL_STREAM_COPY_ID,
+  liveToolStreamCopyHit,
+  resolveCopyPayload,
+  SELECTION_COPY_ID,
+} from './history/copy-geometry.js';
 // ── Re-exports from extracted modules ────────────────────────────────────
 export type { HistoryScrollController } from './history/scroll-controller-types.js';
 export {
-  type CopyHit,
-  LIVE_TOOL_STREAM_COPY_ID,
-  SELECTION_COPY_ID,
-  findCopyHit,
-  resolveCopyPayload,
-  copyRegistryVisibleClip,
-  liveToolStreamCopyHit,
-} from './history/copy-geometry.js';
-export {
-  type SelectionRect,
-  normalizeSelection,
-  isOutOfBand,
-  selectionTouchedEntryIds,
-  assembleSelectionText,
-} from './history/selection-helpers.js';
-export {
+  buildMountedCardSpans,
   type MountedCardSpan,
   scrollbarThumb,
   scrollOffsetForTrackRow,
-  buildMountedCardSpans,
   selectionHitAt,
 } from './history/scrollbar-geometry.js';
 export { Scrollbar } from './history/scrollbar-rail.js';
+export {
+  assembleSelectionText,
+  isOutOfBand,
+  normalizeSelection,
+  type SelectionRect,
+  selectionTouchedEntryIds,
+} from './history/selection-helpers.js';
 
 // ── Internal imports from extracted modules ──────────────────────────────
 import type { CopyHit } from './history/copy-geometry.js';
-import { type MountedCardSpan, buildMountedCardSpans } from './history/scrollbar-geometry.js';
-import { Scrollbar } from './history/scrollbar-rail.js';
 import type { ScrollableHistoryProps } from './history/scroll-controller-types.js';
+import { buildMountedCardSpans, type MountedCardSpan } from './history/scrollbar-geometry.js';
+import { Scrollbar } from './history/scrollbar-rail.js';
 
 /** Minimum extra rows mounted per underfill-correction step. */
 const UNDERFILL_BUMP_ROWS = 16;
@@ -96,6 +96,9 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   layoutStore,
   copiedEntryId,
   onRequestOlderEntries,
+  toolResultViewMode = 'normal',
+  toolResultViewOverrides,
+  onToolResultViewChange,
 }: ScrollableHistoryProps): React.ReactElement {
   const { stdout } = useStdout();
   const resolveViewportWidth = useCallback(() => {
@@ -126,7 +129,14 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     ? tailForDisplay(streamingText, MAX_STREAM_DISPLAY_CHARS)
     : '';
   const assistantTailHeight = assistantTail ? assistantStreamBoxHeight() : 0;
-  const groupedEntries = useMemo(() => groupEntries(entries), [entries]);
+  const viewModeForEntry = useCallback(
+    (entryId: number) => toolResultViewOverrides?.get(entryId) ?? toolResultViewMode,
+    [toolResultViewMode, toolResultViewOverrides],
+  );
+  const groupedEntries = useMemo(
+    () => groupEntries(entries, viewModeForEntry),
+    [entries, viewModeForEntry],
+  );
   const groupIds = useMemo(() => groupedEntries.map(renderGroupId), [groupedEntries]);
   const groupIdsKey = groupIds.join(',');
 
@@ -162,12 +172,21 @@ export const ScrollableHistory = memo(function ScrollableHistory({
 
   const reasoningKey = showModelReasoning === false ? '|r0' : '';
   const sageKey = showSageMemoryInject === false ? '|s0' : '';
+  const toolViewKey = entries
+    .filter((entry) => entry.kind === 'tool')
+    .map((entry) => `${entry.id}:${viewModeForEntry(entry.id)}`)
+    .join(',');
   const cacheKey =
-    (layoutStore ? `${groupIdsKey}|w${termWidth}` : groupIdsKey) + reasoningKey + sageKey;
+    (layoutStore ? `${groupIdsKey}|w${termWidth}` : groupIdsKey) +
+    reasoningKey +
+    sageKey +
+    `|tv${toolViewKey}`;
   if (preparedGroupIdsRef.current !== cacheKey || preparedEstimateWidthRef.current !== termWidth) {
     const widthChanged =
       preparedEstimateWidthRef.current !== null && preparedEstimateWidthRef.current !== termWidth;
-    if (widthChanged) {
+    const presentationChanged =
+      preparedGroupIdsRef.current !== null && preparedGroupIdsRef.current !== cacheKey;
+    if (widthChanged || presentationChanged) {
       measuredGroupIdsRef.current.clear();
     }
     heightCache.sync(groupIds);
@@ -189,14 +208,25 @@ export const ScrollableHistory = memo(function ScrollableHistory({
           heightCache.record(id, 0);
           continue;
         }
-        const stored = layoutStore.get(id);
+        const stored = presentationChanged ? undefined : layoutStore.get(id);
         if (stored && stored.termWidth === termWidth) {
           if (stored.kind === 'measured' || !measuredGroupIdsRef.current.has(id)) {
             heightCache.record(id, stored.rows);
           }
           if (stored.kind === 'measured') measuredGroupIdsRef.current.add(id);
         } else {
-          const estimatedRows = estimateRenderGroupRows(group, termWidth, showSageMemoryInject);
+          const firstToolId =
+            group.type === 'tool-group'
+              ? group.data.entries.find((entry) => entry.kind === 'tool')?.id
+              : group.entry.kind === 'tool'
+                ? group.entry.id
+                : undefined;
+          const estimatedRows = estimateRenderGroupRows(
+            group,
+            termWidth,
+            showSageMemoryInject,
+            firstToolId === undefined ? 'normal' : viewModeForEntry(firstToolId),
+          );
           heightCache.record(id, estimatedRows);
           const kind = group.type === 'tool-group' ? 'tool-group' : group.entry.kind;
           const text =
@@ -223,7 +253,18 @@ export const ScrollableHistory = memo(function ScrollableHistory({
           if (hidden) hiddenIds.add(id);
           return [
             id,
-            hidden ? 0 : estimateRenderGroupRows(group, termWidth, showSageMemoryInject),
+            hidden
+              ? 0
+              : estimateRenderGroupRows(
+                  group,
+                  termWidth,
+                  showSageMemoryInject,
+                  group.type === 'tool-group'
+                    ? viewModeForEntry(group.data.entries[0]?.id ?? -1)
+                    : group.entry.kind === 'tool'
+                      ? viewModeForEntry(group.entry.id)
+                      : 'normal',
+                ),
           ] as const;
         }),
       );
@@ -298,6 +339,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     setAnchor,
     setMountBump,
     controllerRef,
+    onToolResultViewChange,
   });
 
   const lastReportedScrolled = useRef<boolean | null>(null);
@@ -350,6 +392,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     iconCol: termWidth,
     showModelReasoning,
     liveToolVisible: Boolean(plan.mountTail && toolTail && toolStream),
+    viewModeForEntry,
   });
   copyHitsRef.current = copyRegistry.hits;
   liveToolCopyHitRef.current = copyRegistry.liveHit;
@@ -487,7 +530,11 @@ export const ScrollableHistory = memo(function ScrollableHistory({
               return (
                 <Box key={`tool-group-${gid}`} ref={setNode} flexShrink={0}>
                   <EntryErrorBoundary label="tool group" resetKey={group.data.entries.length}>
-                    <ToolGroup data={group.data} termWidth={termWidth} />
+                    <ToolGroup
+                      data={group.data}
+                      termWidth={termWidth}
+                      viewMode={viewModeForEntry(group.data.entries[0]?.id ?? -1)}
+                    />
                   </EntryErrorBoundary>
                 </Box>
               );
@@ -514,6 +561,9 @@ export const ScrollableHistory = memo(function ScrollableHistory({
                   todos={todos}
                   showModelReasoning={showModelReasoning}
                   showSageMemoryInject={showSageMemoryInject}
+                  toolResultViewMode={
+                    entry.kind === 'tool' ? viewModeForEntry(entry.id) : undefined
+                  }
                 />
               </EntryErrorBoundary>
             );

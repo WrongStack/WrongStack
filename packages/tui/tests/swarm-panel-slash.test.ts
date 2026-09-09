@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  resolveSettingsFieldValue,
   getSettingsFieldValue,
+  resolveSettingsFieldValue,
   type SettingsPickerValues,
 } from '../src/components/settings-picker-model.js';
 
@@ -47,6 +47,7 @@ const baseValues: SettingsPickerValues = {
   breakerEnabled: false,
   breakerAutoKillResetMs: 60_000,
   showModelReasoning: true,
+  toolResultViewMode: 'normal',
   showAgentSwarmPanel: 'bottom',
   showSageMemoryInject: false,
   sageMemoryInjectThreshold: 0.85,

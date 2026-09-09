@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS,
-  settingsPickerJumpByName,
-  settingsPickerJumpNames,
+  resolveSettingsFieldValue,
   SETTINGS_FIELD_LABELS,
   SETTINGS_PICKER_JUMP_CHORDS,
+  settingsPickerJumpByName,
+  settingsPickerJumpNames,
 } from '../src/components/settings-picker.js';
 
 describe('settingsPickerJumpByName', () => {
@@ -72,6 +73,16 @@ describe('settingsPickerJumpByName', () => {
     expect(settingsPickerJumpByName('agent-swarm-panel')).toBe(40);
   });
 
+  it('resolves and validates the global tool-result view command', () => {
+    expect(settingsPickerJumpByName('tool-result-view')).toBe(62);
+    for (const mode of ['minimal', 'normal', 'full'] as const) {
+      expect(resolveSettingsFieldValue(62, mode)).toMatchObject({
+        ok: true,
+        patch: { toolResultViewMode: mode },
+      });
+    }
+  });
+
   it('is case-insensitive', () => {
     expect(settingsPickerJumpByName('MULTI-DIFF')).toBe(21);
     expect(settingsPickerJumpByName('Yolo')).toBe(3);
@@ -86,7 +97,7 @@ describe('settingsPickerJumpNames', () => {
     expect(names).toHaveLength(SETTINGS_PICKER_JUMP_CHORDS.length);
     // First and last entries match the order in SETTINGS_PICKER_JUMP_CHORDS.
     expect(names[0]).toBe('index-on-session-start');
-    expect(names.at(-1)).toBe('connections-placement');
+    expect(names.at(-1)).toBe('tool-result-view');
   });
 
   it('every jump label stays aligned with the canonical setting at its field index', () => {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T13:00:12.255Z",
+  "generatedAt": "2026-09-09T13:09:51.432Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3704,
-    "testFiles": 3200,
-    "sourceLines": 892768,
+    "sourceFiles": 3705,
+    "testFiles": 3201,
+    "sourceLines": 893084,
     "workspaceEdges": 127,
-    "moduleEdges": 11686,
+    "moduleEdges": 11702,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -757,8 +757,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 364,
-      "testFiles": 336,
+      "sourceFiles": 365,
+      "testFiles": 337,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -781,7 +781,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 336
+          "testFiles": 337
         }
       ]
     },
@@ -16137,6 +16137,12 @@
       },
       {
         "file": "packages/tui/tests/tool-group-render.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/tool-result-view-mode.test.tsx",
         "projects": [
           "root-node"
         ]

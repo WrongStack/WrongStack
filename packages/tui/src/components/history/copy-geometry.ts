@@ -4,6 +4,8 @@
  *
  * Extracted from scrollable-history.tsx.
  */
+
+import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import { COPY_ICON_WIDTH, copyableTextForEntries, copyableTextForEntry } from './copy-icon.js';
 import type { HistoryEntry } from './index.js';
 
@@ -21,6 +23,23 @@ export interface CopyHit {
   startRow: number;
   endRow: number;
   iconCol: number;
+  /** Present only for committed tool cards/groups that expose −/+ controls. */
+  toolEntryIds?: readonly number[] | undefined;
+  toolViewMode?: ToolResultViewMode | undefined;
+}
+
+export function findToolViewControl(
+  hits: readonly CopyHit[],
+  row: number,
+  col: number,
+): { hit: CopyHit; delta: -1 | 1 } | null {
+  for (let i = hits.length - 1; i >= 0; i--) {
+    const hit = hits[i];
+    if (!hit?.toolEntryIds || !hit.toolViewMode || row !== hit.startRow) continue;
+    if (col === hit.iconCol + 1) return { hit, delta: -1 };
+    if (col === hit.iconCol + 2) return { hit, delta: 1 };
+  }
+  return null;
 }
 
 /** Sentinel returned after copying the active, non-retained tool-stream box. */

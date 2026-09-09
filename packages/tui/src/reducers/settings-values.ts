@@ -1,5 +1,5 @@
-import { expectDefined } from '@wrongstack/core/utils';
 import { MAX_WRONGPROXY_URL_LENGTH } from '@wrongstack/core/types';
+import { expectDefined } from '@wrongstack/core/utils';
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
 import {
@@ -12,6 +12,7 @@ import {
   COMPACTOR_STRATEGIES,
   CONFIG_SCOPES,
   CONTEXT_MODES,
+  cycleToolResultViewMode,
   DEFAULT_STATUSLINE_MODE,
   DELAY_PRESETS_MS,
   ENHANCE_DELAY_PRESETS,
@@ -585,30 +586,27 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
         };
       // Field 59: WrongProxy / WrongTrace master switch. Toggles on
       // left/right, mirroring the other boolean cycle entries above.
-      // The companion URL field (60) is text — Enter opens an inline
-      // edit, not a cycle, so it has no entry here.
+      // Field 60 is text-edited rather than cycled here.
       if (f === 59)
         return {
           ...state,
           settingsPicker: { ...sp, wrongProxyEnabled: !sp.wrongProxyEnabled, hint: undefined },
         };
-      // Field 61: Right sidebar master switch (on/off).
       if (f === 61)
         return {
           ...state,
           settingsPicker: { ...sp, showSidebar: !sp.showSidebar, hint: undefined },
         };
-      // Fields PANEL_POSITION_FIELD_START..PANEL_POSITION_FIELD_START+PANEL_IDS.length:
-      // per-panel position (cycle 'bottom' → 'sidebar'). One field index
-      // per PanelId, in PANEL_IDS order. The first 46 indices (0–45) are
-      // preserved because jumps, persisted lastSettingsField, and several
-      // tests rely on stable indices. The bounds check guarantees
-      // PANEL_IDS[f - PANEL_POSITION_FIELD_START] is defined; the map is
-      // normalized to a full PanelPositionMap at boot (see
-      // coercePanelPositionMap in app-settings-type.ts) so the index
-      // access on `sp.panelPositions` is also total. Using
-      // PANEL_IDS.length (not a hardcoded 57) keeps the range in sync
-      // when a new panel is added to PANEL_IDS.
+      if (f === 62)
+        return {
+          ...state,
+          toolResultViewOverrides: new Map(),
+          settingsPicker: {
+            ...sp,
+            toolResultViewMode: cycleToolResultViewMode(sp.toolResultViewMode, action.delta),
+            hint: undefined,
+          },
+        };
       if (f >= PANEL_POSITION_FIELD_START && f - PANEL_POSITION_FIELD_START < PANEL_IDS.length) {
         const PANEL_POSITION_CYCLE = ['bottom', 'sidebar'] as const;
         const panelId = PANEL_IDS[f - PANEL_POSITION_FIELD_START]!;
@@ -668,6 +666,7 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
         showAgentSwarmPanel: swarmPatch,
         ...restPatch
       } = action.patch;
+      const resetToolViews = action.patch.toolResultViewMode !== undefined;
       const mergedPanelPositions =
         panelPositionsPatch !== undefined
           ? { ...state.settingsPicker.panelPositions, ...panelPositionsPatch }
@@ -686,6 +685,7 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
               : 'bottom';
       return {
         ...state,
+        ...(resetToolViews ? { toolResultViewOverrides: new Map<number, never>() } : {}),
         settingsPicker: {
           ...state.settingsPicker,
           ...restPatch,

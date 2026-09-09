@@ -26,6 +26,7 @@ import {
 } from '../../terminal-width.js';
 import { theme } from '../../theme.js';
 import { getToolVisual } from '../../tool-glyph.js';
+import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import { glyphs } from '../../ui-glyphs.js';
 import { DIFF_MAX_LINES, MULTI_DIFF_MAX_ROWS } from './code-block.js';
 import type { HistoryEntry } from './types.js';
@@ -114,11 +115,15 @@ export function estimateRenderGroupRows(
   group: RenderGroup,
   contentWidth: number,
   showSageMemoryInject?: boolean,
+  viewMode: ToolResultViewMode = 'normal',
 ): number {
-  if (group.type === 'tool-group') return group.data.entries.length + 2;
+  if (group.type === 'tool-group')
+    return viewMode === 'minimal' ? 1 : group.data.entries.length + 2;
 
   const { entry } = group;
   if (entry.kind === 'tool') {
+    if (viewMode === 'minimal') return 1;
+    if (viewMode === 'full') return 42;
     const { cleanOutput, sageLines } = resolveEntrySage(entry.output, entry.sageLines);
     const memoryLines = sageLines.slice(1);
     // When sage inject is hidden, skip the panel entirely in height estimation.
@@ -207,7 +212,10 @@ export function estimateRenderGroupRows(
  * Non-tool entries and isolated tool entries (no consecutive sibling)
  * remain as individual items.
  */
-export function groupEntries(entries: readonly HistoryEntry[]): RenderGroup[] {
+export function groupEntries(
+  entries: readonly HistoryEntry[],
+  viewModeForEntry?: (entryId: number) => ToolResultViewMode,
+): RenderGroup[] {
   const result: RenderGroup[] = [];
   let buffer: HistoryEntry[] = [];
   let currentName = '';
@@ -238,10 +246,12 @@ export function groupEntries(entries: readonly HistoryEntry[]): RenderGroup[] {
 
   for (const entry of entries) {
     const containsInjectedMemory = entry.kind === 'tool' && hasInjectedMemory(entry);
+    const expanded = entry.kind === 'tool' && viewModeForEntry?.(entry.id) === 'full';
     if (
       entry.kind === 'tool' &&
       !STRUCTURED_DIFF_TOOLS.has(entry.name) &&
-      !containsInjectedMemory
+      !containsInjectedMemory &&
+      !expanded
     ) {
       if (currentName !== entry.name) {
         flush();
@@ -326,9 +336,11 @@ function ToolGroupHeader({
 function ToolGroupImpl({
   data,
   termWidth,
+  viewMode = 'normal',
 }: {
   data: ToolGroupData;
   termWidth: number;
+  viewMode?: ToolResultViewMode | undefined;
 }): React.ReactElement {
   const { name, entries, totalDurationMs, okCount: _okCount, failCount } = data;
   const railColor = failCount === 0 ? theme.borderSubtle : theme.error;
@@ -343,28 +355,32 @@ function ToolGroupImpl({
         totalCount={entries.length}
         termWidth={termWidth}
       />
-      <Box
-        flexDirection="column"
-        borderStyle="single"
-        borderTop={false}
-        borderRight={false}
-        borderBottom={false}
-        borderColor={railColor}
-        paddingLeft={1}
-      >
-        {entries.map((entry, idx) => {
-          if (entry.kind !== 'tool') return null;
-          return (
-            <ToolGroupItem
-              key={entry.id}
-              entry={entry}
-              index={idx + 1}
-              contentWidth={toolContentWidth}
-            />
-          );
-        })}
-      </Box>
-      <Text color={railColor}>{`╰${'─'.repeat(Math.max(2, termWidth - 1))}`}</Text>
+      {viewMode === 'minimal' ? null : (
+        <>
+          <Box
+            flexDirection="column"
+            borderStyle="single"
+            borderTop={false}
+            borderRight={false}
+            borderBottom={false}
+            borderColor={railColor}
+            paddingLeft={1}
+          >
+            {entries.map((entry, idx) => {
+              if (entry.kind !== 'tool') return null;
+              return (
+                <ToolGroupItem
+                  key={entry.id}
+                  entry={entry}
+                  index={idx + 1}
+                  contentWidth={toolContentWidth}
+                />
+              );
+            })}
+          </Box>
+          <Text color={railColor}>{`╰${'─'.repeat(Math.max(2, termWidth - 1))}`}</Text>
+        </>
+      )}
     </Box>
   );
 }

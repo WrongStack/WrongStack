@@ -162,6 +162,7 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     thinkingWord: DEFAULT_TUI_THINKING_WORD,
     showAgentSwarmPanel: 'bottom',
     showModelReasoning: false,
+    toolResultViewMode: 'normal',
   },
   circuitBreaker: { ...DEFAULT_CIRCUIT_BREAKER_CONFIG },
   modelRuntime: {

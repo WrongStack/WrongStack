@@ -7,6 +7,7 @@ import { MEMORY_GATE_DEFAULTS } from '../../history-entry.js';
 import { Box, Text } from '../../ink.js';
 import { sanitizeTerminalText } from '../../terminal-width.js';
 import { theme } from '../../theme.js';
+import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import { fmtRatioPct } from '../status-bar-format.js';
 import { AssistantBody, assistantContentWidth } from './assistant.js';
 import { Banner } from './banner.js';
@@ -40,6 +41,7 @@ export const Entry = React.memo(function Entry({
   todos,
   showModelReasoning,
   showSageMemoryInject,
+  toolResultViewMode,
 }: {
   entry: HistoryEntry;
   termWidth: number;
@@ -67,6 +69,7 @@ export const Entry = React.memo(function Entry({
    * Default: false.
    */
   showSageMemoryInject?: boolean | undefined;
+  toolResultViewMode?: ToolResultViewMode | undefined;
 }): React.ReactElement | null {
   // Whether the agent still has open (pending/in_progress) todos. While it
   // does, finishing them takes priority over offering `<nextsteps>` — both
@@ -250,6 +253,7 @@ export const Entry = React.memo(function Entry({
           termWidth={termWidth}
           multiDiffSummaryThreshold={multiDiffSummaryThreshold}
           showSageMemoryInject={showSageMemoryInject}
+          viewMode={toolResultViewMode}
         />
       );
     }

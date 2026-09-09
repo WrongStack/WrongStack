@@ -34,6 +34,7 @@ import {
   SETTINGS_MODES,
   STATUSLINE_MODES,
   TOKEN_SAVING_TIERS,
+  TOOL_RESULT_VIEW_MODES,
 } from './settings-picker-constants.js';
 
 /**
@@ -149,6 +150,7 @@ export function resolveSettingsFieldValue(
     [35, 'configScope', CONFIG_SCOPES],
     [36, 'animationStyle', ANIMATION_STYLE_CHOICES],
     [40, 'showAgentSwarmPanel', ['bottom', 'sidebar', 'off']],
+    [62, 'toolResultViewMode', TOOL_RESULT_VIEW_MODES],
   ];
   for (const [f, key, values] of ENUM_FIELDS) {
     if (field !== f) continue;

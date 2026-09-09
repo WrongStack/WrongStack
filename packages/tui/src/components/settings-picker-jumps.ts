@@ -51,6 +51,7 @@ export const SETTINGS_PICKER_JUMP_CHORDS: ReadonlyArray<SettingsPickerJumpChord>
   { mod: 'alt-shift', letter: 'c', field: 56, label: 'Coordinator placement' },
   { mod: 'alt-shift', letter: 'k', field: 57, label: 'Kanban placement' },
   { mod: 'alt-shift', letter: 'n', field: 58, label: 'Connections placement' },
+  { mod: 'alt-shift', letter: 'v', field: 62, label: 'Tool result view' },
 ]);
 
 export function settingsPickerJumpField(

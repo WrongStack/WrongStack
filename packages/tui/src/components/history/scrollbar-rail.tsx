@@ -1,7 +1,6 @@
 /**
- * Right-edge rail for the managed viewport. Its first column is the copy icon
- * (or blank), the second is a visual gap, and the third is the scrollbar track.
- * All three columns are always reserved, so copy affordances and scrollability
+ * Right-edge rail for the managed viewport: copy, less, more, selection band,
+ * and scrollbar track. All five columns are always reserved, so affordances
  * never reflow chat content.
  *
  * The gap column doubles as the drag-selection highlight band: while a drag is
@@ -17,8 +16,8 @@ import type React from 'react';
 import { useSyncExternalStore } from 'react';
 import { Box, Text } from '../../ink.js';
 import { theme } from '../../theme.js';
-import { COPY_ICON } from './copy-icon.js';
 import type { CopyHit } from './copy-geometry.js';
+import { COPY_ICON } from './copy-icon.js';
 import { scrollbarThumb } from './scrollbar-geometry.js';
 import { createSelectionBandStore, type SelectionBandStore } from './selection-band-store.js';
 
@@ -54,12 +53,19 @@ export function Scrollbar({
         const copyHit = copyByRow.get(row);
         const inBand = band !== null && row >= band.topRow && row <= band.bottomRow && row < rows;
         const isHead = band !== null && row === band.headRow && row < rows;
+        const viewMode = copyHit?.toolViewMode;
         return (
           <Box key={row} flexDirection="row">
             <Text
               color={copyHit && copiedEntryId === copyHit.entryId ? theme.success : theme.textMuted}
             >
               {copyHit ? COPY_ICON : ' '}
+            </Text>
+            <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>
+              {viewMode ? '−' : ' '}
+            </Text>
+            <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>
+              {viewMode ? '+' : ' '}
             </Text>
             <Text {...(inBand ? { color: theme.accent } : {})}>
               {isHead ? '█' : inBand ? '▌' : ' '}

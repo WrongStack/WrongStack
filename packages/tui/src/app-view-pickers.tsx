@@ -6,13 +6,13 @@ import { AuthPanel } from './components/auth-panel.js';
 import { AutonomyPicker } from './components/autonomy-picker.js';
 import { BrainDecisionPrompt } from './components/brain-decision-prompt.js';
 import { BrainPanel } from './components/brain-panel.js';
+import { BugHuntContinuePanel } from './components/bug-hunt-continue-panel.js';
+import { BugHuntRunningPanel } from './components/bug-hunt-running-panel.js';
 import { CheckpointTimeline } from './components/checkpoint-timeline.js';
 import { ClearConfirmPanel } from './components/clear-confirm-panel.js';
 import { type ConfirmDecision, ConfirmPrompt } from './components/confirm-prompt.js';
 import { ConnectionsPanel } from './components/connections-panel.js';
 import { ContinueConfirmPanel } from './components/continue-confirm-panel.js';
-import { BugHuntContinuePanel } from './components/bug-hunt-continue-panel.js';
-import { BugHuntRunningPanel } from './components/bug-hunt-running-panel.js';
 import { CoordinatorPanel } from './components/coordinator-panel.js';
 import { DesignPicker } from './components/design-picker.js';
 import { EnhancePanel, RefiningPanel } from './components/enhance-panel.js';
@@ -249,6 +249,7 @@ export function AppViewPickers({
           breakerEnabled={state.settingsPicker.breakerEnabled}
           breakerAutoKillResetMs={state.settingsPicker.breakerAutoKillResetMs}
           showModelReasoning={state.settingsPicker.showModelReasoning}
+          toolResultViewMode={state.settingsPicker.toolResultViewMode}
           showAgentSwarmPanel={state.settingsPicker.showAgentSwarmPanel}
           showSidebar={state.settingsPicker.showSidebar}
           showSageMemoryInject={state.settingsPicker.showSageMemoryInject}

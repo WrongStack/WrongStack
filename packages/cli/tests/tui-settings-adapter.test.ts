@@ -708,3 +708,18 @@ describe('preRefineSeconds persistence (SettingsPicker field 41)', () => {
     expect(adapter.getSettings().preRefineSeconds).toBe(9);
   });
 });
+
+describe('toolResultViewMode persistence (SettingsPicker field 62)', () => {
+  it('defaults to normal and round-trips the selected global mode', async () => {
+    const { adapter, globalConfig } = makeAdapter();
+    expect(adapter.getSettings().toolResultViewMode).toBe('normal');
+
+    const err = await adapter.saveSettings({ toolResultViewMode: 'full' });
+    expect(err).toBeNull();
+    const written = JSON.parse(readFileSync(globalConfig, 'utf8')) as {
+      autonomy?: { toolResultViewMode?: string };
+    };
+    expect(written.autonomy?.toolResultViewMode).toBe('full');
+    expect(adapter.getSettings().toolResultViewMode).toBe('full');
+  });
+});

@@ -1599,7 +1599,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 106,
-      "sourceLines": 23349
+      "sourceLines": 23351
     },
     {
       "directory": "tasking",
@@ -1620,7 +1620,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 72,
-      "sourceLines": 13502
+      "sourceLines": 13504
     },
     {
       "directory": "utils",

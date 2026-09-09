@@ -69,6 +69,9 @@ process.exit(exitCode);
 The wordmark and route label render in the brand gradient (orange → pink).
 
 - **History pane** — assistant text, tool calls, tool results, errors, turn summaries
+- **Tool-result density** — each committed tool card has copy / less / more controls;
+  choose the global `minimal`, `normal`, or bounded `full` default under
+  `/settings tool-result-view <mode>`
 - **Streaming text** — partial deltas render live; on abort, partial response is preserved
 - **Status bar** — model · provider · context-window % · YOLO chip · spinner
 - **Input box** — multi-line buffer with bracketed-paste detection, history (↑/↓), placeholder pills for attachments
