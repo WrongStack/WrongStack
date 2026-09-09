@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 562,
+      "files": 563,
       "typeOnly": 55,
-      "runtimeOrMixed": 534
+      "runtimeOrMixed": 535
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -16837,6 +16837,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "apps/desktop/src/main/runtime-manager.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "apps/desktop/src/main/session-index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

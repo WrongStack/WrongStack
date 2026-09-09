@@ -2,6 +2,7 @@ export const IPC = {
   getState: 'desktop:get-state',
   getConversation: 'desktop:get-conversation',
   getWebuiStatus: 'desktop:get-webui-status',
+  listProjectSessions: 'desktop:list-project-sessions',
   openProject: 'desktop:open-project',
   registerProject: 'desktop:register-project',
   unregisterProject: 'desktop:unregister-project',

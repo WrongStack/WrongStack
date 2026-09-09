@@ -5,6 +5,7 @@
 import { ipcMain } from 'electron';
 import type { DesktopWebuiPrefs } from '../../shared/types.js';
 import { IPC } from '../ipc.js';
+import { listProjectSessions } from '../session-index.js';
 import type { IpcHandlerContext } from '../state/types.js';
 import { createValidationLogger, validate, validateOrDefault } from '../validation/index.js';
 import {
@@ -36,6 +37,19 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
   });
 
   ipcMain.handle(IPC.getWebuiStatus, () => ctx.getWebuiStatus());
+
+  // Sessions under a project in the sidebar tree. Read on demand (when a
+  // project row is expanded), never pushed with the state snapshot: a project's
+  // history does not change with runtime status, and shipping it on every
+  // broadcast is how the snapshot got expensive in the first place.
+  ipcMain.handle(IPC.listProjectSessions, async (_event, root: unknown) => {
+    const result = validate(pathSchema, root);
+    if (!result.success) {
+      validationLogger.log(`listProjectSessions: ${result.error}`);
+      return [];
+    }
+    return listProjectSessions(result.data);
+  });
 
   // Navigation handlers
   ipcMain.handle(IPC.navigateWebui, async (_event, command: unknown) => {

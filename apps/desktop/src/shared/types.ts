@@ -7,6 +7,24 @@ export interface DesktopProjectEntry {
   lastWorkingDir?: string | undefined;
 }
 
+/**
+ * One row under a project in the sidebar tree: a past or ongoing conversation,
+ * read from that session's `.summary.json` sidecar. Available for stopped
+ * projects too, which is why it does not come from the running-session
+ * registry.
+ */
+export interface DesktopSessionEntry {
+  /** Store-relative id, `<date-shard>/<session-id>` — what resume takes. */
+  id: string;
+  /** First user message, trimmed by the writer. Falls back to the id. */
+  title: string;
+  startedAt: string;
+  lastActivityAt?: string | undefined;
+  messageCount?: number | undefined;
+  model?: string | undefined;
+  provider?: string | undefined;
+}
+
 export type DesktopRuntimeStatus = 'starting' | 'running' | 'stopped' | 'error';
 export type DesktopRuntimeKind = 'project' | 'global-settings';
 
@@ -84,6 +102,8 @@ export interface WrongStackDesktopApi {
   getState(): Promise<DesktopStateSnapshot>;
   getConversation(runtimeId: string): Promise<DesktopConversationSnapshot>;
   getWebuiStatus(): Promise<DesktopWebuiStatusSnapshot>;
+  /** Recent sessions for a project root, newest first. Read on demand. */
+  listProjectSessions(root: string): Promise<DesktopSessionEntry[]>;
   openProject(root?: string): Promise<DesktopStateSnapshot>;
   registerProject(root?: string): Promise<DesktopStateSnapshot>;
   unregisterProject(root: string): Promise<DesktopStateSnapshot>;

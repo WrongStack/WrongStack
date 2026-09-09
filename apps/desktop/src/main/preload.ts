@@ -12,6 +12,7 @@ const api: WrongStackDesktopApi = {
   getState: () => ipcRenderer.invoke(IPC.getState),
   getConversation: (runtimeId: string) => ipcRenderer.invoke(IPC.getConversation, runtimeId),
   getWebuiStatus: () => ipcRenderer.invoke(IPC.getWebuiStatus),
+  listProjectSessions: (root: string) => ipcRenderer.invoke(IPC.listProjectSessions, root),
   openProject: (root?: string) => ipcRenderer.invoke(IPC.openProject, root),
   registerProject: (root?: string) => ipcRenderer.invoke(IPC.registerProject, root),
   unregisterProject: (root: string) => ipcRenderer.invoke(IPC.unregisterProject, root),

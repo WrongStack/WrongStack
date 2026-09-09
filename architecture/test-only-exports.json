@@ -6,6 +6,10 @@
       "SNAPSHOT_LOG_LINES",
       "waitForChildExit"
     ],
+    "apps/desktop/src/main/session-index.ts": [
+      "clearSessionIndexCache",
+      "projectStoreDir"
+    ],
     "apps/desktop/src/main/state/constants.ts": [
       "LOG_NOTIFY_DEBOUNCE_MS",
       "PENDING_WEBUI_FLUSH_DELAY_MS",
