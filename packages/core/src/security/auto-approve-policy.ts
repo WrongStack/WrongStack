@@ -38,7 +38,12 @@ import {
   shellCommandLineFromInput,
 } from './permission-helpers.js';
 import { validateTrustPolicy } from './permission-policy-schema.js';
-import { attachesWellKnownCredential, isClearlyDestructiveBashCommand } from './yolo-risk.js';
+import {
+  attachesWellKnownCredential,
+  classifyDestructiveCommand,
+  type DestructiveKind,
+  normalizeYoloConfirmKinds,
+} from './yolo-risk.js';
 
 /**
  * Structural slice of the leader `Context` the subagent guards read. Kept
@@ -60,6 +65,15 @@ export interface AutoApprovePolicyOptions {
    * to explicitly disable propagation (tests only).
    */
   trustFile?: string | undefined;
+  /**
+   * The leader's gated kinds. A subagent cannot answer a prompt, so what the
+   * leader turns into a confirm this policy turns into a deny — but only for
+   * the kinds still gated. Un-gating a kind in settings has to reach subagents
+   * too, or delegation becomes "allowed for me, forbidden for my helper".
+   *
+   * Omitted means the fail-closed default: every kind gated.
+   */
+  yoloConfirmKinds?: Iterable<DestructiveKind> | undefined;
 }
 
 /**
@@ -73,6 +87,7 @@ const trustFileByProjectRoot = new Map<string, string>();
 export class AutoApprovePermissionPolicy implements PermissionPolicy {
   private readonly allowedCapabilities: readonly string[];
   private readonly trustFile: string | undefined;
+  private readonly yoloConfirmKinds: ReadonlySet<DestructiveKind>;
 
   constructor(allowedCapabilities?: readonly string[], opts?: AutoApprovePolicyOptions) {
     // Default allowlist: read-only, safe operations
@@ -81,6 +96,7 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
       ToolCapabilities.NET_OUTBOUND,
     ];
     this.trustFile = opts?.trustFile;
+    this.yoloConfirmKinds = normalizeYoloConfirmKinds(opts?.yoloConfirmKinds);
   }
 
   private static isMcpTool(name: string): boolean {
@@ -203,7 +219,7 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
     // Binding a well-known third-party credential to a provider endpoint is an
     // exfiltration primitive, not a shell command — ported from the leader's
     // yoloBlockedAsDestructive so both principals block it.
-    if (attachesWellKnownCredential(input)) {
+    if (attachesWellKnownCredential(input) && this.yoloConfirmKinds.has('credential-bind')) {
       return 'subagents may not attach well-known credentials to provider endpoints — the leader must perform this call so the user can approve it';
     }
     // Wider than the leader's bash/exec/shell.arbitrary surface on purpose:
@@ -212,8 +228,9 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
     if (!hasShellSubject(tool)) return undefined;
     const command = shellCommandLineFromInput(input);
     if (!command) return undefined;
-    if (isClearlyDestructiveBashCommand(command, ctx?.projectRoot)) {
-      return 'subagents may not run clearly destructive shell commands — the leader blocks these even with YOLO enabled';
+    const kind = classifyDestructiveCommand(command, ctx?.projectRoot);
+    if (kind !== undefined && this.yoloConfirmKinds.has(kind)) {
+      return `subagents may not run ${kind} commands — the leader gates these even with YOLO enabled`;
     }
     return undefined;
   }

@@ -23,6 +23,7 @@ import {
   DefaultPermissionPolicy,
   DefaultSecretScrubber,
   DirectoryPermissionPolicy,
+  resolveYoloConfirmKinds,
   validateDirectoryPolicy,
 } from '@wrongstack/core/security';
 import {
@@ -248,6 +249,10 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
     const policyOptions: ConstructorParameters<typeof DefaultPermissionPolicy>[0] = {
       trustFile: wpaths.projectTrust,
       yolo: opts.permission?.yolo ?? false,
+      // Which kinds of damage still prompt under YOLO. Read from the user's
+      // profile config; an absent map gates every kind (fail-closed), and the
+      // in-project loader strips `autonomy.yoloConfirm` so a repo cannot widen it.
+      yoloConfirmKinds: resolveYoloConfirmKinds(config.autonomy?.yoloConfirm),
     };
     if (opts.permission?.promptDelegate !== undefined) {
       policyOptions.promptDelegate = opts.permission.promptDelegate;

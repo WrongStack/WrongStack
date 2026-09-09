@@ -382,6 +382,48 @@
     "autoProceedDelayHint": "Otomatik modda ajan otomatik ilerlemeden önceki milisaniye. 0 = anında.",
     "yoloLabel": "YOLO modu",
     "yoloHint": "Araç onay istemlerini atla — ajan sormadan çalışır.",
+    "yoloConfirmHeading": "Yine de sor",
+    "yoloConfirmIntro": "YOLO geri kalan her seyi sormadan calistirir. Bunlar durup once sana sordugu zarar turleri.",
+    "yoloConfirmLockedNote": "Bu ikisi her zaman sorar. Sana sorulup sorulmayacagina karar veren dosyalari yazdiklari icin, kapatmak ajanin kendi onay sistemini kapatmasina izin vermek olurdu.",
+    "yoloKindLocked": "her zaman sorar",
+    "yoloKind": {
+      "disk-wipe": {
+        "label": "Diski siler",
+        "hint": "mkfs, ham aygita dd, format C:, fork bomb"
+      },
+      "system-halt": {
+        "label": "Kapatir veya yeniden baslatir",
+        "hint": "shutdown, reboot"
+      },
+      "delete-outside": {
+        "label": "Proje disini siler",
+        "hint": "projeden cikan ozyinelemeli zorla silme veya sistem/ev dizini koku"
+      },
+      "git-history": {
+        "label": "Git gecmisini yeniden yazar",
+        "hint": "reset --hard, clean -f, push --force, filter-branch"
+      },
+      "publish": {
+        "label": "Yayimlar veya dagitir",
+        "hint": "npm publish, docker push, kubectl delete namespace"
+      },
+      "download-and-run": {
+        "label": "Indirdigi kodu calistirir",
+        "hint": "curl | sh ve indirip calistiran satir ici yukler"
+      },
+      "bulk-delete": {
+        "label": "Toplu siler",
+        "hint": "find -exec rm, cok sayida yolda satir ici rmSync"
+      },
+      "agent-state": {
+        "label": "WrongStack'in kendi durumunu yazar",
+        "hint": "config.json, trust.json, auth.json"
+      },
+      "credential-bind": {
+        "label": "API anahtarini bir uca baglar",
+        "hint": "bilinen bir anahtari secilen saglayici adresine ilistirme"
+      }
+    },
     "refineHeading": "İstem İyileştirme",
     "enableRefineLabel": "İyileştirmeyi etkinleştir",
     "enableRefineHint": "Göndermeden önce istemleri yeniden yazar — daha net talimatlar, daha iyi sonuçlar.",

@@ -1,3 +1,4 @@
+import type { DestructiveKind } from '../security/yolo-risk.js';
 import type { AgentContext } from './context.js';
 import type { Permission, Tool } from './tool.js';
 
@@ -155,10 +156,21 @@ export interface PermissionPolicy {
   getYolo?(): boolean;
   /** Optional runtime setter for policies that support leader YOLO toggling. */
   setYolo?(enabled: boolean): void;
-  /** Optional runtime query for the deprecated destructive YOLO override. */
+  /**
+   * All-or-nothing view of the destructive gate: `true` when nothing but the
+   * locked kinds still prompts. Superseded by the per-kind pair below, and kept
+   * because the CLI flag and older embedders still speak it.
+   */
   getYoloDestructive?(): boolean;
-  /** Optional runtime setter for the deprecated destructive YOLO override. */
+  /** All-or-nothing setter; `true` un-gates every kind that is not locked. */
   setYoloDestructive?(enabled: boolean): void;
+  /** Which kinds of damage still require approval while YOLO is on. */
+  getYoloConfirmKinds?(): ReadonlySet<DestructiveKind>;
+  /**
+   * Replace that set. The locked kinds are re-added regardless, so this can
+   * never be used to switch off the writes that disable approval itself.
+   */
+  setYoloConfirmKinds?(kinds: Iterable<DestructiveKind>): void;
   /** Query the deprecated destructive-confirm compatibility flag. */
   getConfirmDestructive?(): boolean;
   /** Compatibility setter; current default policy no longer confirms in YOLO mode. */

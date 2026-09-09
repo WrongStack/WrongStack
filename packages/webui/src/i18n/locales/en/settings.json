@@ -382,6 +382,48 @@
     "autoProceedDelayHint": "Milliseconds before the agent auto-proceeds in Auto mode. 0 = immediate.",
     "yoloLabel": "YOLO mode",
     "yoloHint": "Bypass tool confirmation prompts — the agent runs without asking.",
+    "yoloConfirmHeading": "Still ask about",
+    "yoloConfirmIntro": "YOLO runs everything else unattended. These are the kinds of damage it stops and asks you about first.",
+    "yoloConfirmLockedNote": "These two always ask. They write the files that decide whether you get asked at all, so turning them off would let the agent switch its own approval system off.",
+    "yoloKindLocked": "always asks",
+    "yoloKind": {
+      "disk-wipe": {
+        "label": "Wipe a disk",
+        "hint": "mkfs, dd to a raw device, format C:, fork bomb"
+      },
+      "system-halt": {
+        "label": "Shut down or restart",
+        "hint": "shutdown, reboot"
+      },
+      "delete-outside": {
+        "label": "Delete outside the project",
+        "hint": "recursive force-delete that leaves the project, or hits a system or home root"
+      },
+      "git-history": {
+        "label": "Rewrite git history",
+        "hint": "reset --hard, clean -f, push --force, filter-branch"
+      },
+      "publish": {
+        "label": "Publish or deploy",
+        "hint": "npm publish, docker push, kubectl delete namespace"
+      },
+      "download-and-run": {
+        "label": "Run downloaded code",
+        "hint": "curl | sh, and inline payloads that fetch then execute"
+      },
+      "bulk-delete": {
+        "label": "Delete in bulk",
+        "hint": "find -exec rm, inline rmSync across many paths"
+      },
+      "agent-state": {
+        "label": "Write WrongStack's own state",
+        "hint": "config.json, trust.json, auth.json"
+      },
+      "credential-bind": {
+        "label": "Bind an API key to an endpoint",
+        "hint": "attaching a well-known key to a provider URL"
+      }
+    },
     "refineHeading": "Prompt Refinement",
     "enableRefineLabel": "Enable refine",
     "enableRefineHint": "Rewrite prompts before sending — clearer instructions, better results.",

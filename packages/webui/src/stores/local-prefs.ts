@@ -22,6 +22,15 @@ export interface LocalPrefs {
   autoProceedMaxIterations: number;
   /** YOLO mode — bypass tool confirmations */
   yolo: boolean;
+  /**
+   * Which kinds of damage still prompt while YOLO is on, keyed by
+   * `DestructiveKind`. A missing key means "still asks" — the fail-closed
+   * reading — so an older client that omits a newer kind cannot un-gate it.
+   *
+   * Machine-level, NOT session-scoped: unlike `yolo` (a per-tab mode), this
+   * answers what the agent may destroy unattended anywhere.
+   */
+  yoloConfirm: Record<string, boolean>;
   /** Maximum agent iterations per run */
   maxIterations: number;
   /** Chime on run completion */
@@ -395,6 +404,17 @@ const DEFAULTS: LocalPrefsData = {
   autonomyDelayMs: 15_000,
   autoProceedMaxIterations: 0,
   yolo: true,
+  yoloConfirm: {
+    'disk-wipe': true,
+    'system-halt': true,
+    'delete-outside': true,
+    'git-history': true,
+    publish: true,
+    'download-and-run': true,
+    'bulk-delete': true,
+    'agent-state': true,
+    'credential-bind': true,
+  },
   maxIterations: 0,
   chime: true,
   confirmExit: true,

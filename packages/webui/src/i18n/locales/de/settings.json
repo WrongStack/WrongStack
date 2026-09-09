@@ -47,7 +47,11 @@
       "summary": "{{blocked}} blockiert · {{degraded}} eingeschränkt · {{healthy}} gesund",
       "totalFailures": "Fehler",
       "rateLimits": "Ratenlimits",
-      "state": { "blocked": "Blockiert", "degraded": "Eingeschränkt", "healthy": "Gesund" },
+      "state": {
+        "blocked": "Blockiert",
+        "degraded": "Eingeschränkt",
+        "healthy": "Gesund"
+      },
       "blocked": "Blockiert",
       "degraded": "Eingeschränkt",
       "consecutive": "aufeinanderfolgende Fehler",
@@ -378,6 +382,48 @@
     "autoProceedDelayHint": "Millisekunden bevor der Agent im Auto-Modus fortfährt. 0 = sofort.",
     "yoloLabel": "YOLO-Modus",
     "yoloHint": "Tool-Bestätigungs-Prompts umgehen — der Agent läuft ohne Nachfrage.",
+    "yoloConfirmHeading": "Trotzdem fragen bei",
+    "yoloConfirmIntro": "YOLO fuehrt alles andere unbeaufsichtigt aus. Bei diesen Schadensarten haelt es an und fragt zuerst nach.",
+    "yoloConfirmLockedNote": "Diese beiden fragen immer. Sie schreiben die Dateien, die darueber entscheiden, ob ueberhaupt gefragt wird - sie abzuschalten hiesse, den Agenten sein eigenes Freigabesystem abschalten zu lassen.",
+    "yoloKindLocked": "fragt immer",
+    "yoloKind": {
+      "disk-wipe": {
+        "label": "Datentraeger loeschen",
+        "hint": "mkfs, dd auf ein Rohgeraet, format C:, Fork-Bombe"
+      },
+      "system-halt": {
+        "label": "Herunterfahren oder neu starten",
+        "hint": "shutdown, reboot"
+      },
+      "delete-outside": {
+        "label": "Ausserhalb des Projekts loeschen",
+        "hint": "rekursives Loeschen, das das Projekt verlaesst oder ein System-/Home-Verzeichnis trifft"
+      },
+      "git-history": {
+        "label": "Git-Historie umschreiben",
+        "hint": "reset --hard, clean -f, push --force, filter-branch"
+      },
+      "publish": {
+        "label": "Veroeffentlichen oder ausrollen",
+        "hint": "npm publish, docker push, kubectl delete namespace"
+      },
+      "download-and-run": {
+        "label": "Heruntergeladenen Code ausfuehren",
+        "hint": "curl | sh und Inline-Payloads, die laden und ausfuehren"
+      },
+      "bulk-delete": {
+        "label": "Massenhaft loeschen",
+        "hint": "find -exec rm, Inline-rmSync ueber viele Pfade"
+      },
+      "agent-state": {
+        "label": "WrongStacks eigenen Zustand schreiben",
+        "hint": "config.json, trust.json, auth.json"
+      },
+      "credential-bind": {
+        "label": "API-Schluessel an einen Endpunkt binden",
+        "hint": "einen bekannten Schluessel an eine Anbieter-URL haengen"
+      }
+    },
     "refineHeading": "Prompt-Verfeinerung",
     "enableRefineLabel": "Verfeinerung aktivieren",
     "enableRefineHint": "Prompts vor dem Senden umschreiben — klarere Anweisungen, bessere Ergebnisse.",

@@ -12,6 +12,7 @@
  * Pure config → meta projection. No behaviour change.
  */
 
+import { ALL_DESTRUCTIVE_KINDS, resolveYoloConfirmKinds } from '@wrongstack/core/security';
 import { FallbackProfileManager } from '@wrongstack/core/agent';
 import { resolvePluginEnablement } from '@wrongstack/core/plugin';
 import type { Config } from '@wrongstack/core/types';
@@ -35,6 +36,18 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['autonomyDelayMs'] = (autonomyCfg['autoProceedDelayMs'] as number) ?? 15_000;
   meta['autoProceedMaxIterations'] = (autonomyCfg['autoProceedMaxIterations'] as number) ?? 0;
   meta['yolo'] = (autonomyCfg['yolo'] as boolean) ?? config.yolo ?? true;
+  // Published as the RESOLVED set, not the raw map: the browser must render
+  // what the policy will actually enforce, including the locked kinds and the
+  // fail-closed reading of a partial or unknown-key map. Sending the raw config
+  // would let the menu show a kind as "runs" that the policy still gates.
+  meta['yoloConfirm'] = Object.fromEntries(
+    ALL_DESTRUCTIVE_KINDS.map((kind) => [
+      kind,
+      resolveYoloConfirmKinds(autonomyCfg['yoloConfirm'] as Record<string, boolean> | undefined).has(
+        kind,
+      ),
+    ]),
+  );
   meta['chime'] = (autonomyCfg['chime'] as boolean) ?? true;
   meta['confirmExit'] = autonomyCfg['confirmExit'] !== false;
   meta['fleetChatVerbosity'] = (autonomyCfg['fleetChatVerbosity'] as string) ?? 'off';

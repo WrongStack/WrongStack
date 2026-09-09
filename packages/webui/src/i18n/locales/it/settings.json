@@ -47,7 +47,11 @@
       "summary": "{{blocked}} bloccati · {{degraded}} degradati · {{healthy}} integri",
       "totalFailures": "errori",
       "rateLimits": "limiti di frequenza",
-      "state": { "blocked": "Bloccato", "degraded": "Degradato", "healthy": "Integro" },
+      "state": {
+        "blocked": "Bloccato",
+        "degraded": "Degradato",
+        "healthy": "Integro"
+      },
       "blocked": "Bloccato",
       "degraded": "Degradato",
       "consecutive": "errori consecutivi",
@@ -378,6 +382,48 @@
     "autoProceedDelayHint": "Millisecondi prima che l'agent proceda automaticamente in modalità Auto. 0 = immediato.",
     "yoloLabel": "Modalità YOLO",
     "yoloHint": "Ignora i prompt di conferma degli strumenti — l'agent gira senza chiedere.",
+    "yoloConfirmHeading": "Chiedi comunque per",
+    "yoloConfirmIntro": "YOLO esegue tutto il resto senza supervisione. Questi sono i tipi di danno davanti ai quali si ferma e ti chiede.",
+    "yoloConfirmLockedNote": "Questi due chiedono sempre. Scrivono i file che decidono se ti verra chiesto qualcosa, quindi disattivarli lascerebbe all'agente spegnere il proprio sistema di approvazione.",
+    "yoloKindLocked": "chiede sempre",
+    "yoloKind": {
+      "disk-wipe": {
+        "label": "Cancellare un disco",
+        "hint": "mkfs, dd su un dispositivo raw, format C:, fork bomb"
+      },
+      "system-halt": {
+        "label": "Spegnere o riavviare",
+        "hint": "shutdown, reboot"
+      },
+      "delete-outside": {
+        "label": "Cancellare fuori dal progetto",
+        "hint": "cancellazione ricorsiva forzata che esce dal progetto o colpisce una radice di sistema o home"
+      },
+      "git-history": {
+        "label": "Riscrivere la cronologia git",
+        "hint": "reset --hard, clean -f, push --force, filter-branch"
+      },
+      "publish": {
+        "label": "Pubblicare o distribuire",
+        "hint": "npm publish, docker push, kubectl delete namespace"
+      },
+      "download-and-run": {
+        "label": "Eseguire codice scaricato",
+        "hint": "curl | sh e payload inline che scaricano ed eseguono"
+      },
+      "bulk-delete": {
+        "label": "Cancellare in massa",
+        "hint": "find -exec rm, rmSync inline su molti percorsi"
+      },
+      "agent-state": {
+        "label": "Scrivere lo stato di WrongStack",
+        "hint": "config.json, trust.json, auth.json"
+      },
+      "credential-bind": {
+        "label": "Legare una chiave API a un endpoint",
+        "hint": "agganciare una chiave nota a un URL di provider"
+      }
+    },
     "refineHeading": "Affinamento Prompt",
     "enableRefineLabel": "Abilita affinamento",
     "enableRefineHint": "Riscrivi i prompt prima dell'invio — istruzioni più chiare, risultati migliori.",

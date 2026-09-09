@@ -13,11 +13,6 @@ export {
 } from './capabilities.js';
 export { decryptConfigSecrets, encryptConfigSecrets, isSecretField } from './config-secrets.js';
 export {
-  kanbanGovernance,
-  type KanbanGovernancePort,
-  setKanbanGovernance,
-} from './kanban-governance-port.js';
-export {
   DirectoryPermissionPolicy,
   type DirectoryPermissionPolicyOptions,
   matchRule,
@@ -48,6 +43,11 @@ export {
   type ToolKanbanBoundaryEvaluation,
 } from './kanban-boundary.js';
 export {
+  type KanbanGovernancePort,
+  kanbanGovernance,
+  setKanbanGovernance,
+} from './kanban-governance-port.js';
+export {
   AutoApprovePermissionPolicy,
   alwaysAllowUnavailableReason,
   DefaultPermissionPolicy,
@@ -65,24 +65,24 @@ export {
 export { ReadOnlyPermissionPolicy, toolMutates } from './readonly-permission-policy.js';
 export { DefaultSecretScrubber } from './secret-scrubber.js';
 export {
-  base32Decode,
-  base32Encode,
-  buildOtpAuthUri,
-  generateRecoveryCodes,
-  generateTotpSecret,
-  generateTotp,
-  hashRecoveryCode,
-  verifyRecoveryCode,
-  verifyTotp,
-  verifyTotpCounter,
-} from './totp.js';
-export {
   DefaultSecretVault,
   migratePlaintextSecrets,
   rewriteConfigEncrypted,
   rotateConfigKeys,
   type SecretVaultOptions,
 } from './secret-vault.js';
+export {
+  base32Decode,
+  base32Encode,
+  buildOtpAuthUri,
+  generateRecoveryCodes,
+  generateTotp,
+  generateTotpSecret,
+  hashRecoveryCode,
+  verifyRecoveryCode,
+  verifyTotp,
+  verifyTotpCounter,
+} from './totp.js';
 export type {
   CompatibilityTrustBoundaryOptions,
   TrustActor,
@@ -112,3 +112,13 @@ export {
   isTrustDecisionAllowed,
   TRUST_BOUNDARY_VERSION,
 } from './trust-boundary.js';
+export {
+  ALL_DESTRUCTIVE_KINDS,
+  classifyDestructiveCommand,
+  type DestructiveKind,
+  isClearlyDestructiveBashCommand,
+  isDestructiveKind,
+  LOCKED_DESTRUCTIVE_KINDS,
+  normalizeYoloConfirmKinds,
+  resolveYoloConfirmKinds,
+} from './yolo-risk.js';

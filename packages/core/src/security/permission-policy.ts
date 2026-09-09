@@ -17,7 +17,15 @@ import { subjectForToolInput } from '../utils/tool-subject.js';
 import { hasCapability, ToolCapabilities } from './capabilities.js';
 import { explainPermissionTrace } from './permission-explain.js';
 import { type TrustPolicyDiagnostic, validateTrustPolicy } from './permission-policy-schema.js';
-import { attachesWellKnownCredential, isClearlyDestructiveBashCommand } from './yolo-risk.js';
+import {
+  ALL_DESTRUCTIVE_KINDS,
+  attachesWellKnownCredential,
+  classifyDestructiveCommand,
+  type DestructiveKind,
+  LOCKED_DESTRUCTIVE_KINDS,
+  normalizeYoloConfirmKinds,
+  sameKindSet,
+} from './yolo-risk.js';
 
 export { AutoApprovePermissionPolicy } from './auto-approve-policy.js';
 export {
@@ -68,6 +76,12 @@ export interface PermissionPolicyOptions {
   trustFile: string;
   yolo?: boolean | undefined;
   yoloDestructive?: boolean | undefined;
+  /**
+   * Destructive kinds that still require approval while YOLO is on. Defaults to
+   * every kind. The two in `LOCKED_DESTRUCTIVE_KINDS` are always re-added, so a
+   * caller cannot un-gate the writes that switch approval itself off.
+   */
+  yoloConfirmKinds?: Iterable<DestructiveKind> | undefined;
   promptDelegate?: (
     tool: Tool,
     input: unknown,
@@ -88,22 +102,37 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
   private _evalCache = new LruCache<string, PermissionDecision>(500);
   private policyDiagnostics: TrustPolicyDiagnostic[] = [];
   private policyInvalid = false;
-  private yoloDestructive: boolean;
+  private yoloConfirmKinds: ReadonlySet<DestructiveKind>;
 
   constructor(opts: PermissionPolicyOptions) {
     this.trustFile = opts.trustFile;
     this.yolo = opts.yolo ?? false;
-    this.yoloDestructive = opts.yoloDestructive ?? false;
+    this.yoloConfirmKinds = normalizeYoloConfirmKinds(
+      opts.yoloConfirmKinds ?? (opts.yoloDestructive === true ? [] : undefined),
+    );
     this.promptDelegate = opts.promptDelegate;
   }
 
+  setYoloConfirmKinds(kinds: Iterable<DestructiveKind> | undefined): void {
+    const next = normalizeYoloConfirmKinds(kinds);
+    if (!sameKindSet(this.yoloConfirmKinds, next)) this._evalCache.clear();
+    this.yoloConfirmKinds = next;
+  }
+
+  getYoloConfirmKinds(): ReadonlySet<DestructiveKind> {
+    return this.yoloConfirmKinds;
+  }
+
+  /**
+   * Legacy all-or-nothing view. `true` means "nothing but the locked kinds is
+   * gated" — kept because the CLI flag and the config key both still speak it.
+   */
   setYoloDestructive(enabled: boolean): void {
-    if (this.yoloDestructive !== enabled) this._evalCache.clear();
-    this.yoloDestructive = enabled;
+    this.setYoloConfirmKinds(enabled ? [] : ALL_DESTRUCTIVE_KINDS);
   }
 
   getYoloDestructive(): boolean {
-    return this.yoloDestructive;
+    return [...this.yoloConfirmKinds].every((kind) => LOCKED_DESTRUCTIVE_KINDS.has(kind));
   }
 
   private hasAgentStateWriteTarget(tool: Tool, input: unknown, ctx: Context): boolean {
@@ -130,29 +159,48 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     return false;
   }
 
-  private yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: Context): boolean {
-    if (!this.effectiveYolo(ctx) || this.yoloDestructive) return false;
-    if (this.hasAgentStateWriteTarget(tool, input, ctx)) return true;
+  /**
+   * The destructive kind this call would perform, or `undefined` when it is
+   * not destructive. Independent of whether the user has that kind gated —
+   * `yoloBlockedAsDestructive` applies the preference, this only classifies.
+   */
+  private destructiveKindOf(tool: Tool, input: unknown, ctx: Context): DestructiveKind | undefined {
+    if (this.hasAgentStateWriteTarget(tool, input, ctx)) return 'agent-state';
 
     // Binding a well-known third-party credential to a provider endpoint is an
     // exfiltration primitive, not a shell command — so the shell-surface check
     // below never saw it and YOLO auto-approved it. The `baseUrl` has no host
     // allowlist, and prompt injection can reach the tool.
-    if (attachesWellKnownCredential(input)) return true;
+    if (attachesWellKnownCredential(input)) return 'credential-bind';
 
     const isShellSurface =
       tool.name === 'bash' ||
       tool.name === 'exec' ||
       (tool.capabilities ?? []).includes('shell.arbitrary');
-    if (!isShellSurface) return false;
+    if (!isShellSurface) return undefined;
     // H-1 (security report VF-03): `getInputString(input, 'command') ?? …`
-    // short-circuited on the bare program name, so `isClearlyDestructiveBashCommand`
-    // never saw the args — `{command:'rm', args:['-rf','/']}` classified as "rm".
+    // short-circuited on the bare program name, so the classifier never saw the
+    // args — `{command:'rm', args:['-rf','/']}` classified as "rm".
     // `shellCommandLineFromInput` already joins command/cmd/script with args; it
     // is the whole reason this branch exists.
     const command = shellCommandLineFromInput(input);
-    if (!command) return false;
-    return isClearlyDestructiveBashCommand(command, ctx.projectRoot);
+    if (!command) return undefined;
+    return classifyDestructiveCommand(command, ctx.projectRoot);
+  }
+
+  /** The kind holding this call back, or `undefined` when nothing gates it. */
+  private gatedDestructiveKind(
+    tool: Tool,
+    input: unknown,
+    ctx: Context,
+  ): DestructiveKind | undefined {
+    if (!this.effectiveYolo(ctx)) return undefined;
+    const kind = this.destructiveKindOf(tool, input, ctx);
+    return kind !== undefined && this.yoloConfirmKinds.has(kind) ? kind : undefined;
+  }
+
+  private yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: Context): boolean {
+    return this.gatedDestructiveKind(tool, input, ctx) !== undefined;
   }
 
   setPromptDelegate(delegate: PermissionPolicyOptions['promptDelegate']): void {
@@ -396,12 +444,17 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     }
 
     if (this.effectiveYolo(ctx)) {
-      if (this.yoloBlockedAsDestructive(tool, input, ctx)) {
+      const gatedKind = this.gatedDestructiveKind(tool, input, ctx);
+      if (gatedKind !== undefined) {
         return {
           permission: 'confirm',
           source: 'yolo_destructive',
           riskTier: 'destructive',
-          reason: 'destructive command needs explicit approval even in YOLO mode',
+          // Naming the kind is what makes the prompt actionable: the user can
+          // see WHICH category held this, and turn that one off in settings.
+          reason: LOCKED_DESTRUCTIVE_KINDS.has(gatedKind)
+            ? `${gatedKind} always needs explicit approval — it can disable approval itself`
+            : `${gatedKind} needs explicit approval even in YOLO mode (settings: autonomy.yoloConfirm)`,
         };
       }
       const decision: PermissionDecision = { permission: 'auto', source: 'yolo' };

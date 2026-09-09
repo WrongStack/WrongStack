@@ -130,7 +130,7 @@ const MODEL_TIERS_PREF_KEYS = new Set(['modelTiers']);
 // Object of booleans, e.g. { 'plugin-name': true }. Parity with the embedded
 // server, which accepts `pluginsEnabled` and persists it to
 // extensions.<name>.enabled — the standalone server rejected it as unknown.
-const BOOLEAN_RECORD_PREF_KEYS = new Set(['pluginsEnabled']);
+const BOOLEAN_RECORD_PREF_KEYS = new Set(['pluginsEnabled', 'yoloConfirm']);
 
 const NUMBER_PREF_KEYS = new Set([
   'autonomyDelayMs',
@@ -374,7 +374,10 @@ function validateModelTiersValue(value: unknown, path: string): string | null {
   if (leader !== undefined) {
     if (!isRecord(leader)) return `${path}.leader must be an object when provided`;
     const mode = leader['mode'];
-    if (mode !== undefined && (typeof mode !== 'string' || !MODEL_TIER_LEADER_MODE_VALUES.has(mode))) {
+    if (
+      mode !== undefined &&
+      (typeof mode !== 'string' || !MODEL_TIER_LEADER_MODE_VALUES.has(mode))
+    ) {
       return `${path}.leader.mode must be one of: ${Array.from(MODEL_TIER_LEADER_MODE_VALUES).join(', ')}`;
     }
     const dwell = checkOptionalNumber(leader['dwellTurns'], `${path}.leader.dwellTurns`, 0);

@@ -5,6 +5,7 @@ import { DefaultLogger, noOpLogger } from './infrastructure/logger.js';
 import { DefaultPathResolver } from './infrastructure/path-resolver.js';
 import type { EventBus } from './kernel/events.js';
 import { DefaultSecretVault, migratePlaintextSecrets } from './security/secret-vault.js';
+import { ALL_DESTRUCTIVE_KINDS } from './security/yolo-risk.js';
 import { DefaultConfigLoader } from './storage/config-loader.js';
 import type { Config, TokenSavingTier } from './types/config.js';
 
@@ -353,6 +354,16 @@ export function flagsToConfigPatch(flags: Record<string, string | boolean>): Par
   }
   if (flags['no-yolo'] === true) patch.yolo = false;
   else if (flags['yolo']) patch.yolo = true;
+  // `--yolo-destructive` was parsed and then dropped on the floor: nothing read
+  // it, so the one documented way to widen YOLO did nothing. It now un-gates
+  // every kind the user is allowed to un-gate — `resolveYoloConfirmKinds` still
+  // re-adds `agent-state` and `credential-bind`, which no flag may switch off.
+  if (flags['yolo-destructive'] === true) {
+    patch.autonomy = {
+      ...patch.autonomy,
+      yoloConfirm: Object.fromEntries(ALL_DESTRUCTIVE_KINDS.map((kind) => [kind, false])),
+    };
+  }
   if (flags['no-features']) {
     patch.features = {
       mcp: false,

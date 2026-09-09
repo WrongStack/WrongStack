@@ -730,7 +730,8 @@ describe('AutoApprovePermissionPolicy', () => {
       });
       expect(d.permission).toBe('deny');
       expect(d.source).toBe('subagent_guard');
-      expect(d.reason).toContain('destructive');
+      // The reason names the kind so the user can find it in the settings menu.
+      expect(d.reason).toContain('delete-outside');
     });
 
     it('still auto-approves non-destructive shell with the capability granted', async () => {

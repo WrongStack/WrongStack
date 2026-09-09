@@ -7,6 +7,7 @@ import { useSessionStore } from '@/stores/session-store';
 import { ModelSelectDialog } from '../ModelSelectDialog';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
+import { YoloConfirmList } from './YoloConfirmList';
 
 export function AgentSettingsTab({
   syncPref,
@@ -76,6 +77,17 @@ export function AgentSettingsTab({
           value={localPrefs.yolo}
           onChange={() => syncPref('yolo', !localPrefs.yolo)}
         />
+        {/* Only meaningful while YOLO is on: with YOLO off every call already
+            prompts, so the per-kind list would be a no-op the user could still
+            click. Collapsing it keeps the section honest about what it does. */}
+        {localPrefs.yolo ? (
+          <div className="mt-4 rounded-lg border border-border/60 bg-background/40 p-4">
+            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('settings:agent.yoloConfirmHeading')}
+            </h4>
+            <YoloConfirmList syncPref={syncPref} />
+          </div>
+        ) : null}
       </div>
 
       {/* Prompt Refinement */}

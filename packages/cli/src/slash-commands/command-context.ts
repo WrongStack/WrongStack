@@ -278,6 +278,18 @@ export interface SlashCommandContext {
   onContextLimit?: ((tokens?: number) => number) | undefined;
   /** Toggle or query YOLO mode at runtime. Pass undefined to query, boolean to set. */
   onYolo?: ((setTo?: boolean) => boolean) | undefined;
+  /**
+   * Read, or set, which kinds of damage still prompt while YOLO is on.
+   *
+   * Returns the EFFECTIVE map after any update — the locked kinds report `true`
+   * whatever was asked, so a caller can tell an ignored "off" from a real one.
+   */
+  onYoloConfirm?:
+    | ((update?: {
+        kind: import('@wrongstack/core/security').DestructiveKind;
+        confirm: boolean;
+      }) => Record<string, boolean>)
+    | undefined;
   /** Toggle or query next-task prediction. Pass undefined to query, boolean to set. */
   onNextPredict?: ((setTo?: boolean) => boolean) | undefined;
   /**

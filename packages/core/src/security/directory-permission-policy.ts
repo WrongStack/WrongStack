@@ -51,6 +51,7 @@ import type {
 } from '../types/permission.js';
 import type { Tool } from '../types/tool.js';
 import { matchAny, matchGlob } from '../utils/glob-match.js';
+import { type DestructiveKind, normalizeYoloConfirmKinds } from './yolo-risk.js';
 
 export interface DirectoryPermissionPolicyOptions {
   /**
@@ -383,6 +384,14 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
 
   setYoloDestructive(enabled: boolean): void {
     this.inner.setYoloDestructive?.(enabled);
+  }
+
+  getYoloConfirmKinds(): ReadonlySet<DestructiveKind> {
+    return this.inner.getYoloConfirmKinds?.() ?? normalizeYoloConfirmKinds(undefined);
+  }
+
+  setYoloConfirmKinds(kinds: Iterable<DestructiveKind>): void {
+    this.inner.setYoloConfirmKinds?.(kinds);
   }
 
   getConfirmDestructive(): boolean {

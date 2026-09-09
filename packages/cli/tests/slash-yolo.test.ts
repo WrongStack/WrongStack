@@ -22,7 +22,7 @@ describe('/yolo slash command', () => {
       expect(cmd.description).toMatch(/YOLO/);
       expect(cmd.help).toContain('/yolo on');
       expect(cmd.help).toContain('/yolo off');
-      expect(cmd.help).toContain('/yolo destructive');
+      expect(cmd.help).toContain('/yolo confirm');
       expect(cmd.help).toContain('auto-approves tool calls');
     });
   });
@@ -123,5 +123,76 @@ describe('/yolo slash command', () => {
       // No state change
       expect(state).toBe(false);
     });
+  });
+});
+
+describe('/yolo confirm — per-kind gate', () => {
+  /**
+   * Stands in for the host hook: keeps a map, refuses to un-gate the locked
+   * kinds, and returns the EFFECTIVE state — the same contract
+   * `setYoloConfirm` in command-host-state.ts implements.
+   */
+  const makeConfirmCtx = () => {
+    const map: Record<string, boolean> = {
+      'disk-wipe': true,
+      'system-halt': true,
+      'delete-outside': true,
+      'git-history': true,
+      publish: true,
+      'download-and-run': true,
+      'bulk-delete': true,
+      'agent-state': true,
+      'credential-bind': true,
+    };
+    const onYoloConfirm = vi.fn((update?: { kind: string; confirm: boolean }) => {
+      if (update && !['agent-state', 'credential-bind'].includes(update.kind)) {
+        map[update.kind] = update.confirm;
+      }
+      return { ...map };
+    });
+    return { ctx: makeCtx({ onYolo: () => true, onYoloConfirm } as never), map, onYoloConfirm };
+  };
+
+  it('lists every kind with its state', async () => {
+    const { ctx } = makeConfirmCtx();
+    const result = await buildYoloCommand(ctx).run!('confirm');
+    const msg = stripAnsi(result?.message ?? '');
+    for (const kind of ['disk-wipe', 'git-history', 'publish', 'credential-bind']) {
+      expect(msg).toContain(kind);
+    }
+    expect(msg).toContain('ALWAYS ASKS');
+  });
+
+  it('turns one kind off without touching the others', async () => {
+    const { ctx, map } = makeConfirmCtx();
+    const result = await buildYoloCommand(ctx).run!('confirm git-history off');
+    expect(stripAnsi(result?.message ?? '')).toMatch(/run unattended/);
+    expect(map['git-history']).toBe(false);
+    expect(map['publish']).toBe(true);
+  });
+
+  it('reports that a locked kind did not change, rather than claiming success', async () => {
+    const { ctx, map } = makeConfirmCtx();
+    const result = await buildYoloCommand(ctx).run!('confirm agent-state off');
+    expect(stripAnsi(result?.message ?? '')).toMatch(/always asks/);
+    expect(map['agent-state']).toBe(true);
+  });
+
+  it('rejects an unknown kind and an unknown state', async () => {
+    const { ctx, onYoloConfirm } = makeConfirmCtx();
+    const cmd = buildYoloCommand(ctx);
+    expect(stripAnsi((await cmd.run!('confirm not-a-kind off'))?.message ?? '')).toMatch(
+      /Unknown kind/,
+    );
+    expect(stripAnsi((await cmd.run!('confirm publish maybe'))?.message ?? '')).toMatch(
+      /Unknown state/,
+    );
+    expect(onYoloConfirm).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'publish' }));
+  });
+
+  it('says so when the host does not offer the hook', async () => {
+    const ctx = makeCtx({ onYolo: () => true } as never);
+    const result = await buildYoloCommand(ctx).run!('confirm');
+    expect(result?.message).toMatch(/not available/);
   });
 });

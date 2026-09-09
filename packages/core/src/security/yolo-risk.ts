@@ -36,17 +36,53 @@ const CATASTROPHIC_PATTERNS: RegExp[] = [
 
 const HIGH_IMPACT_PATTERNS: RegExp[] = [
   /\b(?:curl|wget|fetch|httpie|http|irm|iwr|Invoke-WebRequest|Invoke-RestMethod)\b[\s\S]{0,300}\|\s*(?:sudo\s+)?(?:sh|bash|zsh|fish|pwsh|powershell|iex|Invoke-Expression)\b/i,
-  // B2 (AT-08 / CMDI-004): the literal `curl … | sh` shape was the only
-  // pipe-to-shell recognised. `bash -c "$(curl …)"`, `bash -c '<curl>'`,
-  // and the equivalent `node -e "require('child_process').execSync(...)"`
-  // / `python -c "import os; os.system(...)"` were all missed — they
-  // ship a downloaded payload into a brand-new interpreter that the
-  // classifier never sees as a network command.
+  /\b(?:powershell|pwsh)(?:\.exe)?\b[\s\S]{0,120}-(?:enc|encodedcommand)\b/i,
+];
+
+// B2 (AT-08 / CMDI-004): the literal `curl … | sh` shape was the only
+// pipe-to-shell recognised. `bash -c "$(curl …)"`, `bash -c '<curl>'`, and the
+// equivalent `node -e "require('child_process').execSync(...)"` /
+// `python -c "import os; os.system(...)"` ship a payload into a brand-new
+// interpreter that the classifier never sees as a network command.
+//
+// The interpreter SHAPE alone is not the risk, though, and neither is starting
+// a process: this gate asks ONE question — would running this do serious damage
+// to the machine or to the project? `node -e "execSync('id')"` is RCE-shaped and
+// harms nothing, while a plain `bash script.sh` YOLO already auto-approves is
+// every bit as arbitrary. Gating on shape is what made YOLO ask about
+// `bash -c "echo hi"`, `docker run … sh -c "ls"` and
+// `node -e "console.log(require('./package.json').version)"`.
+//
+// So an inline payload counts only when the payload itself DELETES, or when it
+// fetches code off the network and runs it — the one case where the damage is
+// unknowable in advance because the code is not in front of us.
+const INLINE_PAYLOAD_INTERPRETERS: RegExp[] = [
   /\b(?:bash|sh|zsh|ksh|fish|pwsh|powershell)\b[\s\S]{0,200}-c\s*[\s$"'(]/i,
   /\b(?:node|python[0-9.]*|perl|ruby)\b[\s\S]{0,200}-[ecE]\b/i,
-  /\b(?:powershell|pwsh)(?:\.exe)?\b[\s\S]{0,120}-(?:enc|encodedcommand)\b/i,
-  /\b(?:shutdown|reboot)\b/i,
 ];
+
+/** The payload reaches the network — the download half of download-and-run. */
+const PAYLOAD_FETCHES_NETWORK =
+  /\b(?:curl|wget|httpie|irm|iwr|Invoke-WebRequest|Invoke-RestMethod|DownloadString|DownloadFile|WebClient|XMLHttpRequest|urlretrieve|urllib)\b|\bfetch\s*\(|\brequests\.(?:get|post)\b|\bhttps?:\/\//i;
+
+/**
+ * The payload deletes. A quoted payload survives `tokenizeShell` as ONE token,
+ * so the `rm -rf` gates below never see inside `bash -c "rm -rf /"` — this is
+ * what keeps that shape classified.
+ */
+const PAYLOAD_DELETES =
+  /\b(?:rmSync|unlinkSync|rmdirSync|rimraf|shutil\.rmtree|os\.remove|os\.unlink|Remove-Item)\b|\brm\s+-[A-Za-z]*[rf]|\bdel\s+\/[sq]/i;
+
+/**
+ * `shutdown` / `reboot` as the COMMAND BEING RUN, not as a substring.
+ *
+ * The bare `/\b(?:shutdown|reboot)\b/i` this replaces read prose: it fired on
+ * `vitest run …/start-webui-shutdown.test.ts`, on `git add` of that same file,
+ * and on `git commit -m "…shutdown…"` — so in any repo with "shutdown" in a
+ * filename, YOLO asked about routine test and commit calls.
+ */
+const SYSTEM_HALT_COMMAND =
+  /^\s*(?:sudo\s+|doas\s+)?(?:[\w.:\-\\/]*[\\/])?(?:shutdown|reboot)(?:\.exe)?(?:\s|$)/i;
 
 // Top-level locations whose *recursive* deletion is catastrophic (the whole
 // filesystem, a system directory, or the user's home). Deleting a file or a
@@ -232,6 +268,10 @@ function hasGitHistoryRewrite(command: string): boolean {
     ) {
       return true;
     }
+    // Rewrites every commit in place. Pre-existing gap: the branch above only
+    // covered `reset --hard`, so the one command that can destroy a repository's
+    // whole history outright was auto-approved under YOLO.
+    if (args.includes('filter-branch') || args.includes('filter-repo')) return true;
     const cleanIdx = args.indexOf('clean');
     if (cleanIdx >= 0) {
       const cleanArgs = args.slice(cleanIdx + 1);
@@ -299,12 +339,50 @@ function hasExternalPublish(command: string): boolean {
   return false;
 }
 
+/**
+ * Programs that, run once per match by `find -exec`, destroy or overwrite.
+ *
+ * `find -exec` used to gate on the FLAG alone, so `find … -exec wc -l {} +` —
+ * a line count — needed approval. What makes the shape dangerous is the fan-out
+ * of a destructive program across every match, so the program is what decides.
+ * Anything else the command does still faces every other gate here, which read
+ * the whole line.
+ */
+const DESTRUCTIVE_EXEC_PROGRAMS: ReadonlySet<string> = new Set([
+  'rm',
+  'rmdir',
+  'unlink',
+  'shred',
+  'srm',
+  'del',
+  'erase',
+  'mv',
+  'move',
+  'chmod',
+  'chown',
+  'chgrp',
+  'dd',
+  'truncate',
+  'ln',
+  'remove-item',
+]);
+
 function hasFindExec(command: string): boolean {
   const tokens = tokenizeShell(command).map((token) => token.toLowerCase());
   for (let i = 0; i < tokens.length; i++) {
     if (tokens[i] !== 'find') continue;
     const args = commandSegment(tokens, i + 1);
-    if (args.some((arg) => arg === '-exec' || arg === '-ok' || arg === '-execdir')) return true;
+    for (let j = 0; j < args.length; j++) {
+      const arg = args[j];
+      if (arg !== '-exec' && arg !== '-ok' && arg !== '-execdir') continue;
+      // Skip `sudo` so `-exec sudo rm {} ;` classifies as the `rm` it is.
+      let k = j + 1;
+      while (args[k] === 'sudo' || args[k] === 'doas') k++;
+      const program = args[k];
+      if (program === undefined) continue;
+      const basename = program.split(/[\\/]/).pop() ?? program;
+      if (DESTRUCTIVE_EXEC_PROGRAMS.has(basename.replace(/\.exe$/, ''))) return true;
+    }
   }
   return false;
 }
@@ -502,10 +580,7 @@ function looksLikeAgentStateTarget(rawPath: string): boolean {
   // entry imports. We resolve the plugins root once per call; cheap.
   const pluginsRoot = path.resolve(rootStr, 'plugins');
   const pluginsRootNorm = pluginsRoot.replace(/\\/g, '/').toLowerCase();
-  if (
-    resolvedNorm === pluginsRootNorm ||
-    resolvedNorm.startsWith(`${pluginsRootNorm}/`)
-  ) {
+  if (resolvedNorm === pluginsRootNorm || resolvedNorm.startsWith(`${pluginsRootNorm}/`)) {
     return true;
   }
   // Coverage (1): basename against the protected list (inlined to avoid a
@@ -514,28 +589,240 @@ function looksLikeAgentStateTarget(rawPath: string): boolean {
 }
 
 /**
+ * Split a command line into shell segments, ignoring separators inside quotes.
+ *
+ * Quote-awareness is the whole point: `git commit -m "…; shutdown now"` must
+ * stay ONE segment whose head is `git`. The classifier has to read the command
+ * being run, never the prose it carries as an argument.
+ *
+ * `|` splits here even though `curl … | sh` is a real risk shape — that shape
+ * is matched against the WHOLE command by HIGH_IMPACT_PATTERNS[0], which never
+ * goes through this splitter.
+ */
+function splitShellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let current = '';
+  let quote: string | undefined;
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i] as string;
+    if (quote !== undefined) {
+      if (ch === quote) quote = undefined;
+      current += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === ';' || ch === '\n' || ch === '&' || ch === '|') {
+      if (command[i + 1] === ch) i++; // consume the second half of && / ||
+      segments.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  segments.push(current);
+  return segments.filter((segment) => segment.trim().length > 0);
+}
+
+/**
+ * An interpreter running an inline payload that deletes, or that runs code it
+ * just downloaded.
+ *
+ * Both halves must sit in the SAME segment, so `git status && node -e
+ * "console.log(1)"` is not read as one risky command just because a
+ * 200-character window happened to span the `&&`.
+ */
+function hasRiskyInlinePayload(command: string): boolean {
+  for (const segment of splitShellSegments(command)) {
+    if (!INLINE_PAYLOAD_INTERPRETERS.some((pattern) => pattern.test(segment))) continue;
+    if (PAYLOAD_FETCHES_NETWORK.test(segment) || PAYLOAD_DELETES.test(segment)) return true;
+  }
+  return false;
+}
+
+/** `shutdown` / `reboot` in command position in any segment of the line. */
+function haltsTheMachine(command: string): boolean {
+  return splitShellSegments(command).some((segment) => SYSTEM_HALT_COMMAND.test(segment));
+}
+
+/**
+ * WHAT kind of damage a command would do, as the user-facing categories the
+ * YOLO confirmation menu is built from.
+ *
+ * These are not new taxonomy — each one is a check that already existed in this
+ * file. Naming them is what lets the user keep, say, `git-history` gated while
+ * letting `bulk-delete` through, instead of the all-or-nothing `yoloDestructive`
+ * switch (which no surface ever wired up anyway).
+ */
+export type DestructiveKind =
+  /** Wipes a disk or the machine: mkfs, dd to a raw device, format C:, fork bomb. */
+  | 'disk-wipe'
+  /** Powers the machine down or restarts it. */
+  | 'system-halt'
+  /** Recursive force-delete that escapes the project, or hits a system/home root. */
+  | 'delete-outside'
+  /** Deletes across many matches at once: `find -exec rm`, an inline `rmSync`. */
+  | 'bulk-delete'
+  /** Destroys VCS history or published refs: reset --hard, clean -f, push --force, filter-branch. */
+  | 'git-history'
+  /** Pushes outward and is hard to retract: npm publish, docker push, kubectl delete namespace. */
+  | 'publish'
+  /** Runs code fetched off the network — the damage is unknowable in advance. */
+  | 'download-and-run'
+  /** Writes WrongStack's own trusted state (config.json / trust.json / auth.json). */
+  | 'agent-state'
+  /** Binds a well-known third-party credential to a provider endpoint. */
+  | 'credential-bind';
+
+/**
+ * The two kinds that can switch the approval system itself off, and so may
+ * never be un-gated from a settings menu.
+ *
+ * Writing `trust.json` disables prompting permanently; writing `hooks` into
+ * `config.json` is boot-time RCE on the next launch; binding
+ * `ANTHROPIC_API_KEY` to an attacker-chosen `baseUrl` exfiltrates the key. All
+ * three are reachable by prompt injection, and no workflow needs them
+ * unattended — so a user "allow" here would only ever be someone being talked
+ * into it.
+ */
+export const LOCKED_DESTRUCTIVE_KINDS: ReadonlySet<DestructiveKind> = new Set([
+  'agent-state',
+  'credential-bind',
+]);
+
+/**
+ * Every kind, in the order a settings menu should list them: worst damage
+ * first, the two locked ones last. Exhaustiveness is enforced by
+ * `UncoveredDestructiveKind` below, so adding a kind to the union without
+ * listing it here is a compile error rather than a silently un-gated category.
+ */
+export const ALL_DESTRUCTIVE_KINDS = [
+  'disk-wipe',
+  'system-halt',
+  'delete-outside',
+  'git-history',
+  'publish',
+  'download-and-run',
+  'bulk-delete',
+  'agent-state',
+  'credential-bind',
+] as const satisfies readonly DestructiveKind[];
+
+/**
+ * Compile gate for {@link ALL_DESTRUCTIVE_KINDS}. Resolves to `never` while the
+ * list is complete; the moment a kind is added to the union without being
+ * listed, this becomes that kind and every `never`-typed use of it errors —
+ * naming the offender. Exported so it counts as used.
+ */
+export type UnlistedDestructiveKind = Exclude<
+  DestructiveKind,
+  (typeof ALL_DESTRUCTIVE_KINDS)[number]
+>;
+const _assertAllKindsListed: UnlistedDestructiveKind[] = [];
+void _assertAllKindsListed;
+
+/** True when `value` is a kind this build knows — for decoding user config. */
+export function isDestructiveKind(value: unknown): value is DestructiveKind {
+  return typeof value === 'string' && (ALL_DESTRUCTIVE_KINDS as readonly string[]).includes(value);
+}
+
+/**
+ * The gated set a policy should actually use: unknown entries dropped, the
+ * locked kinds always present.
+ *
+ * `undefined` means "the user has not chosen" and gates everything — the
+ * fail-closed default. An EMPTY set is a real choice (gate only what is
+ * locked), which is why it must not be collapsed into `undefined`.
+ */
+export function normalizeYoloConfirmKinds(
+  kinds: Iterable<DestructiveKind> | undefined,
+): ReadonlySet<DestructiveKind> {
+  if (kinds === undefined) return new Set(ALL_DESTRUCTIVE_KINDS);
+  const out = new Set<DestructiveKind>();
+  for (const kind of kinds) if (isDestructiveKind(kind)) out.add(kind);
+  for (const locked of LOCKED_DESTRUCTIVE_KINDS) out.add(locked);
+  return out;
+}
+
+/**
+ * Decode the user's `autonomy.yoloConfirm` map into the gated set.
+ *
+ * A key is gated unless the user explicitly wrote `false`, so an unknown or
+ * partially-written map only ever un-gates what it names — a truncated file or
+ * a kind added by a newer build stays gated rather than silently opening.
+ */
+export function resolveYoloConfirmKinds(
+  preference: Record<string, boolean> | undefined,
+): ReadonlySet<DestructiveKind> {
+  if (preference === undefined) return new Set(ALL_DESTRUCTIVE_KINDS);
+  return normalizeYoloConfirmKinds(
+    ALL_DESTRUCTIVE_KINDS.filter((kind) => preference[kind] !== false),
+  );
+}
+
+/** Set equality, so a no-op update does not flush the permission cache. */
+export function sameKindSet(
+  a: ReadonlySet<DestructiveKind>,
+  b: ReadonlySet<DestructiveKind>,
+): boolean {
+  if (a.size !== b.size) return false;
+  for (const kind of a) if (!b.has(kind)) return false;
+  return true;
+}
+
+/**
  * Best-effort detection of a *catastrophic* shell command — system-/disk-/
  * home-wide, effectively irreversible destruction, OR a write to WrongStack's
  * own trusted state files that could disable security boundaries.
- * `projectRoot` is accepted for signature stability but is intentionally
- * unused for catastrophic targets (they are absolute). It is not used for
- * state-root detection either (those paths are resolved absolutely).
+ *
+ * `projectRoot` scopes the delete checks (an in-project cleanup is not an
+ * escape); it is deliberately unused for catastrophic and state-root targets,
+ * which are resolved absolutely.
+ *
+ * Returns WHICH kind matched so callers can honour a per-kind user preference.
+ * Order matters only for reporting: the most severe kind wins the label.
+ */
+export function classifyDestructiveCommand(
+  command: string,
+  projectRoot: string | undefined,
+): DestructiveKind | undefined {
+  const trimmed = command.trim();
+  if (!trimmed) return undefined;
+  if (CATASTROPHIC_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'disk-wipe';
+  if (haltsTheMachine(trimmed)) return 'system-halt';
+  if (hasWriteToAgentStateRoot(trimmed)) return 'agent-state';
+  if (HIGH_IMPACT_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'download-and-run';
+  if (hasCatastrophicDelete(trimmed)) return 'delete-outside';
+  if (hasRecursiveForceDelete(trimmed, projectRoot)) return 'delete-outside';
+  if (hasGitHistoryRewrite(trimmed)) return 'git-history';
+  if (hasExternalPublish(trimmed)) return 'publish';
+  if (hasFindExec(trimmed)) return 'bulk-delete';
+  if (hasRiskyInlinePayload(trimmed)) {
+    // Both halves already matched inside one segment; the network half is the
+    // more severe reading, so it wins the label.
+    return splitShellSegments(trimmed).some(
+      (segment) =>
+        INLINE_PAYLOAD_INTERPRETERS.some((pattern) => pattern.test(segment)) &&
+        PAYLOAD_FETCHES_NETWORK.test(segment),
+    )
+      ? 'download-and-run'
+      : 'bulk-delete';
+  }
+  return undefined;
+}
+
+/**
+ * Boolean form of {@link classifyDestructiveCommand}, kept because most callers
+ * only need "is this gated at all".
  */
 export function isClearlyDestructiveBashCommand(
   command: string,
   projectRoot: string | undefined,
 ): boolean {
-  const trimmed = command.trim();
-  if (!trimmed) return false;
-  if (hasRecursiveForceDelete(trimmed, projectRoot)) return true;
-  if (hasGitHistoryRewrite(trimmed)) return true;
-  if (hasExternalPublish(trimmed)) return true;
-  if (hasFindExec(trimmed)) return true;
-  if (hasCatastrophicDelete(trimmed)) return true;
-  if (hasWriteToAgentStateRoot(trimmed)) return true;
-  if (CATASTROPHIC_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
-  if (HIGH_IMPACT_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
-  return false;
+  return classifyDestructiveCommand(command, projectRoot) !== undefined;
 }
 
 /**

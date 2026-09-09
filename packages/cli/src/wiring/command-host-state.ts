@@ -8,6 +8,12 @@ import {
   mailboxSessionTag,
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
+import {
+  ALL_DESTRUCTIVE_KINDS,
+  type DestructiveKind,
+  normalizeYoloConfirmKinds,
+  resolveYoloConfirmKinds,
+} from '@wrongstack/core/security';
 import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import {
   AgentError,
@@ -54,7 +60,12 @@ interface CommandHostStateInput {
   brain: BrainArbiter | undefined;
   renderer: TerminalRenderer;
   reader: ReadlineInputReader;
-  permissionPolicy: { setYolo?(enabled: boolean): void; getYolo?(): boolean };
+  permissionPolicy: {
+    setYolo?(enabled: boolean): void;
+    getYolo?(): boolean;
+    setYoloConfirmKinds?(kinds: Iterable<DestructiveKind>): void;
+    getYoloConfirmKinds?(): ReadonlySet<DestructiveKind>;
+  };
   /**
    * The live conversation's meta bag.
    *
@@ -140,6 +151,47 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
     }
     return input.permissionPolicy.getYolo?.() ?? input.getConfig().yolo ?? false;
   };
+  /**
+   * Read, or set, which kinds of damage still prompt while YOLO is on.
+   *
+   * Mirrors `setYoloMode`: the live policy and the persisted config move
+   * together, so the choice survives a restart and takes effect on the very
+   * next tool call rather than at the next boot.
+   *
+   * Returns the EFFECTIVE map — the locked kinds report `true` no matter what
+   * was requested, so a caller that tries to turn one off can see that it did
+   * not take rather than believing it did.
+   */
+  const setYoloConfirm = (update?: {
+    kind: DestructiveKind;
+    confirm: boolean;
+  }): Record<DestructiveKind, boolean> => {
+    if (update) {
+      const current = resolveYoloConfirmKinds(input.getConfig().autonomy?.yoloConfirm);
+      const next = new Set(current);
+      if (update.confirm) next.add(update.kind);
+      else next.delete(update.kind);
+      const normalized = normalizeYoloConfirmKinds(next);
+      input.permissionPolicy.setYoloConfirmKinds?.(normalized);
+      const config = input.getConfig();
+      input.setConfig(
+        patchConfig(config, {
+          autonomy: {
+            ...config.autonomy,
+            yoloConfirm: Object.fromEntries(
+              ALL_DESTRUCTIVE_KINDS.map((kind) => [kind, normalized.has(kind)]),
+            ),
+          },
+        }),
+      );
+    }
+    const effective =
+      input.permissionPolicy.getYoloConfirmKinds?.() ??
+      resolveYoloConfirmKinds(input.getConfig().autonomy?.yoloConfirm);
+    return Object.fromEntries(
+      ALL_DESTRUCTIVE_KINDS.map((kind) => [kind, effective.has(kind)]),
+    ) as Record<DestructiveKind, boolean>;
+  };
   const secretInputController = {
     readSecret: (prompt: string) => input.reader.readSecret(prompt),
     readText: (prompt: string) => input.reader.readLine(prompt),
@@ -177,6 +229,7 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
     goalHost,
     coordinatorController,
     setYoloMode,
+    setYoloConfirm,
     secretInputController,
     sddRunRegistry,
   };

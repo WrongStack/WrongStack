@@ -162,7 +162,11 @@ describe('YOLO does not silently bind a real credential to a chosen host', () =>
     expect(decision.permission).toBe('auto');
   });
 
-  it('yoloDestructive still opts back in, as for every other destructive path', async () => {
+  // `credential-bind` is one of LOCKED_DESTRUCTIVE_KINDS. Pointing a real key
+  // at an attacker-chosen host is reachable by prompt injection and no workflow
+  // needs it unattended, so no per-kind preference and no legacy opt-out flag
+  // can un-gate it — unlike the seven kinds the settings menu owns.
+  it('stays gated even when every un-lockable kind is opted out', async () => {
     const p = new DefaultPermissionPolicy({ trustFile, yolo: true, yoloDestructive: true });
     const decision = await p.evaluate(
       tool('provider_manage'),
@@ -175,7 +179,8 @@ describe('YOLO does not silently bind a real credential to a chosen host', () =>
       ctx(),
     );
 
-    expect(decision.permission).toBe('auto');
+    expect(decision.permission).toBe('confirm');
+    expect(decision.reason).toContain('credential-bind');
   });
 
   it('does not auto-approve when the credential carrier is nested, not top-level', async () => {

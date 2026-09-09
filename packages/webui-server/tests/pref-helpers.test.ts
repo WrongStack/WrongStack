@@ -395,6 +395,36 @@ describe('WebUI preference persistence helpers', () => {
   });
 
   // `config.plugins` outranks `extensions.<name>.enabled` (resolvePluginEnablement),
+  // The YOLO per-kind gate is only a real setting if it survives a restart:
+  // the live policy is updated separately (prefs-handlers), and a write that
+  // never reached disk would silently re-gate everything on the next boot.
+  describe('yoloConfirm persists to autonomy.yoloConfirm', () => {
+    it('writes the whole map so a later read cannot inherit a stale key', async () => {
+      await persistPrefsToConfig(deps, holder, {
+        yoloConfirm: { 'git-history': false, publish: true, 'disk-wipe': true },
+      });
+      const config = await readConfig();
+      expect(config.autonomy?.yoloConfirm).toEqual({
+        'git-history': false,
+        publish: true,
+        'disk-wipe': true,
+      });
+    });
+
+    it('leaves the rest of autonomy alone', async () => {
+      await fs.writeFile(
+        configPath,
+        JSON.stringify({ autonomy: { defaultMode: 'auto', autoProceedDelayMs: 9000 } }),
+        'utf8',
+      );
+      await persistPrefsToConfig(deps, holder, { yoloConfirm: { publish: false } });
+      const config = await readConfig();
+      expect(config.autonomy?.defaultMode).toBe('auto');
+      expect(config.autonomy?.autoProceedDelayMs).toBe(9000);
+      expect(config.autonomy?.yoloConfirm).toEqual({ publish: false });
+    });
+  });
+
   // so writing only the extension left the panel's switch decorative for every
   // plugin that also had a plugins[] entry.
   describe('pluginsEnabled lands on the winning config layer', () => {

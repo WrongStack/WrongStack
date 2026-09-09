@@ -23,6 +23,19 @@ export interface AutonomyConfig {
   /** Persisted YOLO preference mirrored into top-level config.yolo at runtime. Default: true. */
   yolo?: boolean | undefined;
   /**
+   * Which kinds of damage still require approval while YOLO is on, as
+   * `{ 'git-history': true, publish: false, … }`. Keys are `DestructiveKind`
+   * (see security/yolo-risk.ts); an omitted key stays gated, so a partial map
+   * only ever turns things OFF explicitly.
+   *
+   * `agent-state` and `credential-bind` are re-added no matter what this says:
+   * they are the writes that can switch the approval system itself off.
+   *
+   * User-owned and never repo-owned — denied for in-project config alongside
+   * `autonomy.yolo`.
+   */
+  yoloConfirm?: Record<string, boolean> | undefined;
+  /**
    * How much fleet/subagent activity is streamed into the main TUI chat.
    * - 'off': no subagent lines (failures/errors still surface); F2/F3 stay live.
    * - 'full': every subagent tool call and interim message (legacy behavior).

@@ -27,6 +27,7 @@ type SessionCommandHandlers = Pick<
   | 'mcpRegistry'
   | 'mcpStatus'
   | 'onYolo'
+  | 'onYoloConfirm'
   | 'onNextPredict'
   | 'onSuggestions'
   | 'onExit'
@@ -58,6 +59,7 @@ interface SessionCommandHandlersInput {
   setEventMaxContext: (tokens: number) => void;
   mcpRegistry: MCPRegistry;
   onYolo: NonNullable<SlashCommandDeps['onYolo']>;
+  onYoloConfirm: SlashCommandDeps['onYoloConfirm'];
   getNextPredict: () => boolean;
   setNextPredict: (enabled: boolean) => void;
   getCurrentSuggestions: () => string[];
@@ -133,6 +135,7 @@ export function createSessionCommandHandlers(
         toolCount: server.toolCount,
       })),
     onYolo: input.onYolo,
+    onYoloConfirm: input.onYoloConfirm,
     onNextPredict: (enabled) => {
       if (enabled !== undefined) {
         input.setNextPredict(enabled);

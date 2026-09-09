@@ -19,6 +19,7 @@
  * (provider-routes.ts, prefs-routes.ts, …) define the type contracts
  * this file fulfils.
  */
+
 import path from 'node:path';
 import type { Agent, AgentPipelines, Context } from '@wrongstack/core/agent';
 import {
@@ -35,6 +36,7 @@ import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { DefaultModeStore } from '@wrongstack/core/models';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { type DestructiveKind, resolveYoloConfirmKinds } from '@wrongstack/core/security';
 import type { SkillInstaller } from '@wrongstack/core/skills';
 import type {
   Compactor,
@@ -677,6 +679,12 @@ export function buildRoutes(
     systemPrompt: systemPromptAdapter,
     setYolo: (enabled) =>
       (deps.permissionPolicy as { setYolo?: (value: boolean) => void }).setYolo?.(enabled),
+    setYoloConfirm: (preference) =>
+      (
+        deps.permissionPolicy as {
+          setYoloConfirmKinds?: (kinds: Iterable<DestructiveKind>) => void;
+        }
+      ).setYoloConfirmKinds?.(resolveYoloConfirmKinds(preference)),
     applyConfigPrefs: (payload) => {
       const config = state.getConfig();
       const features = (config.features ?? {}) as unknown as Record<string, unknown>;

@@ -45,6 +45,14 @@ export interface PrefsHandlerContext {
    */
   setYolo?: ((enabled: boolean, sessionId?: string | undefined) => void) | undefined;
   /**
+   * Replace the set of destructive kinds that still prompt under YOLO.
+   *
+   * NOT session-scoped, unlike `setYolo`: this is a machine-level safety
+   * choice about what the agent may destroy unattended, not a per-tab mode.
+   * The locked kinds are re-added by the policy regardless of what arrives.
+   */
+  setYoloConfirm?: ((preference: Record<string, boolean>) => void) | undefined;
+  /**
    * Flip the RUNTIME autonomy mode. Session-scoped for the same reason
    * `setYolo` is: the mode is a per-tab preference, and the runtime knob
    * behind this seam is process-wide, so an unaddressed call let a background
@@ -225,6 +233,10 @@ export async function handlePrefsUpdate(
   if (typeof payload['yolo'] === 'boolean') {
     ctx.setYolo?.(payload['yolo'], sessionId);
     if (payload['yolo']) resolveYoloEligiblePendingConfirms(ctx.pendingConfirms, sessionId);
+  }
+
+  if (typeof payload['yoloConfirm'] === 'object' && payload['yoloConfirm'] !== null) {
+    ctx.setYoloConfirm?.(payload['yoloConfirm'] as Record<string, boolean>);
   }
 
   ctx.applyConfigPrefs?.(payload);

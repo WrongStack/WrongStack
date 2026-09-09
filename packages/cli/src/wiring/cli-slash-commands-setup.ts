@@ -2,11 +2,11 @@ import type { Container } from '@wrongstack/core/kernel';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { getSddRuntimeStateForCli } from '../cli-main-helpers.js';
 import { createCommandHostAdapters } from './command-host-adapters.js';
+import { createConceptSummarizer } from './concept-summarizer.js';
 import { createEternalCommandHandlers } from './eternal-command-handlers.js';
 import { createFleetCommandHandlers } from './fleet-command-handlers.js';
 import { createSddHandlers } from './sdd-handlers.js';
 import { createSessionCommandHandlers } from './session-command-handlers.js';
-import { createConceptSummarizer } from './concept-summarizer.js';
 import { buildCommandHostSlashCommands } from './slash-commands.js';
 
 // Bag params are typed by their CONSUMERS: every field below flows into
@@ -92,6 +92,7 @@ export function setupCliSlashCommands(params: {
   eventWiring: { setEffectiveMaxContext: SE['setEventMaxContext'] };
   mcpRegistry: SE['mcpRegistry'];
   setYoloMode: SE['onYolo'];
+  setYoloConfirm: SE['onYoloConfirm'];
   getNextPredict: SE['getNextPredict'];
   setNextPredict: SE['setNextPredict'];
   getCurrentSuggestions: SE['getCurrentSuggestions'];
@@ -183,6 +184,7 @@ export function setupCliSlashCommands(params: {
     eventWiring,
     mcpRegistry,
     setYoloMode,
+    setYoloConfirm,
     getNextPredict,
     setNextPredict,
     getCurrentSuggestions,
@@ -303,6 +305,7 @@ export function setupCliSlashCommands(params: {
       setEventMaxContext: eventWiring.setEffectiveMaxContext,
       mcpRegistry,
       onYolo: setYoloMode,
+      onYoloConfirm: setYoloConfirm,
       getNextPredict,
       setNextPredict,
       getCurrentSuggestions,

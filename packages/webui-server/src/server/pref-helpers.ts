@@ -119,6 +119,8 @@ export const PREF_KEYS = [
   'autoCollapseInput',
   // Per-plugin enable/disable map (parity with the embedded server).
   'pluginsEnabled',
+  // Which kinds of damage still prompt while YOLO is on (autonomy.yoloConfirm).
+  'yoloConfirm',
   // Fleet chat verbosity: off | full (migrated from streamFleet boolean).
   'fleetChatVerbosity',
   // WrongProxy / WrongTrace: master switch + configurable URL (default
@@ -299,6 +301,14 @@ export async function persistPrefsToConfig(
       if (typeof payload['yolo'] === 'boolean') {
         setAutonomy('yolo', payload['yolo']);
         decrypted.yolo = payload['yolo'];
+      }
+      // Which kinds of damage still prompt under YOLO. Persisted whole rather
+      // than merged: the client always sends the full map, and a merge would
+      // let a stale key from an older build silently re-gate a kind the user
+      // turned off. `resolveYoloConfirmKinds` re-adds the locked kinds on read,
+      // so a map missing them (or naming an unknown kind) still fails closed.
+      if (typeof payload['yoloConfirm'] === 'object' && payload['yoloConfirm'] !== null) {
+        setAutonomy('yoloConfirm', payload['yoloConfirm'] as Record<string, boolean>);
       }
       if (typeof payload['chime'] === 'boolean') setAutonomy('chime', payload['chime']);
       if (typeof payload['confirmExit'] === 'boolean')

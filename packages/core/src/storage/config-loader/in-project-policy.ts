@@ -257,6 +257,11 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
     path: 'autonomy.defaultMode',
     reason: 'Sets the startup autonomy mode; autonomy is user-owned, never repo-owned.',
   },
+  {
+    path: 'autonomy.yoloConfirm',
+    reason:
+      'Chooses which kinds of damage still prompt under YOLO. A repo-committed map could un-gate disk wipes, history rewrites and publishes on the victim machine — the same boundary as `autonomy.yolo`, one level finer.',
+  },
   // Deliberately NOT denied: autonomy.autoProceedDelayMs and
   // autoProceedMaxIterations. They tune a mode the user has already switched on
   // rather than granting it, and config-loader-extra.test.ts classifies the

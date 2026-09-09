@@ -47,7 +47,11 @@
       "summary": "{{blocked}} bloqués · {{degraded}} dégradés · {{healthy}} sains",
       "totalFailures": "échecs",
       "rateLimits": "limitations de débit",
-      "state": { "blocked": "Bloqué", "degraded": "Dégradé", "healthy": "Sain" },
+      "state": {
+        "blocked": "Bloqué",
+        "degraded": "Dégradé",
+        "healthy": "Sain"
+      },
       "blocked": "Bloqué",
       "degraded": "Dégradé",
       "consecutive": "échecs consécutifs",
@@ -378,6 +382,48 @@
     "autoProceedDelayHint": "Millisecondes avant que l'agent avance automatiquement en mode Auto. 0 = immédiat.",
     "yoloLabel": "Mode YOLO",
     "yoloHint": "Contourner les confirmations d'outils — l'agent s'exécute sans demander.",
+    "yoloConfirmHeading": "Demander quand meme pour",
+    "yoloConfirmIntro": "YOLO execute tout le reste sans surveillance. Voici les types de degats devant lesquels il s'arrete et vous demande.",
+    "yoloConfirmLockedNote": "Ces deux-la demandent toujours. Ils ecrivent les fichiers qui decident si on vous demande quoi que ce soit - les desactiver laisserait l'agent couper son propre systeme d'approbation.",
+    "yoloKindLocked": "demande toujours",
+    "yoloKind": {
+      "disk-wipe": {
+        "label": "Effacer un disque",
+        "hint": "mkfs, dd vers un peripherique brut, format C:, fork bomb"
+      },
+      "system-halt": {
+        "label": "Eteindre ou redemarrer",
+        "hint": "shutdown, reboot"
+      },
+      "delete-outside": {
+        "label": "Supprimer hors du projet",
+        "hint": "suppression recursive forcee qui sort du projet ou atteint une racine systeme ou home"
+      },
+      "git-history": {
+        "label": "Reecrire l'historique git",
+        "hint": "reset --hard, clean -f, push --force, filter-branch"
+      },
+      "publish": {
+        "label": "Publier ou deployer",
+        "hint": "npm publish, docker push, kubectl delete namespace"
+      },
+      "download-and-run": {
+        "label": "Executer du code telecharge",
+        "hint": "curl | sh et charges en ligne qui telechargent puis executent"
+      },
+      "bulk-delete": {
+        "label": "Supprimer en masse",
+        "hint": "find -exec rm, rmSync en ligne sur de nombreux chemins"
+      },
+      "agent-state": {
+        "label": "Ecrire l'etat propre de WrongStack",
+        "hint": "config.json, trust.json, auth.json"
+      },
+      "credential-bind": {
+        "label": "Lier une cle API a un endpoint",
+        "hint": "rattacher une cle connue a une URL de fournisseur"
+      }
+    },
     "refineHeading": "Affinage du prompt",
     "enableRefineLabel": "Activer l'affinage",
     "enableRefineHint": "Réécrire les prompts avant l'envoi — instructions plus claires, meilleurs résultats.",

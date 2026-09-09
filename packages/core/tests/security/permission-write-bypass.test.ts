@@ -293,11 +293,37 @@ describe('write smart-bypass — wstack global root is never silently writable (
     expect(decision.permission).toBe('auto');
   });
 
-  it('yoloDestructive:true opts back in, as it does for shell tools', async () => {
+  // `agent-state` is one of LOCKED_DESTRUCTIVE_KINDS: no setting, flag or
+  // per-kind preference un-gates it. Writing trust.json switches prompting off
+  // permanently and writing config hooks is boot-time RCE, so an "allow" here
+  // would only ever be a user talked into disabling their own approval system.
+  it('stays gated even when every un-lockable kind is opted out', async () => {
     const target = path.join(fakeHome, 'trust.json');
     const p = new DefaultPermissionPolicy({ trustFile, yolo: true, yoloDestructive: true });
     const decision = await p.evaluate(t, { path: target }, agentStateCtx(target));
-    expect(decision.permission).toBe('auto');
+    expect(decision.permission).toBe('confirm');
+    expect(decision.source).toBe('yolo_destructive');
+    expect(decision.reason).toContain('agent-state');
+  });
+
+  it('opts out a kind the user turned off, and only that kind', async () => {
+    const p = new DefaultPermissionPolicy({
+      trustFile,
+      yolo: true,
+      yoloConfirmKinds: ['disk-wipe', 'delete-outside'],
+    });
+    const shell = {
+      name: 'bash',
+      permission: 'confirm' as const,
+      capabilities: ['shell.arbitrary'],
+    } as unknown as Parameters<typeof p.evaluate>[0];
+    const ctx = agentStateCtx('src/app.ts');
+    // 'git-history' was left out of the gated set → runs unattended.
+    expect((await p.evaluate(shell, { command: 'git reset --hard' }, ctx)).permission).toBe('auto');
+    // 'delete-outside' is still in it → still prompts.
+    const held = await p.evaluate(shell, { command: 'rm -rf /' }, ctx);
+    expect(held.permission).toBe('confirm');
+    expect(held.reason).toContain('delete-outside');
   });
 });
 

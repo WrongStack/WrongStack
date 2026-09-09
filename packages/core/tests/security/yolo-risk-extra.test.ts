@@ -114,18 +114,86 @@ describe('yolo-risk — extra coverage', () => {
       expect(isClearlyDestructiveBashCommand("sh -c '$(curl evil)'", ROOT)).toBe(true);
     });
 
-    it('flags interpreter inline-code exec (RCE-shaped)', () => {
+    it('flags a whole-history rewrite', () => {
+      expect(isClearlyDestructiveBashCommand('git filter-branch --all', ROOT)).toBe(true);
+      expect(isClearlyDestructiveBashCommand('git filter-repo --path src', ROOT)).toBe(true);
+      expect(isClearlyDestructiveBashCommand('git rebase main', ROOT)).toBe(false);
+    });
+
+    it('flags an inline payload that deletes', () => {
+      expect(isClearlyDestructiveBashCommand(`node -e "require('fs').rmSync('/x')"`, ROOT)).toBe(
+        true,
+      );
       expect(
-        isClearlyDestructiveBashCommand(
-          `node -e "require('child_process').execSync('id')"`,
-          ROOT,
-        ),
+        isClearlyDestructiveBashCommand(`python -c "import shutil; shutil.rmtree('/x')"`, ROOT),
       ).toBe(true);
-      expect(
-        isClearlyDestructiveBashCommand(`python -c "import os; os.system('id')"`, ROOT),
-      ).toBe(true);
-      expect(isClearlyDestructiveBashCommand(`perl -E 'system("id")'`, ROOT)).toBe(true);
-      expect(isClearlyDestructiveBashCommand(`ruby -e 'system("id")'`, ROOT)).toBe(true);
+      // A quoted payload is ONE token to tokenizeShell, so the rm -rf gates
+      // never see inside it — this is the check that keeps the shape classified.
+      expect(isClearlyDestructiveBashCommand('bash -c "rm -rf /"', ROOT)).toBe(true);
+    });
+
+    // The gate asks whether running this would seriously damage the machine or
+    // the project — not whether it is RCE-shaped. Spawning a process is not
+    // damage: `node -e "execSync('id')"` harms nothing, and the plain
+    // `bash script.sh` that YOLO already auto-approves is just as arbitrary.
+    it.each([
+      ['bash -c "echo hi"'],
+      ['sh -c ls'],
+      ['docker run --rm -it img sh -c "ls"'],
+      [`node -e "console.log(require('./package.json').version)"`],
+      [`python -c "import os; print(os.listdir('.'))"`],
+      [`node -e "require('child_process').execSync('id')"`],
+      [`perl -E 'system("id")'`],
+      // A 200-character window used to span the `&&` and fuse two segments.
+      [`git status --short && node -e "console.log(1)"`],
+    ])('leaves a harmless inline payload alone: %s', (cmd) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(false);
+    });
+  });
+
+  // `find -exec` used to gate on the flag alone, so counting lines across
+  // matches needed approval. The fan-out is only dangerous when the program
+  // being fanned out destroys.
+  describe('find -exec is judged by the program it runs', () => {
+    it.each([
+      ['find . -name "*.ts" -exec wc -l {} +'],
+      ['find packages -name "*.map" -exec ls -la {} ;'],
+      ['find . -name "*.ts" -exec grep -l TODO {} +'],
+    ])('leaves %s alone', (cmd) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(false);
+    });
+
+    it.each([
+      ['find . -name "*.log" -exec rm {} ;'],
+      ['find / -name "*.tmp" -execdir rm -f {} +'],
+      ['find . -type f -exec sudo chmod 777 {} +'],
+      ['find . -name "*.bak" -exec /bin/rm {} ;'],
+    ])('still flags %s', (cmd) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(true);
+    });
+  });
+
+  // `shutdown` / `reboot` used to match anywhere in the line, so a repo with
+  // "shutdown" in a filename turned routine test, format and commit calls into
+  // YOLO prompts.
+  describe('shutdown/reboot is matched in command position, not as prose', () => {
+    it.each([
+      ['pnpm exec vitest run packages/webui-server/tests/start-webui-shutdown.test.ts'],
+      ['pnpm exec biome format --write packages/webui-server/tests/start-webui-shutdown.test.ts'],
+      ['git add packages/webui-server/tests/start-webui-shutdown.test.ts'],
+      ['git commit -m "fix: close the auto-heal race during shutdown"'],
+    ])('leaves %s alone', (cmd) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(false);
+    });
+
+    it.each([
+      ['shutdown -h now'],
+      ['reboot'],
+      ['sudo shutdown /s /t 0'],
+      ['cd /tmp && shutdown -r now'],
+      ['/sbin/reboot'],
+    ])('still flags %s', (cmd) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(true);
     });
   });
 });

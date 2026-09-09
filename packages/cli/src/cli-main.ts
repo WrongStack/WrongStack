@@ -575,6 +575,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     goalHost,
     coordinatorController,
     setYoloMode,
+    setYoloConfirm,
     secretInputController,
     sddRunRegistry,
   } = await setupCommandHostState({
@@ -660,6 +661,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     eventWiring,
     mcpRegistry,
     setYoloMode,
+    setYoloConfirm,
     getNextPredict: () => nextPredictEnabled,
     setNextPredict: (enabled) => {
       nextPredictEnabled = enabled;
