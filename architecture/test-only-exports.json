@@ -35,6 +35,9 @@
       "webuiPrefsChangedSchema",
       "webuiReadyChangedSchema"
     ],
+    "apps/desktop/src/renderer/src/store.ts": [
+      "loadSessions"
+    ],
     "packages/acp/src/agent/protocol-handler.ts": [
       "protocolHandlerCoverage"
     ],

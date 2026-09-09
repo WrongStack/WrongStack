@@ -48,6 +48,8 @@
     "@wrongstack/webui": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "ws": "^8.21.3",
     "zod": "^4.4.3"
   },
@@ -56,8 +58,11 @@
   },
   "devDependencies": {
     "@types/node": "^22.19.0",
-    "electron": "^43.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
     "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^43.4.1",
     "electron-builder": "^26.15.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.2"

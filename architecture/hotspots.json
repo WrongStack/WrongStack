@@ -509,10 +509,6 @@
     "apps/desktop/src/main/runtime-manager.ts": {
       "lines": 1020,
       "relativeImports": 4
-    },
-    "apps/desktop/src/renderer/src/renderer.ts": {
-      "lines": 961,
-      "relativeImports": 8
     }
   }
 }

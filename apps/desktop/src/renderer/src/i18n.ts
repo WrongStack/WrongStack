@@ -76,6 +76,15 @@ export const SUPPORTED_LOCALES: DesktopLocale[] = ['en', 'tr', 'de', 'fr', 'it',
 type Catalog = Record<string, string>;
 
 const en: Catalog = {
+  collapse: 'Collapse',
+  expand: 'Expand',
+  searchProjects: 'Search projects',
+  clear: 'Clear',
+  noMatches: 'No matching projects',
+  close: 'Close',
+  sessionsUnavailable: 'Sessions unavailable',
+  noSessions: 'No sessions yet',
+  openProjectHint: 'Choose a folder to start working in it.',
   desktopNavAria: 'Desktop navigation',
   openProjectFolderTitle: 'Open project folder',
   openRegisteredProject: 'Open project from projects.json',
@@ -153,6 +162,15 @@ const en: Catalog = {
 };
 
 const tr: Catalog = {
+  collapse: 'Daralt',
+  expand: 'Genişlet',
+  searchProjects: 'Proje ara',
+  clear: 'Temizle',
+  noMatches: 'Eşleşen proje yok',
+  close: 'Kapat',
+  sessionsUnavailable: 'Oturumlar okunamadı',
+  noSessions: 'Henüz oturum yok',
+  openProjectHint: 'Çalışmaya başlamak için bir klasör seç.',
   desktopNavAria: 'Masaüstü navigasyon',
   openProjectFolderTitle: 'Proje klasörünü aç',
   dismiss: 'Kapat',
@@ -223,6 +241,15 @@ const tr: Catalog = {
 };
 
 const de: Catalog = {
+  collapse: 'Einklappen',
+  expand: 'Ausklappen',
+  searchProjects: 'Projekte suchen',
+  clear: 'Löschen',
+  noMatches: 'Keine passenden Projekte',
+  close: 'Schließen',
+  sessionsUnavailable: 'Sitzungen nicht verfügbar',
+  noSessions: 'Noch keine Sitzungen',
+  openProjectHint: 'Wähle einen Ordner, um darin zu arbeiten.',
   desktopNavAria: 'Desktop-Navigation',
   openProjectFolderTitle: 'Projektordner öffnen',
   dismiss: 'Verwerfen',
@@ -293,6 +320,15 @@ const de: Catalog = {
 };
 
 const fr: Catalog = {
+  collapse: 'Réduire',
+  expand: 'Développer',
+  searchProjects: 'Rechercher des projets',
+  clear: 'Effacer',
+  noMatches: 'Aucun projet correspondant',
+  close: 'Fermer',
+  sessionsUnavailable: 'Sessions indisponibles',
+  noSessions: 'Aucune session',
+  openProjectHint: 'Choisis un dossier pour commencer à y travailler.',
   desktopNavAria: 'Navigation du bureau',
   openProjectFolderTitle: 'Ouvrir le dossier du projet',
   dismiss: 'Fermer',
@@ -363,6 +399,15 @@ const fr: Catalog = {
 };
 
 const it: Catalog = {
+  collapse: 'Comprimi',
+  expand: 'Espandi',
+  searchProjects: 'Cerca progetti',
+  clear: 'Cancella',
+  noMatches: 'Nessun progetto corrispondente',
+  close: 'Chiudi',
+  sessionsUnavailable: 'Sessioni non disponibili',
+  noSessions: 'Nessuna sessione',
+  openProjectHint: 'Scegli una cartella per iniziare a lavorarci.',
   desktopNavAria: 'Navigazione desktop',
   openProjectFolderTitle: 'Apri cartella progetto',
   dismiss: 'Chiudi',
@@ -433,6 +478,15 @@ const it: Catalog = {
 };
 
 const es: Catalog = {
+  collapse: 'Contraer',
+  expand: 'Expandir',
+  searchProjects: 'Buscar proyectos',
+  clear: 'Borrar',
+  noMatches: 'No hay proyectos coincidentes',
+  close: 'Cerrar',
+  sessionsUnavailable: 'Sesiones no disponibles',
+  noSessions: 'Aún no hay sesiones',
+  openProjectHint: 'Elige una carpeta para empezar a trabajar en ella.',
   desktopNavAria: 'Navegación de escritorio',
   openProjectFolderTitle: 'Abrir carpeta del proyecto',
   dismiss: 'Cerrar',
@@ -503,6 +557,15 @@ const es: Catalog = {
 };
 
 const ptBR: Catalog = {
+  collapse: 'Recolher',
+  expand: 'Expandir',
+  searchProjects: 'Buscar projetos',
+  clear: 'Limpar',
+  noMatches: 'Nenhum projeto correspondente',
+  close: 'Fechar',
+  sessionsUnavailable: 'Sessões indisponíveis',
+  noSessions: 'Nenhuma sessão ainda',
+  openProjectHint: 'Escolha uma pasta para começar a trabalhar nela.',
   desktopNavAria: 'Navegação do desktop',
   openProjectFolderTitle: 'Abrir pasta do projeto',
   dismiss: 'Dispensar',
