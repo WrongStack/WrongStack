@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T09:45:18.799Z",
+  "generatedAt": "2026-09-09T09:50:21.244Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3704,
-    "testFiles": 3192,
-    "sourceLines": 890563,
+    "testFiles": 3193,
+    "sourceLines": 890669,
     "workspaceEdges": 127,
     "moduleEdges": 11682,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 876
+    "testOnlyExports": 878
   },
   "errors": [],
   "packageCycles": [],
@@ -238,7 +238,7 @@
       "name": "@wrongstack/desktop",
       "dir": "apps/desktop",
       "sourceFiles": 41,
-      "testFiles": 25,
+      "testFiles": 26,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/webui",
@@ -254,7 +254,7 @@
         {
           "path": "apps/desktop/tsconfig.test.json",
           "error": null,
-          "testFiles": 25
+          "testFiles": 26
         }
       ]
     },
@@ -1131,6 +1131,12 @@
       },
       {
         "file": "apps/desktop/tests/i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop/tests/idle-runtime-sweep.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20968,7 +20974,7 @@
     },
     {
       "file": "apps/desktop/src/main/runtime-manager.ts",
-      "lines": 1020,
+      "lines": 1119,
       "relativeImports": 4
     }
   ],
@@ -20977,6 +20983,11 @@
       "file": "packages/providers/src/openai-codex.ts",
       "lines": 1581,
       "relativeImports": 17
+    },
+    {
+      "file": "apps/desktop/src/main/runtime-manager.ts",
+      "lines": 1119,
+      "relativeImports": 4
     },
     {
       "file": "packages/core/src/coordination/delegate-tool.ts",
@@ -21077,11 +21088,6 @@
       "file": "packages/tui/src/app-key-handler.ts",
       "lines": 1025,
       "relativeImports": 18
-    },
-    {
-      "file": "apps/desktop/src/main/runtime-manager.ts",
-      "lines": 1020,
-      "relativeImports": 4
     },
     {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
@@ -21228,6 +21234,14 @@
     {
       "file": "apps/desktop/src/main/runtime-manager.ts",
       "name": "normalizeProjectManifest"
+    },
+    {
+      "file": "apps/desktop/src/main/runtime-manager.ts",
+      "name": "reclaimableRuntimeIds"
+    },
+    {
+      "file": "apps/desktop/src/main/runtime-manager.ts",
+      "name": "resolveIdleTimeoutMs"
     },
     {
       "file": "apps/desktop/src/main/runtime-manager.ts",

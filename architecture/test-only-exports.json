@@ -3,6 +3,8 @@
   "files": {
     "apps/desktop/src/main/runtime-manager.ts": [
       "normalizeProjectManifest",
+      "reclaimableRuntimeIds",
+      "resolveIdleTimeoutMs",
       "SNAPSHOT_LOG_LINES",
       "waitForChildExit"
     ],

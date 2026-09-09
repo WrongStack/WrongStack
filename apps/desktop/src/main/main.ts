@@ -518,6 +518,12 @@ async function boot(): Promise<void> {
 
   await restoreLastWorkspace();
 
+  // Reclaim project servers nobody is using. Every open project holds an
+  // Electron-as-Node child; ten open projects were ten of them, alive until
+  // quit. A project that is actively producing output is never reclaimed —
+  // see `reclaimableRuntimeIds`.
+  manager.startIdleSweep();
+
   // macOS: handle file-open from argv (app launched by double-click) or
   // from a pre-ready open-file event (queued by Electron's event system).
   const argvOpenPath = firstOpenFileArg(process.argv);
@@ -565,6 +571,7 @@ app.on('before-quit', () => {
   }
   bridge.closeAll();
   webuiController.disposeAll();
+  manager.stopIdleSweep();
   // Terminate WebUI child processes so they don't become orphans after the
   // desktop app exits. closeAll() is async but before-quit is synchronous —
   // we fire-and-forget and rely on OS process-group cleanup for stragglers.

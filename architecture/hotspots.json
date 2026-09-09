@@ -507,7 +507,7 @@
       "relativeImports": 1
     },
     "apps/desktop/src/main/runtime-manager.ts": {
-      "lines": 1020,
+      "lines": 1119,
       "relativeImports": 4
     }
   }

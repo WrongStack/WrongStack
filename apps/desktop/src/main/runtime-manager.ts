@@ -50,6 +50,15 @@ interface RuntimeInternal extends DesktopRuntimeRecord {
   token: string;
   logs: string[];
   logNotifyTimer: ReturnType<typeof setTimeout> | null;
+  /**
+   * Epoch ms of the last sign of life: activation, or output from the child.
+   *
+   * Output is the load-bearing half. A background project whose agent is
+   * mid-task writes to stdout continuously, and that is exactly the runtime
+   * that must never be reclaimed — the idle sweep reads this to tell "nobody
+   * has looked at this in a while" apart from "nothing is happening here".
+   */
+  lastActivityAt: number;
 }
 
 interface OpenProjectOptions {
@@ -65,6 +74,53 @@ const WS_PORT_START = 34660;
 const START_TIMEOUT_MS = 30_000;
 const MIN_WINDOW_WIDTH = 760;
 const MIN_WINDOW_HEIGHT = 520;
+
+/**
+ * How long a project may sit untouched before its server process is reclaimed.
+ *
+ * Every open project holds a `webui-server` child (Electron's Node, via
+ * ELECTRON_RUN_AS_NODE). Ten open projects are ten Node processes, and until
+ * now they lived until the app quit or the user closed the project by hand.
+ *
+ * Reclaiming one is safe because a session's state is on disk, not in that
+ * process: the project reappears in the sidebar as a stopped row and clicking
+ * it starts a fresh runtime. Set `WRONGSTACK_DESKTOP_IDLE_MINUTES=0` to keep
+ * every project running for the whole session.
+ */
+const DEFAULT_IDLE_MINUTES = 15;
+const IDLE_SWEEP_INTERVAL_MS = 60_000;
+
+export function resolveIdleTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = Number.parseFloat(env.WRONGSTACK_DESKTOP_IDLE_MINUTES ?? '');
+  if (Number.isFinite(raw)) return raw > 0 ? raw * 60_000 : 0;
+  return DEFAULT_IDLE_MINUTES * 60_000;
+}
+
+/**
+ * Which runtimes the idle sweep may reclaim.
+ *
+ * Three guards, and the second is the one that matters. A background project
+ * running an agent writes to stdout the whole time; `lastActivityAt` tracks
+ * that, so a busy project is never idle no matter how long since the user last
+ * looked at it. Reclaiming one mid-task would kill work in progress, which is
+ * a far worse outcome than holding a process.
+ *
+ * Exported for tests: the decision is pure, the killing is not.
+ */
+export function reclaimableRuntimeIds(
+  runtimes: ReadonlyMap<string, { status: string; lastActivityAt: number }>,
+  options: { activeRuntimeId: string | null; idleTimeoutMs: number; now: number },
+): string[] {
+  if (options.idleTimeoutMs <= 0) return [];
+  const out: string[] = [];
+  for (const [id, runtime] of runtimes) {
+    if (id === options.activeRuntimeId) continue;
+    if (runtime.status !== 'running') continue;
+    if (options.now - runtime.lastActivityAt < options.idleTimeoutMs) continue;
+    out.push(id);
+  }
+  return out;
+}
 
 export class DesktopRuntimeManager extends EventEmitter {
   private readonly runtimes = new Map<string, RuntimeInternal>();
@@ -82,6 +138,8 @@ export class DesktopRuntimeManager extends EventEmitter {
   private activeRuntimeId: string | null = null;
   private restoring = false;
   private workspaceRestoreCompleted = false;
+  private idleSweepTimer: ReturnType<typeof setInterval> | null = null;
+  private idleTimeoutMs = 0;
 
   constructor(private readonly trustBoundary: TrustBoundary = desktopCompatibilityTrustBoundary) {
     super();
@@ -261,6 +319,7 @@ export class DesktopRuntimeManager extends EventEmitter {
       child: null,
       logs: [],
       logNotifyTimer: null,
+      lastActivityAt: Date.now(),
     };
     this.runtimes.set(runtimeId, runtime);
     this.activeRuntimeId = runtimeId;
@@ -315,12 +374,14 @@ export class DesktopRuntimeManager extends EventEmitter {
       child.stdout?.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
         appendRuntimeLog(runtime, 'stdout', text);
+        runtime.lastActivityAt = Date.now();
         this.scheduleLogChanged(runtime);
         process.stdout.write(`[desktop:${runtime.id}] ${text}`);
       });
       child.stderr?.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
         appendRuntimeLog(runtime, 'stderr', text);
+        runtime.lastActivityAt = Date.now();
         this.scheduleLogChanged(runtime);
         process.stderr.write(`[desktop:${runtime.id}] ${text}`);
       });
@@ -375,6 +436,7 @@ export class DesktopRuntimeManager extends EventEmitter {
     const runtime = this.runtimes.get(id);
     if (!runtime) throw new Error(`Runtime not found: ${id}`);
     this.activeRuntimeId = id;
+    runtime.lastActivityAt = Date.now();
     if (runtime.kind === 'project') this.lastActiveProjectRoot = runtime.root;
     if (runtime.kind === 'project') {
       await this.touchProject(runtime.root);
@@ -573,6 +635,43 @@ export class DesktopRuntimeManager extends EventEmitter {
    * runtime record) but only one runtime can be active, so at most one such
    * timer is ever armed now.
    */
+  /**
+   * Begin reclaiming idle project servers.
+   *
+   * Idempotent, and a no-op when the timeout is disabled. The interval is
+   * unref'd so a pending sweep never holds the process open during quit.
+   */
+  startIdleSweep(options: { idleTimeoutMs?: number } = {}): void {
+    if (this.idleSweepTimer) return;
+    this.idleTimeoutMs = options.idleTimeoutMs ?? resolveIdleTimeoutMs();
+    if (this.idleTimeoutMs <= 0) return;
+    this.idleSweepTimer = setInterval(() => {
+      void this.sweepIdleRuntimes();
+    }, IDLE_SWEEP_INTERVAL_MS);
+    this.idleSweepTimer.unref?.();
+  }
+
+  stopIdleSweep(): void {
+    if (!this.idleSweepTimer) return;
+    clearInterval(this.idleSweepTimer);
+    this.idleSweepTimer = null;
+  }
+
+  /** One pass. Exposed so a test can drive it without waiting on the interval. */
+  async sweepIdleRuntimes(now = Date.now()): Promise<string[]> {
+    const ids = reclaimableRuntimeIds(this.runtimes, {
+      activeRuntimeId: this.activeRuntimeId,
+      idleTimeoutMs: this.idleTimeoutMs,
+      now,
+    });
+    for (const id of ids) {
+      // The workspace record is left alone on purpose: the project should come
+      // back on the next launch, and it is only the process being reclaimed.
+      await this.closeRuntimeInternal(id, { persistWorkspace: false });
+    }
+    return ids;
+  }
+
   private scheduleLogChanged(runtime: RuntimeInternal): void {
     if (runtime.id !== this.activeRuntimeId) return;
     if (runtime.logNotifyTimer) return;
