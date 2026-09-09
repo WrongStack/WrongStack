@@ -70,10 +70,19 @@ describe('/profile', () => {
       JSON.stringify({ provider: 'openai', model: 'gpt' }),
     );
     // A key only the OUTGOING profile defines. The store merges shallowly, so
-    // without an explicit clear this survives into "work".
+    // without an explicit clear this survives into "work". `version` and
+    // `apiKey` pin the two exclusions: version is bootstrap-only (a profile
+    // file may not set it) and apiKey is re-derived by the authoritative
+    // re-read, so neither may appear in the switch patch at all.
     await fs.writeFile(
       path.join(paths.profilesDir, 'default', 'config.json'),
-      JSON.stringify({ provider: 'anthropic', model: 'claude', tools: { maxIterations: 7 } }),
+      JSON.stringify({
+        version: 1,
+        provider: 'anthropic',
+        model: 'claude',
+        apiKey: 'fixture-outgoing-key',
+        tools: { maxIterations: 7 },
+      }),
     );
     const sync = vi.fn();
     const cmd = buildProfileCommand({
@@ -102,8 +111,15 @@ describe('/profile', () => {
       activeProfile: 'work',
       tools: null,
     });
-    // `version` is never carried: nulling it trips the ConfigStore guard.
-    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('version');
+    // `version` is never carried (bootstrap-only) and the credential/routing
+    // fields are left to the authoritative re-read: nulling them would not be
+    // repaired, because onAnyConfigChange merges `snapshot ?? null` against
+    // whatever the store already holds. These two assertions are what actually
+    // pin the exclusion set - the exact-shape check above already implies the
+    // keys are absent, but only if the outgoing fixture defines them.
+    const firstPatch = update.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(firstPatch).not.toHaveProperty('version');
+    expect(firstPatch).not.toHaveProperty('apiKey');
     expect(sync).toHaveBeenCalledTimes(1);
     expect(result?.exit).toBeUndefined();
     expect(stripAnsi(result?.message ?? '')).toContain('reloaded');

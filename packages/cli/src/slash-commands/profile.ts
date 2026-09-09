@@ -210,8 +210,37 @@ async function switchProfile(
   // `onAnyConfigChange` force-propagates those fields itself, including the
   // absent case (`mergedPatch[key] = merged[key] ?? null`); nulling them here
   // would fight that authoritative re-read.
-  const KEEP: readonly string[] = ['version', 'activeProfile'];
-  const patch: Record<string, unknown> = { ...profileData, activeProfile: safe };
+  // Credential/routing fields are owned by the authoritative re-read the
+  // rebind watcher performs: onAnyConfigChange force-propagates each of them
+  // as `merged[key] ?? null` on top of whatever the store already holds, so a
+  // null written here is NOT repaired — it is re-derived from the layers and
+  // then merged against the null we just put in. Excluding them from the clear
+  // is load-bearing, not cosmetic. Carrying them from the incoming file is
+  // safe for the same reason: the watcher sets the authoritative value next.
+  const WATCHER_OWNED: readonly string[] = [
+    'providers',
+    'apiKey',
+    'baseUrl',
+    'fallbackModels',
+    'fallbackBridge',
+    'fallbackProfiles',
+    'fallbackProfile',
+    'favoriteModels',
+    'favoriteModelsOnly',
+    'modelAvailabilitySchedule',
+    'modelMatrix',
+    'fallbackAuto',
+    'fallbackStickiness',
+    'fallbackMaxLastResortCandidates',
+    'uiLocale',
+  ];
+  const KEEP: readonly string[] = ['version', 'activeProfile', ...WATCHER_OWNED];
+  // `version` is bootstrap-only: ConfigLoader strips it out of every profile
+  // file (storage/config-loader.ts:169) so a profile can never override the
+  // schema version, so it must not be carried into the patch either.
+  const incoming: Record<string, unknown> = { ...profileData };
+  delete incoming['version'];
+  const patch: Record<string, unknown> = { ...incoming, activeProfile: safe };
   const previous = configStore.get();
   const previousProfileRaw = await readJsonObjectFile(
     wpaths.profileConfig(previous.activeProfile ?? 'default'),
