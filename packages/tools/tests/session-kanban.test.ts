@@ -790,3 +790,52 @@ describe('todosNeedingSessionMirror', () => {
     expect(todos[0]?.content).toBe('Do something updated');
   });
 });
+
+describe('session board retention policy', () => {
+  let tmpRoot: string;
+  const ENV = 'WRONGSTACK_KANBAN_ARCHIVE_PURGE_DAYS';
+  const saved = process.env[ENV];
+
+  beforeEach(async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'session-kanban-retention-'));
+  });
+  afterEach(async () => {
+    if (saved === undefined) delete process.env[ENV];
+    else process.env[ENV] = saved;
+    await fs.rm(tmpRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
+  });
+
+  it('archives after a week and keeps the archive when no purge window is set', async () => {
+    delete process.env[ENV];
+    const board = await ensureSessionKanbanBoard(tmpRoot, TEST_CONTEXT_SESSION_ID);
+    expect(board.retention).toMatchObject({
+      mode: 'archive_after_ttl',
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
+    });
+    expect(board.retention?.purgeAfterArchiveMs).toBeUndefined();
+  });
+
+  it('puts the configured purge window on the board so prune can act on it later', async () => {
+    // Without this the second stage in pruneSessionBoards is unreachable: the
+    // policy would exist in the type and never appear on a real board.
+    process.env[ENV] = '30';
+    const board = await ensureSessionKanbanBoard(tmpRoot, TEST_CONTEXT_SESSION_ID);
+    expect(board.retention?.purgeAfterArchiveMs).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  it('ignores a zero or unparseable purge window rather than deleting immediately', async () => {
+    for (const value of ['0', '-5', 'soon', '']) {
+      process.env[ENV] = value;
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), 'session-kanban-retention-bad-'));
+      try {
+        const board = await ensureSessionKanbanBoard(root, TEST_CONTEXT_SESSION_ID);
+        expect(
+          board.retention?.purgeAfterArchiveMs,
+          `value ${JSON.stringify(value)}`,
+        ).toBeUndefined();
+      } finally {
+        await fs.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
+      }
+    }
+  });
+});

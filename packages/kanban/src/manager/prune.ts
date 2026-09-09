@@ -77,6 +77,12 @@ export interface PruneSessionBoardsResult {
   archived: string[];
   deleted: string[];
   skipped: string[];
+  /**
+   * Boards sitting in the terminal `archive` state. Reported so the count is
+   * visible to a caller (and to `/kanban`) rather than growing silently —
+   * these are only removed when a board opts in with `purgeAfterArchiveMs`.
+   */
+  archivedRetained: string[];
 }
 
 /**
@@ -92,6 +98,22 @@ export interface PruneSessionBoardsResult {
  *
  * Boards with `retention.mode: 'keep'` or no TTL set are always skipped.
  * Non-session boards are never touched.
+ *
+ * ## The second stage
+ *
+ * Archiving used to be terminal. A board that archived became
+ * `kind: 'archive'`, which failed the `session_mirror` guard below, and it
+ * also carried `retention.archivedAt`, which failed the "already archived"
+ * guard — so nothing ever looked at it again. Archives accumulated with no
+ * ceiling, and a board configured `delete_after_ttl` could never actually be
+ * deleted once it had archived first.
+ *
+ * `retention.purgeAfterArchiveMs` is the missing second hop: when set, an
+ * archived board is deleted that long after `archivedAt`. It is deliberately
+ * opt-in with no default — an archive exists so history survives, and turning
+ * on silent deletion of the user's task history is their call, not ours.
+ * Without it the behaviour is exactly as before, except the retained archives
+ * are now counted in the result instead of being invisible.
  */
 export async function pruneSessionBoards(
   projectRoot: string,
@@ -105,10 +127,32 @@ export async function pruneSessionBoards(
     archived: [],
     deleted: [],
     skipped: [],
+    archivedRetained: [],
   };
 
   for (const summary of summaries) {
     const kind = summary.kind ?? 'project';
+
+    // Second stage: an already-archived board. Handled before the
+    // `session_mirror` guard below, because archiving rewrites `kind` to
+    // 'archive' — checking the guard first is what made this state terminal.
+    if (kind === 'archive') {
+      const archived = summary.retention;
+      if (!archived?.archivedAt || !archived.purgeAfterArchiveMs) {
+        // No purge opted in: keep it, but say so.
+        if (archived?.archivedAt) result.archivedRetained.push(summary.id);
+        else result.skipped.push(summary.id);
+        continue;
+      }
+      if (nowMs - Date.parse(archived.archivedAt) < archived.purgeAfterArchiveMs) {
+        result.archivedRetained.push(summary.id);
+        continue;
+      }
+      await deleteBoard(projectRoot, summary.id);
+      result.deleted.push(summary.id);
+      continue;
+    }
+
     if (kind !== 'session_mirror') {
       result.skipped.push(summary.id);
       continue;
@@ -120,9 +164,18 @@ export async function pruneSessionBoards(
       continue;
     }
 
-    // Already archived — skip.
+    // Already archived but still carrying `session_mirror` — a board written
+    // before the kind rewrite existed. Treated the same as the branch above.
     if (retention.archivedAt) {
-      result.skipped.push(summary.id);
+      if (
+        retention.purgeAfterArchiveMs &&
+        nowMs - Date.parse(retention.archivedAt) >= retention.purgeAfterArchiveMs
+      ) {
+        await deleteBoard(projectRoot, summary.id);
+        result.deleted.push(summary.id);
+      } else {
+        result.archivedRetained.push(summary.id);
+      }
       continue;
     }
 
@@ -149,6 +202,11 @@ export async function pruneSessionBoards(
       board.retention = {
         mode: retention.mode,
         ttlMs: retention.ttlMs,
+        // Carried through: dropping it here would strip the board's own purge
+        // policy at the exact moment it enters the state that policy governs.
+        ...(retention.purgeAfterArchiveMs !== undefined
+          ? { purgeAfterArchiveMs: retention.purgeAfterArchiveMs }
+          : {}),
         archivedAt: now,
       };
       board.updatedAt = now;

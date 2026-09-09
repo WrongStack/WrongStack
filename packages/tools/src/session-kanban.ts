@@ -52,6 +52,33 @@ export {
 const SESSION_BOARD_TAG = 'session-work';
 const MIRROR_DISABLED_ENV = 'WRONGSTACK_KANBAN_TASK_MIRROR';
 
+/**
+ * Days after archiving before a session board is deleted outright.
+ *
+ * Unset by default: a session mirror archives after a week and then stays,
+ * because the archive is the surviving record of what a session did. That is
+ * also why archives accumulate with no ceiling — set this when you would
+ * rather have the ceiling than the history. `0` or an unparseable value is
+ * treated as unset.
+ */
+const PURGE_AFTER_ARCHIVE_DAYS_ENV = 'WRONGSTACK_KANBAN_ARCHIVE_PURGE_DAYS';
+
+function sessionBoardRetention(): {
+  mode: 'archive_after_ttl';
+  ttlMs: number;
+  purgeAfterArchiveMs?: number;
+} {
+  const raw = Number.parseFloat(process.env[PURGE_AFTER_ARCHIVE_DAYS_ENV] ?? '');
+  const purgeDays = Number.isFinite(raw) && raw > 0 ? raw : undefined;
+  return {
+    mode: 'archive_after_ttl' as const,
+    ttlMs: 7 * 24 * 60 * 60 * 1000,
+    ...(purgeDays !== undefined
+      ? { purgeAfterArchiveMs: Math.round(purgeDays * 24 * 60 * 60 * 1000) }
+      : {}),
+  };
+}
+
 export const SESSION_KANBAN_COLUMNS: KanbanColumn[] = DEFAULT_COLUMNS.map((column) => ({
   ...column,
 }));
@@ -192,7 +219,7 @@ export async function ensureSessionKanbanBoard(
         columns: SESSION_KANBAN_COLUMNS,
         generatedBy: `session-kanban:${sessionId}`,
         kind: 'session_mirror' as const,
-        retention: { mode: 'archive_after_ttl' as const, ttlMs: 7 * 24 * 60 * 60 * 1000 },
+        retention: sessionBoardRetention(),
       });
     }
 

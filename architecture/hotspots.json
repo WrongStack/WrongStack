@@ -183,7 +183,7 @@
       "relativeImports": 10
     },
     "packages/kanban/src/types.ts": {
-      "lines": 992,
+      "lines": 1003,
       "relativeImports": 1
     },
     "packages/mcp/src/authorization.ts": {
@@ -315,7 +315,7 @@
       "relativeImports": 8
     },
     "packages/tools/src/session-kanban.ts": {
-      "lines": 837,
+      "lines": 864,
       "relativeImports": 4
     },
     "packages/tui/src/app-key-handler.ts": {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T07:48:27.592Z",
+  "generatedAt": "2026-09-09T08:14:31.496Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3698,
     "testFiles": 3184,
-    "sourceLines": 890099,
+    "sourceLines": 890195,
     "workspaceEdges": 127,
     "moduleEdges": 11675,
     "nonCommandSlashImports": 0,
@@ -20515,7 +20515,7 @@
     },
     {
       "file": "packages/kanban/src/types.ts",
-      "lines": 992,
+      "lines": 1003,
       "relativeImports": 1
     },
     {
@@ -20680,7 +20680,7 @@
     },
     {
       "file": "packages/tools/src/session-kanban.ts",
-      "lines": 837,
+      "lines": 864,
       "relativeImports": 4
     },
     {
@@ -21086,6 +21086,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/kanban/src/types.ts",
+      "lines": 1003,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
       "lines": 1002,
       "relativeImports": 2
@@ -21099,11 +21104,6 @@
       "file": "packages/core/src/types/session.ts",
       "lines": 994,
       "relativeImports": 4
-    },
-    {
-      "file": "packages/kanban/src/types.ts",
-      "lines": 992,
-      "relativeImports": 1
     },
     {
       "file": "packages/kanban/src/manager/assignment.ts",

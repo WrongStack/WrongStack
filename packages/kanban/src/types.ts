@@ -904,6 +904,17 @@ export interface KanbanBoardRetentionPolicy {
   ttlMs?: number | undefined;
   /** Set when the board was actually archived by the retention job. */
   archivedAt?: string | undefined;
+  /**
+   * Delete this board this long after `archivedAt`. Opt-in with no default:
+   * an archive exists so the history survives, so nothing is deleted unless a
+   * board asks for it.
+   *
+   * Without this, `archive` is a terminal state — the retention job cannot
+   * revisit an archived board, so archives accumulate with no ceiling and a
+   * `delete_after_ttl` board that archived first could never be deleted at
+   * all. See `pruneSessionBoards`.
+   */
+  purgeAfterArchiveMs?: number | undefined;
 }
 
 export interface KanbanBoard {
