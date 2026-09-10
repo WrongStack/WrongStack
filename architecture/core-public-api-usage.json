@@ -139,9 +139,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 147,
+      "files": 148,
       "typeOnly": 27,
-      "runtimeOrMixed": 124
+      "runtimeOrMixed": 125
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -8403,6 +8403,12 @@
       "file": "packages/cli/src/hq-server/routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/hq-server/routes/auth/password-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",

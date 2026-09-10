@@ -20,18 +20,11 @@ import { resolveClientAddress } from '../../client-address.js';
 import type { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
 import { readRequestBody } from '../../utils.js';
-import { type ApplyHqAuthFile, authorizeAuthAdmin } from './common.js';
+import { type ApplyHqAuthFile, authorizeAuthAdmin, recordVerifyFailure } from './common.js';
 
 const PENDING_2FA_TTL_MS = 5 * 60_000;
 let recoveryCodeLock: Promise<void> = Promise.resolve();
 const MAX_2FA_VERIFY_FAILURES = 5;
-
-function recordVerifyFailure(loginAttempts: LoginAttemptStore, clientIp: string): number {
-  const prev = loginAttempts.get(clientIp);
-  const count = (prev?.count ?? 0) + 1;
-  loginAttempts.recordFailure(clientIp);
-  return count;
-}
 
 export async function handleApiLoginVerify(
   req: http.IncomingMessage,

@@ -1,7 +1,23 @@
 import type * as http from 'node:http';
 import { type HqAuthFile, isLoopbackHost } from '@wrongstack/core/hq';
 import { authenticateBrowserRequest, type HqBrowserAuthResult } from '../../auth.js';
+import type { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
+
+/**
+ * Record a failed second-factor confirmation and return the new failure count.
+ *
+ * Shared by every route that verifies a factor outside `/api/login`
+ * (totp/disable, password change). Kept here rather than copied per route: the
+ * whole point is that each of those routes feeds the SAME per-IP counter, so a
+ * attacker cannot get a fresh budget by switching endpoints.
+ */
+export function recordVerifyFailure(loginAttempts: LoginAttemptStore, clientIp: string): number {
+  const prev = loginAttempts.get(clientIp);
+  const count = (prev?.count ?? 0) + 1;
+  loginAttempts.recordFailure(clientIp);
+  return count;
+}
 
 export function isLoopbackRequest(req: http.IncomingMessage): boolean {
   const address = req.socket.remoteAddress?.replace(/^::ffff:/, '');

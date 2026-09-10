@@ -6,6 +6,7 @@ import {
   mutateHqAuthFile,
   verifyHqPassword,
 } from '@wrongstack/core/hq';
+import { verifyTotp } from '@wrongstack/core/security';
 import {
   authenticateBrowserRequest,
   clearHqSessionCookie,
@@ -20,7 +21,7 @@ import { resolveClientAddress } from '../../client-address.js';
 import type { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
 import { readRequestBody, writeInvalidBody } from '../../utils.js';
-import { type ApplyHqAuthFile, isLoopbackRequest } from './common.js';
+import { type ApplyHqAuthFile, isLoopbackRequest, recordVerifyFailure } from './common.js';
 
 export async function handleApiAuthStatus(
   req: http.IncomingMessage,
@@ -204,6 +205,8 @@ export async function handleApiPassword(
   secureCookies: boolean | undefined,
   requireBrowserAuth: boolean | undefined,
   applyAuthFile: ApplyHqAuthFile,
+  loginAttempts: LoginAttemptStore,
+  trustedProxyHops: number,
 ): Promise<void> {
   const auth = authenticateBrowserRequest(
     req,
@@ -245,7 +248,7 @@ export async function handleApiPassword(
     );
   }
 
-  let body: { currentPassword?: unknown; newPassword?: unknown } = {};
+  let body: { currentPassword?: unknown; newPassword?: unknown; code?: unknown } = {};
   try {
     body = JSON.parse(await readRequestBody(req)) as typeof body;
   } catch {
@@ -254,23 +257,60 @@ export async function handleApiPassword(
     return;
   }
 
-  const hasAdminCapability =
-    auth !== undefined && 'capabilities' in auth && auth.capabilities?.includes('auth.admin');
+  // WS-SEC-05: holding `auth.admin` used to skip this proof entirely, so any
+  // principal with an admin browser token — a copy-pasteable string — could
+  // rotate `passwordHash` and `cookieSecret` and call `sessions.clear()`,
+  // locking the operator out until they edited auth.json by hand. That is a
+  // full takeover from a token that was never meant to *replace* the password.
+  //
+  // The contract now matches `/api/auth/totp/disable`, which is the strictly
+  // less damaging operation and always demanded a second factor: admin
+  // capability gates *reaching* the route, and changing the password still
+  // requires proving you hold one of the current factors.
+  //
+  // Two bypasses are deliberate and unchanged: `localOpenBootstrap` (first
+  // password on a loopback instance with nothing configured yet) and the case
+  // where no password is set, since there is then nothing to prove.
+  if (!localOpenBootstrap && mutableAuth.passwordHash !== undefined) {
+    const clientIp = resolveClientAddress(req, trustedProxyHops);
+    const { blocked, retryAfter } = loginAttempts.checkBlocked(clientIp);
+    if (blocked) {
+      res.writeHead(429, {
+        'Content-Type': 'application/json',
+        'Retry-After': String(retryAfter),
+      });
+      res.end(
+        JSON.stringify({
+          error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' },
+        }),
+      );
+      return;
+    }
 
-  if (!localOpenBootstrap && mutableAuth.passwordHash !== undefined && !hasAdminCapability) {
     const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
-    if (!currentPassword || !(await verifyHqPassword(currentPassword, mutableAuth.passwordHash))) {
+    let confirmed =
+      currentPassword.length > 0 &&
+      (await verifyHqPassword(currentPassword, mutableAuth.passwordHash));
+    // A TOTP code is accepted as the alternative factor, same as totp/disable —
+    // an operator who rotates a forgotten password still has a way in. The
+    // rate-limit above is what keeps a 6-digit code from being guessable.
+    if (!confirmed && typeof body.code === 'string' && mutableAuth.totpSecret) {
+      confirmed = verifyTotp(body.code, mutableAuth.totpSecret);
+    }
+    if (!confirmed) {
+      recordVerifyFailure(loginAttempts, clientIp);
       res.writeHead(403, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
           error: {
             code: 'INVALID_CURRENT_PASSWORD',
-            message: 'Current password is required to change or remove it.',
+            message: 'Current password or a TOTP code is required to change or remove it.',
           },
         }),
       );
       return;
     }
+    loginAttempts.delete(clientIp);
   }
 
   if (req.method === 'DELETE') {

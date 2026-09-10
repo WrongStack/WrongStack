@@ -302,6 +302,26 @@ describe('WS-102 — end to end over HTTP', () => {
     expect((await res.json()) as { enabled: boolean }).toMatchObject({ enabled: false });
   });
 
+  /**
+   * WS-SEC-05. `handleApiPassword` short-circuited its current-password proof
+   * on `auth.admin`, so this token — a copy-pasteable string — could rotate
+   * `passwordHash` + `cookieSecret` and clear every session, locking the
+   * operator out until they hand-edited auth.json. Reaching the route is what
+   * the capability grants; it is not a substitute for the factor.
+   */
+  it('an auth.admin token cannot rotate the password without proving a factor', async () => {
+    const res = await fetch(`http://${handle!.host}:${handle!.port}/api/auth/password`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${ADMIN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPassword: 'attacker-chosen-123' }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe(
+      'INVALID_CURRENT_PASSWORD',
+    );
+  });
+
   it('the scoped token keeps the capability it was granted', async () => {
     const res = await fetch(`http://${handle!.host}:${handle!.port}/api/snapshot`, {
       headers: { Authorization: `Bearer ${SCOPED}` },

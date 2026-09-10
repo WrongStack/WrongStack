@@ -346,6 +346,17 @@ describe('HQ server — optional browser password login', () => {
     });
     expect(rejected.status).toBe(403);
 
+    // WS-SEC-05: a failed proof now costs the same exponential backoff
+    // `/api/login` applies, so this route cannot be used as an unrated
+    // password oracle. First failure blocks the IP for 2s.
+    const tooSoon = await fetch(httpUrl(handle, '/api/auth/password'), {
+      method: 'POST',
+      headers: { Cookie: cookie!, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword: 'secret123', newPassword: 'new-secret-123' }),
+    });
+    expect(tooSoon.status).toBe(429);
+    await new Promise((resolve) => setTimeout(resolve, 2_100));
+
     const changed = await fetch(httpUrl(handle, '/api/auth/password'), {
       method: 'POST',
       headers: { Cookie: cookie!, 'Content-Type': 'application/json' },
@@ -373,6 +384,9 @@ describe('HQ server — optional browser password login', () => {
       body: '{}',
     });
     expect(rejected.status).toBe(403);
+
+    // WS-SEC-05 backoff — see the rotation test above.
+    await new Promise((resolve) => setTimeout(resolve, 2_100));
 
     // With correct currentPassword → succeeds
     const response = await fetch(httpUrl(handle, '/api/auth/password'), {

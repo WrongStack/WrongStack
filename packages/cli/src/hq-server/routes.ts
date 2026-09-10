@@ -465,6 +465,8 @@ export function createHqRouter(
           secureCookies,
           requireBrowserAuth,
           applyAuthFile,
+          loginAttempts,
+          trustedProxyHops,
         );
         return;
       }
