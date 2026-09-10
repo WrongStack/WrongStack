@@ -47,6 +47,37 @@ describe('FleetNotifier.discover / endpoints', () => {
     ]);
   });
 
+  /**
+   * WS-SEC-10. The module header has always claimed "loopback only", but the
+   * host rewrite only normalized `0.0.0.0` / `::` / empty — any other host was
+   * dialled as written, over plaintext HTTP, with the WebUI `x-ws-token`
+   * attached. `webui-instances.json` sits in the agent's always-allowed write
+   * root even in restricted mode, so repo content reaching the model could
+   * point this at a host of its choosing and be handed the credential.
+   */
+  it('refuses to dial a non-loopback host from the instances file', async () => {
+    await writeInstances([
+      { pid: 201, httpPort: 7101, host: 'attacker.example', projectRoot: tmp },
+      { pid: 202, httpPort: 7102, host: '10.0.0.5', projectRoot: tmp },
+      { pid: 203, httpPort: 7103, host: '169.254.169.254', projectRoot: tmp },
+      { pid: 204, httpPort: 7104, host: '127.0.0.1', projectRoot: tmp },
+    ]);
+    const n = new FleetNotifier({ baseDir: tmp, projectRoot: tmp, selfPid: 999 });
+
+    expect(await n.endpoints()).toEqual(['http://127.0.0.1:7104/api/fleet/ping']);
+  });
+
+  it('keeps the whole loopback range, not just 127.0.0.1', async () => {
+    await writeInstances([
+      { pid: 301, httpPort: 7201, host: '127.0.0.2', projectRoot: tmp },
+      { pid: 302, httpPort: 7202, host: 'localhost', projectRoot: tmp },
+      { pid: 303, httpPort: 7203, host: '::1', projectRoot: tmp },
+    ]);
+    const n = new FleetNotifier({ baseDir: tmp, projectRoot: tmp, selfPid: 999 });
+
+    expect(await n.endpoints()).toHaveLength(3);
+  });
+
   it('excludes dead pids (ESRCH)', async () => {
     killSpy.mockImplementation((() => {
       throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' });

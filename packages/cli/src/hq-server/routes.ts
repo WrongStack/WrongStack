@@ -255,6 +255,10 @@ export function createHqRouter(
           listeningPort(),
           trustedPublicOrigins,
           allowFileOrigin,
+          // WS-SEC-06: tells the guard whether anything else can authenticate
+          // this request. In open mode a missing Origin is only acceptable on
+          // a loopback bind.
+          HqServerAuth.hqAuthRequired(mutableAuth, requireBrowserAuth),
         )
       ) {
         res.writeHead(403, { 'Content-Type': 'application/json' });

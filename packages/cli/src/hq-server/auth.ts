@@ -160,6 +160,15 @@ export function hasTrustedBrowserOrigin(
   boundPort?: number,
   trustedPublicOrigins: ReadonlySet<string> = new Set(),
   allowFileOrigin = false,
+  /**
+   * Whether this surface has any credential configured — pass
+   * `hqAuthRequired(mutableAuth, requireBrowserAuth)`.
+   *
+   * Defaults to `false`, the STRICT side, deliberately: a caller that forgets
+   * to wire it gets the tighter rule rather than the looser one. That is the
+   * opposite of how the WS-077 gates drifted.
+   */
+  credentialedSurface = false,
 ): boolean {
   // Host authorization is required even when browsers omit Origin (notably on
   // same-origin GET/HEAD). Otherwise DNS rebinding can still read open-mode HQ
@@ -169,7 +178,26 @@ export function hasTrustedBrowserOrigin(
   const origin = req.headers.origin;
   // Non-browser clients commonly omit Origin, but their Host authority still
   // has to identify the configured HQ endpoint.
-  if (origin === undefined) return true;
+  if (origin === undefined) {
+    // WS-SEC-06: in open mode nothing else authenticates the request, so this
+    // branch WAS the whole control on `/ws/browser`, `/ws/client` and
+    // `POST /api/command` — and it admits any client that simply omits Origin,
+    // which every non-browser client does. On a loopback bind that is the
+    // accepted local-trust boundary. Off loopback it is not: `--insecure-open`
+    // exists precisely to allow open mode on a public bind, and the refuse
+    // message offers it as one of four remedies, so this is a configuration
+    // the product invites rather than a corner case. `curl` from any peer on
+    // the network would then drive the fleet control plane uncredentialed.
+    //
+    // WebUI closed the same branch under WS-005 by demanding a token; HQ
+    // cannot, because open mode means no token exists. Restricting the branch
+    // to loopback keeps the documented local open-mode workflow working
+    // unchanged and removes only the networked case.
+    if (!credentialedSurface) {
+      return boundHost !== undefined && isLoopbackHost(boundHost);
+    }
+    return true;
+  }
   try {
     const parsed = new URL(origin);
     // `file:` origins support serving the HQ dashboard from a local file for

@@ -68,6 +68,43 @@ describe('HQ browser origin validation', () => {
     ).toBe(true);
   });
 
+  /**
+   * WS-SEC-06. A missing Origin used to be trusted on any bind, so in open mode
+   * — no token, no password — `curl` from any peer on the network reached
+   * `/ws/browser`, `/ws/client` and `POST /api/command` uncredentialed. That is
+   * not hypothetical: `--insecure-open` is one of the four remedies HQ's own
+   * refuse message offers for binding open mode to a public address.
+   *
+   * Loopback keeps working, because that is the documented local open-mode
+   * workflow and the accepted local-trust boundary.
+   */
+  it('rejects a no-Origin request on a public bind when nothing authenticates it', () => {
+    expect(hasTrustedBrowserOrigin(request(undefined, '192.168.1.20:3499'), '0.0.0.0', 3499)).toBe(
+      false,
+    );
+  });
+
+  it('still accepts a no-Origin request on a public bind once a credential exists', () => {
+    // curl with a token against a LAN-bound HQ — the auth gate downstream is
+    // what checks the token; the origin guard must not pre-empt it.
+    expect(
+      hasTrustedBrowserOrigin(
+        request(undefined, '192.168.1.20:3499'),
+        '0.0.0.0',
+        3499,
+        new Set(),
+        false,
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts a no-Origin request on a loopback bind in open mode', () => {
+    expect(hasTrustedBrowserOrigin(request(undefined, '127.0.0.1:3499'), '127.0.0.1', 3499)).toBe(
+      true,
+    );
+  });
+
   it('rejects a different browser origin even when it claims forwarded headers', () => {
     const req = request('https://evil.example', 'quiet-river.trycloudflare.com');
     req.headers['x-forwarded-host'] = 'evil.example';

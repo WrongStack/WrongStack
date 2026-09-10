@@ -18,13 +18,16 @@
  *   per ~50ms so we never hammer the WebUI per token.
  * - **Discovery cached** for a couple seconds to avoid a disk read per event.
  * - **Loopback only / self-excluded.** Targets the local instances file; a
- *   `0.0.0.0`/`::` bind is dialled on `127.0.0.1`, and the caller's own pid is
- *   skipped so a WebUI never pings itself.
+ *   `0.0.0.0`/`::` bind is dialled on `127.0.0.1`, any non-loopback host is
+ *   dropped outright (WS-SEC-10 — this claim used to be a comment rather than
+ *   a check), and the caller's own pid is skipped so a WebUI never pings
+ *   itself.
  *
  * @module fleet-notifier
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { isLoopbackHost } from '../hq/exposure.js';
 import { isPidAlive } from '../utils/pid.js';
 
 const INSTANCES_FILE = 'webui-instances.json';
@@ -50,6 +53,8 @@ interface InstanceRecordLike {
 
 /** A ping target: where to POST, and the token that authenticates it. */
 interface PingTarget {
+  /** Resolved host, kept so the loopback filter can assert on it (WS-SEC-10). */
+  host: string;
   url: string;
   token?: string | undefined;
 }
@@ -145,18 +150,30 @@ export class FleetNotifier {
       const raw = await fs.readFile(path.join(this.baseDir, INSTANCES_FILE), 'utf8');
       const data = JSON.parse(raw) as { instances?: InstanceRecordLike[] };
       const list = Array.isArray(data?.instances) ? data.instances : [];
-      return list
-        .filter((i) => i && typeof i.httpPort === 'number')
-        .filter((i) => i.pid !== this.selfPid)
-        .filter((i) => normRoot(i.projectRoot) === this.projectRoot)
-        .filter((i) => pidAlive(i.pid))
-        .map((i) => {
-          const host = i.host === '0.0.0.0' || i.host === '::' || !i.host ? '127.0.0.1' : i.host;
-          return {
-            url: `http://${host}:${i.httpPort}/api/fleet/ping`,
-            token: typeof i.authToken === 'string' ? i.authToken : undefined,
-          };
-        });
+      return (
+        list
+          .filter((i) => i && typeof i.httpPort === 'number')
+          .filter((i) => i.pid !== this.selfPid)
+          .filter((i) => normRoot(i.projectRoot) === this.projectRoot)
+          .filter((i) => pidAlive(i.pid))
+          .map((i) => {
+            const host = i.host === '0.0.0.0' || i.host === '::' || !i.host ? '127.0.0.1' : i.host;
+            return {
+              host,
+              url: `http://${host}:${i.httpPort}/api/fleet/ping`,
+              token: typeof i.authToken === 'string' ? i.authToken : undefined,
+            };
+          })
+          // WS-SEC-10: the module header above has always claimed "loopback
+          // only", but the rewrite on the previous line only normalizes the two
+          // wildcard binds — any OTHER host in the instances file was dialled as
+          // written, over plaintext HTTP, with `x-ws-token` attached. That token
+          // authorizes the WebUI control API, and `webui-instances.json` sits in
+          // the agent's always-allowed write root even in restricted mode, so
+          // repo content that reaches the model could point this at a host it
+          // chose and be handed the credential. Enforce the claim.
+          .filter((t) => isLoopbackHost(t.host))
+      );
     } catch {
       // Missing/corrupt instances file → no WebUIs to notify.
       return [];

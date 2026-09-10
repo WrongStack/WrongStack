@@ -70,6 +70,9 @@ export function handleHqUpgrade(
       deps.listeningPort(),
       deps.trustedPublicOrigins,
       deps.allowFileOrigin,
+      // WS-SEC-06 — see the guard. `/ws/browser` and `/ws/client` are the two
+      // surfaces this branch left uncontrolled in open mode.
+      HqServerAuth.hqAuthRequired(deps.mutableAuth, deps.requireBrowserAuth),
     )
   ) {
     socket.write(
