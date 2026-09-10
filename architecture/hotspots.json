@@ -115,8 +115,8 @@
       "relativeImports": 15
     },
     "packages/core/src/core/system-prompt-builder.ts": {
-      "lines": 957,
-      "relativeImports": 24
+      "lines": 965,
+      "relativeImports": 25
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
       "lines": 973,

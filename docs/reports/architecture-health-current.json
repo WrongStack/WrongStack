@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-10T12:39:21.837Z",
+  "generatedAt": "2026-09-10T13:09:58.207Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 36,
     "sourceFiles": 3718,
     "testFiles": 3228,
-    "sourceLines": 899228,
+    "sourceLines": 899277,
     "workspaceEdges": 127,
-    "moduleEdges": 11796,
+    "moduleEdges": 11798,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -20694,8 +20694,8 @@
     },
     {
       "file": "packages/core/src/core/system-prompt-builder.ts",
-      "lines": 957,
-      "relativeImports": 24
+      "lines": 965,
+      "relativeImports": 25
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
