@@ -3,11 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { TerminalLifecycle, writeErr } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
-import { render } from 'ink';
 import React from 'react';
 import { App } from './app.js';
 import { ALT_SCREEN_OFF, ALT_SCREEN_ON, MOUSE_OFF } from './mouse.js';
 import { resolveTuiLaunchPlan } from './run-tui-launch.js';
+import { mountInkApp } from './run-tui-mount.js';
 import type { RunTuiOptions } from './run-tui-options.js';
 import { setupTuiSession } from './run-tui-session.js';
 import { createDurableTeardown } from './run-tui-teardown.js';
@@ -400,12 +400,14 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     // Wire requestExit to the options so the App can call it
     opts.requestExit = requestExit;
 
-    let instance: ReturnType<typeof render>;
+    // Ink mount handle — hoisted so the waitUntilExit wiring below (outside
+    // the try) can reach it. Assigned by mountInkApp inside the try.
+    let mount: ReturnType<typeof mountInkApp>;
 
     // Physically clear the visible screen + scrollback on `/clear`.
-    // Notably we do NOT call `instance?.clear()` and do NOT emit `\x1b[H`.
+    // Notably we do NOT call the Ink Instance's clear() and do NOT emit \x1b[H.
     //
-    // Ink's `instance.clear()` calls logUpdate.clear() (which erases Ink's
+    // Ink's Instance.clear() calls logUpdate.clear() (which erases Ink's
     // output and resets the line tracker) then logUpdate.sync(oldOutput)
     // (which sets the tracker back to the OLD output dimensions).  Since
     // the terminal is already empty after the clear, logUpdate now thinks
@@ -441,8 +443,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       // setRawMode call before Ink takes over stdin, closing the Windows ConPTY
       // readline→Ink handoff race (acquire is idempotent).
       lifecycle.acquire(stdin);
-      instance = render(
-        React.createElement(App, {
+      const appElement = React.createElement(App, {
           agent: opts.agent,
           slashRegistry: opts.slashRegistry,
           skillLoader: opts.skillLoader,
@@ -568,22 +569,33 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
           onCoordinatorFail: opts.onCoordinatorFail,
           onCoordinatorStatus: opts.onCoordinatorStatus,
           memoryStore: opts.memoryStore,
-        }),
-        {
-          exitOnCtrlC: false,
-          stdin: inkStdin,
-          // Bound reconciliation/tokenization work for large live histories
-          // while preserving responsive streamed output.
-          maxFps: 10,
+      });
+      // Render + inkStdin wiring + raw-Ctrl+C arming + resize erase moved
+      // verbatim into mountInkApp (decomposition Phase 1 R3 —
+      // docs/decomposition-plan.md). Its internal catch reports through
+      // onStartupFailure and returns null; the catch below stays as a
+      // last-resort safety net for this try's terminal-mode setup.
+      mount = mountInkApp({
+        appElement,
+        inkStdin,
+        stdout,
+        onRawCtrlC,
+        onStartupFailure: (err) => {
+          writeErr(
+            `wstack: TUI failed to start: ${err instanceof Error ? err.message : String(err)}\n`,
+          );
+          void opts.agent.ctx.session
+            .close()
+            .catch(() => undefined)
+            .finally(() => settle(1));
         },
-      );
+      });
+      if (!mount) return;
       // Wire the hoisted reference so signal handlers can unmount Ink.
-      inkInstance = instance;
-      // Arm the last-resort raw Ctrl+C watcher now that Ink owns stdin —
-      // attaching a 'data' listener earlier would flip the stream into
-      // flowing mode before Ink mounts and drop boot-time keystrokes.
-      inkStdin.on('data', onRawCtrlC);
+      inkInstance = mount.instance;
     } catch (err) {
+      // Safety net for the terminal-mode setup above — mountInkApp reports
+      // its own mount failures through onStartupFailure and returns null.
       writeErr(
         `wstack: TUI failed to start: ${err instanceof Error ? err.message : String(err)}\n`,
       );
@@ -593,35 +605,14 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
         .finally(() => settle(1));
       return;
     }
-    // Terminal reflows visible text on resize BEFORE Ink can react, which can
-    // leave ghosts below the cursor. Erase from-cursor-to-end on every resize
-    // to minimize artifacts. Ink immediately re-renders at the new width.
-    let detachResize: (() => void) | null = null;
-    const onResize = () => {
-      try {
-        // \x1b[J = erase from cursor to end of screen. Does NOT touch
-        // anything above the cursor, so committed Static history in
-        // scrollback is preserved. Ink's useStdout subscriber will
-        // immediately re-render the live region at the new width.
-        // Do NOT prefix with \x1b[H: homing to (0,0) erases the visible
-        // committed output and repositions the live region (input + status
-        // bar) at the top of the viewport instead of the bottom.
-        stdout.write('\x1b[J');
-      } catch {
-        // stdout might be detached mid-shutdown — ignore.
-      }
-    };
-    stdout.on('resize', onResize);
-    detachResize = () => stdout.off('resize', onResize);
-
-    instance
+    mount.instance
       .waitUntilExit()
       .then(() => {
-        detachResize?.();
+        mount.detachResize();
         settle(runExitCode);
       })
       .catch(() => {
-        detachResize?.();
+        mount.detachResize();
         settle(1);
       });
   });
