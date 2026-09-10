@@ -1,0 +1,297 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > @ opens the file picker 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 1,
+  "setDraftBuffer": "@",
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > F2 toggles the fleet monitor overlay 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [
+    "toggleMonitor",
+  ],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > backspace deletes the last buffered character 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 1,
+  "setDraftBuffer": "a",
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > bracketed paste accumulates and commits on the end marker 1`] = `
+{
+  "commitPaste": 1,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > ctrl+b opens the sdd board monitor 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [
+    "toggleSddBoardMonitor",
+  ],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > ctrl+c escalates the interrupt ladder before any other route 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 1,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > ctrl+y toggles the kanban panel 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [
+    "toggleKanbanPanel",
+  ],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > double esc inside the window clears the buffer 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [
+    "clearInput",
+  ],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > enter submits the composer draft 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 1,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > esc exits bash mode instead of touching the interrupt ladder 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [
+    "bashModeExit",
+  ],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > esc with an open sessions panel routes the panel close 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [
+    "toggleSessionsPanel",
+  ],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > pageUp pages the chat history viewport 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > plain character lands in the composer buffer 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 1,
+  "setDraftBuffer": "x",
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > question mark on an empty draft opens help 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [
+    "toggleHelp",
+  ],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > shift+tab on an empty draft toggles sidebar focus 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [
+    "toggleSidebarFocus",
+  ],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > single esc with empty buffer only arms the double-esc window 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > slash at buffer start opens the command picker 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 1,
+  "setDraftBuffer": "/",
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > stray newline from crlf terminals normalizes to enter 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 1,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > upArrow on an empty buffer recalls input history 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
+
+exports[`createAppKeyHandler replay corpus (decomposition Phase 0.3) > wheel up in mouse mode scrolls the history viewport 1`] = `
+{
+  "commitPaste": 0,
+  "dispatch": [],
+  "ladder": 0,
+  "loadLiveSessions": 0,
+  "openProjectPicker": 0,
+  "openStatuslinePicker": 0,
+  "setDraft": 0,
+  "setDraftBuffer": null,
+  "submit": 0,
+}
+`;
