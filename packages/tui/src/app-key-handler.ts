@@ -22,6 +22,8 @@ import {
 } from './hit-test.js';
 import { type DOMElement, measureElement } from './ink.js';
 import { routeInputKey } from './input-key-router.js';
+import type { KeyRouteContext } from './key-handler-context.js';
+import { routePastePipeline } from './key-routes/key-route-paste.js';
 import {
   overlayPointerKey,
   routeBusyInterruptKey,
@@ -29,7 +31,7 @@ import {
   routePanelEscapeKey,
   routeSettingsOverlayKey,
 } from './overlay-key-router.js';
-import { feedPaste, type PasteAccumState } from './paste-accumulator.js';
+import type { PasteAccumState } from './paste-accumulator.js';
 import { estimateSidebarMaxScroll } from './reducers/workspace-panels.js';
 import { sddLifecycleEntry } from './sdd-lifecycle-entry.js';
 
@@ -41,7 +43,7 @@ export function stopNextStepsAutoSubmitOnKey(cancel: () => void): void {
   cancel();
 }
 
-interface AppKeyHandlerOptions {
+export interface AppKeyHandlerOptions {
   state: State;
   dispatch: Dispatch<Action>;
   historyScrollRef: MutableRefObject<HistoryScrollController | null>;
@@ -162,7 +164,6 @@ export function createAppKeyHandler(
     inputGateRef,
     lastEscAtRef,
     pasteAccumRef,
-    pasteFlushTimerRef,
     commitPaste,
     tryPickerKey,
     dismissedEscAtRef,
@@ -236,6 +237,9 @@ export function createAppKeyHandler(
     });
   };
 
+  // Shared view for the ordered route modules (decomposition Phase 3).
+  const ctx: KeyRouteContext = { ...options, stdout, historyWidth, detach };
+
   const handleKey = async (input: string, key: KeyEvent) => {
     // Any key is an explicit user takeover. Stop both the final-ten-second
     // sweep and its armed submit before routing the key, including keys owned
@@ -302,50 +306,12 @@ export function createAppKeyHandler(
     }
 
     // ── Bracketed-paste accumulation ──────────────────────────────────
-    // Must run before the Enter/key handling below: a paste split across
-    // events can land a fragment that is exactly "\n", which would
-    // otherwise be read as Enter and submit mid-paste. The begin marker
-    // (\x1b[200~, or a bare [200~ when Ink ate the ESC) opens accumulation;
-    // we swallow every fragment until the end marker (\x1b[201~ / [201~),
-    // then finalize the whole payload at once.
-    if (input) {
-      // Unfocus sidebar before processing paste so the buffer receives focus.
-      if (state.sidebarFocused) {
-        dispatch({ type: 'toggleSidebarFocus' });
-      }
-      const paste = feedPaste(pasteAccumRef.current, input);
-      if (paste) {
-        pasteAccumRef.current = paste.accum;
-        if (pasteFlushTimerRef.current) clearTimeout(pasteFlushTimerRef.current);
-        if (paste.error) {
-          if (paste.accum !== null) {
-            pasteFlushTimerRef.current = setTimeout(() => {
-              pasteFlushTimerRef.current = null;
-              pasteAccumRef.current = null;
-            }, 500);
-          } else {
-            pasteFlushTimerRef.current = null;
-          }
-          dispatch({ type: 'addEntry', entry: { kind: 'error', text: paste.error } });
-          return;
-        }
-        if (paste.complete !== null) {
-          pasteFlushTimerRef.current = null;
-          await commitPaste(paste.complete);
-          return;
-        }
-        pasteFlushTimerRef.current = setTimeout(() => {
-          pasteFlushTimerRef.current = null;
-          const full = pasteAccumRef.current;
-          pasteAccumRef.current = null;
-          // Runs on the TIMER stack, where nothing above can catch it — unlike
-          // the other `commitPaste` call sites, which are awaited inside
-          // `handleKey` (and so covered by `useStableKeyHandler`'s catch).
-          if (typeof full === 'string' && full) detach(commitPaste(full), 'Paste');
-        }, 500);
-        return;
-      }
-    }
+    // Moved verbatim to routePastePipeline (key-routes/key-route-paste.ts,
+    // decomposition Phase 3). The begin marker (\x1b[200~) opens accumulation;
+    // fragments accumulate until the end marker (\x1b[201~), then the whole
+    // payload finalizes at once — before Enter handling, so a "\n" fragment
+    // inside a paste never submits mid-paste.
+    if (await routePastePipeline(ctx, input)) return;
 
     // Some terminals emit \r\n for Enter as two separate stdin events.
     // \r arrives with key.return=true (handled below); \n may arrive as
