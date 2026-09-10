@@ -1,5 +1,5 @@
 import type { TrustBoundary } from '@wrongstack/core/security';
-import { shell, WebContentsView, type BaseWindow } from 'electron';
+import { type BaseWindow, shell, WebContentsView } from 'electron';
 import type {
   DesktopWebuiCommand,
   DesktopWebuiPrefs,
@@ -51,6 +51,9 @@ export class DesktopWebuiController {
       capability: 'url.open-external',
       subject: { kind: 'url', id: target, attributes: { protocol } },
       risk: 'elevated',
+      // Reached from the WebUI view, whose content is remote and reflects agent
+      // and tool output (WS-SEC-03).
+      origin: 'remote-client',
       metadata: { operation: 'webui-navigation' },
     })
       .then((decision) => (decision.allowed ? void shell.openExternal(target) : undefined))

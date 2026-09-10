@@ -4,6 +4,7 @@ import {
   authorizeDesktopAction,
   authorizeDesktopRuntimeStart,
   authorizeDesktopRuntimeStop,
+  desktopCompatibilityTrustBoundary,
 } from '../src/main/desktop-privileged-actions.js';
 
 describe('Desktop privileged action adapter', () => {
@@ -16,6 +17,7 @@ describe('Desktop privileged action adapter', () => {
       capability: 'url.open-external',
       subject: { kind: 'url', id: 'https://example.test' },
       risk: 'elevated',
+      origin: 'user',
       metadata: { operation: 'test' },
     });
 
@@ -29,6 +31,54 @@ describe('Desktop privileged action adapter', () => {
         authContext: { method: 'local-process', principalId: 'desktop-user' },
       }),
     );
+  });
+
+  /**
+   * WS-SEC-03. The actor used to be hardcoded to `user` at every call site,
+   * and `createCompatibilityTrustBoundary` only ever denies `remote-client` —
+   * so no desktop authorization could ever come back denied, whatever the
+   * policy said. These two assert the request now carries the real origin.
+   */
+  it('attributes a WebUI-view action to remote-client, not the shell user', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const evaluate = vi.fn(async () => ({ kind: 'allow' as const, reason: 'ok' }));
+
+    await authorizeDesktopAction(
+      { evaluate },
+      {
+        capability: 'url.open-external',
+        subject: { kind: 'url', id: 'https://example.test' },
+        risk: 'elevated',
+        origin: 'remote-client',
+      },
+    );
+
+    expect(evaluate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: { kind: 'remote-client', id: 'desktop-webui-view' },
+        authContext: { method: 'local-process', principalId: 'desktop-webui-view' },
+      }),
+    );
+  });
+
+  it('the shipped desktop policy denies a high-risk action from the WebUI view', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const denied = await authorizeDesktopAction(desktopCompatibilityTrustBoundary, {
+      capability: 'process.spawn',
+      subject: { kind: 'command', id: 'anything' },
+      risk: 'high',
+      origin: 'remote-client',
+    });
+    const allowed = await authorizeDesktopAction(desktopCompatibilityTrustBoundary, {
+      capability: 'process.spawn',
+      subject: { kind: 'command', id: 'anything' },
+      risk: 'high',
+      origin: 'user',
+    });
+
+    expect(denied.allowed).toBe(false);
+    expect(allowed.allowed).toBe(true);
   });
 
   it('authorizeDesktopRuntimeStart emits process.spawn with command subject', async () => {

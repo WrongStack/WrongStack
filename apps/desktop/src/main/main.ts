@@ -11,62 +11,58 @@
  *   - state/      → Types and constants
  */
 import * as path from 'node:path';
+import { watchProviderConfig } from '@wrongstack/core/storage';
 import { installCrashShield, resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   app,
   BaseWindow,
+  type BaseWindowConstructorOptions,
   dialog,
   screen,
   shell,
   WebContentsView,
-  type BaseWindowConstructorOptions,
 } from 'electron';
-import { drainPendingOpenFilePath, firstOpenFileArg, initMacOS } from './macos-platform.js';
 import type { DesktopWebuiPrefs } from '../shared/types.js';
-import type { IpcHandlerContext, IRuntimeManager } from './state/types.js';
 import { DesktopAgentBridge } from './agent-bridge.js';
-import {
-  authorizeDesktopAction,
-  desktopCompatibilityTrustBoundary,
-} from './desktop-privileged-actions.js';
-import { IPC } from './ipc.js';
-import { getMainLocale, setMainLocale, tMain } from './i18n-main.js';
+import { loadDesktopAppIcon } from './app-icon.js';
 import {
   desktopConfigPaths,
   readUiLocale,
   resolveActiveProfileConfigPath,
   writeUiLocale,
 } from './desktop-config-io.js';
-import { DesktopRuntimeManager, preloadPath, rendererIndexPath } from './runtime-manager.js';
-import { watchProviderConfig } from '@wrongstack/core/storage';
-import { DesktopWebuiController } from './webui/controller.js';
-import { allowedExternalProtocol } from './webui/navigation.js';
-import { loadDesktopAppIcon } from './app-icon.js';
-import { DesktopWindowStateController } from './window-state-controller.js';
+import {
+  authorizeDesktopAction,
+  desktopCompatibilityTrustBoundary,
+} from './desktop-privileged-actions.js';
+import { getMainLocale, setMainLocale, tMain } from './i18n-main.js';
+import { IPC } from './ipc.js';
+// IPC handler module
+import { registerIpcHandlers as registerExtractedIpcHandlers } from './ipc-handlers/index.js';
+// Layout module
+import { getSidebarWidth } from './layout/index.js';
+import { drainPendingOpenFilePath, firstOpenFileArg, initMacOS } from './macos-platform.js';
+// Menu module
+import { configureApplicationMenu as buildMenu } from './menu/index.js';
+import type { MenuBuilderContext } from './menu/types.js';
 import {
   activateRuntime as activateRuntimeOperation,
   closeRuntime as closeRuntimeOperation,
   openProject as openProjectOperation,
   openProjectSession as openProjectSessionOperation,
   openSettings as openSettingsOperation,
+  type RuntimeOperationsContext,
   registerProject as registerProjectOperation,
   restoreLastWorkspace as restoreLastWorkspaceOperation,
   unregisterProject as unregisterProjectOperation,
-  type RuntimeOperationsContext,
 } from './runtime/operations.js';
-
-// Layout module
-import { getSidebarWidth } from './layout/index.js';
-
-// Menu module
-import { configureApplicationMenu as buildMenu } from './menu/index.js';
-import type { MenuBuilderContext } from './menu/types.js';
-
-// IPC handler module
-import { registerIpcHandlers as registerExtractedIpcHandlers } from './ipc-handlers/index.js';
-
+import { DesktopRuntimeManager, preloadPath, rendererIndexPath } from './runtime-manager.js';
 // Constants — centralized in state/constants.ts to avoid duplication
 import { MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH } from './state/constants.js';
+import type { IpcHandlerContext, IRuntimeManager } from './state/types.js';
+import { DesktopWebuiController } from './webui/controller.js';
+import { allowedExternalProtocol } from './webui/navigation.js';
+import { DesktopWindowStateController } from './window-state-controller.js';
 
 // macOS initialisation — must run before app.whenReady to ensure
 // activation policy, open-file queuing, and Dock menu are registered
@@ -128,6 +124,7 @@ function safeOpenExternal(target: string): void {
       capability: 'url.open-external',
       subject: { kind: 'url', id: target, attributes: { protocol } },
       risk: 'elevated',
+      origin: 'user',
       metadata: { operation: 'open-external' },
     }).then((authorization) => {
       if (authorization.allowed) return shell.openExternal(target);
@@ -149,6 +146,7 @@ function revealInExplorer(root: string): void {
     capability: 'filesystem.open-native',
     subject: { kind: 'path', id: root, attributes: { target: 'file-manager' } },
     risk: 'elevated',
+    origin: 'user',
     cwd: root,
     metadata: { operation: 'reveal-in-explorer' },
   }).then((authorization) => {
