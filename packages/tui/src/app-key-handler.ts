@@ -4,7 +4,6 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Action } from './app-action-type.js';
 import type { AppProps } from './app-props.js';
 import type { State } from './app-state.js';
-import { effectivePanelPositions } from './app-ui-state.js';
 import { AUTONOMY_OPTIONS } from './components/autonomy-picker.js';
 import { DEFAULT_INPUT_PROMPT, type KeyEvent } from './components/input.js';
 import type { HistoryScrollController } from './components/scrollable-history.js';
@@ -12,8 +11,6 @@ import { SELECTION_COPY_ID } from './components/scrollable-history.js';
 import { sidebarOffsetForCell } from './components/sidebar-scrollbar.js';
 import type { StatusBarClickMap } from './components/status-bar-types.js';
 import { STATUSLINE_ITEMS, type StatuslineItem } from './components/statusline-picker.js';
-import { escCloseAction, escSelfOwnedPanelOpen } from './esc-close-panels.js';
-import { actionForFKeyPanel, fKeyEntryFor } from './f-key-panels.js';
 import {
   hitRegion,
   isHistoryScrollTarget,
@@ -24,18 +21,21 @@ import { type DOMElement, measureElement } from './ink.js';
 import { routeInputKey } from './input-key-router.js';
 import type { KeyRouteContext } from './key-handler-context.js';
 import { routeBusyInterrupt, routeCtrlCEscalation } from './key-routes/key-route-busy.js';
-import { routePastePipeline } from './key-routes/key-route-paste.js';
 import {
-  overlayPointerKey,
-  routeModalOverlayKey,
-  routePanelEscapeKey,
-  routeSettingsOverlayKey,
-} from './overlay-key-router.js';
+  routeChordPanels,
+  routeDoubleEsc,
+  routeEscClosePanels,
+  routeFKeyPanels,
+  routeModalOverlay,
+  routePanelEscapeRouter,
+  routeSddBoard,
+  routeSettingsOverlay,
+} from './key-routes/key-route-overlay.js';
+import { routePastePipeline } from './key-routes/key-route-paste.js';
+import { overlayPointerKey } from './overlay-key-router.js';
 import type { PasteAccumState } from './paste-accumulator.js';
 import { estimateSidebarMaxScroll } from './reducers/workspace-panels.js';
-import { sddLifecycleEntry } from './sdd-lifecycle-entry.js';
 
-const ESC_DOUBLE_PRESS_MS = 1000;
 const INPUT_PROMPT = DEFAULT_INPUT_PROMPT;
 
 /** Keyboard activity means the user has taken control of an armed automatic turn. */
@@ -158,21 +158,11 @@ export function createAppKeyHandler(
     dispatch,
     historyScrollRef,
     onHistoryScrollActivity,
-    enhanceCancelledRef,
-    enhanceAbortRef,
     inputGateRef,
-    lastEscAtRef,
     pasteAccumRef,
     commitPaste,
     tryPickerKey,
-    openProjectPicker,
-    loadLiveSessions,
     openStatuslinePicker,
-    statuslineHiddenItems,
-    getSddRun,
-    onSddLifecycle,
-    getSettings,
-    saveSettings,
     lastEnterAtRef,
     draftRef,
     setDraft,
@@ -246,20 +236,7 @@ export function createAppKeyHandler(
     // no SIGINT is ever generated — so this runs BEFORE every modal/status
     // guard: Ctrl+C has to work precisely when everything else is wedged.
     if (routeCtrlCEscalation(ctx, input, key)) return;
-    if (
-      routeModalOverlayKey(
-        {
-          state,
-          enhanceCancelled: enhanceCancelledRef,
-          enhanceController: enhanceAbortRef,
-          dispatch,
-        },
-        input,
-        key,
-      )
-    ) {
-      return;
-    }
+    if (routeModalOverlay(ctx, input, key)) return;
 
     // ── Monitor overlays are NON-modal ───────────────────────────────
     // F2 fleet, F3 agents, F4 worktree, F6 todos, F7 queue, and the
@@ -278,18 +255,11 @@ export function createAppKeyHandler(
     if (inputGateRef.current) return;
 
     // ── Double-Esc clears input buffer ────────────────────────────────
-    // When the user presses Esc twice within ESC_DOUBLE_PRESS_MS ms while
-    // the buffer is non-empty, clear it. This mirrors the behaviour of bash's
-    // Ctrl+C double-press clearing the line, adapted for Esc (no Ctrl needed).
-    if (key.escape) {
-      const now = Date.now();
-      if (state.buffer.length > 0 && now - lastEscAtRef.current < ESC_DOUBLE_PRESS_MS) {
-        dispatch({ type: 'clearInput' });
-        lastEscAtRef.current = 0;
-        return;
-      }
-      lastEscAtRef.current = now;
-    }
+    // Moved verbatim to routeDoubleEsc (key-routes/key-route-overlay.ts,
+    // decomposition Phase 3): Esc twice within ESC_DOUBLE_PRESS_MS while the
+    // buffer is non-empty clears it — bash's Ctrl+C double-press, adapted
+    // for Esc.
+    if (routeDoubleEsc(ctx, key)) return;
 
     // ── Bracketed-paste accumulation ──────────────────────────────────
     // Moved verbatim to routePastePipeline (key-routes/key-route-paste.ts,
@@ -340,194 +310,21 @@ export function createAppKeyHandler(
     // If no picker is open the hook returns false immediately.
     if (tryPickerKey(input, key, isEnter)) return;
 
-    // ── Esc closes the topmost panel BEFORE the busy-interrupt ladder ──
-    // Pressing Esc with a monitor/panel open means "close this panel",
-    // not "abort the run and drop the queue" — even mid-stream. Panels
-    // whose own useInput owns Esc (kanban's inline prompt, worktree,
-    // goal kanban, phase monitor) are only CONSUMED here: the broadcast
-    // useInput model delivers the same keypress to their handler, which
-    // performs the close/cancel itself. Either way the double-Esc
-    // clear-input timer is disarmed — an Esc spent on a panel must not
-    // count toward the buffer-wipe double-press.
-    if (key.escape) {
-      const panelClose = escCloseAction(state);
-      if (panelClose) {
-        dispatch(panelClose);
-        lastEscAtRef.current = 0;
-        return;
-      }
-      if (escSelfOwnedPanelOpen(state)) {
-        lastEscAtRef.current = 0;
-        return;
-      }
-      // Bash mode owns Esc too — but only after the panel router above, so
-      // an open monitor still closes first. Exiting the shell composer must
-      // NOT read as a busy-interrupt, hence the ladder below stays untouched.
-      if (state.bashMode) {
-        dispatch({ type: 'bashModeExit' });
-        lastEscAtRef.current = 0;
-        return;
-      }
-    }
+    if (routeEscClosePanels(ctx, key)) return;
 
     if (routeBusyInterrupt(ctx, key)) return;
 
-    // Monitor overlays. Ctrl+F/G/T are the primary chords; F2/F3/F4 are
-    // terminal-safe aliases because some terminals intercept the chord before
-    // it reaches the app (notably Windows Terminal eats Ctrl+F for "Find").
-    // F11/F12 are exposed as optional direct panel shortcuts; terminals that
-    // reserve them can still use /f or the slash-command alternatives.
-    // All toggles are allowed even while aborting, so the user can check
-    // subagent state mid-steer.
-    // Opening actions are mutually exclusive in the reducer via closePanels().
-    // Ctrl+B → live multi-agent SDD board overlay (not in the F-key table —
-    // no F-key alias, chord-only).
-    if (key.ctrl && input === 'b') {
-      dispatch({ type: 'toggleSddBoardMonitor' });
-      return;
-    }
-    // Ctrl+Y → toggle the project kanban panel (not in the F-key table —
-    // no F-key alias, chord-only). Mirrors Ctrl+B / SDD board pattern
-    // because adding a 13th F-key slot would require expanding the picker
-    // invariant `fn >= 1 && fn <= 12`. The slash command `/kanban` is the
-    // canonical discovery path; Ctrl+Y is a power-user chord.
-    //
-    // NB: Ctrl+J (0x0A) is unsuitable — Ink 7 special-cases 0x0A as
-    // `name='enter'` with `key.ctrl=false` BEFORE the ctrl+letter branch,
-    // so the event arrives as `input='\n'` on mainstream terminals (xterm,
-    // ConPTY, iTerm) and falls through to the submit path. Ctrl+B (0x02)
-    // works because Ink does not special-case 0x02; Ctrl+Y (0x19) likewise.
-    // Avoid 0x09/0x0A/0x0D (Ink special-case) and the existing F-key
-    // ctrl-aliases (K, U, D, V, E, F, G, T).
-    if (key.ctrl && input === 'y') {
-      dispatch({ type: 'toggleKanbanPanel' });
-      return;
-    }
-    // F-key / Ctrl-alias dispatch — table-driven via fKeyEntryFor.
-    // Entries with hostAction need host-side work; the rest dispatch
-    // directly via actionForFKeyPanel. (Two former "defence in depth"
-    // branches were removed as unreachable: `key.fn && key.escape` can
-    // never both be set, and Ink 7 never delivers a bare '\x1b' as
-    // `input` — Esc-close is owned by the escCloseAction block above.)
-    const fKeyMatched = fKeyEntryFor(key.fn, key.ctrl, input);
-    if (fKeyMatched) {
-      const entry = fKeyMatched;
-      switch (entry.hostAction) {
-        case 'openProjectPicker': {
-          if (state.projectPicker.open) {
-            dispatch({ type: 'projectPickerClose' });
-          } else {
-            dispatch({ type: 'closeAllPanels' });
-            openProjectPicker();
-          }
-          return;
-        }
-        case 'loadLiveSessions': {
-          if (!state.sessionsPanelOpen) {
-            dispatch({ type: 'toggleSessionsPanel' });
-            loadLiveSessions();
-          } else {
-            dispatch({ type: 'toggleSessionsPanel' });
-          }
-          return;
-        }
-        case 'openStatuslinePicker': {
-          openStatuslinePicker();
-          return;
-        }
-        case undefined: {
-          const action = actionForFKeyPanel(entry, statuslineHiddenItems);
-          if (action) {
-            dispatch(action);
-            return;
-          }
-          break;
-        }
-      }
-    }
-    // While the SDD board overlay is open, ←/→ drive the per-phase drill-down
-    // (→ focuses a single topological column, ← steps back / exits to the
-    // all-phases view) and `c` / `z` / `x` drive run lifecycle — clean worktrees
-    // / rollback commits / destroy. clean+rollback refuse while the run is still
-    // live (stop it first with Ctrl+C); destroy stops it for you.
-    // The SDD board monitor is non-modal (chat input stays live above it),
-    // so the `c` / `z` / `x` lifecycle shortcuts MUST be gated on an empty
-    // input draft — otherwise typing the literal letters in chat would
-    // silently fire `cleanup_worktrees` / `rollback` / `destroy`, all of
-    // which are destructive and (per the fallback path) bypass the
-    // confirmation ladder. This mirrors the `?` help-shortcut gate above
-    // and the established non-modal pattern (F2/F3/F4/F6/F7 monitors).
-    // Bash mode opts out: there the draft is a raw shell command, so even
-    // on an empty line c/z/x must type literally, never fire a lifecycle op.
-    if (
-      state.sddBoard?.monitorOpen &&
-      !key.ctrl &&
-      !key.meta &&
-      draftRef.current.buffer === '' &&
-      !state.bashMode
-    ) {
-      if (key.rightArrow) {
-        dispatch({ type: 'sddBoardFocusNext' });
-        return;
-      }
-      if (key.leftArrow) {
-        dispatch({ type: 'sddBoardFocusPrev' });
-        return;
-      }
-      if (input === 'c' || input === 'z' || input === 'x') {
-        // c = clean worktrees · z = rollback merged commits · x = destroy.
-        // Prefer the live run control (it self-refuses while running and works
-        // between stop and registry-clear); fall back to the host's disk-backed
-        // applySddLifecycle so the keys keep working once the run has finished.
-        const op = input === 'c' ? 'cleanup_worktrees' : input === 'z' ? 'rollback' : 'destroy';
-        const run = getSddRun?.();
-        if (op !== 'destroy' && run) {
-          const fn = op === 'cleanup_worktrees' ? run.cleanupWorktrees() : run.rollback();
-          // A locked worktree or dirty index rejects here.
-          detach(
-            Promise.resolve(fn).then((r) => {
-              dispatch({ type: 'addEntry', entry: sddLifecycleEntry(op, r) });
-            }),
-            `SDD ${op}`,
-          );
-          return;
-        }
-        if (onSddLifecycle) {
-          detach(
-            onSddLifecycle(op).then((r) => {
-              dispatch({ type: 'addEntry', entry: sddLifecycleEntry(op, r) });
-            }),
-            `SDD ${op}`,
-          );
-        } else {
-          dispatch({
-            type: 'addEntry',
-            entry: { kind: 'warn', text: 'SDD lifecycle is not available in this session.' },
-          });
-        }
-        return;
-      }
-    }
-    if (
-      routeSettingsOverlayKey(
-        { state, getSettings, saveSettings, lastEnterAt: lastEnterAtRef, dispatch },
-        input,
-        key,
-        isEnter,
-      )
-    ) {
-      return;
-    }
-    if (
-      routePanelEscapeKey(
-        state,
-        key,
-        dispatch,
-        effectivePanelPositions(state, getSettings?.()).processList !== 'sidebar',
-      )
-    ) {
-      return;
-    }
+    // Monitor-overlay chords (Ctrl+B → SDD board, Ctrl+Y → kanban) — moved
+    // verbatim to routeChordPanels (key-routes/key-route-overlay.ts, Phase 3).
+    if (routeChordPanels(ctx, input, key)) return;
+    // F-key / Ctrl-alias dispatch — moved verbatim to routeFKeyPanels
+    // (key-routes/key-route-overlay.ts, Phase 3).
+    if (routeFKeyPanels(ctx, input, key)) return;
+    // SDD board drill-down (←/→ phases, c/z/x run lifecycle) — moved
+    // verbatim to routeSddBoard (key-routes/key-route-overlay.ts, Phase 3).
+    if (routeSddBoard(ctx, input, key)) return;
+    if (routeSettingsOverlay(ctx, input, key, isEnter)) return;
+    if (routePanelEscapeRouter(ctx, key)) return;
 
     // overlayOpen tracks whether the renderer hides the right sidebar for a
     // bottom-routed panel/overlay. Sidebar-routed panels must not suppress

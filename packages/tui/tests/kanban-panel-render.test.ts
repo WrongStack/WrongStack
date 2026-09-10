@@ -203,7 +203,9 @@ describe('KanbanPanel header hint advertises Ctrl+Y', () => {
     const path = await import('node:path');
     const { fileURLToPath } = await import('node:url');
     const here = fileURLToPath(import.meta.url);
-    const routerPath = path.resolve(path.dirname(here), '../src/app-key-handler.ts');
+    // Phase 3 moved the chord handlers into the route modules; the Ctrl+Y
+    // handler now lives in the overlay route (routeChordPanels).
+    const routerPath = path.resolve(path.dirname(here), '../src/key-routes/key-route-overlay.ts');
     const source = await readFile(routerPath, 'utf8');
     expect(source).toContain("key.ctrl && input === 'y'");
     // The handler must dispatch the kanban-specific toggle action — not
