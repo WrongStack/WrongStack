@@ -2,8 +2,10 @@
 //
 // One column wide, flush with the rail's right edge (RightSidebar renders
 // it in what was the right padding column, so no content column is ever
-// taken from the routed twins or the persistent cards). The rail appears
-// only when the sidebar's estimated content overflows the viewport.
+// taken from the routed twins or the persistent cards). The rail is
+// persistent: when the sidebar's estimated content does not overflow the
+// viewport it renders a dimmed, thumb-less track instead of disappearing,
+// so the bottom-right thumb never flickers the whole rail in and out.
 //
 // Math contract (shared with the reducer clamp — do NOT re-derive):
 //   * `maxScroll` is `estimateSidebarMaxScroll(...)` from
@@ -72,7 +74,10 @@ export interface SidebarScrollbarProps {
   viewportRows: number;
   /** Current scroll offset in rows. */
   offset: number;
-  /** Estimated overflow beyond the viewport; ≤ 0 renders no rail. */
+  /**
+   * Estimated overflow beyond the viewport; ≤ 0 renders a dimmed,
+   * thumb-less track — the rail column itself stays visible.
+   */
   maxScroll: number;
   /** When true the thumb reads in the accent color (keyboard focus). */
   focused?: boolean | undefined;
@@ -80,8 +85,10 @@ export interface SidebarScrollbarProps {
 
 /**
  * The rail itself: one column of `░` track cells with a `▉` thumb segment.
- * Returns null when there is nothing to scroll (or no room for a track) —
- * callers keep reserving the column so toggling never reflows content.
+ * Persistent by design: when there is nothing to scroll it renders a dimmed
+ * thumb-less track (not null) so the rail never pops in and out of existence
+ * as the content-height estimate fluctuates. Returns null only when there is
+ * no room to draw a track at all (< 1 viewport row).
  */
 export function SidebarScrollbar({
   viewportRows,
@@ -89,14 +96,18 @@ export function SidebarScrollbar({
   maxScroll,
   focused = false,
 }: SidebarScrollbarProps): React.ReactElement | null {
-  if (maxScroll <= 0 || viewportRows < 2) return null;
+  if (viewportRows < 1) return null;
+  const scrollable = maxScroll > 0;
   const { size, top } = sidebarScrollbarThumb(viewportRows, maxScroll, offset);
   const rows: React.ReactElement[] = [];
   for (let row = 0; row < viewportRows; row++) {
-    const inThumb = row >= top && row < top + size;
+    const inThumb = scrollable && row >= top && row < top + size;
     rows.push(
       <Box key={row} height={1} flexShrink={0}>
-        <Text color={inThumb ? (focused ? theme.accent : theme.textMuted) : theme.borderSubtle}>
+        <Text
+          color={inThumb ? (focused ? theme.accent : theme.textMuted) : theme.borderSubtle}
+          dimColor={!scrollable}
+        >
           {inThumb ? glyphs.meter7 : glyphs.cellEmpty}
         </Text>
       </Box>,

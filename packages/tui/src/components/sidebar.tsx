@@ -90,8 +90,10 @@ interface RightSidebarProps {
   scrollOffset?: number | undefined;
   /**
    * Estimated scrollable overflow in rows (from
-   * `estimateSidebarMaxScroll`). When > 0, a one-column scrollbar renders
-   * in the rail's right padding column; content columns are untouched.
+   * `estimateSidebarMaxScroll`). > 0 draws a one-column scrollbar with a
+   * thumb in the rail's right padding column; ≤ 0 keeps the rail visible
+   * as a dimmed, thumb-less track (persistent rail — no bottom-right
+   * flicker). Content columns are untouched either way.
    */
   maxScroll?: number | undefined;
   /**
@@ -194,9 +196,11 @@ export function RightSidebar({
             </Box>
           )}
         </Box>
-        {/* Scroll rail (null — a quiet gap — when the content fits). The
-            column is always reserved by the row layout so toggling the rail
-            never reflows the content above. */}
+        {/* Persistent scroll rail: dimmed, thumb-less track when the content
+            fits, thumb when it overflows. The column is always reserved by
+            the row layout, so the rail no longer pops in/out with the
+            content-height estimate (no bottom-right flicker) and toggling
+            never reflows the content beside it. */}
         <SidebarScrollbar
           viewportRows={innerHeight ?? 0}
           offset={scrollOffset}

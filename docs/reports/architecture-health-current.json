@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-10T13:37:07.966Z",
+  "generatedAt": "2026-09-10T16:24:43.825Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3718,
-    "testFiles": 3228,
-    "sourceLines": 899414,
+    "testFiles": 3229,
+    "sourceLines": 899429,
     "workspaceEdges": 127,
     "moduleEdges": 11800,
     "nonCommandSlashImports": 0,
@@ -758,7 +758,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 368,
-      "testFiles": 341,
+      "testFiles": 342,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -781,7 +781,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 341
+          "testFiles": 342
         }
       ]
     },
@@ -15951,6 +15951,12 @@
       },
       {
         "file": "packages/tui/tests/sidebar-scroll-keys.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/sidebar-scrollbar-rail.test.tsx",
         "projects": [
           "root-node"
         ]
