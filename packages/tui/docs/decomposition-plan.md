@@ -65,4 +65,6 @@ AppProps slicing (H2), `/clear` leader-abort gate (H5), swallowed key-handler er
 
 ## Execution log
 
-- 2026-09-10: plan v1.1 committed; Phase 0.1 baseline started; 0.2 authored.
+- 2026-09-10: plan v1.1 committed (D1–D4 recorded).
+- 2026-09-10 Phase 0.1: suite baseline GREEN — 342 files / 5682 tests / 151.31s. Typecheck baseline RED on committed code (`tests/sidebar-pin-and-scrollbar.test.ts:30,37` — `settingsValueChange` actions missing required `delta`; pre-existing, unrelated to decomposition). Repaired with behavior-neutral `delta: 1` (field 61 is a pure toggle at `reducers/settings-values.ts:618`; delta ignored). Full typecheck GREEN after repair.
+- 2026-09-10 Phase 0.2: `tests/public-api-surface.test.ts` authored; targeted run GREEN (4 tests, 13s). Commit pending alongside gates.

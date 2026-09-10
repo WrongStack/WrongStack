@@ -135,7 +135,7 @@
       "relativeImports": 8
     },
     "packages/core/src/hq/auth-store.ts": {
-      "lines": 953,
+      "lines": 844,
       "relativeImports": 7
     },
     "packages/core/src/hq/protocol/core.ts": {

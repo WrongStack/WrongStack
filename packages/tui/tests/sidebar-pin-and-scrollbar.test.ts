@@ -27,14 +27,14 @@ describe('sidebar pin rule — a routed panel keeps the rail on', () => {
       patch: { panelPositions: { fleet: 'sidebar' } },
     });
     s = reducer(s, { type: 'settingsFieldSet', field: 61 });
-    s = reducer(s, { type: 'settingsValueChange' });
+    s = reducer(s, { type: 'settingsValueChange', delta: 1 });
     expect(s.settingsPicker.showSidebar).toBe(true);
     expect(s.settingsPicker.hint).toContain('pinned');
   });
 
   it('field 61 still toggles freely when nothing is routed to the sidebar', () => {
     let s = reducer(createTestState(), { type: 'settingsFieldSet', field: 61 });
-    s = reducer(s, { type: 'settingsValueChange' });
+    s = reducer(s, { type: 'settingsValueChange', delta: 1 });
     expect(s.settingsPicker.showSidebar).toBe(false);
     expect(s.settingsPicker.hint).toBeUndefined();
   });

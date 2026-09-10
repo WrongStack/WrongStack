@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-10T19:25:57.143Z",
+  "generatedAt": "2026-09-10T18:38:55.573Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3720,
-    "testFiles": 3235,
-    "sourceLines": 900717,
+    "testFiles": 3234,
+    "sourceLines": 900576,
     "workspaceEdges": 128,
     "moduleEdges": 11808,
     "nonCommandSlashImports": 0,
@@ -759,7 +759,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 368,
-      "testFiles": 344,
+      "testFiles": 343,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -782,7 +782,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 344
+          "testFiles": 343
         }
       ]
     },
@@ -15621,12 +15621,6 @@
         ]
       },
       {
-        "file": "packages/tui/tests/public-api-surface.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/tui/tests/queue-slash.comprehensive.test.ts",
         "projects": [
           "root-node"
@@ -20762,7 +20756,7 @@
     },
     {
       "file": "packages/core/src/hq/auth-store.ts",
-      "lines": 953,
+      "lines": 844,
       "relativeImports": 7
     },
     {
