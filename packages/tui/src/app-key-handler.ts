@@ -9,6 +9,7 @@ import { AUTONOMY_OPTIONS } from './components/autonomy-picker.js';
 import { DEFAULT_INPUT_PROMPT, type KeyEvent } from './components/input.js';
 import type { HistoryScrollController } from './components/scrollable-history.js';
 import { SELECTION_COPY_ID } from './components/scrollable-history.js';
+import { sidebarOffsetForCell } from './components/sidebar-scrollbar.js';
 import type { StatusBarClickMap } from './components/status-bar-types.js';
 import { STATUSLINE_ITEMS, type StatuslineItem } from './components/statusline-picker.js';
 import { escCloseAction, escSelfOwnedPanelOpen } from './esc-close-panels.js';
@@ -29,6 +30,7 @@ import {
   routeSettingsOverlayKey,
 } from './overlay-key-router.js';
 import { feedPaste, type PasteAccumState } from './paste-accumulator.js';
+import { estimateSidebarMaxScroll } from './reducers/workspace-panels.js';
 import { sddLifecycleEntry } from './sdd-lifecycle-entry.js';
 
 const ESC_DOUBLE_PRESS_MS = 1000;
@@ -769,11 +771,14 @@ export function createAppKeyHandler(
         // ── Sidebar wheel scroll ──
         // When the wheel lands in the sidebar region (right of the main
         // column) and the sidebar is visible, scroll sidebar content
-        // instead of chat history.
+        // directly — no keyboard focus required. The row bound keeps the
+        // wheel inside the sidebar's vertical band (the history viewport
+        // rows); wheel over the bottom region keeps its existing no-op
+        // behavior instead of scrolling a panel that isn't there.
         if (
           historyWidth < (stdout?.columns ?? 80) &&
           key.mouse.x > historyWidth &&
-          state.sidebarFocused
+          key.mouse.y <= state.viewportRows
         ) {
           dispatch({
             type: 'sidebarScroll',
@@ -801,6 +806,49 @@ export function createAppKeyHandler(
           // this clear, a Right-Click after a wheel-flushed drag would copy a
           // stale range the user has already forgotten about.
           historyScrollRef.current?.clearSelection();
+          return;
+        }
+      }
+      // ── Sidebar scrollbar press/drag ──
+      // The one-column rail at the sidebar's right edge (last terminal
+      // column). Press jumps the thumb to that row; held-drag motion
+      // (?1002h reports move + left button) scrubs. Same clamp inputs as
+      // the wheel branch above so the mapping matches the reducer's
+      // reachable range, and the same viewport the thumb renders with
+      // (termRows − 1 — RightSidebar's innerHeight).
+      if (
+        (key.mouse?.kind === 'press' || key.mouse?.kind === 'move') &&
+        key.mouse.button === 'left' &&
+        // Sidebar-visible guard: when the rail is hidden the history
+        // scrollbar owns the last column — this branch must not claim its
+        // presses (the content-based maxScroll estimate is positive even
+        // when nothing sidebar-side is rendered).
+        historyWidth < (stdout?.columns ?? 80) &&
+        key.mouse.x >= (stdout?.columns ?? 80) &&
+        key.mouse.y <= state.viewportRows
+      ) {
+        const railMaxScroll = estimateSidebarMaxScroll(
+          state,
+          Math.max(1, termRows - 2 - sidebarTwinRowCount),
+          effectiveSwarmOnSidebar,
+        );
+        if (railMaxScroll > 0) {
+          const target = sidebarOffsetForCell(
+            key.mouse.y - 1,
+            Math.max(1, termRows - 1),
+            railMaxScroll,
+          );
+          // Skip no-op jumps: move events fire per cell during a drag, and
+          // re-dispatching the same offset would re-render the whole app.
+          if (target !== state.sidebarScrollOffset) {
+            dispatch({
+              type: 'sidebarScrollSet',
+              offset: target,
+              viewportHeight: termRows - 2,
+              sidebarTwinRowCount,
+              effectiveSwarmOnSidebar,
+            });
+          }
           return;
         }
       }

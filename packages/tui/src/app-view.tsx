@@ -4,8 +4,8 @@ import { buildSidebarOpenFlags, resolveAppSidebarLayout } from './app-ui-state.j
 import type { AppViewProps } from './app-view-contract.js';
 import { AppViewPickers } from './app-view-pickers.js';
 import { AppViewSidebar } from './app-view-sidebar.js';
-import { InspectOverlay, resolveInspectOverlayContent } from './components/inspect-overlay.js';
 import { DEFAULT_INPUT_PROMPT, Input } from './components/input.js';
+import { InspectOverlay, resolveInspectOverlayContent } from './components/inspect-overlay.js';
 import { PanelShortcutsProvider } from './components/monitor-shell.js';
 import { usePlanPanelData } from './components/plan-panel.js';
 import { ScrollableHistory } from './components/scrollable-history.js';
@@ -17,6 +17,7 @@ import {
 } from './hooks/use-sidebar-panel-data.js';
 import { useTerminalSize } from './hooks/use-terminal-size.js';
 import { Box } from './ink.js';
+import { estimateSidebarMaxScroll } from './reducers/workspace-panels.js';
 import { theme } from './theme.js';
 import { PANEL_IDS, type PanelId, SIDEBAR_PANEL_LIMIT } from './ui-contracts.js';
 import { glyphs } from './ui-glyphs.js';
@@ -55,8 +56,14 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
 
   // ── Sidebar layout ──────────────────────────────────────────────────
   const { columns: termCols } = useTerminalSize({ fallbackColumns: 80 });
-  const { panelPositions, sidebarWidth, sidebarContentWidth, mainColumnWidth } =
-    resolveAppSidebarLayout(state, termCols, liveSettings, mailbox.mailboxPanelOpen);
+  const {
+    panelPositions,
+    sidebarWidth,
+    sidebarContentWidth,
+    mainColumnWidth,
+    sidebarTwinRowCount,
+    effectiveSwarmOnSidebar,
+  } = resolveAppSidebarLayout(state, termCols, liveSettings, mailbox.mailboxPanelOpen);
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
 
   const pickerMaxRows = Math.max(8, runtime.termRows - runtime.statusBarRows - inputHeight - 1);
@@ -69,6 +76,15 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   const hiddenSidebarPanelCount = openSidebarPanelIds.length - visibleSidebarPanelIds.length;
   const sidebarSlotVisible = (id: PanelId): boolean =>
     sidebarWidth > 0 && visibleSidebarPanelIds.includes(id);
+  // The scrollbar's maxScroll — the SAME estimate the sidebarScroll /
+  // sidebarScrollSet reducer clamps use, with the same inputs the
+  // dispatchers thread (termRows − 2 viewport, twin-row reservation,
+  // dual-source swarm flag) so thumb, wheel, and clamp can never drift.
+  const sidebarMaxScroll = estimateSidebarMaxScroll(
+    state,
+    Math.max(1, runtime.termRows - 2 - sidebarTwinRowCount),
+    effectiveSwarmOnSidebar,
+  );
 
   const sidebarProcessData = useSidebarProcessList(sidebarSlotVisible('processList'));
   const sidebarConnectionsData = useSidebarConnections(
@@ -201,6 +217,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
             runtime={runtime}
             sidebarWidth={sidebarWidth}
             sidebarContentWidth={sidebarContentWidth}
+            sidebarScrollOffset={state.sidebarScrollOffset}
+            sidebarMaxScroll={sidebarMaxScroll}
             sidebarSlotVisible={sidebarSlotVisible}
             hiddenSidebarPanelCount={hiddenSidebarPanelCount}
             sidebarProcessData={sidebarProcessData}

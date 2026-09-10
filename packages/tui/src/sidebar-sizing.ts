@@ -23,22 +23,23 @@ import { SIDEBAR_TWIN_MAX_WRAP_LINES } from './ui-contracts.js';
 /**
  * Natural-height budget for each routed sidebar panel at the minimum
  * 16-column content width. Worklist panels reserve their maximum item count
- * × the bounded wrap ceiling; connections reserve two rows per service.
+ * × the bounded wrap ceiling; connections reserve a summary block (counts
+ * chips + health meter) plus one row per service.
  */
 export const SIDEBAR_TWIN_HEIGHT_BY_PANEL: Readonly<Record<PanelId, number>> = Object.freeze({
-  projectPicker: 18,
-  fleet: 14,
-  agents: 29,
-  worktree: 14,
+  projectPicker: 19,
+  fleet: 20,
+  agents: 30,
+  worktree: 20,
   plan: 7 + 9 * SIDEBAR_TWIN_MAX_WRAP_LINES,
-  todos: 4 + 12 * SIDEBAR_TWIN_MAX_WRAP_LINES,
+  todos: 6 + 12 * SIDEBAR_TWIN_MAX_WRAP_LINES,
   queue: 4 + 10 * SIDEBAR_TWIN_MAX_WRAP_LINES,
-  processList: 12,
-  goal: 11 + 6 * SIDEBAR_TWIN_MAX_WRAP_LINES,
-  sessions: 13,
-  coordinator: 13,
-  kanban: 14 + 6 * SIDEBAR_TWIN_MAX_WRAP_LINES,
-  connections: 6 + 10 * 2,
+  processList: 13,
+  goal: 12 + 6 * SIDEBAR_TWIN_MAX_WRAP_LINES,
+  sessions: 14,
+  coordinator: 15,
+  kanban: 15 + 6 * SIDEBAR_TWIN_MAX_WRAP_LINES,
+  connections: 16,
 });
 
 /**

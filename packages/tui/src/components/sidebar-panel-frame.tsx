@@ -6,10 +6,12 @@
 // strip, section bands, and a hairline footer without consuming columns on
 // nested chrome.
 //
-// Width contract: every section box is exactly `innerWidth` columns wide so
-// dotted leaders, block meters, and right-aligned metrics stay predictable.
-// The frame has natural height and may be followed by the persistent
-// `SidebarContent`; the outer shell clips their combined stack.
+// Width contract: every section box inside the Card body is exactly
+// `bodyWidth` (the Card's inset content width) columns wide so dotted
+// leaders, block meters, and right-aligned metrics stay predictable, and
+// nothing clips against the Card's `│` sides. The frame has natural height
+// and may be followed by the persistent `SidebarContent`; the outer shell
+// clips their combined stack.
 //
 // Modernization notes (v3):
 //   * The chrome (corners + sides + body chrome) is now the shared
@@ -340,12 +342,17 @@ export function SidebarPanelFrame({
     <Box flexDirection="column" width={width} flexShrink={0}>
       <Card innerWidth={innerWidth} accent={accent}>
         {(bodyWidth) => (
-          <Box flexDirection="column" width={innerWidth}>
+          <Box flexDirection="column" width={bodyWidth}>
             {/* Title row: rail glyph + icon + title (+ optional right pill).
-                Wide rails (>= 22) absorb the pill on the title row's right
-                edge so we don't waste a row; narrower rails bump the pill
-                to a second status row beneath the title. */}
-            <Box flexDirection="row" width={innerWidth}>
+                Every row here is budgeted against the Card's BODY width —
+                this tree renders inside the Card body; at >= 18 cols the
+                Card's `│` sides + body padding claim the 4 columns between
+                bodyWidth and innerWidth, so an innerWidth-sized row would
+                clip at the right side bar (the `⟦3 LI│` bug). Wide bodies
+                (>= 22) absorb the pill on the title row's right edge so we
+                don't waste a row; narrower rails bump the pill to a second
+                status row beneath the title. */}
+            <Box flexDirection="row" width={bodyWidth}>
               <Text color={accent} bold>
                 {glyphs.railHeavy}
               </Text>
@@ -359,15 +366,15 @@ export function SidebarPanelFrame({
                   title,
                   Math.max(
                     2,
-                    innerWidth -
+                    bodyWidth -
                       4 -
-                      (effectivePill && innerWidth >= 22
+                      (effectivePill && bodyWidth >= 22
                         ? displayWidth(getPillLabel(effectivePill)) + 2
                         : 0),
                   ),
                 )}
               </Text>
-              {effectivePill && innerWidth >= 22 ? (
+              {effectivePill && bodyWidth >= 22 ? (
                 <>
                   <Box flexGrow={1} />
                   {effectivePill}
@@ -375,8 +382,8 @@ export function SidebarPanelFrame({
               ) : null}
             </Box>
             {/* Status row: pill (when not on title) + kicker (when wide). */}
-            {effectivePill && innerWidth < 22 ? (
-              <Box flexDirection="row" width={innerWidth}>
+            {effectivePill && bodyWidth < 22 ? (
+              <Box flexDirection="row" width={bodyWidth}>
                 <Text color={theme.borderSubtle}>{glyphs.dividerDash}</Text>
                 <Text> </Text>
                 <Text wrap="truncate">{effectivePill}</Text>
@@ -385,9 +392,9 @@ export function SidebarPanelFrame({
               </Box>
             ) : null}
             {showKicker ? (
-              <Box flexDirection="row" width={innerWidth}>
+              <Box flexDirection="row" width={bodyWidth}>
                 <Text color={theme.textMuted} dimColor wrap="truncate">
-                  {trunc(kicker ?? '', Math.max(1, innerWidth - 2))}
+                  {trunc(kicker ?? '', Math.max(1, bodyWidth - 2))}
                 </Text>
               </Box>
             ) : null}
@@ -397,7 +404,7 @@ export function SidebarPanelFrame({
                 leaders to the *inset* content width (after the Card's
                 optional `│` sides and body padding), not the outer
                 Card width. */}
-            <Box flexDirection="column" width={innerWidth}>
+            <Box flexDirection="column" width={bodyWidth}>
               {typeof children === 'function' ? children(bodyWidth) : children}
             </Box>
           </Box>
@@ -411,6 +418,68 @@ export function SidebarPanelFrame({
           </Text>
         </Box>
       ) : null}
+    </Box>
+  );
+}
+
+/**
+ * A fixed-width progress meter row: `▮▮▮▮▮░░░░░` filling exactly
+ * `innerWidth` columns (no label — pair it with a `SidebarSectionHeader`
+ * badge for the numeric readout). Replaces the hand-rolled bar pairs that
+ * Plan / Goal / Connections used to render inline so every sidebar panel
+ * shows the same meter texture. Pure display — clamps the ratio to [0, 1].
+ */
+export function SidebarMeter({
+  ratio,
+  innerWidth,
+  color,
+  trackColor = theme.borderSubtle,
+  marginTop = 1,
+}: {
+  /** Fill ratio 0..1 (values outside are clamped). */
+  ratio: number;
+  innerWidth: number;
+  color: string;
+  trackColor?: string | undefined;
+  marginTop?: number | undefined;
+}): React.ReactElement {
+  const width = Math.max(0, innerWidth);
+  const clamped = Math.min(1, Math.max(0, ratio));
+  const fill = Math.round(clamped * width);
+  return (
+    <Box marginTop={marginTop} width={width}>
+      <Text color={color}>{glyphs.barFull.repeat(Math.min(width, fill))}</Text>
+      <Text color={trackColor}>{glyphs.barEmpty.repeat(Math.max(0, width - fill))}</Text>
+    </Box>
+  );
+}
+
+/**
+ * A single row of colored count chips — `●2 ◐1 ✓4 !1` — the shared idiom
+ * for "state distribution" summaries (fleet statuses, worktree states,
+ * connection health). Chips whose count is 0 are omitted so the row stays
+ * quiet on idle rails; render nothing at all when every count is 0.
+ */
+export function SidebarCountsRow({
+  counts,
+  innerWidth,
+  marginTop = 0,
+}: {
+  /** Chip order is render order; zero-count chips are dropped. */
+  counts: readonly { label: string; count: number; color: string }[];
+  innerWidth: number;
+  marginTop?: number | undefined;
+}): React.ReactElement | null {
+  const visible = counts.filter((c) => c.count > 0);
+  if (visible.length === 0) return null;
+  return (
+    <Box flexDirection="row" marginTop={marginTop} width={innerWidth}>
+      {visible.map((c, i) => (
+        <Text key={`${c.label}-${i}`} color={c.color}>
+          {`${c.label}${c.count}`}
+          {i < visible.length - 1 ? ' ' : ''}
+        </Text>
+      ))}
     </Box>
   );
 }

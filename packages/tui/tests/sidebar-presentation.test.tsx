@@ -106,8 +106,12 @@ describe('right sidebar presentation', () => {
 
     expect(frame).toContain('CONNECTIONS');
     expect(flat).toContain('SIGNAL MATRIX');
-    expect(frame).toContain('link 01');
-    expect(frame).toContain('link 03');
+    // Status-distribution chips + the health meter replaced the decorative
+    // "link NN" filler rows in the v4 twin redesign — assertions track the
+    // honest telemetry now rendered.
+    expect(frame).toContain('✓1');
+    expect(frame).toContain('×1');
+    expect(frame).toContain('████');
     for (const line of frame.split('\n')) {
       expect(displayWidth(line), line).toBeLessThanOrEqual(16);
     }

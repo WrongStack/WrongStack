@@ -52,7 +52,7 @@ describe('panel routing single source (effectivePanelPositions)', () => {
     expect(layout.panelPositions.fleet).toBe('sidebar');
   });
 
-  it('reserves per-panel twin heights for wrapped worklists and two-line connections', () => {
+  it('reserves per-panel twin heights for wrapped worklists and single-row connections', () => {
     const base = createTestState();
     const state = createTestState({
       todosMonitorOpen: true,
@@ -73,7 +73,11 @@ describe('panel routing single source (effectivePanelPositions)', () => {
       SIDEBAR_TWIN_HEIGHT_BY_PANEL.todos + SIDEBAR_TWIN_HEIGHT_BY_PANEL.connections,
     );
     expect(SIDEBAR_TWIN_HEIGHT_BY_PANEL.todos).toBeGreaterThan(12 * SIDEBAR_TWIN_MAX_WRAP_LINES);
-    expect(SIDEBAR_TWIN_HEIGHT_BY_PANEL.connections).toBeGreaterThanOrEqual(26);
+    // Connections twin (redesigned): one title row + SIGNAL MATRIX header +
+    // counts chips + health meter + up to 10 single-line services + margin.
+    // The old two-line-per-service layout (fake "link NN" filler rows) was
+    // removed with the v4 twin redesign; 16 covers the honest layout.
+    expect(SIDEBAR_TWIN_HEIGHT_BY_PANEL.connections).toBeGreaterThanOrEqual(16);
   });
 });
 

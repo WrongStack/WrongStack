@@ -11,6 +11,8 @@ import { METRIC_MIN_BODY_WIDTH, PILL_MIN_INNER_WIDTH, type WorktreeRow } from '.
 import { glyphs } from '../ui-glyphs.js';
 import type { ProjectPickerItem } from './project-picker.js';
 import {
+  SidebarCountsRow,
+  SidebarMeter,
   SidebarPanelFrame,
   SidebarSectionHeader,
   SidebarStatRow,
@@ -66,6 +68,7 @@ export function ProjectPickerSidebar({
           <Text color={theme.textMuted}>{projectCount} projects</Text>
         ) : undefined
       }
+      footer="↑↓ select · Enter open"
     >
       <SidebarSectionHeader
         glyph={glyphs.folder}
@@ -141,13 +144,20 @@ export function ProjectPickerSidebar({
 
 export interface FleetPanelSidebarProps {
   entries: Record<string, FleetEntry>;
+  /**
+   * Pre-computed running count from the caller. Retained for interface
+   * compatibility; the panel derives every displayed count (pill + chips)
+   * from `entries` so leader and subagents can never diverge.
+   */
   runningCount: number;
+  /** Live tick (ms) — drives per-agent elapsed labels. Defaults to Date.now(). */
+  nowTick?: number | undefined;
   width: number;
 }
 
 export function FleetPanelSidebar({
   entries,
-  runningCount,
+  nowTick,
   width,
 }: FleetPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
@@ -157,10 +167,27 @@ export function FleetPanelSidebar({
   // inset width so they fill the available content area without overshooting
   // the right `│` bar.
   const bodyWidth = inner >= 18 ? inner - 4 : inner;
+  const nowRef = nowTick ?? Date.now();
   const all = Object.values(entries);
   const leader = all.find((e) => e.id === 'leader');
-  const subagents = all.filter((e) => e !== leader && e.status === 'running');
-  const rows = [...(leader ? [leader] : []), ...subagents].slice(0, 10);
+  const subagents = all.filter((e) => e !== leader);
+  const runningSubs = subagents.filter((e) => e.status === 'running');
+  // Distribution counts include the leader — it renders as a row, so it must
+  // be counted, or the chips and the pill would disagree (Chimera review).
+  const leaderRunning = leader?.status === 'running' ? 1 : 0;
+  const liveCount = runningSubs.length + leaderRunning;
+  const idleCount =
+    subagents.filter((e) => e.status === 'idle').length + (leader?.status === 'idle' ? 1 : 0);
+  const doneCount =
+    subagents.filter((e) => e.status === 'success').length + (leader?.status === 'success' ? 1 : 0);
+  const failedCount =
+    subagents.filter(
+      (e) => e.status === 'failed' || e.status === 'timeout' || e.status === 'stopped',
+    ).length +
+    (leader?.status === 'failed' || leader?.status === 'timeout' || leader?.status === 'stopped'
+      ? 1
+      : 0);
+  const rows = [...(leader ? [leader] : []), ...runningSubs].slice(0, 8);
   return (
     <SidebarPanelFrame
       accent={theme.monitor.fleet}
@@ -169,37 +196,85 @@ export function FleetPanelSidebar({
       width={width}
       kicker="fleet"
       pillLabel={
-        inner >= PILL_MIN_INNER_WIDTH
-          ? runningCount > 0
-            ? `${runningCount} LIVE`
-            : 'IDLE'
-          : undefined
+        inner >= PILL_MIN_INNER_WIDTH ? (liveCount > 0 ? `${liveCount} LIVE` : 'IDLE') : undefined
       }
-      pillColor={runningCount > 0 ? theme.success : theme.textMuted}
+      pillColor={liveCount > 0 ? theme.success : theme.textMuted}
       right={
         inner < PILL_MIN_INNER_WIDTH ? (
-          <Text color={runningCount > 0 ? theme.success : theme.textMuted} bold>
-            {runningCount > 0 ? `${runningCount} LIVE` : 'IDLE'}
+          <Text color={liveCount > 0 ? theme.success : theme.textMuted} bold>
+            {liveCount > 0 ? `${liveCount} LIVE` : 'IDLE'}
           </Text>
         ) : undefined
       }
     >
+      {/* State distribution — the same chips row the bottom F2 monitor opens
+          with, so the twin reads as the same panel at a glance. */}
+      <SidebarCountsRow
+        counts={[
+          { label: glyphs.running, count: liveCount, color: theme.success },
+          { label: glyphs.idle, count: idleCount, color: theme.textMuted },
+          { label: glyphs.success, count: doneCount, color: theme.success },
+          { label: glyphs.failure, count: failedCount, color: theme.error },
+        ]}
+        innerWidth={bodyWidth}
+        marginTop={rows.length > 0 ? 1 : 0}
+      />
       {rows.length === 0 ? (
         <EmptyState message="no active agents" innerWidth={bodyWidth} />
       ) : (
         rows.map((e) => {
           const v = fleetStatusVisual(e.status);
-          const name = trunc(e.name || e.id, Math.max(4, bodyWidth - 4));
+          const isLeader = e === leader;
+          const showElapsed = inner >= METRIC_MIN_BODY_WIDTH && e.startedAt > 0;
+          const elapsedLabel = showElapsed
+            ? fmtShortDuration(Math.max(0, nowRef - e.startedAt))
+            : '';
+          // Reserve the label + a 1-col gutter so a long duration can never
+          // consume the separator between name and elapsed (Chimera review).
+          const name = trunc(
+            e.name || e.id,
+            Math.max(4, bodyWidth - 2 - (elapsedLabel ? displayWidth(elapsedLabel) + 2 : 0)),
+          );
+          // Second line pairs the live tool with the context-window load,
+          // colored by pressure — the same telemetry the bottom monitor
+          // shows per agent, packed into the narrow rail.
+          const tool = e.currentTool?.name ?? 'idle';
+          const ctxPct = e.ctxPct ?? 0;
+          const showCtx = inner >= METRIC_MIN_BODY_WIDTH;
+          const ctxLabel = showCtx ? fmtRatioPct(ctxPct) : '';
+          const ctxColor =
+            ctxPct >= 0.8 ? theme.error : ctxPct >= 0.6 ? theme.warn : theme.textMuted;
           return (
-            <Box key={e.id} flexDirection="row" width={bodyWidth}>
-              <Text color={v.color}>{v.glyph}</Text>
-              <Text
-                color={e.status === 'running' ? theme.textPrimary : theme.textSecondary}
-                wrap="truncate"
-              >
-                {' '}
-                {name}
-              </Text>
+            <Box key={e.id} flexDirection="column" width={bodyWidth}>
+              <Box flexDirection="row" width={bodyWidth}>
+                <Text color={v.color}>{v.glyph}</Text>
+                <Text
+                  color={e.status === 'running' ? theme.textPrimary : theme.textSecondary}
+                  bold={isLeader}
+                  wrap="truncate"
+                >
+                  {' '}
+                  {name}
+                </Text>
+                {elapsedLabel ? (
+                  <>
+                    <Box flexGrow={1} />
+                    <Text color={theme.textMuted}>{elapsedLabel}</Text>
+                  </>
+                ) : null}
+              </Box>
+              <Box flexDirection="row" width={bodyWidth}>
+                <Text color={theme.textMuted} wrap="truncate">
+                  {'  '}
+                  {trunc(tool, Math.max(3, bodyWidth - 4 - displayWidth(ctxLabel)))}
+                </Text>
+                {ctxLabel ? (
+                  <>
+                    <Box flexGrow={1} />
+                    <Text color={ctxColor}>{ctxLabel}</Text>
+                  </>
+                ) : null}
+              </Box>
             </Box>
           );
         })
@@ -285,6 +360,14 @@ export function AgentsPanelSidebar({
               bodyWidth,
             )}
           </Text>
+          {hotAgent.ctxPct !== undefined && hotAgent.ctxPct > 0 ? (
+            <SidebarMeter
+              ratio={hotAgent.ctxPct}
+              innerWidth={bodyWidth}
+              color={hotAgent.ctxPct >= 0.8 ? theme.error : theme.warn}
+              marginTop={0}
+            />
+          ) : null}
         </>
       ) : (
         <EmptyState message="no live agents" innerWidth={bodyWidth} />
@@ -307,17 +390,38 @@ export function AgentsPanelSidebar({
           e.name || e.id,
           Math.max(4, bodyWidth - 2 - (showElapsed ? displayWidth(elapsedLabel) + 1 : 0)),
         );
+        // Second line pairs the live tool with the context-window load,
+        // colored by pressure — mirrors the F3 bottom monitor's per-agent
+        // telemetry rows on the narrow rail.
+        const tool = e.currentTool?.name ?? 'idle';
+        const ctxPct = e.ctxPct ?? 0;
+        const ctxLabel = showElapsed ? fmtRatioPct(ctxPct) : '';
+        const ctxColor = ctxPct >= 0.8 ? theme.error : ctxPct >= 0.6 ? theme.warn : theme.textMuted;
         return (
-          <Box key={e.id} flexDirection="row" width={bodyWidth}>
-            <Text color={v.color}>{v.glyph}</Text>
-            <Text color={theme.textPrimary}> </Text>
-            <Text wrap="truncate">{name}</Text>
-            {showElapsed ? (
-              <>
-                <Box flexGrow={1} />
-                <Text color={theme.textMuted}>{elapsedLabel}</Text>
-              </>
-            ) : null}
+          <Box key={e.id} flexDirection="column" width={bodyWidth}>
+            <Box flexDirection="row" width={bodyWidth}>
+              <Text color={v.color}>{v.glyph}</Text>
+              <Text color={theme.textPrimary}> </Text>
+              <Text wrap="truncate">{name}</Text>
+              {showElapsed ? (
+                <>
+                  <Box flexGrow={1} />
+                  <Text color={theme.textMuted}>{elapsedLabel}</Text>
+                </>
+              ) : null}
+            </Box>
+            <Box flexDirection="row" width={bodyWidth}>
+              <Text color={theme.textMuted} wrap="truncate">
+                {'  '}
+                {trunc(tool, Math.max(3, bodyWidth - 4 - displayWidth(ctxLabel)))}
+              </Text>
+              {ctxLabel ? (
+                <>
+                  <Box flexGrow={1} />
+                  <Text color={ctxColor}>{ctxLabel}</Text>
+                </>
+              ) : null}
+            </Box>
           </Box>
         );
       })}
@@ -327,6 +431,8 @@ export function AgentsPanelSidebar({
 
 export interface WorktreePanelSidebarProps {
   worktrees: Record<string, WorktreeRow>;
+  /** Live tick (ms) — drives per-worktree age labels. Defaults to Date.now(). */
+  nowTick?: number | undefined;
   width: number;
 }
 
@@ -351,6 +457,7 @@ function worktreeStatusVisual(status: string): { glyph: string; color: string } 
 
 export function WorktreePanelSidebar({
   worktrees,
+  nowTick,
   width,
 }: WorktreePanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
@@ -360,6 +467,7 @@ export function WorktreePanelSidebar({
   // inset width so they fill the available content area without overshooting
   // the right `│` bar.
   const bodyWidth = inner >= 18 ? inner - 4 : inner;
+  const nowRef = nowTick ?? Date.now();
   const list = Object.values(worktrees);
   const active = list.filter(
     (w) => w.status === 'active' || w.status === 'committing' || w.status === 'merging',
@@ -396,10 +504,19 @@ export function WorktreePanelSidebar({
       }
       footer="F4 details"
     >
+      <SidebarCountsRow
+        counts={[
+          { label: glyphs.running, count: active, color: theme.warn },
+          { label: glyphs.success, count: merged, color: theme.success },
+          { label: glyphs.failure, count: failed, color: theme.error },
+        ]}
+        innerWidth={bodyWidth}
+        marginTop={list.length > 0 ? 1 : 0}
+      />
       {list.length === 0 ? (
         <EmptyState message="no worktrees" innerWidth={bodyWidth} />
       ) : (
-        list.slice(0, 10).map((w) => {
+        list.slice(0, 8).map((w) => {
           const v = worktreeStatusVisual(w.status);
           const diff = `+${w.insertions}/-${w.deletions}`;
           const showDiff = inner >= METRIC_MIN_BODY_WIDTH;
@@ -409,16 +526,35 @@ export function WorktreePanelSidebar({
             w.branch.replace(/^wstack\/ap\//, ''),
             Math.max(4, bodyWidth - rowChrome - diffWidth),
           );
+          // Second line carries the worktree's isolation metadata — owner
+          // label, touched-file count, and age — the same trio the F4
+          // bottom monitor lists per worktree.
+          const showMeta = inner >= METRIC_MIN_BODY_WIDTH;
+          const metaParts = [
+            w.ownerLabel || '',
+            showMeta ? `${w.files}f` : '',
+            showMeta && w.allocatedAt > 0
+              ? fmtShortDuration(Math.max(0, nowRef - w.allocatedAt))
+              : '',
+          ].filter(Boolean);
           return (
-            <Box key={w.branch} flexDirection="row" width={bodyWidth}>
-              <Text color={v.color}>{v.glyph}</Text>
-              <Text color={theme.textPrimary}> </Text>
-              <Text wrap="truncate">{branch}</Text>
-              {showDiff ? (
-                <>
-                  <Box flexGrow={1} />
-                  <Text color={theme.textMuted}>{diff}</Text>
-                </>
+            <Box key={w.branch} flexDirection="column" width={bodyWidth}>
+              <Box flexDirection="row" width={bodyWidth}>
+                <Text color={v.color}>{v.glyph}</Text>
+                <Text color={theme.textPrimary}> </Text>
+                <Text wrap="truncate">{branch}</Text>
+                {showDiff ? (
+                  <>
+                    <Box flexGrow={1} />
+                    <Text color={theme.textMuted}>{diff}</Text>
+                  </>
+                ) : null}
+              </Box>
+              {metaParts.length > 0 ? (
+                <Text color={theme.textMuted} wrap="truncate">
+                  {'  '}
+                  {glyphs.treeLast} {trunc(metaParts.join(' · '), Math.max(3, bodyWidth - 4))}
+                </Text>
               ) : null}
             </Box>
           );
@@ -480,6 +616,13 @@ export function CoordinatorPanelSidebar({
         innerWidth={bodyWidth}
         pill
       />
+      {phaseNames.length > 0 ? (
+        <SidebarMeter
+          ratio={completedPhases / Math.max(1, phaseNames.length)}
+          innerWidth={bodyWidth}
+          color={completedPhases >= phaseNames.length ? theme.success : theme.brand}
+        />
+      ) : null}
       {phaseNames.length === 0 ? (
         <EmptyState message="no active phases" innerWidth={bodyWidth} />
       ) : (
@@ -592,26 +735,20 @@ export function ConnectionsPanelSidebar({
         innerWidth={bodyWidth}
         pill
       />
-      <Box flexDirection="row" width={bodyWidth}>
-        <Text color={okCount > 0 ? theme.success : theme.borderSubtle}>
-          {glyphs.barFull.repeat(
-            Math.round(
-              (okCount / Math.max(1, connections.length || 1)) * Math.max(4, bodyWidth - 4),
-            ),
-          )}
-        </Text>
-        <Text color={theme.borderSubtle}>
-          {glyphs.barEmpty.repeat(
-            Math.max(
-              0,
-              Math.max(4, bodyWidth - 4) -
-                Math.round(
-                  (okCount / Math.max(1, connections.length || 1)) * Math.max(4, bodyWidth - 4),
-                ),
-            ),
-          )}
-        </Text>
-      </Box>
+      <SidebarCountsRow
+        counts={[
+          { label: glyphs.success, count: okCount, color: theme.success },
+          { label: glyphs.warning, count: warnCount, color: theme.warn },
+          { label: glyphs.failure, count: downCount, color: theme.error },
+        ]}
+        innerWidth={bodyWidth}
+        marginTop={1}
+      />
+      <SidebarMeter
+        ratio={okCount / Math.max(1, connections.length || 1)}
+        innerWidth={bodyWidth}
+        color={theme.success}
+      />
       {connections.length === 0 ? (
         <EmptyState message="scanning for links…" innerWidth={bodyWidth} variant="scanning" />
       ) : (
@@ -637,34 +774,23 @@ export function ConnectionsPanelSidebar({
           const lane = c.status === 'ok' ? '━━' : c.status === 'warn' ? '┅┅' : '··';
           const rowChrome = displayWidth(icon) + displayWidth(lane);
           return (
-            <Box key={`${c.name}-${i}`} flexDirection="column" width={bodyWidth}>
-              <Box flexDirection="row" width={bodyWidth}>
-                <Text color={color}>
-                  {icon}
-                  {lane}
-                </Text>
-                <Text color={theme.textPrimary} bold={c.status === 'ok'} wrap="truncate">
-                  {trunc(
-                    c.name,
-                    Math.max(3, bodyWidth - rowChrome - (lat ? displayWidth(lat) + 1 : 0)),
-                  )}
-                </Text>
-                {lat ? (
-                  <>
-                    <Box flexGrow={1} />
-                    <Text color={color}>{lat}</Text>
-                  </>
-                ) : null}
-              </Box>
-              <Box flexDirection="row" width={bodyWidth}>
-                <Text color={color} dimColor wrap="truncate">
-                  {'  '}
-                  {glyphs.workingDirectory.repeat(
-                    Math.max(1, Math.min(bodyWidth - 2, 3 + (i % 4))),
-                  )}
-                </Text>
-                <Text color={theme.textMuted}> link {String(i + 1).padStart(2, '0')}</Text>
-              </Box>
+            <Box key={`${c.name}-${i}`} flexDirection="row" width={bodyWidth}>
+              <Text color={color}>
+                {icon}
+                {lane}
+              </Text>
+              <Text color={theme.textPrimary} bold={c.status === 'ok'} wrap="truncate">
+                {trunc(
+                  c.name,
+                  Math.max(3, bodyWidth - rowChrome - (lat ? displayWidth(lat) + 1 : 0)),
+                )}
+              </Text>
+              {lat ? (
+                <>
+                  <Box flexGrow={1} />
+                  <Text color={color}>{lat}</Text>
+                </>
+              ) : null}
             </Box>
           );
         })

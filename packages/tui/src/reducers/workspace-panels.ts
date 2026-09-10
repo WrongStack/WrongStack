@@ -141,6 +141,23 @@ function computeMaxSidebarScroll(
   return Math.max(0, contentHeight - viewportHeight);
 }
 
+/**
+ * Estimate the sidebar's maximum useful scroll offset — the exact number
+ * the `sidebarScroll` / `sidebarScrollSet` reducer clamp computes. Exported
+ * so the scrollbar thumb math (`components/sidebar-scrollbar.tsx`) and the
+ * wheel/press dispatchers in `app-key-handler.ts` share one source of truth
+ * instead of re-deriving the row budget (drift here would desynchronize
+ * the thumb from the real clamp). Mirrors the private
+ * {@link computeMaxSidebarScroll}; see its doc for the layout budget.
+ */
+export function estimateSidebarMaxScroll(
+  state: State,
+  viewportHeight = 20,
+  effectiveSwarmOnSidebar?: boolean | undefined,
+): number {
+  return computeMaxSidebarScroll(state, viewportHeight, effectiveSwarmOnSidebar);
+}
+
 const workspacePanelActionTypes = [
   'toggleMonitor',
   'toggleAgentsMonitor',
@@ -153,6 +170,7 @@ const workspacePanelActionTypes = [
   'closeAllPanels',
   'toggleSidebarFocus',
   'sidebarScroll',
+  'sidebarScrollSet',
   'sidebarScrollReset',
   'toggleKanbanPanel',
   'toggleGoalPanel',
@@ -283,6 +301,23 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
     }
     case 'sidebarScrollReset':
       return { ...state, sidebarScrollOffset: 0 };
+    case 'sidebarScrollSet': {
+      // Absolute jump (scrollbar press/drag scrub). Same clamp pipeline as
+      // the relative `sidebarScroll` case above — see its comment for the
+      // semantics of viewportHeight / sidebarTwinRowCount /
+      // effectiveSwarmOnSidebar.
+      const adjustedViewportHeight =
+        (action.viewportHeight ?? 20) - (action.sidebarTwinRowCount ?? 0);
+      const maxScroll = computeMaxSidebarScroll(
+        state,
+        Math.max(1, adjustedViewportHeight),
+        action.effectiveSwarmOnSidebar,
+      );
+      return {
+        ...state,
+        sidebarScrollOffset: Math.min(maxScroll, Math.max(0, action.offset)),
+      };
+    }
     case 'toggleKanbanPanel': {
       const opening = !state.kanbanPanelOpen;
       return opening

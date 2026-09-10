@@ -9,7 +9,14 @@ import { METRIC_MIN_BODY_WIDTH, PILL_MIN_INNER_WIDTH } from '../ui-contracts.js'
 import { glyphs } from '../ui-glyphs.js';
 import type { LiveSessionEntry } from './sessions-panel.js';
 import { isCurrentSession } from './sidebar-content.js';
-import { SidebarPanelFrame, SidebarSectionHeader, trunc } from './sidebar-panel-frame.js';
+import {
+  SidebarCountsRow,
+  SidebarMeter,
+  SidebarPanelFrame,
+  SidebarSectionHeader,
+  SidebarStatRow,
+  trunc,
+} from './sidebar-panel-frame.js';
 import {
   EmptyState,
   fmtRelative,
@@ -160,6 +167,9 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
     })
     .slice(0, 12);
   const done = todos.filter((t) => t.status === 'completed').length;
+  const inProgress = todos.filter((t) => t.status === 'in_progress').length;
+  const pending = todos.filter((t) => t.status === 'pending').length;
+  const complete = todos.length > 0 && done === todos.length;
   return (
     <SidebarPanelFrame
       accent={theme.accent}
@@ -168,7 +178,7 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
       width={width}
       kicker="mission queue"
       pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${done}/${todos.length}` : undefined}
-      pillColor={done === todos.length && todos.length > 0 ? theme.success : theme.accent}
+      pillColor={complete ? theme.success : theme.accent}
       right={
         inner < PILL_MIN_INNER_WIDTH ? (
           <Text>
@@ -179,6 +189,21 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
       }
       footer="F6 details"
     >
+      <SidebarMeter
+        ratio={todos.length > 0 ? done / todos.length : 0}
+        innerWidth={bodyWidth}
+        color={complete ? theme.success : theme.accent}
+        marginTop={0}
+      />
+      <SidebarCountsRow
+        counts={[
+          { label: glyphs.running, count: inProgress, color: theme.accent },
+          { label: glyphs.pending, count: pending, color: theme.textMuted },
+          { label: glyphs.success, count: done, color: theme.success },
+        ]}
+        innerWidth={bodyWidth}
+        marginTop={1}
+      />
       {ordered.length === 0 ? (
         <EmptyState message="no todos" innerWidth={bodyWidth} />
       ) : (
@@ -254,10 +279,10 @@ export function QueuePanelSidebar({ items, width }: QueuePanelSidebarProps): Rea
           .map((item, i) => (
             <SidebarWorklistRow
               key={item.id ?? i}
-              icon={`${i + 1}.`}
-              iconColor={theme.textMuted}
+              icon={String(i + 1).padStart(2, '0')}
+              iconColor={i === 0 ? theme.accent : theme.textMuted}
               label={item.displayText}
-              labelColor={theme.textPrimary}
+              labelColor={i === 0 ? theme.textPrimary : theme.textSecondary}
               innerWidth={bodyWidth}
             />
           ))
@@ -305,6 +330,18 @@ export function ProcessListPanelSidebar({
       }
       footer="F8 details"
     >
+      <SidebarCountsRow
+        counts={[
+          { label: glyphs.running, count: activeCount, color: theme.success },
+          {
+            label: glyphs.failure,
+            count: processes.filter((p) => (p.status ?? '').toLowerCase() === 'failed').length,
+            color: theme.error,
+          },
+        ]}
+        innerWidth={bodyWidth}
+        marginTop={processes.length > 0 ? 1 : 0}
+      />
       {processes.length === 0 ? (
         <EmptyState message="no processes" innerWidth={bodyWidth} />
       ) : (
@@ -413,6 +450,13 @@ export function GoalPanelSidebar({
           <Text color={theme.textPrimary} bold wrap="truncate">
             {trunc(displayGoal, bodyWidth - 2)}
           </Text>
+          <SidebarStatRow
+            label={`${stateVisual.glyph} state`}
+            value={goal.goalState.toUpperCase()}
+            color={stateVisual.color}
+            innerWidth={bodyWidth}
+            accent={stateVisual.color}
+          />
           <SidebarSectionHeader
             glyph={glyphs.success}
             label="PROGRESS"
@@ -421,16 +465,11 @@ export function GoalPanelSidebar({
             innerWidth={bodyWidth}
             pill
           />
-          <Box marginTop={1} width={bodyWidth}>
-            <Text color={theme.success}>
-              {glyphs.barFull.repeat(Math.round((progress / 100) * bodyWidth))}
-            </Text>
-            <Text color={theme.borderSubtle}>
-              {glyphs.barEmpty.repeat(
-                Math.max(0, bodyWidth - Math.round((progress / 100) * bodyWidth)),
-              )}
-            </Text>
-          </Box>
+          <SidebarMeter
+            ratio={progress / 100}
+            innerWidth={bodyWidth}
+            color={progress >= 100 ? theme.success : theme.brand}
+          />
           <SidebarSectionHeader
             glyph={glyphs.task}
             label="DELIVERABLES"
@@ -506,6 +545,14 @@ export function SessionsPanelSidebar({
       }
       footer="F10 details"
     >
+      <SidebarCountsRow
+        counts={[
+          { label: glyphs.bullet, count: liveSessions?.length ?? 0, color: theme.success },
+          { label: glyphs.save, count: resumeSessions?.length ?? 0, color: theme.textMuted },
+        ]}
+        innerWidth={bodyWidth}
+        marginTop={total > 0 ? 1 : 0}
+      />
       {live.length > 0 ? (
         <>
           <SidebarSectionHeader
@@ -652,17 +699,29 @@ export function KanbanPanelSidebar({
         glyph={glyphs.fleet}
         label="COLUMNS"
         color={theme.accent}
+        badge={columns.some((c) => c.wip !== undefined && c.count > c.wip) ? 'WIP!' : undefined}
+        badgeColor={theme.error}
         innerWidth={bodyWidth}
+        pill
       />
-      {columns.slice(0, 5).map((c, i) => (
-        <Box key={i} flexDirection="row" width={bodyWidth}>
-          <Text color={theme.textSecondary} wrap="truncate">
-            {trunc(c.name, bodyWidth - 6)}
-          </Text>
-          <Box flexGrow={1} />
-          <Text color={theme.textMuted}>{c.count}</Text>
-        </Box>
-      ))}
+      {columns.slice(0, 6).map((c, i) => {
+        // WIP-limit aware: `count/wip` with the limit breached in the alert
+        // color — the same at-a-glance overload signal the bottom F12 board
+        // marks per column.
+        const overWip = c.wip !== undefined && c.count > c.wip;
+        return (
+          <Box key={i} flexDirection="row" width={bodyWidth}>
+            <Text color={overWip ? theme.error : theme.textSecondary} wrap="truncate">
+              {trunc(c.name, Math.max(4, bodyWidth - 8))}
+            </Text>
+            <Box flexGrow={1} />
+            <Text color={overWip ? theme.error : theme.textMuted}>
+              {c.count}
+              {c.wip !== undefined ? `/${c.wip}` : ''}
+            </Text>
+          </Box>
+        );
+      })}
       <SidebarSectionHeader
         glyph={glyphs.running}
         label="ACTIVE"

@@ -2,6 +2,7 @@ import { MAX_WRONGPROXY_URL_LENGTH } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
+import { hasPanelRoutedToSidebar } from '../app-ui-state.js';
 import {
   ANIMATION_STYLE_CHOICES,
   type AnimationStyleChoice,
@@ -34,6 +35,15 @@ import {
 } from '../components/settings-picker.js';
 import { MAX_TUI_THINKING_WORD_LENGTH, normalizeTuiThinkingWord } from '../thinking-word.js';
 import { PANEL_IDS, PANEL_POSITION_FIELD_START } from '../ui-contracts.js';
+
+/**
+ * Hint shown when the right sidebar can't be hidden because at least one
+ * F-key panel is routed to it — the sidebar is that panel's only home.
+ * Mirrors the render-side clamp in `app-ui-state.ts#resolveSidebarLayout`
+ * and the slash-command guards in `use-tui-slash-commands.ts`.
+ */
+const SIDEBAR_PINNED_HINT =
+  'Sidebar pinned on: a panel is routed to the sidebar — set it to bottom first';
 
 const settingsValueActionTypes = [
   'settingsValueChange',
@@ -592,11 +602,23 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           ...state,
           settingsPicker: { ...sp, wrongProxyEnabled: !sp.wrongProxyEnabled, hint: undefined },
         };
-      if (f === 61)
+      if (f === 61) {
+        // Pin rule: at least one F-key panel is routed to the sidebar (read
+        // from the picker draft, which is seeded from the persisted config
+        // at open and tracks the user's in-flight routing edits), so the
+        // sidebar can't be switched off. Force it on and say why rather
+        // than silently ignoring the press.
+        if (hasPanelRoutedToSidebar(sp.panelPositions, sp.showAgentSwarmPanel === 'sidebar')) {
+          return {
+            ...state,
+            settingsPicker: { ...sp, showSidebar: true, hint: SIDEBAR_PINNED_HINT },
+          };
+        }
         return {
           ...state,
           settingsPicker: { ...sp, showSidebar: !sp.showSidebar, hint: undefined },
         };
+      }
       if (f === 62)
         return {
           ...state,
@@ -664,6 +686,7 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
       const {
         panelPositions: panelPositionsPatch,
         showAgentSwarmPanel: swarmPatch,
+        showSidebar: showSidebarPatch,
         ...restPatch
       } = action.patch;
       const resetToolViews = action.patch.toolResultViewMode !== undefined;
@@ -683,6 +706,18 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
             : state.settingsPicker.showAgentSwarmPanel === 'off'
               ? 'off'
               : 'bottom';
+      // Pin rule (mirrors field 61 + the render-side clamp in
+      // `app-ui-state.ts#resolveSidebarLayout`): a `showSidebar: false`
+      // patch is clamped to on while any panel still routes to the sidebar
+      // — `/settings sidebar off` is refused this way, and the refusal is
+      // surfaced as a picker hint rather than a silent no-op. Turning the
+      // sidebar ON (or patches that don't touch it) is never blocked.
+      const mergedShowSidebar = showSidebarPatch ?? state.settingsPicker.showSidebar;
+      const sidebarPinnedByPatch = hasPanelRoutedToSidebar(
+        mergedPanelPositions,
+        derivedSwarmMode === 'sidebar',
+      );
+      const blockedSidebarOff = mergedShowSidebar === false && sidebarPinnedByPatch;
       return {
         ...state,
         ...(resetToolViews ? { toolResultViewOverrides: new Map<number, never>() } : {}),
@@ -691,7 +726,8 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           ...restPatch,
           ...(panelPositionsPatch !== undefined ? { panelPositions: mergedPanelPositions } : {}),
           showAgentSwarmPanel: derivedSwarmMode,
-          hint: undefined,
+          showSidebar: blockedSidebarOff ? true : mergedShowSidebar,
+          hint: blockedSidebarOff ? SIDEBAR_PINNED_HINT : undefined,
         },
       };
     }

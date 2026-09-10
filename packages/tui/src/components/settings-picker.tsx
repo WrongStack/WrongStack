@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useEffect } from 'react';
+import { hasPanelRoutedToSidebar } from '../app-ui-state.js';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
 import { PANEL_IDS, SETTINGS_PICKER_MAX_HEIGHT } from '../ui-contracts.js';
@@ -271,6 +272,10 @@ export function SettingsPicker({
   onLayoutComputed,
 }: SettingsPickerProps): React.ReactElement {
   const boolVal = (v: boolean) => (v ? 'on' : 'off');
+  // Pin rule: the sidebar can't be hidden while any F-key panel routes to
+  // it — the settings reducer refuses the toggle (field 61) and shows a
+  // hint; this marker tells the user why before they try.
+  const sidebarPinned = hasPanelRoutedToSidebar(panelPositions, showAgentSwarmPanel === 'sidebar');
 
   const rows: SettingsPickerRowData[] = [
     // ── Autonomy ──
@@ -572,8 +577,10 @@ export function SettingsPicker({
     { section: 'Display' },
     {
       label: 'Right sidebar',
-      value: boolVal(showSidebar ?? true),
-      detail: 'Show or hide the right sidebar in the TUI (chat history takes full width when off)',
+      value: `${boolVal(showSidebar ?? true)}${sidebarPinned ? ' · pinned' : ''}`,
+      detail: sidebarPinned
+        ? 'A panel is routed to the sidebar — set that panel to bottom to unlock hiding'
+        : 'Show or hide the right sidebar in the TUI (chat history takes full width when off)',
     },
     toolResultViewSettingRow(toolResultViewMode),
   ];

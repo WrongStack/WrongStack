@@ -35,6 +35,14 @@ interface AppViewSidebarProps {
   runtime: AppViewProps['runtime'];
   sidebarWidth: number;
   sidebarContentWidth: number;
+  /** Current sidebar scroll offset (rows) — positions the scrollbar thumb. */
+  sidebarScrollOffset: number;
+  /**
+   * Estimated scrollable overflow (rows) from `estimateSidebarMaxScroll`,
+   * computed by `app-view.tsx` with the same inputs the wheel/press
+   * dispatchers thread. > 0 shows the one-column scrollbar in the rail.
+   */
+  sidebarMaxScroll: number;
   sidebarSlotVisible: (id: PanelId) => boolean;
   hiddenSidebarPanelCount: number;
   sidebarProcessData: ReturnType<typeof useSidebarProcessList>;
@@ -56,6 +64,8 @@ export function AppViewSidebar({
   runtime,
   sidebarWidth,
   sidebarContentWidth,
+  sidebarScrollOffset,
+  sidebarMaxScroll,
   sidebarSlotVisible,
   hiddenSidebarPanelCount,
   sidebarProcessData,
@@ -101,7 +111,13 @@ export function AppViewSidebar({
   );
 
   return (
-    <RightSidebar width={sidebarWidth} maxHeight={runtime.termRows} focused={state.sidebarFocused}>
+    <RightSidebar
+      width={sidebarWidth}
+      maxHeight={runtime.termRows}
+      focused={state.sidebarFocused}
+      scrollOffset={sidebarScrollOffset}
+      maxScroll={sidebarMaxScroll}
+    >
       {/* Per-panel sidebar variants: render only when the panel is
       open AND routed to 'sidebar' AND wins a slot under
       SIDEBAR_PANEL_LIMIT (allocated above). Render order mirrors
@@ -123,6 +139,7 @@ export function AppViewSidebar({
           runningCount={
             Object.values(statusbar.entriesWithLeader).filter((e) => e.status === 'running').length
           }
+          nowTick={activity.nowTick}
           width={sidebarContentWidth}
         />
       ) : null}
@@ -135,7 +152,11 @@ export function AppViewSidebar({
         />
       ) : null}
       {sidebarSlotVisible('worktree') ? (
-        <WorktreePanelSidebar worktrees={state.worktrees} width={sidebarContentWidth} />
+        <WorktreePanelSidebar
+          worktrees={state.worktrees}
+          nowTick={activity.nowTick}
+          width={sidebarContentWidth}
+        />
       ) : null}
       {sidebarSlotVisible('plan') ? (
         <PlanPanelSidebar

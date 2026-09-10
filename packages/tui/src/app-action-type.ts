@@ -753,6 +753,17 @@ export type Action =
     }
   /** Reset sidebar scroll offset to 0. */
   | { type: 'sidebarScrollReset' }
+  /** Jump the sidebar scroll to an absolute offset (scrollbar press/drag). */
+  | {
+      type: 'sidebarScrollSet';
+      /** Absolute offset in rows from the content top; clamped to [0, max]. */
+      offset: number;
+      viewportHeight?: number | undefined;
+      /** See the `sidebarScroll` twin field — identical clamp semantics. */
+      sidebarTwinRowCount?: number | undefined;
+      /** See the `sidebarScroll` twin field — identical clamp semantics. */
+      effectiveSwarmOnSidebar?: boolean | undefined;
+    }
   | { type: 'toggleKanbanPanel' }
   | { type: 'toggleGoalPanel' }
   | { type: 'toggleGoalKanbanPanel' }

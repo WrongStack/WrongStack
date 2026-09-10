@@ -1,4 +1,9 @@
 import {
+  areSubagentsAllowed,
+  isSubagentPolicyLocked,
+  setSessionSubagentsAllowed,
+} from '@wrongstack/core/coordination';
+import {
   applyTokenOverrides,
   clearActiveKit,
   clearPersistedActiveKit,
@@ -12,18 +17,13 @@ import {
   setDesignOverrides,
 } from '@wrongstack/core/design';
 import { SKILL_LIMITS, stripFrontmatter } from '@wrongstack/core/skills';
-import {
-  areSubagentsAllowed,
-  isSubagentPolicyLocked,
-  setSessionSubagentsAllowed,
-} from '@wrongstack/core/coordination';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
 import type { Settings, State } from '../app-state.js';
+import { hasPanelRoutedToSidebar } from '../app-ui-state.js';
 import { AUTONOMY_OPTIONS } from '../components/autonomy-picker.js';
-import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
 import {
   formatAllSettingsSummary,
   getSettingsFieldValue,
@@ -33,6 +33,7 @@ import {
   settingsPickerJumpNames,
 } from '../components/settings-picker.js';
 import { STATUSLINE_ITEMS, type StatuslineItem } from '../components/statusline-picker.js';
+import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
 import { THEME_OPTIONS } from '../theme.js';
 
 /**
@@ -426,6 +427,27 @@ export function useTuiSlashCommands({
             return { message: result.error };
           }
 
+          // Pin rule: refuse `sidebar off` while any panel routes to the
+          // sidebar — that rail is the panel's only home. The reducer
+          // clamps the runtime state too (see `reducers/settings-values.ts`),
+          // but this early return also keeps the raw `false` out of the
+          // config write below, so a save flight can never persist the
+          // orphaning value past the next read-time coercion.
+          if (result.patch.showSidebar === false) {
+            const curRouting = getSettings ? getSettings() : undefined;
+            if (
+              hasPanelRoutedToSidebar(
+                curRouting?.panelPositions,
+                curRouting?.showAgentSwarmPanel === 'sidebar',
+              )
+            ) {
+              return {
+                message:
+                  '✗ Sidebar pinned on — a panel is routed to the sidebar. Set it to bottom first (/settings fleet bottom).',
+              };
+            }
+          }
+
           // 1. Update runtime state so the picker (if opened later)
           //    reflects the change immediately.
           dispatch({ type: 'settingsValueSet', patch: result.patch });
@@ -598,9 +620,18 @@ export function useTuiSlashCommands({
       statuslineMode: 'minimum' | 'detailed',
       showSidebar: boolean,
     ): Promise<string> => {
-      const patch = { statuslineMode, showSidebar };
-      dispatch({ type: 'settingsValueSet', patch });
+      // Pin rule: the sidebar is a routed panel's only home, so /lite's
+      // "hide the sidebar" step is clamped to "keep it visible" whenever
+      // any panel routes there. The persisted config is the same dual
+      // source `resolveAppSidebarLayout` reads while the picker is closed.
       const cur = getSettings();
+      const sidebarPinned = hasPanelRoutedToSidebar(
+        cur?.panelPositions,
+        cur?.showAgentSwarmPanel === 'sidebar',
+      );
+      const sidebarOn = showSidebar || sidebarPinned;
+      const patch = { statuslineMode, showSidebar: sidebarOn };
+      dispatch({ type: 'settingsValueSet', patch });
       if (cur) {
         try {
           const err = await saveSettings({ ...cur, ...patch });
@@ -612,8 +643,9 @@ export function useTuiSlashCommands({
           dispatch({ type: 'settingsHint', text: 'Could not save settings.' });
         }
       }
-      return showSidebar
-        ? `✓ Full layout: statusline detailed, sidebar on.`
+      if (showSidebar) return `✓ Full layout: statusline detailed, sidebar on.`;
+      return sidebarPinned
+        ? `✓ Lite layout: statusline minimum, sidebar kept on (a panel is routed to the sidebar).`
         : `✓ Lite layout: statusline minimum, sidebar off.`;
     };
     const liteCmd = {

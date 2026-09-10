@@ -31,6 +31,7 @@ import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
 import { sidebarCardSurface, theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
+import { SidebarScrollbar } from './sidebar-scrollbar.js';
 
 /** Terminal widths below this hide the sidebar entirely. */
 export const SIDEBAR_MIN_TERMINAL = 64;
@@ -84,6 +85,16 @@ interface RightSidebarProps {
    */
   focused?: boolean | undefined;
   /**
+   * Current sidebar scroll offset in rows. Positions the scrollbar thumb.
+   */
+  scrollOffset?: number | undefined;
+  /**
+   * Estimated scrollable overflow in rows (from
+   * `estimateSidebarMaxScroll`). When > 0, a one-column scrollbar renders
+   * in the rail's right padding column; content columns are untouched.
+   */
+  maxScroll?: number | undefined;
+  /**
    * Content to render inside the sidebar. When omitted, a dimmed placeholder
    * label is shown so the reserved region is visually self-documenting.
    */
@@ -136,6 +147,8 @@ export function RightSidebar({
   width,
   maxHeight,
   focused = false,
+  scrollOffset = 0,
+  maxScroll = 0,
   children,
 }: RightSidebarProps): React.ReactElement | null {
   const { columns: termCols } = useTerminalSize({ fallbackColumns: 80 });
@@ -147,24 +160,49 @@ export function RightSidebar({
   // Subtract footer (1 row) from max height when present.
   const innerHeight = maxHeight === undefined ? undefined : Math.max(0, maxHeight - 1);
 
+  // Layout: [content area | 1-col scroll rail]. The rail occupies the
+  // column that was previously the right padding, and the content area
+  // keeps a full left padding with NO right padding — so the usable
+  // content columns are byte-identical to the pre-scrollbar layout and
+  // `computeSidebarContentWidth` stays the single width contract.
+  const contentWidth = Math.max(1, resolvedWidth - 1);
+
   return (
     <Box flexDirection="column" flexShrink={0}>
       <Box
-        flexDirection="column"
+        flexDirection="row"
         width={resolvedWidth}
         height={innerHeight}
         overflowY="hidden"
+        overflowX="hidden"
         flexShrink={0}
-        paddingX={1}
         {...(theme.supportsBackground ? { backgroundColor: sidebarCardSurface() } : {})}
       >
-        {children ?? (
-          <Box flexDirection="row" justifyContent="space-between">
-            <Text color={theme.textMuted} wrap="truncate">
-              SIDEBAR
-            </Text>
-          </Box>
-        )}
+        <Box
+          flexDirection="column"
+          width={contentWidth}
+          paddingLeft={1}
+          overflowY="hidden"
+          overflowX="hidden"
+          flexShrink={0}
+        >
+          {children ?? (
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text color={theme.textMuted} wrap="truncate">
+                SIDEBAR
+              </Text>
+            </Box>
+          )}
+        </Box>
+        {/* Scroll rail (null — a quiet gap — when the content fits). The
+            column is always reserved by the row layout so toggling the rail
+            never reflows the content above. */}
+        <SidebarScrollbar
+          viewportRows={innerHeight ?? 0}
+          offset={scrollOffset}
+          maxScroll={maxScroll}
+          focused={focused}
+        />
       </Box>
       <SidebarFooter width={resolvedWidth} focused={focused} />
     </Box>

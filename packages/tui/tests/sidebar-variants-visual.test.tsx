@@ -157,11 +157,11 @@ function panelFor(id: PanelId, width: number): ReactElement {
         />
       );
     case 'fleet':
-      return <FleetPanelSidebar entries={FLEET} runningCount={3} width={width} />;
+      return <FleetPanelSidebar entries={FLEET} runningCount={3} nowTick={NOW} width={width} />;
     case 'agents':
       return <AgentsPanelSidebar entries={FLEET} totalCost={12.3456} nowTick={NOW} width={width} />;
     case 'worktree':
-      return <WorktreePanelSidebar worktrees={WORKTREES} width={width} />;
+      return <WorktreePanelSidebar worktrees={WORKTREES} nowTick={NOW} width={width} />;
     case 'plan':
       return (
         <PlanPanelSidebar

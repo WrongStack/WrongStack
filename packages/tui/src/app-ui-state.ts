@@ -136,6 +136,31 @@ export function effectiveShowSidebar(state: State, liveSettings: Settings | unde
 }
 
 /**
+ * True when the right sidebar is "pinned on": at least one F-key panel is
+ * routed to the sidebar slot (per {@link coercePanelPositionMap}-coerced
+ * positions), or the legacy tri-state agent-swarm mode is 'sidebar' (which
+ * mounts the AGENT SWARM + MISSIONS cards on the rail). While pinned, the
+ * master `showSidebar` switch must not resolve to off — a routed panel's
+ * only home is the sidebar, so hiding the rail would orphan it.
+ *
+ * Accepts loose map inputs (partial, undefined) so every guard site — the
+ * settings reducer, the /lite and /settings slash commands, and the layout
+ * resolver — can call it with whatever source it holds without
+ * re-implementing the coercion. The legacy swarm input is a *pre-narrowed*
+ * boolean on purpose: each caller writes `mode === 'sidebar'` explicitly,
+ * so a future AgentSwarmPanelMode value can never be silently misread as
+ * "pinned" or "not pinned" here.
+ */
+export function hasPanelRoutedToSidebar(
+  panelPositions: Partial<Record<PanelId, 'bottom' | 'sidebar'>> | undefined,
+  legacySwarmOnSidebar?: boolean | undefined,
+): boolean {
+  const map = coercePanelPositionMap(panelPositions);
+  if (PANEL_IDS.some((id) => map[id] === 'sidebar')) return true;
+  return legacySwarmOnSidebar === true;
+}
+
+/**
  * Open flags for each routable panel — which twins are candidates for a
  * sidebar slot. Shared by the dispatcher and the renderer so the
  * scroll-clamp reservation in `resolveSidebarLayout` and the actual twin
@@ -313,7 +338,17 @@ function resolveSidebarLayout(
   // BEFORE computeSidebarWidth so a hidden sidebar can never reserve
   // columns. `undefined` defaults to visible — old callers that never
   // pass the flag keep the pre-gating behavior.
-  const sidebarWidth = overlayOpen || showSidebar === false ? 0 : computeSidebarWidth(termCols);
+  //
+  // Pin rule: when at least one F-key panel is routed to the sidebar (or
+  // the legacy swarm mode mounts its cards there), the switch is clamped
+  // ON. The sidebar is that panel's only home, so a stale 'off' — from a
+  // hand-edited config or an older client that predates the guard in
+  // `reducers/settings-values.ts` — must not orphan it. The reducer and
+  // slash-command guards block the user-facing paths; this clamp is the
+  // render-side invariant that makes the two sides provably consistent.
+  const sidebarPinned = hasPanelRoutedToSidebar(panelPositions, legacySwarmOnSidebar);
+  const sidebarVisible = showSidebar !== false || sidebarPinned;
+  const sidebarWidth = overlayOpen || !sidebarVisible ? 0 : computeSidebarWidth(termCols);
   // The swarm panel is on the sidebar iff EITHER:
   //   - `panelPositions.fleet === 'sidebar'` (new per-panel position map,
   //     fed by both the picker draft and persisted config). This field
@@ -329,8 +364,7 @@ function resolveSidebarLayout(
   // swarm mode (no recent picker open) gets the full mission-queue
   // scroll budget.
   const effectiveSwarmOnSidebar =
-    showSidebar !== false &&
-    (panelPositions.fleet === 'sidebar' || (legacySwarmOnSidebar ?? false));
+    sidebarVisible && (panelPositions.fleet === 'sidebar' || (legacySwarmOnSidebar ?? false));
 
   // Sum the conservative natural-height budget for each routed twin mounted
   // above `SidebarContent`. Worklist twins can wrap at the 16-column floor, so
