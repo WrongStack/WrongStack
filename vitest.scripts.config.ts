@@ -12,6 +12,7 @@ export default defineConfig({
       'packages/core/tests/architecture/test-skip-budget-script.test.ts',
       'packages/core/tests/architecture/script-entrypoints.test.ts',
       'packages/core/tests/architecture/check-dep-path-separators.test.ts',
+      'packages/core/tests/architecture/check-audit-suppressions.test.ts',
     ],
     maxWorkers: getVitestMaxWorkers(),
     coverage: {

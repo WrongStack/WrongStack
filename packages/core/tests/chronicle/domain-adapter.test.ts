@@ -369,3 +369,66 @@ describe('domain lifecycle bridge', () => {
     );
   });
 });
+
+/**
+ * Keys the sensitive-key regex does not name still carried credentials.
+ *
+ * `SENSITIVE_KEY` hashes the obvious carriers (`error`, `message`, `token`,
+ * `secret`, `key`), so those were covered. The residual was every OTHER key:
+ * `command`, `url`, `stack`, `endpoint` — all of which routinely embed a
+ * credential — were written to the journal verbatim under 256 characters.
+ *
+ * Scrubbing, not hashing: Chronicle exists to make tool and provider behaviour
+ * analysable, and a hashed command line is useless for that. The string must
+ * stay readable with only the credential removed.
+ */
+describe('domain adapter scrubs credentials from pass-through strings', () => {
+  const SECRET = 'sk-ant-api03-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
+
+  async function capture(payload: Record<string, unknown>): Promise<string> {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-scrub-'));
+    dirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p' },
+      'trace',
+    );
+    const off = wireDomainEventsToChronicle({ events, journal, context });
+    events.emit('provider.request_failed', payload);
+    // Poll rather than sleep a fixed interval: the journal append is async, so
+    // a flat 20ms wait passes on an idle machine and fails under parallel test
+    // load. A security assertion that fails intermittently teaches people to
+    // re-run rather than to look.
+    const { readFile } = await import('node:fs/promises');
+    const file = path.join(dir, 'events.jsonl');
+    let written = '';
+    for (let attempt = 0; attempt < 100 && written.trim() === ''; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      written = await readFile(file, 'utf8').catch(() => '');
+    }
+    off();
+    await journal.close?.();
+    expect(written.trim(), 'journal never received the event').not.toBe('');
+    return written;
+  }
+
+  it.each([
+    ['command', { command: `curl -H "Authorization: Bearer ${SECRET}" https://api.example` }],
+    ['url', { url: `https://api.example/v1?api_key=${SECRET}` }],
+    ['stack', { stack: `Error: auth failed with ${SECRET}` }],
+    ['endpoint', { endpoint: `https://user:${SECRET}@api.example` }],
+  ])('scrubs a credential in %s', async (_label, payload) => {
+    const written = await capture(payload);
+    expect(written).not.toContain(SECRET);
+  });
+
+  it('keeps the surrounding string readable rather than hashing it', async () => {
+    const written = await capture({
+      command: `curl -H "Authorization: Bearer ${SECRET}" https://api.example`,
+    });
+    // The analytics value — which command ran, against which host — survives.
+    expect(written).toContain('curl');
+    expect(written).toContain('api.example');
+  });
+});

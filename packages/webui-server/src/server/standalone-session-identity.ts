@@ -4,6 +4,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import { getSessionRegistry, type SessionResumeClaim } from '@wrongstack/core/storage';
 import type { Config, Logger } from '@wrongstack/core/types';
 import { WebSocket } from 'ws';
+import { errMessage } from './ws-utils.js';
 
 interface StandaloneSessionIdentityPaths {
   globalRoot: string;
@@ -351,5 +352,5 @@ export async function createStandaloneSessionIdentityLifecycle(
 }
 
 function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return errMessage(err);
 }

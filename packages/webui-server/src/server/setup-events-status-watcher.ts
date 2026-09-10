@@ -13,6 +13,7 @@ import {
   statusProjectHashFromWatchFilename,
 } from './setup-events-watcher.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
+import { errMessage } from './ws-utils.js';
 
 interface SetupEventsStatusWatcherDeps {
   wpaths?: WstackPaths | undefined;
@@ -132,7 +133,7 @@ export function registerSetupEventsStatusWatcher(
         JSON.stringify({
           level: 'error',
           event: 'setup_events.status_watcher_start_failed',
-          message: err instanceof Error ? err.message : String(err),
+          message: errMessage(err),
           timestamp: new Date().toISOString(),
         }),
       );

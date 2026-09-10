@@ -10,8 +10,24 @@ import stringWidth from 'string-width';
  */
 
 const ANSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
-const ANSI_OSC_RE = /\x1b\][\s\S]*?(?:\x07|\x1b\\)/g;
-const ANSI_CONTROL_STRING_RE = /\x1b[P^_X][\s\S]*?\x1b\\/g;
+
+/**
+ * Kept byte-identical to `@wrongstack/core`'s `terminal-sanitize.ts`, which is
+ * the security-owning copy — this one exists only because the TUI measures
+ * layout below that package in the dependency graph.
+ *
+ * The lazy `[\s\S]*?` these replace was quadratic: 256 KiB of unterminated
+ * `ESC ]` introducers cost 12.5 seconds, and this copy is on the status-bar
+ * and width-measurement path, so it froze rendering rather than a prompt.
+ * A negated class finds the same terminator without backtracking (0.5 ms on
+ * the same input); the bound caps a body that never terminates.
+ */
+const MAX_STRING_BODY = 4096;
+const ANSI_OSC_RE = new RegExp(`\\x1b\\][^\\x07\\x1b]{0,${MAX_STRING_BODY}}(?:\\x07|\\x1b\\\\)`, 'g');
+const ANSI_CONTROL_STRING_RE = new RegExp(
+  `\\x1b[P^_X][^\\x1b]{0,${MAX_STRING_BODY}}\\x1b\\\\`,
+  'g',
+);
 const ANSI_ESCAPE_RE = /\x1b[ -/]*[@-~]/g;
 const GRAPHEME_SEGMENTER = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 

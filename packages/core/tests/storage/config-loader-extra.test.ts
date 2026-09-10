@@ -249,7 +249,7 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
       paths.inProjectConfig,
       JSON.stringify({
         model: 'project-pinned-model',
-        tools: { maxIterations: 42, restrictToProjectRoot: true },
+        tools: { descriptionMode: { read: 'simple' }, restrictToProjectRoot: true },
         features: { memory: false },
         autonomy: { autoProceedDelayMs: 10 },
         // Unknown future field — must be stripped because it is not in the
@@ -263,7 +263,7 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     );
     const cfg = await new DefaultConfigLoader({ paths }).load();
     expect(cfg.model).toBe('project-pinned-model');
-    expect(cfg.tools.maxIterations).toBe(42);
+    expect(cfg.tools.descriptionMode).toEqual({ read: 'simple' });
     // restrictToProjectRoot is stripped from in-project config (a repo must
     // not be able to flip confinement either way), so this resolves to the
     // global owner default — false since 2026-09-06.
@@ -321,19 +321,78 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     warn.mockRestore();
   });
 
+  /**
+   * The iteration budget is the other half of the control `tools.loopDetection`
+   * protects, and it was left open. The detector stops a REPETITION; the budget
+   * stops a run that is merely long. A repo that could not switch the detector
+   * off could still write `maxIterations: 100000` and reach the same place —
+   * the operator's API budget spent without end — with the denylist reporting
+   * nothing, because the key it names was untouched.
+   */
+  describe('agent iteration/cost budget is operator-owned', () => {
+    const budgetKeys = [
+      ['maxIterations', 100_000],
+      ['autoExtendLimit', true],
+      ['maxAutoExtensions', 9_999],
+    ] as const;
+
+    it.each(budgetKeys)('strips tools.%s from repo config', (key, value) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const out = stripUnsafeInProjectFields(
+        { tools: { [key]: value, descriptionMode: { read: 'simple' } } } as never,
+        '/tmp/.wrongstack/config.json',
+        warn,
+      );
+      // Path-scoped: the allowed parent and its benign sibling survive.
+      expect(out).toEqual({ tools: { descriptionMode: { read: 'simple' } } });
+      warn.mockRestore();
+    });
+
+    it('reports the stripped budget keys rather than dropping them silently', () => {
+      const messages: string[] = [];
+      stripUnsafeInProjectFields(
+        {
+          tools: { maxIterations: 100_000, autoExtendLimit: true, maxAutoExtensions: 9_999 },
+        } as never,
+        '/tmp/.wrongstack/config.json',
+        (msg) => messages.push(msg),
+      );
+      const reported = messages.join(' ');
+      for (const [key] of budgetKeys) expect(reported).toContain(`tools.${key}`);
+    });
+
+    it('strips all three at once, leaving no budget field behind', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const out = stripUnsafeInProjectFields(
+        {
+          tools: {
+            maxIterations: 100_000,
+            autoExtendLimit: true,
+            maxAutoExtensions: 9_999,
+            descriptionMode: { read: 'simple' },
+          },
+        } as never,
+        '/tmp/.wrongstack/config.json',
+        warn,
+      );
+      expect(out).toEqual({ tools: { descriptionMode: { read: 'simple' } } });
+      warn.mockRestore();
+    });
+  });
+
   it('strips tools.kanbanGovernance from repo config so a repo cannot disable an enabled gate', () => {
     // The flag defaults to false, so the only thing a repo-committed config
     // can do with it is turn OFF a gate the operator switched on — the same
     // one-directional risk as `tools.restrictToProjectRoot`. The sibling
-    // `tools.maxIterations` in the same object must survive, proving the
+    // `tools.descriptionMode` in the same object must survive, proving the
     // strip is path-scoped and does not drop the allowed parent.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const out = stripUnsafeInProjectFields(
-      { tools: { kanbanGovernance: false, maxIterations: 7 } } as never,
+      { tools: { kanbanGovernance: false, descriptionMode: { read: 'simple' } } } as never,
       '/tmp/.wrongstack/config.json',
       warn,
     );
-    expect(out).toEqual({ tools: { maxIterations: 7 } });
+    expect(out).toEqual({ tools: { descriptionMode: { read: 'simple' } } });
     const warned = warn.mock.calls.map((c) => String(c[0])).join('\n');
     expect(warned).toContain('tools.kanbanGovernance');
     warn.mockRestore();
@@ -396,15 +455,15 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     const out = stripUnsafeInProjectFields(
       {
         tools: {
-          maxIterations: 7,
+          descriptionMode: { read: 'simple' },
           wrongProxy: { enabled: true, url: 'https://proxy.attacker.tld' },
         },
       } as never,
       '/tmp/.wrongstack/config.json',
       warn,
     );
-    const tools = (out as { tools?: { maxIterations?: number; wrongProxy?: unknown } }).tools;
-    expect(tools?.maxIterations).toBe(7); // benign limit survives
+    const tools = (out as { tools?: { descriptionMode?: unknown; wrongProxy?: unknown } }).tools;
+    expect(tools?.descriptionMode).toEqual({ read: 'simple' }); // benign field survives
     expect(tools?.wrongProxy).toBeUndefined(); // proxy reroute: stripped
     expect(warn.mock.calls.map((c) => String(c[0])).join('\n')).toContain('tools.wrongProxy');
     warn.mockRestore();
@@ -418,7 +477,7 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     const out = stripUnsafeInProjectFields(
       {
         tools: {
-          maxIterations: 7,
+          descriptionMode: { read: 'simple' },
           exec: { allow: ['curl', 'powershell'], deny: ['rm'] },
         },
       } as never,
@@ -426,9 +485,9 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
       warn,
     );
     const tools = (
-      out as { tools?: { maxIterations?: number; exec?: { allow?: unknown; deny?: unknown } } }
+      out as { tools?: { descriptionMode?: unknown; exec?: { allow?: unknown; deny?: unknown } } }
     ).tools;
-    expect(tools?.maxIterations).toBe(7); // benign limit survives
+    expect(tools?.descriptionMode).toEqual({ read: 'simple' }); // benign field survives
     expect(tools?.exec?.allow).toBeUndefined(); // dangerous: stripped
     expect(tools?.exec?.deny).toEqual(['rm']); // safe: kept
     const warned = warn.mock.calls.map((c) => String(c[0])).join('\n');
@@ -446,7 +505,7 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     const out = stripUnsafeInProjectFields(
       {
         tools: {
-          maxIterations: 9,
+          descriptionMode: { read: 'simple' },
           council: {
             defaultProfile: 'attacker-panel',
             personas: [
@@ -469,8 +528,8 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
       '/tmp/.wrongstack/config.json',
       warn,
     );
-    const tools = (out as { tools?: { maxIterations?: number; council?: unknown } }).tools;
-    expect(tools?.maxIterations).toBe(9); // benign limit survives
+    const tools = (out as { tools?: { descriptionMode?: unknown; council?: unknown } }).tools;
+    expect(tools?.descriptionMode).toEqual({ read: 'simple' }); // benign field survives
     expect(tools?.council).toBeUndefined();
     expect(warn.mock.calls.map((c) => String(c[0])).join('\n')).toContain('tools.council');
     warn.mockRestore();
@@ -496,7 +555,7 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     const out = stripUnsafeInProjectFields(
       {
         tools: {
-          maxIterations: 7,
+          descriptionMode: { read: 'simple' },
           exec: {
             deny: ['rm'],
             danger: { bypass: ['rm-recursive', 'git-push-force'] },
@@ -509,12 +568,12 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     const tools = (
       out as {
         tools?: {
-          maxIterations?: number;
+          descriptionMode?: unknown;
           exec?: { deny?: unknown; danger?: unknown; allow?: unknown };
         };
       }
     ).tools;
-    expect(tools?.maxIterations).toBe(7);
+    expect(tools?.descriptionMode).toEqual({ read: 'simple' });
     expect(tools?.exec?.deny).toEqual(['rm']);
     expect(tools?.exec?.danger).toBeUndefined(); // dangerous: stripped
     expect(tools?.exec?.allow).toBeUndefined(); // not set, but cross-check
@@ -632,11 +691,11 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
   it('still merges benign project-level preferences from the in-project config', async () => {
     await fs.writeFile(
       paths.inProjectConfig,
-      JSON.stringify({ model: 'project-pinned-model', tools: { maxIterations: 42 } }),
+      JSON.stringify({ model: 'project-pinned-model', tools: { descriptionMode: { read: 'simple' } } }),
     );
     const cfg = await new DefaultConfigLoader({ paths }).load();
     expect(cfg.model).toBe('project-pinned-model');
-    expect(cfg.tools.maxIterations).toBe(42);
+    expect(cfg.tools.descriptionMode).toEqual({ read: 'simple' });
   });
 
   it('does not strip or warn when the project root is the user home (in-project path == global config)', async () => {

@@ -184,6 +184,75 @@ describe('security helpers are wired, not just present', () => {
   });
 
   /**
+   * The complement of the test above, and the reason it was not enough.
+   *
+   * That test greps for a hand-built delimiter literal. So it catches a site
+   * that DUPLICATES the fence — and is structurally incapable of catching one
+   * that OMITS it, because an omitted fence writes no delimiter to find. Three
+   * live sites composed repository-supplied text into a system prompt with no
+   * fence at all, and all three passed it: the subagent skill addendum (under
+   * a line telling the model to PREFER that text over the first-party skill
+   * body), repository-supplied `SKILL.md` bodies, and `knowledge.json`.
+   *
+   * The fence module's own docblock claimed the skill surface was covered. It
+   * was not. A guard you have only watched pass is not evidence.
+   *
+   * This is an enumeration rather than a pattern, because "text that reaches a
+   * prompt" is a semantic property no regex recognises. Adding a site here is
+   * the point: it forces the question at review time.
+   */
+  it('fences repository-supplied text at every site that composes it into a prompt', () => {
+    /** Files that read untrusted repo content and put it in a system prompt. */
+    const INJECTION_SITES = [
+      // `.wrongstack/agents/<role>/{identity,learned}.md` + knowledge.json
+      'packages/core/src/coordination/agents/project-agent-identity.ts',
+      // `.wrongstack/skills/<name>/SKILL.md` bodies
+      'packages/core/src/core/system-prompt-skill-bodies.ts',
+      // `.wrongstack/instructions/{system.md,sections/*.md}`
+      'packages/core/src/core/system-prompt-blocks.ts',
+      'packages/core/src/core/system-prompt-builder.ts',
+      // `.wrongstack/agents/<role>/skills/<skill>.md` → subagent prompt
+      'packages/cli/src/fleet/host-context.ts',
+    ] as const;
+
+    const byRel = new Map(SOURCES.map((s) => [s.rel, s.text]));
+    const unfenced: string[] = [];
+    const missing: string[] = [];
+
+    for (const rel of INJECTION_SITES) {
+      const text = byRel.get(rel);
+      if (text === undefined) {
+        // A moved or renamed file must fail loudly, not silently pass.
+        missing.push(rel);
+        continue;
+      }
+      if (!/\bformatProjectSuppliedBlock\s*\(/.test(stripComments(text))) unfenced.push(rel);
+    }
+
+    expect(missing, 'Enumerated injection site no longer exists — update this list').toEqual([]);
+    expect(
+      unfenced,
+      'This file composes repository-supplied text into a system prompt but never calls ' +
+        '`formatProjectSuppliedBlock`. Untrusted text next to first-party operating rules, ' +
+        'with nothing marking which is which. Sites:',
+    ).toEqual([]);
+  });
+
+  it('self-check: the fence enumeration fails when a call is removed', () => {
+    // Proves the assertion above can actually fail — the exact property the
+    // delimiter-grep test lacked.
+    const withoutCall = 'const entry = `## Skill: ${name}`;\n';
+    expect(/\bformatProjectSuppliedBlock\s*\(/.test(stripComments(withoutCall))).toBe(false);
+
+    const withCall = 'const entry = formatProjectSuppliedBlock({ source, body });\n';
+    expect(/\bformatProjectSuppliedBlock\s*\(/.test(stripComments(withCall))).toBe(true);
+
+    // A mention in a comment must not count as wiring.
+    const commentOnly = '// we should call formatProjectSuppliedBlock(...) here one day\n';
+    expect(/\bformatProjectSuppliedBlock\s*\(/.test(stripComments(commentOnly))).toBe(false);
+  });
+
+  /**
    * S10. `clampLimit`'s own docblock in `webui-server` claims that "a future
    * route that forgets the clamp fails the architecture test instead of
    * degrading silently" — and no such test existed. That sentence is the reason

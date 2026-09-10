@@ -11,7 +11,9 @@
  * (the shell allows it) share a row and contribute their combined status.
  */
 import type { DesktopRuntimeRecord, DesktopStateSnapshot } from '../../shared/types.js';
-import type { SessionList, ShellState } from './store.js';
+import type { DesktopShellSession, ShellState } from './store.js';
+
+const EMPTY_OPEN_SESSIONS: DesktopShellSession[] = [];
 
 /** What the status dot on a project row means. */
 export type ProjectStatus = 'running' | 'starting' | 'error' | 'stopped';
@@ -171,11 +173,8 @@ export function relativeTime(iso: string | undefined, now = Date.now()): string 
  * EVERY row whenever anything changed and `React.memo` would never hold.
  * Spreading the fields the row actually reads lets memo compare values.
  *
- * `sessions` is the one non-primitive, and it is safe for the same reason
- * memo works at all: `loadSessions` rebuilds the Map but carries the existing
- * entry objects over for untouched roots, so a load for one project does not
- * change this prop's identity for any other. `sidebar-row-memo.test.ts` pins
- * both halves of that.
+ * `sessions` is derived from the live four-slot declarations for this row's
+ * runtimes. It never contains archived session history.
  */
 export interface ProjectRowProps {
   root: string;
@@ -184,7 +183,7 @@ export interface ProjectRowProps {
   active: boolean;
   primaryRuntimeId: string | null;
   expanded: boolean;
-  sessions: SessionList | undefined;
+  sessions: DesktopShellSession[];
   busy: boolean;
 }
 
@@ -199,7 +198,19 @@ export function projectRowProps(node: ProjectNode, state: ShellState): ProjectRo
     active: node.active,
     primaryRuntimeId: node.primaryRuntimeId,
     expanded: state.expanded.has(node.root),
-    sessions: state.sessions.get(node.root),
+    sessions: sessionsForRuntimes(node.runtimes, state.openSessions),
     busy: state.busy,
   };
+}
+
+function sessionsForRuntimes(
+  runtimes: readonly DesktopRuntimeRecord[],
+  openSessions: ReadonlyMap<string, DesktopShellSession[]>,
+): DesktopShellSession[] {
+  const lists = runtimes
+    .map((runtime) => openSessions.get(runtime.id))
+    .filter((sessions): sessions is DesktopShellSession[] => Boolean(sessions?.length));
+  if (lists.length === 0) return EMPTY_OPEN_SESSIONS;
+  if (lists.length === 1) return lists[0]!;
+  return lists.flat();
 }

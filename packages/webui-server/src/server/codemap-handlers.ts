@@ -11,6 +11,7 @@
  *   GET /api/codemap/symbols?file=<path>            — symbol-level graph for one file
  */
 import type * as http from 'node:http';
+import { sanitizeApiError } from '@wrongstack/core/security';
 import type { CodeMapGraph } from '@wrongstack/tools';
 import { fileGraphService, packageGraphService, symbolGraphService } from '@wrongstack/tools';
 import {
@@ -19,6 +20,7 @@ import {
   indexDbVersion,
   setCachedCodemapBody,
 } from './codemap-cache.js';
+import { errMessage } from './ws-utils.js';
 
 interface CodemapHandlerDeps {
   projectRoot: string;
@@ -69,9 +71,24 @@ async function serveCachedGraph(
     }
     sendJsonBody(res, 200, body, 'MISS');
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    // The real detail stays server-side (WS-066: a provider error body that
+    // echoed an `Authorization` header used to reach the browser verbatim).
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'codemap.request_failed',
+        scope,
+        message: errMessage(err),
+        timestamp: new Date().toISOString(),
+      }),
+    );
     // 503 when the index is not yet built (node:sqlite missing or empty DB)
-    sendJson(res, 503, { error: 'CodeMap index unavailable', detail: msg }, 'BYPASS');
+    sendJson(
+      res,
+      503,
+      { error: 'CodeMap index unavailable', detail: sanitizeApiError(err) },
+      'BYPASS',
+    );
   }
 }
 

@@ -105,6 +105,10 @@ const webuiController = new DesktopWebuiController({
   onPrefsChanged: (previous, next) => {
     if (menuRelevantPrefsChanged(previous, next)) configureApplicationMenu();
   },
+  onOpenSessionsChanged: (snapshot) => {
+    if (!shellView || shellView.webContents.isDestroyed()) return;
+    shellView.webContents.send(IPC.openSessionsChanged, snapshot);
+  },
 });
 
 const windowStateController = new DesktopWindowStateController({
@@ -351,6 +355,7 @@ function buildIpcHandlerContext(): IpcHandlerContext {
     getShellView: () => shellView,
     getWebuiViews: () => webuiController.views,
     getWebuiStatus: () => webuiController.status,
+    getOpenSessions: () => webuiController.openSessionSnapshots(),
     getRuntimeManager: () => manager as unknown as IRuntimeManager,
     getAgentBridge: () => bridge,
     getI18n: () => ({ getMainLocale, setMainLocale, tMain }),
@@ -386,6 +391,7 @@ function buildIpcHandlerContext(): IpcHandlerContext {
       webuiController.settleAck(requestId, handled),
     setEntryWebuiStatus: (entry, next) => webuiController.setEntryStatus(entry, next),
     schedulePendingWebuiFlush: (entry) => webuiController.scheduleFlush(entry),
+    setOpenSessions: (runtimeId, sessions) => webuiController.setOpenSessions(runtimeId, sessions),
   };
 }
 

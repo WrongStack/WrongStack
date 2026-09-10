@@ -12,6 +12,8 @@
  * `process.exit` — `log` and `exit` are injectable seams.
  */
 
+import { errMessage } from './ws-utils.js';
+
 interface LifecycleResources {
   /** Persist + close the active session (best-effort; errors are logged). */
   flushSession: () => Promise<void>;
@@ -65,7 +67,7 @@ export function createShutdown(res: LifecycleResources): () => Promise<void> {
     try {
       await res.flushSession();
     } catch (e) {
-      log(`[WebUI] Error closing session: ${e instanceof Error ? e.message : String(e)}`);
+      log(`[WebUI] Error closing session: ${errMessage(e)}`);
     }
     // Destroy, then close. `ws.close()` starts a CLOSE handshake — the socket
     // only goes away once the peer replies, or after `ws`'s internal 30 s
@@ -86,9 +88,7 @@ export function createShutdown(res: LifecycleResources): () => Promise<void> {
       try {
         await res.onPreShutdown();
       } catch (e) {
-        log(
-          `[WebUI] Error during pre-shutdown cleanup: ${e instanceof Error ? e.message : String(e)}`,
-        );
+        log(`[WebUI] Error during pre-shutdown cleanup: ${errMessage(e)}`);
       }
     }
     for (const server of res.servers) server?.close();
@@ -96,7 +96,7 @@ export function createShutdown(res: LifecycleResources): () => Promise<void> {
       try {
         await res.onShutdown();
       } catch (e) {
-        log(`[WebUI] Error during shutdown cleanup: ${e instanceof Error ? e.message : String(e)}`);
+        log(`[WebUI] Error during shutdown cleanup: ${errMessage(e)}`);
       }
     }
     exit(0);

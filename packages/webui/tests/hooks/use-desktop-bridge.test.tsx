@@ -1,10 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSystemPromptStore } from '../../src/stores/system-prompt-store.js';
 
 // ── module stubs ────────────────────────────────────────────────────────────
 
 const publishDesktopCommandAck = vi.fn();
+const publishDesktopOpenSessionsSnapshot = vi.fn();
 const publishDesktopPrefsSnapshot = vi.fn();
 const publishDesktopReady = vi.fn();
 vi.mock('@/lib/desktop-host', async () => {
@@ -12,6 +13,7 @@ vi.mock('@/lib/desktop-host', async () => {
   return {
     ...actual,
     publishDesktopCommandAck,
+    publishDesktopOpenSessionsSnapshot,
     publishDesktopPrefsSnapshot,
     publishDesktopReady,
   };
@@ -51,6 +53,7 @@ vi.mock('@/stores', async () => {
 });
 
 const { useChatStore, useUIStore } = await import('../../src/stores');
+const { useSessionTabStore } = await import('../../src/stores/session-tab-store');
 const { useLocalPrefs } = await import('../../src/stores/local-prefs');
 const { useDesktopBridge } = await import('../../src/hooks/useDesktopBridge');
 
@@ -98,6 +101,7 @@ describe('useDesktopBridge', () => {
     for (const fn of Object.values(nav)) fn.mockReset();
     for (const fn of Object.values(toast)) fn.mockReset();
     publishDesktopCommandAck.mockReset();
+    publishDesktopOpenSessionsSnapshot.mockReset();
     publishDesktopPrefsSnapshot.mockReset();
     publishDesktopReady.mockReset();
     resetUiNavigationToHome.mockReset();
@@ -109,6 +113,7 @@ describe('useDesktopBridge', () => {
       ...Object.fromEntries(UI_FNS.map((k) => [k, vi.fn()])),
     } as never);
     useChatStore.setState({ messages: [], clearMessages: vi.fn() } as never);
+    useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
     useLocalPrefs.setState({
       yolo: false,
       nextPrediction: false,
@@ -216,6 +221,41 @@ describe('useDesktopBridge', () => {
       unmount();
       command({ action: 'open-command-palette' });
       expect(opts.setPaletteOpen).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('live desktop tabs', () => {
+    it('publishes only the WebUI slots when hosted by Desktop', () => {
+      desktopShell = true;
+      useSessionTabStore.setState({ openTabIds: ['sess-a', 'sess-b'] });
+      mount();
+      expect(publishDesktopOpenSessionsSnapshot).toHaveBeenCalledTimes(1);
+      expect(
+        publishDesktopOpenSessionsSnapshot.mock.calls[0]?.[0].map(
+          (tab: { sessionId: string; slot: number }) => [tab.sessionId, tab.slot],
+        ),
+      ).toEqual([
+        ['sess-a', 0],
+        ['sess-b', 1],
+      ]);
+    });
+
+    it('focuses an existing tab and refuses a session outside the four slots', () => {
+      const openTab = vi.fn();
+      useSessionTabStore.setState({
+        openTabIds: ['sess-a', 'sess-b'],
+        openTab,
+      } as never);
+      mount();
+
+      command({ requestId: 'focus-1', sessionId: 'sess-b' });
+      expect(openTab).toHaveBeenCalledWith('sess-b');
+      expect(nav.showPanel).toHaveBeenCalledWith('chat');
+      expect(publishDesktopCommandAck).toHaveBeenLastCalledWith('focus-1', true);
+
+      command({ requestId: 'focus-2', sessionId: 'archived-session' });
+      expect(openTab).toHaveBeenCalledTimes(1);
+      expect(publishDesktopCommandAck).toHaveBeenLastCalledWith('focus-2', false);
     });
   });
 

@@ -14,9 +14,9 @@
  * no renderer, and it cannot drift from what React actually does.
  */
 import { describe, expect, it } from 'vitest';
-import type { DesktopRuntimeRecord, DesktopStateSnapshot } from '../src/shared/types.js';
 import { buildProjectTree, projectRowProps } from '../src/renderer/src/project-tree.js';
 import type { ShellState } from '../src/renderer/src/store.js';
+import type { DesktopRuntimeRecord, DesktopStateSnapshot } from '../src/shared/types.js';
 
 /** React's own memo comparison: shallow equality over the props object. */
 function shallowEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
@@ -55,7 +55,7 @@ function shell(desktop: DesktopStateSnapshot, over: Partial<ShellState> = {}): S
     desktop,
     webuiStatus: { runtimeId: null, status: 'idle' },
     expanded: new Set(),
-    sessions: new Map(),
+    openSessions: new Map(),
     sidebarCollapsed: false,
     filter: '',
     busy: false,
@@ -105,29 +105,28 @@ describe('project row memo', () => {
     }
   });
 
-  it('does not re-render every expanded row when one project loads its sessions', () => {
-    // `loadSessions` rebuilds the sessions Map. If it did so by rebuilding the
-    // ENTRY objects too, every expanded row's `sessions` prop would change
-    // identity and the whole list would re-render on each load — the same bug
-    // in a different prop.
+  it('does not re-render every expanded row when one WebUI publishes its tabs', () => {
     const desktop = snapshot(['running', 'running']);
-    const p0 = { status: 'ready' as const, entries: [] };
-    const p1 = { status: 'ready' as const, entries: [] };
-    const sessions = new Map([
-      ['/w/p0', p0],
-      ['/w/p1', p1],
+    const p0 = [
+      { id: 's0', title: 'zero', slot: 0, active: true, running: false, runtimeId: 'rt-0' },
+    ];
+    const p1 = [
+      { id: 's1', title: 'one', slot: 0, active: true, running: false, runtimeId: 'rt-1' },
+    ];
+    const openSessions = new Map([
+      ['rt-0', p0],
+      ['rt-1', p1],
     ]);
-    const before = shell(desktop, { sessions, expanded: new Set(['/w/p0', '/w/p1']) });
+    const before = shell(desktop, { openSessions, expanded: new Set(['/w/p0', '/w/p1']) });
 
-    // A load lands for p0 only, the way the store performs it.
-    const next = new Map(sessions);
-    next.set('/w/p0', { status: 'ready', entries: [] });
-    const after = shell(desktop, { sessions: next, expanded: new Set(['/w/p0', '/w/p1']) });
+    const next = new Map(openSessions);
+    next.set('rt-0', [{ ...p0[0]!, title: 'updated' }]);
+    const after = shell(desktop, { openSessions: next, expanded: new Set(['/w/p0', '/w/p1']) });
 
     const a = rows(before);
     const b = rows(after);
     const changed = [...a.keys()].filter((root) => !shallowEqual(a.get(root)!, b.get(root)!));
-    expect(changed, "p1's row must not re-render for p0's session load").toEqual(['/w/p0']);
+    expect(changed, "p1's row must not re-render for p0's tab update").toEqual(['/w/p0']);
   });
 
   it('re-renders every row when the busy flag flips, and that is correct', () => {

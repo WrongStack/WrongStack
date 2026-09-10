@@ -5,6 +5,14 @@ import {
 } from '../src/main/webui-command-bridge.js';
 
 describe('desktop WebUI command bridge', () => {
+  it('accepts a bounded session id for focusing an already-open tab', () => {
+    expect(normalizeDesktopWebuiCommand({ sessionId: 'sess-123' })).toEqual({
+      sessionId: 'sess-123',
+    });
+    expect(normalizeDesktopWebuiCommand({ sessionId: '' })).toBeNull();
+    expect(normalizeDesktopWebuiCommand({ sessionId: 'x'.repeat(513) })).toBeNull();
+  });
+
   it('accepts terminal commands used by the desktop shell', () => {
     expect(normalizeDesktopWebuiCommand({ terminal: true })).toEqual({ terminal: true });
     expect(normalizeDesktopWebuiCommand({ terminal: 'toggle' })).toEqual({ terminal: 'toggle' });

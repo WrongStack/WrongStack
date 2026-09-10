@@ -11,7 +11,7 @@ import type { KanbanSupervisor } from './kanban-supervisor.js';
 import { handleKanbanTaskLifecycleRoute } from './kanban-task-lifecycle-routes.js';
 import { handleKanbanTaskRoute } from './kanban-task-routes.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
-import { messageSessionId } from './ws-utils.js';
+import { errMessage, messageSessionId } from './ws-utils.js';
 
 export { type KanbanBoardPage, paginateKanbanBoards } from './kanban-route-pagination.js';
 export { KANBAN_CLIENT_MESSAGE_TYPES } from './kanban-route-protocol.js';
@@ -77,7 +77,7 @@ export async function handleKanbanRoute(
         return true;
     }
   } catch (err) {
-    fail(ws, type, err instanceof Error ? err.message : String(err));
+    fail(ws, type, errMessage(err));
     return true;
   }
 }

@@ -38,6 +38,7 @@ import {
 import { systemSessionId } from '@wrongstack/primitives';
 import type { SddBoardSnapshot, SddBoardTask } from '@wrongstack/sdd';
 import { kanbanBoardMessage, kanbanListMessage } from './kanban-broadcast.js';
+import { errMessage } from './ws-utils.js';
 
 type Engine = 'sdd' | 'goal';
 
@@ -646,5 +647,5 @@ function originKey(taskId: string, phaseId?: string): string {
 }
 
 function errMsg(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return errMessage(err);
 }

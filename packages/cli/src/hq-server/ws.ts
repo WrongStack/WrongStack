@@ -18,6 +18,7 @@ import type {
 import {
   HQ_PROTOCOL_VERSION,
   parseHqFrame,
+  redactHqEvent,
   resolveHqRedactionPolicy,
   tightenHqRedactionPolicy,
   tokenHasCapability,
@@ -322,16 +323,30 @@ export function handleClient(
           .catch(() => undefined);
       }
 
-      const event: HqEventEnvelope = {
-        id: randomUUID(),
-        type: 'client.hello',
-        schemaVersion: HQ_PROTOCOL_VERSION,
-        timestamp: new Date().toISOString(),
-        clientId: payload.client.clientId,
-        projectId: payload.project.projectId,
-        seq: 0,
-        payload: { client: payload.client, project: payload.project },
-      };
+      // Redacted like every other event. `handleIncomingClientEvent` routes
+      // each client-published event through `redactHqEvent`; this one was built
+      // inline here and went to `persistEvent` and `broadcastEvent` raw — the
+      // one event on this socket that skipped the redaction plane. Its payload
+      // carries `project.projectRoot`, an absolute path that leaks the OS
+      // account name, which is exactly what `PATH_KEYS` exists to strip.
+      const event: HqEventEnvelope = redactHqEvent(
+        {
+          id: randomUUID(),
+          type: 'client.hello',
+          schemaVersion: HQ_PROTOCOL_VERSION,
+          timestamp: new Date().toISOString(),
+          clientId: payload.client.clientId,
+          projectId: payload.project.projectId,
+          seq: 0,
+          payload: { client: payload.client, project: payload.project },
+        },
+        {
+          policy: tightenHqRedactionPolicy(declaredRedactionPolicy, auth.getOperatorPolicy()),
+          ...(payload.project.projectRoot
+            ? { projectRoot: payload.project.projectRoot }
+            : {}),
+        },
+      ).value;
       persistEvent(event);
       snapshotBroadcaster.broadcast();
       broadcastEvent(event, browsers);

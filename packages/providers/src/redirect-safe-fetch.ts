@@ -20,6 +20,7 @@
  * answers 401 — visible and debuggable — instead of silently receiving the key.
  */
 
+import * as net from 'node:net';
 import { isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils/ip-guard';
 
 /** Redirect hops to follow before giving up. Matches undici's default. */
@@ -36,18 +37,33 @@ const MAX_REDIRECTS = 20;
  * advertising "Verified clean".
  */
 function assertNotPrivateRedirectHost(url: URL): void {
-  const host = url.hostname;
-  if (!host) throw new Error(`redirect to URL with no host: ${url}`);
-  // Only literal IP addresses are checked here — a hostname's
-  // resolved-IP rebinding case is the separate `guardedFetch` /
-  // pinned-dispatcher concern. `isPrivateIPv4` returns true for
-  // any string that is not a dotted-quad, and `isPrivateIPv6`
-  // returns true for any string that fails IPv6 expansion
-  // (deliberately conservative for *untrusted input*); together
-  // that would classify every hostname as private, which is the
-  // opposite of what we want. Restrict the literal check to inputs
-  // that look like an IP (digits/colons/dots, no letters).
-  if (/^[0-9.:]+$/.test(host) && (isPrivateIPv4(host) || isPrivateIPv6(host))) {
+  const raw = url.hostname;
+  if (!raw) throw new Error(`redirect to URL with no host: ${url}`);
+
+  // `URL.hostname` KEEPS the brackets on an IPv6 literal — `[::1]`, not `::1`.
+  // Strip them the way both sibling guards already do
+  // (`core/utils/ip-guard.ts:194`, `mcp/transport-security.ts:44`). Without
+  // this the check below saw a bracketed string and every IPv6 literal walked
+  // through: `[::1]`, `[fe80::1]`, and the AWS IPv6 metadata endpoint
+  // `[fd00:ec2::254]`. Note `[::ffff:127.0.0.1]` normalises to
+  // `[::ffff:7f00:1]`, so it evaded on the bracket alone too.
+  const host = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
+
+  // Only literal IP addresses are checked here — a hostname's resolved-IP
+  // rebinding case is the separate `guardedFetch` / pinned-dispatcher concern.
+  // `isPrivateIPv4` returns true for any string that is not a dotted-quad, and
+  // `isPrivateIPv6` returns true for any string that fails IPv6 expansion
+  // (deliberately conservative for *untrusted input*); together that would
+  // classify every hostname as private, which is the opposite of what we want.
+  //
+  // `net.isIP` answers exactly the question the old `/^[0-9.:]+$/` heuristic
+  // was groping at, and answers it correctly for both families — that regex
+  // could not match a bracketed literal at all, which is how this shipped.
+  const family = net.isIP(host);
+  if (family === 4 && isPrivateIPv4(host)) {
+    throw new Error(`redirect to private/loopback host blocked: ${url}`);
+  }
+  if (family === 6 && isPrivateIPv6(host)) {
     throw new Error(`redirect to private/loopback host blocked: ${url}`);
   }
 }

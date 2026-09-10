@@ -67,6 +67,7 @@ installSqliteWarningFilter();
 
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { scrubErrorText } from '@wrongstack/core/security';
 import { installCrashShield, runFatalSalvageSync, writeErr } from '@wrongstack/core/utils';
 
 function isCliMain(moduleUrl: string, argvEntry = process.argv[1]): boolean {
@@ -237,7 +238,17 @@ export function runAsMain(mainFn: (argv: string[]) => Promise<number>): void {
       // window now extends while write-capable handles are still active,
       // up to the hard ceiling in scheduleForcedExit.
       runFatalSalvageSync();
-      writeErr((err instanceof Error ? err.stack : String(err)) + '\n');
+      // Scrubbed, not raw. `installCrashShield()` 22 lines above routes every
+      // error IT catches through `scrubErrorText`, but this path — the primary
+      // fatal path, the one whose output a user pastes into a bug report — did
+      // not, so a provider error echoing an `Authorization` header or a
+      // connection string with an inline password went out verbatim.
+      //
+      // `scrubErrorText` KEEPS the message and stack (item 3 of this file's
+      // docblock: a stack is what makes an end-user crash report debuggable)
+      // and removes only credentials and the absolute home directory. There is
+      // no debuggability trade here.
+      writeErr(scrubErrorText(err instanceof Error ? (err.stack ?? err.message) : String(err)) + '\n');
       process.exitCode = 1;
       scheduleForcedExit(1);
     },

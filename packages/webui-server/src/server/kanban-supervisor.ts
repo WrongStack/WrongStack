@@ -16,6 +16,7 @@ import {
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { systemSessionId } from '@wrongstack/primitives';
 import { publishKanbanBoard } from './kanban-broadcast.js';
+import { errMessage } from './ws-utils.js';
 
 /**
  * The supervisor repairs boards on a timer, not on a tab's request, so its
@@ -356,7 +357,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
         if (board) await auditBoard(board);
       }
     } catch (error) {
-      deps.log?.(`[KanbanSupervisor] ${error instanceof Error ? error.message : String(error)}`);
+      deps.log?.(`[KanbanSupervisor] ${errMessage(error)}`);
     } finally {
       scheduleNext();
     }
@@ -417,7 +418,7 @@ async function sweepGateParkedTasks(
       if (finalized) lastBoard = finalized.board;
     } catch (error) {
       deps.log?.(
-        `[KanbanSupervisor] completion gate sweep failed for ${task.id}: ${error instanceof Error ? error.message : String(error)}`,
+        `[KanbanSupervisor] completion gate sweep failed for ${task.id}: ${errMessage(error)}`,
       );
     }
   }

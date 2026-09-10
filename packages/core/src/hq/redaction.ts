@@ -40,6 +40,27 @@ const RAW_CONTENT_KEYS = new Set([
   'patch',
   'transcript',
   'logs',
+  // The built-in tools' OWN input field names.
+  //
+  // The list above covers the wrapper (`toolInput`) and generic shapes
+  // (`content`, `diff`), so a tool call serialized as `{toolInput: {...}}` was
+  // redacted. A tool call serialized as its bare argument object was not: the
+  // `bash` tool's payload is `{command, args}` and `edit`'s is
+  // `{old_string, new_string}`, none of which appeared here. So the two most
+  // content-bearing tools in the product — the shell command line and the
+  // before/after text of a file edit — reached HQ verbatim by default.
+  //
+  // `args` is included deliberately: redacting `command` alone would leave
+  // `rm -rf /` sitting in `args`, which is where the payload actually lives.
+  // Both snake_case and camelCase spellings are listed because the lookup
+  // lowercases as a fallback, not as a normalization.
+  'command',
+  'commandLine',
+  'args',
+  'old_string',
+  'oldString',
+  'new_string',
+  'newString',
 ]);
 
 // Kanban records are an explicitly configured project-state synchronization

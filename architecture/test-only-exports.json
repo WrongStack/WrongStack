@@ -8,10 +8,6 @@
       "SNAPSHOT_LOG_LINES",
       "waitForChildExit"
     ],
-    "apps/desktop/src/main/session-index.ts": [
-      "clearSessionIndexCache",
-      "projectStoreDir"
-    ],
     "apps/desktop/src/main/state/constants.ts": [
       "LOG_NOTIFY_DEBOUNCE_MS",
       "PENDING_WEBUI_FLUSH_DELAY_MS",
@@ -36,9 +32,6 @@
       "unregisterProjectSchema",
       "webuiPrefsChangedSchema",
       "webuiReadyChangedSchema"
-    ],
-    "apps/desktop/src/renderer/src/store.ts": [
-      "loadSessions"
     ],
     "packages/acp/src/agent/protocol-handler.ts": [
       "protocolHandlerCoverage"
@@ -199,7 +192,8 @@
       "makeServeContext",
       "parseToolsFlag",
       "resolveServeFsRestriction",
-      "selectExposedTools"
+      "selectExposedTools",
+      "yoloServePolicy"
     ],
     "packages/cli/src/next-task-predictor.ts": [
       "buildPredictionPrompt",
@@ -609,9 +603,6 @@
     ],
     "packages/core/src/utils/project-identity.ts": [
       "isProjectId"
-    ],
-    "packages/core/src/utils/project-supplied-fence.ts": [
-      "sanitizeProjectSuppliedBody"
     ],
     "packages/core/src/utils/tool-subject.ts": [
       "escapeGlobSubject",

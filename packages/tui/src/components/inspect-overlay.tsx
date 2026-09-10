@@ -12,6 +12,11 @@ import type { HistoryEntry } from './history/types.js';
 
 export const INSPECT_OVERLAY_MIN_ROWS = 15;
 const INSPECT_BODY_CHAR_CAP = 200_000;
+const INSPECT_COPY_LABEL = '[Copy]';
+const INSPECT_CLOSE_LABEL = '[Close]';
+const INSPECT_HEADER_BUTTON_GAP = 1;
+
+export type InspectOverlayHeaderAction = 'copy' | 'close';
 
 export function resolveInspectOverlayContent(
   overlay: { entryId: number; entryIds?: readonly number[] | undefined },
@@ -69,6 +74,34 @@ export function inspectOverlaySize(
   return { width, height };
 }
 
+/**
+ * Resolve a terminal click against the two fixed-width controls rendered at
+ * the right edge of the centered inspect-overlay title row. Mouse coordinates
+ * are the terminal protocol's one-based cells.
+ */
+export function inspectOverlayHeaderActionAt(
+  termCols: number,
+  viewportRows: number,
+  x: number,
+  y: number,
+): InspectOverlayHeaderAction | null {
+  const { width, height } = inspectOverlaySize(termCols, viewportRows);
+  const left = Math.floor((termCols - width) / 2);
+  const top = Math.floor((viewportRows - height) / 2);
+  const headerRow = top + 2;
+  if (y !== headerRow) return null;
+
+  // The rounded border occupies the outer cell and paddingX occupies the next,
+  // so the final usable header cell is two columns left of the box's right edge.
+  const contentRight = left + width - 2;
+  const closeStart = contentRight - INSPECT_CLOSE_LABEL.length + 1;
+  const copyEnd = closeStart - INSPECT_HEADER_BUTTON_GAP - 1;
+  const copyStart = copyEnd - INSPECT_COPY_LABEL.length + 1;
+  if (x >= copyStart && x <= copyEnd) return 'copy';
+  if (x >= closeStart && x <= contentRight) return 'close';
+  return null;
+}
+
 const SCROLLBAR_TRACK_GLYPH = '░';
 const SCROLLBAR_THUMB_GLYPH = '█';
 
@@ -104,6 +137,7 @@ interface InspectOverlayProps {
   viewportRows: number;
   onScroll: (delta: number) => void;
   onClose: () => void;
+  copied?: boolean | undefined;
 }
 
 export function InspectOverlay({
@@ -114,6 +148,7 @@ export function InspectOverlay({
   viewportRows,
   onScroll,
   onClose,
+  copied = false,
 }: InspectOverlayProps): React.ReactElement {
   const { width, height } = inspectOverlaySize(termCols, viewportRows);
   // Inner width minus border(2) + paddingX(2), then reserve one column for the
@@ -161,11 +196,22 @@ export function InspectOverlay({
         paddingX={1}
         overflowY="hidden"
       >
-        <Box flexDirection="row" justifyContent="space-between">
-          <Text bold color={theme.accent}>
-            {`${INSPECT_ICON} ${title}`}
+        <Box flexDirection="row">
+          <Box flexGrow={1} overflowX="hidden">
+            <Text bold color={theme.accent} wrap="truncate-end">
+              {`${INSPECT_ICON} ${title}`}
+            </Text>
+          </Box>
+          {width >= 48 ? (
+            <Text dimColor>{`${lines.length} line${lines.length === 1 ? '' : 's'} · `}</Text>
+          ) : null}
+          <Text bold color={copied ? theme.success : theme.accent}>
+            {INSPECT_COPY_LABEL}
           </Text>
-          <Text dimColor>{`${lines.length} line${lines.length === 1 ? '' : 's'} · Esc close`}</Text>
+          <Text> </Text>
+          <Text bold color={theme.accent}>
+            {INSPECT_CLOSE_LABEL}
+          </Text>
         </Box>
         <Text dimColor>
           {moreAbove > 0 ? `↑ ${moreAbove} more` : ''}

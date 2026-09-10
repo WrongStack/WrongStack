@@ -55,6 +55,7 @@ import {
   resetHqPublisherWarningStateForTests,
   warnedEndpoints,
 } from './publisher-warnings.js';
+import { isLoopbackHost } from './exposure.js';
 import { redactHqEvent, resolveHqRedactionPolicy } from './redaction.js';
 
 export {
@@ -151,6 +152,64 @@ export class HqPublisher {
     this.logger = options.logger;
   }
 
+  /**
+   * Warn when this publisher is about to send unredacted content over a
+   * cleartext link to another machine.
+   *
+   * `DEFAULT_HQ_REDACTION_POLICY` is `{rawContent: true, toolArgs: 'full',
+   * paths: 'full'}` — the most open setting available. That is defensible for
+   * the normal case, where HQ is on the same machine and the console is the
+   * product. It is not defensible when the endpoint is remote and the transport
+   * is plain `ws:`, because the payload then includes prompts, thinking blocks,
+   * verbatim tool arguments and absolute paths, in the clear, to anyone on the
+   * path.
+   *
+   * This warns rather than silently clamping. A clamp would be the stronger
+   * control, but it changes what an operator sees in a topology they chose
+   * deliberately (HQ over a VPN on `ws:` is a legitimate setup), and a console
+   * that quietly starts showing `[REDACTED]` reads as a bug. Making the
+   * exposure visible to the person who can decide is the honest half; changing
+   * the default is an owner decision, recorded in the security report.
+   *
+   * Deduplicated per endpoint via the same `warnedEndpoints` set the connection
+   * warnings use, so a reconnect loop cannot turn this into a log flood.
+   */
+  private warnIfShippingRawContentInClear(url: string): void {
+    const policy = this.resolvedRedactionPolicy;
+    const disclosesContent =
+      policy.rawContent || policy.toolArgs === 'full' || policy.paths === 'full';
+    if (!disclosesContent) return;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return; // Unparseable endpoints are already reported by the connect path.
+    }
+    // `wss:`/`https:` is encrypted; loopback never leaves the machine.
+    if (parsed.protocol === 'wss:' || parsed.protocol === 'https:') return;
+    const host = parsed.hostname.replace(/^\[|\]$/g, '');
+    if (isLoopbackHost(host) || host === 'localhost' || host.endsWith('.localhost')) return;
+
+    const key = `raw-content-in-clear:${parsed.host}`;
+    if (warnedEndpoints.has(key)) return;
+    warnedEndpoints.add(key);
+    this.logger?.warn?.(
+      JSON.stringify({
+        level: 'warn',
+        event: 'hq.publisher.raw_content_over_cleartext',
+        endpoint: `${parsed.protocol}//${parsed.host}`,
+        rawContent: policy.rawContent,
+        toolArgs: policy.toolArgs,
+        paths: policy.paths,
+        message:
+          'Publishing unredacted session content (prompts, tool arguments, absolute paths) ' +
+          'to a remote HQ over an unencrypted connection. Use wss:// (terminate TLS in front ' +
+          'of HQ), or set a stricter redactionPolicy for this publisher.',
+      }),
+    );
+  }
+
   connect(): void {
     if (this.socket !== null || this.stopped) return;
     // A retry / discovery poll is already scheduled — let it fire instead of
@@ -184,6 +243,7 @@ export class HqPublisher {
     const onOpen = () => {
       this.reconnectAttempt = 0;
       this.connectWarningEmitted = false;
+      this.warnIfShippingRawContentInClear(url);
       if (this.lastAttempt?.url) {
         warnedEndpoints.delete(this.lastAttempt.url);
       }

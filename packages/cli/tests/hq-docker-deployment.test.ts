@@ -47,6 +47,33 @@ describe('HQ Docker deployment contract', () => {
     expect(compose).not.toContain('WRONGSTACK_HQ_PASSWORD:');
   });
 
+  // The image serves plain HTTP — there is no TLS in it — and authenticates
+  // with a password and a session cookie. Publishing that on every interface
+  // by default put the login form, the cookie (which cannot be `Secure` over
+  // plain HTTP) and `POST /api/command` in cleartext for any peer that could
+  // reach the host. The bind INSIDE the container stays `0.0.0.0` — that is
+  // its own network namespace, and Docker's port mapping needs it — so the
+  // host-side published port is the boundary that matters.
+  it('publishes the HQ port on loopback by default, not every interface', async () => {
+    const compose = await read('compose.yaml');
+    expect(compose).toContain('${WRONGSTACK_HQ_BIND_IP:-127.0.0.1}');
+    expect(compose).not.toContain('${WRONGSTACK_HQ_BIND_IP:-0.0.0.0}');
+
+    const env = await read('.env.example');
+    expect(env).toContain('WRONGSTACK_HQ_BIND_IP=127.0.0.1');
+    expect(env).not.toMatch(/^WRONGSTACK_HQ_BIND_IP=0\.0\.0\.0$/m);
+  });
+
+  it('documents how to reach HQ remotely without widening the bind', async () => {
+    const readme = await read('README.md');
+    // A loopback default is only half the fix: an operator who needs remote
+    // access and finds no alternative documented will just set 0.0.0.0.
+    expect(readme).toContain('Remote access');
+    expect(readme).toMatch(/TLS/);
+    expect(readme).toMatch(/reverse proxy/i);
+    expect(readme).not.toContain('HQ listens on `0.0.0.0:3499`');
+  });
+
   it('provides health-gated image replacement and prior-image rollback', async () => {
     const updater = await read('update.sh');
     expect(updater).toContain('compose pull "$SERVICE"');

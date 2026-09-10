@@ -10,7 +10,7 @@ import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { kanbanBoardMessage } from './kanban-broadcast.js';
 import type { WSServerMessage } from './types.js';
-import { send } from './ws-utils.js';
+import { errMessage, send } from './ws-utils.js';
 
 export interface KanbanDispatchResult {
   status: 'completed' | 'failed';
@@ -309,7 +309,7 @@ export async function handleKanbanTaskDispatch(
     }
     reply(ws, 'kanban.task.dispatch', true, { boardId: board.id, task: runningTask, summary });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errMessage(error);
     // ── Fail via the shared dispatch service.
     await store.failKanbanDispatch({
       sessionId,

@@ -8,6 +8,7 @@ import {
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { errMessage } from './ws-utils.js';
 
 interface MailboxBridgeParams {
   projectRoot: string;
@@ -134,7 +135,7 @@ function spawnMailboxBridge(
     child.once('error', (err) => {
       logger.warn('failed to spawn mailbox bridge for webui', {
         command: invocation.command,
-        err: err instanceof Error ? err.message : String(err),
+        err: errMessage(err),
       });
     });
     child.unref();
@@ -142,7 +143,7 @@ function spawnMailboxBridge(
   } catch (err) {
     logger.warn('failed to spawn mailbox bridge for webui', {
       command: invocation.command,
-      err: err instanceof Error ? err.message : String(err),
+      err: errMessage(err),
     });
     return null;
   }

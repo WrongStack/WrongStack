@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { type CreateHttpServerOptions, createHttpServer } from './http-server.js';
 import { createProjectIntakeService } from './intake-service.js';
 import { listenWithRetry } from './port-utils.js';
+import { errMessage } from './ws-utils.js';
 
 /**
  * PR 6 of Issue #30 (webui-server 8-PR refactor):
@@ -286,7 +287,7 @@ export async function ensureDistDir(
     await runBuild(workspaceRoot);
   } catch (error) {
     throw new Error(
-      `webui.auto_build.failed: ${error instanceof Error ? error.message : String(error)}. ` +
+      `webui.auto_build.failed: ${errMessage(error)}. ` +
         'Run `pnpm --filter @wrongstack/webui build` manually.',
     );
   }

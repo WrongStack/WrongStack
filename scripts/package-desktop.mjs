@@ -30,6 +30,7 @@
  * none set, the artifacts are unsigned and electron-builder says so.
  */
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +41,18 @@ const stageDir = join(repoRoot, 'apps', 'desktop', '.package-stage');
 
 function run(command, args, cwd) {
   execFileSync(command, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
+}
+
+/**
+ * Run a Node CLI directly, with NO shell.
+ *
+ * `run()` above keeps `shell: true` because it invokes `pnpm`, which on Windows
+ * is a `.cmd` shim that `execFileSync` cannot execute otherwise. A plain
+ * `node <script>` needs no shim and therefore no shell, so nothing this script
+ * assembles is ever re-parsed as a command line.
+ */
+function runNode(args, cwd) {
+  execFileSync(process.execPath, args, { cwd, stdio: 'inherit' });
 }
 
 const forwarded = process.argv.slice(2);
@@ -73,11 +86,42 @@ if (!electronRange) {
 }
 const electronVersion = electronRange.replace(/^[\^~]/, '');
 
-run(
-  'npx',
+// 5. Run the electron-builder this repo already installed — never `npx --yes`.
+//
+// `npx --yes electron-builder@<range>` fetched a fresh dependency tree from the
+// network at package time, outside the lockfile and outside every supply-chain
+// control this repo maintains (`minimumReleaseAge`, `onlyBuiltDependencies`,
+// the audit gate). It did that in the one process that holds `CSC_LINK`,
+// `CSC_KEY_PASSWORD` and the Apple notarization credentials — so a compromised
+// release of electron-builder or any of its transitives would have executed
+// with the signing keys in its environment.
+//
+// The workspace copy is pinned by `pnpm-lock.yaml` and already installed. It is
+// resolved from `apps/desktop`, so the version is exactly the devDependency
+// that was audited, and no network fetch happens at all.
+//
+// Invoked through `process.execPath` on the CLI's own JS entry rather than the
+// `.bin` shim: that avoids the Windows `.cmd`-shim `execFileSync` failure this
+// repo has hit before, and lets the spawn drop `shell: true` — no argument this
+// script builds is re-parsed by a shell.
+const desktopRequire = createRequire(join(desktopDir, 'package.json'));
+const builderPkgPath = desktopRequire.resolve('electron-builder/package.json');
+const builderPkg = JSON.parse(readFileSync(builderPkgPath, 'utf8'));
+const builderCli = resolve(dirname(builderPkgPath), builderPkg.bin['electron-builder']);
+
+const declaredBuilder = pkg.devDependencies['electron-builder'].replace(/^[\^~]/, '');
+if (builderPkg.version !== declaredBuilder) {
+  // Not fatal — a caret range legitimately resolves forward — but silence here
+  // would hide a lockfile/manifest drift in the tool that signs the release.
+  console.warn(
+    `[package-desktop] electron-builder resolved to ${builderPkg.version}, ` +
+      `manifest declares ${declaredBuilder}. Using the installed (lockfile) version.`,
+  );
+}
+
+runNode(
   [
-    '--yes',
-    `electron-builder@${pkg.devDependencies['electron-builder'].replace(/^[\^~]/, '')}`,
+    builderCli,
     '--config',
     'electron-builder.yml',
     `--config.electronVersion=${electronVersion}`,

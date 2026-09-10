@@ -78,6 +78,15 @@ export function normalizeDesktopWebuiCommand(value: unknown): DesktopWebuiComman
   const command: DesktopWebuiCommand = {};
   let hasCommand = false;
 
+  const sessionId = value['sessionId'];
+  if (sessionId !== undefined) {
+    if (typeof sessionId !== 'string' || sessionId.length === 0 || sessionId.length > 512) {
+      return null;
+    }
+    command.sessionId = sessionId;
+    hasCommand = true;
+  }
+
   const action = value['action'];
   if (action !== undefined) {
     if (typeof action !== 'string' || !DESKTOP_WEBUI_ACTIONS.has(action as DesktopCommandAction)) {

@@ -4,7 +4,7 @@
  * Supports the parts of the gitignore spec that matter for skipping source
  * files: comments / blanks, `!` negation (last match wins), trailing-slash
  * directory-only rules, leading-slash / embedded-slash anchoring, and the
- * `*` / `**` / `?` / `[...]` globs (via core's {@link compileGlob}).
+ * `*` / `**` / `?` / `[...]` globs (via core's {@link compileGlobMatcher}).
  *
  * Only the project-root `.gitignore` is read. Nested `.gitignore` files are not
  * walked — the common build/dependency dirs that would live deeper are already
@@ -17,23 +17,51 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { compileGlob } from '@wrongstack/core/utils';
+import {
+  type CompiledGlobMatcher,
+  compileGlobMatcher,
+  type GlobBoundary,
+} from '@wrongstack/core/utils';
 
 export type IgnoreMatcher = (relPath: string, isDir: boolean) => boolean;
 
 interface Rule {
-  /** Matches the entry itself or anything under it (for dirs / plain names). */
-  eqOrUnder: RegExp;
-  /** Matches only entries strictly under it (for dir-only rules on files). */
-  under: RegExp;
+  matcher: CompiledGlobMatcher;
+  /** Where the rule body is allowed to begin in the path. */
+  isStart: GlobBoundary;
   negated: boolean;
   dirOnly: boolean;
 }
 
-/** Strip the `^`/`$` anchors compileGlob adds so we can re-anchor ourselves. */
-function globBody(glob: string): string {
-  return compileGlob(glob).source.replace(/^\^/, '').replace(/\$$/, '');
-}
+/**
+ * A gitignore rule is the glob body wrapped in an anchor prefix and a
+ * "…or anything under it" suffix. This used to be built by splicing the
+ * `compileGlob` regex SOURCE into a larger regex — which inherited that
+ * regex's catastrophic backtracking (WS-SEC-ReDoS), and made a
+ * repo-committed `.gitignore` line a process-wedging input.
+ *
+ * The wrapper is expressed as boundary predicates instead, and matched with
+ * {@link CompiledGlobMatcher.testSpan}. The equivalence is exact:
+ *
+ *   `(?:^|.*\/)` before the body ≡ the body may START at index 0 or just
+ *       after any `/`.  (Note this is NOT the same as prefixing the glob with
+ *       `**\/`: `**\/foo` compiles to `.*foo`, which would also match
+ *       `barfoo`. The boundary predicate keeps the required slash.)
+ *   `(?:\/.*)?$`  after the body  ≡ the body may END at the end of the path
+ *       or immediately before any `/`.
+ *   `\/.*$`       after the body  ≡ the body must END immediately before a `/`
+ *       (strictly *under* the named directory).
+ *
+ * All candidate boundaries are explored inside one linear left-to-right pass,
+ * so a rule costs O(pattern × path) regardless of path depth.
+ */
+const START_ANCHORED: GlobBoundary = (index) => index === 0;
+const START_ANY_SEGMENT: GlobBoundary = (index, input) => index === 0 || input[index - 1] === '/';
+/** End of path, or right before a `/` — the entry itself, or anything under it. */
+const END_EQ_OR_UNDER: GlobBoundary = (index, input) =>
+  index === input.length || input[index] === '/';
+/** Right before a `/` only — strictly under the entry. */
+const END_UNDER: GlobBoundary = (index, input) => index < input.length && input[index] === '/';
 
 /** Compile a list of raw `.gitignore` lines into a matcher. */
 export function compileGitignore(lines: string[]): IgnoreMatcher {
@@ -63,11 +91,9 @@ export function compileGitignore(lines: string[]): IgnoreMatcher {
     const anchored = line.startsWith('/') || line.includes('/');
     if (line.startsWith('/')) line = line.slice(1);
 
-    const body = globBody(line);
-    const prefix = anchored ? '^' : '(?:^|.*/)';
     rules.push({
-      eqOrUnder: new RegExp(`${prefix}${body}(?:/.*)?$`),
-      under: new RegExp(`${prefix}${body}/.*$`),
+      matcher: compileGlobMatcher(line),
+      isStart: anchored ? START_ANCHORED : START_ANY_SEGMENT,
       negated,
       dirOnly,
     });
@@ -76,16 +102,13 @@ export function compileGitignore(lines: string[]): IgnoreMatcher {
   const hasNegation = rules.some((r) => r.negated);
 
   return (relPath: string, isDir: boolean): boolean => {
-    const p = relPath
-      .replace(/\\/g, '/')
-      .replace(/^\.\//, '')
-      .replace(/^\/+/, '');
+    const p = relPath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '');
     let ignored = false;
     for (const r of rules) {
       // A directory-only rule never matches a file by its own name; it only
       // matches files that live strictly beneath the named directory.
-      const re = r.dirOnly && !isDir ? r.under : r.eqOrUnder;
-      if (re.test(p)) {
+      const isEnd = r.dirOnly && !isDir ? END_UNDER : END_EQ_OR_UNDER;
+      if (r.matcher.testSpan(p, r.isStart, isEnd)) {
         ignored = !r.negated;
         if (!hasNegation && ignored) return true;
       }

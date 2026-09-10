@@ -872,6 +872,47 @@ describe('forget tool', () => {
     expect(forget).toHaveBeenCalledWith('stale note', 'project-memory');
     expect(result).toEqual({ removed: 2, scope: 'project-memory' });
   });
+
+  // `forget` is strictly more destructive than `memory_delete` — one query,
+  // every match — yet it shipped with no `force` gate while `memory_delete`
+  // required one for a single entry. Both are `permission: 'confirm'` +
+  // `riskTier: 'standard'`, so any surface that exposes one exposes the other.
+  describe('bulk-delete gate', () => {
+    function forgetTool() {
+      return createSageTools(createMockService()).find((t) => t.name === 'forget')!;
+    }
+
+    it('requires force: true, like memory_delete', () => {
+      const errors = forgetTool().validate?.({ query: 'stale note' } as never);
+      expect(errors?.join(' ')).toContain('force: true is required');
+    });
+
+    it('accepts a specific query with force: true', () => {
+      expect(forgetTool().validate?.({ query: 'stale note', force: true } as never)).toEqual([]);
+    });
+
+    it('refuses a query short enough to match everything, even with force', () => {
+      // `forget({ query: 'e' })` was the reported knowledge-base wipe.
+      const errors = forgetTool().validate?.({ query: 'e', force: true } as never);
+      expect(errors?.join(' ')).toContain('at least 3 characters');
+    });
+
+    it('declares force as required in its input schema', () => {
+      const schema = forgetTool().inputSchema as { required?: string[] };
+      expect(schema.required).toContain('force');
+    });
+
+    it('is gated no more weakly than memory_delete, its narrower sibling', () => {
+      const tools = createSageTools(createMockService());
+      const forget = tools.find((t) => t.name === 'forget')!;
+      const del = tools.find((t) => t.name === 'memory_delete')!;
+      // Same exposure tier — so the same authorization floor.
+      expect(forget.permission).toBe(del.permission);
+      expect(forget.riskTier).toBe(del.riskTier);
+      expect(typeof forget.validate).toBe('function');
+      expect(forget.validate?.({ query: 'anything' } as never)).not.toEqual([]);
+    });
+  });
 });
 
 describe('memory_update tool', () => {

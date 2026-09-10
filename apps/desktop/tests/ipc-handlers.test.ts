@@ -2,7 +2,26 @@
  * Unit tests for IPC handlers module.
  * Tests the pure utility functions found within the IPC handler registration.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { sanitizeOpenSessions } from '../src/main/webui/open-sessions.js';
+
+describe('sanitizeOpenSessions', () => {
+  it('accepts at most four unique WebUI slots and bounds remote titles', () => {
+    const rows = sanitizeOpenSessions([
+      { id: 'b', title: ' B ', slot: 1, active: false, running: true },
+      { id: 'a', title: 'A'.repeat(300), slot: 0, active: true, running: false },
+      { id: 'duplicate-slot', title: 'bad', slot: 1, active: false, running: false },
+      { id: 'bad-slot', title: 'bad', slot: 4, active: false, running: false },
+    ]);
+    expect(rows.map((row) => row.id)).toEqual(['a', 'b']);
+    expect(rows[0]?.title).toHaveLength(200);
+  });
+
+  it('rejects malformed declarations', () => {
+    expect(sanitizeOpenSessions(null)).toEqual([]);
+    expect(sanitizeOpenSessions([{ id: '', title: 'x', slot: 0 }])).toEqual([]);
+  });
+});
 
 // The IPC handler module exports no named functions - it registers side effects.
 // We test the internal pure logic patterns it uses:

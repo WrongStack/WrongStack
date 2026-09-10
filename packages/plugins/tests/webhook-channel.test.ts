@@ -379,4 +379,35 @@ describe('ping', () => {
     expect(result.ok).toBe(false);
     expect(result.error).toContain('no webhookUrl');
   });
+
+  /**
+   * The private-IP guard on `webhookUrl` runs once, at plugin setup, against
+   * the host the operator configured. Delivery resolves again — so with
+   * `fetch`'s default `redirect: 'follow'`, a webhook host could 307 the POST,
+   * custom headers and all, to loopback or a cloud metadata endpoint. Those
+   * headers are exactly where an operator puts `X-Webhook-Secret`.
+   */
+  it('refuses to follow redirects, so custom secret headers cannot be replayed', async () => {
+    const ch = new WebhookNotificationChannel({
+      webhookUrl: WEBHOOK_URL,
+      headers: { 'x-webhook-secret': 'super-secret' },
+    });
+    await ch.deliver(SAMPLE_MSG);
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect((init as { redirect?: string }).redirect).toBe('error');
+    // The secret is still sent to the configured host — the fix is about where
+    // it may be sent NEXT, not about removing it.
+    expect((init as { headers: Record<string, string> }).headers['x-webhook-secret']).toBe(
+      'super-secret',
+    );
+  });
+
+  it('reports a redirecting webhook as a delivery failure', async () => {
+    const ch = new WebhookNotificationChannel({ webhookUrl: WEBHOOK_URL });
+    // What `redirect: 'error'` produces at runtime: fetch rejects.
+    fetchMock.mockRejectedValue(new TypeError('unexpected redirect'));
+    const result = await ch.deliver(SAMPLE_MSG);
+    expect(result.ok).toBe(false);
+  });
 });

@@ -4,9 +4,9 @@ import {
   hashHqPassword,
   mintHqCookieSecret,
   mutateHqAuthFile,
+  hqPasswordNeedsUpgrade,
   verifyHqPassword,
 } from '@wrongstack/core/hq';
-import { verifyTotp } from '@wrongstack/core/security';
 import {
   authenticateBrowserRequest,
   clearHqSessionCookie,
@@ -21,7 +21,12 @@ import { resolveClientAddress } from '../../client-address.js';
 import type { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
 import { readRequestBody, writeInvalidBody } from '../../utils.js';
-import { type ApplyHqAuthFile, isLoopbackRequest, recordVerifyFailure } from './common.js';
+import {
+  type ApplyHqAuthFile,
+  consumeTotpCode,
+  isLoopbackRequest,
+  recordVerifyFailure,
+} from './common.js';
 
 export async function handleApiAuthStatus(
   req: http.IncomingMessage,
@@ -70,6 +75,8 @@ export async function handleApiLogin(
   loginAttempts: LoginAttemptStore,
   secureCookies: boolean | undefined,
   trustedProxyHops: number,
+  /** Where `auth.json` lives — needed to persist a transparent KDF upgrade. */
+  dataDir: string,
   sessionCapabilities?: string[],
 ): Promise<void> {
   if (!mutableAuth.passwordHash) {
@@ -128,6 +135,25 @@ export async function handleApiLogin(
   }
 
   const ok = await verifyHqPassword(body.password, mutableAuth.passwordHash);
+  if (ok && hqPasswordNeedsUpgrade(mutableAuth.passwordHash)) {
+    // Transparent KDF upgrade. The scrypt cost for new hashes was raised, and
+    // the stored payload now carries its own parameters so an old hash still
+    // verifies at the cost it was written with. Without this line that is all
+    // the strengthening an existing deployment would ever get: the operator
+    // would have to know to reset a password they have no reason to think is
+    // weak. Re-hashing here means each account upgrades the next time it signs
+    // in, with the plaintext already in hand and already proven correct.
+    //
+    // Deliberately best-effort: the password was verified, so a failed write
+    // must not turn a valid login into a 500. It retries on the next login.
+    try {
+      const upgraded = await hashHqPassword(body.password);
+      await mutateHqAuthFile(dataDir, (current) => ({ ...current, passwordHash: upgraded }));
+      mutableAuth.passwordHash = upgraded;
+    } catch {
+      /* keep the old hash; the next successful login tries again */
+    }
+  }
   if (!ok || !mutableAuth.cookieSecret) {
     loginAttempts.recordFailure(clientIp, body.password);
     res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -294,8 +320,14 @@ export async function handleApiPassword(
     // A TOTP code is accepted as the alternative factor, same as totp/disable —
     // an operator who rotates a forgotten password still has a way in. The
     // rate-limit above is what keeps a 6-digit code from being guessable.
+    let replayed = false;
     if (!confirmed && typeof body.code === 'string' && mutableAuth.totpSecret) {
-      confirmed = verifyTotp(body.code, mutableAuth.totpSecret);
+      // Single-use: without this, a code already spent at /api/login/verify
+      // replays here for the rest of its ~90s window into a full rotation of
+      // passwordHash and cookieSecret.
+      const outcome = await consumeTotpCode(body.code, mutableAuth, dataDir, applyAuthFile);
+      confirmed = outcome === 'ok';
+      replayed = outcome === 'replayed';
     }
     if (!confirmed) {
       recordVerifyFailure(loginAttempts, clientIp);
@@ -303,8 +335,10 @@ export async function handleApiPassword(
       res.end(
         JSON.stringify({
           error: {
-            code: 'INVALID_CURRENT_PASSWORD',
-            message: 'Current password or a TOTP code is required to change or remove it.',
+            code: replayed ? 'TOTP_ALREADY_USED' : 'INVALID_CURRENT_PASSWORD',
+            message: replayed
+              ? 'That authenticator code has already been used. Wait for the next one.'
+              : 'Current password or a TOTP code is required to change or remove it.',
           },
         }),
       );

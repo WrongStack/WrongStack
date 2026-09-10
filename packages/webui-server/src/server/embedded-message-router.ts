@@ -98,6 +98,7 @@ import type { WSClientMessage, WSServerMessage } from './types.js';
 import { createWorklistRouteHandlers } from './worklist-routes.js';
 import { createSessionAwareWorklistContext } from './worklist-session-context.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
+import { errMessage } from './ws-utils.js';
 
 export interface EmbeddedMessageRouterOptions {
   agent: Agent;
@@ -201,7 +202,7 @@ export function createEmbeddedMessageRouter(
 
   const terminal = async (ws: WebSocket, message: WSClientMessage) => {
     await deps.terminalHandler.handleMessage(ws, message).catch((error) => {
-      const text = error instanceof Error ? error.message : String(error);
+      const text = errMessage(error);
       const id = (message.payload as { id?: string } | undefined)?.id ?? '';
       send(ws, {
         type: 'terminal.output',

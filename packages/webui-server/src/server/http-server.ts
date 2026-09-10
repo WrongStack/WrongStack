@@ -26,6 +26,7 @@
 import * as http from 'node:http';
 import * as path from 'node:path';
 import { generateProjectSlug } from './projects-manifest.js';
+import { errMessage } from './ws-utils.js';
 import type { FileWatcherMetrics } from './setup-events.js';
 import type { TechStackEvent } from './techstack-handlers.js';
 import { httpRequestOriginOk, isLoopbackBind, tokenMatches } from './ws-auth.js';
@@ -298,7 +299,12 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         await handleSpaFallback(res, distDir, opts, res.socket?.localPort ?? port);
       } else {
-        console.error({ url: req.url, err });
+        // `?token=` is a valid way to present the WebUI access token to this
+        // server, so `req.url` can carry the live credential. A 500 is exactly
+        // when someone copies the log line into an issue. Path only, and the
+        // error scrubbed — the query string and any credential the throw
+        // quoted back must not be what persists.
+        console.error({ url: (req.url ?? '/').split('?')[0], err: errMessage(err) });
         res.writeHead(500);
         res.end('Server error');
       }

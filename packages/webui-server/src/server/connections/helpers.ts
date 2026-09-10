@@ -1,4 +1,5 @@
 import * as net from 'node:net';
+import { errMessage } from '../ws-utils.js';
 import type { ConnectionHealthService } from './types.js';
 
 const RESTART_POLL_INTERVAL_MS = 250;
@@ -60,7 +61,7 @@ export function failureService(
   error: unknown,
   latencyMs?: number,
 ): ConnectionHealthService {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errMessage(error);
   return {
     id,
     label,
@@ -74,6 +75,6 @@ export function failureService(
 }
 
 export function isOfflineConnectionError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errMessage(error);
   return /(?:ENOENT|ECONNREFUSED|not found|not running|unavailable|connect failed)/iu.test(message);
 }

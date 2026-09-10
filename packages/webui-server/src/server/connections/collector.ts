@@ -17,6 +17,7 @@ import {
   getIndexState,
   resolveProjectIndexDaemonAvailability,
 } from '@wrongstack/tools';
+import { errMessage } from '../ws-utils.js';
 import { failureService, isEndpointAlive, isOfflineConnectionError } from './helpers.js';
 import type { ConnectionHealthService, ConnectionsHealthReport } from './types.js';
 
@@ -109,7 +110,7 @@ export async function sessionCatalogHealth(projectRoot: string): Promise<Connect
         ? 'Not running for this project; it starts on demand when a session is used.'
         : 'Project-scoped session ownership and catalog are unavailable.',
       latencyMs: Date.now() - startedAt,
-      lastError: error instanceof Error ? error.message : String(error),
+      lastError: errMessage(error),
     };
   }
 }

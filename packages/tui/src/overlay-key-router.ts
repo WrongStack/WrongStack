@@ -4,6 +4,7 @@ import { coerceAgentSwarmMode, coercePanelPositionMap } from './app-settings-typ
 import { clearConfirmationKeyResult } from './components/clear-confirm-panel.js';
 import { exitConfirmationDecision } from './components/exit-confirm-panel.js';
 import type { KeyEvent } from './components/input.js';
+import { inspectOverlayHeaderActionAt } from './components/inspect-overlay.js';
 import { DEFAULT_STATUSLINE_MODE } from './components/settings-picker.js';
 import { slashConfirmationDecision } from './components/slash-confirm-panel.js';
 import { escCloseAction } from './esc-close-panels.js';
@@ -168,7 +169,9 @@ interface ModalOverlayKeyHost {
   readonly state: State;
   readonly enhanceCancelled: MutableCell<boolean>;
   readonly enhanceController: MutableCell<AbortController | null>;
+  readonly inspectGeometry?: { termCols: number; viewportRows: number } | undefined;
   dispatch(action: Action): void;
+  copyInspectOverlay?(): void;
 }
 
 /** Route the modal overlay ladder that has precedence over every composer key. */
@@ -250,6 +253,16 @@ export function routeModalOverlayKey(
     return true;
   }
   if (state.inspectOverlay != null) {
+    if (key.mouse?.kind === 'press' && key.mouse.button === 'left' && host.inspectGeometry) {
+      const action = inspectOverlayHeaderActionAt(
+        host.inspectGeometry.termCols,
+        host.inspectGeometry.viewportRows,
+        key.mouse.x,
+        key.mouse.y,
+      );
+      if (action === 'copy') host.copyInspectOverlay?.();
+      if (action === 'close') dispatch({ type: 'inspectOverlayClose' });
+    }
     if (key.mouse?.kind === 'wheel') {
       dispatch({
         type: 'inspectOverlayScroll',

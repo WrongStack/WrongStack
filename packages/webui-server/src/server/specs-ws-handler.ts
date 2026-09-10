@@ -2,7 +2,7 @@ import type { WebSocket } from 'ws';
 import { computeTaskProgress } from '@wrongstack/core/tasking';
 import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { SpecStore, TaskGraphStore } from '@wrongstack/sdd';
-import { sendSerialized } from './ws-utils.js';
+import { errMessage, sendSerialized } from './ws-utils.js';
 
 /**
  * Runtime guard for the `TaskStatus` union in `@wrongstack/core/types`. Kept as
@@ -77,7 +77,7 @@ export class SpecsWebSocketHandler {
         JSON.stringify({
           level: 'warn',
           event: 'specs.initial_send_failed',
-          message: err instanceof Error ? err.message : String(err),
+          message: errMessage(err),
         }),
       );
     });

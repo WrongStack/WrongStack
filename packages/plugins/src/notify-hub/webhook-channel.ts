@@ -131,6 +131,20 @@ export class WebhookNotificationChannel implements NotificationChannel {
           method: 'POST',
           headers: { 'content-type': 'application/json', ...this.#headers },
           body,
+          // The private-IP check on this URL runs ONCE, at plugin setup
+          // (`index.ts`), against the host the operator configured. Delivery
+          // resolves again and, with the default `redirect: 'follow'`, would
+          // replay this POST — including `this.#headers`, which is where the
+          // operator's `X-Webhook-Secret` / `X-Api-Key` lives — to wherever a
+          // 307 pointed. A webhook host that is compromised, or simply
+          // hostile, could aim that at loopback or the cloud metadata
+          // endpoint and read the secret out of the request.
+          //
+          // Refusing the redirect outright is what the sibling HTTP hook
+          // executor already does (`core/src/hooks/http-executor.ts:73`). A
+          // webhook endpoint that answers with a redirect is misconfigured;
+          // failing it is correct and is visible through the circuit breaker.
+          redirect: 'error',
           signal: controller.signal,
         });
         if (typeof (res as { arrayBuffer?: unknown }).arrayBuffer === 'function') {

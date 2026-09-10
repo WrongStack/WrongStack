@@ -7,7 +7,14 @@ services:
     init: true
     restart: unless-stopped
     ports:
-      - "${WRONGSTACK_HQ_BIND_IP:-0.0.0.0}:${WRONGSTACK_HQ_PORT:-3499}:3499"
+      # Loopback by default. HQ speaks plain HTTP — there is no TLS anywhere in
+      # this image — and it authenticates with a password and a session cookie,
+      # so publishing it on every interface puts those credentials on the wire
+      # in cleartext for any peer that can reach the host, and drops `Secure`
+      # from the session cookie. `POST /api/command` is on that same surface.
+      # To reach HQ from another machine, terminate TLS in front of it (see
+      # README "Remote access") rather than widening this bind.
+      - "${WRONGSTACK_HQ_BIND_IP:-127.0.0.1}:${WRONGSTACK_HQ_PORT:-3499}:3499"
     environment:
       WRONGSTACK_HQ_PASSWORD_FILE: /run/secrets/hq_password
       WRONGSTACK_HQ_BOOTSTRAP_PASSWORD_ONLY: "1"

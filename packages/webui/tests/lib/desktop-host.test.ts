@@ -9,6 +9,7 @@ import {
   DESKTOP_COMMAND_VIEWS,
   DESKTOP_COMMAND_WORK_TABS,
   publishDesktopCommandAck,
+  publishDesktopOpenSessionsSnapshot,
   publishDesktopPrefsSnapshot,
   publishDesktopReady,
 } from '../../src/lib/desktop-host';
@@ -121,6 +122,38 @@ describe('publishDesktopReady', () => {
       wrongstackDesktopHost: {},
     };
     expect(() => publishDesktopReady(false)).not.toThrow();
+  });
+});
+
+describe('publishDesktopOpenSessionsSnapshot', () => {
+  const originalWindow = globalThis.window;
+
+  afterEach(() => {
+    (globalThis as any).window = originalWindow;
+  });
+
+  it('projects and caps the native payload to the four WebUI slots', () => {
+    const setOpenSessions = vi.fn();
+    (globalThis as any).window = {
+      ...originalWindow,
+      wrongstackDesktopHost: { setOpenSessions },
+    };
+    const tabs = Array.from({ length: 5 }, (_, slot) => ({
+      sessionId: `session-${slot}`,
+      title: `Session ${slot}`,
+      slot,
+      isActive: slot === 1,
+      isRunning: slot === 2,
+    })) as never;
+
+    publishDesktopOpenSessionsSnapshot(tabs);
+
+    expect(setOpenSessions).toHaveBeenCalledWith([
+      { id: 'session-0', title: 'Session 0', slot: 0, active: false, running: false },
+      { id: 'session-1', title: 'Session 1', slot: 1, active: true, running: false },
+      { id: 'session-2', title: 'Session 2', slot: 2, active: false, running: true },
+      { id: 'session-3', title: 'Session 3', slot: 3, active: false, running: false },
+    ]);
   });
 });
 

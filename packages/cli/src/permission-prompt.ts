@@ -118,8 +118,12 @@ const PREVIEW_MAX_CHARS = 8_000;
  * ever sees text that can no longer move the cursor or repaint the screen.
  */
 function clipPreview(body: string, decorate: (line: string) => string = (l) => l): string {
-  const safe = sanitizeTerminalText(body);
-  const { text, truncated } = sanitizeTerminalPreview(body, {
+  // ONE pass over the untrusted body. This used to sanitize the whole thing
+  // twice — once here and once inside `sanitizeTerminalPreview` — purely to
+  // count what got withheld. On the approval path that doubled the cost of
+  // whatever the model sent, and the sanitizer's OSC scan was quadratic, so a
+  // large tool result froze the prompt the user was being asked to answer.
+  const { text, truncated, sanitizedLength, sanitizedLines } = sanitizeTerminalPreview(body, {
     maxLines: PREVIEW_MAX_LINES,
     maxChars: PREVIEW_MAX_CHARS,
   });
@@ -128,11 +132,11 @@ function clipPreview(body: string, decorate: (line: string) => string = (l) => l
 
   // Say what was withheld, in the dimension that actually did the withholding.
   // A silent cap would recreate the class of bug this preview exists to fix.
-  const hiddenLines = safe.split('\n').length - text.split('\n').length;
+  const hiddenLines = sanitizedLines - text.split('\n').length;
   const detail =
     hiddenLines > 0
       ? `${hiddenLines} more line${hiddenLines === 1 ? '' : 's'} not shown`
-      : `${safe.length - text.length} more characters not shown`;
+      : `${sanitizedLength - text.length} more characters not shown`;
   return `${rendered}\n${color.dim(`… ${detail} — review the file before approving`)}`;
 }
 

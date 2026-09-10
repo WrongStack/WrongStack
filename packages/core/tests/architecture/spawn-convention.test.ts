@@ -46,6 +46,20 @@ const WINDOWS_HIDE_EXEMPT: Record<string, string> = {};
  * env identifier the file composes from buildChildEnv. Adding an entry is a
  * decision; anything else is drift. When a listed file gains buildChildEnv at
  * every site, the staleness test below forces the entry to be dropped.
+ *
+ * Five entries were removed on 2026-09-11 because they were never needed. The
+ * scanner matched METHOD DECLARATIONS as call sites, and in this codebase
+ * "spawn" and "fork" overwhelmingly name subagent and session operations, not
+ * process launches: `async spawn(subagent: SubagentConfig)`,
+ * `async fork(id: string)`, `override exec(input: string)`. None of the five
+ * files (`cli/src/fleet/host.ts`, `core/src/coordination/director.ts`,
+ * `.../multi-agent-coordinator.ts`, `.../director/director-collab.ts`,
+ * `core/src/storage/session-store.ts`) imports `child_process` at all.
+ *
+ * That mattered in the wrong direction. Each carried a standing "inherited env
+ * is fine here" waiver for a call that did not exist — so the day one of them
+ * gained a REAL child-process call, this guard would have waved it through.
+ * A phantom exemption is worse than a missing one.
  */
 const REASON_AGENT_CHILD =
   'Spawns a WrongStack agent/subagent child that reads provider credentials from its environment by design — filtering would break the child.';
@@ -67,15 +81,11 @@ const REASON_HOOKS =
 
 const CHILD_ENV_EXEMPT: Record<string, string> = {
   // ── Agent children (fleet / director / delegation / coordination) ──
-  'cli/src/fleet/host.ts': REASON_AGENT_CHILD,
   'cli/src/wiring/session-registry.ts': REASON_AGENT_CHILD,
   'cli/src/wiring/session-command-handlers.ts': REASON_AGENT_CHILD,
   'cli/src/wiring/sdd-handlers.ts': REASON_AGENT_CHILD,
   'cli/src/chimera-cascade-evidence.ts': REASON_AGENT_CHILD,
-  'core/src/coordination/director.ts': REASON_AGENT_CHILD,
-  'core/src/coordination/multi-agent-coordinator.ts': REASON_AGENT_CHILD,
   'core/src/coordination/collab-director-host.ts': REASON_AGENT_CHILD,
-  'core/src/coordination/director/director-collab.ts': REASON_AGENT_CHILD,
   'core/src/coordination/director-host-contracts.ts': REASON_AGENT_CHILD,
   'core/src/coordination/icoordinator.ts': REASON_AGENT_CHILD,
   'core/src/types/multi-agent.ts': REASON_AGENT_CHILD,
@@ -104,7 +114,6 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   // ── Trusted wstack daemons ──
   'core/src/chronicle/project-server-client.ts': REASON_TRUSTED_DAEMON,
   'core/src/session-catalog/client.ts': REASON_TRUSTED_DAEMON,
-  'core/src/storage/session-store.ts': REASON_TRUSTED_DAEMON,
   'core/src/coordination/single-instance-mailbox.ts': REASON_TRUSTED_DAEMON,
   'core/src/coordination/mailbox-project-server-client.ts': REASON_TRUSTED_DAEMON,
   'sage/src/project-server-client.ts': REASON_TRUSTED_DAEMON,
@@ -207,6 +216,43 @@ function isNoiseLine(text: string): boolean {
     trimmed.startsWith('/*') ||
     trimmed.startsWith('import ') ||
     trimmed.startsWith('export ')
+  );
+}
+
+/**
+ * Declaration keywords that turn `name(` into a method or function DEFINITION
+ * rather than a call.
+ *
+ * `exec` is a legitimate method name outside `child_process` — `RegExp.prototype.exec`
+ * most obviously — so a class that overrides it (`override exec(input: string)`)
+ * was reported as an unguarded child-process call. A definition cannot launch a
+ * process, so skipping it removes a false positive without opening a hole: the
+ * body's own `spawn`/`exec` CALLS are still scanned, on their own lines.
+ *
+ * `await` is deliberately absent: `await exec(cmd)` is a call and must be caught.
+ */
+const DECLARATION_KEYWORDS = [
+  'function',
+  'override',
+  'async',
+  'static',
+  'private',
+  'public',
+  'protected',
+  'abstract',
+  'declare',
+  'get',
+  'set',
+] as const;
+
+/**
+ * True when the match at `matchIndex` is a method/function declaration rather
+ * than a call — i.e. the text immediately before it is a declaration keyword.
+ */
+function isDeclarationSite(text: string, matchIndex: number): boolean {
+  const before = text.slice(0, matchIndex).trimEnd();
+  return DECLARATION_KEYWORDS.some(
+    (keyword) => before.endsWith(keyword) && /[\s]$/.test(text.slice(0, matchIndex)),
   );
 }
 
@@ -400,6 +446,7 @@ export function scanChildCallLines(
       if (match.index === undefined) continue;
       if (matchInsideString(text, match.index)) continue;
       if (hasInlineCommentBefore(text, match.index)) continue;
+      if (isDeclarationSite(text, match.index)) continue;
       // String/comment contents are inert: strip them BEFORE any compliance
       // test so prose in an argument cannot impersonate a buildChildEnv call
       // or an env-key assignment (Chimera review).
@@ -513,6 +560,30 @@ describe('child-process environment convention (buildChildEnv)', () => {
   it('finds the child-process call sites it is meant to police', () => {
     // Guards every case below: an empty scan would pass vacuously.
     expect(sites.length).toBeGreaterThan(15);
+  });
+
+  // The declaration filter NARROWS this guard, so it needs its own evidence:
+  // a filter that is slightly too greedy stops reporting real call sites and
+  // the suite still goes green. These pin both directions.
+  describe('declaration filter', () => {
+    const none = new Set<string>();
+
+    it('ignores a method that merely shares a name with a child-process API', () => {
+      // `RegExp.prototype.exec` overridden by a compiled-glob matcher.
+      expect(scanChildCallLines(['  override exec(input: string): RegExpExecArray | null {'], none))
+        .toHaveLength(0);
+      expect(scanChildCallLines(['  private exec(cmd: string) {'], none)).toHaveLength(0);
+      expect(scanChildCallLines(['function spawn(opts: Opts): Child {'], none)).toHaveLength(0);
+    });
+
+    it('still reports real calls, including awaited and assigned ones', () => {
+      expect(scanChildCallLines(['  const out = await exec(cmd);'], none)).toHaveLength(1);
+      expect(scanChildCallLines(['  execFileSync("git", args);'], none)).toHaveLength(1);
+      expect(scanChildCallLines(['  spawn(bin, args, { stdio: "pipe" });'], none)).toHaveLength(1);
+      expect(scanChildCallLines(['  cp.execSync(cmd);'], none)).toHaveLength(1);
+      // An async arrow that calls exec is a call, not a declaration.
+      expect(scanChildCallLines(['  const run = async () => exec(cmd);'], none)).toHaveLength(1);
+    });
   });
 
   it('every child-process call routes its env through buildChildEnv', () => {

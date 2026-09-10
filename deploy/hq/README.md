@@ -17,10 +17,35 @@ docker compose up -d
 docker compose ps
 ```
 
-HQ listens on `0.0.0.0:3499`. Its state and authentication database live in
+HQ listens on `127.0.0.1:3499`. Its state and authentication database live in
 the `wrongstack_hq_data` volume. The root filesystem is read-only; the process
 runs as the image's unprivileged `node` user with all Linux capabilities
 dropped.
+
+## Remote access — read before changing the bind
+
+**This image serves plain HTTP. It contains no TLS.** HQ authenticates with a
+password and a session cookie, and exposes `POST /api/command`, so exposing it
+directly on a network puts those credentials on the wire in cleartext for
+every peer that can reach the host — and the session cookie cannot carry
+`Secure` over plain HTTP, so a browser will send it to any attacker who can
+downgrade or spoof the origin.
+
+`WRONGSTACK_HQ_BIND_IP` therefore defaults to `127.0.0.1`. To reach HQ from
+another machine, do **not** widen it to `0.0.0.0`. Instead put a
+TLS-terminating reverse proxy in front of the loopback port:
+
+- Terminate HTTPS at the proxy with a certificate for the hostname operators
+  will actually type.
+- Proxy to `127.0.0.1:3499`; leave the container bind as-is.
+- Keep the proxy and HQ on the same host, or run the hop between them over an
+  encrypted transport (WireGuard, Tailscale, an SSH tunnel) rather than the
+  open network.
+- Set `WRONGSTACK_HQ_ALLOWLIST` as a second layer, remembering the caveat
+  below about Docker NAT masking the real peer address.
+
+An SSH tunnel (`ssh -L 3499:127.0.0.1:3499 host`) needs no proxy at all and is
+the right answer for occasional single-operator access.
 
 The mounted password is a first-run bootstrap secret. After initialization,
 password changes made in HQ Settings remain authoritative across container

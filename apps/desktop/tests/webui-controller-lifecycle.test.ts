@@ -29,10 +29,10 @@ vi.mock('../src/main/desktop-privileged-actions.js', () => ({
   authorizeDesktopAction: vi.fn(() => Promise.resolve({ allowed: true })),
 }));
 
-import { DesktopWebuiController } from '../src/main/webui/controller.js';
-import type { DesktopRuntimeManager } from '../src/main/runtime-manager.js';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { BaseWindow, WebContentsView } from 'electron';
+import type { DesktopRuntimeManager } from '../src/main/runtime-manager.js';
+import { DesktopWebuiController } from '../src/main/webui/controller.js';
 
 function createHarness() {
   const runtime = { id: 'runtime-1', status: 'running' };
@@ -58,6 +58,24 @@ function createHarness() {
 }
 
 describe('DesktopWebuiController production lifecycle', () => {
+  it('keeps the last four-slot declaration while a background view is recycled', () => {
+    const harness = createHarness();
+    const entry = harness.controller.ensure('runtime-1');
+    if (!entry) throw new Error('Expected runtime view');
+    harness.controller.setOpenSessions('runtime-1', [
+      { id: 'sess-a', title: 'A', slot: 0, active: true, running: false },
+    ]);
+
+    harness.controller.dispose(entry);
+
+    expect(harness.controller.openSessionSnapshots()).toEqual([
+      {
+        runtimeId: 'runtime-1',
+        sessions: [{ id: 'sess-a', title: 'A', slot: 0, active: true, running: false }],
+      },
+    ]);
+  });
+
   it('keeps view ownership isolated per application instance', () => {
     const first = createHarness();
     const second = createHarness();

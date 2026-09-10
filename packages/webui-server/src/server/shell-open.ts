@@ -37,6 +37,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import type { Logger } from '@wrongstack/core/types';
+import { errMessage } from './ws-utils.js';
 
 export type ShellOpenTarget = 'terminal' | 'file-manager';
 
@@ -225,6 +226,6 @@ export async function handleShellOpen(
     }
     return { success: true, message: `Opened ${req.target} at ${target}` };
   } catch (err) {
-    return { success: false, message: err instanceof Error ? err.message : String(err) };
+    return { success: false, message: errMessage(err) };
   }
 }

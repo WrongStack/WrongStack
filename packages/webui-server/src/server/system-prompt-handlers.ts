@@ -18,6 +18,7 @@ import {
   type SystemInstructionVariant,
   type SystemPromptVariantPaths,
 } from '@wrongstack/core/agent';
+import { errMessage } from './ws-utils.js';
 
 /** Everything the picker needs from the host, injected so both WS hosts share it. */
 export interface SystemPromptSurface {
@@ -83,7 +84,7 @@ export async function buildSystemPromptInfo(
   try {
     tokens = await countSystemPromptTokens(surface.paths());
   } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
+    error = errMessage(err);
   }
   let chosen = false;
   try {

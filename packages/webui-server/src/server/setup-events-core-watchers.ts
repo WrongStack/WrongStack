@@ -6,6 +6,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { subscribeKanbanDaemonEvents } from './kanban-daemon-subscriber.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
+import { errMessage } from './ws-utils.js';
 
 interface SetupEventsCoreWatcherDeps {
   events: EventBus;
@@ -74,7 +75,7 @@ export function registerSetupEventsClientStatusWriter(
           JSON.stringify({
             level: 'error',
             event: 'setup_events.status_write_failed',
-            message: err instanceof Error ? err.message : String(err),
+            message: errMessage(err),
             timestamp: new Date().toISOString(),
           }),
         );

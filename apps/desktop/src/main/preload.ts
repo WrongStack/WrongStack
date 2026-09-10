@@ -1,9 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   DesktopConversationSnapshot,
+  DesktopOpenSessionsSnapshot,
   DesktopStateSnapshot,
-  DesktopWebuiStatusSnapshot,
   DesktopWebuiCommand,
+  DesktopWebuiStatusSnapshot,
   WrongStackDesktopApi,
 } from '../shared/types.js';
 import { IPC } from './ipc.js';
@@ -12,7 +13,7 @@ const api: WrongStackDesktopApi = {
   getState: () => ipcRenderer.invoke(IPC.getState),
   getConversation: (runtimeId: string) => ipcRenderer.invoke(IPC.getConversation, runtimeId),
   getWebuiStatus: () => ipcRenderer.invoke(IPC.getWebuiStatus),
-  listProjectSessions: (root: string) => ipcRenderer.invoke(IPC.listProjectSessions, root),
+  getOpenSessions: () => ipcRenderer.invoke(IPC.getOpenSessions),
   openProject: (root?: string) => ipcRenderer.invoke(IPC.openProject, root),
   registerProject: (root?: string) => ipcRenderer.invoke(IPC.registerProject, root),
   unregisterProject: (root: string) => ipcRenderer.invoke(IPC.unregisterProject, root),
@@ -47,6 +48,12 @@ const api: WrongStackDesktopApi = {
       cb(status);
     ipcRenderer.on(IPC.webuiStatusChanged, handler);
     return () => ipcRenderer.off(IPC.webuiStatusChanged, handler);
+  },
+  onOpenSessionsChanged: (cb: (snapshot: DesktopOpenSessionsSnapshot) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, snapshot: DesktopOpenSessionsSnapshot) =>
+      cb(snapshot);
+    ipcRenderer.on(IPC.openSessionsChanged, handler);
+    return () => ipcRenderer.off(IPC.openSessionsChanged, handler);
   },
   onShellSidebarCollapsedChanged: (cb: (collapsed: boolean) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, collapsed: boolean) => cb(collapsed);

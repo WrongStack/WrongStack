@@ -1,6 +1,7 @@
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { Logger } from '@wrongstack/core/types';
 import { authorizeWebUIAction } from '../privileged-actions.js';
+import { errMessage } from '../ws-utils.js';
 import { collectConnectionsHealth } from './collector.js';
 import { executeServiceAction } from './service-actions.js';
 import type {
@@ -169,9 +170,7 @@ export function createAutoHealer(options: AutoHealerOptions): AutoHealer {
     try {
       options.onStatus?.({ ...event, at: Date.now() });
     } catch (error) {
-      options.logger?.warn?.(
-        `[AutoHeal] onStatus hook threw: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      options.logger?.warn?.(`[AutoHeal] onStatus hook threw: ${errMessage(error)}`);
     }
   }
 
@@ -287,7 +286,7 @@ export function createAutoHealer(options: AutoHealerOptions): AutoHealer {
         } catch (error) {
           state.consecutiveFailures += 1;
           state.lastSuccess = false;
-          state.lastMessage = error instanceof Error ? error.message : String(error);
+          state.lastMessage = errMessage(error);
           emitStatus({
             serviceId: service.id,
             phase: 'failed',
@@ -317,9 +316,7 @@ export function createAutoHealer(options: AutoHealerOptions): AutoHealer {
 
       lastTickAt = Date.now();
     } catch (error) {
-      options.logger?.warn?.(
-        `[AutoHeal] health collect failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      options.logger?.warn?.(`[AutoHeal] health collect failed: ${errMessage(error)}`);
     } finally {
       ticking = false;
     }

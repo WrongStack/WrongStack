@@ -20,6 +20,7 @@ import { registerSetupEventsSubagentHandlers } from './setup-events-subagent-han
 import { registerSetupEventsToolHandlers } from './setup-events-tool-handlers.js';
 import type { FileWatcherMetrics } from './setup-events-watcher.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
+import { errMessage } from './ws-utils.js';
 
 export {
   createDefaultFileWatcherMetrics,
@@ -225,13 +226,13 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
       payload: sessionPayload({
         sessionId: e.sessionId,
         phase: e.phase,
-        message: e.err instanceof Error ? e.err.message : String(e.err),
+        message: errMessage(e.err),
       }),
     });
     appendForCurrentSession(e.sessionId, {
       type: 'error',
       ts: new Date().toISOString(),
-      message: e.err instanceof Error ? e.err.message : String(e.err),
+      message: errMessage(e.err),
       phase: e.phase,
     });
   });

@@ -1,7 +1,7 @@
 import type { WebSocket } from 'ws';
 import type { AgentRosterWSHandler } from './agent-roster-handlers.js';
 import type { WSClientMessage } from './types.js';
-import { send } from './ws-utils.js';
+import { errMessage, send } from './ws-utils.js';
 
 export interface AgentRosterRouteHandlers {
   rosterHandler: AgentRosterWSHandler;
@@ -23,7 +23,7 @@ export async function handleAgentRosterRoute(
   } catch (error) {
     send(ws, {
       type: msg.type,
-      payload: { error: error instanceof Error ? error.message : String(error) },
+      payload: { error: errMessage(error) },
     });
   }
   return true;

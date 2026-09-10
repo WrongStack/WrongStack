@@ -465,6 +465,7 @@
         "export { deriveCachePrefixKey } from './cache-key.js';",
         "export { expandGlob } from './glob-expand.js';",
         "export { formatMemoryEvidenceBlock, MEMORY_EVIDENCE_TAG, sanitizeMemoryEvidenceBody, sanitizeMemoryEvidenceSource, } from './memory-evidence-fence.js';",
+        "export { formatProjectSuppliedBlock, PROJECT_SUPPLIED_INSTRUCTIONS_TAG, PROJECT_SUPPLIED_TAG, sanitizeProjectSuppliedBody, sanitizeProjectSuppliedSource, } from './project-supplied-fence.js';",
         "export { getPerfProfile, indexParallelBatchSize, isFrugalPerf, type PerfProfile, SageCachePragmas, sqliteCachePragmas, tuiStreamFlushMs, useDaemonPerfDefaults, } from './perf-profile.js';",
         "export { hasMeaningfulContent, type MessageRepairReport, type MessageRepairResult, repairToolUseAdjacency, } from './message-invariants.js';",
         "export { isPidAlive } from './pid.js';",
@@ -1426,21 +1427,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 41,
-      "sourceLines": 11740
+      "sourceLines": 11758
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 187,
-      "sourceLines": 53257
+      "sourceLines": 53272
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 53,
-      "sourceLines": 12756
+      "sourceLines": 12792
     },
     {
       "directory": "design",
@@ -1482,7 +1483,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 49,
-      "sourceLines": 9517
+      "sourceLines": 9727
     },
     {
       "directory": "infrastructure",
@@ -1601,7 +1602,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 106,
-      "sourceLines": 23356
+      "sourceLines": 23419
     },
     {
       "directory": "tasking",
@@ -1629,7 +1630,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 69,
-      "sourceLines": 11320
+      "sourceLines": 11698
     },
     {
       "directory": "wiring",

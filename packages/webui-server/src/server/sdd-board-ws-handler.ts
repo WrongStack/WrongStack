@@ -17,7 +17,7 @@ import {
 } from '@wrongstack/sdd';
 import type { WebSocket } from 'ws';
 import { authorizeWebUIAction } from './privileged-actions.js';
-import { sendSerialized } from './ws-utils.js';
+import { errMessage, sendSerialized } from './ws-utils.js';
 
 interface WSClient {
   ws: WebSocket;
@@ -150,7 +150,7 @@ export class SddBoardWebSocketHandler {
         JSON.stringify({
           level: 'warn',
           event: 'sdd_board.initial_send_failed',
-          message: err instanceof Error ? err.message : String(err),
+          message: errMessage(err),
         }),
       );
     });
@@ -334,7 +334,7 @@ export class SddBoardWebSocketHandler {
         JSON.stringify({
           level: 'warn',
           event: 'sdd_board.poll_failed',
-          message: err instanceof Error ? err.message : String(err),
+          message: errMessage(err),
         }),
       );
     } finally {

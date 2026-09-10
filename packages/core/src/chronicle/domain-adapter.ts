@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { EventBus } from '../kernel/events.js';
+import { redactText } from '../utils/redaction.js';
 import type { ChronicleContext } from './context.js';
 import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput, ChronicleOutcome, ChronicleResourceRef } from './types.js';
@@ -195,11 +196,28 @@ function sanitize(value: unknown, key = '', depth = 0, seen = new WeakSet<object
   if (typeof value === 'bigint') return value.toString();
   if (typeof value === 'function') return { type: 'function' };
   if (typeof value === 'string') {
-    if (PRESERVE_STRING_KEY.test(key) && !SENSITIVE_KEY.test(key)) return value.slice(0, 512);
+    // Every string that leaves here verbatim goes through the shared scrubber
+    // first.
+    //
+    // `SENSITIVE_KEY` already hashes the obvious carriers (`error`, `message`,
+    // `token`, `secret`, `key`), so the gap was the keys it does not name:
+    // `command`, `url`, `stack`, `endpoint` — all of which routinely embed a
+    // credential (`curl -H "Authorization: Bearer …"`, a connection string with
+    // an inline password, a signed URL). Under 256 characters those were
+    // written to the journal exactly as received.
+    //
+    // Scrubbing rather than hashing is deliberate: Chronicle exists to make
+    // tool and provider behaviour analysable, and a hashed command line is
+    // useless for that. `redactText` keeps the string readable and removes only
+    // credential-shaped substrings. It prescans for anchor substrings and skips
+    // all regex work when none are present, which is the common case here.
+    if (PRESERVE_STRING_KEY.test(key) && !SENSITIVE_KEY.test(key)) {
+      return redactText(value.slice(0, 512));
+    }
     if (SENSITIVE_KEY.test(key))
       return { hash: digest(value), length: value.length, redacted: true };
     return value.length <= 256
-      ? value
+      ? redactText(value)
       : { hash: digest(value), length: value.length, truncated: true };
   }
   if (typeof value !== 'object') return String(value);

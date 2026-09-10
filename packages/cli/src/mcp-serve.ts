@@ -13,7 +13,11 @@ import { pathToFileURL } from 'node:url';
 import { Context } from '@wrongstack/core/agent';
 import { ToolExecutor } from '@wrongstack/core/execution';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { AutoApprovePermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
+import {
+  AutoApprovePermissionPolicy,
+  DefaultSecretScrubber,
+  ToolCapabilities,
+} from '@wrongstack/core/security';
 import type {
   PermissionPolicy,
   Provider,
@@ -35,11 +39,37 @@ import { registerBuiltinToolTier } from '@wrongstack/tools/tool-tier';
 import { wireKanbanPorts } from '@wrongstack/runtime';
 import type { SubcommandDeps } from './subcommands/contracts.js';
 
-/** `--yolo` policy: auto-approve everything (inherits the rest of the contract). */
-class AllowAllPermissionPolicy extends AutoApprovePermissionPolicy {
-  override async evaluate(): ReturnType<AutoApprovePermissionPolicy['evaluate']> {
-    return { permission: 'auto', source: 'default' };
-  }
+/**
+ * `--yolo` for `mcp serve`: widen the CAPABILITY allowlist, keep every guard.
+ *
+ * This replaced an `AllowAllPermissionPolicy extends AutoApprovePermissionPolicy`
+ * whose `evaluate()` returned `{ permission: 'auto' }` unconditionally. That
+ * override skipped the whole base implementation — the sensitive-read denial,
+ * the leader deny rules, the destructive-command classifier, the agent-state
+ * write guard, and `LOCKED_DESTRUCTIVE_KINDS`. It was the only place in the
+ * codebase where `agent-state` and `credential-bind` could be un-gated, so a
+ * third-party MCP client could have written `hooks` into config.json (boot-time
+ * RCE) or `auto: true` into trust.json.
+ *
+ * It did not actually get there — but only by accident, and the accident is the
+ * reason this is a rewrite rather than a patch. The override returned
+ * `source: 'default'` where the base class returns `source: 'yolo'`, so
+ * `ToolExecutor.capabilityDowngraded` re-armed and forced `confirm`; `mcp serve`
+ * has no confirmAwaiter, so the call hard-errored. Changing that one string
+ * literal to `'yolo'` — which reads as a trivial consistency cleanup — would
+ * have made the bypass live. Safety must not rest on a string nobody knows is
+ * load-bearing.
+ *
+ * Granting every capability is what `--yolo` actually means, and it is what
+ * lets `ToolExecutor` trust an `auto` instead of downgrading it (see the
+ * `dangerousNotAllowed` reasoning in `auto-approve-policy.ts`). The destructive
+ * classifier is deliberately NOT relaxed: `yoloConfirmKinds` is left at its
+ * default, which gates every destructive kind. Destructive calls therefore
+ * still require a confirmation this surface cannot answer, exactly as before —
+ * this change removes a latent bypass without widening anything.
+ */
+export function yoloServePolicy(): AutoApprovePermissionPolicy {
+  return new AutoApprovePermissionPolicy(Object.values(ToolCapabilities));
 }
 
 /**
@@ -325,7 +355,7 @@ export async function serveMcpStdio(
     resolveServeFsRestriction(deps.config),
   );
   const permissionPolicy: PermissionPolicy = yolo
-    ? new AllowAllPermissionPolicy()
+    ? yoloServePolicy()
     : new AutoApprovePermissionPolicy();
   const executor = new ToolExecutor(registry, {
     permissionPolicy,

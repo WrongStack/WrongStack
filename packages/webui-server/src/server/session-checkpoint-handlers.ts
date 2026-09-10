@@ -60,7 +60,7 @@ export function createSessionCheckpointHandlers(
           type: 'session.inspect',
           payload: {
             id,
-            error: err instanceof Error ? err.message : String(err),
+            error: errMessage(err),
           },
         });
       }

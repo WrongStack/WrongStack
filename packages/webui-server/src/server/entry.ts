@@ -6,6 +6,7 @@
 import { ToolValidationError } from '@wrongstack/core/types';
 import { startWebUI } from './index.js';
 import { formatInstances, listInstances } from './instance-registry.js';
+import { errMessage } from './ws-utils.js';
 
 const argv = process.argv.slice(2);
 
@@ -81,7 +82,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
         JSON.stringify({
           level: 'fatal',
           event: 'webui.instance_registry_read_failed',
-          message: err instanceof Error ? err.message : String(err),
+          message: errMessage(err),
           timestamp: new Date().toISOString(),
         }),
       );
@@ -110,7 +111,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
     publicWsUrl = readArg(['--public-ws-url']) ?? process.env['WEBUI_PUBLIC_WS_URL'];
     distDir = readArg(['--dist-dir']) ?? process.env['WEBUI_DIST_DIR'];
   } catch (err) {
-    console.error(err instanceof Error ? err.message : String(err));
+    console.error(errMessage(err));
     process.exit(1);
   }
   const open = argv.includes('--open') || argv.includes('-o') || process.env['WEBUI_OPEN'] === '1';
@@ -132,7 +133,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
       JSON.stringify({
         level: 'fatal',
         event: 'webui.startup_failed',
-        message: err instanceof Error ? err.message : String(err),
+        message: errMessage(err),
         timestamp: new Date().toISOString(),
       }),
     );

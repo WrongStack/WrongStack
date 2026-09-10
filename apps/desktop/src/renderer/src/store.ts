@@ -16,7 +16,8 @@
  * update.
  */
 import type {
-  DesktopSessionEntry,
+  DesktopOpenSessionEntry,
+  DesktopOpenSessionsSnapshot,
   DesktopStateSnapshot,
   DesktopWebuiCommand,
   DesktopWebuiStatusSnapshot,
@@ -29,19 +30,13 @@ export interface LauncherFeedback {
   message?: string | undefined;
 }
 
-/** Per-project session list, loaded when a project row is expanded. */
-export interface SessionList {
-  status: 'idle' | 'loading' | 'ready' | 'error';
-  entries: DesktopSessionEntry[];
-}
-
 export interface ShellState {
   desktop: DesktopStateSnapshot;
   webuiStatus: DesktopWebuiStatusSnapshot;
   /** Project roots whose session list is expanded in the tree. */
   expanded: ReadonlySet<string>;
-  /** Session lists keyed by project root. */
-  sessions: ReadonlyMap<string, SessionList>;
+  /** The actual open WebUI slots, keyed by runtime id. */
+  openSessions: ReadonlyMap<string, DesktopShellSession[]>;
   sidebarCollapsed: boolean;
   /** Free-text filter over the project tree. */
   filter: string;
@@ -49,6 +44,8 @@ export interface ShellState {
   error: string | null;
   launcher: LauncherFeedback | null;
 }
+
+export type DesktopShellSession = DesktopOpenSessionEntry & { runtimeId: string };
 
 const EMPTY_DESKTOP: DesktopStateSnapshot = {
   activeRuntimeId: null,
@@ -62,13 +59,14 @@ let state: ShellState = {
   desktop: EMPTY_DESKTOP,
   webuiStatus: { runtimeId: null, status: 'idle' },
   expanded: new Set(),
-  sessions: new Map(),
+  openSessions: new Map(),
   sidebarCollapsed: false,
   filter: '',
   busy: false,
   error: null,
   launcher: null,
 };
+let openSessionsRevision = 0;
 
 const listeners = new Set<() => void>();
 
@@ -94,13 +92,14 @@ export function __resetStore(): void {
     desktop: EMPTY_DESKTOP,
     webuiStatus: { runtimeId: null, status: 'idle' },
     expanded: new Set(),
-    sessions: new Map(),
+    openSessions: new Map(),
     sidebarCollapsed: false,
     filter: '',
     busy: false,
     error: null,
     launcher: null,
   };
+  openSessionsRevision = 0;
   listeners.clear();
 }
 
@@ -123,11 +122,7 @@ export function setLauncher(launcher: LauncherFeedback | null): void {
 }
 
 /**
- * Expand or collapse a project's session list.
- *
- * Loading is driven from here rather than from an effect in the row: the row
- * unmounts while virtualised, and an effect would re-fetch every time it
- * scrolled back into view.
+ * Expand or collapse a project's live WebUI tab list.
  */
 export function toggleExpanded(projectRoot: string): void {
   const expanded = new Set(state.expanded);
@@ -138,25 +133,19 @@ export function toggleExpanded(projectRoot: string): void {
   }
   expanded.add(projectRoot);
   set({ expanded });
-  void loadSessions(projectRoot);
 }
 
-export async function loadSessions(projectRoot: string, force = false): Promise<void> {
-  const current = state.sessions.get(projectRoot);
-  if (!force && (current?.status === 'loading' || current?.status === 'ready')) return;
-  const loading = new Map(state.sessions);
-  loading.set(projectRoot, { status: 'loading', entries: current?.entries ?? [] });
-  set({ sessions: loading });
-  try {
-    const entries = await window.wrongstackDesktop.listProjectSessions(projectRoot);
-    const ready = new Map(state.sessions);
-    ready.set(projectRoot, { status: 'ready', entries });
-    set({ sessions: ready });
-  } catch {
-    const failed = new Map(state.sessions);
-    failed.set(projectRoot, { status: 'error', entries: [] });
-    set({ sessions: failed });
+function applyOpenSessions(snapshot: DesktopOpenSessionsSnapshot): void {
+  openSessionsRevision += 1;
+  const openSessions = new Map(state.openSessions);
+  if (snapshot.sessions.length === 0) openSessions.delete(snapshot.runtimeId);
+  else {
+    openSessions.set(
+      snapshot.runtimeId,
+      snapshot.sessions.map((session) => ({ ...session, runtimeId: snapshot.runtimeId })),
+    );
   }
+  set({ openSessions });
 }
 
 // ── Bridge-backed actions ───────────────────────────────────────────────────
@@ -187,6 +176,8 @@ export const actions = {
   registerProject: () => withBusy(() => api().registerProject()),
   unregisterProject: (root: string) => withBusy(() => api().unregisterProject(root)),
   newSession: (runtimeId?: string) => withBusy(() => api().openProjectSession(runtimeId)),
+  focusSession: (runtimeId: string, sessionId: string, title: string) =>
+    actions.webuiCommand({ sessionId }, title, runtimeId),
   openSettings: () => withBusy(() => api().openSettings()),
   activate: (runtimeId: string) => withBusy(() => api().activateRuntime(runtimeId)),
   close: (runtimeId: string) => withBusy(() => api().closeRuntime(runtimeId)),
@@ -259,23 +250,42 @@ export const actions = {
  */
 export function connect(): () => void {
   const bridge = window.wrongstackDesktop;
+  const initialOpenSessionsRevision = openSessionsRevision;
   const offState = bridge.onStateChanged((next) => {
-    // The active project can change under us (restore, a runtime dying). Its
-    // session list is loaded lazily and stays valid, so nothing to invalidate.
+    // Open-session lifecycle arrives on its own narrow event; keep the runtime
+    // snapshot independent so a status tick cannot overwrite the four slots.
     set({ desktop: next });
   });
   const offWebui = bridge.onWebuiStatusChanged((next) => set({ webuiStatus: next }));
+  const offOpenSessions = bridge.onOpenSessionsChanged(applyOpenSessions);
   const offSidebar = bridge.onShellSidebarCollapsedChanged((collapsed) =>
     set({ sidebarCollapsed: collapsed }),
   );
 
   void (async () => {
     try {
-      const [desktop, webuiStatus] = await Promise.all([
+      const [desktop, webuiStatus, openSessionSnapshots] = await Promise.all([
         bridge.getState(),
         bridge.getWebuiStatus(),
+        bridge.getOpenSessions(),
       ]);
-      set({ desktop, webuiStatus });
+      set({
+        desktop,
+        webuiStatus,
+        ...(openSessionsRevision === initialOpenSessionsRevision
+          ? {
+              openSessions: new Map(
+                openSessionSnapshots.map((snapshot) => [
+                  snapshot.runtimeId,
+                  snapshot.sessions.map((session) => ({
+                    ...session,
+                    runtimeId: snapshot.runtimeId,
+                  })),
+                ]),
+              ),
+            }
+          : {}),
+      });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err) });
     }
@@ -284,6 +294,7 @@ export function connect(): () => void {
   return () => {
     offState();
     offWebui();
+    offOpenSessions();
     offSidebar();
   };
 }

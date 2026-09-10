@@ -2,6 +2,7 @@ import type { WebSocket } from 'ws';
 import { collectConnectionsHealth } from './connections/collector.js';
 import type { ConnectionsHealthContext } from './connections/types.js';
 import type { WSClientMessage } from './types.js';
+import { errMessage } from './ws-utils.js';
 
 export * from './connections/types.js';
 export * from './connections/collector.js';
@@ -26,7 +27,7 @@ export async function handleConnectionsHealthRoute(
   } catch (error) {
     context.send(ws, {
       type: 'connections.health_error',
-      payload: { message: error instanceof Error ? error.message : String(error) },
+      payload: { message: errMessage(error) },
     });
   }
   return true;

@@ -11,8 +11,10 @@ import * as path from 'node:path';
 import type * as http from 'node:http';
 // Import from the subpath barrel so consuming packages resolve against
 // the already-built dist/codebase-index/index.js without rebuilding @wrongstack/tools.
+import { sanitizeApiError } from '@wrongstack/core/security';
 import { runDeadCodeScan } from '@wrongstack/tools/codebase-index';
 import type { DeadCodeScanOutput } from '@wrongstack/tools/codebase-index';
+import { errMessage } from './ws-utils.js';
 
 interface DeadCodeHandlerDeps {
   projectRoot: string;
@@ -86,11 +88,20 @@ export async function handleDeadCodeScan(
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(result));
   } catch (err) {
+    // Detail stays server-side; the body carries only a category.
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'deadcode.scan_failed',
+        message: errMessage(err),
+        timestamp: new Date().toISOString(),
+      }),
+    );
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
         error: 'Dead-code scan failed',
-        detail: err instanceof Error ? err.message : String(err),
+        detail: sanitizeApiError(err),
       }),
     );
   }
@@ -158,11 +169,20 @@ export function handleDeadCodeActionPlan(
       res.end(JSON.stringify(plan));
     })
     .catch((err) => {
+      // Detail stays server-side; the body carries only a category.
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'deadcode.action_plan_failed',
+          message: errMessage(err),
+          timestamp: new Date().toISOString(),
+        }),
+      );
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
           error: 'Failed to read request body',
-          detail: err instanceof Error ? err.message : String(err),
+          detail: sanitizeApiError(err),
         }),
       );
     });

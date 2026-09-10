@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-10T18:38:55.573Z",
+  "generatedAt": "2026-09-10T23:19:12.820Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,21 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3720,
-    "testFiles": 3234,
-    "sourceLines": 900576,
+    "sourceFiles": 3735,
+    "testFiles": 3245,
+    "sourceLines": 902354,
     "workspaceEdges": 128,
-    "moduleEdges": 11808,
+    "moduleEdges": 11898,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 8,
+    "typeModuleCycles": 10,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 909
+    "testOnlyExports": 906
   },
-  "errors": [],
+  "errors": [
+    "2 unexcepted module cycle(s)"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -146,7 +148,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 490,
-      "testFiles": 476,
+      "testFiles": 477,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -185,7 +187,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 476
+          "testFiles": 477
         }
       ]
     },
@@ -216,7 +218,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 848,
-      "testFiles": 731,
+      "testFiles": 738,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -231,7 +233,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 731
+          "testFiles": 738
         }
       ]
     },
@@ -239,7 +241,7 @@
       "name": "@wrongstack/desktop",
       "dir": "apps/desktop",
       "sourceFiles": 40,
-      "testFiles": 27,
+      "testFiles": 26,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/webui",
@@ -255,7 +257,7 @@
         {
           "path": "apps/desktop/tsconfig.test.json",
           "error": null,
-          "testFiles": 27
+          "testFiles": 26
         }
       ]
     },
@@ -735,7 +737,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 212,
-      "testFiles": 215,
+      "testFiles": 216,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -751,15 +753,15 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 215
+          "testFiles": 216
         }
       ]
     },
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 368,
-      "testFiles": 343,
+      "sourceFiles": 383,
+      "testFiles": 346,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -782,7 +784,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 343
+          "testFiles": 346
         }
       ]
     },
@@ -1072,6 +1074,29 @@
           "packages/core/src/types/token-counter.ts",
           "packages/core/src/types/tool.ts"
         ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/tui/src/app-key-handler.ts",
+          "packages/tui/src/key-handler-context.ts",
+          "packages/tui/src/key-routes/key-route-busy.ts",
+          "packages/tui/src/key-routes/key-route-composer.ts",
+          "packages/tui/src/key-routes/key-route-overlay.ts",
+          "packages/tui/src/key-routes/key-route-paste.ts",
+          "packages/tui/src/key-routes/key-route-pointer.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/tui/src/hooks/use-design-kit-slash-commands.ts",
+          "packages/tui/src/hooks/use-provider-slash-commands.ts",
+          "packages/tui/src/hooks/use-resource-slash-commands.ts",
+          "packages/tui/src/hooks/use-session-slash-commands.ts",
+          "packages/tui/src/hooks/use-settings-slash-commands.ts",
+          "packages/tui/src/hooks/use-tui-slash-commands.ts"
+        ]
       }
     ],
     "matchedExceptions": [
@@ -1084,7 +1109,31 @@
       "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
-    "unexcepted": []
+    "unexcepted": [
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/tui/src/app-key-handler.ts",
+          "packages/tui/src/key-handler-context.ts",
+          "packages/tui/src/key-routes/key-route-busy.ts",
+          "packages/tui/src/key-routes/key-route-composer.ts",
+          "packages/tui/src/key-routes/key-route-overlay.ts",
+          "packages/tui/src/key-routes/key-route-paste.ts",
+          "packages/tui/src/key-routes/key-route-pointer.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/tui/src/hooks/use-design-kit-slash-commands.ts",
+          "packages/tui/src/hooks/use-provider-slash-commands.ts",
+          "packages/tui/src/hooks/use-resource-slash-commands.ts",
+          "packages/tui/src/hooks/use-session-slash-commands.ts",
+          "packages/tui/src/hooks/use-settings-slash-commands.ts",
+          "packages/tui/src/hooks/use-tui-slash-commands.ts"
+        ]
+      }
+    ]
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -1186,12 +1235,6 @@
       },
       {
         "file": "apps/desktop/tests/runtime-operations.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "apps/desktop/tests/session-index.test.ts",
         "projects": [
           "root-node"
         ]
@@ -1864,6 +1907,12 @@
       },
       {
         "file": "packages/cli/tests/architecture/boot-graph-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/architecture/hq-totp-single-use.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4713,6 +4762,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/architecture/check-audit-suppressions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/architecture/check-dep-path-separators.test.ts",
         "projects": [
           "root-node"
@@ -6933,6 +6988,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/hq/auth-store-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/hq/auth-store.test.ts",
         "projects": [
           "root-node"
@@ -7012,6 +7073,12 @@
       },
       {
         "file": "packages/core/tests/hq/protocol.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/hq/publisher-cleartext-warning.test.ts",
         "projects": [
           "root-node"
         ]
@@ -8355,6 +8422,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/session-scrub-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/session-sidecar-scan.test.ts",
         "projects": [
           "root-node"
@@ -8793,6 +8866,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/utils/glob-match-differential.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/utils/glob-match.test.ts",
         "projects": [
           "root-node"
@@ -8907,6 +8986,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/utils/project-supplied-fence.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/utils/project-watch.test.ts",
         "projects": [
           "root-node"
@@ -8968,6 +9053,12 @@
       },
       {
         "file": "packages/core/tests/utils/term.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/terminal-sanitize.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13875,6 +13966,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/gitignore-differential.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/gitignore.test.ts",
         "projects": [
           "root-node"
@@ -15351,6 +15448,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/key-handler-replay-corpus.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/kill-ps-slash.test.ts",
         "projects": [
           "root-node"
@@ -15616,6 +15719,12 @@
       },
       {
         "file": "packages/tui/tests/prune-tool-input.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/public-api-surface.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16042,6 +16151,12 @@
       },
       {
         "file": "packages/tui/tests/slash-menu-render.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/slash-registration-enumeration.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20756,7 +20871,7 @@
     },
     {
       "file": "packages/core/src/hq/auth-store.ts",
-      "lines": 844,
+      "lines": 973,
       "relativeImports": 7
     },
     {
@@ -20921,7 +21036,7 @@
     },
     {
       "file": "packages/sage/src/tools/memory-tools.ts",
-      "lines": 981,
+      "lines": 1026,
       "relativeImports": 4
     },
     {
@@ -21005,11 +21120,6 @@
       "relativeImports": 13
     },
     {
-      "file": "packages/tui/src/app-key-handler.ts",
-      "lines": 1102,
-      "relativeImports": 20
-    },
-    {
       "file": "packages/tui/src/app-state.ts",
       "lines": 992,
       "relativeImports": 14
@@ -21063,11 +21173,6 @@
       "file": "packages/tui/src/hooks/use-picker-keys-tools-settings.ts",
       "lines": 827,
       "relativeImports": 6
-    },
-    {
-      "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
-      "lines": 934,
-      "relativeImports": 9
     },
     {
       "file": "packages/tui/src/input-validation.ts",
@@ -21216,8 +21321,8 @@
     },
     {
       "file": "packages/webui-server/src/server/backend-services.ts",
-      "lines": 950,
-      "relativeImports": 13
+      "lines": 951,
+      "relativeImports": 14
     },
     {
       "file": "packages/webui-server/src/server/context-editor.ts",
@@ -21226,8 +21331,8 @@
     },
     {
       "file": "packages/webui-server/src/server/embedded-message-router.ts",
-      "lines": 857,
-      "relativeImports": 52
+      "lines": 858,
+      "relativeImports": 53
     },
     {
       "file": "packages/webui-server/src/server/git-handlers.ts",
@@ -21236,7 +21341,7 @@
     },
     {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
-      "lines": 1019,
+      "lines": 1015,
       "relativeImports": 2
     },
     {
@@ -21270,11 +21375,6 @@
       "file": "apps/desktop/src/main/runtime-manager.ts",
       "lines": 1119,
       "relativeImports": 4
-    },
-    {
-      "file": "packages/tui/src/app-key-handler.ts",
-      "lines": 1102,
-      "relativeImports": 20
     },
     {
       "file": "packages/core/src/coordination/delegate-tool.ts",
@@ -21372,17 +21472,22 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/sage/src/tools/memory-tools.ts",
+      "lines": 1026,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/webui/src/hooks/ws-handlers/misc-handlers.ts",
       "lines": 1021,
       "relativeImports": 0
     },
     {
-      "file": "packages/webui-server/src/server/goal-ws-handler.ts",
-      "lines": 1019,
+      "file": "packages/webui-server/src/server/git-handlers.ts",
+      "lines": 1015,
       "relativeImports": 2
     },
     {
-      "file": "packages/webui-server/src/server/git-handlers.ts",
+      "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "lines": 1015,
       "relativeImports": 2
     },
@@ -21477,11 +21582,6 @@
       "relativeImports": 15
     },
     {
-      "file": "packages/sage/src/tools/memory-tools.ts",
-      "lines": 981,
-      "relativeImports": 4
-    },
-    {
       "file": "packages/webui/src/components/KanbanTaskInspector.tsx",
       "lines": 980,
       "relativeImports": 16
@@ -21500,6 +21600,11 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 973,
       "relativeImports": 12
+    },
+    {
+      "file": "packages/core/src/hq/auth-store.ts",
+      "lines": 973,
+      "relativeImports": 7
     },
     {
       "file": "packages/core/src/coordination/fleet-supervisor.ts",
@@ -21532,14 +21637,6 @@
     {
       "file": "apps/desktop/src/main/runtime-manager.ts",
       "name": "waitForChildExit"
-    },
-    {
-      "file": "apps/desktop/src/main/session-index.ts",
-      "name": "clearSessionIndexCache"
-    },
-    {
-      "file": "apps/desktop/src/main/session-index.ts",
-      "name": "projectStoreDir"
     },
     {
       "file": "apps/desktop/src/main/state/constants.ts",
@@ -21616,10 +21713,6 @@
     {
       "file": "apps/desktop/src/main/validation/schemas.ts",
       "name": "webuiReadyChangedSchema"
-    },
-    {
-      "file": "apps/desktop/src/renderer/src/store.ts",
-      "name": "loadSessions"
     },
     {
       "file": "packages/acp/src/agent/protocol-handler.ts",
@@ -21904,6 +21997,10 @@
     {
       "file": "packages/cli/src/mcp-serve.ts",
       "name": "selectExposedTools"
+    },
+    {
+      "file": "packages/cli/src/mcp-serve.ts",
+      "name": "yoloServePolicy"
     },
     {
       "file": "packages/cli/src/next-task-predictor.ts",
@@ -22740,10 +22837,6 @@
     {
       "file": "packages/core/src/utils/project-identity.ts",
       "name": "isProjectId"
-    },
-    {
-      "file": "packages/core/src/utils/project-supplied-fence.ts",
-      "name": "sanitizeProjectSuppliedBody"
     },
     {
       "file": "packages/core/src/utils/tool-subject.ts",

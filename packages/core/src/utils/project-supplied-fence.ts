@@ -39,16 +39,30 @@ export const PROJECT_SUPPLIED_TAG = 'project-supplied';
 export const PROJECT_SUPPLIED_INSTRUCTIONS_TAG = 'project-supplied-instructions';
 
 /**
+ * Longest tag interior treated as part of a delimiter. Bounds how far a match
+ * can run past the tag name, and keeps the negated class linear.
+ */
+const MAX_DELIMITER_INTERIOR = 200;
+
+/**
  * Matches an opening or closing fence delimiter for `tag`, tolerating the
  * whitespace and attribute variants a model would still read as a tag
  * (`</project-supplied>`, `< / project-supplied >`,
- * `<project-supplied source="x">`). Newlines are excluded so a bracketed span
- * running across lines is left alone — it is not a delimiter, and rewriting it
- * would corrupt legitimate prose.
+ * `<project-supplied source="x">`).
+ *
+ * Newlines used to be excluded, on the reasoning that a bracketed span running
+ * across lines is prose rather than a delimiter. That was wrong in the one
+ * direction that mattered: it let `</project-supplied\n>` — and
+ * `</project-supplied\r\n>`, which is simply what a Windows editor produces —
+ * through the sanitizer untouched, while still reading as a closing tag to a
+ * model. The prose argument does not need the exclusion anyway: a match cannot
+ * start unless the tag NAME appears immediately after the optional slash, so
+ * ordinary text containing `<` and a later `>` is never a candidate. The
+ * interior is bounded so a match cannot run away either.
  */
 function fenceDelimiter(tag: string): RegExp {
   return new RegExp(
-    `<[ \\t]*/?[ \\t]*${tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^>\\n]*>`,
+    `<[ \\t\\r\\n]*/?[ \\t\\r\\n]*${tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^>]{0,${MAX_DELIMITER_INTERIOR}}>`,
     'gi',
   );
 }

@@ -1,7 +1,7 @@
 import type { WebSocket } from 'ws';
 import type { PendingConfirm } from './pending-confirms.js';
 import { resolveAllPendingConfirms } from './pending-confirms.js';
-import { messageSessionId, runWithDispatchSession } from './ws-utils.js';
+import { errMessage, messageSessionId, runWithDispatchSession } from './ws-utils.js';
 
 type OutboundMessage = { type: string; payload: unknown };
 type ProtocolIssue = { code: string; message: string };
@@ -140,7 +140,7 @@ export function createConnectionLifecycle<Client, Request, Message>(
     const output = JSON.stringify({
       level,
       event,
-      message: error instanceof Error ? error.message : String(error),
+      message: errMessage(error),
       timestamp: new Date().toISOString(),
     });
     if (level === 'warn') console.warn(output);

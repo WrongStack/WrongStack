@@ -48,6 +48,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           persist-credentials: false
+          # Depth 0 so the base commit is available to diff the suppression
+          # list against on a pull request.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         # Version comes from the `packageManager` field in package.json.
@@ -56,8 +59,36 @@ jobs:
         with:
           node-version: 22
 
+      # A pull request must not be able to waive its own gate. `pnpm audit`
+      # reads `auditConfig.ignoreGhsas` from the branch under test, and
+      # `pnpm-workspace.yaml` is one of this workflow's trigger paths — so a PR
+      # that introduces a vulnerable dependency could add the matching GHSA id
+      # in the same commit and this job would pass. Same "a fork cannot widen
+      # its own allowlist" property already enforced for lifecycle scripts
+      # (VF-31), never applied to advisory suppression until now.
+      #
+      # The base SHA goes through the environment rather than into the `run:`
+      # body, so nothing from the event is interpolated into shell source.
+      - name: Refuse advisory suppressions added by this PR
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git show "$BASE_SHA:pnpm-workspace.yaml" > /tmp/base-workspace.yaml 2>/dev/null || : > /tmp/base-workspace.yaml
+          node scripts/check-audit-suppressions.mjs /tmp/base-workspace.yaml pnpm-workspace.yaml
+
       - name: Audit dependencies (high and above fail the build)
         run: pnpm audit --audit-level high
+
+      # Visibility pass: report what the suppression list is currently hiding.
+      # Non-blocking by design — the gate above is the decision, this exists so
+      # a standing suppression cannot quietly outlive the reason it was added.
+      - name: Report advisories hidden by suppressions (informational)
+        if: always()
+        run: |
+          echo "Advisories currently suppressed by auditConfig.ignoreGhsas:"
+          node scripts/check-audit-suppressions.mjs pnpm-workspace.yaml pnpm-workspace.yaml || true
 
       # VF-35 (security report Phase 4): website/ is dual-lockfile — it is a
       # pnpm workspace member yet the tree that actually deploys resolves from

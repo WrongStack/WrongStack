@@ -8,7 +8,6 @@ import {
   hashRecoveryCode,
   verifyRecoveryCode,
   verifyTotp,
-  verifyTotpCounter,
 } from '@wrongstack/core/security';
 import {
   parseHqSessionCookie,
@@ -20,7 +19,12 @@ import { resolveClientAddress } from '../../client-address.js';
 import type { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
 import { readRequestBody } from '../../utils.js';
-import { type ApplyHqAuthFile, authorizeAuthAdmin, recordVerifyFailure } from './common.js';
+import {
+  type ApplyHqAuthFile,
+  authorizeAuthAdmin,
+  consumeTotpCode,
+  recordVerifyFailure,
+} from './common.js';
 
 const PENDING_2FA_TTL_MS = 5 * 60_000;
 let recoveryCodeLock: Promise<void> = Promise.resolve();
@@ -103,12 +107,9 @@ export async function handleApiLoginVerify(
       );
       return;
     }
-    const matchedCounter = verifyTotpCounter(body.code, mutableAuth.totpSecret);
-    const replayed =
-      matchedCounter !== undefined &&
-      mutableAuth.totpLastUsedCounter !== undefined &&
-      matchedCounter <= mutableAuth.totpLastUsedCounter;
-    if (matchedCounter === undefined || replayed) {
+    const outcome = await consumeTotpCode(body.code, mutableAuth, dataDir, applyAuthFile);
+    const replayed = outcome === 'replayed';
+    if (outcome !== 'ok') {
       if (recordVerifyFailure(loginAttempts, clientIp) >= MAX_2FA_VERIFY_FAILURES) {
         sessions.delete(sessionId);
       }
@@ -124,16 +125,6 @@ export async function handleApiLoginVerify(
         }),
       );
       return;
-    }
-    mutableAuth.totpLastUsedCounter = matchedCounter;
-    try {
-      const next = await mutateHqAuthFile(dataDir, (current) => ({
-        ...current,
-        totpLastUsedCounter: matchedCounter,
-      }));
-      applyAuthFile(next);
-    } catch {
-      // Best-effort write — mutableAuth already updated in memory
     }
     loginAttempts.clearOnSuccess(clientIp);
     sessions.delete(sessionId);
@@ -324,6 +315,11 @@ export async function handleApiTotpEnable(
     return;
   }
 
+  // The ONE legitimate `verifyTotp` in this router: enrolment proves the
+  // operator scanned the QR for `pendingSecret`, which is not yet the active
+  // secret and has no shared single-use counter to advance. Every check
+  // against the ACTIVE secret must go through `consumeTotpCode` instead —
+  // see `hq-totp-single-use.test.ts`, which pins that split.
   if (!verifyTotp(body.code, pendingSecret)) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(
@@ -387,8 +383,13 @@ export async function handleApiTotpDisable(
   if (typeof body.password === 'string' && body.password.length > 0 && mutableAuth.passwordHash) {
     confirmed = await verifyHqPassword(body.password, mutableAuth.passwordHash);
   }
+  let replayed = false;
   if (!confirmed && typeof body.code === 'string' && mutableAuth.totpSecret) {
-    confirmed = verifyTotp(body.code, mutableAuth.totpSecret);
+    // Single-use: a code already spent at /api/login/verify must not be
+    // replayable here to strip 2FA and every recovery code with it.
+    const outcome = await consumeTotpCode(body.code, mutableAuth, dataDir, applyAuthFile);
+    confirmed = outcome === 'ok';
+    replayed = outcome === 'replayed';
   }
   if (!confirmed) {
     recordVerifyFailure(loginAttempts, clientIp);
@@ -396,8 +397,10 @@ export async function handleApiTotpDisable(
     res.end(
       JSON.stringify({
         error: {
-          code: 'CONFIRMATION_REQUIRED',
-          message: 'Provide the current password or a TOTP code.',
+          code: replayed ? 'TOTP_ALREADY_USED' : 'CONFIRMATION_REQUIRED',
+          message: replayed
+            ? 'That authenticator code has already been used. Wait for the next one.'
+            : 'Provide the current password or a TOTP code.',
         },
       }),
     );

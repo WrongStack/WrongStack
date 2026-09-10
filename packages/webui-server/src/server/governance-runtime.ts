@@ -11,6 +11,7 @@ import {
   type GovernanceMutationSnapshotBridge,
 } from '@wrongstack/runtime/governance-mutation-snapshot-bridge';
 import { sanitizeGovernanceMessage } from '@wrongstack/runtime/governance-sanitize';
+import { errMessage } from './ws-utils.js';
 
 export const WRONGSTACK_GOVERNANCE_ENV = 'WRONGSTACK_GOVERNANCE';
 
@@ -61,7 +62,7 @@ export async function setupWebUiGovernance(
     loaded = await dependencies.load();
   } catch (error) {
     input.logger.warn('governance: standalone WebUI runtime module unavailable', {
-      message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+      message: sanitizeGovernanceMessage(errMessage(error)),
     });
     return undefined;
   }
@@ -77,7 +78,7 @@ export async function setupWebUiGovernance(
     });
   } catch (error) {
     input.logger.warn('governance: standalone WebUI bootstrap failed open', {
-      message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+      message: sanitizeGovernanceMessage(errMessage(error)),
     });
     return undefined;
   }

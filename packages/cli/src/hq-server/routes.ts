@@ -379,6 +379,7 @@ export function createHqRouter(
           loginAttempts,
           secureCookies,
           trustedProxyHops,
+          dataDir,
           url.pathname === '/api/mobile/login' ? ['control.enqueue'] : undefined,
         );
         return;

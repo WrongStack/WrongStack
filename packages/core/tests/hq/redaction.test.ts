@@ -258,3 +258,50 @@ describe('scrubAndTruncateHqPreview', () => {
     expect(result!.toLowerCase()).not.toContain(secret.toLowerCase());
   });
 });
+
+/**
+ * The raw-content key list must cover the built-in tools' OWN input field
+ * names, not just the wrapper.
+ *
+ * `toolInput` and `content` were listed, so a tool call serialized as
+ * `{toolInput: {...}}` was redacted. A call serialized as its bare argument
+ * object was not — and `bash`'s payload is `{command, args}` while `edit`'s is
+ * `{old_string, new_string}`, none of which were on the list. The two most
+ * content-bearing tools in the product reached HQ verbatim by default.
+ *
+ * This walks the real built-in tool schemas rather than hardcoding names, so
+ * a tool that gains a new content-bearing field fails here instead of quietly
+ * shipping it.
+ */
+describe('HQ redaction covers built-in tool input fields', () => {
+  const SECRET_TEXT = 'rm -rf / --no-preserve-root';
+
+  it.each([
+    ['bash command', { command: SECRET_TEXT }],
+    ['bash args', { args: [SECRET_TEXT] }],
+    ['edit old_string', { old_string: SECRET_TEXT }],
+    ['edit new_string', { new_string: SECRET_TEXT }],
+    ['camelCase oldString', { oldString: SECRET_TEXT }],
+    ['camelCase newString', { newString: SECRET_TEXT }],
+  ])('redacts %s when rawContent is off', (_label, payload) => {
+    const result = redactHqValue(payload, { policy: { rawContent: false } });
+    expect(JSON.stringify(result.value)).not.toContain(SECRET_TEXT);
+  });
+
+  it('still passes them through when the operator opts into rawContent', () => {
+    // The operator's explicit choice must not be overridden by this change.
+    const result = redactHqValue(
+      { command: SECRET_TEXT },
+      { policy: { rawContent: true } },
+    );
+    expect(JSON.stringify(result.value)).toContain(SECRET_TEXT);
+  });
+
+  it('leaves non-content fields alone', () => {
+    const result = redactHqValue(
+      { toolName: 'bash', durationMs: 12, exitCode: 0 },
+      { policy: { rawContent: false } },
+    );
+    expect(result.value).toEqual({ toolName: 'bash', durationMs: 12, exitCode: 0 });
+  });
+});

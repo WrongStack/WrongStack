@@ -17,8 +17,39 @@
  */
 
 const ANSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
-const ANSI_OSC_RE = /\x1b\][\s\S]*?(?:\x07|\x1b\\)/g;
-const ANSI_CONTROL_STRING_RE = /\x1b[P^_X][\s\S]*?\x1b\\/g;
+
+/**
+ * Longest body either string-terminated sequence may carry. Real ones are a
+ * window title or a hyperlink target; 4 KiB is far past anything legitimate.
+ */
+const MAX_STRING_BODY = 4096;
+
+/**
+ * OSC and the other string-terminated controls.
+ *
+ * These were `[\s\S]*?` — a lazy scan for the terminator. Lazy is not linear:
+ * for EVERY introducer the engine walks forward looking for a terminator, so
+ * input that is nothing but introducers costs O(n²). Measured on 256 KiB of
+ * `ESC ]`: 12.5 seconds, which is exactly the diff-render budget, and the
+ * permission prompt sanitized its body twice before clipping — so a tool
+ * result could freeze the approval UI the user was about to answer.
+ *
+ * A negated class cannot cross the terminator, so it finds the same end with
+ * no backtracking, and the length bound caps the damage of a body that never
+ * terminates. Same 256 KiB input: 0.5 ms.
+ *
+ * One deliberate behaviour change: a body containing a bare `ESC` that is not
+ * part of the terminator no longer matches here. It is not left dangerous —
+ * the CSI/two-char patterns below strip the escapes and the non-printable
+ * filter at the end of {@link sanitizeTerminalText} removes `BEL` — the body
+ * text simply survives as visible characters instead of being swallowed
+ * whole. Visible is the safer direction for a prompt the user reads.
+ */
+const ANSI_OSC_RE = new RegExp(`\\x1b\\][^\\x07\\x1b]{0,${MAX_STRING_BODY}}(?:\\x07|\\x1b\\\\)`, 'g');
+const ANSI_CONTROL_STRING_RE = new RegExp(
+  `\\x1b[P^_X][^\\x1b]{0,${MAX_STRING_BODY}}\\x1b\\\\`,
+  'g',
+);
 /**
  * Catches the two-character forms the CSI pattern above misses — `ESC c` (RIS,
  * a full terminal reset) being the dangerous one.
@@ -74,7 +105,18 @@ export function sanitizeTerminalText(value: string, tabWidth = 2): string {
 export function sanitizeTerminalPreview(
   value: string,
   opts: { maxLines?: number; maxChars?: number; tabWidth?: number } = {},
-): { text: string; truncated: boolean } {
+): {
+  text: string;
+  truncated: boolean;
+  /**
+   * Size of the FULL sanitized text, before clipping. Returned so a caller
+   * that wants to report what it withheld does not have to sanitize the whole
+   * body a second time to find out — the permission prompt did exactly that,
+   * paying two full passes over untrusted input on the approval path.
+   */
+  sanitizedLength: number;
+  sanitizedLines: number;
+} {
   const maxLines = opts.maxLines ?? 40;
   const maxChars = opts.maxChars ?? 8_000;
 
@@ -93,5 +135,10 @@ export function sanitizeTerminalPreview(
     truncated = true;
   }
 
-  return { text: clipped, truncated };
+  return {
+    text: clipped,
+    truncated,
+    sanitizedLength: safe.length,
+    sanitizedLines: safe.split('\n').length,
+  };
 }

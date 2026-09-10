@@ -18,7 +18,7 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import type { WebSocket } from 'ws';
 import { gitStdout, isGitWorkTree } from './git-process.js';
-import { sendSerialized } from './ws-utils.js';
+import { errMessage, sendSerialized } from './ws-utils.js';
 
 /**
  * Derive a short, single-line heading from a (possibly multi-paragraph) goal
@@ -778,9 +778,7 @@ export class GoalWebSocketHandler {
    */
   private persistDetached(graph: Parameters<typeof this.store.save>[0]): void {
     void this.store.save(graph).catch((err: unknown) => {
-      this.logger.warn(
-        `[Goal] Failed to persist phase graph: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      this.logger.warn(`[Goal] Failed to persist phase graph: ${errMessage(err)}`);
     });
   }
 
@@ -843,9 +841,7 @@ export class GoalWebSocketHandler {
       try {
         this.onBoardState(this.graph.id, state);
       } catch (err) {
-        this.logger.error(
-          `[Goal] board-state tap failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        this.logger.error(`[Goal] board-state tap failed: ${errMessage(err)}`);
       }
     }
     // Record what clients now have so the tick's change detection does not

@@ -7,6 +7,7 @@ import {
   VectorMemoryStore,
   wrapMemoryPortWithVectorRecall,
 } from '@wrongstack/vector-memory';
+import { errMessage } from './ws-utils.js';
 
 export function initVectorMemoryStore(params: {
   projectRoot: string;
@@ -25,7 +26,7 @@ export function initVectorMemoryStore(params: {
       projectRoot,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errMessage(error);
     logger.warn(
       'vector memory store disabled: ' +
         message +

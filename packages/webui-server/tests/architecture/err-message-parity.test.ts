@@ -10,7 +10,7 @@
  * site reintroduces the inline form.
  */
 import { describe, expect, it } from 'vitest';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,14 +21,21 @@ describe('F4 / TS-007+TS-008: error-message extraction has a single authority', 
   it('has no new `instanceof Error ? …message : String(…)` sites in webui-server/src', () => {
     let output = '';
     try {
-      output = execSync(
+      // MUST be execFileSync with an argv array, never execSync with a
+      // joined string: the pattern contains `?`, `*` and backslashes, and a
+      // shell rewrites all three. Under both bash and cmd.exe the joined
+      // form matched zero lines and exited 1 — which the `catch` below then
+      // read as "no violations", so this guard reported success for its
+      // entire life while 54 violations accumulated in the scoped tree.
+      output = execFileSync(
+        'git',
         [
-          'git',
           'grep',
           '-nE',
-          '--',
           'instanceof\\s+Error\\s*\\?\\s*[^:]+\\.message\\s*:\\s*String',
-        ].join(' '),
+          '--',
+          'packages/webui-server/src',
+        ],
         { cwd: REPO_ROOT, encoding: 'utf8' },
       );
     } catch (err) {

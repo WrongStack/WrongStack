@@ -135,7 +135,7 @@
       "relativeImports": 8
     },
     "packages/core/src/hq/auth-store.ts": {
-      "lines": 844,
+      "lines": 973,
       "relativeImports": 7
     },
     "packages/core/src/hq/protocol/core.ts": {
@@ -267,7 +267,7 @@
       "relativeImports": 43
     },
     "packages/sage/src/tools/memory-tools.ts": {
-      "lines": 981,
+      "lines": 1026,
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
@@ -334,10 +334,6 @@
       "lines": 813,
       "relativeImports": 13
     },
-    "packages/tui/src/app-key-handler.ts": {
-      "lines": 1102,
-      "relativeImports": 20
-    },
     "packages/tui/src/app-state.ts": {
       "lines": 992,
       "relativeImports": 14
@@ -381,10 +377,6 @@
     "packages/tui/src/hooks/use-picker-keys-tools-settings.ts": {
       "lines": 827,
       "relativeImports": 6
-    },
-    "packages/tui/src/hooks/use-tui-slash-commands.ts": {
-      "lines": 934,
-      "relativeImports": 9
     },
     "packages/tui/src/input-validation.ts": {
       "lines": 1013,
@@ -503,23 +495,23 @@
       "relativeImports": 7
     },
     "packages/webui-server/src/server/backend-services.ts": {
-      "lines": 950,
-      "relativeImports": 13
+      "lines": 951,
+      "relativeImports": 14
     },
     "packages/webui-server/src/server/context-editor.ts": {
       "lines": 1039,
       "relativeImports": 1
     },
     "packages/webui-server/src/server/embedded-message-router.ts": {
-      "lines": 857,
-      "relativeImports": 52
+      "lines": 858,
+      "relativeImports": 53
     },
     "packages/webui-server/src/server/git-handlers.ts": {
       "lines": 1015,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {
-      "lines": 1019,
+      "lines": 1015,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/memory-handlers.ts": {

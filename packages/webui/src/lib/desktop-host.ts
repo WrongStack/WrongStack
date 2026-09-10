@@ -1,4 +1,5 @@
 import { useLocalPrefs } from '@/stores/local-prefs';
+import type { TabSummary } from '@/stores/session-tab-store';
 
 /**
  * Desktop-shell bridge.
@@ -62,6 +63,35 @@ export function publishDesktopPrefsSnapshot(): void {
     nextPrediction: prefs.nextPrediction,
     contextAutoCompact: prefs.contextAutoCompact,
   });
+}
+
+/** Publish the WebUI's actual four open slots, never the session catalogue. */
+export function publishDesktopOpenSessionsSnapshot(tabs: TabSummary[]): void {
+  if (typeof window === 'undefined') return;
+  const host = (
+    window as unknown as {
+      wrongstackDesktopHost?: {
+        setOpenSessions?: (
+          sessions: Array<{
+            id: string;
+            title: string;
+            slot: number;
+            active: boolean;
+            running: boolean;
+          }>,
+        ) => void;
+      };
+    }
+  ).wrongstackDesktopHost;
+  host?.setOpenSessions?.(
+    tabs.slice(0, 4).map((tab) => ({
+      id: tab.sessionId,
+      title: tab.title,
+      slot: tab.slot,
+      active: tab.isActive,
+      running: tab.isRunning,
+    })),
+  );
 }
 
 /** Tell the native host whether the WebUI is mounted and ready for commands. */

@@ -110,6 +110,7 @@ import { createSessionAgentRegistry, createSessionTokenCounter } from './session
 import { SpecsWebSocketHandler } from './specs-ws-handler.js';
 import { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
+import { errMessage } from './ws-utils.js';
 
 interface AgentServicesInput {
   trustBoundary: TrustBoundary;
@@ -535,7 +536,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     ctx: context,
   }).catch((err: unknown) => {
     webuiLogger.warn('mailbox bridge discovery threw on webui boot', {
-      err: err instanceof Error ? err.message : String(err),
+      err: errMessage(err),
     });
   });
 

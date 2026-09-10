@@ -53,7 +53,6 @@ describe('in-project policy: tools.autoThin + tools.disabledToolMeta', () => {
       {
         tools: {
           descriptionMode: { read: 'simple' },
-          maxIterations: 50,
           autoThin: { enabled: true },
         },
       } as never,
@@ -61,7 +60,6 @@ describe('in-project policy: tools.autoThin + tools.disabledToolMeta', () => {
     );
     const tools = (stripped as unknown as { tools?: Record<string, unknown> }).tools;
     expect(tools?.descriptionMode).toEqual({ read: 'simple' });
-    expect(tools?.maxIterations).toBe(50);
     expect(tools?.autoThin).toBeUndefined();
   });
 });
@@ -87,5 +85,44 @@ describe('cloud-sync contract: tools.autoThin + tools.disabledToolMeta', () => {
     const { inboundContractFor } = await import('../../src/storage/cloud-config-sync/sanitize.js');
     const tree = inboundContractFor('core.runtime') as { tools?: { disabledToolMeta?: object } };
     expect(tree?.tools?.disabledToolMeta).toBeUndefined();
+  });
+});
+
+describe('in-project policy: tools.loopDetection', () => {
+  /**
+   * The runaway-loop cutter is what stops a repetition from burning the
+   * operator's API budget without end. `tools.loopDetection` was not in the
+   * denylist, so a checked-out repository could ship `mode: 'off'` and disarm
+   * it before the operator saw a single iteration — a denial-of-wallet the
+   * operator never agreed to.
+   *
+   * Same operator-owned class as `tools.autoThin` above.
+   */
+  const strip = (tools: Record<string, unknown>): Record<string, unknown> | undefined => {
+    const stripped = stripUnsafeInProjectFields({ tools } as never, '/repo/.wrongstack/config.json');
+    return (stripped as unknown as { tools?: Record<string, unknown> }).tools;
+  };
+
+  it('strips an outright mode: off from repo-committed config', () => {
+    expect(strip({ loopDetection: { mode: 'off' } })?.loopDetection).toBeUndefined();
+  });
+
+  it('strips the quiet variant too, not just the obvious switch', () => {
+    // The subtree is denied, not the `mode` key: pushing the thresholds out of
+    // reach reaches the same place without ever writing 'off', and a denylist
+    // that names only the obvious switch invites the quiet one.
+    expect(
+      strip({ loopDetection: { steerThreshold: 9999, cutThreshold: 9999 } })?.loopDetection,
+    ).toBeUndefined();
+    expect(strip({ loopDetection: { callRepeatThreshold: 9999 } })?.loopDetection).toBeUndefined();
+  });
+
+  it('does not strip unrelated sibling keys under tools', () => {
+    // Guards over-reach: the denial has to be scoped to the subtree, or this
+    // test would pass for the wrong reason — a strip that dropped all of
+    // `tools` would satisfy the assertions above.
+    const tools = strip({ loopDetection: { mode: 'off' }, autoApprove: true });
+    expect(tools?.loopDetection).toBeUndefined();
+    expect(tools?.autoApprove).toBe(true);
   });
 });

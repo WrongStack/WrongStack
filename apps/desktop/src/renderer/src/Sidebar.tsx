@@ -11,21 +11,14 @@
  * so a runtime status change re-renders one dot rather than the whole list.
  */
 import { memo, useCallback, useMemo, useRef } from 'react';
-import type { DesktopSessionEntry } from '../../shared/types.js';
+import type { DesktopOpenSessionEntry } from '../../shared/types.js';
 import {
   buildProjectTree,
   filterProjectTree,
   type ProjectRowProps,
   projectRowProps,
-  relativeTime,
 } from './project-tree.js';
-import {
-  actions,
-  type SessionList as SessionListState,
-  type ShellState,
-  setFilter,
-  toggleExpanded,
-} from './store.js';
+import { actions, type ShellState, setFilter, toggleExpanded } from './store.js';
 import { Icon, useT } from './ui.js';
 
 interface SidebarProps {
@@ -86,9 +79,7 @@ export function Sidebar({ state }: SidebarProps) {
         {visible.length === 0 ? (
           <p className="tree-empty">{state.filter ? t('noMatches') : t('noProject')}</p>
         ) : (
-          visible.map((node) => (
-            <ProjectRow key={node.root} {...projectRowProps(node, state)} />
-          ))
+          visible.map((node) => <ProjectRow key={node.root} {...projectRowProps(node, state)} />)
         )}
       </nav>
 
@@ -148,13 +139,7 @@ const ProjectRow = memo(function ProjectRow({
           <Icon name="chevron" className={expanded ? 'rotated' : undefined} />
         </button>
 
-        <button
-          type="button"
-          className="project-main"
-          onClick={open}
-          disabled={busy}
-          title={root}
-        >
+        <button type="button" className="project-main" onClick={open} disabled={busy} title={root}>
           <span className={`dot ${status}`} aria-hidden="true" />
           <span className="project-name">{name}</span>
         </button>
@@ -183,36 +168,24 @@ const ProjectRow = memo(function ProjectRow({
         </div>
       </div>
 
-      {expanded ? (
-        <SessionRows sessions={sessions} root={root} runtimeId={runtimeId} />
-      ) : null}
+      {expanded ? <SessionRows sessions={sessions} /> : null}
     </div>
   );
 });
 
 function SessionRows({
   sessions,
-  root,
-  runtimeId,
 }: {
-  sessions: SessionListState | undefined;
-  root: string;
-  runtimeId: string | null;
+  sessions: Array<DesktopOpenSessionEntry & { runtimeId: string }>;
 }) {
   const t = useT();
-  if (!sessions || sessions.status === 'loading') {
-    return <p className="session-note">{t('loading')}</p>;
-  }
-  if (sessions.status === 'error') {
-    return <p className="session-note error">{t('sessionsUnavailable')}</p>;
-  }
-  if (sessions.entries.length === 0) {
+  if (sessions.length === 0) {
     return <p className="session-note">{t('noSessions')}</p>;
   }
   return (
     <ul className="session-list">
-      {sessions.entries.map((entry) => (
-        <SessionRow key={entry.id} entry={entry} root={root} runtimeId={runtimeId} />
+      {sessions.map((entry) => (
+        <SessionRow key={`${entry.runtimeId}:${entry.id}`} entry={entry} />
       ))}
     </ul>
   );
@@ -220,38 +193,24 @@ function SessionRows({
 
 const SessionRow = memo(function SessionRow({
   entry,
-  root,
-  runtimeId,
 }: {
-  entry: DesktopSessionEntry;
-  root: string;
-  runtimeId: string | null;
+  entry: DesktopOpenSessionEntry & { runtimeId: string };
 }) {
-  /**
-   * Open the project this session belongs to and show its session list.
-   *
-   * It does not jump straight into the conversation, and that is a real gap
-   * rather than a choice: `DesktopWebuiCommand` carries `action` and `view`
-   * but no session id, and while the WebUI WRITES `?session=` into its own URL
-   * (`session-tab-store.ts`) nothing reads it back on load. Resuming a named
-   * session needs that id threaded through webui-protocol and the WebUI's
-   * navigation — a change on the other side of the shell boundary, not here.
-   * Until then the row still does the useful half: it names the conversation
-   * and lands you in the right project with the list in front of you.
-   */
   const open = useCallback(() => {
-    if (runtimeId) {
-      void actions.webuiCommand({ view: 'sessions' }, entry.title, runtimeId);
-      return;
-    }
-    void actions.openProject(root);
-  }, [entry.title, root, runtimeId]);
+    void actions.focusSession(entry.runtimeId, entry.id, entry.title);
+  }, [entry.id, entry.runtimeId, entry.title]);
 
   return (
     <li>
-      <button type="button" className="session-row" onClick={open} title={entry.title}>
+      <button
+        type="button"
+        className={`session-row${entry.active ? ' is-active' : ''}`}
+        onClick={open}
+        title={entry.title}
+      >
+        <span className={`dot ${entry.running ? 'starting' : 'stopped'}`} aria-hidden="true" />
         <span className="session-title">{entry.title}</span>
-        <span className="session-meta">{relativeTime(entry.lastActivityAt)}</span>
+        <span className="session-meta">{entry.slot + 1}</span>
       </button>
     </li>
   );

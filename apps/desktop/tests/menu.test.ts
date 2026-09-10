@@ -2,14 +2,24 @@
  * Unit tests for the menu module.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { DesktopRuntimeRecord } from '../src/shared/types.js';
-import type { MenuBuilderContext, ProjectMenuActions } from '../src/main/menu/types.js';
+
+// Menu shaping is pure; loading the native Electron binary makes this unit
+// suite depend on a completed postinstall and can lock its own default ASAR.
+vi.mock('electron', () => ({
+  Menu: {
+    buildFromTemplate: vi.fn((template) => template),
+    setApplicationMenu: vi.fn(),
+  },
+}));
+
 import {
   buildProjectsMenu,
   groupProjectRuntimesForMenu,
   normalizeMenuRoot,
 } from '../src/main/menu/index.js';
-import { buildFileMenu, buildWorkspaceMenu, buildViewMenu } from '../src/main/menu/sections.js';
+import { buildFileMenu, buildViewMenu, buildWorkspaceMenu } from '../src/main/menu/sections.js';
+import type { MenuBuilderContext, ProjectMenuActions } from '../src/main/menu/types.js';
+import type { DesktopRuntimeRecord } from '../src/shared/types.js';
 
 // ============================================================================
 // Test Data

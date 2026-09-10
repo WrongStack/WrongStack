@@ -3,6 +3,8 @@
  * These types are used across multiple modules to ensure type safety.
  */
 import type {
+  DesktopOpenSessionEntry,
+  DesktopOpenSessionsSnapshot,
   DesktopRuntimeRecord,
   DesktopWebuiCommand,
   DesktopWebuiPrefs,
@@ -111,6 +113,7 @@ export interface IpcHandlerContext {
   getShellView(): import('electron').WebContentsView | null;
   getWebuiViews(): Map<string, DesktopWebuiRuntimeView>;
   getWebuiStatus(): DesktopWebuiStatusSnapshot;
+  getOpenSessions(): DesktopOpenSessionsSnapshot[];
   getRuntimeManager(): IRuntimeManager;
   getAgentBridge(): IAgentBridge;
   getI18n(): II18n;
@@ -153,6 +156,7 @@ export interface IpcHandlerContext {
   settlePendingWebuiCommandAck(requestId: string, handled: boolean): void;
   setEntryWebuiStatus(entry: DesktopWebuiRuntimeView, next: DesktopWebuiStatusSnapshot): void;
   schedulePendingWebuiFlush(entry: DesktopWebuiRuntimeView): void;
+  setOpenSessions(runtimeId: string, sessions: DesktopOpenSessionEntry[]): void;
 }
 
 // ============================================================================

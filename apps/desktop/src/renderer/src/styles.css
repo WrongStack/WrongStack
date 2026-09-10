@@ -382,7 +382,7 @@ input {
 
 .session-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   width: 100%;
   padding: 3px 8px 3px 10px;
@@ -390,6 +390,12 @@ input {
   border-left: 1px solid var(--border);
   text-align: left;
   color: var(--text-muted);
+}
+
+.session-row.is-active {
+  color: var(--text);
+  border-left-color: var(--accent);
+  background: var(--surface-hover);
 }
 
 .session-row:hover {

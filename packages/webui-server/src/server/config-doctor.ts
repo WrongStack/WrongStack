@@ -4,7 +4,7 @@ import type { Config, SecretVault } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import { decryptConfigSecrets } from '@wrongstack/core/security';
 import type { WebSocket } from 'ws';
-import { send } from './ws-utils.js';
+import { errMessage, send } from './ws-utils.js';
 
 export interface ConfigDoctorDeps {
   profileConfigPath: string;
@@ -91,7 +91,7 @@ export async function handleConfigDoctor(
         changed: false,
         changes: [],
         configPath: deps.profileConfigPath,
-        error: err instanceof Error ? err.message : String(err),
+        error: errMessage(err),
       },
     });
   }

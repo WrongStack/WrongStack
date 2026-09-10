@@ -140,6 +140,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                 viewportRows={state.viewportRows}
                 onScroll={(delta) => runtime.dispatch({ type: 'inspectOverlayScroll', delta })}
                 onClose={() => runtime.dispatch({ type: 'inspectOverlayClose' })}
+                copied={state.copiedEntryId === state.inspectOverlay.entryId}
               />
             ) : (
               <ScrollableHistory

@@ -7,22 +7,19 @@ export interface DesktopProjectEntry {
   lastWorkingDir?: string | undefined;
 }
 
-/**
- * One row under a project in the sidebar tree: a past or ongoing conversation,
- * read from that session's `.summary.json` sidecar. Available for stopped
- * projects too, which is why it does not come from the running-session
- * registry.
- */
-export interface DesktopSessionEntry {
-  /** Store-relative id, `<date-shard>/<session-id>` — what resume takes. */
+/** One of the at-most-four tabs currently open in an embedded project WebUI. */
+export interface DesktopOpenSessionEntry {
   id: string;
-  /** First user message, trimmed by the writer. Falls back to the id. */
   title: string;
-  startedAt: string;
-  lastActivityAt?: string | undefined;
-  messageCount?: number | undefined;
-  model?: string | undefined;
-  provider?: string | undefined;
+  slot: number;
+  active: boolean;
+  running: boolean;
+}
+
+/** Live tab snapshot published by one embedded WebUI runtime. */
+export interface DesktopOpenSessionsSnapshot {
+  runtimeId: string;
+  sessions: DesktopOpenSessionEntry[];
 }
 
 export type DesktopRuntimeStatus = 'starting' | 'running' | 'stopped' | 'error';
@@ -102,8 +99,7 @@ export interface WrongStackDesktopApi {
   getState(): Promise<DesktopStateSnapshot>;
   getConversation(runtimeId: string): Promise<DesktopConversationSnapshot>;
   getWebuiStatus(): Promise<DesktopWebuiStatusSnapshot>;
-  /** Recent sessions for a project root, newest first. Read on demand. */
-  listProjectSessions(root: string): Promise<DesktopSessionEntry[]>;
+  getOpenSessions(): Promise<DesktopOpenSessionsSnapshot[]>;
   openProject(root?: string): Promise<DesktopStateSnapshot>;
   registerProject(root?: string): Promise<DesktopStateSnapshot>;
   unregisterProject(root: string): Promise<DesktopStateSnapshot>;
@@ -121,6 +117,7 @@ export interface WrongStackDesktopApi {
   onStateChanged(cb: (state: DesktopStateSnapshot) => void): () => void;
   onConversationChanged(cb: (conversation: DesktopConversationSnapshot) => void): () => void;
   onWebuiStatusChanged(cb: (status: DesktopWebuiStatusSnapshot) => void): () => void;
+  onOpenSessionsChanged(cb: (snapshot: DesktopOpenSessionsSnapshot) => void): () => void;
   onShellSidebarCollapsedChanged(cb: (collapsed: boolean) => void): () => void;
   /** Push the renderer's display locale to the main process (app menu + dialogs). */
   setLocale(locale: string): void;
@@ -131,6 +128,7 @@ export interface WrongStackDesktopApi {
 export interface WrongStackDesktopHostApi {
   setReady(ready: boolean): void;
   setPrefs(prefs: DesktopWebuiPrefs): void;
+  setOpenSessions(sessions: DesktopOpenSessionEntry[]): void;
   ackCommand(requestId: string, handled: boolean, message?: string | undefined): void;
   /**
    * Subscribe to locale changes pushed by the desktop shell (so the embedded
@@ -148,6 +146,8 @@ export interface WrongStackDesktopCommandApi {
 export interface DesktopWebuiCommand {
   /** Internal Electron shell correlation id. Renderer-authored commands cannot set this. */
   requestId?: string | undefined;
+  /** Focus an already-open WebUI tab. Never resumes a historical session. */
+  sessionId?: string | undefined;
   action?:
     | 'new-session'
     | 'clear-context'

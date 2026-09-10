@@ -1,6 +1,7 @@
 ﻿import type { Context } from '@wrongstack/core/agent';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
 import type { SessionWriter } from '@wrongstack/core/types';
+import { errMessage } from './ws-utils.js';
 
 /** Exactly the config slice the session-logging resolver reads. */
 type SessionLoggingConfig = Parameters<typeof resolveSessionLoggingConfig>[0];
@@ -19,7 +20,7 @@ export function stopSessionFleet(
           level: 'warn',
           event: 'webui.stop_session_fleet_failed',
           sessionId,
-          message: err instanceof Error ? err.message : String(err),
+          message: errMessage(err),
           timestamp: new Date().toISOString(),
         }),
       );

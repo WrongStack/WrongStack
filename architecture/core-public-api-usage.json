@@ -19,8 +19,8 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 210,
-      "typeOnly": 84,
+      "files": 211,
+      "typeOnly": 85,
       "runtimeOrMixed": 181
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -124,8 +124,8 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/registry": {
-      "files": 125,
-      "typeOnly": 61,
+      "files": 126,
+      "typeOnly": 62,
       "runtimeOrMixed": 66
     },
     "@wrongstack/core/replay": {
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 148,
+      "files": 152,
       "typeOnly": 27,
-      "runtimeOrMixed": 125
+      "runtimeOrMixed": 129
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 580,
-      "typeOnly": 54,
-      "runtimeOrMixed": 554
+      "files": 584,
+      "typeOnly": 55,
+      "runtimeOrMixed": 557
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -3312,9 +3312,15 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
-      "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
+      "file": "packages/tui/src/hooks/use-session-slash-commands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tui/src/key-handler-context.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -3630,7 +3636,7 @@
     },
     {
       "specifier": "@wrongstack/core/design",
-      "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
+      "file": "packages/tui/src/hooks/use-design-kit-slash-commands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
     },
@@ -8154,6 +8160,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/tui/tests/slash-registration-enumeration.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/tui/tests/use-exit-command.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8364,6 +8376,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/cli-entry-point.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/config-doctor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8412,7 +8430,7 @@
     },
     {
       "specifier": "@wrongstack/core/security",
-      "file": "packages/cli/src/hq-server/routes/auth/password-routes.ts",
+      "file": "packages/cli/src/hq-server/routes/auth/common.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8605,6 +8623,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/acp-server-agent.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/architecture/hq-totp-single-use.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8964,6 +8988,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/codemap-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/config-doctor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8983,6 +9013,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/context-meta.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/deadcode-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9240,7 +9276,7 @@
     },
     {
       "specifier": "@wrongstack/core/skills",
-      "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
+      "file": "packages/tui/src/hooks/use-resource-slash-commands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16962,12 +16998,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "apps/desktop/src/main/session-index.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/acp/src/agent/session-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17335,6 +17365,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/fleet-statusline.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/fleet/host-context.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -18523,6 +18559,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/mailbox-bridge.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/mcp-serve.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -19836,6 +19878,18 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/hooks/use-resource-slash-commands.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/hooks/use-session-slash-commands.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/hooks/use-shadow-panel.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -19866,12 +19920,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/markdown-table.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -19891,6 +19939,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/run-tui-client-registration.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/run-tui-exits.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/run-tui-launch.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -8,6 +8,7 @@ import {
   ensureHqFirstRunAuthFile,
   HQ_AUTH_FILE_VERSION,
   type HqAuthFile,
+  hqPasswordNeedsUpgrade,
   hashHqPassword,
   hqAuthFilePath,
   hqRuntimeFilePath,
@@ -26,6 +27,7 @@ import {
   writeHqRuntimeFile,
 } from '../../src/hq/auth-store.js';
 import { wstackGlobalRoot } from '../../src/utils/wstack-paths.js';
+import { randomBytes, scrypt } from 'node:crypto';
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-auth-'));
@@ -151,6 +153,36 @@ describe('HQ auth-store — writeHqAuthFile', () => {
       expect(() => JSON.parse(raw)).not.toThrow();
     });
   });
+
+  /**
+   * `auth.json` is written `0600`, but the directory holding it was left at
+   * whatever `mkdir` produced — `0755` under a normal umask. The file mode
+   * stops another local account reading the secrets directly; a world-readable
+   * parent still lets it enumerate the directory, and any file written there
+   * later by a path that does not set its own mode inherits the permissive
+   * default.
+   *
+   * `restrictDirPermissions` was written for exactly this and had NO production
+   * call site anywhere in the repo (audit 2026-08-20, re-reported 2026-09-10).
+   * This test is what stops it going back to zero callers.
+   */
+  it.skipIf(process.platform === 'win32')(
+    'hardens the data directory, not just the auth file',
+    async () => {
+      await withTempDir(async (dir) => {
+        const nested = path.join(dir, 'hq-data');
+        await fs.mkdir(nested, { recursive: true, mode: 0o755 });
+        await fs.chmod(nested, 0o755); // defeat umask, so 0755 is the real start
+        expect((await fs.stat(nested)).mode & 0o777).toBe(0o755);
+
+        await writeHqAuthFile(nested, emptyHqAuthFile());
+
+        expect((await fs.stat(nested)).mode & 0o777).toBe(0o700);
+        // The file's own mode is unchanged by the directory hardening.
+        expect((await fs.stat(hqAuthFilePath(nested))).mode & 0o777).toBe(0o600);
+      });
+    },
+  );
 
   it('forces version=1 and refreshes updatedAt on write', async () => {
     await withTempDir(async (dir) => {
@@ -561,5 +593,71 @@ describe('HQ auth-store — password login', () => {
       expect(typeof result.authFile.cookieSecret).toBe('string');
       expect(await verifyHqPassword('hq-password', result.authFile.passwordHash ?? '')).toBe(true);
     });
+  });
+});
+
+describe('HQ password KDF versioning', () => {
+  /**
+   * The stored payload used to be `scrypt$<salt>$<hash>` — no parameters — so
+   * verification always re-derived with whatever the module constant happened
+   * to be. That made the cost impossible to raise: changing the constant would
+   * have failed every existing password, which is a lockout, not a migration.
+   * The payload now carries its own parameters, and the legacy three-segment
+   * shape is still verified at the cost it was written with.
+   */
+  const legacyHash = (password: string): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const salt = randomBytes(16);
+      scrypt(password, salt, 32, { N: 16384, r: 8, p: 1 }, (err, key) => {
+        if (err) reject(err);
+        else resolve(['scrypt', salt.toString('base64url'), key.toString('base64url')].join('$'));
+      });
+    });
+
+  const PASSWORD = 'correct horse battery staple';
+  const WRONG = 'correct horse battery stapl3';
+
+  it('writes a parameterised payload for new hashes', async () => {
+    const hash = await hashHqPassword(PASSWORD);
+    const parts = hash.split('$');
+    expect(parts).toHaveLength(4);
+    expect(parts[0]).toBe('scrypt');
+    expect(parts[1]).toMatch(/^N=\d+,r=\d+,p=\d+$/);
+  });
+
+  it('still verifies a legacy parameter-less hash', async () => {
+    // The migration property. If this breaks, every existing deployment is
+    // locked out of its own HQ.
+    const legacy = await legacyHash(PASSWORD);
+    expect(legacy.split('$')).toHaveLength(3);
+    expect(await verifyHqPassword(PASSWORD, legacy)).toBe(true);
+    expect(await verifyHqPassword(WRONG, legacy)).toBe(false);
+  });
+
+  it('round-trips a current hash', async () => {
+    const hash = await hashHqPassword(PASSWORD);
+    expect(await verifyHqPassword(PASSWORD, hash)).toBe(true);
+    expect(await verifyHqPassword(WRONG, hash)).toBe(false);
+  });
+
+  it('flags a legacy hash for upgrade and a current one as fine', async () => {
+    expect(hqPasswordNeedsUpgrade(await legacyHash(PASSWORD))).toBe(true);
+    expect(hqPasswordNeedsUpgrade(await hashHqPassword(PASSWORD))).toBe(false);
+  });
+
+  it('refuses a stored payload that asks for an absurd allocation', async () => {
+    // `auth.json` is a file on disk, not a trusted source of a memory size.
+    // Without the bound, a hand-edited `N` would make every login attempt try
+    // to allocate it — a denial of service reachable by anyone who can write
+    // that file.
+    expect(await verifyHqPassword(PASSWORD, 'scrypt$N=1073741824,r=8,p=1$AAAA$AAAA')).toBe(false);
+    // Non-power-of-two N is invalid for scrypt and must not reach it.
+    expect(await verifyHqPassword(PASSWORD, 'scrypt$N=65535,r=8,p=1$AAAA$AAAA')).toBe(false);
+  });
+
+  it('rejects malformed payloads instead of throwing', async () => {
+    for (const bad of ['nonsense', 'scrypt$only-two', 'scrypt$a$b$c$d', 'bcrypt$N=16,r=8,p=1$a$b']) {
+      expect(await verifyHqPassword(PASSWORD, bad)).toBe(false);
+    }
   });
 });

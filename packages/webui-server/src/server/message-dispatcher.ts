@@ -46,7 +46,7 @@ import { collectDisplayedSessionIds } from './session-handlers.js';
 import type { ConnectedClient, WSClientMessage } from './types.js';
 import { createWorklistRouteHandlers } from './worklist-routes.js';
 import { createSessionAwareWorklistContext } from './worklist-session-context.js';
-import { broadcast, send, sendResult } from './ws-utils.js';
+import { broadcast, errMessage, send, sendResult } from './ws-utils.js';
 
 /**
  * Shared run-lock control. `user_message` acquires/releases it around
@@ -223,7 +223,7 @@ export function createMessageDispatcher(
           JSON.stringify({
             level: 'warn',
             event: 'webui.terminal_handler_failed',
-            message: err instanceof Error ? err.message : String(err),
+            message: errMessage(err),
           }),
         );
       });

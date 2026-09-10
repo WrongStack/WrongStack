@@ -1,6 +1,20 @@
 # syntax=docker/dockerfile:1.7
 
-ARG NODE_IMAGE=node:22.23.2-bookworm-slim
+# Pinned by DIGEST, not by tag alone. A tag is mutable — `node:22.23.2-bookworm-slim`
+# can be re-pushed to different content, so a tag-only pin means two builds of
+# the same source can produce different base layers, and a compromised upstream
+# tag lands silently. The digest makes the base bit-for-bit reproducible.
+#
+# This is the multi-arch INDEX digest (`application/vnd.oci.image.index.v1+json`),
+# not a per-platform manifest digest, so linux/amd64, arm64, arm and ppc64le all
+# continue to resolve. Verify or refresh with:
+#   docker buildx imagetools inspect node:<version>-bookworm-slim
+#
+# Overriding `--build-arg NODE_IMAGE=…` REMOVES this pin. That is left possible
+# on purpose (air-gapped mirrors need it) and is not a trust boundary: whoever
+# runs the build already controls the build. Point it at your own registry's
+# digest rather than a bare tag.
+ARG NODE_IMAGE=node:22.23.2-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /workspace

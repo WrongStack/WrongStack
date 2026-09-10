@@ -61,6 +61,7 @@ import {
 import type { Provider } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
+import { errMessage } from './ws-utils.js';
 
 /**
  * Resolved LLM handle used for headless (chat-free) consolidation. Both the
@@ -403,7 +404,7 @@ export class AgentRosterWSHandler {
                 level: 'warn',
                 event: 'agent_roster.broadcast_failed',
                 role,
-                message: e instanceof Error ? e.message : String(e),
+                message: errMessage(e),
                 timestamp: new Date().toISOString(),
               }),
             );

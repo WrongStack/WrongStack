@@ -27,6 +27,7 @@ import {
   FORBIDDEN_PROTO_KEYS,
   withFileLock,
 } from '@wrongstack/core/utils';
+import { errMessage } from './ws-utils.js';
 
 /** Pref keys exposed to the settings panel via prefs.get / prefs.updated. */
 export const PREF_KEYS = [
@@ -242,9 +243,7 @@ export async function updateGlobalConfig(
   try {
     await next;
   } catch (err) {
-    logger.warn(
-      `${errorLabel}: failed to persist to config: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.warn(`${errorLabel}: failed to persist to config: ${errMessage(err)}`);
   }
 }
 

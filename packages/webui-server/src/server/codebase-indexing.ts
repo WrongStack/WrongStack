@@ -18,6 +18,7 @@ import {
   shutdownCodebaseIndexHost,
 } from '@wrongstack/tools';
 import { clearCodemapGraphCache } from './codemap-cache.js';
+import { errMessage } from './ws-utils.js';
 
 const WATCHER_DEDUP_TTL_MS = 60_000;
 const WATCHER_DEDUP_MAX_PATHS = 4_096;
@@ -44,9 +45,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
       : undefined;
   const debounceMs = idx?.debounceMs ?? 400;
   const onError = (err: unknown) => {
-    deps.logger.debug(
-      `webui codebase auto-index failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    deps.logger.debug(`webui codebase auto-index failed: ${errMessage(err)}`);
   };
 
   if (idx) {
@@ -71,9 +70,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
         );
       })
       .catch((err) => {
-        deps.logger.warn(
-          `webui codebase index (startup) failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        deps.logger.warn(`webui codebase index (startup) failed: ${errMessage(err)}`);
       });
   }
 
@@ -141,9 +138,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
         { onError: (err) => deps.logger.debug(`webui codebase index watcher error: ${err}`) },
       );
     } catch (err) {
-      deps.logger.debug(
-        `webui codebase index watcher unavailable: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      deps.logger.debug(`webui codebase index watcher unavailable: ${errMessage(err)}`);
     }
   }
 

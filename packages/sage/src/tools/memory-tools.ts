@@ -266,16 +266,31 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
   };
 }
 
+/**
+ * Shortest `forget` query that is not, in practice, a mass delete.
+ *
+ * `forget` matches a substring against text, tags and anchors, so a one- or
+ * two-character query matches nearly every memory in the scope:
+ * `forget({ query: 'e' })` empties the project knowledge base. There is no
+ * legitimate call that needs a query this short — `memory_delete` exists for
+ * targeted removal — so this is a floor, not a heuristic.
+ */
+const MIN_FORGET_QUERY_LEN = 3;
+
 function memoryForgetTool(
   memory: SageServiceLike,
-): Tool<{ query: string; scope?: MemoryScope }, { removed: number; scope: MemoryScope }> {
+): Tool<
+  { query: string; scope?: MemoryScope; force?: boolean },
+  { removed: number; scope: MemoryScope }
+> {
   return {
     name: 'forget',
     category: 'Session',
     description:
-      'Remove memory entries whose text/tag/anchor matches the query (case-insensitive). Prefer `memory_delete` when you have a specific memory id.',
+      'Remove memory entries whose text/tag/anchor matches the query (case-insensitive). Requires force: true — this is a bulk delete. Prefer `memory_delete` when you have a specific memory id.',
     usageHint:
       'This soft-deletes matching memories in the chosen scope.\n' +
+      '- **`force: true` is required** — `forget` deletes EVERY match at once, so it is strictly more destructive than `memory_delete`, which requires the same flag for a single entry.\n' +
       '- Provide a reasonably specific `query` to avoid deleting unrelated memories.\n' +
       '- Use `memory_delete` with an id for exact, single-entry removal.',
     permission: 'confirm',
@@ -286,14 +301,44 @@ function memoryForgetTool(
     icon: 'settings',
     inputSchema: objectSchema(
       {
-        query: { type: 'string', minLength: 1, description: 'Substring/tag/id to match.' },
+        query: {
+          type: 'string',
+          minLength: MIN_FORGET_QUERY_LEN,
+          description: 'Substring/tag/id to match.',
+        },
         scope: enumSchema(
           LEGACY_SCOPE_VALUES,
           'Which scope to search. Defaults to project-memory.',
         ),
+        force: {
+          type: 'boolean',
+          description:
+            'Required — authorizes deleting every memory matching the query. Recorded in the audit log.',
+        },
       },
-      ['query'],
+      ['query', 'force'],
     ),
+    // `forget` sat at the same exposure tier as `memory_delete` — both are
+    // `permission: 'confirm'` + `riskTier: 'standard'`, so both become
+    // callable together on any surface that opts in (the SAGE MCP server's
+    // `--writable`). But `memory_delete` removes ONE entry by id and demanded
+    // `force: true`, while `forget` removed EVERY substring match and demanded
+    // nothing. The strictly more destructive tool was the unguarded one.
+    validate(input) {
+      const query = typeof input.query === 'string' ? input.query.trim() : '';
+      if (query.length === 0) return ['query is required'];
+      if (query.length < MIN_FORGET_QUERY_LEN) {
+        return [
+          `query must be at least ${MIN_FORGET_QUERY_LEN} characters. \`forget\` matches a substring against text, tags and anchors, so a shorter query deletes nearly everything in the scope. Use \`memory_delete\` with an id for targeted removal.`,
+        ];
+      }
+      if (input.force !== true) {
+        return [
+          'force: true is required to bulk-delete memories. `forget` removes every entry matching the query at once — pass force: true to authorize; the override is audit-logged. For non-destructive review, use memory_search to see what would match first.',
+        ];
+      }
+      return [];
+    },
     async execute(input, ctx, opts) {
       const signal = opts?.signal ?? ctx?.signal;
       signal?.throwIfAborted();

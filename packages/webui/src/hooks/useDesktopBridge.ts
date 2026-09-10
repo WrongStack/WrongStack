@@ -1,9 +1,14 @@
 import { useEffect } from 'react';
+import { PANEL_ORDER } from '@/components/activity-bar';
+import { navigateToView, openMainView, showPanel } from '@/components/activity-bar/nav';
+import { downloadChatAsMarkdown } from '@/components/CommandPalette';
+import { toast } from '@/components/Toaster';
 import {
   DESKTOP_COMMAND_DOCKS,
   DESKTOP_COMMAND_VIEWS,
   DESKTOP_COMMAND_WORK_TABS,
   publishDesktopCommandAck,
+  publishDesktopOpenSessionsSnapshot,
   publishDesktopPrefsSnapshot,
   publishDesktopReady,
 } from '@/lib/desktop-host';
@@ -17,11 +22,10 @@ import {
   useConfigStore,
   useUIStore,
 } from '@/stores';
+import { useChatLanes } from '@/stores/chat-lanes';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import { navigateToView, openMainView, showPanel } from '@/components/activity-bar/nav';
-import { PANEL_ORDER } from '@/components/activity-bar';
-import { downloadChatAsMarkdown } from '@/components/CommandPalette';
-import { toast } from '@/components/Toaster';
+import { useSessionLanes } from '@/stores/session-lanes';
+import { summarizeTab, useSessionTabStore } from '@/stores/session-tab-store';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
 interface UseDesktopBridgeOptions {
@@ -41,7 +45,7 @@ interface UseDesktopBridgeOptions {
 /**
  * Desktop-shell bridge integration.
  *
- * Three responsibilities, all scoped to the Electron desktop shell (browser
+ * Four responsibilities, all scoped to the Electron desktop shell (browser
  * users see no-ops):
  *
  * 1. **Nav reset** — collapse the sidebar on first mount when running inside
@@ -51,6 +55,8 @@ interface UseDesktopBridgeOptions {
  * 3. **Command bridge** — subscribe to `wrongstackDesktopCommands` (native →
  *    WebUI) and `wrongstack:desktop-command` (legacy event) and dispatch
  *    view/nav/overlay/tool actions the native sidebar sends.
+ * 4. **Open tabs** — publish only the four live slots to the native project
+ *    tree, and accept focus commands only for a slot that is already open.
  */
 export function useDesktopBridge(options: UseDesktopBridgeOptions): void {
   const {
@@ -89,7 +95,50 @@ export function useDesktopBridge(options: UseDesktopBridgeOptions): void {
     });
   }, []);
 
-  // ── 3. Desktop command bridge ─────────────────────────────────────────────
+  // ── 3. Live open-tab snapshot ────────────────────────────────────────────
+  useEffect(() => {
+    if (!desktopShell) return;
+    let lastPayload = '';
+    const publish = (): void => {
+      const ids = useSessionTabStore.getState().openTabIds;
+      const tabs = ids.map((id, slot) => summarizeTab(id, slot));
+      const payload = JSON.stringify(
+        tabs.map((tab) => [tab.sessionId, tab.title, tab.slot, tab.isActive, tab.isRunning]),
+      );
+      if (payload === lastPayload) return;
+      lastPayload = payload;
+      publishDesktopOpenSessionsSnapshot(tabs);
+    };
+    publish();
+    const unsubscribers = [
+      useSessionTabStore.subscribe((next, previous) => {
+        if (next.openTabIds !== previous.openTabIds) publish();
+      }),
+      useChatLanes.subscribe((next, previous) => {
+        const ids = useSessionTabStore.getState().openTabIds;
+        if (ids.some((id) => next.lanes[id]?.isLoading !== previous.lanes[id]?.isLoading)) {
+          publish();
+        }
+      }),
+      useSessionLanes.subscribe((next, previous) => {
+        const ids = useSessionTabStore.getState().openTabIds;
+        if (
+          next.activeSessionId !== previous.activeSessionId ||
+          ids.some((id) => next.lanes[id]?.session?.title !== previous.lanes[id]?.session?.title)
+        ) {
+          publish();
+        }
+      }),
+      useUIStore.subscribe((next, previous) => {
+        if (next.sessionNicknames !== previous.sessionNicknames) publish();
+      }),
+    ];
+    return () => {
+      for (const unsubscribe of unsubscribers) unsubscribe();
+    };
+  }, [desktopShell]);
+
+  // ── 4. Desktop command bridge ─────────────────────────────────────────────
   useEffect(() => {
     const applyDesktopCommand = (rawDetail: unknown): boolean => {
       const detail =
@@ -99,6 +148,16 @@ export function useDesktopBridge(options: UseDesktopBridgeOptions): void {
       const ui = useUIStore.getState();
       const ws = getWSClient(useConfigStore.getState().wsUrl);
       let handled = false;
+
+      const sessionId = detail['sessionId'];
+      if (
+        typeof sessionId === 'string' &&
+        useSessionTabStore.getState().openTabIds.includes(sessionId)
+      ) {
+        useSessionTabStore.getState().openTab(sessionId);
+        showPanel('chat');
+        handled = true;
+      }
 
       const openDesktopView = (view: string): void => {
         navigateToView(view as never);

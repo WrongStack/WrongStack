@@ -1,8 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
-  WrongStackDesktopCommandApi,
+  DesktopOpenSessionEntry,
   DesktopWebuiCommand,
   DesktopWebuiPrefs,
+  WrongStackDesktopCommandApi,
   WrongStackDesktopHostApi,
 } from '../shared/types.js';
 import { IPC } from './ipc.js';
@@ -13,6 +14,9 @@ const api: WrongStackDesktopHostApi = {
   },
   setPrefs: (prefs: DesktopWebuiPrefs) => {
     ipcRenderer.send(IPC.webuiPrefsChanged, prefs);
+  },
+  setOpenSessions: (sessions: DesktopOpenSessionEntry[]) => {
+    ipcRenderer.send(IPC.webuiOpenSessionsChanged, sessions);
   },
   ackCommand: (requestId: string, handled: boolean, message?: string | undefined) => {
     ipcRenderer.send(IPC.webuiCommandAck, requestId, handled, message);

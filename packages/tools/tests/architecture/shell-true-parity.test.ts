@@ -92,6 +92,14 @@ describe('S4: every shell-enabling spawn site is paired with the cmd-shim helper
       'packages/techstack/src/advisory/native-audit.ts',
       'packages/webui-server/src/server/frontend-static-serve.ts',
       'packages/tools/src/bash.ts', // pickShell(), not a spawn option
+      // Narrowed 2026-09-11: this file had TWO shell spawns. The risky one —
+      // `npx --yes electron-builder@… ...forwarded` — passed caller-supplied
+      // argv through a shell while holding the code-signing credentials. It is
+      // gone: the lockfile-pinned electron-builder now runs via
+      // `process.execPath` with no shell at all. What remains is the `pnpm`
+      // invocation, which needs `shell: true` only because pnpm is a `.cmd`
+      // shim on Windows that `execFileSync` cannot exec directly, and whose
+      // arguments are all literals this script writes.
       'scripts/package-desktop.mjs',
       'scripts/publish-workspace.mjs',
     ];

@@ -191,4 +191,61 @@ describe('redirectSafeFetch', () => {
       }),
     ).rejects.toThrow(/private\/loopback/);
   });
+
+  /**
+   * Every one of these walked straight through.
+   *
+   * `URL.hostname` keeps the brackets on an IPv6 literal, and the guard tested
+   * the host against `/^[0-9.:]+$/` — a pattern that cannot match a string
+   * starting with `[`. So the check applied to IPv4 literals only, and the
+   * entire v6 family, loopback and metadata included, was unguarded. Both
+   * sibling guards in this repo (`core/utils/ip-guard.ts`,
+   * `mcp/transport-security.ts`) unbracket correctly; this one did not.
+   */
+  describe('IPv6 literal redirect targets (bracket bypass)', () => {
+    it.each([
+      ['loopback', 'http://[::1]:8080/internal'],
+      ['link-local', 'http://[fe80::1]/'],
+      ['unique-local', 'http://[fd12:3456::1]/'],
+      ['AWS IPv6 metadata endpoint', 'http://[fd00:ec2::254]/latest/meta-data/'],
+      ['IPv4-mapped loopback', 'http://[::ffff:127.0.0.1]/internal'],
+    ])('rejects a redirect to an IPv6 %s literal', async (_label, target) => {
+      const impl = vi.fn(async () => response(307, target));
+      await expect(
+        redirectSafeFetch(impl as unknown as typeof fetch, 'https://api.example/v1', {
+          headers: { 'x-api-key': 'secret' },
+        }),
+      ).rejects.toThrow(/private\/loopback/);
+    });
+
+    it('still allows a public IPv6 literal', async () => {
+      // The fix must not turn every v6 literal into a block: that would be a
+      // silent outage for anyone whose gateway redirects to one.
+      const impl = vi.fn(async (_url: string) =>
+        _url === 'https://api.example/v1'
+          ? response(307, 'http://[2606:4700:4700::1111]/v2')
+          : response(200),
+      );
+      const res = await redirectSafeFetch(
+        impl as unknown as typeof fetch,
+        'https://api.example/v1',
+        { headers: { 'x-api-key': 'secret' } },
+      );
+      expect(res.status).toBe(200);
+    });
+
+    it('still allows an ordinary hostname', async () => {
+      // `isPrivateIPv6` returns true for anything that fails v6 expansion, so
+      // a naive unbracket-and-check would classify every hostname as private.
+      const impl = vi.fn(async (_url: string) =>
+        _url === 'https://api.example/v1' ? response(307, 'https://cdn.example.net/v2') : response(200),
+      );
+      const res = await redirectSafeFetch(
+        impl as unknown as typeof fetch,
+        'https://api.example/v1',
+        { headers: { 'x-api-key': 'secret' } },
+      );
+      expect(res.status).toBe(200);
+    });
+  });
 });

@@ -1,6 +1,8 @@
 import type { TrustBoundary } from '@wrongstack/core/security';
 import { type BaseWindow, shell, WebContentsView } from 'electron';
 import type {
+  DesktopOpenSessionEntry,
+  DesktopOpenSessionsSnapshot,
   DesktopWebuiCommand,
   DesktopWebuiPrefs,
   DesktopWebuiStatusSnapshot,
@@ -32,11 +34,14 @@ export interface DesktopWebuiControllerContext {
   onPrefsChanged?:
     | ((previous: DesktopWebuiPrefs | undefined, next: DesktopWebuiPrefs | undefined) => void)
     | undefined;
+  onOpenSessionsChanged?: ((snapshot: DesktopOpenSessionsSnapshot) => void) | undefined;
 }
 
 /** Instance-owned lifecycle and command authority for embedded WebUI views. */
 export class DesktopWebuiController {
   readonly views = new Map<string, DesktopWebuiRuntimeView>();
+  /** Last live four-tab declaration from each running project WebUI. */
+  readonly openSessions = new Map<string, DesktopOpenSessionEntry[]>();
   readonly pendingAcks = new Map<string, PendingWebuiCommandAck>();
   activeRuntimeId: string | null = null;
   status: DesktopWebuiStatusSnapshot = { runtimeId: null, status: 'idle' };
@@ -79,6 +84,24 @@ export class DesktopWebuiController {
     if (this.activeRuntimeId === entry.runtimeId) {
       this.publishStatus(entry.status);
       this.ctx.onPrefsChanged?.(previousPrefs, entry.status.prefs);
+    }
+  }
+
+  openSessionSnapshots(): DesktopOpenSessionsSnapshot[] {
+    return [...this.openSessions].map(([runtimeId, sessions]) => ({ runtimeId, sessions }));
+  }
+
+  setOpenSessions(runtimeId: string, sessions: DesktopOpenSessionEntry[]): void {
+    if (sessions.length === 0) this.openSessions.delete(runtimeId);
+    else this.openSessions.set(runtimeId, sessions);
+    this.ctx.onOpenSessionsChanged?.({ runtimeId, sessions });
+  }
+
+  private pruneOpenSessions(liveRuntimeIds: ReadonlySet<string>): void {
+    for (const runtimeId of [...this.openSessions.keys()]) {
+      if (liveRuntimeIds.has(runtimeId)) continue;
+      this.openSessions.delete(runtimeId);
+      this.ctx.onOpenSessionsChanged?.({ runtimeId, sessions: [] });
     }
   }
 
@@ -171,6 +194,7 @@ export class DesktopWebuiController {
 
   disposeAll(): void {
     for (const entry of [...this.views.values()]) this.dispose(entry);
+    this.openSessions.clear();
   }
 
   findBySenderId(senderId: number): DesktopWebuiRuntimeView | undefined {
@@ -199,6 +223,13 @@ export class DesktopWebuiController {
   syncActive(): void {
     if (!this.ctx.getMainWindow()) return;
     const snapshot = this.ctx.manager.snapshot();
+    this.pruneOpenSessions(
+      new Set(
+        snapshot.runtimes
+          .filter((runtime) => runtime.status === 'running' || runtime.status === 'starting')
+          .map((runtime) => runtime.id),
+      ),
+    );
     const active = snapshot.runtimes.find((runtime) => runtime.id === snapshot.activeRuntimeId);
     const keep = active?.status === 'running' ? active.id : null;
     for (const [id, entry] of this.views) if (id !== keep) this.dispose(entry);

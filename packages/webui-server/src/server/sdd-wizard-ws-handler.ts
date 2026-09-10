@@ -1,6 +1,6 @@
 import type { AISpecPhase, SddInterviewDriver, SddInterviewSnapshot } from '@wrongstack/sdd';
 import type { WebSocket } from 'ws';
-import { sendSerialized } from './ws-utils.js';
+import { errMessage, sendSerialized } from './ws-utils.js';
 
 interface WSClient {
   ws: WebSocket;
@@ -140,7 +140,7 @@ export class SddWizardWebSocketHandler {
       // start cannot overwrite another process's interview.
       this.driver = null;
       this.lastAgentText = '';
-      this.resumeError = error instanceof Error ? error.message : String(error);
+      this.resumeError = errMessage(error);
     }
   }
 
@@ -256,7 +256,7 @@ export class SddWizardWebSocketHandler {
       this.busy = false;
       this.broadcast({
         type: 'sdd.spec.error',
-        payload: { message: err instanceof Error ? err.message : String(err) },
+        payload: { message: errMessage(err) },
       });
     }
   }

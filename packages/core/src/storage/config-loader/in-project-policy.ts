@@ -280,6 +280,44 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
     reason: 'The other half of the filesystem confinement switch.',
   },
   {
+    // The whole subtree, not just `mode`. `mode: 'off'` disables the detector
+    // outright, but `steerThreshold: 9999` or `windowSize: 4` reaches the same
+    // place quietly, and a denylist that names only the obvious switch invites
+    // the quiet one. Same reasoning as `tools.autoThin` above.
+    path: 'tools.loopDetection',
+    reason:
+      'The runaway-loop cutter is the control that stops a repetition from burning the operator\'s API budget without end. A repo-committed config could switch it off (or push its thresholds out of reach) before the operator sees a single iteration.',
+  },
+  {
+    // The other half of the control `tools.loopDetection` above protects, and
+    // it was left open. The detector stops a REPETITION; the iteration budget
+    // stops a run that is merely long. A repo that cannot switch the detector
+    // off could still write `maxIterations: 100000` and reach the same place —
+    // the operator's API budget spent without end — while the denylist above
+    // reported nothing, because the key it names was untouched.
+    //
+    // Denied as a whole subtree for the same reason `loopDetection` is: naming
+    // only the obvious switch invites the quiet one.
+    path: 'tools.maxIterations',
+    reason:
+      "The turn budget is what bounds the cost of a single run. A repo-committed config could raise it far past anything the operator intended, spending the operator's API budget before they see a reason to intervene.",
+  },
+  {
+    // `autoExtendLimit` defaults to FALSE, so this is denied for the direction
+    // that loosens: a repo can only ever use it to turn the hard stop into a
+    // soft one. Paired with `maxAutoExtensions`, which is the only thing that
+    // ends such a run once extension is on — the shipped stack has no other
+    // subscriber that denies the grant.
+    path: 'tools.autoExtendLimit',
+    reason:
+      'Converts the operator\'s configured `maxIterations` from a hard stop into a limit that re-grants itself +100 on every hit. Operator-owned, same class as `tools.loopDetection`.',
+  },
+  {
+    path: 'tools.maxAutoExtensions',
+    reason:
+      'The only bound on auto-extension once it is enabled. Raising it from a repo-committed config makes the iteration budget unbounded in practice.',
+  },
+  {
     // Denied for the direction that loosens: the flag defaults to false, so a
     // repo can only ever use it to turn OFF a gate the user deliberately
     // enabled. Same class as `tools.restrictToProjectRoot` — a control the
