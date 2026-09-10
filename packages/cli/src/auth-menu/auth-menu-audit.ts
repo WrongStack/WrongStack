@@ -141,7 +141,13 @@ function defaultStderrSink(): AuthAuditSink {
 export function fileAuditSink(path: string): AuthAuditSink {
   return {
     write(line: string) {
-      appendFileSync(path, `${line}\n`, { encoding: 'utf8' });
+      // `mode` is applied only when this append CREATES the file; an existing
+      // file keeps whatever permissions it already has. Without it the default
+      // is 0o666 & ~umask — world-readable on a normal POSIX box — and this is
+      // an authentication audit trail: who signed in, against which provider,
+      // and when. Roughly thirty-five other credential-adjacent writers in the
+      // repo pass 0o600; this was the one that did not.
+      appendFileSync(path, `${line}\n`, { encoding: 'utf8', mode: 0o600 });
     },
   };
 }

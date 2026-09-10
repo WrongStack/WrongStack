@@ -3,6 +3,9 @@
  * Handles batch tool execution, confirmation flow, and post-execution
  * pipeline/session/event emission.
  */
+import type { BrainRisk } from '../coordination/brain.js';
+import { TOKENS } from '../kernel/tokens.js';
+import { describeWriteTargets } from '../security/permission-helpers.js';
 import type { ContentBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
 import type { SessionEvent } from '../types/session.js';
 import type { Tool } from '../types/tool.js';
@@ -12,7 +15,6 @@ import { capSageLines, splitSageOutputBlock } from '../utils/sage-output-block.j
 import { sizeSignals, truncateForEvent } from '../utils/tool-output-serializer.js';
 import type { AgentInternals } from './agent-internals.js';
 import { resolveEventSessionId } from './context.js';
-import { describeWriteTargets } from '../security/permission-helpers.js';
 
 /**
  * Tools whose serialized output is a unified diff that UIs render as a
@@ -35,6 +37,18 @@ const DIFF_TOOL_EVENT_PREVIEW_MAX = 16_000;
  * largest blocks — always by whole memory lines.
  */
 const SAGE_EVENT_MAX = 2_000;
+
+/** Human gets this full window before Brain becomes the approval authority. */
+export const HUMAN_APPROVAL_TIMEOUT_MS = 120_000;
+
+function approvalBrainRisk(
+  riskTier: import('../types/tool.js').RiskTier | undefined,
+  boundaryReason: string | undefined,
+): BrainRisk {
+  if (boundaryReason || riskTier === 'destructive') return 'critical';
+  if (riskTier === 'safe') return 'low';
+  return 'medium';
+}
 
 export interface AgentToolHandler {
   executeTools(toolUses: ToolUseBlock[]): Promise<ToolResultBlock[]>;
@@ -122,6 +136,9 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       return Promise.resolve('deny' as const);
     }
     return new Promise((resolve) => {
+      let settled = false;
+      const deadlineAt = Date.now() + HUMAN_APPROVAL_TIMEOUT_MS;
+      let timeout: ReturnType<typeof setTimeout> | undefined;
       // Abort-awareness: /interrupt, Esc, or a parent abort must not leave the
       // run blocked on a confirmation nobody will answer. Resolve as 'abort'
       // — NOT 'no' — so the caller skips the denyOnce side effect (a
@@ -129,15 +146,106 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       // tool+pattern for the rest of the session). Resolving twice is a
       // harmless no-op, so a late UI answer after abort is safely ignored.
       const signal = a.ctx.signal;
-      const onAbort = () => resolve('abort');
+      const settle = (
+        choice: 'yes' | 'no' | 'always' | 'deny' | 'abort',
+        source?: 'brain_timeout' | 'abort',
+        rationale?: string,
+      ) => {
+        if (settled) return;
+        settled = true;
+        if (timeout) clearTimeout(timeout);
+        signal.removeEventListener('abort', onAbort);
+        if (source) {
+          a.events.emit('tool.confirm_resolved', {
+            sessionId: resolveEventSessionId(a.ctx),
+            toolUseId: info.toolUseId,
+            toolName: info.tool.name,
+            decision: choice,
+            source,
+            rationale,
+          });
+        }
+        resolve(choice);
+      };
+      const onAbort = () => settle('abort', 'abort');
       if (signal.aborted) {
-        resolve('abort');
+        settle('abort', 'abort');
         return;
       }
       signal.addEventListener('abort', onAbort, { once: true });
       // VULN-001 Phase 2: real destinations from Tool.writeTargets so the
       // prompt shows what the call would write, not just its subject key.
       const writeTargets = info.writeTargets ?? describeWriteTargets(info.tool, info.input);
+      timeout = setTimeout(() => {
+        void (async () => {
+          const brain = a.container.safeResolve(TOKENS.BrainArbiter);
+          if (!brain) {
+            settle('no', 'brain_timeout', 'No Brain arbiter is available; denied by default.');
+            return;
+          }
+
+          const rawContext = {
+            tool: info.tool.name,
+            input: info.input,
+            suggestedPattern: info.suggestedPattern,
+            decisionSource: info.decisionSource,
+            riskTier: info.riskTier,
+            boundaryReason: info.boundaryReason,
+            writeTargets,
+          };
+          const scrubber = a.container.safeResolve(TOKENS.SecretScrubber);
+          const safeContext = scrubber
+            ? scrubber.scrubObject(rawContext)
+            : { ...rawContext, input: '[omitted]' };
+          let context: string;
+          try {
+            context = truncateForEvent(JSON.stringify(safeContext, null, 2), 4_000);
+          } catch {
+            context = `Tool: ${info.tool.name}; input could not be serialized safely.`;
+          }
+
+          try {
+            const decision = await brain.decide({
+              id: `tool-approval-timeout:${info.toolUseId}`,
+              sessionId: resolveEventSessionId(a.ctx),
+              source: 'tool',
+              question: `The human did not answer within 120 seconds. Should tool "${info.tool.name}" run once?`,
+              context,
+              options: [
+                {
+                  id: 'approve',
+                  label: 'Approve this tool call once',
+                  consequence: 'The pending tool call executes with its submitted arguments.',
+                  risk: approvalBrainRisk(info.riskTier, info.boundaryReason),
+                },
+                {
+                  id: 'reject',
+                  label: 'Reject this tool call',
+                  consequence: 'The tool does not execute and the agent must continue safely.',
+                  risk: 'low',
+                },
+              ],
+              risk: approvalBrainRisk(info.riskTier, info.boundaryReason),
+              fallback: 'ask_human',
+              allowHumanEscalation: false,
+            });
+            const approved = decision.type === 'answer' && decision.optionId === 'approve';
+            settle(
+              approved ? 'yes' : 'no',
+              'brain_timeout',
+              decision.type === 'deny' ? decision.reason : decision.rationale,
+            );
+          } catch (err) {
+            settle(
+              'no',
+              'brain_timeout',
+              `Brain approval failed; denied by default: ${toErrorMessage(err)}`,
+            );
+          }
+        })();
+      }, HUMAN_APPROVAL_TIMEOUT_MS);
+      timeout.unref?.();
+
       a.events.emit('tool.confirm_needed', {
         sessionId: resolveEventSessionId(a.ctx),
         tool: info.tool,
@@ -147,10 +255,10 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
         decisionSource: info.decisionSource,
         riskTier: info.riskTier,
         boundaryReason: info.boundaryReason,
+        deadlineAt,
         ...(writeTargets.length > 0 ? { writeTargets } : {}),
         resolve: (choice) => {
-          signal.removeEventListener('abort', onAbort);
-          resolve(choice);
+          settle(choice);
         },
       });
     });

@@ -36,12 +36,20 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
 function getTool(
   api: MockApi,
   name: string,
-): { execute: (input: unknown) => Promise<Record<string, unknown>> } {
+): {
+  permission?: string;
+  mutating?: boolean;
+  execute: (input: unknown) => Promise<Record<string, unknown>>;
+} {
   const call = api.tools.register.mock.calls.find(
     ([t]: unknown[]) => (t as { name: string }).name === name,
   );
   if (!call) throw new Error(`${name} not registered`);
-  return call[0] as { execute: (input: unknown) => Promise<Record<string, unknown>> };
+  return call[0] as {
+    permission?: string;
+    mutating?: boolean;
+    execute: (input: unknown) => Promise<Record<string, unknown>>;
+  };
 }
 
 let tmp: string;
@@ -72,6 +80,17 @@ describe('context-pins plugin', () => {
     );
     expect(names).toEqual(expect.arrayContaining(['pin_add', 'pin_remove', 'pin_list']));
     expect(api.registerSystemPromptContributor).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires confirmation before changing pinned prompt context', () => {
+    const api = makeApi();
+    contextPinsPlugin.setup(api as never);
+
+    for (const name of ['pin_add', 'pin_remove']) {
+      const tool = getTool(api, name);
+      expect(tool.permission, name).toBe('confirm');
+      expect(tool.mutating, name).toBe(true);
+    }
   });
 
   it('pin_add then contributor injects the fact', async () => {

@@ -151,3 +151,77 @@ describe('DefaultLogger', () => {
     expect(live.length + rotated.length).toBe(101);
   });
 });
+
+/**
+ * WS-SEC-07. This sink writes caller context and full error stacks to a JSONL
+ * file users routinely attach to bug reports, and nothing scrubbed it. Live
+ * feeders exist: `plugin-sdk/src/runtime/llm.ts` passes raw provider
+ * `error.message`, and gateways echo strings like
+ * `Incorrect API key provided: sk-…`.
+ */
+describe('DefaultLogger secret redaction (WS-SEC-07)', () => {
+  let tmp: string;
+
+  beforeEach(async () => {
+    tmp = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-log-scrub-'));
+  });
+
+  afterEach(async () => {
+    await fsp.rm(tmp, { recursive: true, force: true });
+  });
+
+  const KEY = 'sk-abcdefghij0123456789';
+
+  it('redacts a credential in the ctx written to disk', async () => {
+    const logFile = path.join(tmp, 'a.log');
+    const log = new DefaultLogger({ level: 'info', file: logFile });
+
+    log.error('provider call failed', { detail: `Incorrect API key provided: ${KEY}` });
+    await log.flush();
+
+    const raw = fs.readFileSync(logFile, 'utf8');
+    expect(raw).not.toContain(KEY);
+    // The surrounding diagnostic text has to survive.
+    expect(raw).toContain('Incorrect API key provided');
+  });
+
+  it('redacts a credential quoted in an Error stack', async () => {
+    const logFile = path.join(tmp, 'b.log');
+    const log = new DefaultLogger({ level: 'info', file: logFile });
+    const err = new Error(`auth failed for ${KEY}`);
+    err.stack = `${err.message}\n    at call (/app/x.ts:1:1)`;
+
+    log.error('boom', err);
+    await log.flush();
+
+    const raw = fs.readFileSync(logFile, 'utf8');
+    expect(raw).not.toContain(KEY);
+    expect(raw).toContain('at call');
+  });
+
+  it('redacts credentials carried in child bindings', async () => {
+    const logFile = path.join(tmp, 'c.log');
+    const log = new DefaultLogger({ level: 'info', file: logFile }).child({ apiKey: KEY });
+
+    log.info('starting');
+    await log.flush();
+
+    expect(fs.readFileSync(logFile, 'utf8')).not.toContain(KEY);
+  });
+
+  it('redacts on the stderr path too, so the two sinks cannot disagree', () => {
+    const writes: string[] = [];
+    const orig = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: unknown) => {
+      writes.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      new DefaultLogger({ level: 'info' }).error('failed', new Error(`token ${KEY} rejected`));
+    } finally {
+      process.stderr.write = orig;
+    }
+
+    expect(writes.join('')).not.toContain(KEY);
+  });
+});

@@ -53,6 +53,8 @@
     "trustSuggestionTitle": "Suggerimento pattern attendibile",
     "trustSuggestionHint": "Scegliendo Sempre le chiamate corrispondenti verranno aggiunte all'allowlist per questo progetto.",
     "yoloDestructiveNote": "YOLO è attivo. Questo prompt viene comunque mostrato perché la richiesta è stata classificata come distruttiva.",
+    "brainCountdown": "In attesa della tua approvazione · Brain subentrerà tra {{time}}",
+    "brainDeciding": "Tempo scaduto · Brain sta decidendo…",
     "skipApprovalsTitle": "Salta le approvazioni future",
     "skipApprovalsHint": "Abilita la modalità YOLO e l'agente procede senza chiedere. Le operazioni distruttive richiedono comunque conferma.",
     "enableYoloTitle": "Abilita la modalità YOLO (approva automaticamente questa e le future chiamate non distruttive)",

@@ -91,11 +91,14 @@ beforeEach(() => {
   );
   mocks.createFallbackManageTools.mockImplementation((options) => {
     mocks.fallbackOptions = options;
-    return [{ name: 'manage-provider' }, { name: 'manage-model' }];
+    return [
+      { name: 'manage-provider', permission: 'confirm' },
+      { name: 'manage-model', permission: 'confirm' },
+    ];
   });
   mocks.createPluginManagerTool.mockImplementation((options) => {
     mocks.pluginOptions = options;
-    return { name: 'manage-plugin' };
+    return { name: 'manage-plugin', permission: 'confirm' };
   });
 });
 
@@ -104,9 +107,9 @@ describe('registerCliManagementTools', () => {
     const state = harness(false);
 
     expect(state.toolRegistry.register.mock.calls.map(([tool]) => tool)).toEqual([
-      { name: 'manage-provider' },
-      { name: 'manage-model' },
-      { name: 'manage-plugin' },
+      { name: 'manage-provider', permission: 'confirm' },
+      { name: 'manage-model', permission: 'confirm' },
+      { name: 'manage-plugin', permission: 'confirm' },
     ]);
     expect(mocks.fallbackOptions).toEqual(
       expect.objectContaining({

@@ -282,7 +282,7 @@ describe('ConfirmPrompt', () => {
       }),
     );
     const frame = view.lastFrame() ?? '';
-    expect(frame).toContain('skips this and future');
+    expect(frame).toContain('this destructive approval remains');
     view.unmount();
   });
 
@@ -298,7 +298,7 @@ describe('ConfirmPrompt', () => {
       }),
     );
     const frame = view.lastFrame() ?? '';
-    expect(frame).toContain('skips future approvals');
+    expect(frame).toContain('skips future routine approvals');
     view.unmount();
   });
 

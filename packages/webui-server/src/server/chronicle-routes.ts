@@ -5,6 +5,7 @@ import {
   type ChronicleQuery,
   createChronicleProjectAccess,
 } from '@wrongstack/core/chronicle';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { clampLimit } from './ws-payload-validation.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
@@ -65,7 +66,7 @@ export async function handleChronicleRoute(
     } catch (error) {
       ctx.send(ws, {
         type: 'chronicle.error',
-        payload: { message: error instanceof Error ? error.message : String(error) },
+        payload: { message: toErrorMessage(error) },
       });
     }
     return true;
@@ -125,7 +126,7 @@ export async function handleChronicleRoute(
       // node:sqlite unavailable or a corrupt metrics.db — surface, don't crash.
       ctx.send(ws, {
         type: 'chronicle.error',
-        payload: { message: error instanceof Error ? error.message : String(error) },
+        payload: { message: toErrorMessage(error) },
       });
     }
     return true;
@@ -230,7 +231,7 @@ export async function handleChronicleRoute(
   } catch (error) {
     ctx.send(ws, {
       type: 'chronicle.error',
-      payload: { message: error instanceof Error ? error.message : String(error) },
+      payload: { message: toErrorMessage(error) },
     });
     return true;
   }

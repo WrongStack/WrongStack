@@ -85,12 +85,18 @@ function getHook(api: MockApi): HookFn {
 function getTool(
   api: MockApi,
   name: string,
-): { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> } {
+): {
+  permission?: string;
+  mutating?: boolean;
+  execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+} {
   const call = api.tools.register.mock.calls.find(
     ([t]: unknown[]) => (t as { name?: string }).name === name,
   );
   if (!call) throw new Error(`tool not registered: ${name}`);
   return (call as unknown[])[0] as {
+    permission?: string;
+    mutating?: boolean;
     execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
   };
 }
@@ -344,6 +350,15 @@ describe('gitignore-guard PostToolUse hook', () => {
 // ---------------------------------------------------------------------------
 
 describe('gitignore_guard_append tool', () => {
+  it('requires confirmation before changing repository ignore behavior', async () => {
+    const api = makeApi();
+    await plugin.setup(api as never);
+    const tool = getTool(api, 'gitignore_guard_append');
+
+    expect(tool.permission).toBe('confirm');
+    expect(tool.mutating).toBe(true);
+  });
+
   it('appends an explicit pattern and reports alreadyCovered on repeat', async () => {
     const api = makeApi();
     await plugin.setup(api as never);

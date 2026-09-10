@@ -58,6 +58,8 @@ export interface BrainDecisionRequest {
   risk: BrainRisk;
   /** What a non-LLM/default Brain should do when policy cannot decide safely. */
   fallback: BrainFallback;
+  /** False when the caller already exhausted its human wait window. */
+  allowHumanEscalation?: boolean | undefined;
 }
 
 export type BrainDecision =
@@ -349,6 +351,9 @@ export class EscalationRoutingBrainArbiter implements BrainArbiter {
   async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
     const decision = await this.inner.decide(request);
     if (decision.type !== 'ask_human') return decision;
+    if (request.allowHumanEscalation === false) {
+      return terminalPolicyDecision(request, this.getTerminalPolicy?.() ?? 'conservative');
+    }
     if (this.getMode() === 'interactive' && this.queue) {
       return this.queue.requestHumanDecision(request);
     }
@@ -382,6 +387,7 @@ export class HumanEscalatingBrainArbiter implements BrainArbiter {
   async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
     const decision = await this.inner.decide(request);
     if (decision.type !== 'ask_human') return decision;
+    if (request.allowHumanEscalation === false) return terminalPolicyDecision(request);
     return this.queue.requestHumanDecision(request);
   }
 }

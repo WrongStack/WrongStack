@@ -240,6 +240,23 @@ describe('constructor failure', () => {
   });
 });
 
+describe('connection error state', () => {
+  it('redacts constructor errors before exposing them in UI status', async () => {
+    const client = new WrongStackWebSocketClient(URL_);
+    client['shouldReconnect'] = false;
+    const statuses: Array<{ state: string; error?: string }> = [];
+    client.onStatus((status) => statuses.push({ state: status.state, error: status.error }));
+
+    const secret = ['s' + 'k', 'p' + 'roj', '1234567890123456789012345678901234567890'].join('-');
+    FakeWSModule.control.throwOnConstruct = new Error(`provider rejected key ${secret}`);
+
+    await expect(client.connect()).rejects.toThrow(secret);
+    const closed = statuses.find((status) => status.state === 'closed');
+    expect(closed?.error).toContain('provider rejected key');
+    expect(closed?.error).not.toContain(secret);
+  });
+});
+
 describe('inbound frames', () => {
   async function connected() {
     const client = new WrongStackWebSocketClient(URL_);

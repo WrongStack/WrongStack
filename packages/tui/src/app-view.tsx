@@ -153,6 +153,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                 onScrollInfo={onScrollInfo}
                 setSuggestions={setSuggestions}
                 autonomyMode={autonomyLive}
+                nextStepsAutoSubmitLabel={runtime.nextStepsAutoSubmitLabel}
+                nextStepsAutoSubmitDeadlineMs={runtime.nextStepsAutoSubmitDeadlineMs}
                 multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
                 todos={liveTodos}
                 showModelReasoning={

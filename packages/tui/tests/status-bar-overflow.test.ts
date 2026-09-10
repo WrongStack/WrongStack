@@ -117,6 +117,35 @@ describe('nodeText', () => {
 });
 
 describe('StatusBar overflow handling (width-budget)', () => {
+  it('keeps one unpainted column inset on both sides', async () => {
+    const lines = await frameAt(100, {
+      projectName: 'WrongStack',
+      version: '1.0.5',
+    });
+    expect(lines[0]).toMatch(/^ /);
+    // Ink omits trailing blank cells from the frame string. A 99-column row
+    // therefore proves the rightmost content ends one cell before col 100.
+    expect(displayWidth(lines[0] ?? '')).toBe(99);
+  });
+
+  it('publishes click spans and fit budget inside the one-cell inset', async () => {
+    const clickMapRef: { current: StatusBarClickMap | null } = { current: null };
+    const view = renderRealTty(
+      React.createElement(StatusBar, {
+        model: 'anthropic/claude',
+        state: 'idle',
+        projectName: 'WrongStack',
+        clickMapRef,
+      } as StatusBarProps),
+      { columns: 100, rows: 24 },
+    );
+    await settle();
+    const identity = clickMapRef.current?.lines[0];
+    expect(identity?.budget).toBe(98);
+    expect(identity?.spans[0]?.start).toBe(1);
+    view.unmount();
+  });
+
   it('truncates an over-long project name in the rendered frame', async () => {
     const lines = await frameAt(100, { projectName: 'p'.repeat(40) });
     const frame = lines.join('\n');

@@ -144,17 +144,24 @@ function renderToolObject(toolName: string, obj: RecordValue, input: unknown): s
 
   if (toolName === 'grep' && Array.isArray(obj['matches'])) {
     const matches = stringArrayField(obj, 'matches');
+    const mode = stringFromInput(input, 'output_mode');
+    const contentMatchCount =
+      mode === undefined || mode === 'content'
+        ? matches.reduce((total, match) => total + (parseGrepContentLine(match) ? 1 : 0), 0)
+        : undefined;
     return joinSections([
       renderHeader(`grep: ${stringFromInput(input, 'pattern') ?? '<pattern>'}`, {
         path: stringFromInput(input, 'path'),
         glob: stringFromInput(input, 'glob'),
-        mode: stringFromInput(input, 'output_mode'),
-        count: obj['count'],
-        shown: matches.length,
+        mode,
+        // rg -C includes context records and `--` separators in its raw
+        // count. For content output, report the actual visible hit records.
+        count: contentMatchCount ?? obj['count'],
+        shown: contentMatchCount ?? matches.length,
         truncated: obj['truncated'],
         used: obj['used'],
       }),
-      renderGrepMatches(matches, stringFromInput(input, 'output_mode')),
+      renderGrepMatches(matches, mode),
     ]);
   }
 
@@ -465,17 +472,34 @@ function renderGrepMatches(matches: string[], mode: string | undefined): string 
   if (mode === 'files_with_matches') return renderStringList(matches, '(no files)');
   if (mode === 'count') return renderStringList(matches, '(no counts)');
 
-  const groups = new Map<string, string[]>();
+  const groups = new Map<string, Array<{ line: string; text: string; isMatch: boolean }>>();
   const passthrough: string[] = [];
+
+  // ripgrep uses `file:line:text` for hits but `file-line-text` for context
+  // emitted by -C. Discover hit files first so context can be associated
+  // without ambiguously parsing hyphens in either file names or source text.
   for (const match of matches) {
     const parsed = parseGrepContentLine(match);
-    if (!parsed) {
-      passthrough.push(match);
+    if (parsed && !groups.has(parsed.file)) groups.set(parsed.file, []);
+  }
+  const knownFiles = [...groups.keys()].sort((a, b) => b.length - a.length);
+
+  for (const match of matches) {
+    const parsed = parseGrepContentLine(match);
+    if (parsed) {
+      groups.get(parsed.file)?.push({ line: parsed.line, text: parsed.text, isMatch: true });
       continue;
     }
-    const list = groups.get(parsed.file) ?? [];
-    list.push(`${parsed.line}:${parsed.text}`);
-    groups.set(parsed.file, list);
+
+    const context = parseGrepContextLine(match, knownFiles);
+    if (context) {
+      groups.get(context.file)?.push({ line: context.line, text: context.text, isMatch: false });
+      continue;
+    }
+
+    // `rg -C` separates non-adjacent context blocks with this marker. Line
+    // numbers already preserve that information, so forwarding it adds noise.
+    if (match !== '--') passthrough.push(match);
   }
 
   if (groups.size === 0) return renderStringList(matches, '(no matches)');
@@ -485,9 +509,23 @@ function renderGrepMatches(matches: string[], mode: string | undefined): string 
   for (const [file, lines] of groups) {
     fileIndex++;
     if (fileIndex > GREP_FILE_LIMIT) break;
-    const shown = lines.slice(0, GREP_MATCHES_PER_FILE);
+    const matchCount = lines.reduce((total, line) => total + (line.isMatch ? 1 : 0), 0);
+    let seenMatches = 0;
+    let end = lines.length;
+    for (let i = 0; i < lines.length; i++) {
+      if (!lines[i]?.isMatch) continue;
+      seenMatches++;
+      if (seenMatches > GREP_MATCHES_PER_FILE) {
+        end = i;
+        break;
+      }
+    }
+    const shown = lines.slice(0, end);
+    const shownMatchCount = shown.reduce((total, line) => total + (line.isMatch ? 1 : 0), 0);
     sections.push(
-      `${file} (${lines.length} match(es), showing ${shown.length})\n${shown.join('\n')}`,
+      `${file} (${matchCount} match(es), showing ${shownMatchCount})\n${shown
+        .map((line) => `${line.line}${line.isMatch ? ':' : '-'}${line.text}`)
+        .join('\n')}`,
     );
   }
   if (groups.size > GREP_FILE_LIMIT) {
@@ -505,6 +543,19 @@ function parseGrepContentLine(
   const match = GREP_LINE_RE.exec(line);
   if (!match?.[1] || !match[2]) return undefined;
   return { file: match[1], line: match[2], text: match[3] ?? '' };
+}
+
+function parseGrepContextLine(
+  value: string,
+  knownFiles: string[],
+): { file: string; line: string; text: string } | undefined {
+  for (const file of knownFiles) {
+    const prefix = `${file}-`;
+    if (!value.startsWith(prefix)) continue;
+    const match = /^(\d+)-(.*)$/.exec(value.slice(prefix.length));
+    if (match?.[1]) return { file, line: match[1], text: match[2] ?? '' };
+  }
+  return undefined;
 }
 
 function compactDiff(diff: string): string {

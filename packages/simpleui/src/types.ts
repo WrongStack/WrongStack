@@ -134,6 +134,7 @@ export interface PendingConfirm {
   toolName: string;
   input: unknown;
   riskTier?: string | undefined;
+  deadlineAt?: number | undefined;
 }
 
 export interface ToolCallInfo {

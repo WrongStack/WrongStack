@@ -8,6 +8,7 @@ import {
   type SurfaceConnectionState,
   stopConnection,
 } from '@wrongstack/webui-protocol';
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import type { WSClientMessage, WSServerMessage, WSUserMessageImage } from '../types';
 import { streamCoalescer } from './stream-coalescer';
 import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
@@ -82,11 +83,11 @@ class WrongStackWebSocketClientBase {
    * key for the lifetime of the WebUI tab. The entry's stored value is
    * an empty object, so the leak is symbolic — but the unbounded key
    * space is the actual risk, swept here on every insert + on disconnect.
-   * 60s is generous for a human-perceived permission prompt and matches
-   * the typical reconnect window.
+   * 180s outlives the server's 120s human-approval window and leaves room for
+   * Brain to finish deciding before a reconnect/client sweep forgets the id.
    * RAM-leak audit 2026-08-11, MEDIUM.
    */
-  private static readonly PENDING_CONFIRM_TTL_MS = 60_000;
+  private static readonly PENDING_CONFIRM_TTL_MS = 180_000;
   private sessionId: string | null = null;
   /**
    * The session this client is currently waiting to be switched to, or
@@ -333,7 +334,7 @@ class WrongStackWebSocketClientBase {
         });
       } catch (err) {
         if (this.socketGeneration !== gen) return;
-        this.lastErrorText = err instanceof Error ? err.message : String(err);
+        this.lastErrorText = toErrorMessage(err);
         this.setStatus({ state: 'closed', error: this.lastErrorText });
         reject(err);
       }
@@ -441,6 +442,13 @@ class WrongStackWebSocketClientBase {
       this.pendingConfirms.set(payload.id, {
         expiresAtMs: Date.now() + WrongStackWebSocketClientBase.PENDING_CONFIRM_TTL_MS,
       });
+      this.emit(msg);
+      return;
+    }
+
+    if (msg.type === 'tool.confirm_resolved') {
+      const payload = msg.payload as { id?: unknown };
+      if (typeof payload.id === 'string') this.pendingConfirms.delete(payload.id);
       this.emit(msg);
       return;
     }
@@ -561,8 +569,8 @@ class WrongStackWebSocketClientBase {
    * created when a `tool.confirm_needed` message arrives and only
    * removed when the user calls `sendConfirm`; if the user dismisses the
    * prompt UI without responding, the entry would otherwise sit until
-   * the WebUI page is closed. A 60s TTL is generous for a permission
-   * prompt — anything unresolved by then is treated as abandoned.
+   * the WebUI page is closed. The 180s TTL intentionally exceeds the
+   * server-authoritative 120s human window and Brain handoff.
    *
    * Runs inline on each new `tool.confirm_needed` insert (cheap: the
    * map is bounded by the number of prompts the user can have open

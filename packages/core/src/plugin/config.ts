@@ -47,7 +47,22 @@ export function resolvePluginConfig(input: ResolvePluginConfigInput): ResolvedPl
   let configured = false;
   const merge = (value: unknown, source: PluginConfigSource): void => {
     if (!isRecord(value)) return;
-    Object.assign(options, value);
+    // Copy key by key rather than `Object.assign`, and skip the prototype
+    // keys. `Object.assign` copies with [[Set]], so an own `__proto__` key —
+    // which `JSON.parse` does produce — runs the Object.prototype setter and
+    // replaces this object's prototype instead of adding a property.
+    //
+    // The reachability matters: `config` here is the MERGED config, and
+    // in-project `.wrongstack/config.json` feeds into it. That file is
+    // untrusted by this repo's own trust boundary, so the source is not
+    // "trusted layers only". The blast radius is bounded — it would poison
+    // this one plugin's options object, not the global prototype — but the
+    // filter costs nothing and this was the only merge helper in the repo
+    // without one.
+    for (const key of Object.keys(value)) {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+      options[key] = value[key];
+    }
     configured = true;
     if (!sources.includes(source)) sources.push(source);
   };

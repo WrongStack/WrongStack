@@ -460,6 +460,7 @@
         "export { completePartialObject } from './json-repair.js';",
         "export { computeMessageTokens, estimateMessageTokens, estimateRequestTokens, estimateRequestTokensCalibrated, estimateTextTokens, estimateToolDefTokens, estimateToolInputTokens, estimateToolResultTokens, getCalibrationState, type RequestTokenBreakdown, recordActualUsage, resetCalibration, } from './token-estimate.js';",
         "export { createToolOutputSerializer, type ToolOutputSerializerOptions, } from './tool-output-serializer.js';",
+        "export { decodeSessionIdStrict, isSafePathSegment, isSafeSessionId, MAX_PATH_SEGMENT_LENGTH, resolveContainedPath, } from './path-segment.js';",
         "export { defaultHeapLogPath, type HeapDiagnosticFields, type HeapDiagnosticValue, type HeapSample, type HeapWatchdogOptions, startHeapWatchdog, startSharedHeapWatchdog, takeHeapSample, } from './heap-watchdog.js';",
         "export { deriveCachePrefixKey } from './cache-key.js';",
         "export { expandGlob } from './glob-expand.js';",
@@ -467,16 +468,15 @@
         "export { getPerfProfile, indexParallelBatchSize, isFrugalPerf, type PerfProfile, SageCachePragmas, sqliteCachePragmas, tuiStreamFlushMs, useDaemonPerfDefaults, } from './perf-profile.js';",
         "export { hasMeaningfulContent, type MessageRepairReport, type MessageRepairResult, repairToolUseAdjacency, } from './message-invariants.js';",
         "export { isPidAlive } from './pid.js';",
-        "export { isSafePathSegment, MAX_PATH_SEGMENT_LENGTH, resolveContainedPath, } from './path-segment.js';",
         "export { isUlid, ulid } from './ulid.js';",
         "export { mcpQualifiedToolName, mcpServerToolPrefix, sanitizeWireToolName, WIRE_TOOL_NAME_MAX_LENGTH, WIRE_TOOL_NAME_PATTERN, } from './tool-name.js';",
         "export { mergeCustomModelDefs } from './merge-custom-models.js';",
         "export { mergeModelsPayload } from './merge-models-payload.js';",
+        "export { rawErrorMessage, toErrorMessage } from './error.js';",
         "export { readBundledInstructionText, renderInstructionTemplate } from './instruction-file.js';",
         "export { sanitizeTerminalPreview, sanitizeTerminalText } from './terminal-sanitize.js';",
         "export { sessionScopedPath } from './session-scoped-path.js';",
         "export { slugify } from './slug.js';",
-        "export { toErrorMessage } from './error.js';",
         "export { type CoercionResult, coerceAgainstSchema, type ValidationError, type ValidationResult, validateAgainstSchema, } from './json-schema-validate.js';",
         "export { type CompactToolDefinitionForWireOptions, type CompactWireToolDefinition, compactSchemaDescriptions, compactToolDefinitionForWire, normalizeTopLevelToolSchema, type ToolWireDefinitionLike, } from './tool-wire-compact.js';",
         "export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';",
@@ -518,6 +518,7 @@
       },
       "source": "packages/core/src/utils/error.ts",
       "declarations": [
+        "export function rawErrorMessage",
         "export function toErrorMessage"
       ]
     },
@@ -1425,21 +1426,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 41,
-      "sourceLines": 11735
+      "sourceLines": 11740
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 187,
-      "sourceLines": 53204
+      "sourceLines": 53257
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 53,
-      "sourceLines": 12648
+      "sourceLines": 12756
     },
     {
       "directory": "design",
@@ -1488,14 +1489,14 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 1753
+      "sourceLines": 1772
     },
     {
       "directory": "kernel",
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3978
+      "sourceLines": 3989
     },
     {
       "directory": "models",
@@ -1530,7 +1531,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2466
+      "sourceLines": 2481
     },
     {
       "directory": "plugins",
@@ -1572,14 +1573,14 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 7525
+      "sourceLines": 7544
     },
     {
       "directory": "session-catalog",
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 17,
-      "sourceLines": 4987
+      "sourceLines": 4992
     },
     {
       "directory": "skills",
@@ -1627,8 +1628,8 @@
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 68,
-      "sourceLines": 11123
+      "sourceFiles": 69,
+      "sourceLines": 11320
     },
     {
       "directory": "wiring",

@@ -119,7 +119,8 @@ export function Card({
           could not do (its Text side bars only covered each row's first
           line). Round border side char is `│`, so the look is unchanged;
           content width math is identical (innerWidth − 2 for the two border
-          cols). The old flattenChildren-based per-row mapping is retired. */}
+          cols). Ink renders border cells outside the normal Box background,
+          so their backgrounds are set explicitly below. */}
       {useSides ? (
         <Box
           flexDirection="column"
@@ -134,6 +135,13 @@ export function Card({
           paddingX={bodyPadX}
           overflowX="hidden"
           overflowY="hidden"
+          {...(theme.supportsBackground
+            ? {
+                backgroundColor: surface,
+                borderLeftBackgroundColor: surface,
+                borderRightBackgroundColor: surface,
+              }
+            : {})}
         >
           {safeBodyContent}
         </Box>

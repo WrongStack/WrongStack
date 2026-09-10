@@ -312,7 +312,7 @@ const plugin: Plugin = {
         },
         required: ['subject', 'relation', 'object'],
       },
-      permission: 'auto',
+      permission: 'confirm',
       category: 'Memory',
       mutating: true,
       async execute(input: {
@@ -463,7 +463,7 @@ const plugin: Plugin = {
         },
         required: ['id'],
       },
-      permission: 'auto',
+      permission: 'confirm',
       category: 'Memory',
       mutating: true,
       async execute(input: { id: string }) {

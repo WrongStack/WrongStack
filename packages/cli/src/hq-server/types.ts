@@ -136,6 +136,24 @@ export interface HqRouterMutableAuth {
    * the surface fails closed instead of opening up.
    */
   requireAuthFloor?: boolean | undefined;
+  /**
+   * The server's `requireBrowserAuth` option, carried on the state rather than
+   * passed to every gate.
+   *
+   * `hqAuthRequired` takes it as an optional second argument, and five gates
+   * called it with one — `command-handlers`, three in `mailbox-handlers`, and
+   * `mailbox-gateway-manager` — so a public relay did not raise the auth
+   * requirement on those routes. That is the WS-077 drift class the helper's
+   * own docstring warns about, recurring on the same routes. Holding the value
+   * on the state makes the one-argument call correct instead of incomplete.
+   *
+   * Required, not optional, and deliberately so. Optional would mean a second
+   * construction site could omit it and every one-argument gate would silently
+   * read `undefined` — the same drift this field exists to end, one level down.
+   * With `exactOptionalPropertyTypes` the compiler now makes every builder say
+   * what it means, including `undefined`.
+   */
+  requireBrowserAuth: boolean | undefined;
 }
 
 /**

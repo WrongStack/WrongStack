@@ -19,7 +19,7 @@ import type {
   TokenCounter,
 } from '@wrongstack/core/types';
 import { projectLastRequestTokens } from '@wrongstack/core/types/session-timeline';
-import { sessionScopedPath } from '@wrongstack/core/utils';
+import { sessionScopedPath, toErrorMessage } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
 interface SessionResumeContext {
@@ -189,7 +189,7 @@ export async function resumeSession(
    */
   const warnings: string[] = [];
   const warn = (label: string, err: unknown): void => {
-    warnings.push(`${label}: ${err instanceof Error ? err.message : String(err)}`);
+    warnings.push(`${label}: ${toErrorMessage(err)}`);
   };
   // Advanced as the resume walks its steps so the `catch` below can name the
   // step that actually threw. Without it every post-reservation failure —
@@ -227,7 +227,7 @@ export async function resumeSession(
       throw new TypeError('@wrongstack/tui does not export replaySessionMessages');
     }
   } catch (err) {
-    return fail(stage, err instanceof Error ? err.message : String(err));
+    return fail(stage, toErrorMessage(err));
   }
 
   // Resolve before reserving so every contender races on one canonical key.
@@ -245,11 +245,11 @@ export async function resumeSession(
         level: 'error',
         event: 'execution.resume_id_resolve_failed',
         sessionId,
-        message: err instanceof Error ? err.message : String(err),
+        message: toErrorMessage(err),
         timestamp: new Date().toISOString(),
       }),
     );
-    return fail(stage, err instanceof Error ? err.message : String(err));
+    return fail(stage, toErrorMessage(err));
   }
   const previousSessionId = agent.ctx.session?.id;
   /**
@@ -322,7 +322,7 @@ export async function resumeSession(
             level: 'warn',
             event: 'execution.resume_reservation_renew_failed',
             sessionId: canonicalSessionId,
-            message: err instanceof Error ? err.message : String(err),
+            message: toErrorMessage(err),
             timestamp: new Date().toISOString(),
           }),
         );
@@ -422,7 +422,7 @@ export async function resumeSession(
         JSON.stringify({
           level: 'error',
           event: 'execution.resume_journal_flush_failed',
-          message: err instanceof Error ? err.message : String(err),
+          message: toErrorMessage(err),
           timestamp: new Date().toISOString(),
         }),
       );
@@ -515,7 +515,7 @@ export async function resumeSession(
             event: 'execution.resume_model_restore_failed',
             provider: targetProviderId,
             model: targetModel,
-            message: err instanceof Error ? err.message : String(err),
+            message: toErrorMessage(err),
             timestamp: new Date().toISOString(),
           }),
         );
@@ -564,7 +564,7 @@ export async function resumeSession(
             JSON.stringify({
               level: 'error',
               event: 'execution.session_end_append_failed',
-              message: err instanceof Error ? err.message : String(err),
+              message: toErrorMessage(err),
               timestamp: new Date().toISOString(),
             }),
           );
@@ -579,7 +579,7 @@ export async function resumeSession(
               JSON.stringify({
                 level: 'error',
                 event: 'execution.session_close_failed',
-                message: err instanceof Error ? err.message : String(err),
+                message: toErrorMessage(err),
                 timestamp: new Date().toISOString(),
               }),
             );
@@ -672,7 +672,7 @@ export async function resumeSession(
             level: 'error',
             event: 'execution.resume_identity_rollback_failed',
             sessionId: previousSessionId,
-            message: rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr),
+            message: toErrorMessage(rollbackErr),
             timestamp: new Date().toISOString(),
           }),
         );
@@ -714,7 +714,7 @@ export async function resumeSession(
           JSON.stringify({
             level: 'error',
             event: 'execution.resume_post_swap_rollback_failed',
-            message: rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr),
+            message: toErrorMessage(rollbackErr),
             timestamp: new Date().toISOString(),
           }),
         );
@@ -725,7 +725,7 @@ export async function resumeSession(
             JSON.stringify({
               level: 'error',
               event: 'execution.resume_opened_writer_close_failed',
-              message: closeErr instanceof Error ? closeErr.message : String(closeErr),
+              message: toErrorMessage(closeErr),
               timestamp: new Date().toISOString(),
             }),
           );
@@ -743,7 +743,7 @@ export async function resumeSession(
         timestamp: new Date().toISOString(),
       }),
     );
-    const message = err instanceof Error ? err.message : String(err);
+    const message = toErrorMessage(err);
     // ── Live-session conflict: no fallback ──────────────────────────────
     // Another process holds this session's lease — a second `wstack --tui`,
     // the WebUI server, SimpleUI, a REPL. The read-only fallback below is the
@@ -812,7 +812,7 @@ export async function resumeSession(
             level: 'error',
             event: 'execution.resume_readonly_render_failed',
             sessionId: canonicalSessionId,
-            message: renderErr instanceof Error ? renderErr.message : String(renderErr),
+            message: toErrorMessage(renderErr),
             timestamp: new Date().toISOString(),
           }),
         );

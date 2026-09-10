@@ -95,6 +95,22 @@ describe('EscalationRoutingBrainArbiter', () => {
     expect(d).toBe(human);
   });
 
+  it('does not ask the human again after a caller has exhausted its human timeout', async () => {
+    const queue = { requestHumanDecision: vi.fn() };
+    const router = new EscalationRoutingBrainArbiter(
+      stub(askHuman),
+      queue as never as BrainDecisionQueue,
+      () => 'interactive',
+    );
+
+    const d = await router.decide(
+      req({ risk: 'critical', fallback: 'ask_human', allowHumanEscalation: false }),
+    );
+
+    expect(queue.requestHumanDecision).not.toHaveBeenCalled();
+    expect(d.type).toBe('deny');
+  });
+
   it('uses the terminal policy when interactive mode has no queue', async () => {
     const router = new EscalationRoutingBrainArbiter(
       stub(askHuman),

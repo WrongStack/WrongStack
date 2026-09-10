@@ -25,11 +25,11 @@
  * `legacyStartupMarker`, but ACP clients should rely on v1 initialize.
  */
 
-import { timingSafeEqual } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import { isIP, type Socket } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { expandIPv6, writeErr } from '@wrongstack/core/utils';
+import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import type { ACPMessage } from '../types/acp-messages.js';
 import {
   ACPProtocolHandler,
@@ -403,20 +403,6 @@ export class WrongStackACPServer {
 const defaultEchoRunTurn: RunTurn = async (_input, _emit): Promise<RunTurnResult> => {
   return { stopReason: 'end_turn' };
 };
-
-/**
- * Constant-time credential comparison. A length mismatch short-circuits —
- * lengths are not secret — and equal-length inputs go through
- * `timingSafeEqual`, so the token cannot be recovered byte-by-byte from
- * response timing. Mirrors `tokenMatches` in the WebUI server.
- */
-function timingSafeTokenEqual(supplied: string, expected: string): boolean {
-  if (!supplied || !expected) return false;
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
 
 /** True when the request's actual TCP peer is this machine. */
 function isLoopbackPeer(req: { socket: { remoteAddress?: string | undefined } }): boolean {

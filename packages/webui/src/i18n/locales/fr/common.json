@@ -53,6 +53,8 @@
     "trustSuggestionTitle": "Suggestion de motif de confiance",
     "trustSuggestionHint": "Choisir Toujours ajoutera les appels correspondants à la liste blanche pour ce projet.",
     "yoloDestructiveNote": "YOLO est activé. Cette confirmation s'affiche encore car la requête a été classée comme destructrice.",
+    "brainCountdown": "En attente de votre approbation · Brain prend le relais dans {{time}}",
+    "brainDeciding": "Délai écoulé · Brain décide…",
     "skipApprovalsTitle": "Ignorer les futures approbations",
     "skipApprovalsHint": "Activez le mode YOLO et l'agent agit sans demander. Les opérations destructrices continuent de demander confirmation.",
     "enableYoloTitle": "Activer le mode YOLO (auto-approuver cet appel et les futurs appels non destructeurs)",

@@ -21,13 +21,55 @@ import {
 const validationLogger = createValidationLogger('IPC');
 
 /**
+ * True when an `invoke` came from the shell renderer we author ourselves.
+ *
+ * WS-SEC-13: none of the `handle` channels below looked at their sender, while
+ * the three `ipcMain.on` handlers in this same file already resolve one. The
+ * window hosts a second renderer — the WebUI view — whose content is remote
+ * (`http://127.0.0.1:<port>`) and reflects agent and tool output. Nothing there
+ * can reach `invoke` today: the WebUI preload exposes no such bridge, and the
+ * view runs sandboxed with `contextIsolation`. But "unreachable because another
+ * file does not expose it" is not a boundary, and every channel here spawns
+ * runtimes, opens paths, or sends messages into a live agent. Gating at
+ * registration rather than per handler means a channel added later is covered
+ * by construction.
+ */
+function isShellSender(ctx: IpcHandlerContext, senderId: number): boolean {
+  const shell = ctx.getShellView();
+  if (shell === null) return false;
+  const contents = shell.webContents;
+  return !contents.isDestroyed() && contents.id === senderId;
+}
+
+/**
+ * Register an `invoke` channel that only the shell renderer may call.
+ *
+ * A rejected sender throws rather than returning a default: it is not a normal
+ * condition, and a silent default would look to the caller like an empty
+ * result rather than a refusal.
+ */
+function handleShellOnly(
+  ctx: IpcHandlerContext,
+  channel: string,
+  handler: (event: Electron.IpcMainInvokeEvent, ...args: never[]) => unknown,
+): void {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isShellSender(ctx, event.sender.id)) {
+      validationLogger.log(`${channel}: rejected invoke from sender ${event.sender.id}`);
+      throw new Error(`IPC channel ${channel} is restricted to the shell renderer`);
+    }
+    return handler(event, ...(args as never[]));
+  });
+}
+
+/**
  * Register all IPC handlers with validation.
  */
 export function registerIpcHandlers(ctx: IpcHandlerContext): void {
   // State handlers (no validation needed - internal data)
-  ipcMain.handle(IPC.getState, () => ctx.getRuntimeManager().snapshot());
+  handleShellOnly(ctx, IPC.getState, () => ctx.getRuntimeManager().snapshot());
 
-  ipcMain.handle(IPC.getConversation, (_event, runtimeId: unknown) => {
+  handleShellOnly(ctx, IPC.getConversation, (_event, runtimeId: unknown) => {
     const result = validate(runtimeIdSchema, runtimeId);
     if (!result.success) {
       validationLogger.log(`getConversation: ${result.error}`);
@@ -36,13 +78,13 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
     return ctx.getAgentBridge().snapshot(result.data);
   });
 
-  ipcMain.handle(IPC.getWebuiStatus, () => ctx.getWebuiStatus());
+  handleShellOnly(ctx, IPC.getWebuiStatus, () => ctx.getWebuiStatus());
 
   // Sessions under a project in the sidebar tree. Read on demand (when a
   // project row is expanded), never pushed with the state snapshot: a project's
   // history does not change with runtime status, and shipping it on every
   // broadcast is how the snapshot got expensive in the first place.
-  ipcMain.handle(IPC.listProjectSessions, async (_event, root: unknown) => {
+  handleShellOnly(ctx, IPC.listProjectSessions, async (_event, root: unknown) => {
     const result = validate(pathSchema, root);
     if (!result.success) {
       validationLogger.log(`listProjectSessions: ${result.error}`);
@@ -52,41 +94,41 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
   });
 
   // Navigation handlers
-  ipcMain.handle(IPC.navigateWebui, async (_event, command: unknown) => {
+  handleShellOnly(ctx, IPC.navigateWebui, async (_event, command: unknown) => {
     // Command validation is handled by normalizeDesktopWebuiCommand
     return ctx.dispatchWebuiCommand(command);
   });
 
-  ipcMain.handle(IPC.reloadWebui, async () => ctx.reloadActiveWebuiView());
+  handleShellOnly(ctx, IPC.reloadWebui, async () => ctx.reloadActiveWebuiView());
 
   // Shell handlers
-  ipcMain.handle(IPC.setShellSidebarCollapsed, (_event, collapsed: unknown) => {
+  handleShellOnly(ctx, IPC.setShellSidebarCollapsed, (_event, collapsed: unknown) => {
     const result = validateOrDefault(booleanSchema, collapsed, true);
     ctx.setShellSidebarCollapsed(result);
     return true;
   });
 
-  ipcMain.handle(IPC.openSettings, async () => ctx.openSettings());
+  handleShellOnly(ctx, IPC.openSettings, async () => ctx.openSettings());
 
   // Project handlers
-  ipcMain.handle(IPC.openProjectSession, async (_event, runtimeId: unknown) => {
+  handleShellOnly(ctx, IPC.openProjectSession, async (_event, runtimeId: unknown) => {
     const validated = validateOptional(runtimeIdSchema, runtimeId);
     return ctx.openProjectSession(validated);
   });
 
   // projectRootSchema, not pathSchema: this value becomes a spawned agent's
   // working directory, and pathSchema only bounds the string's length.
-  ipcMain.handle(IPC.openProject, async (_event, requestedRoot: unknown) => {
+  handleShellOnly(ctx, IPC.openProject, async (_event, requestedRoot: unknown) => {
     const validated = validateOptional(projectRootSchema, requestedRoot);
     return ctx.openProject(validated);
   });
 
-  ipcMain.handle(IPC.registerProject, async (_event, requestedRoot: unknown) => {
+  handleShellOnly(ctx, IPC.registerProject, async (_event, requestedRoot: unknown) => {
     const validated = validateOptional(projectRootSchema, requestedRoot);
     return ctx.registerProject(validated);
   });
 
-  ipcMain.handle(IPC.unregisterProject, async (_event, root: unknown) => {
+  handleShellOnly(ctx, IPC.unregisterProject, async (_event, root: unknown) => {
     const result = validate(pathSchema, root);
     if (!result.success) {
       validationLogger.log(`unregisterProject: ${result.error}`);
@@ -96,7 +138,7 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
   });
 
   // Runtime handlers
-  ipcMain.handle(IPC.activateRuntime, async (_event, id: unknown) => {
+  handleShellOnly(ctx, IPC.activateRuntime, async (_event, id: unknown) => {
     const result = validate(runtimeIdSchema, id);
     if (!result.success) {
       validationLogger.log(`activateRuntime: ${result.error}`);
@@ -105,7 +147,7 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
     return ctx.activateRuntime(result.data);
   });
 
-  ipcMain.handle(IPC.closeRuntime, async (_event, id: unknown) => {
+  handleShellOnly(ctx, IPC.closeRuntime, async (_event, id: unknown) => {
     const result = validate(runtimeIdSchema, id);
     if (!result.success) {
       validationLogger.log(`closeRuntime: ${result.error}`);
@@ -114,7 +156,7 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
     return ctx.closeRuntime(result.data);
   });
 
-  ipcMain.handle(IPC.sendMessage, async (_event, id: unknown, content: unknown) => {
+  handleShellOnly(ctx, IPC.sendMessage, async (_event, id: unknown, content: unknown) => {
     const idResult = validate(runtimeIdSchema, id);
     if (!idResult.success) {
       validationLogger.log(`sendMessage (id): ${idResult.error}`);
@@ -132,7 +174,7 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
     );
   });
 
-  ipcMain.handle(IPC.abortRuntime, async (_event, id: unknown) => {
+  handleShellOnly(ctx, IPC.abortRuntime, async (_event, id: unknown) => {
     const result = validate(runtimeIdSchema, id);
     if (!result.success) {
       validationLogger.log(`abortRuntime: ${result.error}`);
@@ -144,7 +186,7 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
     );
   });
 
-  ipcMain.handle(IPC.openRuntimeInBrowser, async (_event, id: unknown) => {
+  handleShellOnly(ctx, IPC.openRuntimeInBrowser, async (_event, id: unknown) => {
     const result = validate(runtimeIdSchema, id);
     if (!result.success) {
       validationLogger.log(`openRuntimeInBrowser: ${result.error}`);
@@ -154,7 +196,7 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
     if (url) ctx.openExternal(url);
   });
 
-  ipcMain.handle(IPC.revealRuntimeRoot, async (_event, id: unknown) => {
+  handleShellOnly(ctx, IPC.revealRuntimeRoot, async (_event, id: unknown) => {
     const result = validate(runtimeIdSchema, id);
     if (!result.success) {
       validationLogger.log(`revealRuntimeRoot: ${result.error}`);

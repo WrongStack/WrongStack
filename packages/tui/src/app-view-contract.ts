@@ -85,6 +85,7 @@ interface AppViewRuntime {
   enhanceCountdown: number | null;
   nextStepsAutoSubmitCountdown: number | null;
   nextStepsAutoSubmitLabel: string | null;
+  nextStepsAutoSubmitDeadlineMs: number | null;
   setDraft: (buffer: string, cursor: number) => void;
   focusedBoardId: string | null;
   getCronJobs: () => Promise<CronListResult>;

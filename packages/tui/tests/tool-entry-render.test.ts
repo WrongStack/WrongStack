@@ -37,6 +37,30 @@ describe('<Entry /> tool rendering', () => {
     expect(frame).toContain('const Widget = makeWidget();');
   });
 
+  it('renders serialized grep context with one file heading', () => {
+    const file = 'src/a.ts';
+    const frame = renderEntry({
+      id: 11,
+      kind: 'tool',
+      name: 'grep',
+      durationMs: 18,
+      ok: true,
+      input: { pattern: 'Widget' },
+      output: [
+        'grep: Widget (count=3 shown=3 truncated=false used=rg)',
+        `${file} (1 match(es), showing 1)`,
+        '41-before',
+        '42:const Widget = makeWidget();',
+        '43-after',
+      ].join('\n'),
+    });
+
+    expect(frame.match(/src\/a\.ts/g)).toHaveLength(1);
+    expect(frame).toContain('before');
+    expect(frame).toContain('const Widget = makeWidget();');
+    expect(frame).toContain('after');
+  });
+
   it('renders new-file write diffs with a Write(path) header', () => {
     const frame = renderEntry({
       id: 2,

@@ -634,6 +634,7 @@ export function App(props: AppProps): React.ReactElement {
   const {
     nextStepsAutoSubmitCountdown,
     nextStepsAutoSubmitLabel,
+    nextStepsAutoSubmitDeadlineMs,
     setNextStepsAutoSubmitCountdown,
     setNextStepsAutoSubmitLabel,
     nextStepsAutoSubmitSuggestionRef,
@@ -1043,6 +1044,7 @@ export function App(props: AppProps): React.ReactElement {
         enhanceCountdown,
         nextStepsAutoSubmitCountdown,
         nextStepsAutoSubmitLabel,
+        nextStepsAutoSubmitDeadlineMs,
         setDraft,
         focusedBoardId,
         getCronJobs,

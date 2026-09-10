@@ -52,13 +52,24 @@ function Stop-ProcessTree {
 }
 
 Write-Host "[1/3] Installing dependencies..." -ForegroundColor Green
-pnpm install --silent 2>&1 | Out-Null
+# --ignore-scripts, then rebuild an explicit list. Every one of CI's installs
+# does this; the dev entrypoint was the one path that let an arbitrary
+# dependency's install lifecycle run, which is the machine where a compromised
+# postinstall would find real credentials. The list matches `pnpm rebuild` in
+# .github/workflows/ci.yml and `allowBuilds` in pnpm-workspace.yaml — keep the
+# three in step.
+pnpm install --ignore-scripts --silent 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    pnpm install
+    pnpm install --ignore-scripts
     if ($LASTEXITCODE -ne 0) {
         Write-Host "pnpm install failed (exit $LASTEXITCODE)" -ForegroundColor Red
         exit 1
     }
+}
+pnpm rebuild electron-winstaller esbuild node-pty
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Native dependency rebuild failed (exit $LASTEXITCODE)" -ForegroundColor Red
+    exit 1
 }
 
 Write-Host "[2/3] Building WebUI package (frontend + backend)..." -ForegroundColor Green

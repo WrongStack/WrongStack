@@ -11,6 +11,7 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { bindProjectEndpoint } from '@wrongstack/persistence';
+import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import { EventBus } from '../kernel/events.js';
 import { restrictFilePermissions } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
@@ -351,7 +352,11 @@ async function dispatch(op: MailboxServerOperationName, rawArgs: unknown): Promi
  */
 function checkAuthToken(state: ClientState, message: MailboxProjectServerClientMessage): boolean {
   if (message.type === 'heartbeat') return true;
-  if (message.authToken === authToken) return true;
+  // Constant-time: `===` returns at the first differing byte, so its timing
+  // leaks the shared-prefix length. This was the FIFTH such daemon — the audit
+  // named four, and this one only surfaced when the wiring test below was
+  // written, which is the argument for having the test at all.
+  if (timingSafeTokenEqual(message.authToken, authToken)) return true;
   send(state, {
     type: 'response',
     id: message.id,

@@ -53,6 +53,8 @@
     "trustSuggestionTitle": "Sugerencia de patrón de confianza",
     "trustSuggestionHint": "Elegir Siempre añadirá a la lista de permitidas las llamadas coincidentes para este proyecto.",
     "yoloDestructiveNote": "YOLO está activado. Este aviso se sigue mostrando porque la solicitud se clasificó como destructiva.",
+    "brainCountdown": "Esperando tu aprobación · Brain tomará el control en {{time}}",
+    "brainDeciding": "Tiempo agotado · Brain está decidiendo…",
     "skipApprovalsTitle": "Omitir aprobaciones futuras",
     "skipApprovalsHint": "Activa el modo YOLO y el agente ejecuta sin preguntar. Las operaciones destructivas siguen solicitando confirmación.",
     "enableYoloTitle": "Activar modo YOLO (aprobar automáticamente esta y futuras llamadas no destructivas)",

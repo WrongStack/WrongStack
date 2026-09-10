@@ -1,4 +1,5 @@
 import type { SystemInstructionVariant } from '@wrongstack/core/agent';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type { ConfigStore } from '@wrongstack/core/types';
 import { getProcessRegistry } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
@@ -199,7 +200,7 @@ export async function handlePrefsUpdate(
     try {
       await ctx.setSubagentsAllowed(payload['subagentsAllowed'], sessionId);
     } catch (err) {
-      sendResult(ctx, ws, false, err instanceof Error ? err.message : String(err));
+      sendResult(ctx, ws, false, toErrorMessage(err));
       handlePrefsGet(ctx, ws, sessionId);
       return;
     }
@@ -304,7 +305,7 @@ export async function handlePrefsUpdate(
         ws,
         false,
         `System prompt saved, but the live prompt could not be rebuilt: ${
-          err instanceof Error ? err.message : String(err)
+          toErrorMessage(err)
         }`,
       );
     }

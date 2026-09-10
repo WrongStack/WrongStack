@@ -1,7 +1,7 @@
-import { Box, Text, useInput } from '../ink.js';
 import { unifiedDiff, writeOut } from '@wrongstack/core/utils';
 import React from 'react';
 import { langFromPath } from '../highlight.js';
+import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { DiffBlock, parseUnifiedDiff } from './history/code-block.js';
 
@@ -12,7 +12,7 @@ interface ConfirmPromptProps {
   input: unknown;
   suggestedPattern: string;
   onDecision: (decision: ConfirmDecision) => void;
-  /** Enable YOLO mode (capital Y). Approves the current call. */
+  /** Enable YOLO mode (capital Y). Destructive current calls remain pending. */
   onEnableYolo: () => void;
   /** Whether this call was classified destructive. */
   destructive?: boolean;
@@ -276,7 +276,10 @@ export function ConfirmPrompt({
               Y
             </Text>{' '}
             to enable YOLO mode
-            {destructive ? ' (skips this and future approvals)' : ' (skips future approvals)'}.
+            {destructive
+              ? ' (this destructive approval remains)'
+              : ' (skips future routine approvals)'}
+            .
           </Text>
         </Box>
       ) : null}

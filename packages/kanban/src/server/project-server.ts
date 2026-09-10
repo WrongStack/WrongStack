@@ -17,6 +17,7 @@ import * as net from 'node:net';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { atomicWrite, bindProjectEndpoint, restrictFilePermissions } from '@wrongstack/persistence';
+import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
 import { StaleWriteError } from '../manager/lifecycle-error.js';
 import * as kanban from '../manager.js';
@@ -571,7 +572,11 @@ function errorFromThrown(value: unknown): KanbanErrorResponse['error'] {
 function processRequest(state: ClientState, req: KanbanRequest): void {
   state.lastSeenAt = Date.now();
   // WS-027: prove you could read the owner-only metadata file before acting.
-  if (req.authToken !== authToken) {
+  // WS-SEC-LOW: `!==` on a secret returns at the first differing byte, so
+  // its timing leaks the shared-prefix length. Every other credential
+  // surface in the repo already compares in constant time; these four IPC
+  // daemons were the ones that did not.
+  if (!timingSafeTokenEqual(req.authToken, authToken)) {
     sendFrame(state.socket, {
       id: req.id,
       error: {

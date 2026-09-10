@@ -36,6 +36,11 @@ import { sddLifecycleEntry } from './sdd-lifecycle-entry.js';
 const ESC_DOUBLE_PRESS_MS = 1000;
 const INPUT_PROMPT = DEFAULT_INPUT_PROMPT;
 
+/** Keyboard activity means the user has taken control of an armed automatic turn. */
+export function stopNextStepsAutoSubmitOnKey(cancel: () => void): void {
+  cancel();
+}
+
 interface AppKeyHandlerOptions {
   state: State;
   dispatch: Dispatch<Action>;
@@ -232,6 +237,12 @@ export function createAppKeyHandler(
   };
 
   const handleKey = async (input: string, key: KeyEvent) => {
+    // Any key is an explicit user takeover. Stop both the final-ten-second
+    // sweep and its armed submit before routing the key, including keys owned
+    // by overlays/navigation and Ctrl+C. The cancel callback is a no-op when
+    // no next-step countdown exists.
+    stopNextStepsAutoSubmitOnKey(cancelNextStepsCountdown);
+
     // ── Ctrl+C: THE unconditional escape hatch ────────────────────────
     // Raw-mode terminals (ConPTY/Windows, and any tty in raw mode) deliver
     // Ctrl+C as KEY DATA — no SIGINT is ever generated — so it must be
@@ -966,7 +977,7 @@ export function createAppKeyHandler(
       // StatusBar publishes on every render (spans derived from the SAME
       // segment nodes PowerlineRail draws — see StatusBarClickMap). A press
       // only — drags never open a picker. Spans are 0-based from the bar's
-      // left edge, so screen col = span.start + 1.
+      // left edge (including its one-cell inset), so screen col = start + 1.
       if (
         mouseMode &&
         key.mouse?.kind === 'press' &&

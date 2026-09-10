@@ -127,6 +127,7 @@ export interface PendingConfirm {
   decisionSource?: string | undefined;
   riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
   boundaryReason?: string | undefined;
+  deadlineAt?: number | undefined;
 }
 
 function createLaneData(): ChatLaneData {

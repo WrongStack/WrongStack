@@ -89,6 +89,24 @@ export interface ApiRouterDeps {
   getMemoryStore?: (() => import('@wrongstack/core/types').MemoryPort | undefined) | undefined;
 }
 
+/**
+ * Resolve a session id from a route capture, answering 400 and returning
+ * `null` when it is not usable.
+ *
+ * One helper rather than five inline checks: the five routes below take the
+ * same shape of input, and an inconsistent one is how the validating and
+ * non-validating `decodeSessionId` came to coexist in the first place.
+ */
+function sessionIdOrReject(raw: string, res: http.ServerResponse): string | null {
+  const sessionId = decodeSessionId(raw);
+  if (sessionId === null) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid session id' }));
+    return null;
+  }
+  return sessionId;
+}
+
 export async function handleApiRoutes(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -135,7 +153,9 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return true;
     }
-    await handleApiSessionAgents(res, deps.globalRoot, decodeSessionId(agentsMatch[1]!));
+    const sessionId = sessionIdOrReject(agentsMatch[1]!, res);
+    if (sessionId === null) return true;
+    await handleApiSessionAgents(res, deps.globalRoot, sessionId);
     return true;
   }
 
@@ -148,7 +168,9 @@ export async function handleApiRoutes(
     }
     const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '200', 10);
     const limit = Math.min(500, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 200));
-    await handleApiSessionEvents(res, deps.globalRoot, decodeSessionId(eventsMatch[1]!), limit);
+    const sessionId = sessionIdOrReject(eventsMatch[1]!, res);
+    if (sessionId === null) return true;
+    await handleApiSessionEvents(res, deps.globalRoot, sessionId, limit);
     return true;
   }
 
@@ -159,7 +181,9 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return true;
     }
-    await handleApiSessionMessage(res, req, deps.globalRoot, decodeSessionId(msgMatch[1]!));
+    const sessionId = sessionIdOrReject(msgMatch[1]!, res);
+    if (sessionId === null) return true;
+    await handleApiSessionMessage(res, req, deps.globalRoot, sessionId);
     return true;
   }
 
@@ -170,7 +194,9 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return true;
     }
-    await handleApiSessionMailbox(res, deps.globalRoot, decodeSessionId(mailboxMatch[1]!));
+    const sessionId = sessionIdOrReject(mailboxMatch[1]!, res);
+    if (sessionId === null) return true;
+    await handleApiSessionMailbox(res, deps.globalRoot, sessionId);
     return true;
   }
 
@@ -181,7 +207,9 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return true;
     }
-    await handleApiSessionInterrupt(res, req, deps.globalRoot, decodeSessionId(interruptMatch[1]!));
+    const sessionId = sessionIdOrReject(interruptMatch[1]!, res);
+    if (sessionId === null) return true;
+    await handleApiSessionInterrupt(res, req, deps.globalRoot, sessionId);
     return true;
   }
 

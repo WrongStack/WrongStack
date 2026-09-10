@@ -483,6 +483,7 @@ export type Action =
   | { type: 'clearInputHistory' }
   | { type: 'confirmOpen'; info: State['confirmQueue'][0] }
   | { type: 'confirmClose' }
+  | { type: 'confirmResolved'; toolUseId: string }
   | { type: 'confirmClearAll' }
   | { type: 'shellCommandWarningOpen'; info: NonNullable<State['shellCommandWarning']> }
   | { type: 'shellCommandWarningClose' }

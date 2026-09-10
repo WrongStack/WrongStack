@@ -249,6 +249,9 @@ importers:
       '@wrongstack/core':
         specifier: workspace:*
         version: link:../core
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

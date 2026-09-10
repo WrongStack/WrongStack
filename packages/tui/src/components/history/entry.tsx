@@ -2,7 +2,7 @@ import type { TodoItem } from '@wrongstack/core/agent';
 import { hasOpenTodos } from '@wrongstack/core/utils';
 import type { ParsedNextStep } from '@wrongstack/tools/next-steps';
 import { parseNextSteps } from '@wrongstack/tools/next-steps';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { MEMORY_GATE_DEFAULTS } from '../../history-entry.js';
 import { Box, Text } from '../../ink.js';
 import { sanitizeTerminalText } from '../../terminal-width.js';
@@ -29,6 +29,104 @@ import { INFO_PREFIX, USER_LABEL } from './wrap-geometry.js';
 
 export { councilHeadline, councilSeatLine } from './entry-helpers.js';
 
+export const NEXT_STEP_SWEEP_DURATION_MS = 10_000;
+
+/** Number of completed glyphs in the final ten-second auto-submit sweep. */
+export function nextStepSweepGlyphCount(
+  glyphCount: number,
+  deadlineMs: number,
+  nowMs: number,
+): number {
+  if (glyphCount <= 0) return 0;
+  const elapsed = nowMs - (deadlineMs - NEXT_STEP_SWEEP_DURATION_MS);
+  return Math.max(
+    0,
+    Math.min(glyphCount, Math.floor((elapsed / NEXT_STEP_SWEEP_DURATION_MS) * glyphCount)),
+  );
+}
+
+export function nextStepSweepParts(
+  text: string,
+  deadlineMs: number,
+  nowMs: number,
+): { lit: string; cursor: string; pending: string } {
+  const glyphs = Array.from(text);
+  const litGlyphs = nextStepSweepGlyphCount(glyphs.length, deadlineMs, nowMs);
+  return {
+    lit: glyphs.slice(0, litGlyphs).join(''),
+    cursor: glyphs[litGlyphs] ?? '',
+    pending: glyphs.slice(litGlyphs + (litGlyphs < glyphs.length ? 1 : 0)).join(''),
+  };
+}
+
+/** Find the newest rendered panel that owns the armed suggestion label. */
+export function findArmedNextStepsEntryId(
+  entries: readonly HistoryEntry[],
+  label: string | null | undefined,
+): number | null {
+  const target = label?.trim();
+  if (!target) return null;
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const entry = entries[index];
+    if (entry?.kind !== 'assistant' || entry.final !== true) continue;
+    if (parseNextSteps(entry.text, true).steps.some((step) => step.text.trim() === target)) {
+      return entry.id;
+    }
+  }
+  return null;
+}
+
+function AnimatedNextStepText({
+  text,
+  deadlineMs,
+}: {
+  text: string;
+  deadlineMs: number;
+}): React.ReactElement {
+  const safeText = sanitizeTerminalText(text);
+  const glyphs = useMemo(() => Array.from(safeText), [safeText]);
+  const [frameNowMs, setFrameNowMs] = useState(Date.now);
+  const litGlyphs = nextStepSweepGlyphCount(glyphs.length, deadlineMs, frameNowMs);
+  const sweep = nextStepSweepParts(safeText, deadlineMs, frameNowMs);
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const update = (): void => {
+      const now = Date.now();
+      const nextLit = nextStepSweepGlyphCount(glyphs.length, deadlineMs, now);
+      setFrameNowMs(now);
+      if (nextLit >= glyphs.length || now >= deadlineMs) return;
+
+      const sweepStart = deadlineMs - NEXT_STEP_SWEEP_DURATION_MS;
+      const nextBoundary =
+        now < sweepStart
+          ? sweepStart
+          : sweepStart + ((nextLit + 1) / Math.max(1, glyphs.length)) * NEXT_STEP_SWEEP_DURATION_MS;
+      timeout = setTimeout(update, Math.max(16, nextBoundary - now));
+    };
+    update();
+    return () => clearTimeout(timeout);
+  }, [deadlineMs, glyphs.length]);
+
+  if (frameNowMs < deadlineMs - NEXT_STEP_SWEEP_DURATION_MS) return <Text>{safeText}</Text>;
+
+  return (
+    <Text>
+      <Text bold color={theme.success}>
+        {sweep.lit}
+      </Text>
+      {litGlyphs < glyphs.length ? (
+        <>
+          <Text bold color={theme.warn} inverse>
+            {sweep.cursor}
+          </Text>
+          <Text color={theme.textSecondary}>{sweep.pending}</Text>
+        </>
+      ) : null}
+    </Text>
+  );
+}
+
 // ── Entry ──
 
 export const Entry = React.memo(function Entry({
@@ -37,6 +135,8 @@ export const Entry = React.memo(function Entry({
   termHeight,
   setSuggestions,
   autonomyMode,
+  nextStepsAutoSubmitLabel,
+  nextStepsAutoSubmitDeadlineMs,
   multiDiffSummaryThreshold,
   todos,
   showModelReasoning,
@@ -51,6 +151,10 @@ export const Entry = React.memo(function Entry({
   setSuggestions?: ((steps: string[]) => void) | undefined;
   /** Current autonomy mode — when 'auto', first step shows an auto marker. */
   autonomyMode?: string | undefined;
+  /** Exact armed suggestion label; identifies the row that will be submitted. */
+  nextStepsAutoSubmitLabel?: string | null | undefined;
+  /** Exact deadline; drives a character-by-character sweep during its final 10 seconds. */
+  nextStepsAutoSubmitDeadlineMs?: number | null | undefined;
   /** User-tunable cutoff for the multi-file diff summary footer. Passes
    *  through to `formatMultiDiffSummary`; `undefined` means "use default". */
   multiDiffSummaryThreshold?: number | undefined;
@@ -184,7 +288,15 @@ export const Entry = React.memo(function Entry({
                 <Box key={s.index} flexDirection="row" marginTop={0}>
                   <Text>
                     <Text bold color={theme.accent}>{`  ${s.index}. `}</Text>
-                    <Text>{sanitizeTerminalText(s.text)}</Text>
+                    {nextStepsAutoSubmitDeadlineMs != null &&
+                    nextStepsAutoSubmitLabel?.trim() === s.text.trim() ? (
+                      <AnimatedNextStepText
+                        text={s.text}
+                        deadlineMs={nextStepsAutoSubmitDeadlineMs}
+                      />
+                    ) : (
+                      <Text>{sanitizeTerminalText(s.text)}</Text>
+                    )}
                     {s.auto ? (
                       <Text color={theme.accent} dimColor>
                         {' '}

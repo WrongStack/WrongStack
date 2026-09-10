@@ -13,6 +13,7 @@ import {
   recoverStaleTaskAssignments,
   resolveGateEnforcement,
 } from '@wrongstack/kanban';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { systemSessionId } from '@wrongstack/primitives';
 import { publishKanbanBoard } from './kanban-broadcast.js';
 
@@ -279,7 +280,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     } catch (error) {
       clearTimeout(watchdog);
       agentRunning.delete(board.id);
-      const message = error instanceof Error ? error.message : String(error);
+      const message = toErrorMessage(error);
       deps.log?.(`[KanbanSupervisor] ${board.id}: ${message}`);
       publish({ ...snapshot, status: 'error', error: message });
     }

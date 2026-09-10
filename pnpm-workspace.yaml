@@ -73,10 +73,15 @@ onlyBuiltDependencies:
 # `minimumReleaseAgeExclude` below was already present but had nothing to
 # exclude from — the cooldown itself was never defined (WS-039).
 minimumReleaseAge: 1440
+# Each entry here is a standing hole in that cooldown, so it is only
+# acceptable while it is doing a job. Three entries (electron@43.0.0,
+# ai@7.0.73, @ai-sdk/gateway@4.0.59) had outlived the versions they were
+# written for — the lockfile had moved to 43.6.0 / 7.0.77 / 4.0.62 — so they
+# authorised nothing anyone needed while waiting for those exact version
+# strings to reappear and skip the delay with no review. Removed 2026-09-10
+# and pinned by `build-allowlist-freshness.test.ts`, which now fails on a
+# stale entry the way it already did for `allowBuilds`.
 minimumReleaseAgeExclude:
-  - electron@43.0.0
   - "@agentclientprotocol/sdk@1.4.0"
   - "@datadog/pprof@5.18.1"
-  - "ai@7.0.73"
-  - "@ai-sdk/gateway@4.0.59"
 patchedDependencies: { ink@7.1.1: patches/ink@7.1.1.patch }

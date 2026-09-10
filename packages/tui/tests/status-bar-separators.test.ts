@@ -317,7 +317,7 @@ describe('StatusBar chip separators', () => {
     expect(frame).toContain('∞ AUTO');
     expect(frame).toContain('▣ proj');
     const [line1 = '', line2 = '', line3 = ''] = frame.split('\n');
-    expect(line1).toMatch(/^▣ proj.*anthropic\/claude/);
+    expect(line1).toMatch(/^ ▣ proj.*anthropic\/claude/);
     expect(line2).toContain('● idle');
     expect(line2).not.toContain('AUTO');
     expect(line3).toContain('∞ AUTO');
@@ -347,7 +347,7 @@ describe('StatusBar chip separators', () => {
     const line = frame.split('\n').find((l) => l.includes('todos')) ?? '';
     expect(line).toContain('todos');
     // On line 3, todos is the first chip, so there is no transition before it.
-    expect(line).toMatch(/^todos/);
+    expect(line).toMatch(/^ todos/);
   });
 
   it('renders the run-state band in order: state, YOLO, autonomy', () => {

@@ -187,9 +187,6 @@
       "HQ_STALE_SNAPSHOT_MS",
       "reapStaleClientState"
     ],
-    "packages/cli/src/hq-server/utils.ts": [
-      "isSafeSessionId"
-    ],
     "packages/cli/src/hq-service.ts": [
       "renderHqServiceAssets"
     ],
@@ -1172,6 +1169,9 @@
       "DIFF_LINE_SAFETY_CAP",
       "TOOL_DIFF_BROWSER_SRC"
     ],
+    "packages/tui/src/app-key-handler.ts": [
+      "stopNextStepsAutoSubmitOnKey"
+    ],
     "packages/tui/src/app-ui-state.ts": [
       "effectiveShowSidebar",
       "isPickerOverlayOpen",
@@ -1241,6 +1241,11 @@
     ],
     "packages/tui/src/components/history/copy-icon.ts": [
       "isInspectableEntry"
+    ],
+    "packages/tui/src/components/history/entry.tsx": [
+      "NEXT_STEP_SWEEP_DURATION_MS",
+      "nextStepSweepGlyphCount",
+      "nextStepSweepParts"
     ],
     "packages/tui/src/components/history/replay.ts": [
       "replaySessionEvents"
@@ -1688,7 +1693,8 @@
       "handleIterationStarted",
       "handleRunResult",
       "handleSessionRunState",
-      "handleToolConfirmNeeded"
+      "handleToolConfirmNeeded",
+      "handleToolConfirmResolved"
     ],
     "packages/webui/src/hooks/ws-handlers/files-mailbox-handlers.ts": [
       "debouncedRefresh",

@@ -1,3 +1,4 @@
+import { scrubErrorText } from '../security/error-sanitize.js';
 import { writeErr } from './term.js';
 
 /**
@@ -91,7 +92,14 @@ export function installCrashShield(options: CrashShieldOptions = {}): () => void
   const report = (kind: string, reason: unknown): void => {
     try {
       const detail = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason);
-      write(`[wrongstack] ${kind} (recovered — please report): ${detail}\n`);
+      // WS-SEC-08: this text is printed under an explicit "please report"
+      // banner — the one string in the process most likely to be pasted into a
+      // public issue — and it was the raw stack. A provider error that quotes
+      // back `Authorization: Bearer sk-…`, or a connection string with an
+      // inline password, went out verbatim. `scrubErrorText` also rewrites the
+      // home directory to `~`, keeping the OS account name out of a report the
+      // user is being actively asked to publish.
+      write(`[wrongstack] ${kind} (recovered — please report): ${scrubErrorText(detail)}\n`);
     } catch {
       // stderr itself is broken; nothing useful left to do.
     }

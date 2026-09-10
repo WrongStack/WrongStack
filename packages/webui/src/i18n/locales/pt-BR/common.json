@@ -53,6 +53,8 @@
     "trustSuggestionTitle": "Sugestão de padrão de confiança",
     "trustSuggestionHint": "Escolher Sempre vai permitir chamadas correspondentes para este projeto.",
     "yoloDestructiveNote": "YOLO está ativado. Esta confirmação ainda é exibida porque a solicitação foi classificada como destrutiva.",
+    "brainCountdown": "Aguardando sua aprovação · Brain assume em {{time}}",
+    "brainDeciding": "Tempo esgotado · Brain está decidindo…",
     "skipApprovalsTitle": "Pular aprovações futuras",
     "skipApprovalsHint": "Ative o modo YOLO e o agente executará sem perguntar. Operações destrutivas ainda exigem confirmação.",
     "enableYoloTitle": "Ativar modo YOLO (aprovar automaticamente esta e futuras chamadas não destrutivas)",

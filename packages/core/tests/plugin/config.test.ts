@@ -192,3 +192,54 @@ describe('plugin enablement precedence', () => {
     ).toEqual({ enabled: false, source: 'feature-flag' });
   });
 });
+
+describe('resolvePluginConfig prototype-key filtering', () => {
+  /**
+   * `resolvePluginConfig` used `Object.assign(options, value)`, the only merge
+   * helper in the repo without a prototype-key filter. `Object.assign` copies
+   * with [[Set]], so an OWN `__proto__` key — which `JSON.parse` produces, as
+   * the first assertion below shows — invokes the Object.prototype setter and
+   * replaces the target's prototype instead of adding a property.
+   *
+   * The audit recorded this as "reachable only from trusted layers". It is not:
+   * `config` is the merged config and in-project `.wrongstack/config.json`
+   * feeds into it, which this repo's trust boundary treats as untrusted.
+   */
+  it('JSON.parse really does produce an own __proto__ key', () => {
+    // The premise the rest of this block rests on. If a future runtime stops
+    // doing this, these tests would pass vacuously.
+    const parsed = JSON.parse('{"a":1,"__proto__":{"isAdmin":true}}') as Record<string, unknown>;
+    expect(Object.hasOwn(parsed, '__proto__')).toBe(true);
+    expect(Object.keys(parsed)).toContain('__proto__');
+  });
+
+  it('does not let a config-supplied __proto__ reach the resolved options', () => {
+    const hostile = JSON.parse('{"real":1,"__proto__":{"isAdmin":true}}') as Record<
+      string,
+      unknown
+    >;
+    const resolved = resolvePluginConfig({
+      name: 'demo',
+      config: { plugins: { demo: hostile } as never },
+    });
+
+    expect(Object.getPrototypeOf(resolved.options)).toBe(Object.prototype);
+    expect((resolved.options as { isAdmin?: unknown }).isAdmin).toBeUndefined();
+    // The legitimate key still merges — the filter must not be a blanket drop.
+    expect(resolved.options['real']).toBe(1);
+  });
+
+  it('drops constructor and prototype keys too', () => {
+    const hostile = JSON.parse(
+      '{"keep":1,"constructor":{"x":1},"prototype":{"y":2}}',
+    ) as Record<string, unknown>;
+    const resolved = resolvePluginConfig({
+      name: 'demo',
+      config: { plugins: { demo: hostile } as never },
+    });
+
+    expect(Object.hasOwn(resolved.options, 'constructor')).toBe(false);
+    expect(Object.hasOwn(resolved.options, 'prototype')).toBe(false);
+    expect(resolved.options['keep']).toBe(1);
+  });
+});

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sendConfirm = vi.hoisted(() => vi.fn());
@@ -47,7 +47,7 @@ describe('ConfirmDialog YOLO behavior', () => {
     expect(useUIStore.getState().showConfirmDialog).toBe(false);
   });
 
-  it('auto-approves destructive prompts when YOLO turns on', async () => {
+  it('keeps destructive prompts visible when YOLO turns on', async () => {
     render(<ConfirmDialog />);
 
     act(() => {
@@ -62,10 +62,9 @@ describe('ConfirmDialog YOLO behavior', () => {
       useLocalPrefs.getState().set({ yolo: true });
     });
 
-    await waitFor(() => {
-      expect(sendConfirm).toHaveBeenCalledWith('confirm_2', 'yes');
-    });
-    expect(useUIStore.getState().showConfirmDialog).toBe(false);
+    await Promise.resolve();
+    expect(sendConfirm).not.toHaveBeenCalled();
+    expect(useUIStore.getState().showConfirmDialog).toBe(true);
   });
 
   it('offers an "Enable YOLO" CTA when yolo is off; clicking it enables YOLO and auto-approves the prompt', async () => {
@@ -99,5 +98,26 @@ describe('ConfirmDialog YOLO behavior', () => {
     await waitFor(() => {
       expect(sendConfirm).toHaveBeenCalledWith('confirm_3', 'yes');
     });
+  });
+
+  it('keeps long arguments inside viewport-bounded scroll regions and shows the Brain deadline', () => {
+    render(<ConfirmDialog />);
+
+    act(() => {
+      useUIStore.getState().showConfirm({
+        id: 'confirm-layout',
+        toolName: 'exec',
+        input: { command: 'node', args: Array.from({ length: 200 }, (_, i) => `arg-${i}`) },
+        suggestedPattern: 'node *',
+        riskTier: 'destructive',
+        deadlineAt: Date.now() + 120_000,
+      });
+    });
+
+    expect(screen.getByRole('dialog').className).toContain('max-h-[calc(100dvh-1rem)]');
+    expect(screen.getByRole('dialog').className).toContain('!p-0');
+    expect(screen.getByTestId('confirm-scroll-region').className).toContain('overflow-y-auto');
+    expect(screen.getByTestId('confirm-args-preview').className).toContain('overflow-auto');
+    expect(screen.getByText(/Brain takes over in/)).toBeTruthy();
   });
 });

@@ -12,6 +12,7 @@ import * as fsp from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { bindProjectEndpoint } from '@wrongstack/persistence';
+import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import { restrictFilePermissions } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
@@ -592,7 +593,11 @@ async function handleMessage(
   message: ChronicleProjectServerClientMessage,
 ): Promise<void> {
   // WS-027: prove you could read the owner-only metadata file before acting.
-  if (message.authToken !== authToken) {
+  // WS-SEC-LOW: `!==` on a secret returns at the first differing byte, so
+  // its timing leaks the shared-prefix length. Every other credential
+  // surface in the repo already compares in constant time; these four IPC
+  // daemons were the ones that did not.
+  if (!timingSafeTokenEqual(message.authToken, authToken)) {
     send(state, {
       type: 'response',
       id: message.id,

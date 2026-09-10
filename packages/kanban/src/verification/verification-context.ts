@@ -29,35 +29,37 @@ import type { KanbanBoard, KanbanTask } from '../types.js';
 import {
   BoundedProcessOutput,
   buildAllowlist,
-  commandAllowlistFromEnv,
   type CommandAllowlistConfig,
+  commandAllowlistFromEnv,
   DEFAULT_ALLOWED_COMMANDS,
   DEFAULT_BLOCKED_COMMANDS,
   extractBaseCommand,
   MAX_PROCESS_OUTPUT_BYTES,
   normalizeBaseCommand,
   parseCommandArguments,
+  parseConstrainedPnpmExec,
   SHELL_OPERATOR_RE,
-  validateCommand,
   VERIFIER_COMMANDS_ENV,
+  validateCommand,
 } from './command-security.js';
 import { parseGitNameStatus, parseGitNumstat, tryParseTestJson } from './test-output-parser.js';
 
 export {
   BoundedProcessOutput,
-  commandAllowlistFromEnv,
   type CommandAllowlistConfig,
+  commandAllowlistFromEnv,
   DEFAULT_ALLOWED_COMMANDS,
   DEFAULT_BLOCKED_COMMANDS,
   extractBaseCommand,
   MAX_PROCESS_OUTPUT_BYTES,
   normalizeBaseCommand,
   parseCommandArguments,
+  parseConstrainedPnpmExec,
   parseGitNameStatus,
   parseGitNumstat,
   SHELL_OPERATOR_RE,
-  validateCommand,
   VERIFIER_COMMANDS_ENV,
+  validateCommand,
 };
 
 // ─── Tree / Diff / Result Types ────────────────────────────────────────────
@@ -349,6 +351,24 @@ export class VerificationContext {
 
     const tokens = parseCommandArguments(command);
     if (typeof tokens === 'string') return this.rejectedCommand(command, start, tokens);
+    const constrainedPnpmExec = parseConstrainedPnpmExec(tokens);
+    if (typeof constrainedPnpmExec === 'object' && constrainedPnpmExec !== null) {
+      const resolved = await this.resolveConfiguredExecutable(constrainedPnpmExec.executable, true);
+      if (!resolved) {
+        return this.rejectedCommand(
+          command,
+          start,
+          `Constrained "pnpm exec" requires a locally installed ${constrainedPnpmExec.executable} binary.`,
+        );
+      }
+      const result = await this.runProcess(
+        resolved.command,
+        [...resolved.args, ...constrainedPnpmExec.args],
+        { cwd: this.projectRoot, timeoutMs: opts?.timeoutMs ?? 180_000, shell: resolved.shell },
+      );
+      return { ...result, command };
+    }
+
     const base = tokens[0] ?? '';
     if ((base === 'pwd' || base === 'true' || base === 'false') && tokens.length === 1) {
       return {
@@ -391,6 +411,8 @@ export class VerificationContext {
       const [executable, ...args] = tokens;
       if (!executable) return this.rejectedCommand(command, start, 'Empty command.');
       const resolved = await this.resolveConfiguredExecutable(executable);
+      if (!resolved)
+        return this.rejectedCommand(command, start, `Could not resolve ${executable}.`);
       const result = await this.runProcess(resolved.command, [...resolved.args, ...args], {
         cwd: this.projectRoot,
         // Configured commands are typically build/verify tools (tsc, linters)
@@ -705,7 +727,8 @@ export class VerificationContext {
    */
   private async resolveConfiguredExecutable(
     base: string,
-  ): Promise<{ command: string; args: string[]; shell?: boolean }> {
+    localOnly = false,
+  ): Promise<{ command: string; args: string[]; shell?: boolean } | undefined> {
     // 1. Local package bin, e.g. `vitest` → vitest/bin/vitest.js under node.
     try {
       const req = createRequire(path.join(this.projectRoot, 'package.json'));
@@ -746,6 +769,9 @@ export class VerificationContext {
     } catch {
       // fall through
     }
+    // Constrained pnpm-exec commands must resolve a project-local binary; do
+    // not turn a missing dependency into a PATH lookup.
+    if (localOnly) return undefined;
     // 3. Raw token — resolved by PATH on POSIX.
     return { command: base, args: [] };
   }

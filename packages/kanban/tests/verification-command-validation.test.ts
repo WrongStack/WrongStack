@@ -8,6 +8,7 @@ import {
   DEFAULT_BLOCKED_COMMANDS,
   extractBaseCommand,
   normalizeBaseCommand,
+  parseConstrainedPnpmExec,
   validateCommand,
 } from '../src/verification/verification-context.js';
 
@@ -64,6 +65,55 @@ describe('extractBaseCommand', () => {
   });
 });
 
+// ── constrained pnpm exec ───────────────────────────────────────────────────
+
+describe('parseConstrainedPnpmExec', () => {
+  it('accepts only the recorded local Vitest and no-emit TypeScript forms', () => {
+    expect(
+      parseConstrainedPnpmExec([
+        'PNPM',
+        'EXEC',
+        'VITEST',
+        'run',
+        '--root',
+        '.',
+        'packages/core/tests/security/permission-policy.test.ts',
+      ]),
+    ).toEqual({
+      executable: 'vitest',
+      args: ['run', '--root', '.', 'packages/core/tests/security/permission-policy.test.ts'],
+    });
+    expect(
+      parseConstrainedPnpmExec([
+        'pnpm',
+        'exec',
+        'tsc',
+        '--noEmit',
+        '--project',
+        'packages/core/tsconfig.json',
+      ]),
+    ).toEqual({
+      executable: 'tsc',
+      args: ['--noEmit', '--project', 'packages/core/tsconfig.json'],
+    });
+  });
+
+  it.each([
+    ['pnpm install'],
+    ['pnpm run test'],
+    ['pnpm exec eslint .'],
+    ['pnpm exec vitest'],
+    ['pnpm exec vitest --config local.ts'],
+    ['pnpm exec vitest run ../outside.test.ts'],
+    ['pnpm exec vitest run x&calc.test.ts'],
+    ['pnpm exec tsc --project packages/core/tsconfig.json'],
+    ['pnpm exec tsc --noEmit --project C:outside/tsconfig.json'],
+    ['pnpm exec tsc --noEmit --project ../outside/tsconfig.json'],
+  ])('rejects unsafe or unsupported form %s', (command) => {
+    expect(parseConstrainedPnpmExec(command.split(' '))).toEqual(expect.any(String));
+  });
+});
+
 // ── validateCommand ──────────────────────────────────────────────────────────
 
 function makeConfig(
@@ -87,6 +137,24 @@ describe('validateCommand', () => {
     expect(validateCommand('pwd', makeConfig())).toBeNull();
     expect(validateCommand('true', makeConfig())).toBeNull();
     expect(validateCommand('false', makeConfig())).toBeNull();
+  });
+
+  it('admits only constrained pnpm exec forms through the public validation boundary', () => {
+    expect(
+      validateCommand(
+        'pnpm exec vitest run --root . packages/core/tests/security/permission-policy.test.ts',
+        makeConfig(),
+      ),
+    ).toBeNull();
+    expect(
+      validateCommand('pnpm exec tsc --noEmit --project packages/core/tsconfig.json', makeConfig()),
+    ).toBeNull();
+    expect(
+      validateCommand(
+        'pnpm exec vitest run x&calc.test.ts',
+        makeConfig({ allowShellOperators: true }),
+      ),
+    ).toContain('requires one or more project-relative');
   });
 
   it('rejects empty commands', () => {

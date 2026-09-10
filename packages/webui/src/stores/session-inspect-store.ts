@@ -1,3 +1,4 @@
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { create } from 'zustand';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from './config-store';
@@ -79,7 +80,7 @@ export function ensureInspectHandlerInstalled(): void {
     const payload = msg.payload as (SessionInspectData & { error?: string }) | undefined;
     const store = useSessionInspectStore.getState();
     if (payload?.error) {
-      store.setError(payload.error);
+      store.setError(toErrorMessage(payload.error));
     } else if (payload) {
       store.setPayload(payload);
     }

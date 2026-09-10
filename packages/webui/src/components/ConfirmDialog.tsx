@@ -1,11 +1,11 @@
+import { AlertTriangle, FileEdit, Globe, ShieldAlert, Terminal, Wrench, Zap } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
-import { useLocalPrefs } from '@/stores/local-prefs';
 import { useUIStore } from '@/stores';
-import { AlertTriangle, FileEdit, Globe, ShieldAlert, Terminal, Wrench, Zap } from 'lucide-react';
-import { useEffect, useRef } from 'react';
-import { useShallow } from 'zustand/react/shallow';
-import { ToolDiffView, diffFromToolInput } from './DiffView';
+import { useLocalPrefs } from '@/stores/local-prefs';
+import { diffFromToolInput, ToolDiffView } from './DiffView';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -27,6 +27,13 @@ function pickToolIcon(toolName: string) {
   return Wrench;
 }
 
+export function isDestructiveConfirm(info: {
+  decisionSource?: string | undefined;
+  riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
+}): boolean {
+  return info.riskTier === 'destructive' || info.decisionSource === 'yolo_destructive';
+}
+
 /**
  * Render the tool input intelligently. For edit/write we drop the JSON
  * dump and show a proper diff. For shell-like tools we surface the
@@ -37,7 +44,7 @@ function SmartInputPreview({ toolName, input }: { toolName: string; input: unkno
   const diff = diffFromToolInput(toolName, input);
   if (diff) {
     return (
-      <div className="rounded-lg overflow-hidden border">
+      <div className="max-h-[min(45dvh,24rem)] overflow-auto rounded-lg border">
         <ToolDiffView diff={diff} />
       </div>
     );
@@ -67,11 +74,14 @@ function SmartInputPreview({ toolName, input }: { toolName: string; input: unkno
             <Terminal className="h-3 w-3" />
             <span>{t('confirm.command')}</span>
           </div>
-          <pre className="px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all max-h-40 overflow-auto">
+          <pre className="max-h-[min(24dvh,12rem)] overflow-auto whitespace-pre-wrap break-all px-3 py-2 font-mono text-xs">
             {cmd}
           </pre>
           {rest.length > 0 && (
-            <pre className="px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all max-h-40 overflow-auto border-t bg-muted/20">
+            <pre
+              className="max-h-[min(30dvh,14rem)] overflow-auto whitespace-pre-wrap break-all border-t bg-muted/20 px-3 py-2 font-mono text-xs"
+              data-testid="confirm-args-preview"
+            >
               {rest
                 .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
                 .join('\n')}
@@ -94,9 +104,9 @@ function SmartInputPreview({ toolName, input }: { toolName: string; input: unkno
   }
 
   return (
-    <div className="p-3 rounded-lg bg-muted/50 border text-xs font-mono">
+    <div className="rounded-lg border bg-muted/50 p-3 font-mono text-xs">
       <div className="text-muted-foreground mb-2">{t('confirm.inputLabel')}</div>
-      <pre className="whitespace-pre-wrap break-all max-h-60 overflow-auto">
+      <pre className="max-h-[min(40dvh,20rem)] overflow-auto whitespace-pre-wrap break-all">
         {JSON.stringify(input, null, 2)}
       </pre>
     </div>
@@ -117,12 +127,20 @@ export function ConfirmDialog() {
   const { sendConfirm, updatePrefs } = useWebSocket();
   const dialogRef = useRef<HTMLDivElement>(null);
   const resolvedRef = useRef(false);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (showConfirmDialog && confirmInfo) {
       resolvedRef.current = false;
     }
   }, [showConfirmDialog, confirmInfo?.id, confirmInfo]);
+
+  useEffect(() => {
+    if (!showConfirmDialog || !confirmInfo?.deadlineAt) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [showConfirmDialog, confirmInfo?.id, confirmInfo?.deadlineAt]);
 
   const handleConfirm = (decision: 'yes' | 'no' | 'always' | 'deny') => {
     if (resolvedRef.current) return;
@@ -154,7 +172,14 @@ export function ConfirmDialog() {
   };
 
   useEffect(() => {
-    if (!showConfirmDialog || !confirmInfo || !yolo || confirmInfo.boundaryReason) return;
+    if (
+      !showConfirmDialog ||
+      !confirmInfo ||
+      !yolo ||
+      confirmInfo.boundaryReason ||
+      isDestructiveConfirm(confirmInfo)
+    )
+      return;
     handleConfirm('yes');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -202,15 +227,22 @@ export function ConfirmDialog() {
   const Icon = pickToolIcon(confirmInfo.toolName);
   const isEdit = /edit|write/i.test(confirmInfo.toolName);
   const riskLabel = confirmInfo.riskTier ?? 'standard';
+  const remainingSeconds = confirmInfo.deadlineAt
+    ? Math.max(0, Math.ceil((confirmInfo.deadlineAt - now) / 1_000))
+    : undefined;
+  const remainingLabel =
+    remainingSeconds === undefined
+      ? undefined
+      : `${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, '0')}`;
 
   return (
     <Dialog open={showConfirmDialog} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="sm:max-w-2xl max-h-[min(88dvh,760px)] overflow-hidden !flex flex-col border-warning/50"
+        className="!flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-warning/50 !p-0 sm:max-w-2xl"
         ref={dialogRef}
         tabIndex={-1}
       >
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0 border-b border-border/60 px-3 py-3 pr-10 sm:px-6 sm:py-5 sm:pr-12">
           <DialogTitle className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-warning animate-pulse" />
             {t('confirm.title', { tool: confirmInfo.toolName })}
@@ -219,9 +251,22 @@ export function ConfirmDialog() {
             {confirmInfo.boundaryReason ??
               (isEdit ? t('confirm.descriptionEdit') : t('confirm.descriptionTool'))}
           </DialogDescription>
+          {yolo && isDestructiveConfirm(confirmInfo) && (
+            <p className="text-left text-xs text-warning">{t('confirm.yoloDestructiveNote')}</p>
+          )}
+          {remainingLabel && (
+            <p className="text-left text-xs text-muted-foreground" aria-live="polite">
+              {remainingSeconds === 0
+                ? t('confirm.brainDeciding')
+                : t('confirm.brainCountdown', { time: remainingLabel })}
+            </p>
+          )}
         </DialogHeader>
 
-        <div className="py-2 pr-1 space-y-3 overflow-y-auto overscroll-contain min-h-0 flex-1">
+        <div
+          className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-2 sm:px-6 sm:py-3"
+          data-testid="confirm-scroll-region"
+        >
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
             <Icon className="h-5 w-5 text-muted-foreground" />
             <div className="min-w-0">
@@ -252,7 +297,7 @@ export function ConfirmDialog() {
             </div>
           )}
 
-          {!yolo && !confirmInfo.boundaryReason && (
+          {!yolo && !confirmInfo.boundaryReason && !isDestructiveConfirm(confirmInfo) && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
               <Zap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <div className="text-sm min-w-0 flex-1">
@@ -274,7 +319,7 @@ export function ConfirmDialog() {
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2 flex-wrap shrink-0">
+        <DialogFooter className="!grid shrink-0 grid-cols-2 gap-1 border-t border-border/60 bg-card px-3 py-2 sm:!flex sm:flex-wrap sm:gap-2 sm:px-6 sm:py-4">
           <Button
             variant="outline"
             size="sm"

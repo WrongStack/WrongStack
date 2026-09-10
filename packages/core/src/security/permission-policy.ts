@@ -443,6 +443,9 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       };
     }
 
+    // YOLO is the broad auto-approval switch. Tool-declared `confirm` remains
+    // the normal-mode default, while explicit denies and the destructive-kind
+    // check inside this branch still win.
     if (this.effectiveYolo(ctx)) {
       const gatedKind = this.gatedDestructiveKind(tool, input, ctx);
       if (gatedKind !== undefined) {

@@ -214,11 +214,20 @@ describe('build-script allowlists stay in sync with the tree (WS-072)', () => {
 describe('build-allowlist freshness across workflows (VF-31)', () => {
   const workspace = new Set(blockEntries('allowBuilds'));
 
-  /** Extract every `pnpm rebuild <list>` package set from a workflow file. */
+  /**
+   * Extract every `pnpm rebuild <list>` package set from a workflow or script.
+   *
+   * Comment lines are skipped. Both `#` (YAML, sh, PowerShell) and `//` count,
+   * because a comment that merely NAMES the command — "keep this in step with
+   * the rebuild in ci.yml" — would otherwise be parsed as a package list and
+   * fail the comparison with prose.
+   */
   function workflowRebuildLists(relPath: string): Array<{ where: string; pkgs: Set<string> }> {
     const lines = readFileSync(resolve(repoRoot, relPath), 'utf8').split('\n');
     const lists: Array<{ where: string; pkgs: Set<string> }> = [];
     lines.forEach((line, i) => {
+      const trimmed = line.trimStart();
+      if (trimmed.startsWith('#') || trimmed.startsWith('//')) return;
       const m = line.match(/pnpm rebuild\s+([^\n#]+)/);
       if (!m || !m[1]) return;
       lists.push({ where: `${relPath}:${i + 1}`, pkgs: new Set(m[1].trim().split(/\s+/)) });
@@ -226,15 +235,21 @@ describe('build-allowlist freshness across workflows (VF-31)', () => {
     return lists;
   }
 
+  // dev.sh / dev.ps1 joined this set on 2026-09-10, when they were switched to
+  // `--ignore-scripts` + an explicit rebuild to match CI. That took the number
+  // of places holding this list from three to five — which is precisely the
+  // drift this block exists to catch, so they are scanned here too.
   const lists = [
     ...workflowRebuildLists('.github/workflows/ci.yml'),
     ...workflowRebuildLists('.github/workflows/release.yml'),
+    ...workflowRebuildLists('dev.sh'),
+    ...workflowRebuildLists('dev.ps1'),
   ];
 
   it('the workflow files actually contain rebuild lists to compare', () => {
     // 10 CI install jobs + the release pack job. Guards the parser: an
     // empty result would make the suite below vacuously green.
-    expect(lists.length).toBeGreaterThanOrEqual(11);
+    expect(lists.length).toBeGreaterThanOrEqual(13);
   });
 
   it.each(lists.map((l) => [l.where, l] as const))(
@@ -243,4 +258,78 @@ describe('build-allowlist freshness across workflows (VF-31)', () => {
       expect([...list.pkgs].sort()).toEqual([...workspace].sort());
     },
   );
+});
+
+/**
+ * WS-SEC-17 follow-up: `minimumReleaseAgeExclude` entries must not outlive the
+ * version they were written for.
+ *
+ * `minimumReleaseAge: 1440` is, in this repo's own words, "the single most
+ * effective defence against a compromised-maintainer / npm account takeover".
+ * Every entry in the exclude list is a standing hole in it. The hole is
+ * acceptable while it is doing a job — someone needed a just-published version
+ * and accepted the risk once, in review. It stops being acceptable the moment
+ * the lockfile moves on: the entry then authorises nothing anyone needs, and
+ * sits there waiting for that exact version string to reappear, at which point
+ * the cooldown is skipped with no review at all.
+ *
+ * This is the same shape as the `allowBuilds` staleness above — a review gate
+ * spent in advance — and it had the same outcome: three of five entries were
+ * already stale when this test was written (`electron@43.0.0` while the
+ * lockfile had 43.6.0, `ai@7.0.73` -> 7.0.77, `@ai-sdk/gateway@4.0.59` ->
+ * 4.0.62). Unlike `allowBuilds`, nothing was pinning this list.
+ */
+describe('cooldown exclusions stay in sync with the tree (WS-SEC-17)', () => {
+  const excludes = blockEntries('minimumReleaseAgeExclude');
+
+  /**
+   * Every version the lockfile resolves for a package name.
+   *
+   * Scoped names are single-quoted in the lockfile (`'@ai-sdk/gateway@4.0.62':`)
+   * and unscoped ones are not. An unquoted-only pattern reports every scoped
+   * entry as absent — which, when this was first measured by hand, under-counted
+   * the stale entries and would have understated the finding.
+   */
+  function lockfileVersions(name: string): string[] {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`^  '?${escaped}@([^:']+)'?:`, 'gm');
+    const out = new Set<string>();
+    for (const m of lockfile.matchAll(re)) {
+      // Strip pnpm's peer-suffix: `4.0.62(zod@4.4.3)` is still 4.0.62.
+      out.add((m[1] as string).split('(')[0] as string);
+    }
+    return [...out].sort();
+  }
+
+  it('parses the exclude block', () => {
+    // Same vacuity guard as the blocks above: an empty parse would make the
+    // assertion below pass while checking nothing.
+    expect(excludes.length).toBeGreaterThan(0);
+    expect(excludes.every((e) => e.lastIndexOf('@') > 0)).toBe(true);
+  });
+
+  it('every exclusion names a version the lockfile actually resolves', () => {
+    const stale: string[] = [];
+    for (const entry of excludes) {
+      const at = entry.lastIndexOf('@');
+      const name = entry.slice(0, at);
+      const version = entry.slice(at + 1);
+      const resolved = lockfileVersions(name);
+      if (resolved.length === 0) {
+        stale.push(`${entry} (package absent from the lockfile)`);
+        continue;
+      }
+      if (!resolved.includes(version)) {
+        stale.push(`${entry} (lockfile has ${resolved.join(', ')})`);
+      }
+    }
+
+    expect(
+      stale,
+      'Stale cooldown exclusions: each one skips the 24h publish delay for a version ' +
+        'nothing in the tree uses. Delete them from pnpm-workspace.yaml — and re-add ' +
+        'only when a new version genuinely needs the exception, which is the moment ' +
+        'someone is supposed to weigh the risk.',
+    ).toEqual([]);
+  });
 });

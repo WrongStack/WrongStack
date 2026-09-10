@@ -1,7 +1,10 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
+import { Card } from '../src/components/sidebar-card.js';
 import { StatusBar, type StatusBarProps } from '../src/components/status-bar.js';
+import { Text } from '../src/ink.js';
+import { sidebarCardSurface, theme } from '../src/theme.js';
 
 /**
  * Raw-SGR color pins for the status bar — the only statusline tests that
@@ -26,6 +29,20 @@ import { StatusBar, type StatusBarProps } from '../src/components/status-bar.js'
  */
 
 describe('StatusBar version-chip SGR color pins', () => {
+  it('does not paint a statusline background while preserving foreground colors', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(StatusBar, {
+        model: 'anthropic/claude',
+        state: 'idle',
+        projectName: 'WrongStack',
+      } as StatusBarProps),
+    );
+    const raw = lastFrame() ?? '';
+    unmount();
+    expect(raw).toMatch(/\x1b\[38;2;/);
+    expect(raw).not.toMatch(/\x1b\[48;2;/);
+  });
+
   it('tints the update suffix with STACK_ORANGE truecolor', () => {
     // The update suffix must be tinted with STACK_ORANGE (#FD9F02 = truecolor
     // \x1b[38;2;253;159;2m). Render a raw (non-ANSI-stripped) frame —
@@ -74,5 +91,31 @@ describe('StatusBar version-chip SGR color pins', () => {
     // unconditional color is a separate pre-existing powerline-rail concern,
     // not a version-chip regression.)
     expect(raw).not.toMatch(/\x1b\[38;2;253;159;2m/);
+  });
+});
+
+describe('Sidebar card background SGR pins', () => {
+  it('paints the vertical frame cells with the card surface', () => {
+    const previous = theme.supportsBackground;
+    theme.supportsBackground = true;
+    try {
+      const { lastFrame, unmount } = render(
+        React.createElement(Card, {
+          innerWidth: 20,
+          accent: theme.accent,
+          children: () => React.createElement(Text, null, 'body'),
+        }),
+      );
+      const raw = lastFrame() ?? '';
+      unmount();
+      const [r, g, b] = sidebarCardSurface()
+        .slice(1)
+        .match(/.{2}/g)!
+        .map((part) => Number.parseInt(part, 16));
+      const bg = `\\x1b\\[48;2;${r};${g};${b}m`;
+      expect(raw).toMatch(new RegExp(`${bg}(?:\\x1b\\[[0-9;]*m)*│`));
+    } finally {
+      theme.supportsBackground = previous;
+    }
   });
 });

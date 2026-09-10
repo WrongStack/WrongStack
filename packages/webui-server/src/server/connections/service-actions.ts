@@ -8,7 +8,7 @@ import {
   MailboxProjectServerConnection,
 } from '@wrongstack/core/coordination';
 import { SessionCatalogProjectClient } from '@wrongstack/core/session-catalog';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { resolveWstackPaths, toErrorMessage } from '@wrongstack/core/utils';
 import {
   closeKanbanServerConnections,
   getKanbanServerConnection,
@@ -140,7 +140,7 @@ export async function handleConnectionsServiceAction(
         serviceId: serviceId as ConnectionHealthService['id'],
         action: action as 'shutdown' | 'restart',
         success: false,
-        message: error instanceof Error ? error.message : String(error),
+        message: toErrorMessage(error),
       } satisfies ServiceActionResult,
     });
   }
@@ -222,7 +222,7 @@ export async function killSessionCatalogServer(
       serviceId: 'session-catalog',
       action,
       success: false,
-      message: error instanceof Error ? error.message : String(error),
+      message: toErrorMessage(error),
     };
   } finally {
     await client.close().catch(() => undefined);
@@ -273,7 +273,7 @@ async function restartSessionCatalogServer(
       serviceId: 'session-catalog',
       action: 'restart',
       success: false,
-      message: `Session Catalog IPC daemon restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Session Catalog IPC daemon restarted but verification failed: ${toErrorMessage(error)}`,
     };
   } finally {
     await verify.close().catch(() => undefined);
@@ -300,7 +300,7 @@ export async function killKanbanServer(
       serviceId: 'kanban',
       action,
       success: false,
-      message: error instanceof Error ? error.message : String(error),
+      message: toErrorMessage(error),
     };
   }
   if (!connection) {
@@ -339,7 +339,7 @@ export async function killKanbanServer(
       serviceId: 'kanban',
       action,
       success: false,
-      message: error instanceof Error ? error.message : String(error),
+      message: toErrorMessage(error),
     };
   }
 }
@@ -368,7 +368,7 @@ export async function restartKanbanServer(projectRoot: string): Promise<ServiceA
       serviceId: 'kanban',
       action: 'restart',
       success: false,
-      message: `Kanban IPC daemon restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Kanban IPC daemon restarted but verification failed: ${toErrorMessage(error)}`,
     };
   }
 }
@@ -413,7 +413,7 @@ export async function killSageServer(
       serviceId: 'sage',
       action,
       success: false,
-      message: error instanceof Error ? error.message : String(error),
+      message: toErrorMessage(error),
     };
   } finally {
     connection.close();
@@ -447,7 +447,7 @@ async function restartSageServer(projectRoot: string): Promise<ServiceActionResu
       serviceId: 'sage',
       action: 'restart',
       success: false,
-      message: `SAGE memory server restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: `SAGE memory server restarted but verification failed: ${toErrorMessage(error)}`,
     };
   } finally {
     verifyConn.close();
@@ -487,7 +487,7 @@ export async function killChronicleServer(
       serviceId: 'chronicle',
       action,
       success: false,
-      message: error instanceof Error ? error.message : String(error),
+      message: toErrorMessage(error),
     };
   } finally {
     client.close();
@@ -521,7 +521,7 @@ async function restartChronicleServer(projectRoot: string): Promise<ServiceActio
       serviceId: 'chronicle',
       action: 'restart',
       success: false,
-      message: `Chronicle telemetry server restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Chronicle telemetry server restarted but verification failed: ${toErrorMessage(error)}`,
     };
   } finally {
     await access?.close();
@@ -564,7 +564,7 @@ export async function killCodebaseIndexServer(
       serviceId: 'codebase-index',
       action,
       success: false,
-      message: error instanceof Error ? error.message : String(error),
+      message: toErrorMessage(error),
     };
   }
 }
@@ -607,7 +607,7 @@ async function restartCodebaseIndexServer(
       serviceId: 'codebase-index',
       action: 'restart',
       success: false,
-      message: `Codebase index server restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Codebase index server restarted but verification failed: ${toErrorMessage(error)}`,
     };
   }
 }
@@ -654,7 +654,7 @@ export async function killMailboxServer(
       serviceId: 'mailbox',
       action,
       success: false,
-      message: error instanceof Error ? error.message : String(error),
+      message: toErrorMessage(error),
     };
   } finally {
     connection.close();
@@ -688,7 +688,7 @@ async function restartMailboxServer(projectRoot: string): Promise<ServiceActionR
       serviceId: 'mailbox',
       action: 'restart',
       success: false,
-      message: `Mailbox IPC server restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Mailbox IPC server restarted but verification failed: ${toErrorMessage(error)}`,
     };
   } finally {
     verifyConn.close();

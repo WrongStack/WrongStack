@@ -30,6 +30,18 @@ export interface WSToolConfirmNeeded {
     decisionSource?: string | undefined;
     riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
     boundaryReason?: string | undefined;
+    deadlineAt?: number | undefined;
+  };
+}
+
+export interface WSToolConfirmResolved {
+  type: 'tool.confirm_resolved';
+  payload: SessionScopedPayload & {
+    id: string;
+    toolName: string;
+    decision: 'yes' | 'no' | 'always' | 'deny' | 'abort';
+    source: 'brain_timeout' | 'abort';
+    rationale?: string | undefined;
   };
 }
 

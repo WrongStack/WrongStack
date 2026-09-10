@@ -7,7 +7,7 @@
       "relativeImports": 19
     },
     "packages/cli/src/auth-menu/panel-service.ts": {
-      "lines": 1039,
+      "lines": 1040,
       "relativeImports": 7
     },
     "packages/cli/src/boot/tui-session-resume.ts": {
@@ -79,7 +79,7 @@
       "relativeImports": 8
     },
     "packages/core/src/chronicle/project-server.ts": {
-      "lines": 889,
+      "lines": 894,
       "relativeImports": 18
     },
     "packages/core/src/coordination/collab-debug.ts": {
@@ -91,7 +91,7 @@
       "relativeImports": 10
     },
     "packages/core/src/coordination/director-tools.ts": {
-      "lines": 937,
+      "lines": 951,
       "relativeImports": 18
     },
     "packages/core/src/coordination/director.ts": {
@@ -167,7 +167,7 @@
       "relativeImports": 4
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
-      "lines": 864,
+      "lines": 915,
       "relativeImports": 0
     },
     "packages/governance/src/protocol-decoder.ts": {
@@ -187,12 +187,16 @@
       "relativeImports": 13
     },
     "packages/kanban/src/server/project-server.ts": {
-      "lines": 852,
+      "lines": 857,
       "relativeImports": 10
     },
     "packages/kanban/src/types.ts": {
       "lines": 1003,
       "relativeImports": 1
+    },
+    "packages/kanban/src/verification/verification-context.ts": {
+      "lines": 823,
+      "relativeImports": 3
     },
     "packages/mcp/src/authorization.ts": {
       "lines": 908,
@@ -279,7 +283,7 @@
       "relativeImports": 3
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 835,
+      "lines": 842,
       "relativeImports": 16
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
@@ -327,11 +331,11 @@
       "relativeImports": 4
     },
     "packages/tui/src/app-action-type.ts": {
-      "lines": 812,
+      "lines": 813,
       "relativeImports": 13
     },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 1091,
+      "lines": 1102,
       "relativeImports": 20
     },
     "packages/tui/src/app-state.ts": {
@@ -339,7 +343,7 @@
       "relativeImports": 14
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1057,
+      "lines": 1059,
       "relativeImports": 74
     },
     "packages/tui/src/components/agents-monitor.tsx": {
@@ -355,7 +359,7 @@
       "relativeImports": 7
     },
     "packages/tui/src/components/history/utils.tsx": {
-      "lines": 1030,
+      "lines": 1035,
       "relativeImports": 17
     },
     "packages/tui/src/components/kanban-panel.tsx": {
@@ -471,7 +475,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/misc-handlers.ts": {
-      "lines": 1019,
+      "lines": 1021,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
@@ -479,7 +483,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/stores/chat-lanes.ts": {
-      "lines": 923,
+      "lines": 924,
       "relativeImports": 4
     },
     "packages/webui/src/stores/fleet-store.ts": {
@@ -511,7 +515,7 @@
       "relativeImports": 52
     },
     "packages/webui-server/src/server/git-handlers.ts": {
-      "lines": 1014,
+      "lines": 1015,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {

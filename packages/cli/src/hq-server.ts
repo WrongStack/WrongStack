@@ -172,6 +172,7 @@ async function startHqServerWithAuth(
 
   const authState = createHqAuthState(authFile, dataDir, {
     onApplied: (live) => reassessExposureFloor(live),
+    requireBrowserAuth: options.requireBrowserAuth,
   });
   const { mutableAuth } = authState;
 

@@ -1,8 +1,8 @@
 import type React from 'react';
-import { memo, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { useTerminalSize } from '../../hooks/use-terminal-size.js';
 import { Box, Static } from '../../ink.js';
-import { Entry } from './entry.js';
+import { Entry, findArmedNextStepsEntryId } from './entry.js';
 import type { HistoryProps } from './types.js';
 
 // ── Re-exports ──
@@ -83,6 +83,8 @@ export const History = memo(function History({
   toolStream,
   setSuggestions,
   autonomyMode,
+  nextStepsAutoSubmitLabel,
+  nextStepsAutoSubmitDeadlineMs,
   multiDiffSummaryThreshold,
   todos,
   showModelReasoning,
@@ -92,6 +94,10 @@ export const History = memo(function History({
 }: HistoryProps): React.ReactElement {
   const termSize = useTerminalSize();
   const termWidth = termSize.columns;
+  const armedNextStepsEntryId = useMemo(
+    () => findArmedNextStepsEntryId(entries, nextStepsAutoSubmitLabel),
+    [entries, nextStepsAutoSubmitLabel],
+  );
 
   const presentationKey = `w${termWidth}-mr${showModelReasoning}-tv${toolResultViewMode ?? 'normal'}`;
   const emissionRef = useRef<{
@@ -191,6 +197,10 @@ export const History = memo(function History({
               termHeight={termSize.rows}
               setSuggestions={setSuggestions}
               autonomyMode={autonomyMode}
+              nextStepsAutoSubmitLabel={nextStepsAutoSubmitLabel}
+              nextStepsAutoSubmitDeadlineMs={
+                entry.id === armedNextStepsEntryId ? nextStepsAutoSubmitDeadlineMs : null
+              }
               multiDiffSummaryThreshold={multiDiffSummaryThreshold}
               todos={todos}
               showModelReasoning={showModelReasoning}

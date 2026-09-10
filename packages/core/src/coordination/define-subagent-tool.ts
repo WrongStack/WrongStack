@@ -17,6 +17,13 @@ export interface DefineSubagentInput {
   enable_subagent_tools?: boolean | undefined;
   /** Whether to grant MCP tools (default: false). */
   enable_mcp_tools?: boolean | undefined;
+  /**
+   * Whether to grant outbound-network tools such as `read_url_content`
+   * (default: false). See WS-SEC-20: a subagent's tool calls are not
+   * individually confirmed, so `net.outbound` in the default set is an
+   * unprompted egress channel for anything the subagent read.
+   */
+  enable_network_tools?: boolean | undefined;
   /** Explicit list of tool names allowed for this subagent. */
   tools?: string[] | undefined;
   /** Optional model override (e.g. "inherit", or specific model id). */
@@ -79,6 +86,11 @@ export function createDefineSubagentTool(
         type: 'boolean',
         description: 'Set true to equip the subagent with MCP tools.',
       },
+      enable_network_tools: {
+        type: 'boolean',
+        description:
+          'Set true to equip the subagent with outbound-network tools (read_url_content). Off by default.',
+      },
       tools: {
         type: 'array',
         items: { type: 'string' },
@@ -112,7 +124,7 @@ export function createDefineSubagentTool(
       'Use this when you need a specialized subagent for a task and none of the existing catalog roles are suitable. ' +
       'Once defined, it is registered into the active session roster and can be invoked repeatedly.',
     usageHint:
-      'Pass `name`, `description`, `system_prompt`, and capability toggles (`enable_write_tools`, `enable_mcp_tools`). ' +
+      'Pass `name`, `description`, `system_prompt`, and capability toggles (`enable_write_tools`, `enable_mcp_tools`, `enable_network_tools`). ' +
       'After defining, call `delegate({ role: name, task, scope, outOfScope })` or `spawn_subagent({ role: name, ... })`.',
     inputSchema,
     async execute(input) {
@@ -128,7 +140,17 @@ export function createDefineSubagentTool(
         throw new Error('define_subagent requires a non-empty `system_prompt`.');
       }
 
-      const capabilities: string[] = ['fs.read', 'net.outbound'];
+      // WS-SEC-20: `net.outbound` is NOT in the default set. A subagent's
+      // individual tool calls are never surfaced for confirmation, so a
+      // subagent that has both `fs.read` and `net.outbound` can post anything
+      // it reads to an arbitrary host with nothing to stop it — and a
+      // prompt-injected task description is enough to make it do so. Adding a
+      // confirmation prompt instead would fire on ordinary work; withholding
+      // the capability until it is asked for costs nothing when it is not.
+      const capabilities: string[] = ['fs.read'];
+      if (input.enable_network_tools) {
+        capabilities.push('net.outbound');
+      }
       if (input.enable_write_tools) {
         capabilities.push('fs.write');
       }
@@ -139,8 +161,14 @@ export function createDefineSubagentTool(
         capabilities.push('mcp.proxy');
       }
 
-      // Default tools matching capabilities if not explicitly passed
-      const baseTools = ['read', 'glob', 'grep', 'read_url_content'];
+      // Default tools matching capabilities if not explicitly passed. The list
+      // has to track `capabilities` above — a tool granted here without its
+      // capability is dead weight that surfaces to the model as an option and
+      // then fails or stubs when called.
+      const baseTools = ['read', 'glob', 'grep'];
+      if (input.enable_network_tools) {
+        baseTools.push('read_url_content');
+      }
       if (input.enable_write_tools) {
         baseTools.push('write', 'edit', 'replace', 'diff', 'patch');
       }

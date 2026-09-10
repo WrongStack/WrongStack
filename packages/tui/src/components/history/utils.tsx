@@ -806,32 +806,37 @@ function visualSearch(toolName: string, text: string): ToolVisualLine[] | undefi
   const lines = bodyLines(text);
   if (lines.length === 0 || lines[0] === '(no matches)') return undefined;
   const rows: ToolVisualLine[] = [];
-  let currentPath: string | undefined;
   let consumed = 0;
+  let omitted = 0;
+  const addRow = (row: ToolVisualLine): void => {
+    if (consumed < VISUAL_MAX_LINES) {
+      rows.push(row);
+      consumed++;
+    } else {
+      omitted++;
+    }
+  };
   for (const line of lines) {
-    if (consumed >= VISUAL_MAX_LINES) break;
     const fileHeader = line.match(/^(.+?) \((\d+) match\(es\), showing \d+\)$/);
     if (fileHeader?.[1]) {
-      currentPath = fileHeader[1];
-      rows.push({ kind: 'path', path: currentPath, text: `${fileHeader[2] ?? '?'} match(es)` });
-      consumed++;
+      addRow({ kind: 'path', path: fileHeader[1], text: `${fileHeader[2] ?? '?'} match(es)` });
       continue;
     }
     const direct = line.match(/^((?:[A-Za-z]:)?[^:]+):(\d+)[:-](.*)$/);
-    const grouped = line.match(/^(\d+)[:-](.*)$/);
+    const grouped = line.match(/^(\d+)([:-])(.*)$/);
     if (direct?.[1] && direct[2]) {
-      rows.push({ kind: 'match', path: direct[1], lineNo: direct[2], text: direct[3] ?? '' });
-      consumed++;
+      addRow({ kind: 'match', path: direct[1], lineNo: direct[2], text: direct[3] ?? '' });
     } else if (grouped?.[1]) {
-      rows.push({ kind: 'match', path: currentPath, lineNo: grouped[1], text: grouped[2] ?? '' });
-      consumed++;
+      addRow({
+        kind: grouped[2] === ':' ? 'match' : 'context',
+        lineNo: grouped[1],
+        text: grouped[3] ?? '',
+      });
     } else if (line.trim() && !line.startsWith(`${toolName}:`)) {
-      rows.push({ kind: 'meta', text: line.trim() });
-      consumed++;
+      addRow({ kind: 'meta', text: line.trim() });
     }
   }
-  if (lines.length > consumed)
-    rows.push({ kind: 'meta', text: `${lines.length - consumed} more result line(s)` });
+  if (omitted > 0) rows.push({ kind: 'meta', text: `${omitted} more result line(s)` });
   return rows.length > 0 ? rows : undefined;
 }
 

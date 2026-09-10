@@ -89,6 +89,7 @@ import type {
   WSTokenCostEstimateUnavailable,
   WSTokenThreshold,
   WSToolConfirmNeeded,
+  WSToolConfirmResolved,
   WSToolLoopDetected,
   WSToolsList,
   WSTopicAdviceResult,
@@ -183,6 +184,7 @@ export type WSServerMessage =
   | WSSessionStats
   | WSError
   | WSToolConfirmNeeded
+  | WSToolConfirmResolved
   | WSTrustPersisted
   | WSToolLoopDetected
   | WSDelegateStarted

@@ -20,7 +20,10 @@ vi.mock('@/lib/favicon', () => ({
   setFaviconStatus: vi.fn(),
 }));
 
-import { handleToolConfirmNeeded } from '../../src/hooks/ws-handlers/chat-handlers';
+import {
+  handleToolConfirmNeeded,
+  handleToolConfirmResolved,
+} from '../../src/hooks/ws-handlers/chat-handlers';
 import { handlePrefsUpdated } from '../../src/hooks/ws-handlers/misc-handlers';
 import { useLocalPrefs } from '../../src/stores/local-prefs';
 import { useSessionStore } from '../../src/stores/session-store';
@@ -74,7 +77,7 @@ describe('handleToolConfirmNeeded', () => {
     expect(useUIStore.getState().showConfirmDialog).toBe(false);
   });
 
-  it('auto-approves destructive prompts when YOLO is on', () => {
+  it('keeps destructive prompts waiting when YOLO is on', () => {
     useLocalPrefs.getState().set({ yolo: true });
 
     fireConfirm({
@@ -87,8 +90,34 @@ describe('handleToolConfirmNeeded', () => {
       riskTier: 'destructive',
     });
 
-    expect(sendConfirm).toHaveBeenCalledWith('confirm_3', 'yes');
+    expect(sendConfirm).not.toHaveBeenCalled();
+    expect(useUIStore.getState().showConfirmDialog).toBe(true);
+  });
+
+  it('closes the visible prompt when Brain resolves the 120-second timeout', () => {
+    fireConfirm({
+      sessionId: 'sess_1',
+      id: 'confirm_brain',
+      toolName: 'bash',
+      input: { command: 'rm -rf /' },
+      suggestedPattern: 'rm -rf /',
+      riskTier: 'destructive',
+      deadlineAt: Date.now() + 120_000,
+    });
+
+    handleToolConfirmResolved({
+      type: 'tool.confirm_resolved',
+      payload: {
+        sessionId: 'sess_1',
+        id: 'confirm_brain',
+        toolName: 'bash',
+        decision: 'no',
+        source: 'brain_timeout',
+      },
+    } as never);
+
     expect(useUIStore.getState().showConfirmDialog).toBe(false);
+    expect(useUIStore.getState().confirmInfo).toBeNull();
   });
 });
 
@@ -114,7 +143,7 @@ describe('handlePrefsUpdated confirm visibility', () => {
     expect(useUIStore.getState().confirmInfo).toBeNull();
   });
 
-  it('hides a destructive visible confirm when YOLO turns on', () => {
+  it('keeps a destructive visible confirm when YOLO turns on', () => {
     useUIStore.getState().showConfirm({
       id: 'confirm_destructive',
       toolName: 'bash',
@@ -126,7 +155,7 @@ describe('handlePrefsUpdated confirm visibility', () => {
 
     handlePrefsUpdated({ type: 'prefs.updated', payload: { yolo: true } } as never);
 
-    expect(useUIStore.getState().showConfirmDialog).toBe(false);
-    expect(useUIStore.getState().confirmInfo).toBeNull();
+    expect(useUIStore.getState().showConfirmDialog).toBe(true);
+    expect(useUIStore.getState().confirmInfo?.id).toBe('confirm_destructive');
   });
 });

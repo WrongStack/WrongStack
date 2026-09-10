@@ -451,6 +451,7 @@ export async function startWebUI(
       context,
       events,
       permissionPolicy,
+      brain,
     }),
     distDir: opts.distDir,
     // Vector memory store — mirrors the CLI host. When `vectorMemoryStore`

@@ -262,7 +262,7 @@ const plugin: Plugin = {
         },
         required: ['text'],
       },
-      permission: 'auto',
+      permission: 'confirm',
       category: 'Memory',
       mutating: true,
       async execute(input: { text: string; label?: string | undefined }) {
@@ -309,7 +309,7 @@ const plugin: Plugin = {
           label: { type: 'string', description: 'Alternative label to remove.' },
         },
       },
-      permission: 'auto',
+      permission: 'confirm',
       category: 'Memory',
       mutating: true,
       async execute(input: { id?: string | undefined; label?: string | undefined }) {

@@ -13,6 +13,9 @@
 import type { IncomingMessage } from 'node:http';
 import { describe, expect, it } from 'vitest';
 import { createAcpConnectionGate } from '../src/subcommands/handlers/acp-connection-gate.js';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const HOST = '127.0.0.1';
 const PORT = 8889;
@@ -98,5 +101,44 @@ describe('ACP WebSocket connection gate', () => {
     const verdict = capped.check(withToken(), 2);
     expect(verdict.ok).toBe(false);
     expect(verdict.code).toBe(1013);
+  });
+});
+
+describe('the gate is wired at the handshake, not after it (WS-001)', () => {
+  /**
+   * A unit test proves the gate refuses the right connections. It cannot prove
+   * WHEN it refuses them, and that was the whole finding: the gate was correct
+   * and ran on the `connection` event, i.e. after `ws` had already answered
+   * `101 Switching Protocols`, allocated a WebSocket with a 20 MiB
+   * `maxPayload` budget and spent a file descriptor. A WebSocket handshake is
+   * exempt from the same-origin policy, so any open page could run
+   * `for(;;) new WebSocket('ws://127.0.0.1:<acpPort>')` and make the agent host
+   * pay that allocation per attempt.
+   *
+   * Measured before the fix: the client reached `open` and the server emitted
+   * `connection`. After: the client gets HTTP 403 during the handshake and the
+   * server never emits `connection`.
+   */
+  const SOURCE = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../src/subcommands/handlers/acp.ts'),
+    'utf8',
+  );
+
+  it('constructs the WebSocketServer with a verifyClient option', () => {
+    expect(SOURCE).toMatch(/new WebSocketServer\(\{[^}]*verifyClient/);
+  });
+
+  it('does not call gate.check from the connection handler', () => {
+    // The check moved; a copy left behind on `connection` would restore the
+    // per-attempt allocation while looking harmless next to the new one.
+    const connectionHandler = /wss\.on\('connection',([\s\S]*?)\n  \}\);/.exec(SOURCE);
+    expect(connectionHandler, 'expected a wss.on(connection, …) handler to inspect').not.toBeNull();
+    expect(connectionHandler![1]).not.toContain('gate.check');
+  });
+
+  it('refuses during the handshake rather than with a close frame', () => {
+    // 1008 is a WebSocket close code and means nothing to a client that has not
+    // completed an upgrade; the refusal has to be an HTTP status.
+    expect(SOURCE).toMatch(/cb\(false, 403/);
   });
 });

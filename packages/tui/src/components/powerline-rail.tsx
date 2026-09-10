@@ -1,6 +1,6 @@
 import type React from 'react';
 import { isValidElement } from 'react';
-import { Box, Text } from '../ink.js';
+import { Text } from '../ink.js';
 import { displayWidth } from '../terminal-width.js';
 import { theme } from '../theme.js';
 
@@ -206,9 +206,6 @@ interface PowerlineRailProps {
   /** Chips in render order. Plain elements are treated as single-level chips. */
   segments: Array<React.ReactElement | RailSpanEntry>;
   budget: number;
-  monochrome?: boolean | undefined;
-  /** Override the filler background for per-line tonal layering. */
-  fillBg?: string | undefined;
   /**
    * Optional right-anchored segment. When provided, the rail reserves
    * space for this segment at the right edge of the budget so its
@@ -225,26 +222,19 @@ function toEntries(segments: PowerlineRailProps['segments']): RailSpanEntry[] {
 }
 
 /**
- * Full-width status segments with a single uniform background.
- * No per-chip backgrounds, no transition glyphs, no segment caps —
- * just clean chips separated by a single space.
+ * Status segments on the terminal's natural background.
+ * No per-chip backgrounds, transition glyphs, or segment caps — just clean
+ * chips separated by whitespace. The caller owns any outer side inset.
  */
 export function PowerlineRail({
   segments,
   budget,
-  monochrome = false,
-  fillBg,
   rightAnchor,
 }: PowerlineRailProps): React.ReactElement {
-  // Empty line: render just the filler background so the row still has the
-  // correct layered tone and keeps the layout height stable.
+  // Empty lines still occupy one row, but status rails deliberately inherit
+  // the terminal background instead of painting a full-width surface band.
   if (segments.length === 0 && !rightAnchor) {
-    if (monochrome || !fillBg) return <Text> </Text>;
-    return (
-      <Box backgroundColor={fillBg}>
-        <Text> </Text>
-      </Box>
-    );
+    return <Text> </Text>;
   }
 
   const layout = layoutRail(toEntries(segments), budget, rightAnchor);
@@ -269,7 +259,5 @@ export function PowerlineRail({
     </Text>
   );
 
-  if (monochrome) return content;
-
-  return <Box backgroundColor={fillBg ?? theme.surface}>{content}</Box>;
+  return content;
 }

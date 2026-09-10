@@ -23,3 +23,4 @@ export {
   systemSessionId,
 } from './session-id.js';
 export { nowIso } from './time.js';
+export { timingSafeTokenEqual } from './timing-safe.js';

@@ -526,6 +526,24 @@ describe('createToolOutputSerializer (extended)', () => {
     expect(out).toContain('not-a-match-line');
   });
 
+  it('groups ripgrep context under one file header without repeating its path', () => {
+    const file = 'src/a-123-file.ts';
+    const out = serializer.serialize(
+      {
+        matches: [`${file}-8-before-456-text`, `${file}:9:Token`, `${file}-10-after`, '--'],
+        count: 4,
+        used: 'rg',
+      },
+      { toolName: 'grep', input: { pattern: 'Token', context_lines: 1 } },
+    );
+
+    expect(out).toContain(`${file} (1 match(es), showing 1)`);
+    expect(out).toContain('count=1 shown=1');
+    expect(out).toContain('8-before-456-text\n9:Token\n10-after');
+    expect(out).not.toContain('ungrouped:');
+    expect(out.match(new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))).toHaveLength(1);
+  });
+
   it('renders grep with no matches', () => {
     const out = serializer.serialize(
       { matches: [], count: 0 },

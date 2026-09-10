@@ -1,5 +1,6 @@
 import type * as http from 'node:http';
 import * as path from 'node:path';
+import { decodeSessionIdStrict } from '@wrongstack/core/utils';
 import { extractTokenFromCookie, isLoopbackHostname } from '../ws-auth.js';
 
 export const MIME_TYPES: Record<string, string> = {
@@ -130,12 +131,24 @@ export function isInsideDist(candidate: string, distDir: string): boolean {
   return resolved === root || resolved.startsWith(root + path.sep);
 }
 
-export function decodeSessionId(segment: string): string {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
+/**
+ * Percent-decode a session id from a URL path, or `null` when it is not a
+ * usable session id.
+ *
+ * This used to decode and return, falling back to the RAW segment when
+ * `decodeURIComponent` threw — so a malformed or traversal-shaped id reached
+ * the handlers. The route patterns are `([^/]+)`, which stops a literal slash
+ * but not `%2f`; `..%2f..%2f` decoded straight through. Nothing downstream
+ * rejected it either: the only thing standing in the way was
+ * `registry.get(sessionId)` happening to miss and returning 404, which is
+ * containment by accident rather than by design.
+ *
+ * HQ's same-named function already validated. Two copies of a path guard, one
+ * of which validates, is the drift `@wrongstack/core/utils/path-segment` exists
+ * to end — so the rule now has one definition and this delegates to it.
+ */
+export function decodeSessionId(segment: string): string | null {
+  return decodeSessionIdStrict(segment);
 }
 
 export function strictDecodeParam(segment: string, res: http.ServerResponse): string | null {

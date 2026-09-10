@@ -11,7 +11,7 @@ import type { VectorMemoryStore, VectorSearchHit } from '@wrongstack/vector-memo
 import type { MemoryPort } from '@wrongstack/core/types';
 
 import { sanitizeApiError } from '@wrongstack/core/security';
-import { decodeSessionId, strictDecodeParam } from './security-helpers.js';
+import { decodeSessionId } from './security-helpers.js';
 
 interface VectorMemoryStatusResponse {
   enabled: boolean;
@@ -331,8 +331,17 @@ export async function handleVectorMemoryForget(
     return;
   }
   const match = /^\/api\/vector-memory\/store\/([^/]+)$/.exec(url.pathname);
-  const id = match ? strictDecodeParam(decodeSessionId(match[1]!), res) : null;
-  if (id === null) return;
+  // This used to be `strictDecodeParam(decodeSessionId(...))` — two decodes of
+  // the same value. Decoding twice is a traversal bypass in its own right:
+  // `%252e%252e%252f` survives the first pass as `%2e%2e%2f` and becomes `../`
+  // on the second, so any check between the two sees a harmless string. One
+  // decode, then validate.
+  const id = match ? decodeSessionId(match[1]!) : null;
+  if (id === null) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid store id' }));
+    return;
+  }
   try {
     const removed = await store.forget(id);
     res.writeHead(200, { 'Content-Type': 'application/json' });

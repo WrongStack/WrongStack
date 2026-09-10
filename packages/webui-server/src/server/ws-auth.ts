@@ -26,9 +26,8 @@
  * tested without standing up a real `http.Server`/`WebSocketServer`. `index.ts`
  * builds a thin closure that pulls the fields below off the incoming request.
  */
-import { Buffer } from 'node:buffer';
-import { timingSafeEqual } from 'node:crypto';
 import { isLoopbackHost as isLoopbackHostCore } from '@wrongstack/core/hq';
+import { timingSafeTokenEqual } from '@wrongstack/primitives';
 
 /** A hostname that refers to the local machine. */
 export function isLoopbackHostname(hostname: string): boolean {
@@ -130,11 +129,11 @@ function allowedHostname(hostname: string, allowedHostnames?: readonly string[])
  * byte-by-byte via response timing.
  */
 export function tokenMatches(provided: string | undefined, expected: string): boolean {
-  if (!provided) return false;
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  // Delegates to the one definition in `@wrongstack/primitives`. This used to
+  // be a hand-copied six lines, and the ACP agent's copy carried a docblock
+  // saying it "mirrors tokenMatches in the WebUI server" — which is how four
+  // other call sites ended up mirroring neither.
+  return timingSafeTokenEqual(provided, expected);
 }
 
 /** Pull the `token` query param out of a request URL (`/?token=…`). */

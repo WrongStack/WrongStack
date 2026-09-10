@@ -145,13 +145,16 @@ describe('sidebar cache card frame integrity (real TTY)', () => {
       if (expectSideBars) {
         expect(rows.length).toBeGreaterThan(0);
       }
-      // Every side-bar row must end with `│`. The right-edge width is
-      // measured AFTER `trimStart()` so the test isn't confused by the
-      // empty columns to the LEFT of the sidebar (the test wraps the
-      // RightSidebar in a flex-end Box of `columns` width, so the
+      // Every side-bar row must end with the persistent scrollbar track cell
+      // (`░`): since the rail went persistent (commit 65835e697), the
+      // one-column track renders even when the content fits, so the card's
+      // own `│` border is followed by the track cell at the right edge. The
+      // right-edge width is measured AFTER `trimStart()` so the test isn't
+      // confused by the empty columns to the LEFT of the sidebar (the test
+      // wraps the RightSidebar in a flex-end Box of `columns` width, so the
       // sidebar sits at the right and the leading cols are blank).
       for (const r of rows) {
-        expect(r.line.trimEnd().endsWith('│')).toBe(true);
+        expect(r.line.trimEnd().endsWith('░')).toBe(true);
         expect(displayWidth(r.line.trimStart())).toBeLessThanOrEqual(sidebarWidth);
       }
       // All side-bar rows must share one right edge position.

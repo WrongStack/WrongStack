@@ -18,6 +18,12 @@ export interface HqAuthState {
 
 interface HqAuthStateOptions {
   /**
+   * The server's `requireBrowserAuth` option, stamped onto the state so every
+   * `hqAuthRequired(mutableAuth)` gate observes it without having to be handed
+   * it separately. See the field's doc on `HqRouterMutableAuth`.
+   */
+  requireBrowserAuth?: boolean | undefined;
+  /**
    * Invoked after every {@link HqAuthState.apply}, with the freshly projected
    * `mutableAuth`. The server wires this to the WS-010 exposure re-assessment
    * so `requireAuthFloor` is re-latched by EVERY path that changes the live
@@ -94,7 +100,10 @@ export function createHqAuthState(
     browserTokenObjs: new Map(),
     clientTokenObjs: new Map(),
     alertRules: undefined,
+    requireBrowserAuth: opts.requireBrowserAuth,
   };
+  // `projectAuthFile` assigns field by field and never touches
+  // `requireBrowserAuth`, so a reload cannot drop it.
   projectAuthFile(mutableAuth, authFile);
 
   return {

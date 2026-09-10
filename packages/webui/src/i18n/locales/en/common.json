@@ -53,6 +53,8 @@
     "trustSuggestionTitle": "Trust pattern suggestion",
     "trustSuggestionHint": "Picking Always will whitelist matching calls for this project.",
     "yoloDestructiveNote": "YOLO is on. This prompt is still shown because the request was classified as destructive.",
+    "brainCountdown": "Waiting for your approval · Brain takes over in {{time}}",
+    "brainDeciding": "Time expired · Brain is deciding…",
     "skipApprovalsTitle": "Skip future approvals",
     "skipApprovalsHint": "Enable YOLO mode and the agent runs without asking. Destructive operations still ask for confirmation.",
     "enableYoloTitle": "Enable YOLO mode (auto-approve this and future non-destructive calls)",

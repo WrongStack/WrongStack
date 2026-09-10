@@ -6,6 +6,69 @@ import { describe, expect, it, vi } from 'vitest';
 import { setupEvents } from '../src/server/setup-events.js';
 
 describe('setupEvents session scoping', () => {
+  it('broadcasts the human deadline and retires a prompt after Brain resolves it', () => {
+    const events = new EventBus();
+    const broadcast = vi.fn();
+    const pendingConfirms = new Map();
+    const dispose = setupEvents({
+      events,
+      broadcast,
+      clients: new Map(),
+      config: {},
+      context: {
+        session: { id: 'session-live' },
+        todos: [],
+        state: { onChange: vi.fn(), revision: 0 },
+      } as unknown as Context,
+      pendingConfirms,
+    });
+
+    events.emit('tool.confirm_needed', {
+      sessionId: 'session-live',
+      tool: {
+        name: 'bash',
+        description: 'shell',
+        inputSchema: { type: 'object' },
+        permission: 'confirm',
+        mutating: true,
+        execute: vi.fn(),
+      },
+      input: { command: 'rm -rf /' },
+      toolUseId: 'confirm-brain',
+      suggestedPattern: 'rm -rf /',
+      riskTier: 'destructive',
+      deadlineAt: 120_000,
+      resolve: vi.fn(),
+    });
+
+    expect(pendingConfirms.has('confirm-brain')).toBe(true);
+    expect(broadcast).toHaveBeenCalledWith(
+      expect.any(Map),
+      expect.objectContaining({
+        type: 'tool.confirm_needed',
+        payload: expect.objectContaining({ deadlineAt: 120_000 }),
+      }),
+    );
+
+    events.emit('tool.confirm_resolved', {
+      sessionId: 'session-live',
+      toolUseId: 'confirm-brain',
+      toolName: 'bash',
+      decision: 'no',
+      source: 'brain_timeout',
+    });
+
+    expect(pendingConfirms.has('confirm-brain')).toBe(false);
+    expect(broadcast).toHaveBeenCalledWith(
+      expect.any(Map),
+      expect.objectContaining({
+        type: 'tool.confirm_resolved',
+        payload: expect.objectContaining({ id: 'confirm-brain', source: 'brain_timeout' }),
+      }),
+    );
+    dispose();
+  });
+
   it('forwards passive Chimera report notices to every browser surface', () => {
     const events = new EventBus();
     const broadcast = vi.fn();

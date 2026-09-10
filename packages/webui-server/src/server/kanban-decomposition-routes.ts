@@ -6,6 +6,7 @@ import {
   updateTask,
   verifyTaskCompletion,
 } from '@wrongstack/kanban';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { kanbanBoardMessage, publishKanbanBoard } from './kanban-broadcast.js';
@@ -149,10 +150,10 @@ async function handleTaskVerification(
       type: 'kanban.task.verification_completed',
       payload: {
         success: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: toErrorMessage(err),
         data: { boardId, taskId },
       },
     });
-    fail(ws, type, err instanceof Error ? err.message : String(err));
+    fail(ws, type, toErrorMessage(err));
   }
 }

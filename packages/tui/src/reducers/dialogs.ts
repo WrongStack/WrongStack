@@ -41,6 +41,7 @@ const dialogActionTypes = [
   'fKeyPickerMove',
   'confirmOpen',
   'confirmClose',
+  'confirmResolved',
   'confirmClearAll',
   'shellCommandWarningOpen',
   'shellCommandWarningClose',
@@ -310,6 +311,11 @@ export function reduceDialogs(state: State, action: DialogAction): State {
       return { ...state, confirmQueue: [...state.confirmQueue, action.info] };
     case 'confirmClose':
       return { ...state, confirmQueue: state.confirmQueue.slice(1) };
+    case 'confirmResolved':
+      return {
+        ...state,
+        confirmQueue: state.confirmQueue.filter((item) => item.toolUseId !== action.toolUseId),
+      };
     case 'confirmClearAll':
       return { ...state, confirmQueue: [] };
     case 'shellCommandWarningOpen':

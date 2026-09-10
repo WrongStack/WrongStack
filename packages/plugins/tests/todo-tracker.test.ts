@@ -53,13 +53,17 @@ function getTool(
   api: MockApi,
   name: string,
 ): {
+  permission: 'auto' | 'confirm';
   execute: (input: unknown) => Promise<unknown>;
 } {
   const call = api.tools.register.mock.calls.find(
     ([t]: unknown[]) => (t as { name: string }).name === name,
   );
   if (!call) throw new Error(`tool ${name} not registered`);
-  return call[0] as { execute: (input: unknown) => Promise<unknown> };
+  return call[0] as {
+    permission: 'auto' | 'confirm';
+    execute: (input: unknown) => Promise<unknown>;
+  };
 }
 
 let tmpDir: string;
@@ -89,6 +93,14 @@ describe('todo-tracker plugin', () => {
     expect(names).toContain('todo_tracker_remove');
     expect(names).toContain('todo_tracker_pull');
     expect(names).toContain('todo_tracker_status');
+  });
+
+  it('requires confirmation only for permanent removal', async () => {
+    const api = makeApi(filePath);
+    await todoTrackerPlugin.setup(api as never);
+
+    expect(getTool(api, 'todo_tracker_remove').permission).toBe('confirm');
+    expect(getTool(api, 'todo_tracker_drop').permission).toBe('auto');
   });
 
   it('warns and no-ops when no file path is configured', async () => {

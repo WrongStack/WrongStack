@@ -29,6 +29,7 @@ import { hqAuthRequired, readHqSessionCookie } from '../src/hq-server/auth.js';
 import { createHqAuthState, projectAuthFile } from '../src/hq-server/auth-state.js';
 import { LoginAttemptStore } from '../src/hq-server/login-attempt-store.js';
 import { callerCanAdministerAuth } from '../src/hq-server/routes/auth-handlers.js';
+import type { HqRouterMutableAuth } from '../src/hq-server/types.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 
 const PAST = new Date(Date.now() - 60_000).toISOString();
@@ -327,6 +328,53 @@ describe('WS-102 — end to end over HTTP', () => {
       headers: { Authorization: `Bearer ${SCOPED}` },
     });
     expect(res.status).toBe(200);
+  });
+});
+
+describe('hqAuthRequired reads requireBrowserAuth from the state (WS-SEC-LOW)', () => {
+  /**
+   * Five gates called `hqAuthRequired(mutableAuth)` with no second argument —
+   * `routes/command-handlers.ts`, three in `routes/mailbox-handlers.ts`, and
+   * `mailbox-gateway-manager.ts` — so a public relay did not raise the auth
+   * requirement on exactly the routes that inject into live agents. That is
+   * the WS-077 drift class recurring on the same routes.
+   *
+   * Carrying the option on the state makes the one-argument call correct
+   * rather than incomplete, so the omission stops being a bug shape.
+   */
+  const bare = (over: Partial<HqRouterMutableAuth> = {}): HqRouterMutableAuth =>
+    ({
+      operatorPolicy: {} as never,
+      operatorPolicyOverride: undefined,
+      browserTokens: new Set<string>(),
+      clientTokens: new Set<string>(),
+      browserTokenObjs: new Map(),
+      clientTokenObjs: new Map(),
+      alertRules: undefined,
+      ...over,
+    }) as HqRouterMutableAuth;
+
+  it('a one-argument call still demands auth under a public relay', () => {
+    expect(hqAuthRequired(bare({ requireBrowserAuth: true }))).toBe(true);
+  });
+
+  it('open mode stays open when no relay is configured', () => {
+    expect(hqAuthRequired(bare())).toBe(false);
+  });
+
+  it('an explicit argument still wins, so existing two-argument gates are unchanged', () => {
+    expect(hqAuthRequired(bare(), true)).toBe(true);
+    expect(hqAuthRequired(bare({ requireBrowserAuth: true }), undefined)).toBe(true);
+  });
+
+  it('createHqAuthState stamps the option onto the state', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-relay-state-'));
+    const state = createHqAuthState(authFile(), dir, { requireBrowserAuth: true });
+
+    // The wiring is the point: a field nobody sets is the same bug with extra
+    // steps.
+    expect(state.mutableAuth.requireBrowserAuth).toBe(true);
+    expect(hqAuthRequired(state.mutableAuth)).toBe(true);
   });
 });
 

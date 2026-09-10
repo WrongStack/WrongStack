@@ -426,6 +426,9 @@ export function AppViewPickers({
             if (cur && saveSettings) {
               Promise.resolve(saveSettings({ ...cur, yolo: true })).catch(() => {});
             }
+            // YOLO removes routine prompts, not the destructive gate that put
+            // this specific call on screen. Keep it pending for y/n/a/d or Brain.
+            if (head.destructive) return;
             resolved = true;
             head.resolve('yes');
             dispatch({ type: 'confirmClose' });

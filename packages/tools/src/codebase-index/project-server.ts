@@ -14,7 +14,9 @@ import * as net from 'node:net';
 import * as path from 'node:path';
 import { startSharedHeapWatchdog, useDaemonPerfDefaults } from '@wrongstack/core/utils';
 import { bindProjectEndpoint } from '@wrongstack/persistence';
+import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import { indexService } from './index-service.js';
+import { recordWriteQueueWait } from './perf-metrics.js';
 import {
   PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
   projectIndexServerBuildId,
@@ -36,7 +38,6 @@ import type {
   ProjectServerClientMessage,
   ProjectServerMessage,
 } from './project-server-protocol.js';
-import { recordWriteQueueWait } from './perf-metrics.js';
 import { ServerQueryCaches } from './project-server-query-cache.js';
 import type { ActiveFullIndex, ClientState } from './project-server-types.js';
 import {
@@ -218,9 +219,7 @@ function withWriteMutex<T>(job: () => Promise<T>): Promise<T> {
     const elapsedWaitMs = performance.now() - queuedAt;
     const holdMs = Number(process.env['WRONGSTACK_INDEX_BENCH_WRITE_HOLD_MS'] ?? 0);
     const waitMs =
-      Number.isFinite(holdMs) && holdMs > 0
-        ? Math.max(elapsedWaitMs, holdMs)
-        : elapsedWaitMs;
+      Number.isFinite(holdMs) && holdMs > 0 ? Math.max(elapsedWaitMs, holdMs) : elapsedWaitMs;
     writeQueueWaitMs += waitMs;
     recordWriteQueueWait(waitMs);
     return guarded();
@@ -372,7 +371,11 @@ async function handleMessage(
     return;
   }
   // WS-027: prove you could read the owner-only metadata file before acting.
-  if (message.authToken !== authToken) {
+  // WS-SEC-LOW: `!==` on a secret returns at the first differing byte, so
+  // its timing leaks the shared-prefix length. Every other credential
+  // surface in the repo already compares in constant time; these four IPC
+  // daemons were the ones that did not.
+  if (!timingSafeTokenEqual(message.authToken, authToken)) {
     send(state, {
       type: 'response',
       id: message.id,

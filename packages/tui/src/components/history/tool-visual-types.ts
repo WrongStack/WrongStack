@@ -5,6 +5,7 @@ export type ToolVisualLineKind =
   | 'meta'
   | 'path'
   | 'match'
+  | 'context'
   | 'code'
   | 'stdout'
   | 'stderr';

@@ -164,7 +164,23 @@ export function verifyTotpCounter(
   stepSeconds: number = DEFAULT_STEP_SECONDS,
   digits: number = DEFAULT_DIGITS,
 ): number | undefined {
+  // The guard has to be on BYTES, not code units. `code.length` counts UTF-16
+  // units while `Buffer.from(code)` below is UTF-8, so a 6-character string of
+  // full-width digits (`１２３４５６`) passed this check at 6 and arrived at
+  // `timingSafeEqual` as 18 bytes — which throws `ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH`
+  // rather than returning false. On HQ that surfaced as an unauthenticated 500
+  // from `/api/login/verify`, an auth-exempt route, and the attempt never
+  // reached the 2FA failure counter — so it was also a way to probe without
+  // being rate limited.
+  //
+  // Constraining to ASCII digits fixes both halves at once: it is the actual
+  // domain of a TOTP code (RFC 6238 codes are decimal), and it makes the UTF-8
+  // byte length equal the character length by construction.
   if (typeof code !== 'string' || code.length !== digits) return undefined;
+  for (let i = 0; i < code.length; i++) {
+    const c = code.charCodeAt(i);
+    if (c < 0x30 || c > 0x39) return undefined;
+  }
   const secret = base32Decode(secretBase32);
   const currentCounter = totpCounter(Math.floor(atMs / 1000), stepSeconds);
 

@@ -217,6 +217,7 @@ export interface UIState {
     decisionSource?: string | undefined;
     riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
     boundaryReason?: string | undefined;
+    deadlineAt?: number | undefined;
   } | null;
   paletteOpen: boolean;
   shortcutsOpen: boolean;

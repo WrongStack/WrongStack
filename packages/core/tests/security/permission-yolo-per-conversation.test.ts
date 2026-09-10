@@ -66,6 +66,16 @@ describe('YOLO is decided per conversation', () => {
     expect(otherTab.permission).toBe('confirm');
   });
 
+  it('bypasses a non-destructive tool declaration that normally requires confirmation', async () => {
+    const p = new DefaultPermissionPolicy({ trustFile });
+    const decision = await p.evaluate(
+      tool({ permission: 'confirm', mutating: false }),
+      { path: 'src/a.ts' },
+      conversation('yolo-tab', { yolo: true }),
+    );
+    expect(decision).toMatchObject({ permission: 'auto', source: 'yolo' });
+  });
+
   it('does not replay one conversation’s YOLO decision onto another from cache', async () => {
     const p = new DefaultPermissionPolicy({ trustFile });
     const input = { path: 'src/a.ts' };

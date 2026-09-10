@@ -27,6 +27,7 @@ import {
   removeContractNode,
   upsertContractNode,
 } from '@wrongstack/kanban';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { publishKanbanBoard } from './kanban-broadcast.js';
 import { activityContext, fail, ok } from './kanban-route-helpers.js';
@@ -190,7 +191,7 @@ async function handleNodeUpsert(
     // Binding and waiver validation throw with an actionable message
     // (unknown checkId, node moved to another task, …) — pass it through
     // rather than flattening it to a generic failure.
-    fail(ws, type, err instanceof Error ? err.message : String(err));
+    fail(ws, type, toErrorMessage(err));
   }
 }
 
@@ -245,7 +246,7 @@ async function handleEdgeAdd(
     ok(ws, type, { boardId, edge: result.edge, graph: result.board.contractGraph ?? null });
   } catch (err) {
     // Unknown endpoint and self-edge are user-fixable; say which.
-    fail(ws, type, err instanceof Error ? err.message : String(err));
+    fail(ws, type, toErrorMessage(err));
   }
 }
 

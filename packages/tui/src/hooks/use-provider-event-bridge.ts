@@ -487,6 +487,9 @@ export function useProviderEventBridge({
         },
       });
     });
+    const offConfirmResolved = events.on('tool.confirm_resolved', (e) => {
+      dispatch({ type: 'confirmResolved', toolUseId: e.toolUseId });
+    });
     const offTrustPersisted = events.on('trust.persisted', (e) => {
       const icon = e.decision === 'always' ? '✓' : '✗';
       const label = e.decision === 'always' ? 'always allowed' : 'denied';
@@ -703,6 +706,7 @@ export function useProviderEventBridge({
       offFallbackPending();
       offProvResp();
       offConfirmNeeded();
+      offConfirmResolved();
       offTrustPersisted();
       offDelegateStart();
       offDelegateDone();

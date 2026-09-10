@@ -419,6 +419,30 @@ jobs:
       # the embedding path had 0 automated coverage while 135 unit tests around
       # it stayed green. Install the backend only for this isolated job without
       # lifecycle scripts; the CPU runtime binaries are already in the package.
+      # WS-SEC-17, assessed 2026-09-10. This is the repo's only install that
+      # does not go through the lockfile, so it deserves the note rather than a
+      # silent exception.
+      #
+      # What is actually pinned: the direct version is exact (`@4.2.0`, not a
+      # range), lifecycle scripts are off (`--ignore-scripts`), and the
+      # workspace cooldown applies — `minimumReleaseAge: 1440` in
+      # pnpm-workspace.yaml is a resolution policy, and `--lockfile=false`
+      # only controls whether a lockfile is read or written, so it does not
+      # opt out of it. Verified: `pnpm config get minimumReleaseAge` -> 1440.
+      # That covers the compromised-maintainer case this defends against, where
+      # a malicious version is published and yanked within hours.
+      #
+      # What is not pinned: transitive versions resolve fresh at job time
+      # within their ranges, with no repo-reviewed integrity hashes. The
+      # blast radius is bounded by this job's grants — the workflow is
+      # `contents: read` + `checks: read`, the checkout sets
+      # `persist-credentials: false`, there is no `id-token`, and this job is
+      # not upstream of publish.
+      #
+      # Pinning it properly conflicts with why it is opt-in: putting the
+      # package in the lockfile means every contributor downloads the ONNX
+      # runtime on a plain `pnpm install`. Resolving that tension is an owner
+      # decision, recorded in security-report/.
       - name: Install opt-in vector backend
         run: pnpm --filter @wrongstack/vector-memory add @huggingface/transformers@4.2.0 --lockfile=false --ignore-scripts
 

@@ -364,6 +364,7 @@ export function registerSetupEventsToolHandlers(options: {
       decisionSource: e.decisionSource,
       riskTier: e.riskTier,
       boundaryReason: e.boundaryReason,
+      deadlineAt: e.deadlineAt,
     });
     pendingConfirms.set(id, {
       resolve: e.resolve,
@@ -374,5 +375,20 @@ export function registerSetupEventsToolHandlers(options: {
       payload,
     });
     broadcast(clients, { type: 'tool.confirm_needed', payload });
+  });
+
+  on('tool.confirm_resolved', (e) => {
+    pendingConfirms.delete(e.toolUseId);
+    broadcast(clients, {
+      type: 'tool.confirm_resolved',
+      payload: sessionPayload({
+        sessionId: e.sessionId,
+        id: e.toolUseId,
+        toolName: e.toolName,
+        decision: e.decision,
+        source: e.source,
+        rationale: e.rationale,
+      }),
+    });
   });
 }

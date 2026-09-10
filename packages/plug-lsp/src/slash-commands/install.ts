@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import { buildChildEnv } from '@wrongstack/core/utils';
+import { buildChildEnv, buildWin32CmdShimInvocation } from '@wrongstack/core/utils';
 import { detectTypeScriptFlavor } from '../typescript-flavor.js';
 import { commandExistsOnPath, resolveServerCommand } from '../utils/command-resolver.js';
 
@@ -273,13 +273,19 @@ function detectPackageManagerSync(cwd: string): PackageManager {
 
 function runCommand(command: string, args: string[], cwd: string, label: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    // See `setup.ts#runCommand`: `shell: true` for a `.cmd` shim is the
+    // BatBadBut / CVE-2024-27980 shape. Route through the repo's single safe
+    // construction instead of hand-rolling the flag.
     const isWindowsBatch = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
-    const child = spawn(command, args, {
+    const invocation = isWindowsBatch
+      ? buildWin32CmdShimInvocation(command, args)
+      : { command, args, windowsVerbatimArguments: false };
+    const child = spawn(invocation.command, invocation.args, {
       cwd,
       env: buildChildEnv(),
       stdio: 'inherit',
-      shell: isWindowsBatch,
       windowsHide: true,
+      ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
     });
     child.on('error', reject);
     child.on('close', (code) => {

@@ -1,4 +1,5 @@
 import type { TodoItem } from '@wrongstack/core/agent';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   addPlanItem,
   emptyPlan,
@@ -114,7 +115,7 @@ export async function handleTodosClear(ctx: WorklistContext, ws: WebSocket): Pro
       payload: sessionPayload(ctx, { todos: result.todos }),
     });
   } catch (error) {
-    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+    sendResult(ctx, ws, false, toErrorMessage(error));
   }
 }
 
@@ -152,7 +153,7 @@ export async function handleTodosRemove(
       payload: sessionPayload(ctx, { todos: result.todos }),
     });
   } catch (error) {
-    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+    sendResult(ctx, ws, false, toErrorMessage(error));
   }
 }
 
@@ -215,7 +216,7 @@ export async function handleTodoUpdate(
       payload: sessionPayload(ctx, { todos: result.todos }),
     });
   } catch (error) {
-    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+    sendResult(ctx, ws, false, toErrorMessage(error));
   }
 }
 
@@ -284,7 +285,7 @@ export async function handleTaskUpdate(
       payload: sessionPayload(ctx, { tasks: file.tasks }),
     });
   } catch (error) {
-    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+    sendResult(ctx, ws, false, toErrorMessage(error));
   }
 }
 
@@ -363,7 +364,7 @@ export async function handlePlanTemplateUse(
     );
     ctx.broadcast({ type: 'plan.updated', payload: sessionPayload(ctx, { plan }) });
   } catch (error) {
-    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+    sendResult(ctx, ws, false, toErrorMessage(error));
   }
 }
 
@@ -408,7 +409,7 @@ export async function handlePlanItemUpdate(
     sendResult(ctx, ws, true, `Plan item status updated to "${payload.status}".`);
     ctx.broadcast({ type: 'plan.updated', payload: sessionPayload(ctx, { plan }) });
   } catch (error) {
-    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+    sendResult(ctx, ws, false, toErrorMessage(error));
   }
 }
 

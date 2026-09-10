@@ -145,7 +145,9 @@ describe('StatusBar 4-rail chip composition', () => {
     // reads posture-first (YOLO → autonomy → breaker) and carries the work
     // boards, while the vitals rail above it holds only telemetry.
     const safetyLine = lines.find((l) => l.includes('YOLO')) ?? '';
-    expect(safetyLine).toMatch(/YOLO.*AUTO.*kill\/reset in 25s/);
+    // The one-cell inset on both sides leaves a 138-column content budget,
+    // so the breaker yields its long label but keeps the countdown visible.
+    expect(safetyLine).toMatch(/YOLO.*AUTO.*25s/);
     expect(safetyLine).not.toContain('ctx');
     const vitalsLine = lines.find((l) => l.includes('ctx')) ?? '';
     expect(vitalsLine).toMatch(/ctx.*queued 2/);

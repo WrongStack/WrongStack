@@ -56,4 +56,23 @@ describe('WrongStackWebSocketClient permission confirmations', () => {
       ).pendingConfirms.has('confirm_1'),
     ).toBe(false);
   });
+
+  it('retires client bookkeeping when Brain resolves a timed-out prompt', () => {
+    const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
+    const seen: unknown[] = [];
+    client.on('tool.confirm_resolved', (msg) => seen.push(msg));
+    const internals = client as unknown as {
+      handleMessage: (msg: unknown) => void;
+      pendingConfirms: Map<string, unknown>;
+    };
+    internals.pendingConfirms.set('confirm_brain', {});
+
+    internals.handleMessage({
+      type: 'tool.confirm_resolved',
+      payload: { id: 'confirm_brain', decision: 'no', source: 'brain_timeout' },
+    });
+
+    expect(internals.pendingConfirms.has('confirm_brain')).toBe(false);
+    expect(seen).toHaveLength(1);
+  });
 });

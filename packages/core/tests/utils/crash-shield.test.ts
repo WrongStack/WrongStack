@@ -5,12 +5,12 @@ vi.mock('../../src/utils/term.js', () => ({
   writeErr: vi.fn(),
 }));
 
-import { writeErr } from '../../src/utils/term.js';
 import {
   addFatalSalvageHook,
   installCrashShield,
   runFatalSalvageSync,
 } from '../../src/utils/crash-shield.js';
+import { writeErr } from '../../src/utils/term.js';
 
 describe('installCrashShield', () => {
   it('ignores broken output consumer exceptions', () => {
@@ -289,5 +289,58 @@ describe('addFatalSalvageHook — unregister edge cases', () => {
 
     runFatalSalvageSync();
     expect(calls).toEqual([]);
+  });
+});
+
+describe('crash report redaction (WS-SEC-08)', () => {
+  it('scrubs a credential out of the stack it asks the user to report', () => {
+    const target = new EventEmitter();
+    const write = vi.fn();
+    const cleanup = installCrashShield({ target: target as never, write, exit: vi.fn() });
+
+    const err = new Error('provider rejected: Incorrect API key provided: sk-abcdefghij0123456789');
+    err.stack = `${err.message}\n    at fetchModel (/app/provider.ts:1:1)`;
+    target.emit('uncaughtException', err);
+
+    const printed = write.mock.calls.map((c) => String(c[0])).join('');
+    // The banner literally instructs the user to publish this text.
+    expect(printed).toContain('please report');
+    expect(printed).not.toContain('sk-abcdefghij0123456789');
+    // The diagnostic value has to survive — this is still a crash report.
+    expect(printed).toContain('fetchModel');
+    cleanup();
+  });
+});
+
+describe('toErrorMessage redacts by default (WS-SEC-09)', () => {
+  it('scrubs a credential out of the message every caller already uses', async () => {
+    const { toErrorMessage, rawErrorMessage } = await import('../../src/utils/error.js');
+    const err = new Error('Incorrect API key provided: sk-abcdefghij0123456789');
+
+    // 587 call sites reach this helper; 8 reached the sanitizer. The redaction
+    // had to move to where the callers already are.
+    expect(toErrorMessage(err)).not.toContain('sk-abcdefghij0123456789');
+    expect(toErrorMessage(err)).toContain('Incorrect API key provided');
+
+    // The escape hatch stays exact for callers that must match error text.
+    expect(rawErrorMessage(err)).toContain('sk-abcdefghij0123456789');
+  });
+
+  it('leaves ordinary messages and non-Error values untouched', async () => {
+    const { toErrorMessage } = await import('../../src/utils/error.js');
+
+    expect(toErrorMessage(new Error('ENOENT: no such file'))).toBe('ENOENT: no such file');
+    expect(toErrorMessage('plain string')).toBe('plain string');
+    expect(toErrorMessage(42)).toBe('42');
+  });
+
+  it('does not rewrite home paths, unlike scrubErrorText', async () => {
+    const { toErrorMessage } = await import('../../src/utils/error.js');
+    const { homedir } = await import('node:os');
+    const home = homedir();
+
+    // Deliberate split (see the module doc): mangling paths at all 587 sites
+    // would break callers that parse them back out.
+    expect(toErrorMessage(new Error(`cannot read ${home}/x`))).toContain(home);
   });
 });

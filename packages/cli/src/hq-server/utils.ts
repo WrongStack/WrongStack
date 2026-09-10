@@ -10,6 +10,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { HqEventEnvelope, HqPersistence, HqTranscriptEntry } from '@wrongstack/core/hq';
 import { resolveHqDataDir } from '@wrongstack/core/hq';
+import { isSafeSessionId as coreIsSafeSessionId } from '@wrongstack/core/utils';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -197,11 +198,11 @@ export function isSafePathSegment(value: string): boolean {
  * check in `sessionScopedPath` (core/utils) is the second lock.
  */
 export function isSafeSessionId(value: string): boolean {
-  if (value.length === 0 || value.length > MAX_PATH_SEGMENT_LENGTH) return false;
-  if (value.includes('\\') || value.includes('\0') || value.includes(':')) return false;
-  const parts = value.split('/');
-  if (parts.length > 2) return false;
-  return parts.every((p) => p.length > 0 && p !== '.' && p !== '..');
+  // Delegates: the rule now has one definition in
+  // `@wrongstack/core/utils/path-segment`, because it had already split in
+  // two — this copy validated while `webui-server`'s same-named
+  // `decodeSessionId` did not. The export stays for its existing callers.
+  return coreIsSafeSessionId(value);
 }
 
 /** Normalize display host — "0.0.0.0" prints as "127.0.0.1" for user-facing URLs. */

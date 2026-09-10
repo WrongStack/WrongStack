@@ -12,7 +12,12 @@ import { getWSClient } from '@/lib/ws-client';
 import { chatFor, pipeViz, safePayload, sessionFor } from '@/lib/ws-client-utils';
 import { useConfigStore, useSessionStore, useSessionTabStore, useUIStore } from '@/stores';
 import { useBugHuntRunStore } from '@/stores/bug-hunt-run-store';
-import { activeLaneId, type ChatLaneActions, onLaneDisposed } from '@/stores/chat-lanes';
+import {
+  activeLaneId,
+  type ChatLaneActions,
+  onLaneDisposed,
+  resolvePendingConfirm,
+} from '@/stores/chat-lanes';
 import type { QueuedItem } from '@/stores/chat-store';
 import { sessionPref } from '@/stores/local-prefs';
 import { useToolStatsStore } from '@/stores/tool-stats-store';
@@ -36,6 +41,7 @@ const chatHandlers = {
   handleToolProgress,
   handleToolExecuted,
   handleToolConfirmNeeded,
+  handleToolConfirmResolved,
   handleRunResult,
   handleSessionRunState,
 };
@@ -48,6 +54,7 @@ export const chatHandlerMap: Partial<Record<string, (msg: WSServerMessage) => vo
   'tool.progress': handleToolProgress,
   'tool.executed': handleToolExecuted,
   'tool.confirm_needed': handleToolConfirmNeeded,
+  'tool.confirm_resolved': handleToolConfirmResolved,
   'run.result': handleRunResult,
   'session.run_state': handleSessionRunState,
 };
@@ -298,12 +305,15 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
     decisionSource?: string | undefined;
     riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
     boundaryReason?: string | undefined;
+    deadlineAt?: number | undefined;
   };
   // YOLO belongs to the session that raised the prompt. Reading the flat
   // field asks the tab in FRONT, which auto-approved a background tab's tool
   // because a different tab happened to be in YOLO — an approval the user
   // never gave for that session.
-  if (sessionPref(chat.sessionId, 'yolo') === true && !payload.boundaryReason) {
+  const destructive =
+    payload.riskTier === 'destructive' || payload.decisionSource === 'yolo_destructive';
+  if (sessionPref(chat.sessionId, 'yolo') === true && !payload.boundaryReason && !destructive) {
     getWSClient(useConfigStore.getState().wsUrl).sendConfirm(payload.id, 'yes');
     useUIStore.getState().hideConfirm();
     return;
@@ -334,6 +344,7 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
     decisionSource: payload.decisionSource,
     riskTier: payload.riskTier,
     boundaryReason: payload.boundaryReason,
+    deadlineAt: payload.deadlineAt,
   });
   try {
     playPermissionChime();
@@ -348,6 +359,14 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
     'agent-confirm',
   );
   if (typeof document !== 'undefined' && document.hidden) setFaviconStatus('attention');
+}
+
+export function handleToolConfirmResolved(msg: WSServerMessage) {
+  const payload = msg.payload as { id?: unknown };
+  if (typeof payload.id !== 'string') return;
+  resolvePendingConfirm(payload.id);
+  const visible = useUIStore.getState().confirmInfo;
+  if (visible?.id === payload.id) useUIStore.getState().hideConfirm();
 }
 
 /**

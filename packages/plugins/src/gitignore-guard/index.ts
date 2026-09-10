@@ -578,7 +578,7 @@ const plugin: Plugin = {
         },
         required: ['path'],
       },
-      permission: 'auto',
+      permission: 'confirm',
       category: 'Code Quality',
       mutating: true,
       async execute(input: { path?: unknown; pattern?: unknown }) {

@@ -19,8 +19,8 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 209,
-      "typeOnly": 83,
+      "files": 210,
+      "typeOnly": 84,
       "runtimeOrMixed": 181
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 567,
+      "files": 580,
       "typeOnly": 54,
-      "runtimeOrMixed": 540
+      "runtimeOrMixed": 554
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -214,9 +214,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils/error": {
-      "files": 6,
+      "files": 9,
       "typeOnly": 0,
-      "runtimeOrMixed": 6
+      "runtimeOrMixed": 9
     },
     "@wrongstack/core/utils/expect-defined": {
       "files": 13,
@@ -3507,6 +3507,12 @@
       "file": "packages/webui-server/src/server/standalone-session-identity.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/start-webui-remediation.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -17088,6 +17094,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/auth-menu/panel-service.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/auth-menu/provider-auth-login.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17360,7 +17372,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/hq-server/utils.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -17539,6 +17551,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/statusline-config.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/session-event-wiring.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -19938,6 +19956,18 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/chimera-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/chronicle-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/client-presence.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -20034,6 +20064,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/git-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/git-process.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -20052,9 +20088,21 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/handlers/worklist-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 5
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/http-server/security-helpers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -20065,6 +20113,30 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/intake-service.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/kanban-contract-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/kanban-decomposition-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/kanban-supervisor.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/mcp-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -20089,6 +20161,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/pref-helpers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/prefs-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -20215,6 +20293,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/start-webui-credential-watcher.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/start-webui-remediation.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -20370,7 +20454,25 @@
     },
     {
       "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/webui/src/components/SessionsDashboard.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
       "file": "packages/webui/src/i18n/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/webui/src/lib/ws-client.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/webui/src/stores/session-inspect-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

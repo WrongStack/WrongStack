@@ -10,6 +10,7 @@
 
 import nodePath from 'node:path';
 import type { WebSocket } from 'ws';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { isPathInside } from './path-containment.js';
 import { send } from './ws-utils.js';
 
@@ -242,7 +243,7 @@ export async function handleGitHistory(
         repoRoot: '',
         hasMore: false,
         skip,
-        error: error instanceof Error ? error.message : String(error),
+        error: toErrorMessage(error),
       },
     });
   }
@@ -286,7 +287,7 @@ export async function handleGitCommitDetail(
       truncated: scopedFiles.length > files.length,
     });
   } catch (error) {
-    reply({ error: error instanceof Error ? error.message : String(error) });
+    reply({ error: toErrorMessage(error) });
   }
 }
 
@@ -364,7 +365,7 @@ export async function handleGitCommitFileDiff(
     reply({
       oldText: '',
       newText: '',
-      error: error instanceof Error ? error.message : String(error),
+      error: toErrorMessage(error),
     });
   }
 }
@@ -543,7 +544,7 @@ export async function handleGitChanges(ws: WebSocket, projectRoot: string): Prom
         files: [],
         dirs: {},
         repoPrefix: '',
-        error: err instanceof Error ? err.message : String(err),
+        error: toErrorMessage(err),
       },
     });
   }
@@ -654,7 +655,7 @@ export async function handleGitDiff(
 
     reply({ oldText, newText });
   } catch (err) {
-    reply({ oldText: '', newText: '', error: err instanceof Error ? err.message : String(err) });
+    reply({ oldText: '', newText: '', error: toErrorMessage(err) });
   }
 }
 

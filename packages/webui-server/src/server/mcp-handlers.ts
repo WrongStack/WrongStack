@@ -10,6 +10,7 @@
  */
 
 import { allServers } from '@wrongstack/core/infrastructure';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { DefaultSecretScrubber, isSecretField } from '@wrongstack/core/security';
 import {
   addMcp,
@@ -389,7 +390,7 @@ export async function handleMcpSleep(
       payload: { success: true, message: `Server "${name(msg)}" stopped` },
     });
   } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
+    const error = toErrorMessage(err);
     send(ws, { type: 'mcp.server.error', payload: { name: name(msg), error } });
     send(ws, {
       type: 'mcp.operation_result',
@@ -603,5 +604,5 @@ function sendContentError(ws: WebSocket, action: string, name: string, error: st
 }
 
 function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return toErrorMessage(err);
 }

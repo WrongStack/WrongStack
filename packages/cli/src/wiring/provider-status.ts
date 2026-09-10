@@ -4,7 +4,7 @@ import type { FallbackProfileManager } from '@wrongstack/core/agent';
 import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
+import { atomicWrite, toErrorMessage, withFileLock } from '@wrongstack/core/utils';
 
 interface ProviderStatusInput {
   events: EventBus;
@@ -85,7 +85,7 @@ export async function setupProviderStatus(input: ProviderStatusInput) {
     } catch (error) {
       // The audit trail must never break the runtime.
       input.logger.warn(
-        `Could not append provider audit log: ${error instanceof Error ? error.message : String(error)}`,
+        `Could not append provider audit log: ${toErrorMessage(error)}`,
       );
     }
   };
@@ -164,7 +164,7 @@ export async function setupProviderStatus(input: ProviderStatusInput) {
           }
           void persist().catch((error: unknown) =>
             input.logger.warn(
-              `Could not persist provider waiting room: ${error instanceof Error ? error.message : String(error)}`,
+              `Could not persist provider waiting room: ${toErrorMessage(error)}`,
             ),
           );
         }
@@ -248,7 +248,7 @@ export async function setupProviderStatus(input: ProviderStatusInput) {
       saveTimer = undefined;
       void persist().catch((error: unknown) =>
         input.logger.warn(
-          `Could not persist provider waiting room: ${error instanceof Error ? error.message : String(error)}`,
+          `Could not persist provider waiting room: ${toErrorMessage(error)}`,
         ),
       );
     }, 100);
@@ -270,7 +270,7 @@ function warnUnlessMissing(
 ): void {
   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
     logger.warn(
-      `Could not ${operation} provider waiting room: ${error instanceof Error ? error.message : String(error)}`,
+      `Could not ${operation} provider waiting room: ${toErrorMessage(error)}`,
     );
   }
 }

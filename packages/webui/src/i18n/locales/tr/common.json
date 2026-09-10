@@ -53,6 +53,8 @@
     "trustSuggestionTitle": "Güven kalıbı önerisi",
     "trustSuggestionHint": "Her Zaman'ı seçmek, bu proje için eşleşen çağrıları beyaz listeye alır.",
     "yoloDestructiveNote": "YOLO açık. Bu onay yine de gösteriliyor çünkü istek yıkıcı olarak sınıflandırıldı.",
+    "brainCountdown": "Onayın bekleniyor · Brain {{time}} sonra devralacak",
+    "brainDeciding": "Süre doldu · Brain karar veriyor…",
     "skipApprovalsTitle": "Sonraki onayları atla",
     "skipApprovalsHint": "YOLO modunu etkinleştir; vekil izin istemeden çalışır. Yıkıcı işlemler yine de onay ister.",
     "enableYoloTitle": "YOLO modunu etkinleştir (bu ve gelecekteki yıkıcı olmayan çağrıları otomatik onayla)",

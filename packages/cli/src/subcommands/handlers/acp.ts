@@ -233,13 +233,51 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
   const gate = createAcpConnectionGate({ host, port, token: acpToken });
   let liveConnections = 0;
 
-  const wss = new WebSocketServer({ host, port, maxPayload: 20 * 1024 * 1024 });
-  wss.on('connection', (socket, req) => {
-    const verdict = gate.check(req, liveConnections);
-    if (!verdict.ok) {
-      socket.close(verdict.code ?? 1008, verdict.reason ?? 'forbidden');
+  // The gate runs at `verifyClient`, not on `connection`.
+  //
+  // It used to run on `connection`, which is after `ws` has already answered
+  // `101 Switching Protocols`, allocated a WebSocket with the 20 MiB
+  // `maxPayload` budget below, and spent a file descriptor. A WebSocket
+  // handshake is exempt from the same-origin policy, so any page the user
+  // happens to have open could run `for(;;) new WebSocket('ws://127.0.0.1:<acpPort>')`
+  // and make the agent host pay that allocation on every attempt before being
+  // closed with 1008. The gate itself was never the problem — cross-origin,
+  // bad-Host and bad-token connections were all correctly refused — it was
+  // refusing them too late.
+  //
+  // `maxConnections` had the same shape: evaluated after allocation, it capped
+  // concurrent ADMITTED sessions rather than concurrent allocations. Checking
+  // here fixes both, because `gate.check` only ever needed `headers` and
+  // `url`, which `verifyClient` provides.
+  //
+  // The CLI WebUI host made exactly this move under DOS-004
+  // (`cli/src/webui-server.ts`); this is the same fix on the ACP surface.
+  //
+  // One honest trade: `liveConnections` is still incremented on `connection`,
+  // so the cap is now read slightly before the socket it will admit is
+  // counted, and concurrent handshakes can overshoot it by a small margin.
+  // That race is inherent to checking before allocation — a counter
+  // incremented at admission instead would leak whenever a verified socket
+  // never reaches `connection`. The cap is a resource ceiling, not the
+  // security boundary (the per-run token is), and overshooting it by a few is
+  // strictly better than allocating for every rejected attempt.
+  const verifyClient = (
+    info: { origin: string; secure: boolean; req: import('node:http').IncomingMessage },
+    cb: (ok: boolean, code?: number, message?: string) => void,
+  ): void => {
+    const verdict = gate.check(info.req, liveConnections);
+    if (verdict.ok) {
+      cb(true);
       return;
     }
+    // Refusing during the handshake means an HTTP status, not a close frame.
+    // 1008 (policy violation) is a WebSocket close code and has no meaning
+    // here, so map to 403 and keep the gate's own reason as the status text.
+    cb(false, 403, verdict.reason ?? 'forbidden');
+  };
+
+  const wss = new WebSocketServer({ host, port, maxPayload: 20 * 1024 * 1024, verifyClient });
+  wss.on('connection', (socket) => {
     liveConnections++;
     socket.once('close', () => {
       liveConnections--;

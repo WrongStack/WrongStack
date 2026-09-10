@@ -16,6 +16,7 @@ import {
 import { setTuiHistoryMemoryGauges } from '../tui-memory-counters.js';
 import { EntryErrorBoundary } from './entry-error-boundary.js';
 import { buildCopyRegistry } from './history/copy-registry.js';
+import { findArmedNextStepsEntryId } from './history/entry.js';
 import {
   createSelectionBandStore,
   type SelectionBandStore,
@@ -92,6 +93,8 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   maxWidth,
   setSuggestions,
   autonomyMode,
+  nextStepsAutoSubmitLabel,
+  nextStepsAutoSubmitDeadlineMs,
   multiDiffSummaryThreshold,
   todos,
   showModelReasoning,
@@ -112,6 +115,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   const termWidth = useMemo(
     () => Math.max(1, viewportWidth - SCROLLBAR_HIT_WIDTH),
     [viewportWidth],
+  );
+  const armedNextStepsEntryId = useMemo(
+    () => findArmedNextStepsEntryId(entries, nextStepsAutoSubmitLabel),
+    [entries, nextStepsAutoSubmitLabel],
   );
   useEffect(() => {
     const handleResize = () => {
@@ -564,6 +571,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
                   termHeight={vp}
                   setSuggestions={setSuggestions}
                   autonomyMode={autonomyMode}
+                  nextStepsAutoSubmitLabel={nextStepsAutoSubmitLabel}
+                  nextStepsAutoSubmitDeadlineMs={
+                    entry.id === armedNextStepsEntryId ? nextStepsAutoSubmitDeadlineMs : null
+                  }
                   multiDiffSummaryThreshold={multiDiffSummaryThreshold}
                   todos={todos}
                   showModelReasoning={showModelReasoning}

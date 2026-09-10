@@ -37,15 +37,14 @@ interface TelegramApproveOutput {
  * auto-denies). Useful when the agent wants explicit approval before
  * continuing and the user is on their phone rather than the TUI.
  *
- * The agent calls this tool directly. It does not replace the host-level
- * `permission: 'confirm'` flow — for that, see the future B4 work.
+ * The Telegram button is the remote authorization for the proposed action;
+ * it does not authorize sending the outbound approval request itself.
  *
- * Permission: `auto` (NOT `confirm`). This is intentional — the tool's
- * purpose IS to obtain user approval; gating it behind another host-level
- * confirm dialog would be circular and would block the agent in
- * headless mode. The user-side approval (Telegram button press) is
- * the only confirm gate. The 600 s tool `timeoutMs` ceiling is the
- * safety net for the case where the user never responds.
+ * Permission: `confirm`. Sending a persistent approval request to a remote
+ * user is a high-impact external side effect, so the host must confirm it
+ * before dispatch. After that confirmation, the Telegram button remains the
+ * only remote authorization for the proposed action. The 600 s tool
+ * `timeoutMs` ceiling auto-denies when the user never responds.
  */
 export function makeTelegramApproveTool(opts: {
   bot: TelegramBot;
@@ -97,7 +96,7 @@ export function makeTelegramApproveTool(opts: {
       },
       required: ['prompt'],
     },
-    permission: 'auto',
+    permission: 'confirm',
     mutating: true,
     riskTier: 'standard',
     capabilities: [TELEGRAM_APPROVAL_CAPABILITY],

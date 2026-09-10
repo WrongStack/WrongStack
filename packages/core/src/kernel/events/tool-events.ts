@@ -130,7 +130,18 @@ export interface ToolEventMap {
     /** Real write destinations from `Tool.writeTargets`, when declared (VULN-001 Phase 2). */
     writeTargets?: string[] | undefined;
     boundaryReason?: string | undefined;
+    /** Wall-clock deadline after which Brain becomes the decision authority. */
+    deadlineAt: number;
     resolve: (decision: 'yes' | 'no' | 'always' | 'deny') => void;
+  };
+  /** Fired when abort or the 120-second Brain fallback settles a visible prompt. */
+  'tool.confirm_resolved': {
+    sessionId?: string | undefined;
+    toolUseId: string;
+    toolName: string;
+    decision: 'yes' | 'no' | 'always' | 'deny' | 'abort';
+    source: 'brain_timeout' | 'abort';
+    rationale?: string | undefined;
   };
   /**
    * Fired when the agent loop detects that the model is repeating itself —

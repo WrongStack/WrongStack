@@ -33,6 +33,7 @@ import { recordFileAction } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { startNetworkTelemetryMonitor } from '@wrongstack/core/observability';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
 
@@ -118,7 +119,7 @@ function tryCreateChronicleJournal(
       JSON.stringify({
         level: 'warn',
         event: 'chronicle.disabled',
-        reason: error instanceof Error ? error.message : String(error),
+        reason: toErrorMessage(error),
         timestamp: new Date().toISOString(),
       }),
     );
@@ -222,7 +223,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       (context as { traceId?: string | undefined }).traceId,
     );
     const onChroniclePersistError = (error: unknown): void => {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = toErrorMessage(error);
       errorRing.push({
         ts: new Date().toISOString(),
         phase: 'chronicle.persist',

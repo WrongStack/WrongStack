@@ -4,6 +4,7 @@ import * as fsp from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { bindProjectEndpoint } from '@wrongstack/persistence';
+import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import { restrictFilePermissions } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
@@ -450,7 +451,11 @@ async function handleMessage(
     state.socket.destroy(new Error('Invalid Session Catalog request'));
     return;
   }
-  if (message.authToken !== authToken) {
+  // WS-SEC-LOW: `!==` on a secret returns at the first differing byte, so
+  // its timing leaks the shared-prefix length. Every other credential
+  // surface in the repo already compares in constant time; these four IPC
+  // daemons were the ones that did not.
+  if (!timingSafeTokenEqual(message.authToken, authToken)) {
     send(state, {
       type: 'response',
       id: message.id,

@@ -36,7 +36,14 @@ fi
 cd "$SCRIPT_DIR"
 
 echo -e "${GREEN}[1/3]${NC} Installing dependencies..."
-pnpm install --silent 2>/dev/null || pnpm install
+# --ignore-scripts, then rebuild an explicit list. Every one of CI's installs
+# does this; the dev entrypoint was the one path that let an arbitrary
+# dependency's install lifecycle run, which is the machine where a compromised
+# postinstall would find real credentials. The list matches
+# `pnpm rebuild` in .github/workflows/ci.yml and `allowBuilds` in
+# pnpm-workspace.yaml — keep the three in step.
+pnpm install --ignore-scripts --silent 2>/dev/null || pnpm install --ignore-scripts
+pnpm rebuild electron-winstaller esbuild node-pty
 
 echo -e "${GREEN}[2/3]${NC} Building packages..."
 pnpm run build --filter=@wrongstack/core --filter=@wrongstack/providers --filter=@wrongstack/tools 2>/dev/null || true

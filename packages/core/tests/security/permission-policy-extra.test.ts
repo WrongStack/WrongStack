@@ -308,3 +308,58 @@ describe('subjectFor legacy heuristics', () => {
     expect(d).toMatchObject({ permission: 'auto', source: 'trust' });
   });
 });
+
+/**
+ * The YOLO contract, stated as a test.
+ *
+ * Owner requirement: in YOLO mode an approval prompt must not appear unless the
+ * call is genuinely destructive; when it IS destructive the prompt appears and
+ * waits. The mechanism for "genuinely destructive" is the nine-kind taxonomy in
+ * `yolo-risk.ts` — and it has to be the ONLY mechanism.
+ *
+ * A tool's own `permission: 'confirm'` is the normal-mode default. If it also
+ * short-circuited YOLO, every tool anyone ever declared `confirm` would prompt
+ * regardless of risk, which is a second gate the category design cannot see.
+ * That exact condition was briefly added to the YOLO branch and reverted; these
+ * tests exist so the next attempt fails here instead of in the user's terminal.
+ */
+describe('YOLO prompts only for genuinely destructive calls', () => {
+  it('auto-approves a tool that declares confirm but is not destructive', async () => {
+    const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
+
+    const decision = await p.evaluate(tool('set_model_tier', 'confirm'), { tier: 'premium' }, ctx());
+
+    // The 13 coordination/fallback/plugin tools flipped to `confirm` are this
+    // shape: a preference or config change, not large irreversible harm.
+    expect(decision.permission).toBe('auto');
+    expect(decision.source).toBe('yolo');
+  });
+
+  it('auto-approves a confirm-declaring mutating tool with no destructive kind', async () => {
+    const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
+
+    const decision = await p.evaluate(
+      tool('mailbox_send', 'confirm', { mutating: true }),
+      { to: 'reviewer', body: 'hi' },
+      ctx(),
+    );
+
+    expect(decision.permission).toBe('auto');
+  });
+
+  it('still confirms a destructive call, and names the kind so the user can act', async () => {
+    const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
+
+    const decision = await p.evaluate(
+      tool('bash', 'auto', { subjectKey: 'command' }),
+      { command: 'rm -rf /' },
+      ctx(),
+    );
+
+    // Declaring `auto` must not buy a bypass either — the taxonomy decides in
+    // both directions.
+    expect(decision.permission).toBe('confirm');
+    expect(decision.source).toBe('yolo_destructive');
+    expect(decision.reason ?? '').toMatch(/needs explicit approval/);
+  });
+});

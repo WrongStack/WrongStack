@@ -353,7 +353,7 @@ export function hqAuthRequired(
   requireBrowserAuth?: boolean | undefined,
 ): boolean {
   return (
-    requireBrowserAuth === true ||
+    (requireBrowserAuth ?? mutableAuth.requireBrowserAuth) === true ||
     mutableAuth.requireAuthFloor === true ||
     mutableAuth.browserTokens.size > 0 ||
     mutableAuth.passwordHash !== undefined

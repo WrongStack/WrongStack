@@ -187,6 +187,15 @@ export interface CommandAllowlistConfig {
   allowAll?: boolean | undefined;
 }
 
+/**
+ * A parsed `pnpm exec` command that the verifier runs by resolving the local
+ * executable directly. The verifier never spawns pnpm itself.
+ */
+export interface ConstrainedPnpmExecCommand {
+  executable: 'tsc' | 'vitest';
+  args: string[];
+}
+
 export function normalizeBaseCommand(token: string): string {
   return token
     .replace(/^.*[/\\]/, '')
@@ -286,6 +295,77 @@ export function extractBaseCommand(command: string): string {
   return typeof parsed === 'string' ? '' : normalizeBaseCommand(parsed[0] ?? '');
 }
 
+function isProjectRelativePath(value: string): boolean {
+  const normalized = value.replaceAll('\\', '/');
+  return (
+    normalized.length > 0 &&
+    !normalized.startsWith('-') &&
+    !normalized.startsWith('/') &&
+    !/^[A-Za-z]:/.test(normalized) &&
+    !normalized.split('/').includes('..') &&
+    !SHELL_OPERATOR_RE.test(normalized) &&
+    !ENV_EXPANSION_RE.test(normalized)
+  );
+}
+
+/**
+ * Recognize the two package-manager-looking forms that the verifier can run
+ * safely by bypassing pnpm and resolving a local binary itself. Every other
+ * pnpm subcommand remains blocked by the generic package-manager gate.
+ */
+export function parseConstrainedPnpmExec(
+  tokens: readonly string[],
+): ConstrainedPnpmExecCommand | string | null {
+  if (normalizeBaseCommand(tokens[0] ?? '') !== 'pnpm') return null;
+  const rawSubcommand = tokens[1] ?? '';
+  if (normalizeBaseCommand(rawSubcommand) !== 'exec' || /[/\\]/.test(rawSubcommand)) {
+    return 'Command "pnpm" is blocked by the verifier security policy; only constrained "pnpm exec" verification commands are supported.';
+  }
+
+  const rawExecutable = tokens[2] ?? '';
+  const executable = normalizeBaseCommand(rawExecutable);
+  if (
+    rawExecutable.trim() !== rawExecutable ||
+    /[/\\]/.test(rawExecutable) ||
+    /\.(?:exe|cmd|bat|com)$/i.test(rawExecutable) ||
+    (executable !== 'tsc' && executable !== 'vitest')
+  ) {
+    return 'Constrained "pnpm exec" supports only the local "tsc" and "vitest" executables.';
+  }
+
+  const args = [...tokens.slice(3)];
+  if (executable === 'tsc') {
+    if (
+      args.length !== 3 ||
+      args[0] !== '--noEmit' ||
+      args[1] !== '--project' ||
+      !isProjectRelativePath(args[2] ?? '')
+    ) {
+      return 'Constrained "pnpm exec tsc" requires exactly "--noEmit --project <project-relative-tsconfig>".';
+    }
+    return { executable, args };
+  }
+
+  if (args[0] !== 'run') {
+    return 'Constrained "pnpm exec vitest" requires the "run" subcommand.';
+  }
+  let firstTestPath = 1;
+  if (args[1] === '--root') {
+    if (args[2] !== '.') return 'Constrained "pnpm exec vitest" permits only "--root .".';
+    firstTestPath = 3;
+  }
+  const testPaths = args.slice(firstTestPath);
+  if (
+    testPaths.length === 0 ||
+    testPaths.some(
+      (testPath) => !isProjectRelativePath(testPath) || !/\.test\.[cm]?[jt]sx?$/i.test(testPath),
+    )
+  ) {
+    return 'Constrained "pnpm exec vitest" requires one or more project-relative *.test.* paths.';
+  }
+  return { executable, args };
+}
+
 /** Validate a command string. Returns null if allowed, or an error message. */
 export function validateCommand(
   command: string,
@@ -296,7 +376,9 @@ export function validateCommand(
     allowShellOperators?: boolean;
   },
 ): string | null {
-  const base = extractBaseCommand(command);
+  const tokens = parseCommandArguments(command);
+  if (typeof tokens === 'string') return tokens;
+  const base = normalizeBaseCommand(tokens[0] ?? '');
   if (!base) return 'Empty command.';
   if (command.includes('\n') || command.includes('\r')) {
     return 'Command contains newline or carriage return characters which are not permitted.';
@@ -307,6 +389,10 @@ export function validateCommand(
   }
   if (ENV_EXPANSION_RE.test(testTarget)) {
     return 'Command contains environment-variable expansion, which is not permitted in the verifier.';
+  }
+  const constrainedPnpmExec = parseConstrainedPnpmExec(tokens);
+  if (constrainedPnpmExec !== null) {
+    return typeof constrainedPnpmExec === 'string' ? constrainedPnpmExec : null;
   }
   if (config.block.has(base)) {
     return `Command "${base}" is blocked by the verifier security policy.`;

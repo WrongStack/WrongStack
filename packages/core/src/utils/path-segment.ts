@@ -44,6 +44,51 @@ export function isSafePathSegment(value: string): boolean {
 }
 
 /**
+ * True when `value` is safe to use as a session id in a path position.
+ *
+ * Session ids are `YYYY-MM-DD/sess_<ULID>` — one forward slash is the
+ * date-shard separator — and legacy flat ids (no slash) stay readable, so one
+ * or two components are accepted. Everything {@link isSafePathSegment} blocks
+ * is still blocked in each component: no backslash, NUL, or drive-relative
+ * colon; no `.` / `..`; no empty component; no deeper nesting.
+ *
+ * Lives here rather than beside a single caller because the rule had already
+ * split in two: HQ validated, and `webui-server`'s same-named `decodeSessionId`
+ * did not — it returned the raw segment on a decode failure and checked nothing,
+ * so `..%2f..%2f` reached the handler and was stopped only by an incidental
+ * registry miss. That is containment by accident, and it is exactly the drift
+ * this module's own docblock warns about.
+ *
+ * IMPORTANT: validate AFTER percent-decoding. `%2e%2e%2f` passes every check
+ * below and decodes to `../`.
+ */
+export function isSafeSessionId(value: string): boolean {
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_PATH_SEGMENT_LENGTH)
+    return false;
+  if (value.includes('\\') || value.includes('\0') || value.includes(':')) return false;
+  const parts = value.split('/');
+  if (parts.length > 2) return false;
+  return parts.every((p) => p.length > 0 && p !== '.' && p !== '..');
+}
+
+/**
+ * Percent-decode a session id and validate it, or return `null`.
+ *
+ * The single decode+validate pair for every surface that takes a session id
+ * from a URL. Decoding without validating is the bug this replaces; validating
+ * without decoding is the bug the docblock above warns about.
+ */
+export function decodeSessionIdStrict(value: string): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+  return isSafeSessionId(decoded) ? decoded : null;
+}
+
+/**
  * Resolve `segments` under `root`, returning `null` unless every segment is
  * safe AND the resolved path is still inside `root`.
  *

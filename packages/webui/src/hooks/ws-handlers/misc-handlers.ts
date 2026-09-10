@@ -190,7 +190,9 @@ export function handlePrefsUpdated(msg: WSServerMessage) {
   // Only the tab in front owns the visible confirm modal.
   if (sessionId && sessionId !== useLocalPrefs.getState().activeSessionId) return;
   const confirm = useUIStore.getState().confirmInfo;
-  if (confirm) {
+  const destructive =
+    confirm?.riskTier === 'destructive' || confirm?.decisionSource === 'yolo_destructive';
+  if (confirm && !confirm.boundaryReason && !destructive) {
     // The server auto-approves everything pending when YOLO goes on; drop the
     // parked copy so it cannot re-open on the next tab switch.
     resolvePendingConfirm(confirm.id);

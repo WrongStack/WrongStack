@@ -30,9 +30,20 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
 }
 
 function getTool(api: MockApi, name: string): (input: unknown) => Promise<unknown> {
+  return getToolDefinition(api, name).execute;
+}
+
+function getToolDefinition(
+  api: MockApi,
+  name: string,
+): { permission?: string; mutating?: boolean; execute: (input: unknown) => Promise<unknown> } {
   const call = api.tools.register.mock.calls.find((c) => (c[0] as { name: string }).name === name);
   if (!call) throw new Error(`tool ${name} not registered`);
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> }).execute;
+  return call[0] as {
+    permission?: string;
+    mutating?: boolean;
+    execute: (input: unknown) => Promise<unknown>;
+  };
 }
 
 beforeEach(() => {
@@ -80,6 +91,17 @@ describe('knowledge-graph plugin', () => {
     };
     expect(result.ok).toBe(true);
     expect(result.returned).toBe(1);
+  });
+
+  it('requires confirmation before adding or removing a fact', () => {
+    const api = makeApi();
+    knowledgeGraphPlugin.setup(api as never);
+
+    for (const name of ['kg_add_fact', 'kg_remove_fact']) {
+      const tool = getToolDefinition(api, name);
+      expect(tool.permission).toBe('confirm');
+      expect(tool.mutating).toBe(true);
+    }
   });
 
   it('kg_remove_fact deletes by id', async () => {

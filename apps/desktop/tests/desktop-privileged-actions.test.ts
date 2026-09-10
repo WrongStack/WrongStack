@@ -125,3 +125,25 @@ describe('Desktop privileged action adapter', () => {
     );
   });
 });
+
+/**
+ * WS-SEC-13. None of the `ipcMain.handle` channels checked their sender, while
+ * the three `ipcMain.on` handlers in the same file already resolved one. The
+ * window hosts a second renderer — the WebUI view, whose content is remote and
+ * reflects agent and tool output — so "unreachable because another file does
+ * not expose invoke" was the only thing standing between it and channels that
+ * spawn runtimes and message live agents.
+ */
+describe('IPC invoke channels are shell-only (WS-SEC-13)', () => {
+  it('registers every invoke channel through the sender gate', async () => {
+    const src = await import('node:fs/promises').then((fs) =>
+      fs.readFile(new URL('../src/main/ipc-handlers/index.ts', import.meta.url), 'utf8'),
+    );
+
+    // Gating at registration is what makes a channel added later covered by
+    // construction; a bare `ipcMain.handle` is the regression.
+    expect(src).not.toMatch(/\bipcMain\.handle\(IPC\./);
+    expect(src).toMatch(/function handleShellOnly\(/);
+    expect((src.match(/handleShellOnly\(ctx, IPC\./g) ?? []).length).toBeGreaterThanOrEqual(18);
+  });
+});

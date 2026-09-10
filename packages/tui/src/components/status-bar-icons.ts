@@ -1,4 +1,3 @@
-import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import type { StatuslineItem } from './statusline-picker.js';
 
@@ -55,16 +54,6 @@ export function chipColor(color: string, isNoColor: boolean): string | undefined
 }
 
 export const STACK_ORANGE = '#FD9F02';
-
-/**
- * Per-rail background tone. Read through a function (not a frozen array) so
- * it follows a live `/theme` switch, and genuinely alternated so the four
- * rails read as four bands instead of one block: identity/safety sit on the
- * base surface, vitals/async on the raised one.
- */
-export function lineBackground(logical: 0 | 1 | 2 | 3): string {
-  return logical % 2 === 0 ? theme.surface : theme.surfaceRaised;
-}
 
 export const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 export const SPINNER_INTERVAL_MS = 1_000;

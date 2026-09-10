@@ -2,6 +2,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Logger, LogLevel } from '../types/logger.js';
 import { color } from '../utils/color.js';
+import { redactText, redactValue } from '../utils/redaction.js';
 import { writeErr } from '../utils/term.js';
 
 const LEVEL_RANK: Record<LogLevel, number> = {
@@ -211,10 +212,21 @@ export class DefaultLogger implements Logger {
     const allowed = LEVEL_RANK[this.level];
     if (r > allowed) return;
     const ts = new Date().toISOString();
-    const entry: Record<string, unknown> = { ts, level, msg, ...this.bindings };
+    const raw: Record<string, unknown> = { ts, level, msg, ...this.bindings };
     if (ctx !== undefined) {
-      entry.ctx = ctx instanceof Error ? { message: ctx.message, stack: ctx.stack } : ctx;
+      raw.ctx = ctx instanceof Error ? { message: ctx.message, stack: ctx.stack } : ctx;
     }
+    // WS-SEC-07: this sink writes caller-supplied context and full error stacks
+    // to a JSONL file on disk, and nothing scrubbed them. Live feeders exist —
+    // `plugin-sdk/src/runtime/llm.ts` passes raw provider `error.message`, and
+    // gateways echo strings like `Incorrect API key provided: sk-…` — so a
+    // provider key could land in a file users attach to bug reports.
+    //
+    // `scrubObjectShared` rather than `scrubObject`: clean subtrees come back
+    // by reference, which is what makes this affordable on a per-log-call hot
+    // path. Sharing is safe here because the result is only serialized, never
+    // mutated. It covers `msg` and the child `bindings` too, not just `ctx`.
+    const entry = redactValue(raw);
     // Disk: JSON line. Serialized through `_tail` so concurrent log
     // calls preserve per-line order without blocking the caller on
     // sync file I/O. Children route through their parent's tail, so
@@ -246,7 +258,7 @@ export class DefaultLogger implements Logger {
     if (this.format === 'json') {
       writeErr(`${JSON.stringify(entry)}\n`);
     } else {
-      const head = `${color.dim(ts)} ${COLORS[level](level.toUpperCase().padEnd(5))} ${msg}`;
+      const head = `${color.dim(ts)} ${COLORS[level](level.toUpperCase().padEnd(5))} ${String(entry.msg)}`;
       if (ctx !== undefined) {
         writeErr(`${head} ${formatCtx(ctx)}\n`);
       } else {
@@ -264,13 +276,20 @@ function parseLogFormat(raw: string | undefined): LogFormat {
   return raw && LOG_FORMATS.has(raw) ? (raw as LogFormat) : 'pretty';
 }
 
+/**
+ * Scrubbed for the same reason the JSON entry is (WS-SEC-07). The pretty branch
+ * renders the ORIGINAL `ctx` rather than the already-scrubbed entry so an Error
+ * still prints as its message instead of a `{message, stack}` object — so the
+ * scrub has to happen here as well. Same scrubber instance, so the two output
+ * formats cannot disagree about what counts as a secret.
+ */
 function formatCtx(ctx: unknown): string {
-  if (ctx instanceof Error) return color.dim(ctx.message);
-  if (typeof ctx === 'string') return color.dim(ctx);
+  if (ctx instanceof Error) return color.dim(redactText(ctx.message));
+  if (typeof ctx === 'string') return color.dim(redactText(ctx));
   try {
-    return color.dim(JSON.stringify(ctx));
+    return color.dim(redactText(JSON.stringify(ctx)));
   } catch {
-    return color.dim(String(ctx));
+    return color.dim(redactText(String(ctx)));
   }
 }
 

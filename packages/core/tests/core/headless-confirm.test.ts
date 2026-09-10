@@ -1,8 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BrainArbiter } from '../../src/coordination/brain.js';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
+import { HUMAN_APPROVAL_TIMEOUT_MS } from '../../src/core/agent-tools.js';
 import { Context } from '../../src/core/context.js';
 import { DefaultErrorHandler } from '../../src/execution/error-handler.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
@@ -35,7 +37,11 @@ import { MockProvider } from '../helpers/mock-provider.js';
  * asserts the run resolves (does not hang) with the denied tool result.
  */
 
-async function buildHeadlessAgent(provider: MockProvider, extraTools: Tool[] = []) {
+async function buildHeadlessAgent(
+  provider: MockProvider,
+  extraTools: Tool[] = [],
+  brain?: BrainArbiter,
+) {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-headless-'));
   const trustFile = path.join(tmp, 'trust.json');
   const sessionDir = path.join(tmp, 'sessions');
@@ -46,6 +52,7 @@ async function buildHeadlessAgent(provider: MockProvider, extraTools: Tool[] = [
   container.bind(TOKENS.ErrorHandler, () => new DefaultErrorHandler());
   container.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
   container.bind(TOKENS.TokenCounter, () => new DefaultTokenCounter());
+  if (brain) container.bind(TOKENS.BrainArbiter, () => brain);
   // YOLO off — destructive ops must go through confirm. This is what produces
   // the pending confirm result that would deadlock without the listener check.
   container.bind(
@@ -219,4 +226,86 @@ describe('Headless confirm fallback (P1 #4)', () => {
     // The tool must never have executed — the confirm was aborted, not approved.
     expect(executed).toBe(false);
   }, 10_000);
+
+  it('waits exactly 120 seconds, then delegates the unanswered approval to Brain', async () => {
+    let executed = false;
+    const danger: Tool = {
+      name: 'danger',
+      description: 'a destructive op requiring confirm',
+      inputSchema: { type: 'object' },
+      permission: 'confirm',
+      riskTier: 'destructive',
+      mutating: true,
+      async execute() {
+        executed = true;
+        return 'brain-approved';
+      },
+    } as Tool;
+    const provider = new MockProvider([
+      {
+        content: [{ type: 'tool_use', id: 'u-timeout', name: 'danger', input: {} }],
+        stopReason: 'tool_use',
+      },
+      { content: [{ type: 'text', text: 'continued' }], stopReason: 'end_turn' },
+    ]);
+    const brain: BrainArbiter = {
+      decide: vi.fn(async () => ({
+        type: 'answer' as const,
+        optionId: 'approve',
+        text: 'Approve this tool call once',
+      })),
+    };
+    const { agent, events, tmp } = await buildHeadlessAgent(provider, [danger], brain);
+    cleanupDirs.push(tmp);
+    let deadlineAt: number | undefined;
+    let markConfirmSeen: (() => void) | undefined;
+    const confirmSeen = new Promise<void>((resolve) => {
+      markConfirmSeen = resolve;
+    });
+    const resolved = vi.fn();
+    events.on('tool.confirm_needed', (event) => {
+      deadlineAt = event.deadlineAt;
+      markConfirmSeen?.();
+    });
+    events.on('tool.confirm_resolved', resolved);
+
+    const nativeSetTimeout = globalThis.setTimeout.bind(globalThis);
+    let fireApprovalTimeout: (() => void) | undefined;
+    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      handler: TimerHandler,
+      timeout?: number,
+      ...args: unknown[]
+    ) => {
+      const scheduled = nativeSetTimeout(handler, timeout, ...args);
+      if (timeout === HUMAN_APPROVAL_TIMEOUT_MS && typeof handler === 'function') {
+        fireApprovalTimeout = () => handler(...args);
+      }
+      return scheduled;
+    }) as typeof setTimeout);
+    try {
+      const startedAt = Date.now();
+      const run = agent.run('do the dangerous thing');
+      await confirmSeen;
+
+      expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), HUMAN_APPROVAL_TIMEOUT_MS);
+      expect(deadlineAt).toBeGreaterThanOrEqual(startedAt + HUMAN_APPROVAL_TIMEOUT_MS);
+      expect(brain.decide).not.toHaveBeenCalled();
+      expect(executed).toBe(false);
+
+      fireApprovalTimeout?.();
+      const result = await run;
+      expect(brain.decide).toHaveBeenCalledTimes(1);
+      expect(executed).toBe(true);
+      expect(result.finalText).toBe('continued');
+      expect(resolved).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolUseId: 'u-timeout',
+          decision: 'yes',
+          source: 'brain_timeout',
+        }),
+      );
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
 });

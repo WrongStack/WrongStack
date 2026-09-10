@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { resolveAppSidebarLayout } from '../src/app-ui-state.js';
 import type { Settings } from '../src/app-settings-type.js';
+import { resolveAppSidebarLayout } from '../src/app-ui-state.js';
 import { RightSidebar } from '../src/components/sidebar.js';
 import {
   FleetPanelSidebar,
@@ -97,7 +97,10 @@ describe('routed sidebar panel layout', () => {
     // first wrapped row) and confirm the second word is reachable by stripping
     // box-glyph characters as well as whitespace before substring matching.
     expect(frame).toContain('Polish');
-    const stripped = frame.replace(/[│╭╮╰╯─]/g, '');
+    // The persistent scrollbar rail (commit 65835e697) interleaves `░` track
+    // cells between the wrapped words, so strip the rail glyphs as well as
+    // the card's box-glyph characters before substring matching.
+    const stripped = frame.replace(/[│╭╮╰╯─░▉]/g, '');
     expect(stripped.replace(/\s+/g, ' ')).toContain('Polish hierarchy');
     for (const line of view.lines()) {
       expect(displayWidth(line)).toBeLessThanOrEqual(columns);

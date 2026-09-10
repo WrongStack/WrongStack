@@ -176,7 +176,7 @@ describe('SessionInspectView — loading → payload transition', () => {
   it('does not throw across the loading → payload transition', async () => {
     // Phase 1: empty state — no session selected.
     const { rerender } = render(<SessionInspectView />);
-    expect(screen.getByText(/No session selected/i)).toBeTruthy();
+    expect(screen.getByText(/(?:sessionInspect\.noSessionSelected|No session selected)/i)).toBeTruthy();
 
     // Phase 2: loading — component flips loading=true and dispatches
     // inspectSession over the WS.
@@ -185,7 +185,7 @@ describe('SessionInspectView — loading → payload transition', () => {
     seams.inspectStoreState.loading = true;
     rerender(<SessionInspectView />);
 
-    expect(screen.getByText(/Loading session inspection/i)).toBeTruthy();
+    expect(screen.getByText(/(?:activity:)?sessionInspect\.loadingSessionInspection|Loading session inspection/i)).toBeTruthy();
     expect(seams.inspectSessionMock).toHaveBeenCalledWith('sess-abc123def456');
 
     // Phase 3: server replied, payload arrives, loading clears. This is
@@ -236,7 +236,7 @@ describe('SessionInspectView — loading → payload transition', () => {
     seams.inspectStoreState.loading = false;
     rerender(<SessionInspectView />);
 
-    expect(screen.getByText(/No session selected/i)).toBeTruthy();
+    expect(screen.getByText(/(?:sessionInspect\.noSessionSelected|No session selected)/i)).toBeTruthy();
   });
 
   it('does not throw across the error → payload transition', () => {
@@ -281,7 +281,7 @@ describe('SessionInspectView — loading → payload transition', () => {
     expect(screen.getByText('read tool')).toBeTruthy();
 
     // Type into the search box — the input is labelled "Filter events…".
-    const filterInput = screen.getByPlaceholderText(/Filter events/i);
+    const filterInput = screen.getByPlaceholderText(/(?:sessionInspect\.filterEvents|Filter events)/i);
     fireEvent.change(filterInput, { target: { value: 'user' } });
 
     // The component filters by event `label` or `type` (case-insensitive).

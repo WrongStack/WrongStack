@@ -3,7 +3,11 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { buildChildEnv, expectDefined } from '@wrongstack/core/utils';
+import {
+  buildChildEnv,
+  buildWin32CmdShimInvocation,
+  expectDefined,
+} from '@wrongstack/core/utils';
 import { languageServerForWorkspace } from './slash-commands/install.js';
 import { commandExistsOnPath, resolveServerCommand } from './utils/command-resolver.js';
 
@@ -249,14 +253,24 @@ async function runOrPrint(
 }
 
 export function runCommand(command: string, args: string[], cwd: string): Promise<void> {
-  const shell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+  // A `.cmd`/`.bat` shim cannot be spawned on Windows without a shell, and
+  // `shell: true` joins argv into one cmd.exe command line — the BatBadBut /
+  // CVE-2024-27980 shape. `buildWin32CmdShimInvocation` is the repo's single
+  // safe construction (it rejects shell metacharacters and quotes the rest);
+  // this used to hand-roll `shell` instead, which is the same defect that was
+  // fixed in `utils/safe-spawn.ts` and missed here because the S4 architecture
+  // test only grepped for the literal `shell: true`.
+  const needsCmdShim = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+  const invocation = needsCmdShim
+    ? buildWin32CmdShimInvocation(command, args)
+    : { command, args, windowsVerbatimArguments: false };
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(invocation.command, invocation.args, {
       cwd,
       env: buildChildEnv(),
       stdio: 'inherit',
-      shell,
       windowsHide: true,
+      ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
     });
     child.on('error', reject);
     child.on('close', (code) => {

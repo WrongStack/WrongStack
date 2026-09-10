@@ -23,9 +23,10 @@ import {
   TodosPanelSidebar,
   WorktreePanelSidebar,
 } from '../src/components/sidebar-panels.js';
-import { Box } from '../src/ink.js';
+import { Box, Text } from '../src/ink.js';
 import { displayWidth } from '../src/terminal-width.js';
 import type { PanelId, WorktreeRow } from '../src/ui-contracts.js';
+import { glyphs } from '../src/ui-glyphs.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 
 const NOW = Date.parse('2026-08-07T05:00:00.000Z');
@@ -370,5 +371,73 @@ describe('routed sidebar variants — real-TTY visual matrix', () => {
         view.unmount();
       });
     }
+  }
+});
+
+describe('SidebarScrollbar persistent rail — real-TTY grow/shrink matrix', () => {
+  const VIEWPORT_ROWS = 32 - 1; // RightSidebar reserves 1 row for its footer.
+  const countGlyph = (frame: string, glyph: string): number => frame.split(glyph).length - 1;
+
+  // One sidebar shell whose content and overflow state can be re-rendered on
+  // a single live Ink instance: 5 probe rows when idle, 80 when grown. The
+  // probe text is too short to wrap at the narrowest rail (18 usable columns).
+  function railAt(columns: number, sidebarWidth: number, maxScroll: number): ReactElement {
+    return (
+      <Box width={columns} height={32} justifyContent="flex-end" overflowX="hidden">
+        <RightSidebar width={sidebarWidth} maxHeight={32} maxScroll={maxScroll} scrollOffset={0}>
+          <Box flexDirection="column">
+            {Array.from({ length: maxScroll > 0 ? 80 : 5 }, (_, i) => (
+              <Text key={i}>{`probe ${i + 1}`}</Text>
+            ))}
+          </Box>
+        </RightSidebar>
+      </Box>
+    );
+  }
+
+  for (const columns of COLUMNS) {
+    it(`scrollbar rail persists through grow/shrink at ${columns} columns`, {
+      timeout: 15_000,
+    }, async () => {
+      const sidebarWidth = computeSidebarWidth(columns);
+      expect(sidebarWidth, `sidebar visible at ${columns} columns`).toBeGreaterThan(0);
+
+      // Idle: content fits — the reserved track column renders ░ cells, no thumb.
+      const view = renderRealTty(railAt(columns, sidebarWidth, 0), { columns, rows: 32 });
+      await settle();
+      const idle = view.lastFrame();
+      const idleTrack = countGlyph(idle, glyphs.cellEmpty);
+      expect(idleTrack, `idle@${columns}: full-height thumb-less track`).toBe(VIEWPORT_ROWS);
+      expect(idle.includes(glyphs.meter7), `idle@${columns}: no thumb when maxScroll is 0`).toBe(
+        false,
+      );
+
+      // Grow: content overflows — the thumb appears on the SAME live instance.
+      view.rerender(railAt(columns, sidebarWidth, 40));
+      await settle();
+      const grown = view.lastFrame();
+      const thumb = countGlyph(grown, glyphs.meter7);
+      expect(thumb, `overflow@${columns}: thumb appears`).toBeGreaterThan(0);
+      expect(thumb, `overflow@${columns}: thumb smaller than the viewport`).toBeLessThan(
+        VIEWPORT_ROWS,
+      );
+      const thumbLines = view
+        .lines()
+        .filter((line) => line.trimEnd().endsWith(glyphs.meter7)).length;
+      expect(thumbLines, `overflow@${columns}: thumb sits on the right edge`).toBe(thumb);
+
+      // Shrink: thumb disappears, track persists unchanged.
+      view.rerender(railAt(columns, sidebarWidth, 0));
+      await settle();
+      const shrunk = view.lastFrame();
+      expect(shrunk.includes(glyphs.meter7), `shrunk@${columns}: thumb disappears again`).toBe(
+        false,
+      );
+      expect(
+        countGlyph(shrunk, glyphs.cellEmpty),
+        `shrunk@${columns}: rail persists after shrink`,
+      ).toBe(idleTrack);
+      view.unmount();
+    });
   }
 });

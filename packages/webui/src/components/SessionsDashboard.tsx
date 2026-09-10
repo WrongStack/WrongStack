@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
@@ -64,7 +65,7 @@ export async function sessionApiError(res: Response): Promise<string> {
   try {
     const body = (await res.clone().json()) as { error?: unknown; message?: unknown };
     const message = typeof body.error === 'string' ? body.error : body.message;
-    if (typeof message === 'string' && message.trim()) return message;
+    if (typeof message === 'string' && message.trim()) return toErrorMessage(message);
   } catch {
     try {
       const text = await res.text();

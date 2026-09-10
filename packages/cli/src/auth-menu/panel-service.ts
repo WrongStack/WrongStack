@@ -19,6 +19,7 @@
  * modal prompt sends the plaintext only INTO the flow (never back out).
  */
 import { parseModelRef } from '@wrongstack/core/agent';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type {
   ModelsRegistry,
   ProviderConfig,
@@ -136,7 +137,7 @@ async function runFlow(
     return { ok };
   } catch (err) {
     if (isCancel(err)) return { ok: false, message: 'Cancelled.' };
-    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+    return { ok: false, message: toErrorMessage(err) };
   }
 }
 
@@ -340,13 +341,13 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
         deps.profileConfigPath,
       );
     } catch (err) {
-      return err instanceof Error ? err.message : String(err);
+      return toErrorMessage(err);
     }
     if (result === null && deps.onProvidersChanged) {
       try {
         await deps.onProvidersChanged();
       } catch (err) {
-        return `Saved, but live config reload failed: ${err instanceof Error ? err.message : String(err)}`;
+        return `Saved, but live config reload failed: ${toErrorMessage(err)}`;
       }
     }
     return result;

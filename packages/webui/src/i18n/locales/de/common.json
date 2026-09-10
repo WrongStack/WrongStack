@@ -53,6 +53,8 @@
     "trustSuggestionTitle": "Vorschlag für Vertrauensmuster",
     "trustSuggestionHint": "Wenn du Immer wählst, werden übereinstimmende Aufrufe für dieses Projekt auf die Whitelist gesetzt.",
     "yoloDestructiveNote": "YOLO ist aktiv. Diese Abfrage wird trotzdem angezeigt, da die Anfrage als destruktiv eingestuft wurde.",
+    "brainCountdown": "Warte auf deine Bestätigung · Brain übernimmt in {{time}}",
+    "brainDeciding": "Zeit abgelaufen · Brain entscheidet…",
     "skipApprovalsTitle": "Zukünftige Freigaben überspringen",
     "skipApprovalsHint": "Aktiviere den YOLO-Modus und der Agent läuft ohne Nachfrage. Destruktive Vorgänge fragen weiterhin nach.",
     "enableYoloTitle": "YOLO-Modus aktivieren (diesen und zukünftige nicht-destruktive Aufrufe automatisch freigeben)",

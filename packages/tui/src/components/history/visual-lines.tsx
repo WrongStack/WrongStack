@@ -38,7 +38,10 @@ export function ToolOutputLines({
                 <Text dimColor>{' │ '}</Text>
               </>
             ) : null}
-            <Text color={color} dimColor={line.kind === 'meta' || line.kind === 'stdout'}>
+            <Text
+              color={color}
+              dimColor={line.kind === 'meta' || line.kind === 'stdout' || line.kind === 'context'}
+            >
               {truncateDisplay(sanitizeTerminalText(line.text), VISUAL_TEXT_BUDGET)}
             </Text>
           </Text>
@@ -60,6 +63,8 @@ function colorForVisualKind(kind: ToolVisualLineKind): string | undefined {
     case 'path':
     case 'match':
       return theme.accent;
+    case 'context':
+      return undefined;
     case 'code':
       return theme.textPrimary;
     case 'stdout':

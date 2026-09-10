@@ -31,6 +31,7 @@ export function subscribeCollabMirror(
     ['tool.progress', 'tool.progress'],
     ['tool.executed', 'tool.executed'],
     ['tool.confirm_needed', 'tool.confirm_needed'],
+    ['tool.confirm_resolved', 'tool.confirm_resolved'],
     ['subagent.spawned', 'subagent.spawned'],
     ['subagent.task_started', 'subagent.task_started'],
     ['subagent.iteration_summary', 'subagent.iteration_summary'],

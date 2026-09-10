@@ -69,7 +69,7 @@ describe('telegram_approve tool', () => {
   it('declares its explicit narrow approval capability and network mutation', () => {
     const tool = makeTool(makeBot());
 
-    expect(tool.permission).toBe('auto');
+    expect(tool.permission).toBe('confirm');
     expect(tool.mutating).toBe(true);
     expect(tool.riskTier).toBe('standard');
     expect(tool.capabilities).toEqual([TELEGRAM_APPROVAL_CAPABILITY]);

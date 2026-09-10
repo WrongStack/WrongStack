@@ -1282,8 +1282,10 @@ describe('formatToolVisualOutput', () => {
       true,
     );
     expect(out?.[0]).toMatchObject({ kind: 'path', path: 'src/a.ts', text: '2 match(es)' });
-    expect(out?.[1]).toMatchObject({ kind: 'match', path: 'src/a.ts', lineNo: '10' });
-    expect(out?.[2]).toMatchObject({ kind: 'match', path: 'src/a.ts', lineNo: '12' });
+    expect(out?.[1]).toMatchObject({ kind: 'match', lineNo: '10' });
+    expect(out?.[1]).not.toHaveProperty('path');
+    expect(out?.[2]).toMatchObject({ kind: 'match', lineNo: '12' });
+    expect(out?.[2]).not.toHaveProperty('path');
   });
 
   it('renders command failures with status and stderr preview rows', () => {
@@ -1677,6 +1679,24 @@ describe('formatToolVisualOutput — edit-style tools', () => {
 });
 
 describe('formatToolVisualOutput — grep & search tools', () => {
+  it('renders compact grep context without repeating the grouped path', () => {
+    const text = [
+      'grep: Token (count=3 shown=3 truncated=false used=rg)',
+      'src/a.ts (1 match(es), showing 1)',
+      '8-before',
+      '9:Token',
+      '10-after',
+    ].join('\n');
+    const out = formatToolVisualOutput('grep', text, true);
+
+    expect(out).toEqual([
+      { kind: 'path', path: 'src/a.ts', text: '1 match(es)' },
+      { kind: 'context', lineNo: '8', text: 'before' },
+      { kind: 'match', lineNo: '9', text: 'Token' },
+      { kind: 'context', lineNo: '10', text: 'after' },
+    ]);
+  });
+
   it('correctly parses grep matches with Windows drive letters', () => {
     const text =
       'D:\\Codebox\\PROJECTS\\WrongStack\\src\\app.ts:42:const answer = 42\nC:\\Users\\test\\index.ts:10:console.log("hi")';

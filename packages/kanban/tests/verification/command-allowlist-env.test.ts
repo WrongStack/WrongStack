@@ -38,12 +38,14 @@ const contextWith = (
 
 const tscShimExists =
   process.platform === 'win32'
-    ? await fs
-        .access(path.join(repoRoot, 'node_modules', '.bin', 'tsc.cmd'))
-        .then(() => true, () => false)
-    : await fs
-        .access(path.join(repoRoot, 'node_modules', '.bin', 'tsc'))
-        .then(() => true, () => false);
+    ? await fs.access(path.join(repoRoot, 'node_modules', '.bin', 'tsc.cmd')).then(
+        () => true,
+        () => false,
+      )
+    : await fs.access(path.join(repoRoot, 'node_modules', '.bin', 'tsc')).then(
+        () => true,
+        () => false,
+      );
 const realTscIt = tscShimExists ? it : it.skip;
 
 describe('commandAllowlistFromEnv', () => {
@@ -64,9 +66,11 @@ describe('commandAllowlistFromEnv', () => {
   });
 
   it('never grants allowAll and the hard blocklist keeps precedence', () => {
-    const { allow, block } = buildAllowlist(commandAllowlistFromEnv({
-      [VERIFIER_COMMANDS_ENV]: '+tsc,+pnpm',
-    }));
+    const { allow, block } = buildAllowlist(
+      commandAllowlistFromEnv({
+        [VERIFIER_COMMANDS_ENV]: '+tsc,+pnpm',
+      }),
+    );
     expect(allow.has('tsc')).toBe(true);
     expect(allow.has('pnpm')).toBe(true);
     // …but pnpm is still hard-blocked, and validateCommand checks block first.
@@ -81,17 +85,13 @@ describe('VerificationContext.runCommand with a widened allowlist', () => {
     expect(result.stderr).toContain('not in the verifier allowlist');
   });
 
-  realTscIt(
-    'runs the real local tsc when +tsc is configured',
-    { timeout: 60_000 },
-    async () => {
-      const allowlist = commandAllowlistFromEnv({ [VERIFIER_COMMANDS_ENV]: '+tsc' });
-      const result = await contextWith(allowlist).runCommand('tsc --version');
-      expect(result.rejected).toBeFalsy();
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toMatch(/Version/i);
-    },
-  );
+  realTscIt('runs the real local tsc when +tsc is configured', { timeout: 60_000 }, async () => {
+    const allowlist = commandAllowlistFromEnv({ [VERIFIER_COMMANDS_ENV]: '+tsc' });
+    const result = await contextWith(allowlist).runCommand('tsc --version');
+    expect(result.rejected).toBeFalsy();
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/Version/i);
+  });
 });
 
 describe('completion-protocol threads the env allowlist', () => {
@@ -105,7 +105,11 @@ describe('completion-protocol threads the env allowlist', () => {
   async function shimmedRoot(): Promise<string> {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'kanban-allowlist-'));
     roots.push(root);
-    await fs.writeFile(path.join(root, 'package.json'), JSON.stringify({ name: 'shim-root' }), 'utf8');
+    await fs.writeFile(
+      path.join(root, 'package.json'),
+      JSON.stringify({ name: 'shim-root' }),
+      'utf8',
+    );
     const binDir = path.join(root, 'node_modules', '.bin');
     await fs.mkdir(binDir, { recursive: true });
     if (process.platform === 'win32') {
@@ -114,6 +118,14 @@ describe('completion-protocol threads the env allowlist', () => {
       await fs.writeFile(path.join(binDir, 'tsc'), '#!/bin/sh\necho tsc-shim-ok\n', 'utf8');
       await fs.chmod(path.join(binDir, 'tsc'), 0o755);
     }
+    const vitestDir = path.join(root, 'node_modules', 'vitest');
+    await fs.mkdir(vitestDir, { recursive: true });
+    await fs.writeFile(
+      path.join(vitestDir, 'package.json'),
+      JSON.stringify({ name: 'vitest', bin: { vitest: 'bin.js' } }),
+      'utf8',
+    );
+    await fs.writeFile(path.join(vitestDir, 'bin.js'), "console.log('vitest-shim-ok');\n", 'utf8');
     return root;
   }
 
@@ -135,6 +147,51 @@ describe('completion-protocol threads the env allowlist', () => {
     expect(check?.status).toBe('passed');
     expect(result.report.verdict).toBe('passed');
     expect(result.report.checks[0]?.evidence['stdout'] ?? '').toContain('tsc-shim-ok');
+  });
+
+  it('runs constrained pnpm exec checks by resolving only project-local verifier binaries', async () => {
+    const root = await shimmedRoot();
+    const { createBoard, addTask, addCheckToTask } = await import('../helpers/session-manager.js');
+    const board = await createBoard(root, { title: 'Constrained pnpm board' });
+    const added = await addTask(root, board.id, { title: 'Verifier command task' });
+    await addCheckToTask(root, board.id, added!.task.id, {
+      description: 'Run the local no-emit typecheck',
+      type: 'command',
+      status: 'pending',
+      notes: 'pnpm exec tsc --noEmit --project tsconfig.json',
+    });
+    await addCheckToTask(root, board.id, added!.task.id, {
+      description: 'Run the local focused Vitest command',
+      type: 'command',
+      status: 'pending',
+      notes: 'pnpm exec vitest run --root . packages/example.test.ts',
+    });
+
+    const result = await verifyTaskCompletion(root, board.id, added!.task.id);
+    expect(result.task.successCriteria?.map((check) => check.status)).toEqual(['passed', 'passed']);
+    expect(result.report.verdict).toBe('passed');
+    expect(String(result.report.checks[0]?.evidence['stdout'] ?? '')).toContain('tsc-shim-ok');
+    expect(String(result.report.checks[1]?.evidence['stdout'] ?? '')).toContain('vitest-shim-ok');
+  });
+
+  it('rejects unsupported pnpm exec forms before they can reach a local binary', async () => {
+    const root = await shimmedRoot();
+    const { createBoard, addTask, addCheckToTask } = await import('../helpers/session-manager.js');
+    const board = await createBoard(root, { title: 'Rejected pnpm board' });
+    const added = await addTask(root, board.id, { title: 'Rejected verifier command task' });
+    await addCheckToTask(root, board.id, added!.task.id, {
+      description: 'Do not run arbitrary pnpm exec tools',
+      type: 'command',
+      status: 'pending',
+      notes: 'pnpm exec eslint .',
+    });
+
+    const result = await verifyTaskCompletion(root, board.id, added!.task.id);
+    expect(result.task.successCriteria?.[0]?.status).toBe('failed');
+    expect(result.report.verdict).toBe('needs_human');
+    expect(String(result.report.checks[0]?.evidence['rejectionReason'] ?? '')).toContain(
+      'supports only the local',
+    );
   });
 
   it('still rejects the same command without the env var', async () => {

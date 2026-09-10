@@ -27,7 +27,7 @@ function writeTool(): Tool {
     name: 'write',
     description: 'write',
     inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
-    permission: 'confirm',
+    permission: 'auto',
     mutating: true,
     capabilities: ['fs.write'],
     async execute() {
@@ -314,7 +314,7 @@ describe('write smart-bypass — wstack global root is never silently writable (
     });
     const shell = {
       name: 'bash',
-      permission: 'confirm' as const,
+      permission: 'auto' as const,
       capabilities: ['shell.arbitrary'],
     } as unknown as Parameters<typeof p.evaluate>[0];
     const ctx = agentStateCtx('src/app.ts');

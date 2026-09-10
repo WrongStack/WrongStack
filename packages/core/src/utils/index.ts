@@ -37,7 +37,7 @@ export {
 export * from './diff.js';
 export type { HttpDispatcher, HttpsAgentAsDispatcher } from './dispatcher-types.js';
 export * from './env-typed.js';
-export { toErrorMessage } from './error.js';
+export { rawErrorMessage, toErrorMessage } from './error.js';
 export * from './expect-defined.js';
 export { expandGlob } from './glob-expand.js';
 export * from './glob-match.js';
@@ -89,7 +89,9 @@ export {
 } from './message-invariants.js';
 export * from './newline-normalize.js';
 export {
+  decodeSessionIdStrict,
   isSafePathSegment,
+  isSafeSessionId,
   MAX_PATH_SEGMENT_LENGTH,
   resolveContainedPath,
 } from './path-segment.js';

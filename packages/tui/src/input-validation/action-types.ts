@@ -86,6 +86,7 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'compactHistory',
   'confirmClearAll',
   'confirmClose',
+  'confirmResolved',
   'confirmOpen',
   'continueConfirmClose',
   'continueConfirmOpen',

@@ -227,10 +227,24 @@ describe('decodeSessionId', () => {
     expect(decodeSessionId('plain-id')).toBe('plain-id');
   });
 
-  it('falls back to the raw segment on malformed percent-encoding (no throw)', () => {
-    // A lone `%` makes decodeURIComponent throw; the helper must swallow it so
-    // the caller still produces a clean 404 instead of a 500.
-    expect(decodeSessionId('bad%')).toBe('bad%');
+  it('rejects malformed percent-encoding instead of passing the raw segment through', () => {
+    // This case used to assert `decodeSessionId('bad%') === 'bad%'`, on the
+    // reasoning that a lone `%` makes decodeURIComponent throw and the helper
+    // "must swallow it so the caller still produces a clean 404 instead of a
+    // 500". Swallowing is right; handing back the UNDECODED, UNCHECKED segment
+    // is not — that made an input the decoder had just failed on the value the
+    // handlers received. The requirement (no throw, no 500) is met by `null`
+    // plus a 400 at the route, which is also a truer answer than 404.
+    expect(decodeSessionId('bad%')).toBeNull();
+  });
+
+  it('rejects a traversal that the [^/]+ route pattern does not stop', () => {
+    // The route captures are `([^/]+)`, so a literal slash cannot appear — but
+    // `%2f` can, and it decodes to one. Before the guard was shared with HQ,
+    // this reached the handlers and was stopped only by `registry.get()`
+    // happening to miss.
+    expect(decodeSessionId('..%2f..%2fetc%2fpasswd')).toBeNull();
+    expect(decodeSessionId('%2e%2e%2f%2e%2e%2f')).toBeNull();
   });
 });
 

@@ -29,6 +29,7 @@ import {
   type ReviewReportEvent,
 } from '@wrongstack/core/plugin';
 import type { WebSocket } from 'ws';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WSClientMessage } from './types.js';
 
 export interface ChimeraRouteHandlers {
@@ -241,7 +242,7 @@ export function createChimeraRouteHandlers(deps: {
         }
       } catch (err) {
         deps.log?.(
-          `chimera.reports.list failed: ${err instanceof Error ? err.message : String(err)}`,
+          `chimera.reports.list failed: ${toErrorMessage(err)}`,
         );
         deps.send(ws, {
           type: 'chimera.reports',
@@ -295,7 +296,7 @@ export function createChimeraRouteHandlers(deps: {
           payload: { report, findings, events },
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = toErrorMessage(err);
         deps.log?.(`chimera.report.get failed: ${message}`);
         deps.send(ws, {
           type: 'chimera.report.detail',
@@ -335,7 +336,7 @@ export function createChimeraRouteHandlers(deps: {
           payload: { reportId, lifecycle: to, success: true },
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = toErrorMessage(err);
         deps.log?.(`chimera.report.transition failed: ${message}`);
         deps.send(ws, {
           type: 'chimera.report.updated',
@@ -368,7 +369,7 @@ export function createChimeraRouteHandlers(deps: {
           payload: { reportId, success: true },
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = toErrorMessage(err);
         deps.log?.(`chimera.report.add_note failed: ${message}`);
         deps.send(ws, {
           type: 'chimera.report.note_added',
@@ -447,7 +448,7 @@ export function createChimeraRouteHandlers(deps: {
           payload: { findingId, status: to, success: true },
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = toErrorMessage(err);
         deps.log?.(`chimera.finding.transition failed: ${message}`);
         deps.send(ws, {
           type: 'chimera.finding.updated',

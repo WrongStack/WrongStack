@@ -23,7 +23,6 @@ import {
 } from './status-bar-format.js';
 import { countdownColor, hasMailboxActivity, isStreamChipVisible } from './status-bar-helpers.js';
 import {
-  lineBackground,
   SPINNER_FRAMES,
   SPINNER_INTERVAL_MS,
   STACK_ORANGE,
@@ -38,6 +37,9 @@ import {
 import type { StatusBarProps } from './status-bar-types.js';
 import { buildDetailedRails, type DetailedRail } from './status-line-registry.js';
 import type { StatuslineItem } from './statusline-picker.js';
+
+/** Unpainted breathing room between the statusline and adjacent UI chrome. */
+const STATUSLINE_SIDE_INSET = 1;
 
 export {
   contextBarColor,
@@ -394,7 +396,7 @@ export function StatusBar({
     indexChip: indexStatusChip,
   });
 
-  const railBudget = Math.max(12, termWidth);
+  const railBudget = Math.max(12, termWidth - STATUSLINE_SIDE_INSET * 2);
 
   // Rails 1–2 always render so a vanilla session keeps its two-line
   // footprint; conditional rails render when they have content. The index
@@ -422,7 +424,7 @@ export function StatusBar({
                 logical,
                 spans: layout.items.map(({ id, start, len, level }) => ({
                   id,
-                  start,
+                  start: start + STATUSLINE_SIDE_INSET,
                   len,
                   level,
                 })),
@@ -436,20 +438,26 @@ export function StatusBar({
 
   if (mode === 'minimum') {
     return (
-      <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={1}>
+      <Box
+        key={`sb-${stalenessGuard.renderNonce}`}
+        flexDirection="column"
+        paddingX={STATUSLINE_SIDE_INSET}
+      >
         <PowerlineRail
           segments={minimumChips}
           rightAnchor={versionStatusChip}
           budget={railBudget}
-          monochrome={isNoColor}
-          fillBg={lineBackground(0)}
         />
       </Box>
     );
   }
 
   return (
-    <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={0}>
+    <Box
+      key={`sb-${stalenessGuard.renderNonce}`}
+      flexDirection="column"
+      paddingX={STATUSLINE_SIDE_INSET}
+    >
       {/* Logical rails 1–4: identity, vitals, safety & work, async.
           Conditional rails drop out when empty; the click-map renumbers
           physical rows to match. */}
@@ -460,8 +468,6 @@ export function StatusBar({
             segments={rail.entries}
             rightAnchor={rail.rightAnchor}
             budget={railBudget}
-            monochrome={isNoColor}
-            fillBg={lineBackground(logical as 0 | 1 | 2 | 3)}
           />
         ) : null,
       )}

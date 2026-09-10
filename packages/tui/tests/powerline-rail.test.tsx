@@ -22,11 +22,10 @@ describe('PowerlineRail', () => {
     view.unmount();
   });
 
-  it('keeps monochrome rails readable without background colors', () => {
+  it('inherits the terminal background', () => {
     const view = render(
       React.createElement(PowerlineRail, {
         budget: 80,
-        monochrome: true,
         segments: [segment('READY'), segment('main')],
       }),
     );
@@ -47,11 +46,10 @@ describe('PowerlineRail', () => {
     view.unmount();
   });
 
-  it('exact-fit monochrome rail reserves omission marker width', () => {
+  it('exact-fit rail reserves omission marker width', () => {
     const view = render(
       React.createElement(PowerlineRail, {
         budget: 15,
-        monochrome: true,
         segments: [segment('READY'), segment('MODEL'), segment('CONTEXT')],
       }),
     );

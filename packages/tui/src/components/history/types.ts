@@ -25,6 +25,10 @@ export interface HistoryProps {
    * next-step suggestion indicating it will be auto-submitted.
    */
   autonomyMode?: string | undefined;
+  /** Label of the next step currently armed for automatic submission. */
+  nextStepsAutoSubmitLabel?: string | null | undefined;
+  /** Exact automatic-submit deadline used by the final 10-second text sweep. */
+  nextStepsAutoSubmitDeadlineMs?: number | null | undefined;
   /**
    * Generation counter for wholesale history replacements (session resume).
    * Keys the internal <Static> so a replacement remounts it — Ink's Static

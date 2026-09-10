@@ -736,7 +736,14 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
             toolName: typeof payload['toolName'] === 'string' ? payload['toolName'] : 'tool',
             input: payload['input'],
             riskTier: typeof payload['riskTier'] === 'string' ? payload['riskTier'] : undefined,
+            deadlineAt:
+              typeof payload['deadlineAt'] === 'number' ? payload['deadlineAt'] : undefined,
           });
+        }
+        break;
+      case 'tool.confirm_resolved':
+        if (typeof payload['id'] === 'string') {
+          setPendingConfirm((current) => (current?.id === payload['id'] ? null : current));
         }
         break;
       case 'coordinator.stats': {

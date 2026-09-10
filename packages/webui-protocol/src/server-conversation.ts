@@ -53,6 +53,7 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'token.cost_estimate_unavailable',
   'token.threshold',
   'tool.confirm_needed',
+  'tool.confirm_resolved',
   'tool.disabled',
   'tool.enabled',
   'tool.executed',

@@ -4,12 +4,13 @@ import {
   base32Encode,
   buildOtpAuthUri,
   generateRecoveryCodes,
-  generateTotpSecret,
   generateTotp,
+  generateTotpSecret,
   hashRecoveryCode,
   hotp,
   verifyRecoveryCode,
   verifyTotp,
+  verifyTotpCounter,
 } from '../../src/security/totp.js';
 
 describe('base32', () => {
@@ -196,5 +197,34 @@ describe('generateTotpSecret', () => {
     const a = generateTotpSecret();
     const b = generateTotpSecret();
     expect(a).not.toBe(b);
+  });
+});
+
+describe('verifyTotp code-shape guard (WS-SEC-LOW)', () => {
+  const secret = generateTotpSecret();
+
+  it('rejects a code whose byte length differs from its character length', () => {
+    // `code.length` counts UTF-16 units, `Buffer.from(code)` is UTF-8. Six
+    // full-width digits are 6 characters and 18 bytes, so they used to clear
+    // the length guard and make `timingSafeEqual` THROW
+    // (ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH) instead of returning false.
+    expect(() => verifyTotp('１２３４５６', secret)).not.toThrow();
+    expect(verifyTotp('１２３４５６', secret)).toBe(false);
+  });
+
+  it('rejects non-digit codes of the right length instead of throwing', () => {
+    for (const bad of ['abcdef', '12 456', '12-456', '１2345６']) {
+      expect(() => verifyTotp(bad, secret)).not.toThrow();
+      expect(verifyTotp(bad, secret)).toBe(false);
+    }
+  });
+
+  it('still accepts the genuine current code', () => {
+    // The guard must not have narrowed the accepted domain.
+    expect(verifyTotp(generateTotp(secret), secret)).toBe(true);
+  });
+
+  it('returns undefined rather than throwing from the counter variant', () => {
+    expect(verifyTotpCounter('１２３４５６', secret)).toBeUndefined();
   });
 });

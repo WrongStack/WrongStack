@@ -111,6 +111,7 @@ export function useNextStepsAutoSubmit({
 }: NextStepsAutoSubmitOptions): {
   nextStepsAutoSubmitCountdown: number | null;
   nextStepsAutoSubmitLabel: string | null;
+  nextStepsAutoSubmitDeadlineMs: number | null;
   setNextStepsAutoSubmitCountdown: Dispatch<SetStateAction<number | null>>;
   setNextStepsAutoSubmitLabel: Dispatch<SetStateAction<string | null>>;
   nextStepsAutoSubmitSuggestionRef: MutableRefObject<string | null>;
@@ -124,6 +125,9 @@ export function useNextStepsAutoSubmit({
     null,
   );
   const [nextStepsAutoSubmitLabel, setNextStepsAutoSubmitLabel] = useState<string | null>(null);
+  const [nextStepsAutoSubmitDeadlineMs, setNextStepsAutoSubmitDeadlineMs] = useState<number | null>(
+    null,
+  );
   const nextStepsAutoSubmitSuggestionRef = useRef<string | null>(null);
   // Where the armed prompt came from. Todo-sourced prompts are GROUNDED
   // (synthesized from the durable board, not echoed model output), so their
@@ -182,6 +186,7 @@ export function useNextStepsAutoSubmit({
       nextStepsAutoSubmitTimerRef.current = undefined;
       setNextStepsAutoSubmitCountdown(null);
       setNextStepsAutoSubmitLabel(null);
+      setNextStepsAutoSubmitDeadlineMs(null);
       nextStepsAutoSubmitSuggestionRef.current = null;
       nextStepsAutoSubmitSourceRef.current = null;
       nextStepsAutoSubmitTodoIdRef.current = null;
@@ -199,6 +204,7 @@ export function useNextStepsAutoSubmit({
       nextStepsAutoSubmitTimerRef.current = undefined;
       setNextStepsAutoSubmitCountdown(null);
       setNextStepsAutoSubmitLabel(null);
+      setNextStepsAutoSubmitDeadlineMs(null);
       nextStepsAutoSubmitSuggestionRef.current = null;
       nextStepsAutoSubmitSourceRef.current = null;
       nextStepsAutoSubmitTodoIdRef.current = null;
@@ -291,6 +297,7 @@ export function useNextStepsAutoSubmit({
     const start = Date.now();
     setNextStepsAutoSubmitCountdown(Math.ceil(delay / 1000));
     setNextStepsAutoSubmitLabel(candidate.label);
+    setNextStepsAutoSubmitDeadlineMs(start + delay);
 
     nextStepsAutoSubmitTimerRef.current = setInterval(async () => {
       const remaining = Math.max(0, Math.ceil((delay - (Date.now() - start)) / 1000));
@@ -299,6 +306,7 @@ export function useNextStepsAutoSubmit({
         nextStepsAutoSubmitTimerRef.current = undefined;
         setNextStepsAutoSubmitCountdown(null);
         setNextStepsAutoSubmitLabel(null);
+        setNextStepsAutoSubmitDeadlineMs(null);
         if ((getAutonomy?.() ?? autonomyLive) !== 'auto') {
           nextStepsAutoSubmitSuggestionRef.current = null;
           nextStepsAutoSubmitSourceRef.current = null;
@@ -535,6 +543,7 @@ export function useNextStepsAutoSubmit({
       nextStepsAutoSubmitTimerRef.current = undefined;
       setNextStepsAutoSubmitCountdown(null);
       setNextStepsAutoSubmitLabel(null);
+      setNextStepsAutoSubmitDeadlineMs(null);
     };
   }, [
     state.status,
@@ -571,6 +580,7 @@ export function useNextStepsAutoSubmit({
     nextStepsAutoSubmitTimerRef.current = undefined;
     setNextStepsAutoSubmitCountdown(null);
     setNextStepsAutoSubmitLabel(null);
+    setNextStepsAutoSubmitDeadlineMs(null);
     nextStepsAutoSubmitSuggestionRef.current = null;
     nextStepsAutoSubmitSourceRef.current = null;
     nextStepsAutoSubmitTodoIdRef.current = null;
@@ -579,6 +589,7 @@ export function useNextStepsAutoSubmit({
   return {
     nextStepsAutoSubmitCountdown,
     nextStepsAutoSubmitLabel,
+    nextStepsAutoSubmitDeadlineMs,
     setNextStepsAutoSubmitCountdown,
     setNextStepsAutoSubmitLabel,
     nextStepsAutoSubmitSuggestionRef,

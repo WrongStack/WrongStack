@@ -159,6 +159,11 @@ export function makeSpawnTool(
         type: 'boolean',
         description: 'Set true to equip the subagent with MCP capabilities.',
       },
+      enable_network_tools: {
+        type: 'boolean',
+        description:
+          'Set true to equip the subagent with outbound-network capabilities (read_url_content). Off by default.',
+      },
     },
     required: [],
   };
@@ -243,14 +248,23 @@ export function makeSpawnTool(
       if (Array.isArray(i.tools) && i.tools.every((t) => typeof t === 'string')) {
         cfg.tools = i.tools as string[];
       }
+      // WS-SEC-20: the fallback set is `fs.read` only. `net.outbound` used to
+      // ride along here, which handed every ad-hoc subagent an egress channel
+      // its individual tool calls are never confirmed on. It is now opt-in,
+      // matching `define_subagent`.
       if (i.enable_write_tools === true) {
         cfg.allowedCapabilities = [
-          ...new Set([...(cfg.allowedCapabilities ?? ['fs.read', 'net.outbound']), 'fs.write']),
+          ...new Set([...(cfg.allowedCapabilities ?? ['fs.read']), 'fs.write']),
         ];
       }
       if (i.enable_mcp_tools === true) {
         cfg.allowedCapabilities = [
-          ...new Set([...(cfg.allowedCapabilities ?? ['fs.read', 'net.outbound']), 'mcp.proxy']),
+          ...new Set([...(cfg.allowedCapabilities ?? ['fs.read']), 'mcp.proxy']),
+        ];
+      }
+      if (i.enable_network_tools === true) {
+        cfg.allowedCapabilities = [
+          ...new Set([...(cfg.allowedCapabilities ?? ['fs.read']), 'net.outbound']),
         ];
       }
       if (typeof i.maxIterations === 'number') cfg.maxIterations = i.maxIterations;

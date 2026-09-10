@@ -10,9 +10,21 @@ Current behavior:
 - `--yolo` forces broad auto-approval at startup. `--no-yolo` forces approval prompts and overrides both a saved YOLO preference and `--yolo`.
 - Explicit denies still win: session soft-deny, trust-file deny patterns, and
   tools declared with `permission: 'deny'`.
-- `--confirm-destructive`, `--yolo-destructive`, and `--force-all-yolo` are
-  accepted for compatibility, but they no longer add an extra destructive
-  confirmation gate in YOLO mode.
+- A tool's own `permission: 'confirm'` declaration is **not** an input to the
+  YOLO decision. Under YOLO the only question asked is
+  `gatedDestructiveKind()` — see below. A tool that declares `confirm` because
+  it mutates something is auto-approved in YOLO like any other; that
+  declaration governs the non-YOLO path. Gating on it instead turns YOLO into a
+  prompt on ordinary work, which is the thing YOLO exists to remove.
+- YOLO still confirms **genuinely destructive** calls. The measure is "does
+  this do large damage to the machine or the project", not "does this look
+  dangerous". The nine categories live in `security/yolo-risk.ts`
+  (`DestructiveKind`); `agent-state` and `credential-bind` are permanently
+  locked because they are writes that can switch the approval system itself
+  off.
+- `--confirm-destructive`, `--yolo-destructive`, and `--force-all-yolo` select
+  *which* of those categories still prompt (`autonomy.yoloConfirm`); the two
+  locked kinds are re-added on every entry path.
 
 ## Quick Reference
 
@@ -24,6 +36,14 @@ Current behavior:
 
 When YOLO is off, mutating or sensitive calls fall through to confirm prompts.
 Trust-file deny rules and `permission: 'deny'` tools still win regardless.
+
+## Approval Timeout
+
+Any approval that still reaches a human surface waits for exactly 120 seconds.
+If nobody answers, the active Brain arbitration chain decides whether that one
+call may run. The timed-out request cannot escalate back to the human; an
+unavailable, failed, or inconclusive Brain decision rejects the call safely.
+WebUI sends the deadline with the prompt and shows the remaining time.
 
 ## Permission Evaluation Order
 
