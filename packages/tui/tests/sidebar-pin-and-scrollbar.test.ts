@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { reducer } from '../src/app-reducer.js';
 import type { Settings } from '../src/app-state.js';
-import { hasPanelRoutedToSidebar, resolveAppSidebarLayout } from '../src/app-ui-state.js';
+import { resolveAppSidebarLayout } from '../src/app-ui-state.js';
 import {
   sidebarOffsetForCell,
   sidebarScrollbarThumb,
 } from '../src/components/sidebar-scrollbar.js';
 import { estimateSidebarMaxScroll } from '../src/reducers/workspace-panels.js';
+import { hasPanelRoutedToSidebar } from '../src/ui-contracts.js';
 import { createTestState } from './helpers/create-test-state.js';
 
 describe('sidebar pin rule — a routed panel keeps the rail on', () => {

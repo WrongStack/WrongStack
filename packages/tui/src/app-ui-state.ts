@@ -5,6 +5,7 @@ import type { StatuslineItem } from './components/statusline-picker.js';
 import { sumSidebarTwinRowCount } from './sidebar-sizing.js';
 import {
   coercePanelPositionMap,
+  hasPanelRoutedToSidebar,
   PANEL_IDS,
   type PanelId,
   type PanelPositionMap,
@@ -133,31 +134,6 @@ export function effectiveShowSidebar(state: State, liveSettings: Settings | unde
     state.settingsPicker.showSidebar,
     liveSettings?.showSidebar,
   );
-}
-
-/**
- * True when the right sidebar is "pinned on": at least one F-key panel is
- * routed to the sidebar slot (per {@link coercePanelPositionMap}-coerced
- * positions), or the legacy tri-state agent-swarm mode is 'sidebar' (which
- * mounts the AGENT SWARM + MISSIONS cards on the rail). While pinned, the
- * master `showSidebar` switch must not resolve to off — a routed panel's
- * only home is the sidebar, so hiding the rail would orphan it.
- *
- * Accepts loose map inputs (partial, undefined) so every guard site — the
- * settings reducer, the /lite and /settings slash commands, and the layout
- * resolver — can call it with whatever source it holds without
- * re-implementing the coercion. The legacy swarm input is a *pre-narrowed*
- * boolean on purpose: each caller writes `mode === 'sidebar'` explicitly,
- * so a future AgentSwarmPanelMode value can never be silently misread as
- * "pinned" or "not pinned" here.
- */
-export function hasPanelRoutedToSidebar(
-  panelPositions: Partial<Record<PanelId, 'bottom' | 'sidebar'>> | undefined,
-  legacySwarmOnSidebar?: boolean | undefined,
-): boolean {
-  const map = coercePanelPositionMap(panelPositions);
-  if (PANEL_IDS.some((id) => map[id] === 'sidebar')) return true;
-  return legacySwarmOnSidebar === true;
 }
 
 /**

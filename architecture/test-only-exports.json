@@ -1252,6 +1252,7 @@
     "packages/tui/src/components/inspect-overlay.tsx": [
       "INSPECT_OVERLAY_MIN_ROWS",
       "inspectOverlaySize",
+      "scrollbarThumbGeometry",
       "wrapInspectLines"
     ],
     "packages/tui/src/components/kanban-panel.tsx": [
@@ -1284,6 +1285,9 @@
     ],
     "packages/tui/src/components/sidebar-panel-frame.tsx": [
       "SidebarPanelCard"
+    ],
+    "packages/tui/src/components/sidebar-scrollbar.tsx": [
+      "sidebarScrollbarThumb"
     ],
     "packages/tui/src/components/sidebar.tsx": [
       "SIDEBAR_FRACTION",
@@ -1550,7 +1554,10 @@
       "resolveTerminalShell"
     ],
     "packages/webui/src/components/activity-bar/index.tsx": [
+      "applyLockedAnchors",
       "calculateDesktopActivityCapacity",
+      "moveItemId",
+      "resolveActivityOrder",
       "splitDesktopActivityBarItems"
     ],
     "packages/webui/src/components/AgentsPage.tsx": [

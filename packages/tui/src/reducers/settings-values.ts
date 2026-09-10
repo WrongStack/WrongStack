@@ -2,7 +2,6 @@ import { MAX_WRONGPROXY_URL_LENGTH } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
-import { hasPanelRoutedToSidebar } from '../app-ui-state.js';
 import {
   ANIMATION_STYLE_CHOICES,
   type AnimationStyleChoice,
@@ -34,7 +33,7 @@ import {
   TOKEN_SAVING_TIERS,
 } from '../components/settings-picker.js';
 import { MAX_TUI_THINKING_WORD_LENGTH, normalizeTuiThinkingWord } from '../thinking-word.js';
-import { PANEL_IDS, PANEL_POSITION_FIELD_START } from '../ui-contracts.js';
+import { hasPanelRoutedToSidebar, PANEL_IDS, PANEL_POSITION_FIELD_START } from '../ui-contracts.js';
 
 /**
  * Hint shown when the right sidebar can't be hidden because at least one

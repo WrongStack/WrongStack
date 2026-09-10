@@ -22,7 +22,6 @@ import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } 
 import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
 import type { Settings, State } from '../app-state.js';
-import { hasPanelRoutedToSidebar } from '../app-ui-state.js';
 import { AUTONOMY_OPTIONS } from '../components/autonomy-picker.js';
 import {
   formatAllSettingsSummary,
@@ -35,6 +34,7 @@ import {
 import { STATUSLINE_ITEMS, type StatuslineItem } from '../components/statusline-picker.js';
 import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
 import { THEME_OPTIONS } from '../theme.js';
+import { hasPanelRoutedToSidebar } from '../ui-contracts.js';
 
 /**
  * Sessions `/resume` asks the host for.

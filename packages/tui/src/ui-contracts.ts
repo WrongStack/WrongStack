@@ -144,6 +144,29 @@ export function coercePanelPositionMap(
   return out;
 }
 
+/**
+ * True when the right sidebar is "pinned on": at least one F-key panel is
+ * routed to the sidebar slot (per {@link coercePanelPositionMap}-coerced
+ * positions), or the legacy tri-state agent-swarm mode is 'sidebar' (which
+ * mounts the AGENT SWARM + MISSIONS cards on the rail). While pinned, the
+ * master `showSidebar` switch must not resolve to off — a routed panel's
+ * only home is the sidebar, so hiding the rail would orphan it.
+ *
+ * Lives beside {@link coercePanelPositionMap} because every guard site (the
+ * settings picker, the settings reducer, the /lite and /settings slash
+ * commands, and the layout resolver) already depends on this module, and
+ * routing it through app-ui-state.ts would close a type-inclusive import
+ * cycle back into the reducer chain.
+ */
+export function hasPanelRoutedToSidebar(
+  panelPositions: Partial<Record<PanelId, 'bottom' | 'sidebar'>> | undefined,
+  legacySwarmOnSidebar?: boolean | undefined,
+): boolean {
+  const map = coercePanelPositionMap(panelPositions);
+  if (PANEL_IDS.some((id) => map[id] === 'sidebar')) return true;
+  return legacySwarmOnSidebar === true;
+}
+
 export interface AgentTranscriptReader {
   getTranscript(subagentId: string, limit?: number): AgentTimelineEntry[];
 }

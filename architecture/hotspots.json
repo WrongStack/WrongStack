@@ -327,12 +327,12 @@
       "relativeImports": 4
     },
     "packages/tui/src/app-action-type.ts": {
-      "lines": 801,
+      "lines": 812,
       "relativeImports": 13
     },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 1043,
-      "relativeImports": 18
+      "lines": 1091,
+      "relativeImports": 20
     },
     "packages/tui/src/app-state.ts": {
       "lines": 992,
@@ -363,20 +363,24 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/settings-picker.tsx": {
-      "lines": 826,
+      "lines": 832,
       "relativeImports": 12
     },
     "packages/tui/src/components/sidebar-content.tsx": {
       "lines": 1041,
       "relativeImports": 13
     },
+    "packages/tui/src/components/sidebar-panels-workspace.tsx": {
+      "lines": 914,
+      "relativeImports": 11
+    },
     "packages/tui/src/hooks/use-picker-keys-tools-settings.ts": {
       "lines": 827,
       "relativeImports": 6
     },
     "packages/tui/src/hooks/use-tui-slash-commands.ts": {
-      "lines": 902,
-      "relativeImports": 8
+      "lines": 934,
+      "relativeImports": 9
     },
     "packages/tui/src/input-validation.ts": {
       "lines": 1013,
@@ -391,12 +395,16 @@
       "relativeImports": 8
     },
     "packages/tui/src/reducers/settings-values.ts": {
-      "lines": 845,
+      "lines": 880,
       "relativeImports": 6
     },
     "packages/tui/src/submit-controller.ts": {
       "lines": 914,
       "relativeImports": 13
+    },
+    "packages/webui/src/components/activity-bar/index.tsx": {
+      "lines": 868,
+      "relativeImports": 1
     },
     "packages/webui/src/components/AudienceMemoryPanel.tsx": {
       "lines": 909,

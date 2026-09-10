@@ -1,9 +1,8 @@
 import type React from 'react';
 import { useEffect } from 'react';
-import { hasPanelRoutedToSidebar } from '../app-ui-state.js';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
-import { PANEL_IDS, SETTINGS_PICKER_MAX_HEIGHT } from '../ui-contracts.js';
+import { hasPanelRoutedToSidebar, PANEL_IDS, SETTINGS_PICKER_MAX_HEIGHT } from '../ui-contracts.js';
 import { buildSettingsFilterState } from './settings-picker-filter.js';
 import { SETTINGS_PICKER_JUMP_CHORDS } from './settings-picker-jumps.js';
 import type {
