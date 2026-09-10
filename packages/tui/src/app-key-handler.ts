@@ -23,10 +23,10 @@ import {
 import { type DOMElement, measureElement } from './ink.js';
 import { routeInputKey } from './input-key-router.js';
 import type { KeyRouteContext } from './key-handler-context.js';
+import { routeBusyInterrupt, routeCtrlCEscalation } from './key-routes/key-route-busy.js';
 import { routePastePipeline } from './key-routes/key-route-paste.js';
 import {
   overlayPointerKey,
-  routeBusyInterruptKey,
   routeModalOverlayKey,
   routePanelEscapeKey,
   routeSettingsOverlayKey,
@@ -158,7 +158,6 @@ export function createAppKeyHandler(
     dispatch,
     historyScrollRef,
     onHistoryScrollActivity,
-    runInterruptLadder,
     enhanceCancelledRef,
     enhanceAbortRef,
     inputGateRef,
@@ -166,12 +165,6 @@ export function createAppKeyHandler(
     pasteAccumRef,
     commitPaste,
     tryPickerKey,
-    dismissedEscAtRef,
-    streamingTextRef,
-    confirmExitRef,
-    activeCtrlRef,
-    clearPendingConfirms,
-    liveDirector,
     openProjectPicker,
     loadLiveSessions,
     openStatuslinePicker,
@@ -248,18 +241,11 @@ export function createAppKeyHandler(
     stopNextStepsAutoSubmitOnKey(cancelNextStepsCountdown);
 
     // ── Ctrl+C: THE unconditional escape hatch ────────────────────────
-    // Raw-mode terminals (ConPTY/Windows, and any tty in raw mode) deliver
-    // Ctrl+C as KEY DATA — no SIGINT is ever generated — so it must be
-    // routed into the escalation ladder from here. This check runs BEFORE
-    // every modal/status guard below on purpose: Ctrl+C has to work
-    // precisely when everything else is wedged ('aborting' block, pending
-    // confirm panel, enhance overlay, …). The ladder itself is state-aware
-    // (cancels open pickers on the first press, aborts + kills the fleet,
-    // then exits on the second press, hard-exits on the third).
-    if (key.ctrl && (input === 'c' || input === 'C' || input === '\x03')) {
-      runInterruptLadder();
-      return;
-    }
+    // Moved verbatim to routeCtrlCEscalation (key-routes/key-route-busy.ts,
+    // decomposition Phase 3). Raw-mode terminals deliver Ctrl+C as KEY DATA —
+    // no SIGINT is ever generated — so this runs BEFORE every modal/status
+    // guard: Ctrl+C has to work precisely when everything else is wedged.
+    if (routeCtrlCEscalation(ctx, input, key)) return;
     if (
       routeModalOverlayKey(
         {
@@ -384,23 +370,7 @@ export function createAppKeyHandler(
       }
     }
 
-    if (
-      routeBusyInterruptKey(
-        {
-          state,
-          dismissedAt: dismissedEscAtRef,
-          streamingText: streamingTextRef,
-          confirmExit: confirmExitRef,
-          activeController: activeCtrlRef,
-          dispatch,
-          clearPendingConfirms,
-          liveDirector,
-        },
-        key,
-      )
-    ) {
-      return;
-    }
+    if (routeBusyInterrupt(ctx, key)) return;
 
     // Monitor overlays. Ctrl+F/G/T are the primary chords; F2/F3/F4 are
     // terminal-safe aliases because some terminals intercept the chord before
