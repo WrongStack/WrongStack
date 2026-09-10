@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/governance",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "license": "MIT",
   "description": "Deterministic workflow contracts and transition policy for WrongStack orchestration.",
   "repository": {

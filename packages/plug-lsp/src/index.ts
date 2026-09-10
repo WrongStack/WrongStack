@@ -40,7 +40,7 @@ const plugin: Plugin = {
     const cfg = readPlugLSPConfig(api);
     const cwd = api.config.cwd ?? process.cwd();
     if (cfg.autoDiscover) {
-      cfg.servers = await autoDiscoverServers(cfg.servers, cwd);
+      cfg.servers = await autoDiscoverServers(cfg.servers, cwd, (message) => api.log.warn(message));
     }
     const holder: { registry?: LSPRegistry | undefined } = {};
     const tracker = new DocumentTracker(

@@ -613,6 +613,9 @@
     "packages/core/src/utils/project-identity.ts": [
       "isProjectId"
     ],
+    "packages/core/src/utils/project-supplied-fence.ts": [
+      "sanitizeProjectSuppliedBody"
+    ],
     "packages/core/src/utils/tool-subject.ts": [
       "escapeGlobSubject",
       "isPathSubjectKey",
@@ -790,8 +793,7 @@
       "workspaceTypeScriptMajor"
     ],
     "packages/plug-lsp/src/utils/command-resolver.ts": [
-      "commandResolverCoverage",
-      "findLocalBinary"
+      "commandResolverCoverage"
     ],
     "packages/plug-lsp/src/utils/safe-spawn.ts": [
       "safeSpawnCoverage"

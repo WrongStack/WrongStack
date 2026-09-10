@@ -41,7 +41,6 @@ import {
 } from '@/lib/view-navigation';
 import {
   type Activity,
-  type ActivityBarOrder,
   selectUnreadCount,
   useConfigStore,
   useMailboxStore,
@@ -239,14 +238,14 @@ export function applyLockedAnchors<T extends { id: string }>(
 
 /** Move `fromId` to the position currently held by `toId`. Returns the
  *  original ids when either id is missing. */
-export function moveItemId(ids: readonly string[], fromId: string, toId: string): string[] {
-  if (fromId === toId) return ids as string[];
-  const from = ids.indexOf(fromId);
-  const to = ids.indexOf(toId);
-  if (from === -1 || to === -1) return ids as string[];
+export function moveItemId<T extends string>(ids: readonly T[], fromId: string, toId: string): T[] {
+  if (fromId === toId) return ids as T[];
+  const from = (ids as readonly string[]).indexOf(fromId);
+  const to = (ids as readonly string[]).indexOf(toId);
+  if (from === -1 || to === -1) return ids as T[];
   const next = ids.slice();
-  next.splice(from, 1);
-  next.splice(to, 0, fromId);
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved!);
   return next;
 }
 

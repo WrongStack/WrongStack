@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-10T12:26:00.762Z",
+  "generatedAt": "2026-09-10T12:39:21.837Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3717,
-    "testFiles": 3227,
-    "sourceLines": 898992,
+    "sourceFiles": 3718,
+    "testFiles": 3228,
+    "sourceLines": 899228,
     "workspaceEdges": 127,
-    "moduleEdges": 11794,
+    "moduleEdges": 11796,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -214,8 +214,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 846,
-      "testFiles": 729,
+      "sourceFiles": 847,
+      "testFiles": 730,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -230,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 729
+          "testFiles": 730
         }
       ]
     },
@@ -5799,6 +5799,12 @@
       },
       {
         "file": "packages/core/tests/coordination/project-agent-files.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/project-agent-identity-fence.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21048,7 +21054,7 @@
     },
     {
       "file": "packages/webui/src/components/activity-bar/index.tsx",
-      "lines": 868,
+      "lines": 867,
       "relativeImports": 1
     },
     {
@@ -22698,6 +22704,10 @@
       "name": "isProjectId"
     },
     {
+      "file": "packages/core/src/utils/project-supplied-fence.ts",
+      "name": "sanitizeProjectSuppliedBody"
+    },
+    {
       "file": "packages/core/src/utils/tool-subject.ts",
       "name": "escapeGlobSubject"
     },
@@ -23012,10 +23022,6 @@
     {
       "file": "packages/plug-lsp/src/utils/command-resolver.ts",
       "name": "commandResolverCoverage"
-    },
-    {
-      "file": "packages/plug-lsp/src/utils/command-resolver.ts",
-      "name": "findLocalBinary"
     },
     {
       "file": "packages/plug-lsp/src/utils/safe-spawn.ts",

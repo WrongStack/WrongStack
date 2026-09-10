@@ -446,7 +446,9 @@ async function activateServer(
 
   // Store the resolved path when we can find one: a bare name is not
   // spawnable on Windows even when it is on PATH.
-  const resolved = (await resolveServerCommand(cfg.command, ctx.cwd)) ?? cfg.command;
+  // User named this command for this project (WS-SEC-01: user-present path).
+  const resolved =
+    (await resolveServerCommand(cfg.command, ctx.cwd, { allowProjectLocal: true })) ?? cfg.command;
   const entry: ServerConfig = { ...cfg, command: resolved };
 
   let target: string;

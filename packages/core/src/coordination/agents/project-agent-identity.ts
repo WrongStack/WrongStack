@@ -20,6 +20,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
+import { formatProjectSuppliedBlock } from '../../utils/project-supplied-fence.js';
 import { CAPTURE_COOLDOWN_MS, CAPTURE_MAX_PER_SESSION } from './project-agent-capture-window.js';
 import {
   loadConsolidationMetadata,
@@ -39,6 +40,17 @@ export {
   LearningOptimizationScheduler,
   resolveAutoOptimizePolicy,
 } from './project-agent-auto-optimize.js';
+export {
+  canCaptureNewLearned,
+  captureLearnedFromAgentOutput,
+  captureLearnedFromAgentOutputDetailed,
+  detectLearnedConflicts,
+  getProjectAgentLearnStats,
+  hintLearnedNeedsSummarization,
+  listProjectAgentLearnedEntries,
+  loadProjectAgentLearned,
+  parseStructuredLearnedEntries,
+} from './project-agent-capture.js';
 export {
   CAPTURE_SESSION_WINDOW_MS,
   resetCaptureWindow,
@@ -62,6 +74,15 @@ export {
   directiveWasApplied,
   recordDirectiveOutcomes,
 } from './project-agent-directive-outcome.js';
+export {
+  listProjectAgentRoles,
+  refreshProjectAgentIdentity,
+  resetProjectAgentIdentity,
+  updateProjectAgentConfig,
+  updateProjectAgentIdentity,
+  updateProjectAgentKnowledge,
+  updateProjectAgentLearned,
+} from './project-agent-files.js';
 export type {
   CreateProjectAgentInput,
   LearnedCaptureResult,
@@ -101,11 +122,20 @@ export {
 } from './project-agent-optimizer.js';
 export { assertProjectAgentRole } from './project-agent-paths.js';
 export {
+  createProjectAgent,
+  loadProjectAgentProfile,
+  slugifyProjectAgentRole,
+} from './project-agent-profile.js';
+export {
   quarantinePath,
   readQuarantinedDirectives,
   retiredDirectivesToWarnAbout,
   scrubRetiredLines,
 } from './project-agent-quarantine.js';
+export {
+  applyProjectAgentConfig,
+  createProjectAgentRoster,
+} from './project-agent-roster.js';
 export {
   buildSkillDistillInstruction,
   clearProjectSkillAugmentation,
@@ -126,38 +156,6 @@ export {
   setSkillPinned,
 } from './project-agent-skill-layer.js';
 export { CAPTURE_COOLDOWN_MS, CAPTURE_MAX_PER_SESSION };
-
-export {
-  listProjectAgentRoles,
-  refreshProjectAgentIdentity,
-  resetProjectAgentIdentity,
-  updateProjectAgentConfig,
-  updateProjectAgentIdentity,
-  updateProjectAgentKnowledge,
-  updateProjectAgentLearned,
-} from './project-agent-files.js';
-export {
-  createProjectAgent,
-  loadProjectAgentProfile,
-  slugifyProjectAgentRole,
-} from './project-agent-profile.js';
-
-export {
-  applyProjectAgentConfig,
-  createProjectAgentRoster,
-} from './project-agent-roster.js';
-
-export {
-  canCaptureNewLearned,
-  captureLearnedFromAgentOutput,
-  captureLearnedFromAgentOutputDetailed,
-  detectLearnedConflicts,
-  getProjectAgentLearnStats,
-  hintLearnedNeedsSummarization,
-  listProjectAgentLearnedEntries,
-  loadProjectAgentLearned,
-  parseStructuredLearnedEntries,
-} from './project-agent-capture.js';
 
 import { loadProjectAgentLearned } from './project-agent-capture.js';
 
@@ -225,12 +223,22 @@ export function buildProjectContextualizedPrompt(
 
   const identity = options.identityOverride ?? loadProjectAgentIdentity(role, projectRoot);
   if (identity) {
-    parts.push(`\n\n# Project custom identity\n\n${identity}`);
+    // WS-SEC-02: `identity.md` is repo-committed and therefore untrusted, but
+    // it lands in the system prompt of a subagent that holds `shell.arbitrary`
+    // and has no surface to prompt the user. Fence it the same way project
+    // skills (WS-016) and project instruction sections (H-8) already are.
+    const fenced = formatProjectSuppliedBlock({
+      source: `.wrongstack/agents/${role}/identity.md`,
+      body: identity,
+    });
+    if (fenced) parts.push(`\n\n# Project custom identity\n\n${fenced}`);
   }
 
   const learningPolicy = loadProjectAgentLearningPolicy(role, projectRoot);
   let learnedContent = '';
   let learnedLabel = '';
+  // Which repo file the body came from, for the WS-SEC-02 provenance label.
+  let learnedSourceFile = 'learned.md';
   if (learningPolicy.enabled) {
     const consolidated = loadProjectAgentConsolidated(role, projectRoot);
     const rawLearned = loadProjectAgentLearned(role, projectRoot);
@@ -258,10 +266,12 @@ export function buildProjectContextualizedPrompt(
       if (!stale) {
         learnedContent = consolidated;
         learnedLabel = 'Consolidated knowledge for this project';
+        learnedSourceFile = 'consolidated.md';
       } else if (freshEntries.length > 0) {
         const delta = freshEntries.map((entry) => `- **${entry.what}**`).join('\n');
         learnedContent = `${consolidated}\n\n---\n\n## Recently captured (pending next optimization)\n\n${delta}`;
         learnedLabel = 'Consolidated knowledge for this project';
+        learnedSourceFile = 'consolidated.md';
       } else {
         learnedContent = rawLearned;
         learnedLabel = 'Learned instructions for this project (structured: what / why / how)';
@@ -274,7 +284,14 @@ export function buildProjectContextualizedPrompt(
   if (learnedContent) {
     const meaningful = learnedContent.replace(/<!--[\s\S]*?-->/g, '').trim();
     if (meaningful.length > 0) {
-      parts.push(`\n\n# ${learnedLabel}\n\n${learnedContent}`);
+      // Same boundary as the identity appendix above: `learned.md` and
+      // `consolidated.md` live in the repository, so a clone can author them.
+      const fenced = formatProjectSuppliedBlock({
+        source: `.wrongstack/agents/${role}/${learnedSourceFile}`,
+        body: learnedContent,
+        note: 'It was captured by earlier runs in this repository.',
+      });
+      if (fenced) parts.push(`\n\n# ${learnedLabel}\n\n${fenced}`);
     }
   }
 

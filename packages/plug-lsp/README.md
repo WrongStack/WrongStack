@@ -10,8 +10,14 @@ for the agent (diagnostics, definition, rename, codebase search).
 
 The plugin is a built-in and runs unless you turn it off. With
 `autoStart: "lazy"` no server process starts until you touch a file of a
-matching language, and auto-discovery only adopts servers already installed on
-the machine, so a machine with no language servers pays nothing.
+matching language, and auto-discovery only adopts servers from your own
+environment (PATH), so a machine with no language servers pays nothing.
+
+Auto-discovery deliberately ignores `node_modules/.bin` inside the project you
+open: a repository can commit a binary there, and the discovered server is
+started without a prompt, which would make opening a repo enough to run its
+code (WS-SEC-01). If a project-local server is what you want, adopt it
+explicitly with `/lsp setup <name>` — plug-lsp tells you when it finds one.
 
 To turn it off:
 

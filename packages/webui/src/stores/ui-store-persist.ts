@@ -1,5 +1,5 @@
 import type { PersistOptions } from "zustand/middleware";
-import type { UIState } from "./ui-store-types.js";
+import type { Activity, UIState } from "./ui-store-types.js";
 import {
   ACTIVITIES,
   coerceActivity,
@@ -67,12 +67,12 @@ export const uiPersistOptions: PersistOptions<UIState, Partial<UIState>> = {
         // coerceView accepts; both must be deduplicated arrays (or null).
         if ('activityBarOrder' in p && p.activityBarOrder != null) {
           const order = p.activityBarOrder as { panels?: unknown; views?: unknown };
-          const knownPanels = new Set<string>(ACTIVITIES);
+          const knownPanels: ReadonlySet<string> = new Set(ACTIVITIES);
           const panels = Array.isArray(order.panels)
             ? Array.from(
                 new Set(
                   (order.panels as unknown[]).filter(
-                    (id): id is string => typeof id === 'string' && knownPanels.has(id),
+                    (id): id is Activity => typeof id === 'string' && knownPanels.has(id),
                   ),
                 ),
               )
@@ -80,9 +80,7 @@ export const uiPersistOptions: PersistOptions<UIState, Partial<UIState>> = {
           const views = Array.isArray(order.views)
             ? Array.from(
                 new Set(
-                  (order.views as unknown[])
-                    .map(coerceView)
-                    .filter((id): id is string => typeof id === 'string'),
+                  (order.views as unknown[]).map(coerceView),
                 ),
               )
             : [];

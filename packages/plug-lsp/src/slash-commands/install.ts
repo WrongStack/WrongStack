@@ -161,7 +161,9 @@ export async function installLang(
   dryRun = false,
 ): Promise<InstallResult> {
   // Check if already available on PATH or in node_modules/.bin
-  const existing = await resolveServerCommand(server.binary, cwd);
+  // User-initiated install: adopting a project-local binary is the point
+  // (WS-SEC-01 restricts this to user-present paths only).
+  const existing = await resolveServerCommand(server.binary, cwd, { allowProjectLocal: true });
   if (existing) {
     return { language, binary: server.binary, alreadyInstalled: true, dryRun: false };
   }

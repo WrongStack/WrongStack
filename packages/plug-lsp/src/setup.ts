@@ -131,7 +131,9 @@ export async function runSetup(args: string[], deps: SetupDeps = DEFAULT_DEPS): 
       lang === 'typescript'
         ? expectDefined(await languageServerForWorkspace(lang, opts.cwd))
         : expectDefined(INSTALLS[lang]);
-    if (await deps.resolveServerCommand(install.binary, opts.cwd)) {
+    // User ran `/lsp setup` for this project, so a project-local binary is
+    // exactly what they mean (WS-SEC-01: never true for auto-discovery).
+    if (await deps.resolveServerCommand(install.binary, opts.cwd, { allowProjectLocal: true })) {
       alreadyInstalled.push(lang);
       continue;
     }

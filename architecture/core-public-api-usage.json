@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 566,
+      "files": 567,
       "typeOnly": 54,
-      "runtimeOrMixed": 539
+      "runtimeOrMixed": 540
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -18829,6 +18829,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/plug-lsp/src/utils/safe-spawn.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/plug-lsp/tests/unit/platform-coverage.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

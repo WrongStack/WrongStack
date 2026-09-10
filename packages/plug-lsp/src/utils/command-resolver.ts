@@ -15,14 +15,62 @@ type SpawnProbe = (
   options: { env: NodeJS.ProcessEnv; stdio: ['ignore', 'pipe', 'ignore']; windowsHide: true },
 ) => ProbeProcess;
 
-export async function resolveServerCommand(command: string, cwd: string): Promise<string | null> {
-  const local = await findLocalBinary(cwd, command);
-  if (local) return local;
+export interface ResolveServerCommandOptions {
+  /**
+   * Consult `<cwd>/…/node_modules/.bin` before PATH.
+   *
+   * **Defaults to `false`, and the default is the security boundary.**
+   * `node_modules/.bin` lives inside the opened repository, so a repo that
+   * commits `node_modules/.bin/typescript-language-server` (or any other
+   * preset name — `gopls`, `clangd`, `rust-analyzer`, …) supplies the binary
+   * this resolver returns, and the caller then spawns it. When the caller is
+   * auto-discovery that is unattended code execution on repo open: WS-SEC-01.
+   *
+   * Pass `true` only where the *user* asked for this specific command in this
+   * specific project — `/lsp setup`, `/lsp install`, `/lsp` — where adopting a
+   * project-local server is the point and the user is present. Auto-discovery
+   * must never pass it.
+   *
+   * Trust-on-first-use is deliberately NOT the mechanism here: TOFU pins on
+   * first use, and for this attack the first use IS the attack.
+   */
+  allowProjectLocal?: boolean | undefined;
+}
+
+export async function resolveServerCommand(
+  command: string,
+  cwd: string,
+  opts: ResolveServerCommandOptions = {},
+): Promise<string | null> {
+  // An absolute command was written down by whoever configured it rather than
+  // discovered from the tree, so it is honoured on both paths. Presets are all
+  // bare names, so auto-discovery never reaches this branch.
+  if (path.isAbsolute(command)) {
+    return (await fileExists(command)) ? path.normalize(command) : null;
+  }
+  if (opts.allowProjectLocal === true) {
+    const local = await findLocalBinary(cwd, command);
+    if (local) return local;
+    return await resolveCommandOnPath(command);
+  }
   // A bare name that `where.exe` finds is NOT spawnable on Windows: Node does
   // not apply PATHEXT, so `spawn('typescript-language-server')` ENOENTs even
   // though the `.cmd` shim sits right there on PATH. Resolve to the concrete
   // file so safeSpawn can see the extension and pick the shell it needs.
-  return await resolveCommandOnPath(command);
+  const onPath = await resolveCommandOnPath(command);
+  // PATH is not by itself proof of provenance: `npm run` / `pnpm run` / `npx`
+  // prepend `<project>/node_modules/.bin` to PATH, so launching wstack through
+  // a package script inside a hostile repo puts that repo's binaries on PATH
+  // and reopens WS-SEC-01 through this branch. Gate on where the file actually
+  // lives, which covers both the local walk above and PATH injection.
+  return onPath !== null && isInsideProject(onPath, cwd) ? null : onPath;
+}
+
+/** True when `candidate` resolves inside the opened project tree. */
+function isInsideProject(candidate: string, cwd: string): boolean {
+  const root = path.resolve(cwd);
+  const rel = path.relative(root, path.resolve(candidate));
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
 export async function findLocalBinary(cwd: string, command: string): Promise<string | null> {

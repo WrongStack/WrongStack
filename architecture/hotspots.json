@@ -403,7 +403,7 @@
       "relativeImports": 13
     },
     "packages/webui/src/components/activity-bar/index.tsx": {
-      "lines": 868,
+      "lines": 867,
       "relativeImports": 1
     },
     "packages/webui/src/components/AudienceMemoryPanel.tsx": {
