@@ -17,13 +17,15 @@ can resume without archaeology. Work through it top-down; keep the plan's execut
   (session 4259d5afd, provider 7aa5df0e3, design-kit af2c3b90b, settings b14169b52,
   resource 19f8358c2). Parent is a ~140-line pure composer; pinned 23-command
   registration order preserved (enumeration test untouched, green).
-- **Phase 3 (app-key-handler.ts route chain)** — 4 of 6 routes landed:
-  paste `key-route-paste.ts` (routePastePipeline), busy `key-route-busy.ts`
+- **Phase 3 (app-key-handler.ts route chain)** — COMPLETE. Six routes: paste
+  `key-route-paste.ts` (routePastePipeline), busy `key-route-busy.ts`
   (routeCtrlCEscalation + routeBusyInterrupt), overlay `key-route-overlay.ts`
   (8 route fns), pointer `key-route-pointer.ts` (routeSidebarFocusScroll +
-  routePointerEvents). Shared context module: `key-handler-context.ts`
-  (`KeyRouteContext` = `AppKeyHandlerOptions` + stdout/historyWidth/detach).
-  `app-key-handler.ts` is down from 1102 to ~478 lines.
+  routePointerEvents), picker — **no move needed** (already a single delegation to
+  the `useAppPickerKeys`-built handler; see plan log R5 entry), composer
+  `key-route-composer.ts` (routeComposer + routeComposerTail). Shared context module:
+  `key-handler-context.ts` (`KeyRouteContext` = `AppKeyHandlerOptions` + stdout/historyWidth/detach).
+  `app-key-handler.ts` is down from 1102 to ~330 lines — an ordered route orchestrator.
 - **Phase 4 (app.tsx facades)** — NOT STARTED.
 
 ## Remaining Phase 3 work (finish these before Phase 4)
