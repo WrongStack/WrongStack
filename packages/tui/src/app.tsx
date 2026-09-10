@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import type { Director } from '@wrongstack/core/coordination';
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   effectivePanelPositions,
   mergeStatuslineHiddenItems,
@@ -9,31 +9,28 @@ import {
 import { AppView } from './app-view.js';
 import { deriveAppViewState } from './app-view-state.js';
 import { leaderTimelineFromEntries } from './components/agents-monitor.js';
-import type { HistoryScrollController } from './components/scrollable-history.js';
-import type { StatusBarClickMap } from './components/status-bar-types.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 import { useActiveTheme } from './hooks/use-active-theme.js';
 import { useAppExecutionPipeline } from './hooks/use-app-execution-pipeline.js';
 import { useAppPickerKeys } from './hooks/use-app-picker-keys.js';
 import { buildAppPipelineArgs } from './hooks/use-app-pipeline-builders.js';
-import { useAppRuntimeRefs } from './hooks/use-app-runtime-refs.js';
-import { useAppSessionState } from './hooks/use-app-session-state.js';
+import { useAppRefSpine } from './hooks/use-app-ref-spine.js';
+import { useAppState } from './hooks/use-app-state.js';
 import { useAuthPanel } from './hooks/use-auth-panel.js';
 import { useAutonomousCoordinator } from './hooks/use-autonomous-coordinator.js';
 import { useAutonomyDrivers } from './hooks/use-autonomy-drivers.js';
 import { useBrainPanel } from './hooks/use-brain-panel.js';
 import { useBrainRiskSync } from './hooks/use-brain-risk-sync.js';
+import { useBugHuntLoop } from './hooks/use-bug-hunt-loop.js';
 import { useClientTelemetry } from './hooks/use-client-telemetry.js';
 import { useCoreTuiCommands } from './hooks/use-core-tui-commands.js';
 import { useDirectorFleetBridge } from './hooks/use-director-fleet-bridge.js';
-import { useEnhanceRuntimeState } from './hooks/use-enhance-runtime-state.js';
 import { useExitCommand } from './hooks/use-exit-command.js';
 import { useFileSearch } from './hooks/use-file-search.js';
 import { useGitSessionStatus } from './hooks/use-git-session-status.js';
 import { useHelpPanel } from './hooks/use-help-panel.js';
 import { useHistoryArchive } from './hooks/use-history-archive.js';
 import { useHistoryAutoScroll } from './hooks/use-history-auto-scroll.js';
-import { useBugHuntLoop } from './hooks/use-bug-hunt-loop.js';
 import { useHistoryCopyNotice } from './hooks/use-history-copy-notice.js';
 import { useHistoryViewportSync } from './hooks/use-history-viewport-sync.js';
 import { useInitialPrompt } from './hooks/use-initial-prompt.js';
@@ -41,8 +38,6 @@ import { useInputHistoryPersistence } from './hooks/use-input-history-persistenc
 import { useInterruptLadder } from './hooks/use-interrupt-ladder.js';
 import { useKanbanBoardFocus } from './hooks/use-kanban-board-focus.js';
 import { useLiveSettingsState } from './hooks/use-live-settings-state.js';
-import { useLiveTodos } from './hooks/use-live-todos.js';
-import { todosForScreen } from './resume-load.js';
 import { useMailboxViewModel } from './hooks/use-mailbox-view-model.js';
 import { useModePicker } from './hooks/use-mode-picker.js';
 import { useModelPickRequest } from './hooks/use-model-pick.js';
@@ -76,6 +71,8 @@ import { useTuiSlashCommands } from './hooks/use-tui-slash-commands.js';
 import { useWorkingDirChip } from './hooks/use-working-dir-chip.js';
 import { useApp, useStdout } from './ink.js';
 
+export { buildGoalPreamble } from '@wrongstack/core/execution';
+export type { AppProps } from './app-props.js';
 export {
   type Action,
   type FleetEntry,
@@ -89,8 +86,6 @@ export {
 export { nextInputWordStart, previousInputWordStart } from './input-editing.js';
 export { renderRunningTools } from './running-tools.js';
 export { selectedSlashCommandLine } from './slash-command-search.js';
-export { buildGoalPreamble } from '@wrongstack/core/execution';
-export type { AppProps } from './app-props.js';
 export { buildSteeringPreamble } from './steering-preamble.js';
 
 import type { AppProps } from './app-props.js';
@@ -236,16 +231,12 @@ export function App(props: AppProps): React.ReactElement {
     setLiveToolCount,
   } = environment;
 
-  // Latest layout, readable from the picker-open callback without making it
-  // depend on (and re-create for) every layout keystroke.
-  const linesRef = React.useRef(lines);
-  linesRef.current = lines;
-  const densitiesRef = React.useRef(densities);
-  densitiesRef.current = densities;
-
   const projectRoot = agent.ctx.projectRoot;
-  const sessionTodos = useLiveTodos(agent.ctx);
-  const { state, dispatch, layoutStore } = useAppSessionState({
+
+  // Decomposition Phase 4 A1 (docs/decomposition-a0-app-map.md): state
+  // facade + ref spine extracted; call order fixed + unconditional
+  // (behavior contract §0.3).
+  const { state, dispatch, layoutStore, liveTodos } = useAppState({
     agent,
     banner,
     appVersion,
@@ -264,9 +255,51 @@ export function App(props: AppProps): React.ReactElement {
     initialFleetChat: fleetStreamController?.mode,
     sessionsDir,
   });
-  // Blanked for the length of a `/resume` — see `todosForScreen`.
-  const liveTodos = todosForScreen(sessionTodos, state.resumeLoad);
-  const historyScrollRef = useRef<HistoryScrollController | null>(null);
+  const {
+    promptUsageRef,
+    builderRef,
+    activeCtrlRef,
+    eternalLoopRunningRef,
+    parallelLoopRunningRef,
+    activeRunSettledRef,
+    exitRequestedRef,
+    inputGateRef,
+    lastEnterAtRef,
+    tokenPreviewsRef,
+    streamingTextRef,
+    streamSegmentsRef,
+    pendingDeltaRef,
+    flushTimerRef,
+    sessionGenerationRef,
+    activeRunGenerationRef,
+    assistantCommittedThisRunRef,
+    stateRef,
+    draftRef,
+    runBlocksRef,
+    lastEscAtRef,
+    dismissedEscAtRef,
+    submitRef,
+    historyScrollRef,
+    statusBarClickMapRef,
+    inspectOverlayHeaderRef,
+    linesRef,
+    densitiesRef,
+    enhanceEnabledRef,
+    midRunSendPickerRef,
+    enhanceAbortRef,
+    enhanceCancelledRef,
+    enhanceOriginalRef,
+    enhanceCountdown,
+    setEnhanceCountdown,
+    enhanceStartedAt,
+    setEnhanceStartedAt,
+    enhanceDurationMs,
+    setEnhanceDurationMs,
+    refineProviderId,
+    setRefineProviderId,
+    refineModel,
+    setRefineModel,
+  } = useAppRefSpine({ attachments, state, lines, densities, midRunSendPicker });
   const onScrollInfo = useCallback(
     (info: { scrolled: boolean }) =>
       dispatch({ type: 'setHistoryScrolled', scrolled: info.scrolled }),
@@ -342,32 +375,6 @@ export function App(props: AppProps): React.ReactElement {
   });
 
   useAutonomousCoordinator(subscribeCoordinatorEvents, dispatch);
-
-  const {
-    promptUsageRef,
-    builderRef,
-    activeCtrlRef,
-    eternalLoopRunningRef,
-    parallelLoopRunningRef,
-    activeRunSettledRef,
-    exitRequestedRef,
-    inputGateRef,
-    lastEnterAtRef,
-    tokenPreviewsRef,
-    streamingTextRef,
-    streamSegmentsRef,
-    pendingDeltaRef,
-    flushTimerRef,
-    sessionGenerationRef,
-    activeRunGenerationRef,
-    assistantCommittedThisRunRef,
-    stateRef,
-    draftRef,
-    runBlocksRef,
-    lastEscAtRef,
-    dismissedEscAtRef,
-    submitRef,
-  } = useAppRuntimeRefs(attachments, state);
 
   const bugHuntLoop = useBugHuntLoop(
     dispatch,
@@ -499,8 +506,6 @@ export function App(props: AppProps): React.ReactElement {
       viewportRows: state.viewportRows,
       setViewportRows: (rows) => dispatch({ type: 'setViewportRows', rows }),
     });
-
-  const statusBarClickMapRef = React.useRef<StatusBarClickMap | null>(null);
 
   const { handleRewindTo } = useSessionRewind({
     agent,
@@ -711,27 +716,6 @@ export function App(props: AppProps): React.ReactElement {
   });
 
   const {
-    enhanceEnabledRef,
-    midRunSendPickerRef,
-    enhanceAbortRef,
-    enhanceCancelledRef,
-    enhanceOriginalRef,
-    enhanceCountdown,
-    setEnhanceCountdown,
-    enhanceStartedAt,
-    setEnhanceStartedAt,
-    enhanceDurationMs,
-    setEnhanceDurationMs,
-    refineProviderId,
-    setRefineProviderId,
-    refineModel,
-    setRefineModel,
-  } = useEnhanceRuntimeState({
-    enhanceEnabled: state.enhanceEnabled,
-    midRunSendPicker,
-  });
-
-  const {
     pasteAccumRef,
     pasteFlushTimerRef,
     commitPaste,
@@ -932,6 +916,7 @@ export function App(props: AppProps): React.ReactElement {
     statusBarWrapRef,
     belowStatusBarRef,
     statusBarClickMapRef,
+    inspectOverlayHeaderRef,
     openModelPicker,
     nextStepsAutoSubmitTimerRef,
     nextStepsAutoSubmitSuggestionRef,
@@ -1023,6 +1008,7 @@ export function App(props: AppProps): React.ReactElement {
         statusBarWrapRef,
         belowStatusBarRef,
         statusBarClickMapRef,
+        inspectOverlayHeaderRef,
         stableOnKey,
         liveTodos,
         liveSettings,
