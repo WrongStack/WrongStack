@@ -8,10 +8,11 @@ import {
   inspectTitleForEntries,
 } from '../src/components/history/copy-icon.js';
 import {
-  InspectOverlay,
   INSPECT_OVERLAY_MIN_ROWS,
+  InspectOverlay,
   inspectOverlaySize,
   resolveInspectOverlayContent,
+  scrollbarThumbGeometry,
   wrapInspectLines,
 } from '../src/components/inspect-overlay.js';
 import type { HistoryEntry } from '../src/history-entry.js';
@@ -116,5 +117,43 @@ describe('inspect overlay render', () => {
     expect(frame).toContain('read');
     expect(frame).toContain('full file contents here');
     expect(frame).toContain('Esc close');
+  });
+});
+
+describe('inspect overlay scrollbar geometry', () => {
+  it('covers the whole track when the wrapped body fits', () => {
+    expect(scrollbarThumbGeometry(10, 16, 0)).toEqual({ thumbStart: 0, thumbLength: 16 });
+  });
+
+  it('sizes the thumb proportionally and travels to flush bottom at max scroll', () => {
+    // 30 wrapped lines with 10 visible rows → thumb 1/3 of the track, 7 rows of travel.
+    expect(scrollbarThumbGeometry(30, 10, 0)).toEqual({ thumbStart: 0, thumbLength: 3 });
+    expect(scrollbarThumbGeometry(30, 10, 20)).toEqual({ thumbStart: 7, thumbLength: 3 });
+    // Very long body keeps a one-row thumb that pins to the last track row.
+    expect(scrollbarThumbGeometry(100, 10, 0)).toEqual({ thumbStart: 0, thumbLength: 1 });
+    expect(scrollbarThumbGeometry(100, 10, 90)).toEqual({ thumbStart: 9, thumbLength: 1 });
+  });
+
+  it('clamps out-of-range offsets', () => {
+    expect(scrollbarThumbGeometry(100, 10, -5).thumbStart).toBe(0);
+    expect(scrollbarThumbGeometry(100, 10, 999)).toEqual({ thumbStart: 9, thumbLength: 1 });
+  });
+
+  it('renders a scrollbar gutter for overflowing content', () => {
+    const view = render(
+      React.createElement(InspectOverlay, {
+        title: 'bash',
+        body: Array.from({ length: 60 }, (_, i) => `line-${i}`).join('\n'),
+        scroll: 0,
+        termCols: 80,
+        viewportRows: 24,
+        onScroll: () => undefined,
+        onClose: () => undefined,
+      }),
+    );
+    const frame = view.lastFrame() ?? '';
+    view.unmount();
+    expect(frame).toContain('░'); // track glyph
+    expect(frame).toContain('█'); // thumb at the top for scroll 0
   });
 });
