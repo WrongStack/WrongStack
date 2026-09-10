@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-10T18:38:55.573Z
+**Generated:** 2026-09-10T19:25:57.143Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3720 |
-| Production source lines | 900576 |
-| Test files | 3234 |
+| Production source lines | 900717 |
+| Test files | 3235 |
 | Workspace dependency edges | 128 |
 | Relative module edges | 11808 |
 | Non-command slash imports | 0 |
@@ -55,7 +55,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 37 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 32 | @wrongstack/core |
 | @wrongstack/tools | 212 | 215 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 368 | 343 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 368 | 344 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 18 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 541 | 371 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 116 | 38 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
