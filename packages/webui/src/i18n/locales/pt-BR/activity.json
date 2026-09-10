@@ -53,6 +53,12 @@
     "monitors": "Monitores",
     "fleetMonitor": "Inspetor da frota"
   },
+  "reorder": {
+    "edit": "Editar ordem",
+    "done": "Concluído",
+    "reset": "Restaurar padrão",
+    "locked": "Fixo — não pode ser reordenado"
+  },
   "sidePanel": {
     "dragHint": "Arraste para redimensionar · duplo clique para redefinir",
     "collapse": "Recolher painel (Ctrl+\\)"

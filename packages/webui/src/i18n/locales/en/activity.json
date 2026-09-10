@@ -61,6 +61,12 @@
     "monitors": "Monitors",
     "fleetMonitor": "Fleet Inspector"
   },
+  "reorder": {
+    "edit": "Edit order",
+    "done": "Done",
+    "reset": "Reset to default",
+    "locked": "Fixed — cannot be reordered"
+  },
   "sidePanel": {
     "dragHint": "Drag to resize · double-click to reset",
     "collapse": "Collapse panel (Ctrl+\\)"

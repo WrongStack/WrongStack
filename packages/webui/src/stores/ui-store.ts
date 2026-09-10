@@ -99,6 +99,7 @@ export const useUIStore = create<UIState>()(
       changesPanelTab: 'changes',
       settingsActiveTab: 'general',
       scrollPositions: {},
+      activityBarOrder: null,
       draftInput: '',
       draftImages: [],
       sideContextBreakdownOpen: false,
@@ -517,6 +518,11 @@ export const useUIStore = create<UIState>()(
           const scrollPositions = { ...state.scrollPositions, [view]: scrollTop };
           return { scrollPositions, ...parkChrome(state, { scrollPositions }) };
         }),
+      // User-customized ActivityBar icon order. Global UI preference (lives
+      // across tabs and new sessions, like sidebarWidth/hiddenChips) — plain
+      // set, no per-session chrome parking.
+      setActivityBarOrder: (activityBarOrder) =>
+        set({ activityBarOrder }),
       setDraftInput: (text: string) =>
         set((state) => ({
           draftInput: text,

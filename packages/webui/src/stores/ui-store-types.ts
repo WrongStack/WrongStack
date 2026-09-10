@@ -135,6 +135,16 @@ export const SIDEBAR_DEFAULT_WIDTH = 304;
 /** Sections of the WorkspaceDock strip above the chat transcript. */
 export type DockSection = 'goal' | 'goal-state' | 'fleet' | 'work' | 'worktrees' | 'collab';
 export type WorkDashboardTab = 'todos' | 'tasks' | 'plan';
+
+/**
+ * User-customized ActivityBar icon order (panels + views). Null = default
+ * delivery-pipeline order. Persisted to localStorage (`wrongstack-ui`) and
+ * driven by the icon bar's edit/drag mode.
+ */
+export interface ActivityBarOrder {
+  panels: Activity[];
+  views: View[];
+}
 /**
  * Tabs of the global right inspector drawer.
  *
@@ -308,6 +318,14 @@ export interface UIState {
   requestTerminalCreate: () => void;
   setSettingsActiveTab: (tab: string) => void;
   setScrollPosition: (view: string, scrollTop: number) => void;
+
+  /**
+   * User-customized ActivityBar icon order (panels + views). Persisted to
+   * localStorage so the user's reorder survives F5 and reloads. Null = the
+   * default delivery-pipeline order defined in the activity-bar module.
+   */
+  activityBarOrder: ActivityBarOrder | null;
+  setActivityBarOrder: (order: ActivityBarOrder | null) => void;
 
   /** Context breakdown modal (triggered from side-panel session panel). */
   sideContextBreakdownOpen: boolean;

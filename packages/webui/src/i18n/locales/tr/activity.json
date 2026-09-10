@@ -53,6 +53,12 @@
     "monitors": "İzleyiciler",
     "fleetMonitor": "Filo Denetçisi"
   },
+  "reorder": {
+    "edit": "Sıralamayı düzenle",
+    "done": "Bitti",
+    "reset": "Varsayılana sıfırla",
+    "locked": "Sabit — sırası değiştirilemez"
+  },
   "sidePanel": {
     "dragHint": "Yeniden boyutlandırmak için sürükle · sıfırlamak için çift tıkla",
     "collapse": "Paneli daralt (Ctrl+\\)"
