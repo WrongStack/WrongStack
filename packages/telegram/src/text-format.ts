@@ -35,7 +35,11 @@ export function truncateForTelegram(text: string, maxLen = 4000): string {
 
   // Reserve room for truncation suffix
   const cutoff = effectiveMaxLen - 30;
-  if (cutoff <= 0) return `${text.slice(0, effectiveMaxLen - 1)}…`;
+  // Floor the slice at 0 so a degenerate cap (<= 0 — the config schema's
+  // minimum is not actually enforced, see the module contract above) still
+  // yields the 1-char "…" marker instead of passing the input through
+  // unbounded, which Telegram would reject as over the 4096-char limit.
+  if (cutoff <= 0) return `${text.slice(0, Math.max(0, effectiveMaxLen - 1))}…`;
 
   // 1. Paragraph boundary (double newline, suffix "\n\n…" is 3 chars)
   const paraSearchEnd = effectiveMaxLen - 3;

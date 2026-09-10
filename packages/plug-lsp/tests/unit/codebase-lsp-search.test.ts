@@ -1,6 +1,8 @@
+import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { createCodebaseLspSearchTool } from '../../src/tools/codebase-lsp-search.js';
 import type { ToolDeps } from '../../src/tools/shared.js';
+import { pathToUri } from '../../src/utils/uri.js';
 
 // Mock the codebase-index import so searchIndex doesn't hit SQLite
 vi.mock('@wrongstack/tools/codebase-index/index', () => ({
@@ -140,14 +142,22 @@ describe('createCodebaseLspSearchTool', () => {
     expect(result).toContain('5 results');
   });
 
-  it('strips file:// prefix from URIs', async () => {
+  it('resolves symbol location URIs to usable paths', async () => {
     const wsSymbol = vi.fn(async () => [
       {
         name: 'test',
         kind: 12,
         location: {
-          uri: 'file:///proj/deep/src.ts',
+          uri: pathToUri(path.join('/proj', 'deep', 'src.ts')),
           range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } },
+        },
+      },
+      {
+        name: 'spaced',
+        kind: 12,
+        location: {
+          uri: pathToUri(path.join('/proj', 'deep', 'my file.ts')),
+          range: { start: { line: 1, character: 0 }, end: { line: 1, character: 8 } },
         },
       },
     ]);
@@ -159,8 +169,58 @@ describe('createCodebaseLspSearchTool', () => {
       { projectRoot: '/proj', cwd: '/proj' } as never,
       { signal: new AbortController().signal } as never,
     );
+    // The location URI must become a real filesystem path: `slice(7)` left a
+    // `/D:/…` root-relative artifact on Windows and kept `%20` encoded on
+    // every platform, so neither the display nor the dedupe key was usable.
     expect(result).toContain('deep/src.ts');
+    expect(result).toContain('my file.ts');
+    expect(result).not.toContain('/D:/');
+    expect(result).not.toContain('%20');
     expect(result).not.toContain('file://');
+  });
+
+  it('keeps searching when a server returns degenerate location URIs', async () => {
+    const wsSymbol = vi.fn(async () => [
+      {
+        name: 'driveless',
+        kind: 12,
+        location: {
+          // `fileURLToPath` rejects drive-less file URLs on Windows.
+          uri: 'file:///proj/lonely.ts',
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 8 } },
+        },
+      },
+      {
+        name: 'encodedSlash',
+        kind: 12,
+        location: {
+          // Encoded slashes are rejected by `fileURLToPath` on POSIX.
+          uri: 'file:///proj/de%2Fep/x.ts',
+          range: { start: { line: 1, character: 0 }, end: { line: 1, character: 8 } },
+        },
+      },
+      {
+        name: 'untitledBuffer',
+        kind: 12,
+        location: {
+          // Non-file schemes pass through unchanged.
+          uri: 'untitled:Untitled-1',
+          range: { start: { line: 2, character: 0 }, end: { line: 2, character: 8 } },
+        },
+      },
+    ]);
+    const server = makeMockServer({ name: 'ts', workspaceSymbol: wsSymbol });
+    const tool = createCodebaseLspSearchTool(makeDeps([server]));
+
+    // A degenerate URI must not abort the search — each hit still renders.
+    const result = await tool.execute(
+      { query: 'sym', preferLsp: true },
+      { projectRoot: '/proj', cwd: '/proj' } as never,
+      { signal: new AbortController().signal } as never,
+    );
+    expect(result).toContain('driveless');
+    expect(result).toContain('encodedSlash');
+    expect(result).toContain('untitledBuffer');
   });
 
   it('converts 0-based LSP line numbers to 1-based', async () => {

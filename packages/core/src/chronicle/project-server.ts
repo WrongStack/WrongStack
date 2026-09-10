@@ -78,6 +78,13 @@ const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
 interface ClientState {
   socket: net.Socket;
   buffer: string;
+  /**
+   * Request ids whose dispatch has not produced a response yet. `stop()`
+   * answers each of these with a clean stopping rejection BEFORE the socket
+   * is destroyed — otherwise an in-flight caller sees nothing but a bare
+   * connection close and can only give up via its own call timeout.
+   */
+  unsettled: Set<number>;
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -543,7 +550,7 @@ function encodeResponse(
   state: ClientState,
   message: ChronicleProjectServerMessage,
 ): string | undefined {
-  if (state.socket.destroyed) return undefined;
+  if (state.socket.destroyed || state.socket.writableEnded) return undefined;
   const encoded = encodeChronicleProjectServerMessage(message);
   if (encoded.length > CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS) {
     state.socket.destroy(new Error('Chronicle project server response exceeded frame limit'));
@@ -608,10 +615,13 @@ async function handleMessage(
     return;
   }
   activeRequests++;
+  state.unsettled.add(message.id);
   try {
     const result = await dispatch(message.op, message.args);
+    state.unsettled.delete(message.id);
     send(state, { type: 'response', id: message.id, ok: true, result });
   } catch (error) {
+    state.unsettled.delete(message.id);
     send(state, {
       type: 'response',
       id: message.id,
@@ -713,10 +723,32 @@ async function stop(_reason: string): Promise<void> {
   // exist — and therefore none can have its metadata deleted by the
   // read-then-delete pid compare in `removeOwnedMetadata`.
   await removeOwnedMetadata();
-  // Destroy client sockets before awaiting close(): net.Server.close() waits
-  // for every connection to end, so live clients can otherwise block daemon
-  // shutdown indefinitely after ownership metadata has already been removed.
-  for (const state of clients) state.socket.destroy();
+  // Answer in-flight requests BEFORE the transport goes away (unsettled →
+  // clean rejection), then end() each socket: end() FLUSHES everything
+  // already queued for it — including responses from dispatches that settled
+  // mid-stop — before the FIN. write()+destroy() in the same tick loses
+  // those bytes on Windows named pipes (observed twice in the round proof).
+  // No timers: stop() resolves only from server.close()'s callback below
+  // (daemon-metadata-lifecycle guard). A client that stops reading can hold
+  // the end() flush open — the same exposure the awaited shutdown
+  // acknowledgement already accepts.
+  const closing = [...clients];
+  const flushed: Promise<void>[] = [];
+  for (const state of closing) {
+    for (const id of state.unsettled) {
+      const encoded = encodeResponse(state, {
+        type: 'response',
+        id,
+        ok: false,
+        error: 'Chronicle server is stopping; the request was not completed',
+        errorName: 'ChronicleStoppingError',
+      });
+      if (encoded !== undefined) state.socket.write(encoded);
+    }
+    flushed.push(new Promise<void>((resolve) => state.socket.end(() => resolve())));
+  }
+  await Promise.all(flushed);
+  for (const state of closing) state.socket.destroy();
   clients.clear();
   await new Promise<void>((resolve, reject) => {
     server.close((error) => {
@@ -746,13 +778,17 @@ const server = net.createServer((socket) => {
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = undefined;
   socket.setEncoding('utf8');
-  const state: ClientState = { socket, buffer: '' };
+  const state: ClientState = { socket, buffer: '', unsettled: new Set<number>() };
   clients.add(state);
   // Greet only once the token is readable on disk — see `metadataWritten`.
   void metadataWritten.then(() => {
     if (!socket.destroyed) send(state, { type: 'hello', ...serverInfo });
   });
   socket.on('data', (chunk: string) => onData(state, chunk));
+  socket.on('error', () => {
+    // 'close' owns cleanup; a listener is required or Node throws on 'error'
+    // events (e.g. a write racing a client disconnect during shutdown).
+  });
   socket.on('close', () => {
     clients.delete(state);
     scheduleIdleStop();

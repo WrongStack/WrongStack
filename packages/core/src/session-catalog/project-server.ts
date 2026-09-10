@@ -33,6 +33,13 @@ interface ClientState {
   socket: net.Socket;
   buffer: string;
   subscribed: boolean;
+  /**
+   * Request ids whose dispatch has not produced a response yet. `stop()`
+   * answers each of these with a clean stopping rejection BEFORE the socket
+   * is destroyed — otherwise an in-flight caller sees nothing but a bare
+   * connection close and can only give up via its own call timeout.
+   */
+  unsettled: Set<number>;
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -73,6 +80,24 @@ const serverInfo: SessionCatalogServerInfo = {
 process.title = `wrongstack-session-catalog:${path.basename(parsed.projectRoot)}`;
 let store: SessionCatalogStore | undefined;
 let activeRequests = 0;
+/**
+ * Dispatches that started but have not produced a response yet. Two consumers:
+ * `stop()` answers every still-unsettled request with a clean stopping
+ * rejection before its socket is destroyed, and drains this set (bounded)
+ * before the store closes so SQLite is not shut under a running operation.
+ */
+const activeDispatches = new Set<Promise<unknown>>();
+/**
+ * Grace window for that drain. Ops parked on an in-flight atomic write cannot
+ * be cancelled (no Session Catalog op observes an abort signal), so the wait
+ * is bounded — shutdown must resolve deterministically.
+ */
+const SHUTDOWN_DRAIN_GRACE_MS = 1_000;
+/**
+ * Bounded force-destroy for the graceful end() close in `stop()`: a client
+ * that stops reading must not hold shutdown open past this window.
+ */
+const SESSION_CATALOG_FORCE_DESTROY_MS = 500;
 let stopping = false;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 const clients = new Set<ClientState>();
@@ -84,7 +109,7 @@ const metadataReady = new Promise<void>((resolve) => {
 });
 
 function send(state: ClientState, message: SessionCatalogServerMessage): void {
-  if (state.socket.destroyed) return;
+  if (state.socket.destroyed || state.socket.writableEnded) return;
   const encoded = encodeSessionCatalogMessage(message);
   if (
     encoded.length > SESSION_CATALOG_MAX_FRAME_CHARS ||
@@ -450,12 +475,14 @@ async function handleMessage(
     return;
   }
   activeRequests++;
+  state.unsettled.add(message.id);
   try {
     validateOperationArgs(message.op, message.args);
     if (message.op === 'subscribe') state.subscribed = true;
     if (message.op === 'unsubscribe') state.subscribed = false;
     if (message.op === 'rebuild_catalog') emitEvent('session.rebuild_started');
     const result = await dispatch(message.op, message.args as never);
+    state.unsettled.delete(message.id);
     send(state, { type: 'response', id: message.id, ok: true, result });
     const eventKind = eventForOperation(message.op);
     if (eventKind) {
@@ -470,6 +497,7 @@ async function handleMessage(
       emitEvent(eventKind, sessionId);
     }
   } catch (error) {
+    state.unsettled.delete(message.id);
     send(state, {
       type: 'response',
       id: message.id,
@@ -496,7 +524,11 @@ function onData(state: ClientState, chunk: string): void {
     state.buffer = state.buffer.slice(newline + 1);
     if (!line) continue;
     try {
-      void handleMessage(state, JSON.parse(line) as SessionCatalogClientMessage);
+      const tracked = handleMessage(state, JSON.parse(line) as SessionCatalogClientMessage);
+      activeDispatches.add(tracked);
+      void tracked.finally(() => {
+        activeDispatches.delete(tracked);
+      });
     } catch {
       state.socket.destroy(new Error('Invalid Session Catalog request'));
       return;
@@ -542,9 +574,50 @@ async function stop(_reason: string): Promise<void> {
   if (stopping) return;
   stopping = true;
   if (idleTimer) clearTimeout(idleTimer);
-  for (const state of clients) state.socket.destroy();
+  // Answer in-flight requests BEFORE the transport goes away (unsettled →
+  // clean rejection), then end() — NOT destroy() — so the rejection bytes are
+  // flushed before FIN: write() + destroy() in the same tick loses the pending
+  // write on Windows named pipes (observed in the round proof).
+  const closing = [...clients];
+  for (const state of closing) {
+    for (const id of state.unsettled) {
+      send(state, {
+        type: 'response',
+        id,
+        ok: false,
+        error: 'Session Catalog server is stopping; the request was not completed',
+        errorName: 'SessionCatalogStoppingError',
+      });
+    }
+    state.socket.end();
+  }
   clients.clear();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await new Promise<void>((resolve) => {
+    server.close(() => {
+      clearTimeout(forceDestroyTimer);
+      resolve();
+    });
+    // A client that stops reading must not hold shutdown open: bounded
+    // force-destroy, mirroring the kanban/mailbox graceful-close pattern.
+    const forceDestroyTimer = setTimeout(() => {
+      for (const state of closing) state.socket.destroy();
+      resolve();
+    }, SESSION_CATALOG_FORCE_DESTROY_MS);
+    forceDestroyTimer.unref?.();
+  });
+  // Bounded drain: give in-flight dispatches a short grace window to finish
+  // so the store does not close under a running operation (its caller would
+  // otherwise see "database is closed" instead of a clean result or
+  // rejection). Shutdown stays deterministic: the wait is capped.
+  if (activeDispatches.size > 0) {
+    await Promise.race([
+      Promise.allSettled([...activeDispatches]),
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, SHUTDOWN_DRAIN_GRACE_MS);
+        timer.unref?.();
+      }),
+    ]);
+  }
   store?.close();
   store = undefined;
   if (process.platform !== 'win32') await fsp.rm(endpoint, { force: true }).catch(() => undefined);
@@ -565,12 +638,21 @@ const server = net.createServer((socket) => {
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = undefined;
   socket.setEncoding('utf8');
-  const state: ClientState = { socket, buffer: '', subscribed: false };
+  const state: ClientState = {
+    socket,
+    buffer: '',
+    subscribed: false,
+    unsettled: new Set<number>(),
+  };
   clients.add(state);
   void metadataReady.then(() => {
     if (!socket.destroyed) send(state, { type: 'hello', ...serverInfo });
   });
   socket.on('data', (chunk: string) => onData(state, chunk));
+  socket.on('error', () => {
+    // 'close' owns cleanup; a listener is required or Node throws on 'error'
+    // events (e.g. a write racing a client disconnect during shutdown).
+  });
   socket.on('close', () => {
     clients.delete(state);
     // Once the last client leaves and no live lease remains, this process no

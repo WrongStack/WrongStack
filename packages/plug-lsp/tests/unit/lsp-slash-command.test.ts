@@ -5,7 +5,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { DocumentTracker } from '../../src/document-tracker.js';
 import type { LSPRegistry } from '../../src/registry.js';
 import { buildLspCommand, lspCommandCoverage } from '../../src/slash-commands/lsp.js';
-import type { PlugLSPConfig } from '../../src/types.js';
+import type { PlugLSPConfig, TrackedDocument } from '../../src/types.js';
+import { pathToUri, uriKey } from '../../src/utils/uri.js';
 
 // `/lsp remove|enable|disable` now write to the project-private config, so
 // redirect WrongStack's state root at a temp dir before any of them run.
@@ -70,10 +71,21 @@ function makeRegistry(servers: MockServer[]): LSPRegistry {
   } as unknown as LSPRegistry;
 }
 
-function makeTracker(files: string[] = []): DocumentTracker {
+function makeTracker(docs: TrackedDocument[] = []): DocumentTracker {
   return {
-    list: vi.fn(() => files),
+    list: vi.fn(() => docs),
   } as unknown as DocumentTracker;
+}
+
+function trackedDocument(filePath: string): TrackedDocument {
+  return {
+    uri: pathToUri(filePath),
+    path: filePath,
+    languageId: 'typescript',
+    version: 1,
+    text: '',
+    serverNames: new Set<string>(),
+  };
 }
 
 function srv(name: string, state: MockServer['state'], enabled = true): MockServer {
@@ -85,10 +97,10 @@ function srv(name: string, state: MockServer['state'], enabled = true): MockServ
   };
 }
 
-function makeCtx(servers: MockServer[] = [], files: string[] = []) {
+function makeCtx(servers: MockServer[] = [], docs: TrackedDocument[] = []) {
   return {
     registry: makeRegistry(servers),
-    tracker: makeTracker(files),
+    tracker: makeTracker(docs),
     cfg: {
       autoStart: 'lazy',
       severityFilter: ['hint'],
@@ -192,7 +204,7 @@ describe('buildLspCommand — parseArgs dispatch', () => {
           diagnostics: new Map(),
         },
       ],
-      ['/proj/a.ts'],
+      [trackedDocument('/proj/a.ts')],
     );
     const result = await runCmd(ctx, 'status');
     expect(result.message).toContain('Total servers:');
@@ -647,9 +659,13 @@ describe('buildLspCommand — diagnostics', () => {
   });
 
   it('shows workspace diagnostics overview', async () => {
+    // Buffers are keyed by `uriKey(uri)` — a canonical path, not a URI — so the
+    // fixture must key the same way; a raw URI is a shape production never
+    // stores.
+    const bufferKey = uriKey(pathToUri('/proj/src/a.ts'));
     const diagMap = new Map([
       [
-        'file:///proj/src/a.ts',
+        bufferKey,
         [
           {
             range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
@@ -679,6 +695,56 @@ describe('buildLspCommand — diagnostics', () => {
     };
     const result = await runCmd(ctx, 'diagnostics');
     expect(result.message).toContain('Showing diagnostics');
+    // The overview prints the canonical key (no tracked document maps it back
+    // to a real path here), using platform separators; normalize before
+    // asserting so the check holds on both POSIX and Windows.
+    expect((result.message ?? '').replace(/\\/g, '/')).toContain('proj/src/a.ts');
+    // A `file:///` URL in the output would mean a raw-URI key leaked into the
+    // buffer instead of the canonical path production stores.
+    expect(result.message).not.toContain('file:///');
+  });
+
+  it('workspace overview shows real paths, not the folded canonical key', async () => {
+    // Diagnostics are buffered under `uriKey(uri)`, which folds case on
+    // Windows. Pin the platform so the fold is observable on POSIX CI too: the
+    // overview must map buffer keys back to the tracked path instead of
+    // printing the key verbatim.
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+    try {
+      const trackedPath = path.resolve('/proj', 'src/Sample.ts');
+      const tracked = trackedDocument(trackedPath);
+      const ctx = makeCtx(
+        [
+          {
+            name: 'ts',
+            state: 'ready',
+            config: { command: 'tsls', languages: ['typescript'], enabled: true },
+            diagnostics: new Map([
+              [
+                uriKey(tracked.uri),
+                [
+                  {
+                    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+                    severity: 1,
+                    message: 'folded key error',
+                  },
+                ],
+              ],
+            ]),
+          } satisfies MockServer,
+        ],
+        [tracked],
+      );
+      ctx.cfg.severityFilter = ['error'];
+
+      const result = await runCmd(ctx, 'diagnostics');
+
+      expect(result.message).toContain('src/Sample.ts');
+      expect(result.message).not.toContain('src/sample.ts');
+    } finally {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    }
   });
 
   it('shows diagnostics for a specific file and merges duplicate server results', async () => {
@@ -688,17 +754,21 @@ describe('buildLspCommand — diagnostics', () => {
       message: 'specific error',
     };
     const resolved = path.resolve('/proj', 'src/a.ts');
+    // `LSPServer.setDiagnostics` keys its diagnostics buffer with
+    // `uriKey(pathToUri(...))`, so the fixture must key it the same way or it
+    // exercises a buffer shape production never produces.
+    const bufferKey = uriKey(pathToUri(resolved));
     const first = {
       name: 'one',
       state: 'ready',
       config: { command: 'one', enabled: true },
-      diagnostics: new Map([[resolved, [diagnostic]]]),
+      diagnostics: new Map([[bufferKey, [diagnostic]]]),
     } satisfies MockServer;
     const second = {
       name: 'two',
       state: 'ready',
       config: { command: 'two', enabled: true },
-      diagnostics: new Map([[resolved, [diagnostic]]]),
+      diagnostics: new Map([[bufferKey, [diagnostic]]]),
     } satisfies MockServer;
     const ctx = makeCtx([first, second]);
     ctx.cfg.severityFilter = ['error'];
@@ -706,7 +776,45 @@ describe('buildLspCommand — diagnostics', () => {
     const result = await runCmd(ctx, 'diagnostics src/a.ts');
     expect(result.message).toContain('File:');
     expect(result.message).toContain('specific error');
-    expect(lspCommandCoverage.collectServerDiagnostics(ctx.registry).get(resolved)).toHaveLength(2);
+    expect(lspCommandCoverage.collectServerDiagnostics(ctx.registry).get(bufferKey)).toHaveLength(
+      2,
+    );
+  });
+
+  it('finds a file diagnostic when the platform folds path case', async () => {
+    const diagnostic = {
+      range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+      severity: 1,
+      message: 'case-folded lookup',
+    };
+    // Diagnostics are buffered under `uriKey(pathToUri(...))`, which folds case
+    // on Windows, while the command resolves the argument with `path.resolve`.
+    // Pin the platform and use upper-case segments so the fold is observable
+    // even on POSIX CI, where `node:path` never folds and the two key spaces
+    // would otherwise coincide — hiding the regression.
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+    try {
+      const ctx = makeCtx([
+        {
+          name: 'ts',
+          state: 'ready',
+          config: { command: 'tsls', languages: ['ts'], enabled: true },
+          diagnostics: new Map([
+            [uriKey(pathToUri(path.resolve('/Proj/Round', 'Src/A.ts'))), [diagnostic]],
+          ]),
+        } satisfies MockServer,
+      ]);
+      ctx.cwd = '/Proj/Round';
+      ctx.cfg.severityFilter = ['error'];
+
+      const result = await runCmd(ctx, 'diagnostics Src/A.ts');
+
+      expect(result.message).not.toContain('No diagnostics for');
+      expect(result.message).toContain('case-folded lookup');
+    } finally {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    }
   });
 
   it('renders list defaults and every state style', async () => {

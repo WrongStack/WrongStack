@@ -5,6 +5,7 @@ import type { DocumentTracker } from '../document-tracker.js';
 import { formatDiagnostics } from '../formatters/diagnostics.js';
 import type { LSPRegistry } from '../registry.js';
 import type { PlugLSPConfig, ServerConfig } from '../types.js';
+import { pathToUri, uriKey } from '../utils/uri.js';
 import { languageServerForWorkspace, SUPPORTED_LANGUAGES } from './install.js';
 
 // Re-export for use from the plugin entry
@@ -610,7 +611,10 @@ async function runDiagnosticsCommand(ctx: LspContext, file?: string): Promise<{ 
 
   if (file) {
     const resolved = path.resolve(ctx.cwd, file);
-    const fileDiags = allDiags.get(resolved);
+    // Diagnostics are buffered under `uriKey(pathToUri(...))` by
+    // `LSPServer.setDiagnostics`, which folds case on Windows. Look up in that
+    // same space — the raw resolved path never matches the stored key there.
+    const fileDiags = allDiags.get(uriKey(pathToUri(resolved)));
     if (!fileDiags || fileDiags.length === 0) {
       return { message: lines.join('\n') + `\nNo diagnostics for ${file}` };
     }
@@ -636,13 +640,22 @@ async function runDiagnosticsCommand(ctx: LspContext, file?: string): Promise<{ 
     return { message: lines.join('\n') };
   }
 
+  // Buffer keys are canonical (`uriKey`), which folds case on Windows. Map
+  // them back to the paths the user actually opened so the overview shows
+  // on-disk casing; an untracked key keeps the canonical form.
+  const realPathByKey = new Map<string, string>();
+  for (const doc of ctx.tracker.list()) {
+    realPathByKey.set(uriKey(doc.uri), doc.path);
+  }
+
   const total = Array.from(allDiags.values()).reduce((sum, d) => sum + d.length, 0);
   lines.push(`Showing diagnostics for ${allDiags.size} file(s) (${total} total)`);
   lines.push('');
 
-  for (const [fpath, diags] of allDiags) {
-    lines.push(`${colorize(fpath, 'cyan')}`);
-    const fdiagMap = new Map([[fpath, diags]]);
+  for (const [key, diags] of allDiags) {
+    const display = realPathByKey.get(key) ?? key;
+    lines.push(`${colorize(display, 'cyan')}`);
+    const fdiagMap = new Map([[display, diags]]);
     lines.push(
       formatDiagnostics(fdiagMap, {
         cwd: ctx.cwd,
@@ -664,11 +677,12 @@ function collectServerDiagnostics(
   const result = new Map<string, import('vscode-languageserver-protocol').Diagnostic[]>();
   for (const srv of registry.list()) {
     if (srv.state !== 'ready') continue;
-    for (const [uri, diags] of srv.diagnostics) {
-      // Convert file:// URIs to paths
-      const filePath = uri.startsWith('file://') ? uri.slice(7) : uri;
-      const existing = result.get(filePath) ?? [];
-      result.set(filePath, [...existing, ...diags]);
+    for (const [key, diags] of srv.diagnostics) {
+      // Keys are already `uriKey(uri)` output — a normalized filesystem path,
+      // never a URL — so they are used as-is. Slicing them as if they were
+      // URIs is the same wrong assumption that made `/diagnostics` throw.
+      const existing = result.get(key) ?? [];
+      result.set(key, [...existing, ...diags]);
     }
   }
   return result;

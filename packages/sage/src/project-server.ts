@@ -89,6 +89,13 @@ interface ClientState {
   buffer: string;
   active: Map<number, AbortController>;
   /**
+   * Request ids whose dispatch has not produced a response yet. `stop()`
+   * answers each of these with a clean stopping rejection BEFORE the socket
+   * is destroyed — otherwise an in-flight caller sees nothing but a bare
+   * connection close and can only give up via its own call timeout.
+   */
+  unsettled: Set<number>;
+  /**
    * Server-assigned per-connection nonce. The server stamps this on
    * every request's `meta.clientId` and never honours the client-supplied
    * value, so two different connections can never claim the same
@@ -154,6 +161,20 @@ let stopping = false;
 let lastAutomaticHygieneAt = 0;
 let lastAutomaticHygieneReport: SageServerOperations['hygiene']['result'] | undefined;
 let automaticHygieneInFlight: Promise<SageServerOperations['hygiene']['result']> | undefined;
+/**
+ * Dispatches that started but have not produced a response yet. Two consumers:
+ * `stop()` answers every still-unsettled request with a clean stopping
+ * rejection before its socket is destroyed, and drains this set (bounded)
+ * before `store.dispose()` so SQLite is not closed under a running operation.
+ */
+const activeDispatches = new Set<Promise<unknown>>();
+/**
+ * Grace window for that drain. Ops parked on a file lock or a slow fs read
+ * cannot be cancelled (only `verify` observes the abort signal), so the wait
+ * is bounded — shutdown must resolve deterministically, mirroring the 500ms
+ * `server.close` fallback below.
+ */
+const SHUTDOWN_DRAIN_GRACE_MS = 1_000;
 function activeClientRequests(): number {
   let total = 0;
   for (const client of clients) total += client.active.size;
@@ -593,12 +614,15 @@ function handleMessage(state: ClientState, message: SageProjectServerClientMessa
     ...(message.meta.traceId !== undefined ? { traceId: message.meta.traceId } : {}),
   };
   const startedAt = Date.now();
-  void requestContext
+  state.unsettled.add(message.id);
+  const tracked = requestContext
     .run(safeMeta, () => dispatch(message.op, message.args, controller.signal))
     .then((result) => {
+      state.unsettled.delete(message.id);
       send(state, { type: 'response', id: message.id, ok: true, result });
     })
     .catch((error) => {
+      state.unsettled.delete(message.id);
       try {
         send(state, {
           type: 'response',
@@ -610,12 +634,14 @@ function handleMessage(state: ClientState, message: SageProjectServerClientMessa
       } catch {
         // socket already destroyed or write failed — nothing more to do
       }
-    })
-    .finally(() => {
-      state.active.delete(message.id);
-      pendingRequests = Math.max(0, pendingRequests - 1);
-      reportSlowOperation(message.op, Date.now() - startedAt);
     });
+  activeDispatches.add(tracked);
+  void tracked.finally(() => {
+    state.active.delete(message.id);
+    pendingRequests = Math.max(0, pendingRequests - 1);
+    reportSlowOperation(message.op, Date.now() - startedAt);
+    activeDispatches.delete(tracked);
+  });
 }
 
 function onData(state: ClientState, chunk: string): void {
@@ -708,6 +734,20 @@ async function stop(_reason: string): Promise<void> {
   // ordering, including the bounded close for Windows named-pipe handles
   // the kernel can retain.
   for (const state of clients) {
+    // Answer in-flight requests BEFORE the transport goes away: a caller with
+    // a dispatch in flight would otherwise see nothing but a bare connection
+    // close (its response can no longer be written once the socket is
+    // destroyed) and hang until its own call timeout. Settled requests are
+    // no longer in `unsettled` — their real response already went out.
+    for (const id of state.unsettled) {
+      send(state, {
+        type: 'response',
+        id,
+        ok: false,
+        error: 'SAGE project server is stopping; the request was not completed',
+        errorName: 'SageServerStoppingError',
+      });
+    }
     for (const controller of state.active.values()) {
       controller.abort(new Error('SAGE project server stopping'));
     }
@@ -722,6 +762,20 @@ async function stop(_reason: string): Promise<void> {
     const timer = setTimeout(() => resolve(), 500);
     timer.unref?.();
   });
+  // Bounded drain: give in-flight dispatches a short grace window to finish
+  // so `store.dispose()` does not close SQLite under a running operation (its
+  // caller would otherwise see "database is closed" instead of a clean result
+  // or rejection). Ops parked on a file lock or slow fs hold shutdown up to
+  // this grace, never longer — shutdown stays deterministic.
+  if (activeDispatches.size > 0) {
+    await Promise.race([
+      Promise.allSettled([...activeDispatches]),
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, SHUTDOWN_DRAIN_GRACE_MS);
+        timer.unref?.();
+      }),
+    ]);
+  }
   await store.dispose().catch(() => {});
   if (process.platform !== 'win32') {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});
@@ -741,7 +795,13 @@ const server = net.createServer((socket) => {
   // entries are correlatable to a specific connection without trusting
   // any value the client supplied.
   const clientId = `sage-${process.pid}-${randomBytes(8).toString('hex')}`;
-  const state: ClientState = { socket, buffer: '', active: new Map(), clientId };
+  const state: ClientState = {
+    socket,
+    buffer: '',
+    active: new Map(),
+    unsettled: new Set<number>(),
+    clientId,
+  };
   clients.add(state);
   send(state, { type: 'hello', ...serverInfo });
   socket.on('data', (chunk: string) => onData(state, chunk));

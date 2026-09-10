@@ -45,6 +45,20 @@ const ANSI_RE = new RegExp(
   'g',
 );
 
+/**
+ * Strict, non-empty prefixes of the paste markers in either spelling
+ * (`\x1b[200~` / `\x1b[201~` and the ESC-stripped `[200~` / `[201~`). When a
+ * stdin read splits a marker, the first fragment is one of these and MUST
+ * start accumulation — the next fragment completes the marker and the join
+ * is then stripped whole. A lone `\x1b` (Escape) or `[` is deliberately NOT
+ * matched: those stay ordinary keys.
+ */
+function isMarkerPrefix(input: string): boolean {
+  if (input.length < 2) return false;
+  const forms = [`\x1b${BEGIN}`, `\x1b${END}`, BEGIN, END];
+  return forms.some((form) => form.startsWith(input) && input.length < form.length);
+}
+
 interface PasteFeedResult {
   /** New accumulator state: text while buffering, overflow marker, or `null` when idle. */
   accum: PasteAccumState;
@@ -83,23 +97,35 @@ export function feedPaste(accum: PasteAccumState, input: string): PasteFeedResul
       if (PARTIAL_ANSI_RE.test(input)) {
         return { accum: null, complete: null };
       }
-      // Bare '[' is not a paste marker and not a known partial ANSI
-      // sequence — let it through as ordinary input.
+      // A strict prefix of a paste marker (`[20` from a `[200~` split across
+      // stdin reads) must START accumulation so the next fragment completes
+      // the marker — otherwise the marker tail and paste content leak into
+      // the buffer as literal keypresses. Bare '[' and other '['-text still
+      // pass through as ordinary input.
+      if (!isMarkerPrefix(input)) return null;
+    } else if (!isMarkerPrefix(input)) {
+      // Covers the ESC-prefixed split: `\x1b[20` / `\x1b[200` are marker
+      // prefixes, while lone `\x1b` (Escape) and ordinary text stay keys.
       return null;
     }
-    return null;
   }
-  // Strip paste markers AND all ANSI sequences before accumulating.
-  const piece = input.replace(BEGIN_RE, '').replace(END_RE, '').replace(ANSI_RE, '');
-  const current = accum ?? '';
-  if (current.length + piece.length > MAX_PASTE_CHARS) {
+  // Strip paste markers AND all ANSI sequences before accumulating. The RAW
+  // fragment is joined with the accumulator FIRST: a marker split across
+  // stdin reads straddles this boundary (`\x1b[20` arrived earlier, `0~hel`
+  // arrives now), and only the joined string contains the complete marker
+  // that must be removed whole. The accumulator never contains a full
+  // marker (each fragment was already stripped), so a join cannot hide one.
+  const combined = `${accum ?? ''}${input}`;
+  const stripped = combined.replace(BEGIN_RE, '').replace(END_RE, '').replace(ANSI_RE, '');
+  if (stripped.length > MAX_PASTE_CHARS) {
     return {
-      accum: input.includes(END) ? null : OVERFLOW_STATE,
+      accum: combined.includes(END) ? null : OVERFLOW_STATE,
       complete: null,
       error: `Paste rejected: exceeds ${MAX_PASTE_CHARS.toLocaleString()} characters.`,
     };
   }
-  const next = current + piece;
-  if (input.includes(END)) return { accum: null, complete: next };
-  return { accum: next, complete: null };
+  // `combined` (not `input`) decides completion: a split END marker only
+  // becomes `[201~` once both halves have been joined.
+  if (combined.includes(END)) return { accum: null, complete: stripped };
+  return { accum: stripped, complete: null };
 }

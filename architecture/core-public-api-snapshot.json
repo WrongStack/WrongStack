@@ -1425,7 +1425,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 41,
-      "sourceLines": 11699
+      "sourceLines": 11735
     },
     {
       "directory": "coordination",
@@ -1579,7 +1579,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 17,
-      "sourceLines": 4905
+      "sourceLines": 4987
     },
     {
       "directory": "skills",

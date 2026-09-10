@@ -113,7 +113,15 @@ export default defineConfig({
             // concurrent vitest load (~10%), green in isolation. It struck two
             // different cases with two different pipe hashes across
             // occurrences, i.e. a bind race hitting whichever test is in
-            // flight, not a defect in one case. The pattern stays narrowed to
+            // flight, not a defect in one case.
+            // Re-measured 2026-09-10: 17 fresh runs of this file — 5 serial
+            // (26-29s each) and 12 under genuine concurrent vitest load (a
+            // full-suite shard 1/3 running alongside, 33-63s each) — all
+            // 527 tests green, zero error signatures (no `connect ENOENT
+            // ...session-catalog` in any log). P(0 failures in 12 | p=0.10)
+            // is ~0.28, so the no-show stays consistent with the ~10% rate;
+            // the throwing site remains unidentified.
+            // The pattern stays narrowed to
             // this pipe family on purpose — bare `ENOENT` would also retry
             // genuine missing-fixture bugs. This is a mitigation, NOT a
             // root-cause fix: the throwing site is still unidentified — the two
@@ -179,7 +187,12 @@ export default defineConfig({
       'packages/webui/**',
       // hq-dashboard.test.ts requires jsdom environment which the root
       // forks pool may fail to resolve from the global vitest binary.
-      // Run it separately: cd packages/cli && npx vitest run tests/hq-dashboard.test.ts
+      // Run it with the CLI package's dedicated config — a bare standalone
+      // run (`npx vitest run tests/hq-dashboard.test.ts` from packages/cli)
+      // is dead: packages/cli/vitest.config.ts excludes this file too, so it
+      // collects zero tests and exits 1 ("No test files found"). Verified
+      // 2026-09-10:
+      //   cd packages/cli && npx vitest run tests/hq-dashboard.test.ts --config vitest.hqdash.config.ts
       'packages/cli/tests/hq-dashboard.test.ts',
       // status-bar-sgr.test.ts pins the raw `\x1b[38;2;253;159;2m` orange
       // SGR, which needs chalk at truecolor level. The root forks worker is

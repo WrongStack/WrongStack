@@ -79,7 +79,7 @@
       "relativeImports": 8
     },
     "packages/core/src/chronicle/project-server.ts": {
-      "lines": 853,
+      "lines": 889,
       "relativeImports": 18
     },
     "packages/core/src/coordination/collab-debug.ts": {
@@ -255,7 +255,7 @@
       "relativeImports": 1
     },
     "packages/sage/src/project-server.ts": {
-      "lines": 853,
+      "lines": 913,
       "relativeImports": 6
     },
     "packages/sage/src/sqlite-store.ts": {

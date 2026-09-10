@@ -116,4 +116,73 @@ describe('feedPaste', () => {
     expect(feedPaste(null, '[0m')).toEqual({ accum: null, complete: null });
     expect(feedPaste(null, 'a')).toBeNull();
   });
+
+  // ── Markers split across stdin reads ─────────────────────────────────────
+  // A terminal can split a bracketed paste at ANY byte boundary, including
+  // INSIDE the markers themselves (`\x1b[200~` / `\x1b[201~`). The module's
+  // contract is that fragments are buffered until the end marker arrives;
+  // a marker prefix must therefore start accumulation (not leak as literal
+  // keypresses) and a marker straddling a fragment boundary must be removed
+  // whole from the assembled payload.
+
+  it('assembles a paste whose begin marker is split in the middle (ESC form)', () => {
+    // "\x1b[20" | "0~hel" | "lo\x1b[201~"
+    let accum: PasteAccumState = null;
+    const r1 = feedPaste(accum, '\x1b[20');
+    // The marker prefix starts accumulation instead of leaking.
+    expect(r1).not.toBeNull();
+    expect(r1?.accum).toEqual(expect.any(String));
+    accum = r1?.accum ?? accum;
+    const r2 = feedPaste(accum, '0~hel');
+    expect(r2?.complete).toBeNull();
+    accum = r2?.accum ?? accum;
+    const r3 = feedPaste(accum, `lo${END}`);
+    expect(r3).toEqual({ accum: null, complete: 'hello' });
+  });
+
+  it('assembles a paste whose begin marker is split in the middle (bare form)', () => {
+    // Ink may strip the ESC byte first: "[20" | "0~hel" | "lo[201~"
+    let accum: PasteAccumState = null;
+    const r1 = feedPaste(accum, '[20');
+    expect(r1?.accum).toEqual(expect.any(String));
+    accum = r1?.accum ?? accum;
+    const r2 = feedPaste(accum, '0~hel');
+    expect(r2?.complete).toBeNull();
+    accum = r2?.accum ?? accum;
+    const r3 = feedPaste(accum, 'lo[201~');
+    expect(r3).toEqual({ accum: null, complete: 'hello' });
+  });
+
+  it('removes an end marker that straddles two fragments', () => {
+    // "\x1b[200~hel" | "lo\x1b[201" | "~" — the end marker only becomes
+    // "[201~" once the joined fragments are considered.
+    let accum: PasteAccumState = null;
+    const r1 = feedPaste(accum, `${BEGIN}hel`);
+    expect(r1?.complete).toBeNull();
+    accum = r1?.accum ?? accum;
+    const r2 = feedPaste(accum, 'lo\x1b[201');
+    expect(r2?.complete).toBeNull();
+    accum = r2?.accum ?? accum;
+    const r3 = feedPaste(accum, '~');
+    expect(r3).toEqual({ accum: null, complete: 'hello' });
+  });
+
+  it('keeps lone ESC and lone [ as ordinary keys when idle', () => {
+    // `\x1b` alone is Escape; `[` alone is a typo'd bracket. Neither must be
+    // swallowed into paste accumulation.
+    expect(feedPaste(null, '\x1b')).toBeNull();
+    expect(feedPaste(null, '[')).toBeNull();
+  });
+
+  it('does not let a marker prefix swallow unrelated typing forever', () => {
+    // Text that merely BEGINS like a marker prefix (no marker ever follows)
+    // is buffered like any paste fragment and released by the idle flush —
+    // the accumulated string must never itself contain marker bytes.
+    let accum: PasteAccumState = null;
+    const r1 = feedPaste(accum, '[20');
+    accum = r1?.accum ?? accum;
+    const r2 = feedPaste(accum, ' lines');
+    expect(r2?.accum).toBe('[20 lines');
+    expect(r2?.complete).toBeNull();
+  });
 });

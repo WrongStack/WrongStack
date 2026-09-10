@@ -130,3 +130,31 @@ describe('truncateForTelegram — explicit cap interop with config', () => {
     expect(out.length).toBe(4000);
   });
 });
+
+describe('truncateForTelegram — degenerate cap (<= 0)', () => {
+  // A configured maxMessageLength of 0 (or negative) reaches this function:
+  // the plugin schema declares `minimum: 100`, but the loader's minimal
+  // JSON-schema validator does not enforce numeric bounds, and the read
+  // path's `?? 4000` default does not catch 0. The platform contract is
+  // absolute: the output must never exceed the Telegram hard cap, no
+  // matter how nonsensical the cap. The cutoff<=0 branch floors its slice
+  // at 0, so a degenerate cap yields the 1-char ellipsis marker — the same
+  // output the branch already produced for maxLen=1.
+  it('never passes text through when maxLen is 0', () => {
+    const out = truncateForTelegram('x'.repeat(5000), 0);
+    expect(out).toBe('…');
+    expect(out.length).toBeLessThanOrEqual(TELEGRAM_HARD_CAP);
+  });
+
+  it('never passes text through when maxLen is negative', () => {
+    const out = truncateForTelegram('x'.repeat(5000), -50);
+    expect(out).toBe('…');
+    expect(out.length).toBeLessThanOrEqual(TELEGRAM_HARD_CAP);
+  });
+
+  it('keeps the maxLen=2 boundary exact (one char + ellipsis)', () => {
+    // Pins the Math.max(0, …) floor edge: effectiveMaxLen=2 must still
+    // slice exactly one character before the ellipsis.
+    expect(truncateForTelegram('hello world', 2)).toBe('h…');
+  });
+});

@@ -20,6 +20,7 @@ import type { SymbolInformation } from 'vscode-languageserver-protocol';
 import { LSP_CONSTANTS } from '../constants.js';
 import { formatCodebaseLspResults } from '../formatters/symbols.js';
 import { supportsWorkspaceSymbol } from '../server/capabilities.js';
+import { uriToPath } from '../utils/uri.js';
 import { stringifyToolError, type ToolDeps } from './shared.js';
 
 // ─── Input / Output types ───────────────────────────────────────────────────────
@@ -212,9 +213,7 @@ async function searchLsp(
       name: sym.name,
       kind: lspKindToInternalKind(sym.kind) ?? 'symbol',
       lspKind: sym.kind,
-      file: sym.location.uri.startsWith('file://')
-        ? sym.location.uri.slice(7) // strip "file://"
-        : sym.location.uri,
+      file: locationUriToPath(sym.location.uri),
       line: sym.location.range.start.line + 1, // convert to 1-based
       source: 'lsp' as const,
       server: serverNameFromConfig(deps, sym),
@@ -225,6 +224,22 @@ async function searchLsp(
     results: deduplicated.slice(0, limit),
     total: deduplicated.length,
   };
+}
+
+/**
+ * Convert a server-provided symbol location URI to a filesystem path.
+ * `fileURLToPath` (unlike `.slice(7)`) handles Windows drive letters and
+ * percent-escapes; degenerate URIs it rejects (e.g. a drive-less
+ * `file:///x.ts` on Windows) come back unchanged rather than losing the whole
+ * search to a thrown tool call.
+ */
+function locationUriToPath(uri: string): string {
+  if (!uri.startsWith('file:')) return uri;
+  try {
+    return uriToPath(uri);
+  } catch {
+    return uri;
+  }
 }
 
 function serverNameFromConfig(deps: ToolDeps, sym: SymbolInformation): string {
