@@ -1,13 +1,14 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { detectTerminal, TerminalLifecycle, writeErr } from '@wrongstack/core/utils';
+import { TerminalLifecycle, writeErr } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import { render } from 'ink';
 import React from 'react';
 import { App } from './app.js';
 import { ALT_SCREEN_OFF, ALT_SCREEN_ON, MOUSE_OFF } from './mouse.js';
 import { createRunTuiClientRegistration } from './run-tui-client-registration.js';
+import { resolveTuiLaunchPlan } from './run-tui-launch.js';
 import type { RunTuiOptions } from './run-tui-options.js';
 import { createDurableTeardown } from './run-tui-teardown.js';
 import { createRunTuiTitleController } from './run-tui-title-controller.js';
@@ -23,37 +24,19 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   const stdout = process.stdout;
   const stdin = process.stdin;
 
-  // Ink requires a TTY on both stdin and stdout. Without this guard the
-  // render call would fail with a terse internal Ink error; bail with a
-  // clear message so a piped invocation (`echo hi | wstack --tui`) tells
-  // the user what to do instead.
-  if (!stdout.isTTY || !stdin.isTTY) {
-    writeErr(
-      'wstack: --tui requires an interactive terminal on both stdin and stdout.\n' +
-        '       Drop the flag (use the plain REPL) or run wstack directly without piping.\n',
-    );
-    return 2;
-  }
+  // Launch-prep (TTY guard, capability probe, mouse-mode opt-in, terminal
+  // silence) lives in resolveTuiLaunchPlan — moved verbatim there in
+  // decomposition Phase 1 R1 (docs/decomposition-plan.md). The lifecycle
+  // manager stays local: raw-mode acquisition/release spans the session,
+  // and cleanup must still close opts.agent.ctx.session on every path.
+  const launch = resolveTuiLaunchPlan(opts);
+  if (!launch.ok) return launch.exitCode;
+  const { capability, mouseEnabled } = launch;
 
   // Acquire and release raw mode through the lifecycle manager. This guarantees
   // exactly one setRawMode(true) at startup and exactly one setRawMode(false)
   // on any exit path (normal return, signal, uncaught exception, force-exit).
   const lifecycle = new TerminalLifecycle();
-
-  // Probe terminal capabilities once — color depth, mouse protocol, title support.
-  // Locked in at startup so the profile is stable throughout the session.
-  const capability = detectTerminal({ stdin, stdout });
-
-  // Resolve the full pointer-mode opt-in before taking over the screen. A
-  // settings adapter is allowed to throw; doing this first guarantees such an
-  // error cannot strand the terminal inside the alternate buffer.
-  const mouseEnabled =
-    opts.mouse ?? opts.getSettings?.().mouseMode ?? process.env.WRONGSTACK_MOUSE === '1';
-
-  // Silence all console / stderr / process-warning output so external
-  // writes don't interleave with Ink's terminal control sequences. See
-  // the block comment above `silenceTerminal` for the full rationale.
-  silenceTerminal();
 
   // ── Optional raw stdout trace (WRONGSTACK_TUI_TRACE=1 | <path>) ─────────
   // Tees every byte written to the terminal into a file so rendering

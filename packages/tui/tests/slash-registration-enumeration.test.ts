@@ -56,10 +56,19 @@ function makeRecordingRegistry() {
   };
 }
 
+/** Stub options, type-loose by design (cast at the hook boundary): the contract under test is runtime registration order/teardown, not stub typing. */
 function makeOptions(registry: SlashCommandRegistry) {
   return {
     slashRegistry: registry,
-    skillLoader: { find: vi.fn(), readBody: vi.fn(), listEntries: vi.fn(async () => []) },
+    skillLoader: {
+      find: vi.fn(),
+      readBody: vi.fn(),
+      listEntries: vi.fn(async () => []),
+      list: vi.fn(async () => []),
+      manifestText: vi.fn(async () => ''),
+      readSaveBody: vi.fn(async () => ''),
+      invalidateCache: vi.fn(),
+    },
     getResourceMenu: vi.fn(async () => null),
     getPickableProviders: vi.fn(() => []),
     switchProviderAndModel: vi.fn(),
@@ -119,7 +128,7 @@ describe('useTuiSlashCommands registration enumeration (decomposition Phase 0.4)
     const { registry, registered, owners } = makeRecordingRegistry();
     const options = makeOptions(registry);
 
-    const { unmount } = renderHook(() => useTuiSlashCommands(options));
+    const { unmount } = renderHook(() => useTuiSlashCommands(options as never));
     expect(registered).toEqual(EXPECTED_REGISTRATION_ORDER);
     for (const entry of owners) {
       expect(entry.owner).toBe('tui');
@@ -132,7 +141,7 @@ describe('useTuiSlashCommands registration enumeration (decomposition Phase 0.4)
     const { registry, registered, unregisterCalls } = makeRecordingRegistry();
     const options = makeOptions(registry);
 
-    const { unmount } = renderHook(() => useTuiSlashCommands(options));
+    const { unmount } = renderHook(() => useTuiSlashCommands(options as never));
     expect(registered).toHaveLength(EXPECTED_REGISTRATION_ORDER.length);
     unmount();
     for (const name of EXPECTED_REGISTRATION_ORDER) {
