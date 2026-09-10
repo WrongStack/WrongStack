@@ -7,9 +7,9 @@ import { render } from 'ink';
 import React from 'react';
 import { App } from './app.js';
 import { ALT_SCREEN_OFF, ALT_SCREEN_ON, MOUSE_OFF } from './mouse.js';
-import { createRunTuiClientRegistration } from './run-tui-client-registration.js';
 import { resolveTuiLaunchPlan } from './run-tui-launch.js';
 import type { RunTuiOptions } from './run-tui-options.js';
+import { setupTuiSession } from './run-tui-session.js';
 import { createDurableTeardown } from './run-tui-teardown.js';
 import { createRunTuiTitleController } from './run-tui-title-controller.js';
 import { BRACKETED_PASTE_OFF, BRACKETED_PASTE_ON } from './terminal-modes.js';
@@ -139,16 +139,10 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   // Track cleanup state so signal handlers don't double-disable.
   let cleaned = false;
   let alternateScreenActive = false;
-  const tuiClientRegistration = createRunTuiClientRegistration({
-    projectRoot: opts.projectRoot,
-    events: opts.events,
-    appConfig: opts.appConfig,
-    hqTelemetryOwnedExternally: opts.hqTelemetryOwnedExternally,
-    getSessionId: opts.getSessionId,
-    getAgentId: () =>
-      (opts.agent.ctx.meta['globalAgentId'] as string | undefined) ?? opts.agent.ctx.agentId,
-    isCleaned: () => cleaned,
-  });
+  // Session/client bootstrap moved verbatim into setupTuiSession
+  // (decomposition Phase 1 R2 — docs/decomposition-plan.md). The cleaned
+  // flag stays local: every cleanup path in this file reads it.
+  const tuiClientRegistration = setupTuiSession(opts, () => cleaned);
 
   // Hoisted Ink instance reference — signal handlers (registered before the
   // Promise constructor where `instance` lives) need to call unmount() on
