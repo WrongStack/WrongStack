@@ -29,6 +29,7 @@ import { STATUSLINE_ITEMS, type StatuslineItem } from '../components/statusline-
 import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
 import { THEME_OPTIONS } from '../theme.js';
 import { hasPanelRoutedToSidebar } from '../ui-contracts.js';
+import { useProviderSlashCommands } from './use-provider-slash-commands.js';
 import { useSessionSlashCommands } from './use-session-slash-commands.js';
 
 /** Registration options shared by the parent and its domain slice hooks. */
@@ -108,45 +109,7 @@ export function useTuiSlashCommands({
 
   useSessionSlashCommands(sliceDeps, 'head');
 
-  // Register the TUI-only `/model` command — opens a two-step picker
-  // (provider → model). All work is local state mutation; the actual
-  // switch fires only after the user confirms a model in step 2.
-  useEffect(() => {
-    if (!getPickableProviders || !switchProviderAndModel) return;
-    const cmd = {
-      name: 'model',
-      aliases: ['provider', 'switch'],
-      description: 'Pick a provider + model interactively (two-step).',
-      async run() {
-        await openModelPicker();
-        return { message: undefined };
-      },
-    };
-    // Register as an official TUI plugin so it can override a CLI built-in
-    // of the same name (owner='tui' + official=true → claims the bare name).
-    return registerSlashCommandLifecycle(slashRegistry, cmd, {
-      owner: 'tui',
-      official: true,
-    });
-  }, [slashRegistry, getPickableProviders, switchProviderAndModel, openModelPicker]);
-
-  // Register the TUI-only `/f` command — opens the keyboard-navigable F-key panel picker.
-  useEffect(() => {
-    const cmd = {
-      name: 'f',
-      description: 'Open F-key panel picker. Arrow keys to navigate, Enter to open, Esc to close.',
-      async run() {
-        openFKeyPicker();
-        return { message: undefined };
-      },
-    };
-    // Register as an official TUI plugin so it overrides the CLI's text-based
-    // /f command. Without this, only /f 1..12 would work.
-    return registerSlashCommandLifecycle(slashRegistry, cmd, {
-      owner: 'tui',
-      official: true,
-    });
-  }, [slashRegistry, openFKeyPicker]);
+  useProviderSlashCommands(sliceDeps);
 
   // Register the TUI-only `/design` command. With no args it opens the visual
   // kit picker; with args it pins/clears like the CLI command. The picker's
