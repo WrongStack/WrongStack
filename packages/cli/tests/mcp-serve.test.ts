@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
-import type { PermissionPolicy } from '@wrongstack/core/types';
+import type { PermissionPolicy, Tool } from '@wrongstack/core/types';
 import { builtinToolsPack } from '@wrongstack/tools';
 import { afterEach, describe, expect, it } from 'vitest';
 import {

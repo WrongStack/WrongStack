@@ -72,6 +72,11 @@
       "fingerprint": "6c1dfd9f1895e5c4"
     },
     {
+      "file": "packages/core/tests/hq/auth-store.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "c29fd7d333f936b3"
+    },
+    {
       "file": "packages/core/tests/security/file-permissions.test.ts",
       "kind": "skipIf",
       "fingerprint": "b16aeb2c1e88f226"
@@ -119,7 +124,7 @@
     {
       "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
       "kind": "conditional-suite-alias",
-      "fingerprint": "8df1a093adc0167a"
+      "fingerprint": "55975af78564f9d2"
     },
     {
       "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
