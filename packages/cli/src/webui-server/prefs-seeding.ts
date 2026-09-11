@@ -17,6 +17,13 @@ interface CliWebUIOptions {
   profileConfigPath: string;
   appConfig?:
     | {
+        /**
+         * The live default selection. Carried here so a model switch can move
+         * it in-process, not just in config.json — `session.new` reads the
+         * live object to stamp a new tab.
+         */
+        provider?: string | undefined;
+        model?: string | undefined;
         fallbackModels?: string[] | undefined;
         fallbackProfiles?: Record<string, string[]> | undefined;
         favoriteModels?: string[] | undefined;
@@ -74,6 +81,18 @@ export function createPrefsSeeding(opts: CliWebUIOptions): PrefsSeeding {
   };
 
   const persistPrefs = async (payload: PrefSnapshot): Promise<void> => {
+    // The most recent model choice IS the process-wide default, not just a
+    // line in config.json. `session.new` stamps a new tab's session record
+    // from the live config, and every in-process reader of "what model are we
+    // on" goes through the same object — so a switch that only reached the
+    // file left the running process handing new tabs the boot model, and the
+    // choice appeared to revert until a restart.
+    if (typeof payload['provider'] === 'string') {
+      patchLiveAppConfig({ provider: payload['provider'] });
+    }
+    if (typeof payload['model'] === 'string') {
+      patchLiveAppConfig({ model: payload['model'] });
+    }
     if (Array.isArray(payload['fallbackModels'])) {
       patchLiveAppConfig({ fallbackModels: payload['fallbackModels'] as string[] });
     }

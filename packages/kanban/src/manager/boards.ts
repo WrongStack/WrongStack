@@ -157,6 +157,13 @@ export async function updateBoard(
       if (input.completionGate === null) delete board.completionGate;
       else board.completionGate = { ...input.completionGate };
     }
+    if (input.kind !== undefined) {
+      board.kind = input.kind;
+    }
+    if (input.retention !== undefined) {
+      if (input.retention === null) delete board.retention;
+      else board.retention = { ...input.retention };
+    }
     const policyIssues = validateManagedLifecyclePolicy(board);
     if (policyIssues.length) throw new Error(policyIssues[0]!.message);
     normalizeAllColumnTaskOrders(board);
@@ -170,6 +177,9 @@ export async function updateBoard(
     if (input.description !== undefined) changed.description = updated.board.description ?? null;
     if (input.tags !== undefined) changed.tags = updated.board.tags ?? [];
     if (input.completedAt !== undefined) changed.completedAt = updated.board.completedAt ?? null;
+    if (input.kind !== undefined) changed.kind = updated.board.kind;
+    if (input.retention !== undefined)
+      changed.retention = updated.board.retention ? 'set' : 'cleared';
     if (input.supervisor !== undefined)
       changed.supervisor = updated.board.supervisor ? 'set' : 'cleared';
     if (input.lifecycle !== undefined)
@@ -211,12 +221,24 @@ export async function duplicateBoard(
 ): Promise<KanbanBoard | null> {
   const source = await readBoard(projectRoot, boardId);
   if (!source) return null;
+  const targetKind = input.kind ?? source.kind;
+  const targetRetention =
+    input.retention !== undefined
+      ? input.retention === null
+        ? undefined
+        : { ...input.retention }
+      : source.retention !== undefined
+        ? { ...source.retention }
+        : undefined;
+
   const board = createBoardObject({
     title: input.title ?? `${source.title} Copy`,
     ...(source.description !== undefined ? { description: source.description } : {}),
     ...(source.tags !== undefined ? { tags: [...source.tags] } : {}),
     columns: source.columns.map((column) => ({ ...column })),
     generatedBy: input.generatedBy ?? `duplicate:${source.id}`,
+    ...(targetKind !== undefined ? { kind: targetKind } : {}),
+    ...(targetRetention !== undefined ? { retention: targetRetention } : {}),
     ...(source.supervisor !== undefined ? { supervisor: { ...source.supervisor } } : {}),
     ...(source.lifecycle !== undefined
       ? { lifecycle: { ...source.lifecycle, columns: { ...source.lifecycle.columns } } }
@@ -262,7 +284,11 @@ export async function duplicateBoard(
   await emitBoardHistoryEvent(
     projectRoot,
     createBoardHistoryEntry(board.id, board.title, 'board.duplicated', {
-      after: { sourceBoardId: source.id, sourceBoardTitle: source.title },
+      after: {
+        sourceBoardId: source.id,
+        sourceBoardTitle: source.title,
+        ...(source.kind !== undefined ? { sourceBoardKind: source.kind } : {}),
+      },
     }),
   );
   return board;

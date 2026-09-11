@@ -13,6 +13,9 @@ export interface ModelProfile {
   minContext?: number;
 }
 
+// Ordered specific-before-general: findProfile() returns the FIRST pattern
+// match, so a broader regex (e.g. /gpt-4/) listed before a narrower one
+// (e.g. /gpt-4o-mini/) would make the narrower profile unreachable dead data.
 export const MODEL_PROFILES: ModelProfile[] = [
   {
     provider: 'anthropic',
@@ -44,6 +47,17 @@ export const MODEL_PROFILES: ModelProfile[] = [
   },
   {
     provider: 'openai',
+    // Must precede /gpt-4/ — every gpt-4o-mini id also contains gpt-4.
+    pattern: /gpt-4o-mini/i,
+    family: 'GPT-4o Mini',
+    strengths: ['speed'],
+    bestFor: ['lightweight', 'docs'],
+    avoidFor: ['planning'],
+    costTier: 'budget',
+    speedTier: 'fast',
+  },
+  {
+    provider: 'openai',
     pattern: /gpt-4/i,
     family: 'GPT-4',
     strengths: ['coding'],
@@ -52,9 +66,11 @@ export const MODEL_PROFILES: ModelProfile[] = [
     speedTier: 'fast',
   },
   {
-    provider: 'openai',
-    pattern: /gpt-4o-mini/i,
-    family: 'GPT-4o Mini',
+    provider: 'google',
+    // Must precede /gemini-(?:2\.5|3)/ — flash variants (gemini-2.5-flash,
+    // gemini-3-flash, …) are budget/fast models and need this profile.
+    pattern: /gemini.*flash/i,
+    family: 'Gemini Flash',
     strengths: ['speed'],
     bestFor: ['lightweight', 'docs'],
     avoidFor: ['planning'],
@@ -69,16 +85,6 @@ export const MODEL_PROFILES: ModelProfile[] = [
     bestFor: ['coding', 'data'],
     costTier: 'standard',
     speedTier: 'normal',
-  },
-  {
-    provider: 'google',
-    pattern: /gemini.*flash/i,
-    family: 'Gemini Flash',
-    strengths: ['speed'],
-    bestFor: ['lightweight', 'docs'],
-    avoidFor: ['planning'],
-    costTier: 'budget',
-    speedTier: 'fast',
   },
   {
     provider: 'deepseek',

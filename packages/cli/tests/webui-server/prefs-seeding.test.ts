@@ -113,6 +113,16 @@ describe('createPrefsSeeding', () => {
     const written = JSON.parse(readFileSync(globalConfigPath, 'utf8'));
     expect(written.provider).toBe('openai');
     expect(written.model).toBe('gpt-5-codex');
+    // The LIVE config is the in-process default: `session.new` reads it to
+    // stamp a new tab's session record, and every other in-process reader of
+    // "what is the current model" goes through it too. Writing only the file
+    // left the running process answering with the boot model until restart.
+    expect((opts as { appConfig: { provider?: string; model?: string } }).appConfig.provider).toBe(
+      'openai',
+    );
+    expect((opts as { appConfig: { provider?: string; model?: string } }).appConfig.model).toBe(
+      'gpt-5-codex',
+    );
   });
 
   it('persists uiLocale to config.json and includes it in pref snapshots', async () => {

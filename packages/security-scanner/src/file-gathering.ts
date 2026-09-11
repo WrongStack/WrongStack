@@ -79,7 +79,7 @@ function escapeRegex(value: string): string {
 }
 
 function globToRegex(pattern: string): RegExp {
-  const normalized = pattern.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
+  const normalized = pattern.replace(/\\/g, '/').replace(/^(\.\/|\/)+/, '').replace(/\/+$/, '');
   let source = '';
   for (let index = 0; index < normalized.length; index++) {
     const char = normalized[index];
@@ -127,9 +127,14 @@ export function shouldExcludeDir(
     ? relativePath.replace(/\\/g, '/')
     : relativePath;
   return excludePatterns.some((rawPattern) => {
-    const pattern = rawPattern.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
+    const hasLeadingSlash =
+      rawPattern.startsWith('/') ||
+      rawPattern.startsWith('\\') ||
+      rawPattern.startsWith('./') ||
+      rawPattern.startsWith('.\\');
+    const pattern = rawPattern.replace(/\\/g, '/').replace(/^(\.\/|\/)+/, '').replace(/\/+$/, '');
     if (!pattern) return false;
-    if (!pattern.includes('*') && !pattern.includes('?') && !pattern.includes('/')) {
+    if (!hasLeadingSlash && !pattern.includes('*') && !pattern.includes('?') && !pattern.includes('/')) {
       return name === pattern;
     }
     const matcher = getGlobRegex(pattern);
@@ -149,9 +154,14 @@ export function shouldExcludeFile(
     ? relativePath.replace(/\\/g, '/')
     : relativePath;
   return excludePatterns.some((rawPattern) => {
-    const pattern = rawPattern.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
+    const hasLeadingSlash =
+      rawPattern.startsWith('/') ||
+      rawPattern.startsWith('\\') ||
+      rawPattern.startsWith('./') ||
+      rawPattern.startsWith('.\\');
+    const pattern = rawPattern.replace(/\\/g, '/').replace(/^(\.\/|\/)+/, '').replace(/\/+$/, '');
     if (!pattern) return false;
-    if (!pattern.includes('*') && !pattern.includes('?') && !pattern.includes('/')) {
+    if (!hasLeadingSlash && !pattern.includes('*') && !pattern.includes('?') && !pattern.includes('/')) {
       return name === pattern;
     }
     const matcher = getGlobRegex(pattern);

@@ -3,6 +3,7 @@ import { PANEL_ORDER } from '@/components/activity-bar';
 import { navigateToView, openMainView, showPanel } from '@/components/activity-bar/nav';
 import { downloadChatAsMarkdown } from '@/components/CommandPalette';
 import { toast } from '@/components/Toaster';
+import { clearChatContext } from '@/lib/clear-chat-context';
 import {
   DESKTOP_COMMAND_DOCKS,
   DESKTOP_COMMAND_VIEWS,
@@ -13,7 +14,6 @@ import {
   publishDesktopReady,
 } from '@/lib/desktop-host';
 import { isDesktopShell } from '@/lib/desktop-shell';
-import { streamCoalescer } from '@/lib/stream-coalescer';
 import { getWSClient } from '@/lib/ws-client';
 import {
   type DockSection,
@@ -185,9 +185,13 @@ export function useDesktopBridge(options: UseDesktopBridgeOptions): void {
         showPanel('chat');
         handled = true;
       } else if (action === 'clear-context') {
-        streamCoalescer.dropAll();
-        useChatStore.getState().clearMessages();
-        ws?.clearContext?.();
+        const chat = useChatStore.getState();
+        clearChatContext({
+          client: ws,
+          isLoading: chat.isLoading,
+          clearMessages: chat.clearMessages,
+          setLoading: chat.setLoading,
+        });
         showPanel('chat');
         handled = true;
       } else if (action === 'compact-context') {

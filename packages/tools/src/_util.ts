@@ -423,11 +423,13 @@ export function makeRootRelativizer(root: string): (absPath: string) => string {
   const prefix = resolved.endsWith(path.sep) ? resolved : resolved + path.sep;
   const compare = process.platform === 'win32' ? prefix.toLowerCase() : prefix;
   return (absPath: string): string => {
-    if (absPath.length <= prefix.length) return absPath;
+    const normalizedAbs =
+      process.platform === 'win32' ? absPath.replace(/\//g, '\\') : absPath;
+    if (normalizedAbs.length <= prefix.length) return absPath;
     const head =
       process.platform === 'win32'
-        ? absPath.slice(0, prefix.length).toLowerCase()
-        : absPath.slice(0, prefix.length);
+        ? normalizedAbs.slice(0, prefix.length).toLowerCase()
+        : normalizedAbs.slice(0, prefix.length);
     if (head !== compare) return absPath;
     const rest = absPath.slice(prefix.length);
     return rest.length > 0 ? rest : absPath;

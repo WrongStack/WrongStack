@@ -247,7 +247,7 @@
       "relativeImports": 0
     },
     "packages/primitives/src/regex-guard.ts": {
-      "lines": 859,
+      "lines": 871,
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {
@@ -331,7 +331,7 @@
       "relativeImports": 4
     },
     "packages/tui/src/app-action-type.ts": {
-      "lines": 813,
+      "lines": 831,
       "relativeImports": 13
     },
     "packages/tui/src/app-state.ts": {
@@ -387,7 +387,7 @@
       "relativeImports": 1
     },
     "packages/tui/src/reducers/composer.ts": {
-      "lines": 884,
+      "lines": 913,
       "relativeImports": 8
     },
     "packages/tui/src/reducers/settings-values.ts": {
@@ -503,7 +503,7 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/embedded-message-router.ts": {
-      "lines": 858,
+      "lines": 874,
       "relativeImports": 53
     },
     "packages/webui-server/src/server/git-handlers.ts": {
@@ -519,7 +519,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 1029,
+      "lines": 1032,
       "relativeImports": 47
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

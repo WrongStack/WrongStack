@@ -149,10 +149,10 @@ export function createPersistencePrimitives(
     // and the renamed file inherits the parent directory's ACEs, so a
     // `CodexSandboxUsers`-style sibling account can read the secret.
     // Apply `restrictFilePermissions` unconditionally when the mode is
-    // the SECRET_FILE_MODE — it shells out to `icacls` on Windows and
-    // re-applies the owning-user-only ACE. The helper is idempotent and
-    // a no-op on POSIX (the `chmod` above already narrowed the mode).
-    if (mode === 0o600) {
+    // an owner-only secret mode (group and other have no permissions) — it shells out
+    // to `icacls` on Windows and re-applies the owning-user-only ACE. The helper is
+    // idempotent and a no-op on POSIX (the `chmod` above already narrowed the mode).
+    if (mode !== undefined && (mode & 0o077) === 0) {
       await restrictFilePermissions(targetPath, { warn: () => undefined }).catch(() => undefined);
     }
   }
@@ -178,8 +178,9 @@ export function createPersistencePrimitives(
       // write, and only tightens afterwards — a window on multi-user POSIX hosts
       // during which HQ bearer tokens and encrypted config sat world-readable
       // (audit 2026-08-20). The chmod in commitTemp still runs: it also handles
-      // intersecting with an existing target's mode.
-      const createMode = opts.mode;
+      // intersecting with an existing target's mode. Ensure owner write permission
+      // during creation so fsync/open(r+) succeeds before tightening in commitTemp.
+      const createMode = opts.mode !== undefined ? opts.mode | 0o200 : undefined;
       if (typeof content === 'string') {
         await fs.writeFile(tmp, content, {
           flag: 'wx',
@@ -220,7 +221,8 @@ export function createPersistencePrimitives(
 
     try {
       // Same creation-mode reasoning as the buffered path above.
-      const handle = await fs.open(tmp, 'wx', opts.mode);
+      const createMode = opts.mode !== undefined ? opts.mode | 0o200 : undefined;
+      const handle = await fs.open(tmp, 'wx', createMode);
       let result: T;
       try {
         result = await write(handle);
@@ -423,6 +425,10 @@ async function waitForLockRelease(lockPath: string, remainingMs: number): Promis
           clearTimeout(timer);
           settle();
         }
+      });
+      watcher.on('error', () => {
+        clearTimeout(timer);
+        settle();
       });
     } catch {
       clearTimeout(timer);

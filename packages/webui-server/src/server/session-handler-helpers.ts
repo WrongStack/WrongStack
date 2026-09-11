@@ -214,6 +214,20 @@ export interface SessionHandlersContext {
    */
   peekAgent?: ((sessionId?: string) => Agent | undefined) | undefined;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<SessionStartPayload>;
+  /**
+   * Point ONE session's runtime at a provider/model — the same routine
+   * `model.switch` uses.
+   *
+   * `session.new` needs it because a new tab's runtime Context is CLONED from
+   * the leader's (see `session-agent-registry`), which carries whatever tab 1
+   * last chose. The session RECORD is stamped from the live config, so without
+   * this the two disagreed: the status bar named the default while the
+   * conversation actually ran the leader's model. Hosts that cannot rebuild a
+   * provider leave it undefined and keep the cloned model.
+   */
+  applyModelSwitch?:
+    | ((provider: string, model: string, sessionId?: string) => Promise<void>)
+    | undefined;
   systemPrompt?: { applyVariant?: (variant: string) => Promise<void> } | undefined;
   /**
    * Host-owned serialiser shared with `createConversationOperations`. When

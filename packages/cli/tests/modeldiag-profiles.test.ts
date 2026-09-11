@@ -134,14 +134,22 @@ describe('modeldiag-profiles', () => {
       expect(p).toBeDefined();
       expect(p!.family).toBe('Claude Haiku');
     });
-    it('finds GPT-4o Mini profile (first match wins, so gpt-4 matches before gpt-4o-mini)', () => {
-      // The profile list has /gpt-4/ before /gpt-4o-mini/, so findProfile
-      // returns the GPT-4 family for 'gpt-4o-mini'. This is a known
-      // ordering quirk — test the actual behavior.
+    it('finds GPT-4o Mini profile (specific entries precede general ones)', () => {
+      // MODEL_PROFILES is ordered specific-before-general: /gpt-4o-mini/
+      // precedes /gpt-4/ so the narrower profile is reachable — a broader
+      // regex listed first would shadow it into dead data (r2-modeldiag).
       const p = findProfile('openai', 'gpt-4o-mini');
       expect(p).toBeDefined();
-      // GPT-4 pattern matches first
-      expect(p!.family).toBe('GPT-4');
+      expect(p!.family).toBe('GPT-4o Mini');
+      expect(p!.costTier).toBe('budget');
+    });
+    it('prefers the flash profile over the generation pattern for flash models', () => {
+      const p = findProfile('google', 'gemini-2.5-flash');
+      expect(p).toBeDefined();
+      expect(p!.family).toBe('Gemini Flash');
+      expect(p!.costTier).toBe('budget');
+      // Non-flash 2.5/3 models keep the generation profile.
+      expect(findProfile('google', 'gemini-2.5-pro')?.family).toBe('Gemini 2.5/3');
     });
     it('finds DeepSeek profile', () => {
       const p = findProfile('deepseek', 'deepseek-chat');
@@ -197,6 +205,14 @@ describe('modeldiag-profiles', () => {
     it('does not boost budget costTier for planning', () => {
       // Claude Haiku is budget + avoidFor: planning → score should be low
       const { score } = scoreModel('anthropic', 'claude-haiku-3', 'planning', 200000);
+      expect(score).toBeLessThan(50);
+    });
+    it('penalizes gpt-4o-mini for planning via its own (reachable) profile', () => {
+      // r2-modeldiag: the GPT-4o Mini profile was shadowed by /gpt-4/, so
+      // avoidFor:['planning'] never fired and the model was suggested for
+      // planning unpenalized. It must now score below the 50 baseline.
+      const { score, profile } = scoreModel('openai', 'gpt-4o-mini', 'planning', 128000);
+      expect(profile?.family).toBe('GPT-4o Mini');
       expect(score).toBeLessThan(50);
     });
   });

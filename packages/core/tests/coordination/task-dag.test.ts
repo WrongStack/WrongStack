@@ -479,5 +479,58 @@ describe('TaskDAG', () => {
       expect(events).toContainEqual(expect.objectContaining({ type: 'graph:done', allDone: true }));
     });
   });
+
+  describe('event dispatch and lifecycle regressions', () => {
+    it('dispatches onRunnable when some dependents become ready while others remain blocked', () => {
+      const dag = new TaskDAG();
+      dag.addNode('A', 'Task A');
+      dag.addNode('B', 'Task B', ['A']);
+      dag.addNode('X', 'Task X');
+      dag.addNode('C', 'Task C', ['A', 'X']);
+
+      dag.start('A', 'worker-1');
+      dag.start('X', 'worker-2');
+
+      const runnableDispatched: string[][] = [];
+      dag.onRunnable((nodes) => {
+        runnableDispatched.push(nodes.map((n) => n.id));
+      });
+
+      // Complete A: B is ready; C is still waiting on X
+      dag.complete('A', 'result-A');
+
+      expect(dag.getNode('B')?.status).toBe('ready');
+      expect(dag.getNode('C')?.status).toBe('pending');
+      expect(runnableDispatched).toContainEqual(expect.arrayContaining(['B']));
+      expect(runnableDispatched.flat()).not.toContain('C');
+    });
+
+    it('emits deadlock event immediately when task failure leaves dependents blocked', () => {
+      const dag = new TaskDAG();
+      dag.addNode('root', 'Root Task');
+      dag.addNode('child', 'Child Task', ['root']);
+
+      const events: DAGEdgeEvent[] = [];
+      dag.onEvent((e) => events.push(e));
+
+      dag.start('root', 'worker-1');
+      dag.fail('root', 'Root failed');
+
+      expect(dag.hasDeadlock()).toBe(true);
+      expect(events).toContainEqual(expect.objectContaining({ type: 'deadlock', blocked: ['child'] }));
+    });
+
+    it('emits node:ready on addNode for root tasks and suppresses premature graph:done', () => {
+      const dag = new TaskDAG();
+      const events: DAGEdgeEvent[] = [];
+      dag.onEvent((e) => events.push(e));
+
+      dag.addNode('task-1', 'Initial task');
+
+      expect(events).toContainEqual(expect.objectContaining({ type: 'node:ready', nodeId: 'task-1' }));
+      expect(events.filter((e) => e.type === 'graph:done')).toHaveLength(0);
+      expect(dag.isDone()).toBe(false);
+    });
+  });
 });
 

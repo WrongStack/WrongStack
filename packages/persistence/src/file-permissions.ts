@@ -173,8 +173,9 @@ async function pathIsGone(filePath: string): Promise<boolean> {
   try {
     await getStat()(filePath);
     return false;
-  } catch {
-    return true;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === 'ENOENT' || (error instanceof Error && error.message.includes('ENOENT'));
   }
 }
 

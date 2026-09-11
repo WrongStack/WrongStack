@@ -1,4 +1,4 @@
-import { streamCoalescer } from '@/lib/stream-coalescer';
+import { clearChatContext } from '@/lib/clear-chat-context';
 import { navigateToView, openMainView, showPanel } from '@/lib/view-navigation';
 import { useSessionStore, useUIStore } from '@/stores';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
@@ -72,6 +72,13 @@ export interface RunChatSlashCommandOptions {
   raw: string;
   addMessage: (message: ChatAssistantMessage) => void;
   clearMessages: () => void;
+  /**
+   * Does the lane believe a run is in flight? `/clear` needs the answer:
+   * wiping the transcript without settling the run flag leaves the pane in
+   * its loading branch over zero rows — a blank box where the welcome screen
+   * belongs. See the `/clear` case.
+   */
+  isLoading: boolean;
   client: SlashRoutingClient | null | undefined;
   queue: readonly SlashQueueItem[];
   sendAbort: () => void;
@@ -92,6 +99,7 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
     raw,
     addMessage,
     clearMessages,
+    isLoading,
     client,
     queue,
     sendAbort,
@@ -136,9 +144,9 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       return true;
     }
     case '/clear':
-      streamCoalescer.dropAll();
-      clearMessages();
-      client?.clearContext?.();
+      // Single sequence, shared with Ctrl+L and the desktop menu — see
+      // `clear-chat-context.ts` for why the run flag has to be settled here.
+      clearChatContext({ client, isLoading, clearMessages, setLoading, sendAbort });
       return true;
     case '/new':
       // Same hand-off as the New Session button: the picker sends `session.new`

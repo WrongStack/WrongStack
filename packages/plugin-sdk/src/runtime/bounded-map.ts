@@ -146,6 +146,27 @@ export class BoundedMap<K, V> {
     }
   }
 
+  /** Live (non-expired) keys, coldest first. */
+  *keys(): IterableIterator<K> {
+    for (const [key, entry] of this.map) {
+      if (!this.expired(entry)) yield key;
+    }
+  }
+
+  /** Live (non-expired) values, coldest first. */
+  *values(): IterableIterator<V> {
+    for (const [, entry] of this.map) {
+      if (!this.expired(entry)) yield entry.value;
+    }
+  }
+
+  /** Execute callback for each live entry, in coldest-to-hottest order. */
+  forEach(callbackfn: (value: V, key: K, map: BoundedMap<K, V>) => void, thisArg?: unknown): void {
+    for (const [key, value] of this.entries()) {
+      callbackfn.call(thisArg, value, key, this);
+    }
+  }
+
   [Symbol.iterator](): IterableIterator<[K, V]> {
     return this.entries();
   }
@@ -199,7 +220,21 @@ export class BoundedSet<T> {
   }
 
   *values(): IterableIterator<T> {
-    for (const [key] of this.inner) yield key;
+    for (const [key] of this.inner.entries()) yield key;
+  }
+
+  keys(): IterableIterator<T> {
+    return this.values();
+  }
+
+  *entries(): IterableIterator<[T, T]> {
+    for (const [key] of this.inner.entries()) yield [key, key];
+  }
+
+  forEach(callbackfn: (value: T, value2: T, set: BoundedSet<T>) => void, thisArg?: unknown): void {
+    for (const value of this.values()) {
+      callbackfn.call(thisArg, value, value, this);
+    }
   }
 
   [Symbol.iterator](): IterableIterator<T> {

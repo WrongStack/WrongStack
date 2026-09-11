@@ -8,7 +8,7 @@ import {
   showPanel,
 } from '@/components/activity-bar/nav';
 import { downloadChatAsMarkdown } from '@/components/CommandPalette';
-import { streamCoalescer } from '@/lib/stream-coalescer';
+import { clearChatContext } from '@/lib/clear-chat-context';
 import { getWSClient } from '@/lib/ws-client';
 import {
   useChatStore,
@@ -214,9 +214,15 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
       if (mod && !inField) {
         if (e.key.toLowerCase() === 'l') {
           e.preventDefault();
-          streamCoalescer.dropAll();
-          useChatStore.getState().clearMessages();
-          getWSClient(useConfigStore.getState().wsUrl)?.clearContext?.();
+          {
+            const chat = useChatStore.getState();
+            clearChatContext({
+              client: getWSClient(useConfigStore.getState().wsUrl),
+              isLoading: chat.isLoading,
+              clearMessages: chat.clearMessages,
+              setLoading: chat.setLoading,
+            });
+          }
         } else if (e.key.toLowerCase() === 'n') {
           e.preventDefault();
           useSystemPromptStore.getState().openPicker({ startsSession: true });

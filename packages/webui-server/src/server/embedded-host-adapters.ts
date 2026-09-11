@@ -357,6 +357,22 @@ export interface EmbeddedSessionContext extends EmbeddedHostTransport {
    * see the note on `EmbeddedConversationContext.withSessionTransition`.
    */
   withSessionTransition?: (<T>(operation: () => Promise<T>) => Promise<T>) | undefined;
+  /**
+   * The process-wide DEFAULT provider/model — the most recent choice made in
+   * any tab, as the live config holds it.
+   *
+   * Without it this host answered "what is the current model" from the LEADER
+   * context, i.e. whatever tab 1 last chose. Switching model in tab 2 then
+   * left the default untouched, so the next new tab opened on tab 1's model
+   * and the choice looked like it had reverted.
+   */
+  getDefaultModel?:
+    | (() => { provider?: string | undefined; model?: string | undefined })
+    | undefined;
+  /** Re-point ONE session's runtime — see `SessionHandlersContext.applyModelSwitch`. */
+  applyModelSwitch?:
+    | ((provider: string, model: string, sessionId?: string) => Promise<void>)
+    | undefined;
 }
 
 function sessionStoreFor(opts: EmbeddedSessionOptions): SessionStore {
@@ -367,13 +383,42 @@ function sessionStoreFor(opts: EmbeddedSessionOptions): SessionStore {
   );
 }
 
+/**
+ * The default provider/model a NEW tab starts from.
+ *
+ * The live config first: it tracks the most recent choice made in ANY tab, so
+ * a model picked in tab 2 becomes the default for the next tab and for the
+ * TUI's next boot. The leader's own runtime is only the fallback, for hosts
+ * that supply no config reader — reading it FIRST is what made the default
+ * "whatever tab 1 last chose" and made a switch in any other tab look like it
+ * had reverted.
+ *
+ * Empty strings in the preferred pair count as absent: a half-configured
+ * config must not blank out a working selection.
+ */
+export function resolveSessionDefaultModel(
+  preferred: { provider?: string | undefined; model?: string | undefined } | undefined,
+  leader: { provider?: string | undefined; model?: string | undefined },
+): { provider: string; model: string } {
+  return {
+    provider: preferred?.provider || leader.provider || '',
+    model: preferred?.model || leader.model || '',
+  };
+}
+
 export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): SessionRouteHandlers {
   const { opts } = ctx;
   const actx = opts.agent.ctx;
   const getProjectRoot = () => opts.projectRoot ?? actx.projectRoot;
+  const defaultModel = (): { provider: string; model: string } =>
+    resolveSessionDefaultModel(ctx.getDefaultModel?.(), {
+      provider: actx.provider?.id,
+      model: actx.model,
+    });
   return createSessionHandlers({
-    config: { model: actx.model ?? '', provider: actx.provider?.id ?? '' },
-    getConfig: () => ({ model: actx.model ?? '', provider: actx.provider?.id ?? '' }),
+    config: defaultModel(),
+    getConfig: defaultModel,
+    ...(ctx.applyModelSwitch ? { applyModelSwitch: ctx.applyModelSwitch } : {}),
     context: actx,
     events: opts.events,
     listTools: () => opts.agent.tools.list(),

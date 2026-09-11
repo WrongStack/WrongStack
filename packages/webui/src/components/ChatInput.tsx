@@ -222,6 +222,7 @@ export function ChatInput({
         raw,
         addMessage,
         clearMessages,
+        isLoading,
         client,
         queue,
         sendAbort,
@@ -239,6 +240,7 @@ export function ChatInput({
     [
       addMessage,
       clearMessages,
+      isLoading,
       client,
       queue,
       sendAbort,

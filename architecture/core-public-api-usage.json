@@ -124,9 +124,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/registry": {
-      "files": 126,
+      "files": 127,
       "typeOnly": 62,
-      "runtimeOrMixed": 66
+      "runtimeOrMixed": 67
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -174,8 +174,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1064,
-      "typeOnly": 985,
+      "files": 1066,
+      "typeOnly": 987,
       "runtimeOrMixed": 276
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -8148,6 +8148,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/tui/tests/resume-slash-routing.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/tui/tests/slash-command-lifecycle.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15474,6 +15480,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/hooks/use-session-slash-commands.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/hooks/use-statusbar-view-model.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15781,6 +15793,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/replay.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/resume-slash-routing.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

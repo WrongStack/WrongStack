@@ -646,7 +646,7 @@ export class AutonomousCoordinator {
         });
       }
     }
-    if (event.type === 'graph:done') {
+    if (event.type === 'graph:done' && event.allDone) {
       this._busEmit('autonomous:all_done', this.getStats());
     }
   }

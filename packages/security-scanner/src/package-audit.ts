@@ -76,26 +76,36 @@ export async function detectAuditablePackageManager(
 const defaultExecutor: PackageAuditExecutor = (command, args, cwd) =>
   new Promise((resolve) => {
     const executable = process.platform === 'win32' ? `${command}.cmd` : command;
-    execFile(
-      executable,
-      args,
-      {
-        cwd,
-        encoding: 'utf8',
-        timeout: 120_000,
-        maxBuffer: 10 * 1024 * 1024,
-        windowsHide: true,
-      },
-      (error, stdout, stderr) => {
-        const errorWithCode = error as (Error & { code?: string | number | undefined }) | null;
-        resolve({
-          stdout: stdout ?? '',
-          stderr: stderr ?? '',
-          exitCode: typeof errorWithCode?.code === 'number' ? errorWithCode.code : error ? null : 0,
-          error: error ?? undefined,
-        });
-      },
-    );
+    try {
+      execFile(
+        executable,
+        args,
+        {
+          cwd,
+          encoding: 'utf8',
+          timeout: 120_000,
+          maxBuffer: 10 * 1024 * 1024,
+          windowsHide: true,
+          shell: process.platform === 'win32',
+        },
+        (error, stdout, stderr) => {
+          const errorWithCode = error as (Error & { code?: string | number | undefined }) | null;
+          resolve({
+            stdout: stdout ?? '',
+            stderr: stderr ?? '',
+            exitCode: typeof errorWithCode?.code === 'number' ? errorWithCode.code : error ? null : 0,
+            error: error ?? undefined,
+          });
+        },
+      );
+    } catch (error) {
+      resolve({
+        stdout: '',
+        stderr: '',
+        exitCode: null,
+        error: error as Error,
+      });
+    }
   });
 
 function normalizeSeverity(value: unknown): PackageAuditSeverity {
@@ -234,28 +244,41 @@ export class PackageAuditRunner {
     }
 
     const args = ['audit', '--json'];
-    const execution = await this.executor(packageManager, args, projectRoot);
     try {
-      const parsed = parsePackageAuditOutput(execution.stdout);
-      return {
-        packageManager,
-        command: `${packageManager} audit --json`,
-        ...parsed,
-        exitCode: execution.exitCode,
-        success: true,
-        skipped: false,
-      };
+      const execution = await this.executor(packageManager, args, projectRoot);
+      try {
+        const parsed = parsePackageAuditOutput(execution.stdout);
+        return {
+          packageManager,
+          command: `${packageManager} audit --json`,
+          ...parsed,
+          exitCode: execution.exitCode,
+          success: true,
+          skipped: false,
+        };
+      } catch (error) {
+        const parseError = (error as Error).message;
+        return {
+          packageManager,
+          command: `${packageManager} audit --json`,
+          vulnerabilities: [],
+          summary: { ...EMPTY_SUMMARY },
+          exitCode: execution.exitCode,
+          success: false,
+          skipped: false,
+          error: execution.stderr.trim() || execution.error?.message || parseError,
+        };
+      }
     } catch (error) {
-      const parseError = (error as Error).message;
       return {
         packageManager,
         command: `${packageManager} audit --json`,
         vulnerabilities: [],
         summary: { ...EMPTY_SUMMARY },
-        exitCode: execution.exitCode,
+        exitCode: null,
         success: false,
         skipped: false,
-        error: execution.stderr.trim() || execution.error?.message || parseError,
+        error: (error as Error).message,
       };
     }
   }

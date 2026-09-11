@@ -119,5 +119,20 @@ describe('file-permissions', () => {
       else delete process.env['USERDOMAIN'];
     }
   });
+
+  it('hardens secret files written with mode 0o400 as owner-only on Windows', async () => {
+    if (process.platform !== 'win32') return;
+    const testFile = path.join(dir, 'readonly-secret.txt');
+    const { atomicWrite } = await import('../src/atomic-write.js');
+    await atomicWrite(testFile, 'read-only-token', { mode: 0o400 });
+
+    const cp = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const execFile = promisify(cp.execFile);
+    const { stdout } = await execFile('icacls', [testFile]);
+
+    expect(stdout).not.toContain('BUILTIN\\Users:(I)(RX)');
+    expect(stdout).toContain(':(F)');
+  });
 });
 

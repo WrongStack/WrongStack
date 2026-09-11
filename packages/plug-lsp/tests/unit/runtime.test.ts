@@ -165,6 +165,53 @@ describe('runtime helpers', () => {
     expect(tracker.list()).toEqual([]);
   });
 
+  it('catches up a newly ready server with didOpen, not didChange, on write', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-late-'));
+    const source = path.join(root, 'late.ts');
+    await fs.writeFile(source, 'const a = 1;');
+    const opened = vi.fn();
+    const changed = vi.fn();
+    const server = {
+      name: 'late-ts',
+      state: 'ready',
+      config: { languages: ['typescript'] },
+      notifyDidOpen: opened,
+      notifyDidChange: changed,
+      notifyDidClose: vi.fn(),
+    };
+    // The registry lists nothing while the server spawns; it appears before
+    // the write, modelling "doc opened during startup, file edited after".
+    let servers: unknown[] = [];
+    const registry = { list: () => servers };
+    const tracker = new DocumentTracker(() => registry as never, log, root, new EventBus());
+
+    await tracker.open(source);
+    expect(tracker.get(source)).not.toBeNull();
+    expect(opened).not.toHaveBeenCalled();
+
+    servers = [server];
+    await fs.writeFile(source, 'const a = 2;');
+    await tracker.fileWritten(source);
+    // LSP servers only track documents they opened: a didChange for an
+    // unopened document is dropped, so the catch-up must be a didOpen
+    // carrying the new text and the bumped version.
+    expect(changed).not.toHaveBeenCalled();
+    expect(opened).toHaveBeenCalledTimes(1);
+    expect(opened).toHaveBeenCalledWith(
+      expect.objectContaining({ version: 2, text: 'const a = 2;' }),
+    );
+
+    // Once aware, subsequent writes go back to didChange.
+    await fs.writeFile(source, 'const a = 3;');
+    await tracker.fileWritten(source);
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(changed).toHaveBeenCalledWith(
+      expect.objectContaining({ version: 3 }),
+      'const a = 3;',
+    );
+    expect(opened).toHaveBeenCalledTimes(1);
+  });
+
   it('tracks custom extensions supplied by the configured server', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-custom-doc-'));
     const source = path.join(root, 'component.vue');

@@ -609,6 +609,22 @@ export function createEmbeddedMessageRouter(
       for (const key of running) stopSessionFleetFor(key);
     },
     isRunActive,
+    // What a NEW tab starts on: the live config's current selection, which
+    // every model switch updates regardless of which tab made it.
+    getDefaultModel: () => {
+      const cfg = deps.agentConfigCtx.getConfig?.();
+      return { provider: cfg?.provider, model: cfg?.model };
+    },
+    // ...and the runtime has to follow it: the new tab's Context is cloned
+    // from the leader's, so without this it would RUN the leader's model
+    // while its record named the default.
+    applyModelSwitch: (providerId, modelId, sessionId) =>
+      applyEmbeddedModelSwitch(
+        deps.agentConfigCtx,
+        providerId,
+        modelId,
+        sessionContextOf(sessionId),
+      ),
   });
   const project = createEmbeddedProjectRoutes(deps.projectCtx);
   const mode = createModeRouteHandlers({

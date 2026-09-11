@@ -678,6 +678,9 @@ export function buildRoutes(
     onSessionSwapped: cb.onSessionSwapped,
     abortActiveRun: state.abortRunLock,
     isRunActive: state.isRunActive,
+    // A new tab's Context is cloned from the leader's; this re-points it at
+    // the configured default so the record and the runtime agree.
+    applyModelSwitch: applyModelSwitchCore,
     getAgent: deps.getAgent,
     ...(deps.peekAgent ? { peekAgent: deps.peekAgent } : {}),
     hasSession: deps.hasSession,

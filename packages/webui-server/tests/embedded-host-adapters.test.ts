@@ -16,6 +16,7 @@ import {
   createEmbeddedProjectRoutes,
   createEmbeddedSessionRoutes,
   type EmbeddedAgentConfigContext,
+  resolveSessionDefaultModel,
 } from '../src/server/embedded-host-adapters.js';
 
 function mockAgent(): any {
@@ -165,6 +166,39 @@ describe('embedded-host-adapters', () => {
         abortControllers: new Map(),
       } as any);
       expect(typeof routes).toBe('object');
+    });
+  });
+
+  /**
+   * Which provider/model does a NEW tab start on?
+   *
+   * This host used to answer from the LEADER context — whatever tab 1 last
+   * chose — so a model picked in any other tab never became the default, and
+   * the next new tab silently reopened on tab 1's model.
+   */
+  describe('resolveSessionDefaultModel', () => {
+    it('prefers the live config over the leader runtime', () => {
+      expect(
+        resolveSessionDefaultModel(
+          { provider: 'openai', model: 'gpt-5-codex' },
+          { provider: 'anthropic', model: 'leader-model' },
+        ),
+      ).toEqual({ provider: 'openai', model: 'gpt-5-codex' });
+    });
+
+    it('falls back to the leader runtime when no config reader is wired', () => {
+      expect(
+        resolveSessionDefaultModel(undefined, { provider: 'anthropic', model: 'leader-model' }),
+      ).toEqual({ provider: 'anthropic', model: 'leader-model' });
+    });
+
+    it('treats an empty config value as absent rather than blanking the selection', () => {
+      expect(
+        resolveSessionDefaultModel(
+          { provider: '', model: undefined },
+          { provider: 'anthropic', model: 'leader-model' },
+        ),
+      ).toEqual({ provider: 'anthropic', model: 'leader-model' });
     });
   });
 

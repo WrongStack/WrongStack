@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-11T13:18:13.897Z
+**Generated:** 2026-09-11T18:41:16.874Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3740 |
-| Production source lines | 903395 |
-| Test files | 3250 |
+| Production source files | 3741 |
+| Production source lines | 903809 |
+| Test files | 3252 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 11905 |
+| Relative module edges | 11906 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -55,9 +55,9 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 37 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 32 | @wrongstack/core |
 | @wrongstack/tools | 213 | 216 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 387 | 347 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 387 | 348 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 18 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 541 | 371 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 542 | 372 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 116 | 38 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
 | @wrongstack/webui-server | 224 | 209 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -104,8 +104,8 @@ None.
 | 1035 | `packages/tui/src/components/history/utils.tsx` |
 | 1033 | `packages/cli/src/plugin-management.ts` |
 | 1033 | `packages/sage/src/sqlite-store.ts` |
+| 1032 | `packages/webui-server/src/server/routes.ts` |
 | 1030 | `packages/plugins/src/git-autocommit/index.ts` |
-| 1029 | `packages/webui-server/src/server/routes.ts` |
 | 1026 | `packages/sage/src/tools/memory-tools.ts` |
 | 1021 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
 | 1015 | `packages/webui-server/src/server/git-handlers.ts` |
@@ -138,7 +138,7 @@ None.
 
 ## Exports only tests reference
 
-- 909 runtime exports are referenced by tests and by no other production file.
+- 910 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

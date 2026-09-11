@@ -81,10 +81,14 @@ export interface UpdateKanbanBoardInput {
   boundary?: KanbanBoundaryPolicy | null | undefined;
   atomicity?: KanbanBoardAtomicityPolicy | null | undefined;
   completionGate?: KanbanCompletionGatePolicy | null | undefined;
+  kind?: KanbanBoardKind | undefined;
+  retention?: KanbanBoardRetentionPolicy | null | undefined;
 }
 
 export interface DuplicateKanbanBoardInput {
   title?: string | undefined;
+  kind?: KanbanBoardKind | undefined;
+  retention?: KanbanBoardRetentionPolicy | null | undefined;
   includeTasks?: boolean | undefined;
   includeCompletedTasks?: boolean | undefined;
   preserveAssignment?: boolean | undefined;

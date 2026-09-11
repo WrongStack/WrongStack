@@ -16,9 +16,9 @@ import {
   Play,
   Rocket,
   RotateCcw,
+  Scissors,
   Search,
   Settings as SettingsIcon,
-  Scissors,
   Sparkles,
   Square,
   Stethoscope,
@@ -33,7 +33,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
 import { playCompletionChime } from '@/lib/chime';
-import { streamCoalescer } from '@/lib/stream-coalescer';
+import { clearChatContext } from '@/lib/clear-chat-context';
 import { cn } from '@/lib/utils';
 import { navigateToView, openMainView, showPanel } from '@/lib/view-navigation';
 import {
@@ -193,9 +193,16 @@ export function CommandPalette() {
         icon: Trash2,
         keywords: ['clear', 'reset', 'wipe'],
         run: () => {
-          streamCoalescer.dropAll();
-          clearMessages();
-          ws.client?.clearContext?.();
+          // Same sequence as `/clear` and Ctrl+L — the run flag has to be
+          // settled or the pane keeps its loading branch over zero rows.
+          const chat = useChatStore.getState();
+          clearChatContext({
+            client: ws.client,
+            isLoading: chat.isLoading,
+            clearMessages: chat.clearMessages,
+            setLoading: chat.setLoading,
+            sendAbort: ws.sendAbort,
+          });
         },
       },
       {
@@ -378,6 +385,7 @@ export function CommandPalette() {
         raw,
         addMessage,
         clearMessages,
+        isLoading: chat.isLoading,
         client: ws.client,
         queue: chat.queue,
         sendAbort: ws.sendAbort,

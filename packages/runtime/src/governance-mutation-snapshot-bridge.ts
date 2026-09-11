@@ -117,10 +117,11 @@ export function createGovernanceMutationSnapshotBridge(input: {
             completed = await next(payload);
             return completed;
           } finally {
-            const key = completionKey(completed.ctx.session.id, completed.toolUse.id);
+            const sessionId = completed.ctx.activeRunSessionId ?? completed.ctx.session?.id;
+            const key = completionKey(sessionId, completed.toolUse.id);
             await enqueueSnapshot(
               {
-                ok: !completed.result.is_error,
+                ok: !completed.result?.is_error,
                 mutating: completed.tool?.mutating === true,
               },
               true,

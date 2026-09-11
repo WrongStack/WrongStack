@@ -117,10 +117,7 @@ describe('task-dag — extra coverage', () => {
     dag.onEvent((e) => evs.push(e.type));
     dag.addNode('a', 'A');
     dag.addNode('b', 'B', ['a']);
-    dag.fail('a', 'boom'); // b is now permanently blocked (dep failed)
-    // A standalone completion triggers _emitReady with no runnables → deadlock.
-    dag.addNode('c', 'C');
-    dag.complete('c', 1);
+    dag.fail('a', 'boom'); // b is now permanently blocked (dep failed) → triggers deadlock directly
     expect(dag.hasDeadlock()).toBe(true);
     expect(evs).toContain('deadlock');
   });

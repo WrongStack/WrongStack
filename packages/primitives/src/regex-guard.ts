@@ -744,7 +744,16 @@ function hasAmbiguousQuantifiedAlternation(pattern: string, flags: string): bool
     if (j >= pattern.length) return false; // unbalanced — RegExp() will reject
     const next = pattern[j + 1];
     if (next !== '+' && next !== '*' && next !== '{') continue;
-    if (hasAmbiguousBranches(stripGroupPrefix(pattern.slice(i + 1, j)), foldCase, dotAll)) {
+    if (next === '{') {
+      const m = /^\{(\d+)(?:,(\d*))?\}/.exec(pattern.slice(j + 1));
+      if (!m) continue; // non-quantifier brace literal (e.g. {foo}) — not a repetition
+      const min = Number.parseInt(m[1]!, 10);
+      const max = m[2] === undefined ? min : m[2] === '' ? Number.POSITIVE_INFINITY : Number.parseInt(m[2]!, 10);
+      if (max < 2) continue; // {0}, {1}, {0,1} cannot cause catastrophic repetition
+    }
+    const inner = pattern.slice(i + 1, j);
+    const stripped = stripGroupPrefix(inner);
+    if (hasAmbiguousBranches(stripped, foldCase, dotAll)) {
       return true;
     }
     // ADR-004 semantic layer — additive final check. Answers the ambiguity
@@ -752,7 +761,10 @@ function hasAmbiguousQuantifiedAlternation(pattern: string, flags: string): bool
     // char-source pairs + Sardinas–Patterson code check); budget and
     // out-of-subset content both under-reject (allow), so this can only
     // ADD rejections on top of the static layers above.
-    if (detectQuantifiedAmbiguity(pattern.slice(i + 1, j), flags).verdict === 'ambiguous') {
+    if (
+      detectQuantifiedAmbiguity(inner, flags).verdict === 'ambiguous' ||
+      detectQuantifiedAmbiguity(stripped, flags).verdict === 'ambiguous'
+    ) {
       return true;
     }
   }

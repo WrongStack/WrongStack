@@ -174,7 +174,7 @@ function parsePipAuditOutput(result: AuditCommandResult): NativeAuditResult {
   const advisories: NativeAdvisory[] = [];
   let detailLines: string[] = [];
 
-  if (result.status === 0) {
+  if (result.status === 0 || (result.stdout && result.stdout.trim().startsWith('['))) {
     try {
       const json = JSON.parse(result.stdout || '[]') as Array<Record<string, unknown>>;
       for (const entry of json) {
@@ -223,7 +223,7 @@ function parseCargoAuditOutput(result: AuditCommandResult): NativeAuditResult {
   const advisories: NativeAdvisory[] = [];
   let detailLines: string[] = [];
 
-  if (result.status === 0) {
+  if (result.status === 0 || (result.stdout && result.stdout.trim().startsWith('{'))) {
     try {
       const json = JSON.parse(result.stdout || '{}');
       const vulnerabilities = json.vulnerabilities as Record<string, unknown> | undefined;
@@ -331,7 +331,7 @@ export async function runComposerAudit(
   const advisories: NativeAdvisory[] = [];
   let detailLines: string[] = [];
 
-  if (result.status === 0) {
+  if (result.status === 0 || (result.stdout && result.stdout.trim().startsWith('{'))) {
     try {
       const json = JSON.parse(result.stdout || '{}');
       const advisoriesJson = json.advisories as
@@ -385,7 +385,7 @@ export async function runDotnetAudit(
   const advisories: NativeAdvisory[] = [];
   let detailLines: string[] = [];
 
-  if (result.status === 0) {
+  if (result.status === 0 || (result.stdout && result.stdout.trim().startsWith('{'))) {
     try {
       const json = JSON.parse(result.stdout || '{}');
       const vulnerabilities = json.vulnerabilities as Record<string, unknown> | undefined;

@@ -91,6 +91,7 @@ function makeOptions(
       clearTodos: vi.fn(),
     },
     queue: [],
+    isLoading: false,
     sendAbort: vi.fn(),
     sendMsg: vi.fn(),
     setLoading: vi.fn(),
@@ -167,6 +168,19 @@ describe('runChatSlashCommand', () => {
     expect(pendingFlush).not.toHaveBeenCalled();
     expect(options.clearMessages).toHaveBeenCalledTimes(1);
     expect(options.client?.clearContext).toHaveBeenCalledTimes(1);
+    // The lane's run flag is not part of the transcript, so the clear has to
+    // settle it explicitly — ChatView shows the welcome screen (Bug Hunter and
+    // performance-ratchet launchers) only for a lane that is empty AND idle.
+    expect(options.setLoading).toHaveBeenCalledWith(false);
+    // Nothing was in flight, so nothing to abort.
+    expect(options.sendAbort).not.toHaveBeenCalled();
+  });
+
+  it('/clear aborts a run that is still in flight before wiping it', () => {
+    const opts = makeOptions({ raw: '/clear', isLoading: true });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.sendAbort).toHaveBeenCalledTimes(1);
+    expect(opts.setLoading).toHaveBeenCalledWith(false);
   });
 
   it('/new opens the system-prompt picker, which owns the session start', () => {

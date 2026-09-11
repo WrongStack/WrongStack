@@ -1536,6 +1536,9 @@
       "killSessionCatalogServer",
       "restartKanbanServer"
     ],
+    "packages/webui-server/src/server/embedded-host-adapters.ts": [
+      "resolveSessionDefaultModel"
+    ],
     "packages/webui-server/src/server/governance-runtime.ts": [
       "webUiGovernanceRuntimeEnabled"
     ],

@@ -28,7 +28,7 @@ import {
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 function cleanGoVersion(v: string): string {
-  return v.replace(/^v/i, '');
+  return v.replace(/^v/i, '').replace(/\/go\.mod$/i, '');
 }
 
 // ── go.mod parser
@@ -61,8 +61,8 @@ function parseGoMod(content: string): GoRequireStmt[] {
     // Skip comments and empty lines
     if (line === '' || line.startsWith('//')) continue;
 
-    // Track require blocks
-    if (line.startsWith('require (') && line.endsWith('(')) {
+    // Track require blocks (with or without space before paren)
+    if (/^require\s*\(/.test(line)) {
       inRequireBlock = true;
       continue;
     }
@@ -103,7 +103,7 @@ function parseGoReplacements(content: string): Map<string, 'path' | 'git'> {
   let inBlock = false;
   for (const raw of content.split('\n')) {
     const line = raw.trim();
-    if (line === 'replace (') {
+    if (/^replace\s*\(/.test(line)) {
       inBlock = true;
       continue;
     }

@@ -116,6 +116,9 @@ export class TaskDAG {
     }
 
     this.invalidateCache();
+    if (node.status === 'ready') {
+      this._emit({ type: 'node:ready', nodeId: id, deps: node.deps });
+    }
     this._emitReady();
   }
 
@@ -201,6 +204,7 @@ export class TaskDAG {
     this.invalidateCache();
 
     const blocked: string[] = [];
+    let hasUnblocked = false;
     for (const depId of node.dependents) {
       const dep = this.nodes.get(depId);
       /* v8 ignore next -- defensive: dependents are kept consistent (removeNode prunes them) */
@@ -214,13 +218,14 @@ export class TaskDAG {
         });
       if (allDone) {
         this._transition(depId, 'pending', 'ready');
+        hasUnblocked = true;
       } else {
         blocked.push(depId);
       }
     }
 
     this._emit({ type: 'node:completed', nodeId: id, result, blockers: blocked });
-    if (blocked.length === 0) this._emitReady();
+    if (hasUnblocked || this.isDone() || this.hasDeadlock()) this._emitReady();
   }
 
   /**
@@ -257,7 +262,7 @@ export class TaskDAG {
     }
 
     this._emit({ type: 'node:failed', nodeId: id, error, blockers: blocked });
-    if (blocked.length === 0) this._emitReady();
+    if (this.hasDeadlock() || this.isDone()) this._emitReady();
   }
 
   /**
@@ -437,8 +442,8 @@ export class TaskDAG {
     const runnable = this.getReady();
     if (this.hasDeadlock()) {
       this._emit({ type: 'deadlock', blocked: this.getBlocked().map((n) => n.id) });
-    } else {
-      this._emit({ type: 'graph:done', allDone: this.isDone() });
+    } else if (this.isDone()) {
+      this._emit({ type: 'graph:done', allDone: true });
     }
     if (runnable.length > 0) {
       for (const h of this.runnablesHandlers) {

@@ -54,6 +54,49 @@ describe('standalone WebUI session swap lifecycle', () => {
     );
   });
 
+  it('starts a new session on the CONFIGURED default model, not the leader context', async () => {
+    const next = writer('2026-07-12/sess_new');
+    const applyModelSwitch = vi.fn(async () => undefined);
+    const harness = makeHarness({
+      root,
+      sessionsDir,
+      current: writer('2026-07-12/sess_old'),
+      created: next,
+      // Another tab switched; the live default moved with it while this
+      // runtime's leader context stayed on what it booted with.
+      config: { provider: 'openai', model: 'gpt-5-codex' },
+      contextModel: 'old-model',
+      applyModelSwitch,
+    });
+
+    await harness.routes.newSession(harness.ws, { type: 'session.new' });
+
+    // The session RECORD already took the default; the runtime has to follow
+    // it, or the tab shows one model in the status bar and runs another.
+    expect(harness.store.create).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'openai', model: 'gpt-5-codex' }),
+    );
+    expect(applyModelSwitch).toHaveBeenCalledWith('openai', 'gpt-5-codex', next.id);
+  });
+
+  it('does not re-apply the model when the new session already matches the default', async () => {
+    const next = writer('2026-07-12/sess_same_model');
+    const applyModelSwitch = vi.fn(async () => undefined);
+    const harness = makeHarness({
+      root,
+      sessionsDir,
+      current: writer('2026-07-12/sess_old2'),
+      created: next,
+      config: { provider: 'test-provider', model: 'test-model' },
+      contextModel: 'test-model',
+      applyModelSwitch,
+    });
+
+    await harness.routes.newSession(harness.ws, { type: 'session.new' });
+
+    expect(applyModelSwitch).not.toHaveBeenCalled();
+  });
+
   it('flushes the old todo checkpoint before persisting the new session snapshot', async () => {
     const old = writer('2026-07-12/sess_old');
     const next = writer('2026-07-12/sess_new');
@@ -371,6 +414,11 @@ function makeHarness(input: {
   onBeforeSessionTodosReplaced?:
     | ((sessionId: string, sessionsDir: string) => void | Promise<void>)
     | undefined;
+  config?: { provider: string; model: string } | undefined;
+  contextModel?: string | undefined;
+  applyModelSwitch?:
+    | ((provider: string, model: string, sessionId?: string) => Promise<void>)
+    | undefined;
 }) {
   let current = input.current;
   const meta = new Map<string, unknown>();
@@ -379,6 +427,7 @@ function makeHarness(input: {
     session: current,
     messages: [],
     provider: { id: 'test-provider' },
+    model: input.contextModel ?? 'test-model',
     lastRequestTokens: 999,
     lastRealInputTokens: 888,
     state: {
@@ -432,7 +481,8 @@ function makeHarness(input: {
     ),
   };
   const routes = createSessionHandlers({
-    config: { provider: 'test-provider', model: 'test-model' },
+    config: input.config ?? { provider: 'test-provider', model: 'test-model' },
+    ...(input.applyModelSwitch ? { applyModelSwitch: input.applyModelSwitch } : {}),
     clients: new Map(),
     context: context as never,
     toolRegistry: {} as never,

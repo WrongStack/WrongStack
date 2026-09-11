@@ -123,6 +123,23 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             activated = true;
             await activateSession(next, []);
             resetSessionSubagentPolicy(ctx.getAgent?.(next.id)?.ctx ?? ctx.context);
+            // The new tab's Context was cloned from the leader's, so it runs
+            // whatever tab 1 last chose. The record above was stamped from the
+            // live config — the most recent choice made in ANY tab — and the
+            // runtime has to follow it, or the status bar and the conversation
+            // name different models. Best-effort: a provider that will not
+            // rebuild must not fail the session that already exists.
+            const newCtx = ctx.getAgent?.(next.id)?.ctx ?? ctx.context;
+            if (
+              ctx.applyModelSwitch &&
+              config.provider &&
+              config.model &&
+              (newCtx.provider?.id !== config.provider || newCtx.model !== config.model)
+            ) {
+              await ctx
+                .applyModelSwitch(config.provider, config.model, next.id)
+                .catch(() => undefined);
+            }
           } catch (err) {
             if (!activated) {
               await rollbackClaim?.().catch(() => undefined);

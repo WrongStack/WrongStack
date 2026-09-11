@@ -91,8 +91,16 @@ export class DocumentTracker {
     for (const server of this.registry().list()) {
       /* v8 ignore next -- false branch is defensive for mixed registries. */
       if (server.state !== 'ready' || !server.config.languages.includes(languageId)) continue;
-      server.notifyDidChange({ uri: doc.uri, version: doc.version }, text);
-      doc.serverNames.add(server.name);
+      // A server that never received didOpen must be caught up with didOpen,
+      // not didChange — LSP servers only track open documents, so a didChange
+      // for an unopened document is dropped and the server silently misses
+      // the new content. Same two-tier fan-out as open().
+      if (doc.serverNames.has(server.name)) {
+        server.notifyDidChange({ uri: doc.uri, version: doc.version }, text);
+      } else {
+        server.notifyDidOpen(toTextDocumentItem(doc));
+        doc.serverNames.add(server.name);
+      }
     }
     this.enforceBudget();
   }

@@ -174,6 +174,11 @@ export function registerCanonicalHostTools(
         directNames.add(name);
       }
     }
+    if (options.vectorMemory?.store) {
+      for (const tool of createVectorMemoryTools(options.vectorMemory.store)) {
+        directNames.add(tool.name);
+      }
+    }
     if (options.browser?.enabled) {
       for (const name of BROWSER_TOOL_NAMES) directNames.add(name);
     }

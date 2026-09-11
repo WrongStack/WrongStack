@@ -97,9 +97,18 @@ const RULES: readonly DangerRule[] = [
       }
       const letters = flagLetters(args);
       if (letters.has('r') && letters.has('f')) return true;
-      const has = (flag: string): boolean => args.some((a) => a.toLowerCase() === `/${flag}`);
-      if (cmd === 'rmdir' || cmd === 'rd') return has('s') && has('q');
-      if (cmd === 'del' || cmd === 'erase') return has('s');
+      const cmdFlags = new Set<string>();
+      for (const a of args) {
+        if (/^(?:\/[a-zA-Z])+$/.test(a)) {
+          for (const ch of a.toLowerCase()) {
+            if (ch >= 'a' && ch <= 'z') cmdFlags.add(ch);
+          }
+        } else if (/^\/[sqfpa]+$/i.test(a)) {
+          for (const ch of a.toLowerCase().slice(1)) cmdFlags.add(ch);
+        }
+      }
+      if (cmd === 'rmdir' || cmd === 'rd') return cmdFlags.has('s') && cmdFlags.has('q');
+      if (cmd === 'del' || cmd === 'erase') return cmdFlags.has('s');
       return false;
     },
     reason: 'recursive force-delete',

@@ -3,6 +3,7 @@ import {
   isSubagentPolicyLocked,
   setSessionSubagentsAllowed,
 } from '@wrongstack/core/coordination';
+import type { SlashCommand } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { useEffect } from 'react';
 import { AUTONOMY_OPTIONS } from '../components/autonomy-picker.js';
@@ -126,15 +127,34 @@ export function useSessionSlashCommands(
 
   useEffect(() => {
     if (part !== 'tail') return;
-    const cmd = {
-      name: 'resume',
-      // `sessions` deliberately shadows the CLI's text command inside the
-      // TUI: `/sessions` must open the same picker as `/resume`. The CLI's
-      // `/sessions <sub>` text subcommands (status/kill/rename/archive) stay
-      // REPL/headless-only; live sessions in the TUI remain on F10.
-      aliases: ['load', 'sessions'],
+    // Captured BEFORE the override displaces it. `/sessions status|kill|
+    // rename|archive|delete|rehydrate|--incomplete|--recover` are text
+    // subcommands only the host command implements; the picker claims the
+    // bare key, so without this hand-back the TUI would swallow all of them.
+    const hostSessions = slashRegistry.get('sessions');
+    const cmd: SlashCommand = {
+      // `sessions`, NOT `resume`, and the aliases are inverted to match.
+      //
+      // The host registers `/sessions` with aliases `resume` and `load`. A
+      // command named `resume` therefore collides with a CORE-OWNED ALIAS,
+      // which the registry reserves for the built-in family (it is what keeps
+      // a plugin's literal `stop` from stealing `/stop` out of `/interrupt`).
+      // The bare write was refused and the whole registration fell back to
+      // `/tui:resume` — so `/resume`, `/sessions` and `/load` all kept
+      // printing the host's ten-session text list and this picker was
+      // unreachable by every key a user would type.
+      //
+      // Sharing the host's canonical NAME takes the registry's documented
+      // escape hatch instead: a command may always rebind its own aliases,
+      // so all three keys land on the picker.
+      name: 'sessions',
+      aliases: ['resume', 'load'],
       description: 'Resume a previous session — pick from your session history.',
-      async run() {
+      async run(args: string, ctx) {
+        const rest = (args ?? '').trim();
+        if (rest.length > 0 && hostSessions !== undefined && hostSessions !== cmd) {
+          return hostSessions.run(rest, ctx);
+        }
         if (!listSessions) {
           return { message: 'Session listing not available.' };
         }
@@ -153,9 +173,8 @@ export function useSessionSlashCommands(
       },
     };
     // Register as an official TUI plugin so it overrides the CLI's text-based
-    // /sessions command and every alias it carries (/resume, /load — the bare
-    // `sessions` token is claimed via the alias above). Lifecycle teardown
-    // restores the CLI command on unmount.
+    // /sessions command and every alias it carries (/resume, /load).
+    // Lifecycle teardown restores the CLI command on unmount.
     return registerSlashCommandLifecycle(slashRegistry, cmd, {
       owner: 'tui',
       official: true,
