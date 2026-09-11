@@ -27,8 +27,34 @@ async function mkTmp(prefix: string): Promise<string> {
   tmpDirs.push(d);
   return d;
 }
+
+/**
+ * Directors and FleetManagers built by `makeDirector`, closed before the temp
+ * directories go away.
+ *
+ * Manifest writes here are fire-and-forget: `Director` completes a task with
+ * `void fleetManager.flushManifest()`, and FleetManager writes atomically
+ * (`.fleet.json.<hash>.tmp` -> rename). A test that asserts and returns leaves
+ * that write in flight, so `afterEach`'s `fs.rm` raced it - deleting first gave
+ * a FleetManagerWarning ENOENT on the temp file, and losing the race gave
+ * `ENOTEMPTY: rmdir` because the write re-populated the directory mid-delete.
+ * That surfaced as a ~2-in-8 flake on `keeps the FleetManager manifest
+ * authoritative after assign`, attributed to the assertion it had nothing to do
+ * with. `closeManifest()` exists for exactly this (the CLI fleet host calls it
+ * before deleting the manifest directory); this file constructed its own
+ * FleetManagers and never did.
+ */
+let openDirectors: Director[] = [];
+let openFleetManagers: FleetManager[] = [];
+
 afterEach(async () => {
   vi.restoreAllMocks();
+  // Director first: its writes go through the FleetManager's chain, which the
+  // subsequent closeManifest() drains and then freezes.
+  await Promise.all(openDirectors.map((d) => d.quiesceManifest().catch(() => undefined)));
+  await Promise.all(openFleetManagers.map((fm) => fm.closeManifest().catch(() => undefined)));
+  openDirectors = [];
+  openFleetManagers = [];
   await Promise.all(tmpDirs.map((d) => fs.rm(d, { recursive: true, force: true })));
   tmpDirs = [];
 });
@@ -65,6 +91,10 @@ function makeDirector(
     runner,
     ...extra,
   } as DirectorOpts);
+  // Registering here rather than at each call site keeps the teardown from
+  // depending on every future test remembering to opt in.
+  openDirectors.push(d);
+  if (extra.fleetManager) openFleetManagers.push(extra.fleetManager);
   return { d, buses, runner };
 }
 
