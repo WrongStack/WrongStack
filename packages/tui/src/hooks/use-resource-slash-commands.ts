@@ -2,7 +2,7 @@ import { SKILL_LIMITS, stripFrontmatter } from '@wrongstack/core/skills';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { useEffect } from 'react';
 import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
-import type { TuiSlashCommandOptions } from './use-tui-slash-commands.js';
+import type { TuiSlashCommandOptions } from './tui-slash-command-options.js';
 
 /**
  * Resource-domain slash commands (/skill, the seven operational resource-menu

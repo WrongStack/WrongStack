@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T00:43:51.450Z",
+  "generatedAt": "2026-09-11T01:12:52.243Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,21 +12,19 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3738,
+    "sourceFiles": 3739,
     "testFiles": 3245,
-    "sourceLines": 902709,
+    "sourceLines": 902706,
     "workspaceEdges": 128,
-    "moduleEdges": 11907,
+    "moduleEdges": 11903,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 10,
+    "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 907
   },
-  "errors": [
-    "2 unexcepted module cycle(s)"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -760,7 +758,7 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 386,
+      "sourceFiles": 387,
       "testFiles": 346,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -1074,29 +1072,6 @@
           "packages/core/src/types/token-counter.ts",
           "packages/core/src/types/tool.ts"
         ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tui/src/app-key-handler.ts",
-          "packages/tui/src/key-handler-context.ts",
-          "packages/tui/src/key-routes/key-route-busy.ts",
-          "packages/tui/src/key-routes/key-route-composer.ts",
-          "packages/tui/src/key-routes/key-route-overlay.ts",
-          "packages/tui/src/key-routes/key-route-paste.ts",
-          "packages/tui/src/key-routes/key-route-pointer.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tui/src/hooks/use-design-kit-slash-commands.ts",
-          "packages/tui/src/hooks/use-provider-slash-commands.ts",
-          "packages/tui/src/hooks/use-resource-slash-commands.ts",
-          "packages/tui/src/hooks/use-session-slash-commands.ts",
-          "packages/tui/src/hooks/use-settings-slash-commands.ts",
-          "packages/tui/src/hooks/use-tui-slash-commands.ts"
-        ]
       }
     ],
     "matchedExceptions": [
@@ -1109,31 +1084,7 @@
       "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
-    "unexcepted": [
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tui/src/app-key-handler.ts",
-          "packages/tui/src/key-handler-context.ts",
-          "packages/tui/src/key-routes/key-route-busy.ts",
-          "packages/tui/src/key-routes/key-route-composer.ts",
-          "packages/tui/src/key-routes/key-route-overlay.ts",
-          "packages/tui/src/key-routes/key-route-paste.ts",
-          "packages/tui/src/key-routes/key-route-pointer.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tui/src/hooks/use-design-kit-slash-commands.ts",
-          "packages/tui/src/hooks/use-provider-slash-commands.ts",
-          "packages/tui/src/hooks/use-resource-slash-commands.ts",
-          "packages/tui/src/hooks/use-session-slash-commands.ts",
-          "packages/tui/src/hooks/use-settings-slash-commands.ts",
-          "packages/tui/src/hooks/use-tui-slash-commands.ts"
-        ]
-      }
-    ]
+    "unexcepted": []
   },
   "testOwnership": {
     "runtimeAssignments": [

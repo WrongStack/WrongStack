@@ -7,7 +7,7 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import { useEffect } from 'react';
 import { AUTONOMY_OPTIONS } from '../components/autonomy-picker.js';
 import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
-import type { TuiSlashCommandOptions } from './use-tui-slash-commands.js';
+import type { TuiSlashCommandOptions } from './tui-slash-command-options.js';
 
 /** Which slice of the session-domain commands this call registers. */
 export type SessionSlashPart = 'head' | 'mid' | 'tail';

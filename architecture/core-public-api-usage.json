@@ -19,8 +19,8 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 211,
-      "typeOnly": 85,
+      "files": 210,
+      "typeOnly": 84,
       "runtimeOrMixed": 181
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -3223,12 +3223,6 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/tools/tests/session-kanban-sync-guard.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/coordination",
-      "file": "packages/tui/src/app-key-handler.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

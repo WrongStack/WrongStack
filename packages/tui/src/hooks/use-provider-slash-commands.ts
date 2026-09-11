@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
-import type { TuiSlashCommandOptions } from './use-tui-slash-commands.js';
+import type { TuiSlashCommandOptions } from './tui-slash-command-options.js';
 
 /**
  * Provider-domain slash commands (/model, /f), moved verbatim from

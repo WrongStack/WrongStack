@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-11T00:43:51.450Z
+**Generated:** 2026-09-11T01:12:52.243Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,20 +8,20 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3738 |
-| Production source lines | 902709 |
+| Production source files | 3739 |
+| Production source lines | 902706 |
 | Test files | 3245 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 11907 |
+| Relative module edges | 11903 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 10 |
+| Type-inclusive module cycles | 8 |
 | Tests without TypeScript test-project coverage | 0 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- 2 unexcepted module cycle(s)
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -55,7 +55,7 @@
 | @wrongstack/techstack | 50 | 37 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 32 | @wrongstack/core |
 | @wrongstack/tools | 212 | 216 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 386 | 346 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 387 | 346 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 18 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 541 | 371 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 116 | 38 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -80,8 +80,6 @@ None.
 - packages/core/src/hq/protocol/client.ts ↔ packages/core/src/hq/protocol/core.ts ↔ packages/core/src/hq/protocol/fleet.ts ↔ packages/core/src/hq/protocol/session.ts
 - packages/core/src/index.ts ↔ packages/core/src/plugins/prompts-plugin.ts ↔ packages/core/src/plugins/skills-plugin.ts ↔ packages/core/src/plugins/sync-plugin.ts ↔ packages/core/src/tools/mcp-control.ts ↔ packages/core/src/tools/mcp-use.ts
 - packages/core/src/types/blocks.ts ↔ packages/core/src/types/context.ts ↔ packages/core/src/types/conversation-state.ts ↔ packages/core/src/types/messages.ts ↔ packages/core/src/types/provider.ts ↔ packages/core/src/types/run-env.ts ↔ packages/core/src/types/session.ts ↔ packages/core/src/types/token-counter.ts ↔ packages/core/src/types/tool.ts
-- packages/tui/src/app-key-handler.ts ↔ packages/tui/src/key-handler-context.ts ↔ packages/tui/src/key-routes/key-route-busy.ts ↔ packages/tui/src/key-routes/key-route-composer.ts ↔ packages/tui/src/key-routes/key-route-overlay.ts ↔ packages/tui/src/key-routes/key-route-paste.ts ↔ packages/tui/src/key-routes/key-route-pointer.ts
-- packages/tui/src/hooks/use-design-kit-slash-commands.ts ↔ packages/tui/src/hooks/use-provider-slash-commands.ts ↔ packages/tui/src/hooks/use-resource-slash-commands.ts ↔ packages/tui/src/hooks/use-session-slash-commands.ts ↔ packages/tui/src/hooks/use-settings-slash-commands.ts ↔ packages/tui/src/hooks/use-tui-slash-commands.ts
 
 ## Largest production files
 

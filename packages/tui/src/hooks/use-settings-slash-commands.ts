@@ -12,7 +12,7 @@ import { STATUSLINE_ITEMS, type StatuslineItem } from '../components/statusline-
 import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
 import { THEME_OPTIONS } from '../theme.js';
 import { hasPanelRoutedToSidebar } from '../ui-contracts.js';
-import type { TuiSlashCommandOptions } from './use-tui-slash-commands.js';
+import type { TuiSlashCommandOptions } from './tui-slash-command-options.js';
 
 /** Which slice of the settings-domain commands this call registers. */
 export type SettingsSlashPart = 'core' | 'appearance';

@@ -13,7 +13,7 @@ import {
 } from '@wrongstack/core/design';
 import { useEffect } from 'react';
 import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
-import type { TuiSlashCommandOptions } from './use-tui-slash-commands.js';
+import type { TuiSlashCommandOptions } from './tui-slash-command-options.js';
 
 /**
  * Design-kit-domain slash command (/design), moved verbatim from
