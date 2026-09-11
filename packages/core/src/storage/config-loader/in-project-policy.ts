@@ -310,7 +310,7 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
     // subscriber that denies the grant.
     path: 'tools.autoExtendLimit',
     reason:
-      'Converts the operator\'s configured `maxIterations` from a hard stop into a limit that re-grants itself +100 on every hit. Operator-owned, same class as `tools.loopDetection`.',
+      "Converts the operator's configured `maxIterations` from a hard stop into a limit that re-grants itself +100 on every hit. Operator-owned, same class as `tools.loopDetection`.",
   },
   {
     path: 'tools.maxAutoExtensions',

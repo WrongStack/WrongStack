@@ -64,6 +64,8 @@ interface AppViewRuntime {
   statusBarClickMapRef: MutableRefObject<
     import('./components/status-bar-types.js').StatusBarClickMap | null
   >;
+  /** Actual inspect-modal title row used for Copy/Close hit-testing. */
+  inspectOverlayHeaderRef: MutableRefObject<DOMElement | null>;
   stableOnKey: (input: string, key: KeyEvent) => void;
   liveTodos: ReturnType<typeof useLiveTodos>;
   liveSettings: ReturnType<NonNullable<AppProps['getSettings']>> | undefined;

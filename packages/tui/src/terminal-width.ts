@@ -23,7 +23,10 @@ const ANSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
  * the same input); the bound caps a body that never terminates.
  */
 const MAX_STRING_BODY = 4096;
-const ANSI_OSC_RE = new RegExp(`\\x1b\\][^\\x07\\x1b]{0,${MAX_STRING_BODY}}(?:\\x07|\\x1b\\\\)`, 'g');
+const ANSI_OSC_RE = new RegExp(
+  `\\x1b\\][^\\x07\\x1b]{0,${MAX_STRING_BODY}}(?:\\x07|\\x1b\\\\)`,
+  'g',
+);
 const ANSI_CONTROL_STRING_RE = new RegExp(
   `\\x1b[P^_X][^\\x1b]{0,${MAX_STRING_BODY}}\\x1b\\\\`,
   'g',

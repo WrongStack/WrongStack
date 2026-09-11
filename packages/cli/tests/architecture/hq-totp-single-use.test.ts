@@ -26,10 +26,12 @@
  * shell and matched zero lines for its entire life. A guard you have only
  * watched pass is not evidence.
  */
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { generateTotp, generateTotpSecret } from '@wrongstack/core/security';
 import { consumeTotpCode } from '../../src/hq-server/routes/auth/common.js';
 import type { HqRouterMutableAuth } from '../../src/hq-server/types.js';
@@ -148,28 +150,74 @@ describe('consumeTotpCode', () => {
     return { totpSecret: secret, browserTokens: new Set() } as unknown as HqRouterMutableAuth;
   }
 
-  // `dataDir` points nowhere: the persistence step is deliberately
-  // best-effort, so the in-memory counter must advance regardless.
-  const NO_DISK = path.join(repositoryRoot, 'packages/cli/tests/.does-not-exist');
+  // A real temp directory, cleaned up after each test.
+  //
+  // This previously pointed at a made-up path INSIDE the repo, on the theory
+  // that the write would fail and thereby exercise `consumeTotpCode`'s
+  // best-effort branch. It does not: `mutateHqAuthFile` CREATES the directory.
+  // So the write succeeded, this test committed a live `auth.json` into the
+  // source tree on every run, and the comment describing the branch under test
+  // was simply wrong. Persist for real; the best-effort branch is asserted
+  // explicitly below, with a path that genuinely cannot be written.
+  let dataDir = '';
+  beforeEach(() => {
+    dataDir = mkdtempSync(path.join(tmpdir(), 'hq-totp-'));
+  });
+  afterEach(() => {
+    rmSync(dataDir, { recursive: true, force: true });
+  });
 
   it('accepts a fresh code once and rejects the same code as replayed', async () => {
     const secret = generateTotpSecret();
     const auth = mutableAuthWith(secret);
     const code = generateTotp(secret);
 
-    expect(await consumeTotpCode(code, auth, NO_DISK, () => {})).toBe('ok');
+    expect(await consumeTotpCode(code, auth, dataDir, () => {})).toBe('ok');
     expect(auth.totpLastUsedCounter).toBeGreaterThan(0);
-    expect(await consumeTotpCode(code, auth, NO_DISK, () => {})).toBe('replayed');
+    expect(await consumeTotpCode(code, auth, dataDir, () => {})).toBe('replayed');
   });
 
   it('rejects a wrong code as invalid, and does not advance the counter', async () => {
     const auth = mutableAuthWith(generateTotpSecret());
-    expect(await consumeTotpCode('000000', auth, NO_DISK, () => {})).toBe('invalid');
+    expect(await consumeTotpCode('000000', auth, dataDir, () => {})).toBe('invalid');
     expect(auth.totpLastUsedCounter).toBeUndefined();
   });
 
   it('rejects when no secret is configured', async () => {
     const auth = { browserTokens: new Set() } as unknown as HqRouterMutableAuth;
-    expect(await consumeTotpCode('000000', auth, NO_DISK, () => {})).toBe('invalid');
+    expect(await consumeTotpCode('000000', auth, dataDir, () => {})).toBe('invalid');
+  });
+
+  it('persists the advanced counter, and hands it to applyAuthFile', async () => {
+    const secret = generateTotpSecret();
+    const auth = mutableAuthWith(secret);
+    const applied: unknown[] = [];
+
+    expect(await consumeTotpCode(generateTotp(secret), auth, dataDir, (next) => applied.push(next)))
+      .toBe('ok');
+
+    const onDisk = JSON.parse(readFileSync(path.join(dataDir, 'auth.json'), 'utf8'));
+    expect(onDisk.totpLastUsedCounter).toBe(auth.totpLastUsedCounter);
+    expect(applied).toHaveLength(1);
+  });
+
+  it('still burns the code in memory when the write cannot happen', async () => {
+    // The best-effort branch, exercised for real. A file makes an unusable
+    // parent for `mkdir`, so this fails on POSIX and Windows alike — unlike the
+    // made-up in-repo path this test used to pass, where the directory was
+    // simply created and the branch never ran.
+    const blocker = path.join(dataDir, 'not-a-directory');
+    writeFileSync(blocker, 'x');
+    const unwritable = path.join(blocker, 'nested');
+
+    const secret = generateTotpSecret();
+    const auth = mutableAuthWith(secret);
+    const code = generateTotp(secret);
+
+    // A failed persist must NOT turn a consumed code back into an unconsumed
+    // one for this process — otherwise a disk error re-opens the replay window.
+    expect(await consumeTotpCode(code, auth, unwritable, () => {})).toBe('ok');
+    expect(auth.totpLastUsedCounter).toBeGreaterThan(0);
+    expect(await consumeTotpCode(code, auth, unwritable, () => {})).toBe('replayed');
   });
 });

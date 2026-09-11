@@ -1,7 +1,10 @@
 import { effectivePanelPositions } from '../app-ui-state.js';
 import { writeClipboardText } from '../clipboard.js';
 import type { KeyEvent } from '../components/input.js';
-import { resolveInspectOverlayContent } from '../components/inspect-overlay.js';
+import {
+  inspectOverlayHeaderActionAt,
+  resolveInspectOverlayContent,
+} from '../components/inspect-overlay.js';
 import { escCloseAction, escSelfOwnedPanelOpen } from '../esc-close-panels.js';
 import { actionForFKeyPanel, fKeyEntryFor } from '../f-key-panels.js';
 import type { KeyRouteContext } from '../key-handler-context.js';
@@ -35,7 +38,14 @@ export function routeModalOverlay(ctx: KeyRouteContext, input: string, key: KeyE
         state: ctx.state,
         enhanceCancelled: ctx.enhanceCancelledRef,
         enhanceController: ctx.enhanceAbortRef,
-        inspectGeometry: { termCols: ctx.historyWidth, viewportRows: ctx.state.viewportRows },
+        inspectPointerAction:
+          key.mouse?.kind === 'press' && key.mouse.button === 'left'
+            ? inspectOverlayHeaderActionAt(
+                ctx.inspectOverlayHeaderRef?.current ?? null,
+                key.mouse.x,
+                key.mouse.y,
+              )
+            : null,
         dispatch: ctx.dispatch,
         copyInspectOverlay: () => {
           const overlay = ctx.state.inspectOverlay;

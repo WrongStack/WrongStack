@@ -113,6 +113,17 @@ export {
   type ProjectStateGuardOptions,
   startProjectStateGuard,
 } from './project-state-guard.js';
+// Exported so hosts OUTSIDE core can fence repository-supplied text too. The
+// CLI's fleet host composes `.wrongstack/agents/<role>/skills/*.md` into a
+// subagent prompt and had no way to reach the single fence definition, so it
+// did not fence at all — the gap this export closes.
+export {
+  formatProjectSuppliedBlock,
+  PROJECT_SUPPLIED_INSTRUCTIONS_TAG,
+  PROJECT_SUPPLIED_TAG,
+  sanitizeProjectSuppliedBody,
+  sanitizeProjectSuppliedSource,
+} from './project-supplied-fence.js';
 export {
   type ProjectWatchEvent,
   type ProjectWatchSubscription,
@@ -154,17 +165,6 @@ export {
   writeOut,
 } from './term.js';
 export { sanitizeTerminalPreview, sanitizeTerminalText } from './terminal-sanitize.js';
-// Exported so hosts OUTSIDE core can fence repository-supplied text too. The
-// CLI's fleet host composes `.wrongstack/agents/<role>/skills/*.md` into a
-// subagent prompt and had no way to reach the single fence definition, so it
-// did not fence at all — the gap this export closes.
-export {
-  formatProjectSuppliedBlock,
-  PROJECT_SUPPLIED_INSTRUCTIONS_TAG,
-  PROJECT_SUPPLIED_TAG,
-  sanitizeProjectSuppliedBody,
-  sanitizeProjectSuppliedSource,
-} from './project-supplied-fence.js';
 export * from './todos-format.js';
 export {
   computeMessageTokens,

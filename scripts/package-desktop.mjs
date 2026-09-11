@@ -30,8 +30,8 @@
  * none set, the artifacts are unsigned and electron-builder says so.
  */
 import { execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

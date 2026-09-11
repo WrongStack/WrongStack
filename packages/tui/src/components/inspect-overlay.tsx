@@ -1,6 +1,7 @@
 import type React from 'react';
+import type { MutableRefObject } from 'react';
 import { useMemo } from 'react';
-import { Box, Text, useInput } from '../ink.js';
+import { Box, type DOMElement, measureElement, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { LIVE_TOOL_STREAM_COPY_ID } from './history/copy-geometry.js';
 import {
@@ -80,20 +81,16 @@ export function inspectOverlaySize(
  * are the terminal protocol's one-based cells.
  */
 export function inspectOverlayHeaderActionAt(
-  termCols: number,
-  viewportRows: number,
+  header: DOMElement | null,
   x: number,
   y: number,
 ): InspectOverlayHeaderAction | null {
-  const { width, height } = inspectOverlaySize(termCols, viewportRows);
-  const left = Math.floor((termCols - width) / 2);
-  const top = Math.floor((viewportRows - height) / 2);
-  const headerRow = top + 2;
+  if (!header) return null;
+  const measured = measureElement(header);
+  // Ink reports zero-based positions; SGR mouse coordinates are one-based.
+  const headerRow = measured.y + 1;
   if (y !== headerRow) return null;
-
-  // The rounded border occupies the outer cell and paddingX occupies the next,
-  // so the final usable header cell is two columns left of the box's right edge.
-  const contentRight = left + width - 2;
+  const contentRight = measured.x + measured.width;
   const closeStart = contentRight - INSPECT_CLOSE_LABEL.length + 1;
   const copyEnd = closeStart - INSPECT_HEADER_BUTTON_GAP - 1;
   const copyStart = copyEnd - INSPECT_COPY_LABEL.length + 1;
@@ -138,6 +135,7 @@ interface InspectOverlayProps {
   onScroll: (delta: number) => void;
   onClose: () => void;
   copied?: boolean | undefined;
+  headerRef?: MutableRefObject<DOMElement | null> | undefined;
 }
 
 export function InspectOverlay({
@@ -149,6 +147,7 @@ export function InspectOverlay({
   onScroll,
   onClose,
   copied = false,
+  headerRef,
 }: InspectOverlayProps): React.ReactElement {
   const { width, height } = inspectOverlaySize(termCols, viewportRows);
   // Inner width minus border(2) + paddingX(2), then reserve one column for the
@@ -196,7 +195,7 @@ export function InspectOverlay({
         paddingX={1}
         overflowY="hidden"
       >
-        <Box flexDirection="row">
+        <Box ref={headerRef} flexDirection="row">
           <Box flexGrow={1} overflowX="hidden">
             <Text bold color={theme.accent} wrap="truncate-end">
               {`${INSPECT_ICON} ${title}`}

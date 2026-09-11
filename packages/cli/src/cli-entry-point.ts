@@ -248,7 +248,9 @@ export function runAsMain(mainFn: (argv: string[]) => Promise<number>): void {
       // docblock: a stack is what makes an end-user crash report debuggable)
       // and removes only credentials and the absolute home directory. There is
       // no debuggability trade here.
-      writeErr(scrubErrorText(err instanceof Error ? (err.stack ?? err.message) : String(err)) + '\n');
+      writeErr(
+        scrubErrorText(err instanceof Error ? (err.stack ?? err.message) : String(err)) + '\n',
+      );
       process.exitCode = 1;
       scheduleForcedExit(1);
     },

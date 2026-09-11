@@ -118,6 +118,8 @@ export interface AppKeyHandlerOptions {
   belowStatusBarRef: MutableRefObject<DOMElement | null>;
   /** Chip click map published by StatusBar on every render. */
   statusBarClickMapRef: MutableRefObject<StatusBarClickMap | null>;
+  /** Actual rendered title row for inspect-modal Copy/Close hit-testing. */
+  inspectOverlayHeaderRef: MutableRefObject<DOMElement | null>;
   openModelPicker: () => Promise<void>;
   nextStepsAutoSubmitTimerRef: MutableRefObject<ReturnType<typeof setInterval> | undefined>;
   nextStepsAutoSubmitSuggestionRef: MutableRefObject<string | null>;

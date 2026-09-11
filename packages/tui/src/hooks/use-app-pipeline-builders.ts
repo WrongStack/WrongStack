@@ -61,6 +61,7 @@ export function buildAppPipelineArgs(params: {
   statusBarWrapRef: K['statusBarWrapRef'];
   belowStatusBarRef: K['belowStatusBarRef'];
   statusBarClickMapRef: K['statusBarClickMapRef'];
+  inspectOverlayHeaderRef: K['inspectOverlayHeaderRef'];
   openModelPicker: K['openModelPicker'];
   nextStepsAutoSubmitTimerRef: K['nextStepsAutoSubmitTimerRef'];
   nextStepsAutoSubmitSuggestionRef: K['nextStepsAutoSubmitSuggestionRef'];
@@ -163,6 +164,7 @@ export function buildAppPipelineArgs(params: {
     statusBarWrapRef,
     belowStatusBarRef,
     statusBarClickMapRef,
+    inspectOverlayHeaderRef,
     openModelPicker,
     nextStepsAutoSubmitTimerRef,
     nextStepsAutoSubmitSuggestionRef,
@@ -263,6 +265,7 @@ export function buildAppPipelineArgs(params: {
       statusBarWrapRef,
       belowStatusBarRef,
       statusBarClickMapRef,
+      inspectOverlayHeaderRef,
       openModelPicker,
       nextStepsAutoSubmitTimerRef,
       nextStepsAutoSubmitSuggestionRef,

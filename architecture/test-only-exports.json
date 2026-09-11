@@ -113,6 +113,7 @@
       "shouldSkipMenu"
     ],
     "packages/cli/src/boot/short-circuit-desktop.ts": [
+      "selectDesktopLauncherExecutable",
       "stripDesktopLauncherArgs"
     ],
     "packages/cli/src/boot/short-circuit-hq.ts": [

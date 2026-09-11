@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-10T23:19:12.820Z",
+  "generatedAt": "2026-09-11T00:39:10.506Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3735,
+    "sourceFiles": 3738,
     "testFiles": 3245,
-    "sourceLines": 902354,
+    "sourceLines": 902709,
     "workspaceEdges": 128,
-    "moduleEdges": 11898,
+    "moduleEdges": 11907,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 10,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 906
+    "testOnlyExports": 907
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -760,7 +760,7 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 383,
+      "sourceFiles": 386,
       "testFiles": 346,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -21126,8 +21126,8 @@
     },
     {
       "file": "packages/tui/src/app.tsx",
-      "lines": 1059,
-      "relativeImports": 74
+      "lines": 951,
+      "relativeImports": 56
     },
     {
       "file": "packages/tui/src/components/agents-monitor.tsx",
@@ -21382,11 +21382,6 @@
       "relativeImports": 10
     },
     {
-      "file": "packages/tui/src/app.tsx",
-      "lines": 1059,
-      "relativeImports": 74
-    },
-    {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
       "lines": 1058,
       "relativeImports": 50
@@ -21615,6 +21610,11 @@
       "file": "packages/core/src/coordination/director.ts",
       "lines": 970,
       "relativeImports": 42
+    },
+    {
+      "file": "packages/tools/src/codebase-index/background-indexer.ts",
+      "lines": 968,
+      "relativeImports": 8
     }
   ],
   "testOnlyExports": [
@@ -21845,6 +21845,10 @@
     {
       "file": "packages/cli/src/boot/launch-menu.ts",
       "name": "shouldSkipMenu"
+    },
+    {
+      "file": "packages/cli/src/boot/short-circuit-desktop.ts",
+      "name": "selectDesktopLauncherExecutable"
     },
     {
       "file": "packages/cli/src/boot/short-circuit-desktop.ts",

@@ -342,9 +342,7 @@ export function handleClient(
         },
         {
           policy: tightenHqRedactionPolicy(declaredRedactionPolicy, auth.getOperatorPolicy()),
-          ...(payload.project.projectRoot
-            ? { projectRoot: payload.project.projectRoot }
-            : {}),
+          ...(payload.project.projectRoot ? { projectRoot: payload.project.projectRoot } : {}),
         },
       ).value;
       persistEvent(event);

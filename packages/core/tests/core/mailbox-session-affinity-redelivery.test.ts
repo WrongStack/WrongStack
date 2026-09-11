@@ -158,7 +158,7 @@ describe('session-affinity redelivery (inline checker composition)', () => {
     expect(ackCalls).toEqual([{ readerId: 'leader@tagA', messageIds: ['m2'] }]);
   });
 
-  it('the awareness wrapper filters but never acks', async () => {
+  it('the awareness wrapper filters, never acks, and previews an accepted message once', async () => {
     const { mailbox, ackCalls } = fakeMailbox([
       msg({ type: 'review', id: 'm3', sessionAffinity: { sessionId: SESSION_A } }),
       msg({ type: 'review', id: 'm4', sessionAffinity: { sessionId: SESSION_B } }),
@@ -169,6 +169,9 @@ describe('session-affinity redelivery (inline checker composition)', () => {
       aliases: ['leader'],
       sessionId: () => SESSION_A,
       ack: false,
+      // Exactly the production awareness construction: affinity filtering,
+      // not the inner checker, owns accepted-message dedup.
+      trackInjected: false,
     });
     const awareness = applySessionAffinityFilter(checkMailbox, false, {
       getSessionId: () => SESSION_A,
@@ -178,7 +181,38 @@ describe('session-affinity redelivery (inline checker composition)', () => {
     });
 
     expect((await awareness()).map((m) => m.id)).toEqual(['m3']);
+    // The mailbox still reports m3 as unread because awareness must not steal
+    // it from inline delivery. It nevertheless must not generate another BTW
+    // preview on every 30-second fallback poll or unrelated mailbox push.
+    expect(await awareness()).toEqual([]);
     await flush();
+    expect(ackCalls).toEqual([]);
+  });
+
+  it('keeps an awareness-dropped message available after a session swap', async () => {
+    const { mailbox, ackCalls } = fakeMailbox([
+      msg({ type: 'btw', id: 'm-awareness-swap', sessionAffinity: { sessionId: SESSION_B } }),
+    ]);
+    let currentSession = SESSION_A;
+    const checkMailbox = createMailboxChecker({
+      mailbox,
+      agentId: () => 'leader@tagA',
+      aliases: ['leader'],
+      sessionId: () => currentSession,
+      ack: false,
+      trackInjected: false,
+    });
+    const awareness = applySessionAffinityFilter(checkMailbox, false, {
+      getSessionId: () => currentSession,
+      getAgentId: () => 'leader@tagA',
+      getMailbox: () => mailbox,
+      affinityCtx: { resolveChimeraReportSessionId: async () => undefined },
+    });
+
+    expect(await awareness()).toEqual([]);
+    currentSession = SESSION_B;
+    expect((await awareness()).map((m) => m.id)).toEqual(['m-awareness-swap']);
+    expect(await awareness()).toEqual([]);
     expect(ackCalls).toEqual([]);
   });
 

@@ -22,6 +22,15 @@ export function stripDesktopLauncherArgs(argv: string[]): string[] {
   return out;
 }
 
+export function selectDesktopLauncherExecutable(
+  execPath: string,
+  runningUnderBun: boolean,
+  nodeOverride?: string,
+): string {
+  if (!runningUnderBun) return execPath;
+  return nodeOverride?.trim() || 'node';
+}
+
 export async function handleDesktopShortCircuit(
   flags: Record<string, string | boolean>,
   argv: string[],
@@ -53,7 +62,15 @@ async function launchDesktop(args: string[]): Promise<number> {
   }
 
   return await new Promise<number>((resolve) => {
-    const child = spawn(process.execPath, [launcherPath, ...args], {
+    // Electron 43 lazily installs its binary with `process.execPath`. Running
+    // the JS launcher under Bun therefore asks Bun to execute Electron's
+    // Node-only installer and leaves the package without path.txt.
+    const executable = selectDesktopLauncherExecutable(
+      process.execPath,
+      typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined',
+      process.env['NODE'],
+    );
+    const child = spawn(executable, [launcherPath, ...args], {
       stdio: 'inherit',
       env: process.env,
       windowsHide: false,

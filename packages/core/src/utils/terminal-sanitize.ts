@@ -45,7 +45,10 @@ const MAX_STRING_BODY = 4096;
  * text simply survives as visible characters instead of being swallowed
  * whole. Visible is the safer direction for a prompt the user reads.
  */
-const ANSI_OSC_RE = new RegExp(`\\x1b\\][^\\x07\\x1b]{0,${MAX_STRING_BODY}}(?:\\x07|\\x1b\\\\)`, 'g');
+const ANSI_OSC_RE = new RegExp(
+  `\\x1b\\][^\\x07\\x1b]{0,${MAX_STRING_BODY}}(?:\\x07|\\x1b\\\\)`,
+  'g',
+);
 const ANSI_CONTROL_STRING_RE = new RegExp(
   `\\x1b[P^_X][^\\x1b]{0,${MAX_STRING_BODY}}\\x1b\\\\`,
   'g',

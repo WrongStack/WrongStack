@@ -357,6 +357,59 @@ The two rules that keep things safe:
    this; new tools should declare `subjectKey` rather than rely on the
    policy's fallback heuristic.
 
+3. **Validate a guard by injection, never by watching it pass.** Before you
+   trust a security test, put the vulnerability back and confirm the test
+   FAILS. A guard that cannot fail is worse than no guard, because it also
+   removes the suspicion that would have found the bug.
+
+## Why rule 3 exists
+
+Five audits of this repo produced the same headline: the dominant defect is
+not missing security machinery, it is correct machinery that some call site
+never reached — and a test that could never have noticed. Three concrete
+failures, all found on 2026-09-10/11:
+
+- **A guard that was green for its entire life.** An architecture test banning
+  an unsafe error-extraction pattern passed its regex to a shell as a joined
+  string. The shell rewrote `?`, `*` and the backslashes, so `git grep` matched
+  zero lines and exited 1 — which the test's own `catch` block read as "no
+  violations". It had never once run its assertion. 54 real violations had
+  accumulated behind it, including the exact site whose leak the test was
+  written to prevent.
+
+- **A gate written during this very audit that did nothing.** A new CI check
+  guarded its entrypoint with ``import.meta.url === `file://${process.argv[1]}` ``.
+  On Windows an absolute path is `file:///D:/…` (three slashes) and string
+  concatenation yields `file://D:/…`, so the comparison never matched and the
+  script exited 0 having run no checks. All twelve of its unit tests passed,
+  because they called the exported function directly. Only running it as a
+  subprocess revealed it.
+
+- **A test that could not fail where it runs.** A check that a secrets
+  directory is hardened asserted POSIX mode bits — and skipped on Windows,
+  which is where this repo is primarily developed. It pinned nothing here.
+
+The common shape is not carelessness. Each looked correct, and each was written
+by someone thinking about security. What none of them had was evidence that the
+check could produce a failure.
+
+**In practice.** When you add or change a security guard:
+
+- Re-introduce the vulnerability and watch the test go red, then restore it.
+  Say so in the commit or the test's docblock.
+- Prefer a self-check inside the test that proves the detection logic
+  distinguishes a violation from a clean input (see
+  `security-helpers-are-wired.test.ts` and `hq-totp-single-use.test.ts`).
+- Assert on the thing that runs, not a stand-in. A test that mimics the code
+  under test cannot falsify it — `mcp-serve.test.ts` used a hand-rolled
+  `allowAll` stub that copied the production policy's blanket approval, which is
+  why nobody noticed the production policy bypassed five separate guards.
+- Enumerate call sites, not patterns, when the property is "every site does X".
+  A grep for a delimiter catches a DUPLICATED prompt fence and is structurally
+  blind to a MISSING one.
+- Make sure the assertion can fail in the environment it runs in. A skipped
+  test pins nothing.
+
 ## HQ implementation status
 
 The earlier phased HQ plan is retained in

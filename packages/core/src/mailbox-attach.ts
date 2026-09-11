@@ -422,14 +422,14 @@ export function applySessionAffinityFilter(
     affinityCtx: MailboxSessionAffinityContext;
   },
 ): () => Promise<MailboxMessage[]> {
-  // Delivered-message dedup, owned by the wrapper because the INLINE inner
-  // checker is created with `trackInjected: false` — its own injectedIds
-  // dedup is disabled so a wrapper-DROPPED message (its sessionAffinity
-  // token names another session) stays redeliverable across an in-process
-  // session swap to the matching session. Until the ack lands and flips
-  // unreadBy server-side, the mailbox keeps returning a delivered message;
-  // this set keeps it from being delivered twice. Same 1000/500 GC shape
-  // as createMailboxChecker's injectedIds.
+  // Accepted-message dedup, owned by the wrapper because both production
+  // inner checkers use `trackInjected: false`. That keeps a wrapper-DROPPED
+  // message (its sessionAffinity token names another session) redeliverable
+  // across an in-process session swap to the matching session. Once accepted,
+  // however, a message must be returned only once even when this is the
+  // non-acking awareness wrapper; otherwise every fallback poll turns the
+  // same HQ FYI/BTW into another pending BTW note. Same 1000/500 GC shape as
+  // createMailboxChecker's injectedIds.
   const deliveredIds = new Set<string>();
   return async (): Promise<MailboxMessage[]> => {
     const currentSessionId = deps.getSessionId();
@@ -451,6 +451,7 @@ export function applySessionAffinityFilter(
     for (const m of messages) {
       if (deliveredIds.has(m.id)) continue;
       if (await acceptMailboxMessageForSession(m, currentSessionId, deps.affinityCtx)) {
+        deliveredIds.add(m.id);
         filtered.push(m);
       }
     }
@@ -458,7 +459,6 @@ export function applySessionAffinityFilter(
     // NOT ack — otherwise actionable messages are consumed before the
     // inline checker can deliver them.
     if (ack && filtered.length > 0 && agentId) {
-      for (const m of filtered) deliveredIds.add(m.id);
       void deps
         .getMailbox()
         .ackMany({

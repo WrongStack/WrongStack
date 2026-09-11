@@ -18,6 +18,7 @@ import {
   wrapInspectLines,
 } from '../src/components/inspect-overlay.js';
 import type { HistoryEntry } from '../src/history-entry.js';
+import type { DOMElement } from '../src/ink.js';
 import { routeModalOverlayKey } from '../src/overlay-key-router.js';
 import { createTestState } from './helpers/create-test-state.js';
 
@@ -80,12 +81,6 @@ describe('inspect overlay geometry', () => {
     expect(size.height).toBeGreaterThanOrEqual(INSPECT_OVERLAY_MIN_ROWS);
     expect(size.height).toBeLessThanOrEqual(40);
   });
-
-  it('hit-tests the Copy and Close controls on the centered title row', () => {
-    expect(inspectOverlayHeaderActionAt(80, 24, 65, 4)).toBe('copy');
-    expect(inspectOverlayHeaderActionAt(80, 24, 74, 4)).toBe('close');
-    expect(inspectOverlayHeaderActionAt(80, 24, 65, 5)).toBeNull();
-  });
 });
 
 describe('inspect overlay reducer', () => {
@@ -110,6 +105,7 @@ describe('inspect overlay reducer', () => {
 
 describe('inspect overlay render', () => {
   it('shows the tool title, full body, and title-bar controls', () => {
+    const headerRef = { current: null as DOMElement | null };
     const view = render(
       React.createElement(InspectOverlay, {
         title: 'read',
@@ -119,13 +115,25 @@ describe('inspect overlay render', () => {
         viewportRows: 24,
         onScroll: () => undefined,
         onClose: () => undefined,
+        headerRef,
       }),
     );
     const frame = view.lastFrame() ?? '';
-    view.unmount();
     expect(frame).toContain('read');
     expect(frame).toContain('full file contents here');
     expect(frame).toContain('[Copy] [Close]');
+    const rows = frame.split('\n');
+    const headerRow = rows.findIndex((row) => row.includes('[Copy]'));
+    const copyCol = rows[headerRow]?.indexOf('[Copy]') ?? -1;
+    const closeCol = rows[headerRow]?.indexOf('[Close]') ?? -1;
+    expect(inspectOverlayHeaderActionAt(headerRef.current, copyCol + 1, headerRow + 1)).toBe(
+      'copy',
+    );
+    expect(inspectOverlayHeaderActionAt(headerRef.current, closeCol + 1, headerRow + 1)).toBe(
+      'close',
+    );
+    expect(inspectOverlayHeaderActionAt(headerRef.current, copyCol + 1, headerRow + 2)).toBeNull();
+    view.unmount();
   });
 
   it('routes title-bar clicks to copy and close without dropping Esc support', () => {
@@ -134,13 +142,13 @@ describe('inspect overlay render', () => {
     });
     const dispatch = vi.fn();
     const copyInspectOverlay = vi.fn();
-    const route = (x: number, y: number) =>
+    const route = (inspectPointerAction: 'copy' | 'close') =>
       routeModalOverlayKey(
         {
           state,
           enhanceCancelled: { current: false },
           enhanceController: { current: null },
-          inspectGeometry: { termCols: 80, viewportRows: 24 },
+          inspectPointerAction,
           dispatch,
           copyInspectOverlay,
         },
@@ -150,8 +158,8 @@ describe('inspect overlay render', () => {
           mouse: {
             kind: 'press',
             button: 'left',
-            x,
-            y,
+            x: 1,
+            y: 1,
             wheel: 0,
             shift: false,
             meta: false,
@@ -161,9 +169,9 @@ describe('inspect overlay render', () => {
         },
       );
 
-    expect(route(65, 4)).toBe(true);
+    expect(route('copy')).toBe(true);
     expect(copyInspectOverlay).toHaveBeenCalledTimes(1);
-    expect(route(74, 4)).toBe(true);
+    expect(route('close')).toBe(true);
     expect(dispatch).toHaveBeenCalledWith({ type: 'inspectOverlayClose' });
 
     routeModalOverlayKey(
