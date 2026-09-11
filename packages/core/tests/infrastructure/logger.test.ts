@@ -201,10 +201,11 @@ describe('DefaultLogger secret redaction (WS-SEC-07)', () => {
 
   it('redacts credentials carried in child bindings', async () => {
     const logFile = path.join(tmp, 'c.log');
-    const log = new DefaultLogger({ level: 'info', file: logFile }).child({ apiKey: KEY });
+    const parent = new DefaultLogger({ level: 'info', file: logFile });
+    const log = parent.child({ apiKey: KEY });
 
     log.info('starting');
-    await log.flush();
+    await parent.flush();
 
     expect(fs.readFileSync(logFile, 'utf8')).not.toContain(KEY);
   });

@@ -20,8 +20,9 @@
  * that it was an object, so every `enum`, `required`, and bound in the
  * `inputSchema` this server publishes on `tools/list` was advisory. Enforcement
  * now runs through the shared `validateAgainstSchema`, which covers
- * type/enum/required but NOT `additionalProperties` or bounds — a boundary the
- * WS-026 block below pins explicitly rather than leaving to assumption.
+ * type/enum/required, numeric bounds (minimum/maximum), and strict-closed
+ * objects (`additionalProperties: false`) — boundaries the WS-026 block below
+ * pins explicitly rather than leaving to assumption.
  */
 import * as http from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -41,9 +42,11 @@ const TOOL: MCPServerTool = {
     properties: {
       mode: { type: 'string', enum: ['read', 'write'] },
       count: { type: 'number', minimum: 1, maximum: 10 },
-      path: { type: 'string' },
+      path: { type: 'string', maxLength: 100 },
+      tags: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 2 },
     },
     required: ['mode', 'path'],
+    patternProperties: { '^opt_': { type: 'string' } },
     additionalProperties: false,
   },
 };
@@ -420,20 +423,71 @@ describe('MCP tools/call schema enforcement (WS-026)', () => {
   });
 
   // SCOPE, pinned deliberately: the shared `validateAgainstSchema` — which
-  // also gates the agent's own tool executor — checks type/enum/required and
-  // nothing else. `additionalProperties: false` and numeric bounds therefore
-  // remain advisory. Teaching the shared validator about them changes what the
-  // agent accepts on EVERY tool call in the product, so it is a separate
-  // decision, not a rider on a transport fix. These two tests exist so that
-  // gap is a stated fact rather than an assumption someone has to rediscover.
-  it('does NOT yet enforce additionalProperties: false', async () => {
+  // also gates the agent's own tool executor — checks type/enum/required,
+  // numeric bounds, strict-closed objects (`additionalProperties: false`),
+  // string lengths (`minLength`/`maxLength`), the `additionalProperties`
+  // subschema form, `patternProperties`, `pattern`, array lengths
+  // (`minItems`/`maxItems`/`uniqueItems`), and the combinators
+  // `allOf`/`anyOf`/`oneOf` (all landed 2026-09-11); before those landed,
+  // out-of-range numbers, smuggled unknown keys, length-violating strings,
+  // mis-typed map values, over-long arrays, and combinator-violating
+  // arguments passed every gate in the product. Still advisory per the
+  // 2026-09-11 usage survey: `const` and `$ref` — declared only in the
+  // techstack rulebook, which validates with its own `validateRulebook` —
+  // pinned in the core validator suite rather than left to assumption.
+  it('enforces additionalProperties: false', async () => {
     const { body } = await call({ ...VALID, injected: 'yes' });
-    expect(body.error).toBeUndefined();
+    expect(body.error?.code).toBe(-32602);
+    expect(body.error?.message).toContain('injected');
+    expect(body.error?.message).toContain('unknown property');
+    expect(received).toHaveLength(0);
   });
 
-  it('does NOT yet enforce numeric bounds', async () => {
-    const { body } = await call({ ...VALID, count: 999 });
+  it('enforces string lengths (maxLength)', async () => {
+    const { body } = await call({ ...VALID, path: 'x'.repeat(101) });
+    expect(body.error?.code).toBe(-32602);
+    expect(body.error?.message).toContain('path');
+    expect(body.error?.message).toContain('expected string length <= 100, got 101');
+    expect(received).toHaveLength(0);
+  });
+
+  it('enforces patternProperties on matching keys', async () => {
+    const { body } = await call({ ...VALID, opt_flag: 1 });
+    expect(body.error?.code).toBe(-32602);
+    expect(body.error?.message).toContain('opt_flag');
+    expect(received).toHaveLength(0);
+  });
+
+  it('treats pattern-governed keys as known (not unknown)', async () => {
+    const before = received.length;
+    const { body } = await call({ ...VALID, opt_flag: 'v' });
     expect(body.error).toBeUndefined();
+    expect(received.length).toBe(before + 1);
+  });
+
+  it('enforces array lengths (maxItems)', async () => {
+    const { body } = await call({ ...VALID, tags: ['a', 'b', 'c'] });
+    expect(body.error?.code).toBe(-32602);
+    expect(body.error?.message).toContain('tags');
+    expect(body.error?.message).toContain('expected array length <= 2, got 3');
+    expect(received).toHaveLength(0);
+  });
+
+  it('enforces numeric bounds (minimum/maximum)', async () => {
+    const { body } = await call({ ...VALID, count: 999 });
+    expect(body.error?.code).toBe(-32602);
+    expect(body.error?.message).toContain('count');
+    expect(body.error?.message).toContain('expected number <= 10, got 999');
+    expect(received).toHaveLength(0);
+  });
+
+  it('accepts arguments at the exact numeric bounds (inclusive)', async () => {
+    const before = received.length;
+    for (const count of [1, 10]) {
+      const { body } = await call({ ...VALID, count });
+      expect(body.error).toBeUndefined();
+    }
+    expect(received.length).toBe(before + 2);
   });
 
   it('rejects a wrong type, which the shared validator does check', async () => {

@@ -133,6 +133,6 @@ describe('decodeSessionIdStrict / isSafeSessionId', () => {
     // `%252e%252e%252f` survived the first pass as an innocuous `%2e%2e%2f`
     // and became `../` on the second. One decode, then validate.
     expect(decodeSessionIdStrict('%252e%252e%252fetc')).toBe('%2e%2e%2fetc');
-    expect(decodeSessionIdStrict(decodeSessionIdStrict('%252e%252e%252fetc'))).toBeNull();
+    expect(decodeSessionIdStrict(decodeSessionIdStrict('%252e%252e%252fetc')!)).toBeNull();
   });
 });

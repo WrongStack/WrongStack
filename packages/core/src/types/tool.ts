@@ -47,6 +47,19 @@ export interface JSONSchema {
   required?: string[] | undefined;
   items?: JSONSchema | undefined;
   enum?: unknown[] | undefined;
+  minimum?: number | undefined;
+  maximum?: number | undefined;
+  additionalProperties?: boolean | JSONSchema | undefined;
+  minLength?: number | undefined;
+  maxLength?: number | undefined;
+  patternProperties?: Record<string, JSONSchema> | undefined;
+  allOf?: JSONSchema[] | undefined;
+  anyOf?: JSONSchema[] | undefined;
+  oneOf?: JSONSchema[] | undefined;
+  pattern?: string | undefined;
+  minItems?: number | undefined;
+  maxItems?: number | undefined;
+  uniqueItems?: boolean | undefined;
   description?: string | undefined;
   [k: string]: unknown;
 }

@@ -122,6 +122,9 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
   let drainPromise: Promise<void> | undefined;
   let stopped = false;
   let dirReady = false;
+  const maxFileBytes = opts.maxFileBytes ?? 10 * 1024 * 1024;
+  const ROTATE_CHECK_EVERY = 100;
+  let writesSinceRotateCheck = 0;
   const flightRecorder = createMemoryFlightRecorder();
   let gcMajorCount = 0;
   let gcMinorCount = 0;
@@ -166,6 +169,35 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
     lastGcAgoMs: lastGcAt > 0 ? Date.now() - lastGcAt : -1,
     lastMajorGcAgoMs: lastMajorGcAt > 0 ? Date.now() - lastMajorGcAt : -1,
   });
+  /**
+   * Size-based rotation, same policy as `DefaultLogger`: when the file
+   * outgrows `maxFileBytes`, rename it to `<file>.1` (dropping the previous
+   * one) so the live file restarts empty. Total disk stays at ~2× the cap.
+   *
+   * Checked every ROTATE_CHECK_EVERY writes rather than on each one, because
+   * `stat` is not free and this sits on the sampling path. Best-effort: a
+   * rename can fail on Windows while another process holds the file, and
+   * several processes append to this same log — the next check retries, and
+   * whoever crosses the threshold first wins.
+   */
+  const maybeRotate = async (targetPath: string): Promise<void> => {
+    if (maxFileBytes <= 0) return;
+    if (writesSinceRotateCheck++ % ROTATE_CHECK_EVERY !== 0) return;
+    let size: number;
+    try {
+      size = (await fsp.stat(targetPath)).size;
+    } catch {
+      return; // file missing — nothing to rotate
+    }
+    if (size < maxFileBytes) return;
+    try {
+      await fsp.rm(`${targetPath}.1`, { force: true });
+      await fsp.rename(targetPath, `${targetPath}.1`);
+    } catch {
+      // locked, or raced by another process — the next check retries
+    }
+  };
+
   const writeDiagnosticLine =
     opts.writeDiagnosticLine ??
     (async (targetPath: string, line: string): Promise<void> => {
@@ -173,6 +205,7 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
         await fsp.mkdir(path.dirname(targetPath), { recursive: true });
         dirReady = true;
       }
+      await maybeRotate(targetPath);
       await fsp.appendFile(targetPath, `${line}\n`, { encoding: 'utf8', mode: 0o600 });
     });
 
@@ -218,6 +251,10 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
       const sample = takeHeapSample();
       const runtimeStats = collectRuntimeStats();
       fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      // Deliberately NOT rotated. This is the crash/exit path: it writes one
+      // line, and a rename here could lose the very evidence it exists to
+      // capture if the process dies mid-operation. The sampling path above
+      // keeps the file bounded; one extra line past the cap is harmless.
       fs.appendFileSync(
         logPath,
         `${JSON.stringify({

@@ -283,6 +283,59 @@ describe('accessibility-auditor plugin', () => {
     expect(result.findings.some((f) => f.rule === 'missing-input-label')).toBe(false);
   });
 
+  it('flags an unlabelled input even when a sibling input is label-wrapped elsewhere (per-element label scoping)', async () => {
+    writeFixture(
+      'ScopedMixedLabels.tsx',
+      '<input type="email" name="email" />\n<label>Name<input type="text" name="name" /></label>\n',
+    );
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: FIXTURE_DIR })) as {
+      findings: Array<{ rule: string; line: number }>;
+    };
+    const missing = result.findings.filter((f) => f.rule === 'missing-input-label');
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.line).toBe(1);
+  });
+
+  it('flags an unlabelled checkbox even when a fieldset/legend labels another checkbox elsewhere', async () => {
+    writeFixture(
+      'ScopedMixedFieldset.tsx',
+      '<input type="checkbox" name="agree" />\n<fieldset><legend>Prefs</legend><input type="checkbox" name="p1" /></fieldset>\n',
+    );
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: FIXTURE_DIR })) as {
+      findings: Array<{ rule: string; line: number }>;
+    };
+    const missing = result.findings.filter((f) => f.rule === 'missing-input-label');
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.line).toBe(1);
+  });
+
+  it('accepts an input wrapped in its own implicit label (no over-flagging)', async () => {
+    writeFixture('ScopedWrappedOnly.tsx', '<label>Name<input type="text" name="name" /></label>\n');
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: FIXTURE_DIR })) as {
+      findings: Array<{ rule: string }>;
+    };
+    expect(result.findings.some((f) => f.rule === 'missing-input-label')).toBe(false);
+  });
+
+  it('accepts a checkbox inside its own fieldset/legend (no over-flagging)', async () => {
+    writeFixture(
+      'ScopedFieldsetOnly.tsx',
+      '<fieldset><legend>Prefs</legend><input type="checkbox" name="p1" /></fieldset>\n',
+    );
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: FIXTURE_DIR })) as {
+      findings: Array<{ rule: string }>;
+    };
+    expect(result.findings.some((f) => f.rule === 'missing-input-label')).toBe(false);
+  });
+
   it('does not flag a button with aria-label and a single-character glyph', async () => {
     writeFixture('Close.tsx', '<button aria-label="Close">×</button>\n');
     const api = makeApi();

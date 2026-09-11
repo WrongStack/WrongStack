@@ -174,8 +174,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1063,
-      "typeOnly": 984,
+      "files": 1064,
+      "typeOnly": 985,
       "runtimeOrMixed": 276
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -16519,6 +16519,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/config-doctor.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/config-pref-updates.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

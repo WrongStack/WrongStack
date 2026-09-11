@@ -395,7 +395,7 @@ describe('domain adapter scrubs credentials from pass-through strings', () => {
       'trace',
     );
     const off = wireDomainEventsToChronicle({ events, journal, context });
-    events.emit('provider.request_failed', payload);
+    events.emit('provider.request_failed' as never, payload as never);
     // Poll rather than sleep a fixed interval: the journal append is async, so
     // a flat 20ms wait passes on an idle machine and fails under parallel test
     // load. A security assertion that fails intermittently teaches people to
@@ -408,7 +408,6 @@ describe('domain adapter scrubs credentials from pass-through strings', () => {
       written = await readFile(file, 'utf8').catch(() => '');
     }
     off();
-    await journal.close?.();
     expect(written.trim(), 'journal never received the event').not.toBe('');
     return written;
   }

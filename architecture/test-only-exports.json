@@ -1546,6 +1546,9 @@
       "probeWrongProxyActive",
       "seedWrongProxyFromConfig"
     ],
+    "packages/webui-server/src/server/routes.ts": [
+      "computeConfigPrefUpdates"
+    ],
     "packages/webui-server/src/server/session-agent-registry.ts": [
       "inheritedSessionMeta"
     ],

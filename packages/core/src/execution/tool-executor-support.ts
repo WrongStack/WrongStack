@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { scrubErrorText } from '../security/error-sanitize.js';
+import { FetchError, ToolValidationError, WrongStackError } from '../types/errors.js';
 import type { ToolErrorCategory } from '../types/tool.js';
 import { ToolErrorCategory as ToolErrorCategoryEnum } from '../types/tool.js';
 import type { ToolExecutorOptions } from '../types/tool-executor.js';
-import { FetchError, ToolValidationError, WrongStackError } from '../types/errors.js';
 import { MALFORMED_ARG_MARKERS } from '../types/tool-markers.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
@@ -47,6 +48,43 @@ export function extractMalformedRaw(input: unknown): string | undefined {
   } catch {
     return String(value);
   }
+}
+
+/** Upper bound on `detail`; it lands in a durable log line, not a transcript. */
+const MAX_VALIDATION_DETAIL = 300;
+
+/**
+ * Describe WHICH validation failed.
+ *
+ * Both validation branches used to hardcode `detail: 'validation'` — a verbatim
+ * restatement of the category it travels beside, so the log line carried no
+ * information the category did not. Every other branch of the classifier puts
+ * something identifying in `detail` (the errno code, `'aborted'`); only this
+ * one degraded. Field evidence: ten `tool execution failed` lines for the
+ * `edit` tool in one day, each `errorCategory: 'validation'` /
+ * `errorDetail: 'validation'`, none of them diagnosable after the fact.
+ *
+ * `ToolValidationError` carries both a message and a `context.field` naming
+ * what failed. Both were discarded at exactly the point they would have been
+ * recorded.
+ *
+ * Scrubbed and capped on the way out: this is a durable log, and a validation
+ * message can quote the offending argument — the same reasoning that put
+ * `scrubErrorText` on the CLI fatal path (H5). `scrubErrorText` keeps the text
+ * and removes credentials and the home directory, so there is no
+ * debuggability trade.
+ */
+function validationDetail(err: Error): string {
+  const field =
+    err instanceof WrongStackError && typeof err.context?.['field'] === 'string'
+      ? err.context['field']
+      : undefined;
+  const described = field ? `${field}: ${err.message}` : err.message;
+  const safe = scrubErrorText(described).trim();
+  // Never return an empty detail: a caller reading `errorDetail` must be able
+  // to distinguish "no message" from "field missing" without a special case.
+  if (!safe) return 'validation';
+  return safe.length > MAX_VALIDATION_DETAIL ? `${safe.slice(0, MAX_VALIDATION_DETAIL)}…` : safe;
 }
 
 /**
@@ -98,10 +136,18 @@ export function classifyToolError(err: unknown): {
   }
 
   if (err instanceof ToolValidationError) {
-    return { category: ToolErrorCategoryEnum.VALIDATION, retryable: false, detail: 'validation' };
+    return {
+      category: ToolErrorCategoryEnum.VALIDATION,
+      retryable: false,
+      detail: validationDetail(err),
+    };
   }
   if (err instanceof Error && err.message.includes('validation')) {
-    return { category: ToolErrorCategoryEnum.VALIDATION, retryable: false, detail: 'validation' };
+    return {
+      category: ToolErrorCategoryEnum.VALIDATION,
+      retryable: false,
+      detail: validationDetail(err),
+    };
   }
 
   if (err instanceof WrongStackError) {
@@ -115,10 +161,17 @@ export function classifyToolError(err: unknown): {
     };
   }
 
+  // Scrubbed for the same reason as the validation branch above: this is an
+  // arbitrary unclassified error, so it is the MOST likely of all the branches
+  // to carry a provider response, a connection string or an echoed header —
+  // and it went to the durable log verbatim. Slice after scrubbing, never
+  // before: truncating first can cut a credential in half and leave the
+  // leading half past the scrubber's pattern.
+  const raw = err instanceof Error ? err.message : String(err);
   return {
     category: ToolErrorCategoryEnum.FATAL,
     retryable: false,
-    detail: err instanceof Error ? err.message.slice(0, 100) : String(err).slice(0, 100),
+    detail: scrubErrorText(raw).slice(0, 100),
   };
 }
 

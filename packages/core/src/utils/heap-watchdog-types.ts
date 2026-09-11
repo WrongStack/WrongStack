@@ -47,6 +47,18 @@ export interface HeapWatchdogOptions {
   logEveryMs?: number | undefined;
   /** Diagnostics file. Default ~/.wrongstack/logs/heap.jsonl */
   logPath?: string | undefined;
+  /**
+   * Rotate the diagnostics file once it exceeds this many bytes: the current
+   * file is renamed to `<file>.1` (replacing any previous one) and a fresh one
+   * starts. Bounds total disk to ~2× this value. Default 10 MB, matching
+   * `DefaultLogger` — its sibling in the same directory.
+   *
+   * This existed nowhere before. The file was append-only with no cap, so a
+   * long-lived install grew it without limit: a real one reached **1.03 GB
+   * across 54 days**, in `~/.wrongstack/logs` next to a `wrongstack.log` that
+   * had been rotating correctly the whole time. Set to 0 to disable rotation.
+   */
+  maxFileBytes?: number | undefined;
   /** Fraction of the heap limit that triggers a 'warn' callback. Default 0.6. */
   warnAt?: number | undefined;
   /** Fraction of the heap limit that triggers a 'critical' callback. Default 0.85. */

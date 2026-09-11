@@ -1455,7 +1455,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 18553
+      "sourceLines": 18606
     },
     {
       "directory": "extension",
@@ -1623,14 +1623,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 72,
-      "sourceLines": 13548
+      "sourceLines": 13561
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 69,
-      "sourceLines": 11701
+      "sourceLines": 12192
     },
     {
       "directory": "wiring",

@@ -27,6 +27,51 @@ import type { SessionEvent } from '../../src/types/session.js';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CORE_SRC = path.resolve(HERE, '../../src');
 
+/**
+ * Variants declaring a free-text field whose value is a thrown error or a
+ * human message — the class that must never land in the journal raw.
+ *
+ * `reason` fields in this union are closed string unions, not free text, so
+ * they are out of scope. `description` on the two provider variants IS in
+ * scope: their `errorBody` is documented as scrubbed at the emit site, but
+ * `description` is free text whose construction was not traceable to a closed
+ * set of categories, so it is scrubbed defensively rather than assumed safe.
+ */
+const FREE_TEXT_ERROR_FIELDS: Record<string, string> = {
+  error: 'message',
+  task_failed: 'error',
+  agent_error: 'error',
+  provider_error: 'description',
+  provider_retry: 'description',
+};
+
+function scrubberSource(): string {
+  return readFileSync(path.join(CORE_SRC, 'storage/session-writer-scrubber.ts'), 'utf8');
+}
+
+/**
+ * Remove line and block comments so a variant mentioned only in prose cannot
+ * satisfy the handled-check. Deliberately naive: it does not track string
+ * literals, so its worst case is stripping too much and failing LOUDLY. A
+ * guard that errs toward a false alarm is the safe direction; one that errs
+ * toward silence is the bug this file was written about.
+ */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*/gu, '');
+}
+
+/**
+ * A variant counts as handled only when the scrubber actually COMPARES
+ * `event.type` against it in live code. The former check was
+ * `source.includes("'<variant>'")`, which any mention anywhere satisfied.
+ */
+function unhandledVariants(source: string): string[] {
+  const code = withoutComments(source);
+  return Object.keys(FREE_TEXT_ERROR_FIELDS).filter(
+    (variant) => !new RegExp(String.raw`event\.type\s*===\s*(['"])${variant}\1`, 'u').test(code),
+  );
+}
+
 const scrubber = new DefaultSecretScrubber();
 const SECRET = 'sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
@@ -96,32 +141,8 @@ describe('session scrub parity — the union cannot outgrow the scrubber', () =>
     return [...new Set([...source.matchAll(/type:\s*'([a-z_]+)'/g)].map((m) => m[1] as string))];
   }
 
-  /**
-   * Variants declaring a free-text field whose value is a thrown error or a
-   * human message — the class that must never land in the journal raw.
-   *
-   * `reason` fields in this union are closed string unions, not free text, so
-   * they are out of scope. `description` on the two provider variants IS in
-   * scope: their `errorBody` is documented as scrubbed at the emit site, but
-   * `description` is free text whose construction was not traceable to a closed
-   * set of categories, so it is scrubbed defensively rather than assumed safe.
-   */
-  const FREE_TEXT_ERROR_FIELDS: Record<string, string> = {
-    error: 'message',
-    task_failed: 'error',
-    agent_error: 'error',
-    provider_error: 'description',
-    provider_retry: 'description',
-  };
-
   it('every known free-text error variant is handled by the scrubber', () => {
-    const source = readFileSync(
-      path.join(CORE_SRC, 'storage/session-writer-scrubber.ts'),
-      'utf8',
-    );
-    const unhandled = Object.keys(FREE_TEXT_ERROR_FIELDS).filter(
-      (variant) => !source.includes(`'${variant}'`),
-    );
+    const unhandled = unhandledVariants(scrubberSource());
     expect(
       unhandled,
       'These SessionEvent variants carry raw error text but have no case in ' +
@@ -146,10 +167,36 @@ describe('session scrub parity — the union cannot outgrow the scrubber', () =>
     ).toEqual([]);
   });
 
-  it('self-check: the parity walk can actually fail', () => {
-    // The scrubber-source scan is a substring test; prove it distinguishes.
-    const pretendSource = "if (event.type === 'error') { return event; }";
-    expect(pretendSource.includes("'error'")).toBe(true);
-    expect(pretendSource.includes("'agent_error'")).toBe(false);
+  // SECURITY.md rule 3: validate a guard by injection, never by watching it
+  // pass. The two tests below re-introduce the exact vulnerability this file
+  // exists to catch and assert the guard NOTICES. Neither touches disk — each
+  // feeds a mutated copy of the real source through the same predicate the
+  // test above uses, so they fail if the predicate is ever weakened.
+  it('injection: deleting a real case is reported as unhandled', () => {
+    const mutated = scrubberSource().replace(
+      "event.type === 'error'",
+      "event.type === 'definitely_not_error'",
+    );
+    expect(
+      mutated,
+      'injection did not apply — the comparison this test mutates was ' +
+        'renamed, so the assertion below would pass vacuously',
+    ).not.toBe(scrubberSource());
+    expect(unhandledVariants(mutated)).toEqual(['error']);
+  });
+
+  it('injection: a case surviving only in a comment does not count as handled', () => {
+    // The predecessor of this guard was a bare `source.includes("'error'")`
+    // over the whole file. It passed on any mention anywhere — including a
+    // doc-comment describing a case that had since been deleted. This file's
+    // comments happen to use backticks, so the hole never fired; that is luck,
+    // not a guarantee, and luck is not a control.
+    const mutated = scrubberSource().replace(
+      "if (event.type === 'error') {",
+      "// if (event.type === 'error') {\n  if (false) {",
+    );
+    expect(mutated).not.toBe(scrubberSource());
+    expect(mutated).toContain("'error'");
+    expect(unhandledVariants(mutated)).toEqual(['error']);
   });
 });

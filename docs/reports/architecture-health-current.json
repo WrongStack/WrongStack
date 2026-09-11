@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T01:12:52.243Z",
+  "generatedAt": "2026-09-11T08:19:01.960Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3739,
-    "testFiles": 3245,
-    "sourceLines": 902706,
+    "testFiles": 3249,
+    "sourceLines": 903365,
     "workspaceEdges": 128,
-    "moduleEdges": 11903,
+    "moduleEdges": 11904,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 907
+    "testOnlyExports": 908
   },
   "errors": [],
   "packageCycles": [],
@@ -216,7 +216,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 848,
-      "testFiles": 738,
+      "testFiles": 740,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -231,7 +231,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 738
+          "testFiles": 740
         }
       ]
     },
@@ -889,7 +889,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 224,
-      "testFiles": 207,
+      "testFiles": 209,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -915,7 +915,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 207
+          "testFiles": 209
         }
       ]
     },
@@ -6495,6 +6495,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/execution/classify-tool-error-detail.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/execution/classify-tool-error.test.ts",
         "projects": [
           "root-node"
@@ -8824,6 +8830,12 @@
       },
       {
         "file": "packages/core/tests/utils/glob-match.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/heap-watchdog-rotation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17085,6 +17097,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/architecture/frozen-config-writes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/auto-healer.test.ts",
         "projects": [
           "root-node"
@@ -17194,6 +17212,12 @@
       },
       {
         "file": "packages/webui-server/tests/config-doctor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/config-pref-updates.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20912,7 +20936,7 @@
     },
     {
       "file": "packages/mcp/src/server.ts",
-      "lines": 836,
+      "lines": 840,
       "relativeImports": 2
     },
     {
@@ -21302,7 +21326,7 @@
     },
     {
       "file": "packages/webui-server/src/server/routes.ts",
-      "lines": 975,
+      "lines": 1029,
       "relativeImports": 47
     },
     {
@@ -21416,6 +21440,11 @@
       "file": "packages/plugins/src/git-autocommit/index.ts",
       "lines": 1030,
       "relativeImports": 0
+    },
+    {
+      "file": "packages/webui-server/src/server/routes.ts",
+      "lines": 1029,
+      "relativeImports": 47
     },
     {
       "file": "packages/sage/src/tools/memory-tools.ts",
@@ -21536,11 +21565,6 @@
       "file": "packages/core/src/execution/eternal-autonomy.ts",
       "lines": 978,
       "relativeImports": 8
-    },
-    {
-      "file": "packages/webui-server/src/server/routes.ts",
-      "lines": 975,
-      "relativeImports": 47
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
@@ -24556,6 +24580,10 @@
     {
       "file": "packages/webui-server/src/server/proxy-runtime.ts",
       "name": "seedWrongProxyFromConfig"
+    },
+    {
+      "file": "packages/webui-server/src/server/routes.ts",
+      "name": "computeConfigPrefUpdates"
     },
     {
       "file": "packages/webui-server/src/server/session-agent-registry.ts",

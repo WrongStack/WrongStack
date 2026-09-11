@@ -245,7 +245,12 @@ describe('connection error state', () => {
     const client = new WrongStackWebSocketClient(URL_);
     client['shouldReconnect'] = false;
     const statuses: Array<{ state: string; error?: string }> = [];
-    client.onStatus((status) => statuses.push({ state: status.state, error: status.error }));
+    client.onStatus((status) =>
+      statuses.push({
+        state: status.state,
+        error: status.state === 'closed' ? status.error : undefined,
+      }),
+    );
 
     const secret = ['s' + 'k', 'p' + 'roj', '1234567890123456789012345678901234567890'].join('-');
     FakeWSModule.control.throwOnConstruct = new Error(`provider rejected key ${secret}`);

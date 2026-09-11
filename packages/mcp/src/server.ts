@@ -259,13 +259,17 @@ export class MCPServer {
    * tools are written against the schema they declared.
    *
    * SCOPE: `validateAgainstSchema` is the shared validator that also gates the
-   * agent's own tool executor. It checks `type`, `enum`, and `required`, and
-   * recurses through `properties`/`items` — it does NOT check
-   * `additionalProperties: false`, numeric bounds, or string lengths. So those
-   * keywords stay advisory here. Teaching the shared validator about them
-   * would change what the agent accepts on every tool call in the product,
-   * which is a deliberate decision that does not belong inside a transport
-   * fix; it is tracked separately.
+   * agent's own tool executor. It checks `type`, `enum`, `required`, recurses
+   * through `properties`/`items`, enforces numeric bounds
+   * (`minimum`/`maximum`), rejects unknown keys on strict-closed objects
+   * (`additionalProperties: false`), validates the `additionalProperties`
+   * subschema form against unknown-key values, applies `patternProperties`
+   * to matching keys, enforces string lengths (`minLength`/`maxLength`) and
+   * `pattern`, array lengths (`minItems`/`maxItems`/`uniqueItems`), and the
+   * combinators `allOf`/`anyOf`/`oneOf` (all landed 2026-09-11). Still
+   * advisory per the 2026-09-11 usage survey: `const` and `$ref` — declared
+   * only in the techstack rulebook, which validates with its own
+   * `validateRulebook`, not this validator.
    *
    * Unknown tool names are left alone — the host owns that error, and
    * answering "no such tool" here would fork the message for no benefit.

@@ -154,11 +154,30 @@ const ATTR_TITLE = /\btitle\s*=/i;
 const ATTR_PLACEHOLDER = /\bplaceholder\s*=/i;
 const ATTR_VALUE = /\bvalue\s*=/i;
 const ATTR_ROLE_DECORATIVE = /\brole\s*=\s*["'](?:presentation|none)["']/i;
+const LABEL_SPAN = /<label\b[^>]*>[\s\S]*?<\/label>/gi;
+const FIELDSET_SPAN = /<fieldset\b[^>]*>[\s\S]*?<\/fieldset>/gi;
 const SINGLE_FILE_LABEL_NOTE =
   'Single-file heuristic: a label declared in a sibling component file is not visible to this scan.';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Half-open [start, end) offsets of one open/close tag pair in the file. */
+interface TagSpan {
+  start: number;
+  end: number;
+}
+
+function collectSpans(content: string, re: RegExp): TagSpan[] {
+  return [...content.matchAll(re)].map((m) => ({
+    start: m.index ?? 0,
+    end: (m.index ?? 0) + m[0].length,
+  }));
+}
+
+function isInsideSpan(spans: readonly TagSpan[], offset: number): boolean {
+  return spans.some((s) => offset > s.start && offset < s.end);
 }
 
 function hasMeaningfulAlt(tag: string): boolean {
@@ -172,7 +191,12 @@ function hasMeaningfulAlt(tag: string): boolean {
   return ATTR_ROLE_DECORATIVE.test(tag);
 }
 
-function hasFieldsetLegendLabel(tag: string, content: string): boolean {
+function hasFieldsetLegendLabel(
+  tag: string,
+  content: string,
+  fieldsetSpans: readonly TagSpan[],
+  inputStart: number,
+): boolean {
   const labelledBy = tag.match(/\baria-labelledby\s*=\s*["']([^"']+)["']/i);
   if (labelledBy?.[1]) {
     for (const id of labelledBy[1].split(/\s+/).filter(Boolean)) {
@@ -183,8 +207,15 @@ function hasFieldsetLegendLabel(tag: string, content: string): boolean {
   const typeMatch = tag.match(/\btype\s*=\s*["']?([^"'\s>]*)["']?/i);
   const type = typeMatch ? typeMatch[1]!.toLowerCase() : 'text';
   if (type === 'checkbox' || type === 'radio') {
-    return /<fieldset\b[\s\S]*?<legend\b[\s\S]*?<\/legend>[\s\S]*?<input\b[\s\S]*?<\/fieldset>/i.test(
-      content,
+    // Per-element containment: THIS input sits inside a fieldset whose
+    // <legend> closes before the input starts. The previous content-wide
+    // regex accepted any fieldset/legend/input sequence anywhere in the
+    // file, letting an unrelated legend label every checkbox/radio in it.
+    return fieldsetSpans.some(
+      (s) =>
+        inputStart > s.start &&
+        inputStart < s.end &&
+        /<legend\b[\s\S]*?<\/legend>/i.test(content.slice(s.start, inputStart)),
     );
   }
   return false;
@@ -201,6 +232,18 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
   const findings: A11yFinding[] = [];
   const lines = content.split(/\r?\n/);
   const idsByValue = new Map<string, number[]>();
+
+  // Absolute offset of each line's start, so per-tag evidence (label wrap,
+  // fieldset/legend) can be evaluated by element containment instead of by
+  // file-wide regex — a file-global test let one wrapped input or one
+  // unrelated legend label every input in the file. indexOf('\n') keeps
+  // offsets exact for CRLF sources as well.
+  const lineStarts: number[] = [0];
+  for (let nl = content.indexOf('\n'); nl !== -1; nl = content.indexOf('\n', nl + 1)) {
+    lineStarts.push(nl + 1);
+  }
+  const labelSpans = collectSpans(content, LABEL_SPAN);
+  const fieldsetSpans = collectSpans(content, FIELDSET_SPAN);
 
   function add(
     line: number,
@@ -273,8 +316,9 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
         );
         hasLabelFor = labelForRe.test(content);
       }
-      const wrappedInLabel = /<label\b[\s\S]*?<input\b[\s\S]*?<\/label>/i.test(content);
-      const hasLegend = hasFieldsetLegendLabel(tag, content);
+      const inputStart = (lineStarts[i] ?? 0) + (inputMatch.index ?? 0);
+      const wrappedInLabel = isInsideSpan(labelSpans, inputStart);
+      const hasLegend = hasFieldsetLegendLabel(tag, content, fieldsetSpans, inputStart);
       const hasPrimaryLabel =
         hasAriaLabel || hasTitle || hasLabelFor || wrappedInLabel || hasLegend;
 

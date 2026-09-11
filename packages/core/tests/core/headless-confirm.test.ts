@@ -271,17 +271,17 @@ describe('Headless confirm fallback (P1 #4)', () => {
 
     const nativeSetTimeout = globalThis.setTimeout.bind(globalThis);
     let fireApprovalTimeout: (() => void) | undefined;
-    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
-      handler: TimerHandler,
-      timeout?: number,
-      ...args: unknown[]
+    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation((
+      handler,
+      timeout,
+      ...args
     ) => {
       const scheduled = nativeSetTimeout(handler, timeout, ...args);
       if (timeout === HUMAN_APPROVAL_TIMEOUT_MS && typeof handler === 'function') {
         fireApprovalTimeout = () => handler(...args);
       }
       return scheduled;
-    }) as typeof setTimeout);
+    });
     try {
       const startedAt = Date.now();
       const run = agent.run('do the dangerous thing');

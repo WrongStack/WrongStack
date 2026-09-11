@@ -8,6 +8,7 @@ import {
   splitDesktopActivityBarItems,
 } from '@/components/activity-bar';
 import { useUIStore } from '@/stores';
+import type { ActivityBarOrder } from '@/stores/ui-store-types';
 
 // Pure helpers ─────────────────────────────────────────────────────────
 
@@ -94,27 +95,27 @@ describe('activity-bar · reorder · pure helpers', () => {
 // splitDesktopActivityBarItems integration ──────────────────────────────
 
 describe('activity-bar · splitDesktopActivityBarItems', () => {
-  const PANELS = [
-    { id: 'chat', label: 'Session', icon: null },
-    { id: 'files', label: 'Files', icon: null },
-    { id: 'changes', label: 'Changes', icon: null },
-    { id: 'mailbox', label: 'Mailbox', icon: null },
-    { id: 'skills', label: 'Skills', icon: null },
-    { id: 'design', label: 'Design Studio', icon: null },
+  const PANELS: NonNullable<Parameters<typeof splitDesktopActivityBarItems>[1]> = [
+    { id: 'chat', label: 'Session', icon: null! },
+    { id: 'files', label: 'Files', icon: null! },
+    { id: 'changes', label: 'Changes', icon: null! },
+    { id: 'mailbox', label: 'Mailbox', icon: null! },
+    { id: 'skills', label: 'Skills', icon: null! },
+    { id: 'design', label: 'Design Studio', icon: null! },
   ];
-  const VIEWS = [
-    { id: 'intake', label: 'Requirements', icon: null },
-    { id: 'sddhub', label: 'SDD', icon: null },
-    { id: 'goal', label: 'Goal', icon: null },
-    { id: 'kanban', label: 'Kanban', icon: null },
-    { id: 'roster', label: 'Agent Roster', icon: null },
-    { id: 'codemap', label: 'CodeMap', icon: null },
-    { id: 'techstack', label: 'TechStack', icon: null },
-    { id: 'history', label: 'Repository History', icon: null },
-    { id: 'chronicle', label: 'Chronicle', icon: null },
-    { id: 'prompts', label: 'Prompt Journal', icon: null },
-    { id: 'chimera', label: 'Chimera Reviews', icon: null },
-    { id: 'memory', label: 'Memory', icon: null },
+  const VIEWS: NonNullable<Parameters<typeof splitDesktopActivityBarItems>[2]> = [
+    { id: 'intake', label: 'Requirements', icon: null! },
+    { id: 'sddhub', label: 'SDD', icon: null! },
+    { id: 'goal', label: 'Goal', icon: null! },
+    { id: 'kanban', label: 'Kanban', icon: null! },
+    { id: 'roster', label: 'Agent Roster', icon: null! },
+    { id: 'codemap', label: 'CodeMap', icon: null! },
+    { id: 'techstack', label: 'TechStack', icon: null! },
+    { id: 'history', label: 'Repository History', icon: null! },
+    { id: 'chronicle', label: 'Chronicle', icon: null! },
+    { id: 'prompts', label: 'Prompt Journal', icon: null! },
+    { id: 'chimera', label: 'Chimera Reviews', icon: null! },
+    { id: 'memory', label: 'Memory', icon: null! },
   ];
 
   it('matches the existing default-order behavior when no overrides are passed', () => {
@@ -199,7 +200,7 @@ describe('activity-bar · store wiring (setActivityBarOrder + persist v8)', () =
   });
 
   it('persists the custom order via setState and clears it on null', () => {
-    const order = {
+    const order: ActivityBarOrder = {
       panels: ['design', 'skills'],
       views: ['roster', 'goal', 'intake', 'sddhub'],
     };
@@ -308,7 +309,7 @@ describe('activity-bar · reorder · UI mode toggles', () => {
   });
 
   it('exits reorder mode on Done and preserves the user order', () => {
-    const order = {
+    const order: ActivityBarOrder = {
       panels: ['design', 'skills'],
       views: ['goal', 'intake', 'roster', 'kanban'],
     };

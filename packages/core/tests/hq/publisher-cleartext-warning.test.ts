@@ -20,6 +20,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HqPublisher, type HqSocketLike } from '../../src/hq/publisher.js';
+import type { Logger } from '../../src/types/logger.js';
 
 class FakeSocket implements HqSocketLike {
   readyState = 0;
@@ -67,17 +68,32 @@ afterEach(() => vi.useRealTimers());
 /** Connect a publisher to `url` and return every warn line it emitted. */
 function warningsForEndpoint(
   url: string,
-  redactionPolicy?: Parameters<typeof HqPublisher>[0]['redactionPolicy'],
+  redactionPolicy?: NonNullable<
+    ConstructorParameters<typeof HqPublisher>[0]['redactionPolicy']
+  >,
 ): string[] {
   const warnings: string[] = [];
   const socket = new FakeSocket();
+  const logger: Logger = {
+    level: 'warn',
+    error() {},
+    warn: (msg: string) => {
+      warnings.push(msg);
+    },
+    info() {},
+    debug() {},
+    trace() {},
+    child() {
+      return this;
+    },
+  };
   const publisher = new HqPublisher({
     url,
     client,
     project,
     reconnect: false,
     socketFactory: () => socket,
-    logger: { warn: (msg: string) => warnings.push(msg) },
+    logger,
     ...(redactionPolicy !== undefined ? { redactionPolicy } : {}),
   });
   publisher.connect();
@@ -122,7 +138,7 @@ describe('HqPublisher warns before shipping raw content over cleartext', () => {
       warningsForEndpoint('ws://hq.redacted.example:3499', {
         rawContent: false,
         toolArgs: 'summary',
-        paths: 'relative',
+        paths: 'project-relative',
       }),
     ).toEqual([]);
   });
@@ -133,7 +149,7 @@ describe('HqPublisher warns before shipping raw content over cleartext', () => {
     const warnings = warningsForEndpoint('ws://hq.partial.example:3499', {
       rawContent: false,
       toolArgs: 'full',
-      paths: 'relative',
+      paths: 'project-relative',
     });
     expect(warnings).toHaveLength(1);
   });

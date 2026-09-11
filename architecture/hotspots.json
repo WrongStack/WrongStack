@@ -207,7 +207,7 @@
       "relativeImports": 12
     },
     "packages/mcp/src/server.ts": {
-      "lines": 836,
+      "lines": 840,
       "relativeImports": 2
     },
     "packages/plugins/src/duplicate-code-detector/index.ts": {
@@ -519,7 +519,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 975,
+      "lines": 1029,
       "relativeImports": 47
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

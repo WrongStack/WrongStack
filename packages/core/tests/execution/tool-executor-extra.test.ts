@@ -100,10 +100,14 @@ describe('classifyToolError', () => {
       message: 'invalid input',
       code: 'TOOL_VALIDATION',
     });
+    // `detail` was the constant 'validation' — a restatement of the category
+    // beside it. Ten field log lines for the `edit` tool read
+    // `"errorCategory":"validation","errorDetail":"validation"` and were not
+    // diagnosable. It now names the failure. See classify-tool-error-detail.
     expect(classifyToolError(err)).toEqual({
       category: ToolErrorCategory.VALIDATION,
       retryable: false,
-      detail: 'validation',
+      detail: 'invalid input',
     });
   });
 
@@ -113,7 +117,7 @@ describe('classifyToolError', () => {
     expect(classifyToolError(err)).toEqual({
       category: ToolErrorCategory.VALIDATION,
       retryable: false,
-      detail: 'validation',
+      detail: 'input validation failed: field x is required',
     });
   });
 
