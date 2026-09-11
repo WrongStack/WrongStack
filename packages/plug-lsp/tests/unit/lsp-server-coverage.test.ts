@@ -10,6 +10,7 @@ import { LSPRegistry } from '../../src/registry.js';
 import { LSPServer, lspServerCoverage } from '../../src/server/lsp-server.js';
 import type { PlugLSPConfig } from '../../src/types.js';
 import { LSPErrorCode } from '../../src/types.js';
+import { uriKey } from '../../src/utils/uri.js';
 
 const log = {
   level: 'error',
@@ -199,10 +200,10 @@ describe('LSP server completion coverage', () => {
       withSet.setDiagnostics(`file:///doc-${i}.ts`, []);
     }
     expect(value.diagnostics.size).toBe(LSPServer.MAX_DIAGNOSTICS_ENTRIES);
-    expect(value.diagnostics.has('file:///doc-0.ts')).toBe(false);
-    expect(value.diagnostics.has(`file:///doc-${LSPServer.MAX_DIAGNOSTICS_ENTRIES + 9}.ts`)).toBe(
-      true,
-    );
+    expect(value.diagnostics.has(uriKey('file:///doc-0.ts'))).toBe(false);
+    expect(
+      value.diagnostics.has(uriKey(`file:///doc-${LSPServer.MAX_DIAGNOSTICS_ENTRIES + 9}.ts`)),
+    ).toBe(true);
   });
 
   it('eviction loop tolerates a broken map iterator (defensive guard at lsp-server.ts:332)', () => {
@@ -223,7 +224,7 @@ describe('LSP server completion coverage', () => {
       withSet.setDiagnostics('file:///broken-iterator.ts', []);
       // Nothing was evicted — the guard exited the loop without deleting.
       expect(value.diagnostics.size).toBeGreaterThan(LSPServer.MAX_DIAGNOSTICS_ENTRIES);
-      expect(value.diagnostics.has('file:///broken-iterator.ts')).toBe(true);
+      expect(value.diagnostics.has(uriKey('file:///broken-iterator.ts'))).toBe(true);
     } finally {
       value.diagnostics.keys = originalKeys;
     }
