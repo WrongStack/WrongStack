@@ -1,5 +1,7 @@
 export class UsageError extends Error {}
 
+export class VerificationTimeoutError extends Error {}
+
 export interface PublishOptions {
   plan: boolean;
   dryRun: boolean;
@@ -24,5 +26,11 @@ export function checkPublished(
   version: string,
   deps?: { fetch?: typeof globalThis.fetch },
 ): Promise<{ ok: true } | { ok: false; reason: string }>;
+
+export function partitionLive<T extends { name: string; version: string }>(
+  layer: T[],
+  options: { registry: string },
+  deps?: { checkPublished?: typeof checkPublished },
+): Promise<{ live: T[]; pending: T[] }>;
 
 export function main(argv: string[]): Promise<number>;

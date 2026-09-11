@@ -32,14 +32,31 @@
  *     fetchable - before publishing the next layer.
  *
  * Step 3 is the load-bearing one: it makes "the entrypoint is on npm before
- * its dependencies are" unrepresentable rather than unlikely. Re-running is
- * safe; npm rejects a duplicate version and pnpm skips packages already at the
- * target version.
+ * its dependencies are" unrepresentable rather than unlikely.
+ *
+ * Resuming a partial release
+ * --------------------------
+ * Steps 1-3 are sequential, so anything that stops the run - a slow registry, a
+ * dropped connection, Ctrl-C - stops it midway with the earlier layers already
+ * published. That is fine by design, but only if re-running finishes the job.
+ * It did not: `pnpm publish` invoked per-package through `--filter` does not
+ * skip a version npm already has, it exits non-zero on E403, so the re-run died
+ * on layer 1 of a release that had reached layer 8. The recovery that looked
+ * available was a version bump, which republishes every unchanged package and
+ * strands the half-finished version on npm forever.
+ *
+ * So step 0: before publishing a layer, ask the registry which of its packages
+ * are already live and publish only the rest (`partitionLive`). The registry is
+ * the resume state - there is no local file to go stale across machines, CI
+ * re-runs, or crashes. A verification timeout is also reported as its own thing
+ * (exit 3, `VerificationTimeoutError`) rather than as a publish failure, because
+ * the two call for opposite reactions and only one of them is alarming.
  *
  * Usage:
  *   node scripts/publish-workspace.mjs [--dry-run] [--plan] [options] [-- <pnpm args>]
  *
- * Exit codes: 0 success; 1 publish or verification failure; 2 usage error.
+ * Exit codes: 0 success; 1 publish failure; 2 usage error; 3 published but the
+ * registry had not served a layer in time - re-run to resume.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
@@ -49,6 +66,15 @@ import { fileURLToPath } from 'node:url';
 import { collectPublishablePackages, layerByDependencies } from './lib/publishable-packages.mjs';
 
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
+/**
+ * Printed on every non-success exit. Spelling out "do not bump" is the point:
+ * the release that motivated this text stalled on layer 8 of 10, and the bump
+ * that followed turned 5 remaining publishes into 36.
+ */
+const RESUME_HINT =
+  'Nothing is lost and no version bump is needed. Re-run the same command: ' +
+  'every package already on the registry is skipped, so only the remainder ' +
+  'publishes. `pnpm release:verify` shows what is still missing.';
 /** npm asks for this shape on install; verifying the same document is what proves a user can resolve. */
 const PACKUMENT_ACCEPT = 'application/vnd.npm.install-v1+json';
 
@@ -79,6 +105,17 @@ const USAGE = `Usage: node scripts/publish-workspace.mjs [options] [-- <extra pn
 
 /** Usage errors exit 2, matching the other script entrypoints in this repo. */
 export class UsageError extends Error {}
+
+/**
+ * The registry did not serve a layer within its budget.
+ *
+ * Distinct from a publish failure on purpose. A publish failure means bits did
+ * not leave the machine; a verification timeout means they did and npm has not
+ * caught up. Collapsing the two into "exit 1, layer N failed" is what made a
+ * slow propagation read as a broken release and pushed the operator into a
+ * version bump - the one recovery that cannot be undone.
+ */
+export class VerificationTimeoutError extends Error {}
 
 /**
  * @param {string[]} argv
@@ -323,6 +360,39 @@ export async function checkPublished(registry, name, version, deps = {}) {
 }
 
 /**
+ * Split a layer into what the registry already serves and what still has to be
+ * published.
+ *
+ * This is the resume primitive, and it is the difference between "re-running is
+ * safe" being a claim in a comment and being true. `pnpm publish` does NOT
+ * reliably skip a version that is already on the registry when it is invoked
+ * per-package through `--filter`: npm answers E403 ("cannot publish over the
+ * previously published version") and pnpm surfaces that as a non-zero exit, so
+ * a re-run after a partial release died on layer 1 with every earlier layer
+ * already live. The only recoveries left were bumping the version - republishing
+ * 31 unchanged packages to get 5 out - or hand-editing the layer list.
+ *
+ * The registry is the state store here on purpose. A local resume file would be
+ * one more thing that can disagree with reality after a crash, a different
+ * machine, or a CI re-run; asking npm what it serves cannot go stale.
+ *
+ * @param {import('./lib/publishable-packages.d.mts').PublishablePackage[]} layer
+ * @param {{registry: string}} options
+ * @param {{checkPublished?: typeof checkPublished}} [deps] injection seam for tests
+ * @returns {Promise<{live: typeof layer, pending: typeof layer}>}
+ */
+export async function partitionLive(layer, { registry }, deps = {}) {
+  const check = deps.checkPublished ?? checkPublished;
+  const results = await Promise.all(
+    layer.map(async (pkg) => ({ pkg, live: (await check(registry, pkg.name, pkg.version)).ok })),
+  );
+  return {
+    live: results.filter((r) => r.live).map((r) => r.pkg),
+    pending: results.filter((r) => !r.live).map((r) => r.pkg),
+  };
+}
+
+/**
  * Poll until every package in the layer resolves, or the budget runs out.
  * @param {import('./lib/publishable-packages.d.mts').PublishablePackage[]} layer
  * @param {{registry: string, timeoutMs: number, intervalMs: number}} options
@@ -358,7 +428,7 @@ async function verifyLayer(layer, { registry, timeoutMs, intervalMs }) {
       const detail = pending
         .map((p) => `  ${p.name}@${p.version} - ${lastReason.get(p.name) ?? 'unknown'}`)
         .join('\n');
-      throw new Error(
+      throw new VerificationTimeoutError(
         `Registry did not serve ${pending.length} package(s) within ` +
           `${Math.round(timeoutMs / 1000)}s:\n${detail}\n\n` +
           'Publishing the next layer now would put a dependent on npm ahead of ' +
@@ -450,8 +520,28 @@ export async function main(argv) {
   }
 
   for (const [index, layer] of layers.entries()) {
-    console.log(`\n-- Layer ${index + 1}/${layers.length}: publishing ${layer.length} package(s)`);
-    const filters = layer.flatMap((p) => ['--filter', p.name]);
+    console.log(`\n-- Layer ${index + 1}/${layers.length}: ${layer.length} package(s)`);
+
+    // Resume: ask the registry what it already serves and publish only the rest.
+    // On a fresh release this costs one round trip per package and skips
+    // nothing; after a partial release it is the whole recovery.
+    let todo = layer;
+    if (!options.dryRun) {
+      const { live, pending } = await partitionLive(layer, options);
+      for (const p of live) {
+        console.log(`   SKIP ${p.name}@${p.version} - already live on the registry`);
+      }
+      todo = pending;
+      if (todo.length === 0) {
+        // Nothing to publish means nothing to wait for: `live` came from the
+        // same check `verifyLayer` polls, so the layer is already proven.
+        console.log('   layer already complete');
+        continue;
+      }
+    }
+
+    console.log(`   publishing ${todo.length} package(s)`);
+    const filters = todo.flatMap((p) => ['--filter', p.name]);
     const args = [
       ...filters,
       'publish',
@@ -476,21 +566,10 @@ export async function main(argv) {
         // attestation automatically from the ambient OIDC token; an explicit
         // --provenance flag would break every non-GitHub-Actions invocation
         // (Chimera review).
-        for (const p of layer) {
+        // Already-live packages were filtered out above, which is what makes a
+        // workflow_dispatch re-run resume instead of dying on npm's E403.
+        for (const p of todo) {
           const tarball = resolveTarball(options.tarballsDir, p.name, p.version);
-          // workflow_dispatch re-run recovery: npm publish of an existing
-          // version fails the whole job with E403 instead of skipping it
-          // (Chimera review), which would break the documented "re-run
-          // resumes a partly-failed publish" contract. Ask the registry
-          // first and skip packages that are already live — the same
-          // semantics pnpm's own publish path has.
-          if (!options.dryRun) {
-            const live = await checkPublished(options.registry, p.name, p.version);
-            if (live.ok) {
-              console.log(`   SKIP ${p.name}@${p.version} — already live on the registry`);
-              continue;
-            }
-          }
           await runNpm([
             'publish',
             tarball,
@@ -505,7 +584,7 @@ export async function main(argv) {
       }
     } catch (error) {
       console.error(`\nLayer ${index + 1} publish failed: ${error.message}`);
-      console.error('Already-published layers stay published; re-running this script skips them.');
+      console.error(RESUME_HINT);
       return 1;
     }
 
@@ -515,9 +594,17 @@ export async function main(argv) {
     }
     console.log(`   verifying layer ${index + 1} against ${options.registry} ...`);
     try {
-      await verifyLayer(layer, options);
+      await verifyLayer(todo, options);
     } catch (error) {
       console.error(`\n${error.message}`);
+      if (error instanceof VerificationTimeoutError) {
+        console.error(
+          `\nThis is NOT a publish failure. Layers 1-${index + 1} left this machine and ` +
+            'npm has them; the registry just has not served them yet.',
+        );
+        console.error(RESUME_HINT);
+        return 3;
+      }
       return 1;
     }
   }

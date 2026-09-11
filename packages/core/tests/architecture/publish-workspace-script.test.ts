@@ -3,7 +3,11 @@ import {
   collectPublishablePackages,
   layerByDependencies,
 } from '../../../../scripts/lib/publishable-packages.mjs';
-import { checkPublished, parseArgs } from '../../../../scripts/publish-workspace.mjs';
+import {
+  checkPublished,
+  parseArgs,
+  partitionLive,
+} from '../../../../scripts/publish-workspace.mjs';
 
 /**
  * Regression cover for the 0.317.2 release, where `pnpm publish -r` let the
@@ -106,6 +110,69 @@ describe('publish-workspace argument parsing', () => {
     expect(() => parseArgs(['--bogus'])).toThrow(/Unknown argument/);
     expect(() => parseArgs(['--verify-timeout', 'abc'])).toThrow(/Invalid value/);
     expect(() => parseArgs(['--registry'])).toThrow(/Missing value/);
+  });
+});
+
+/**
+ * Regression cover for the 1.0.5 release, which reached layer 8 of 10 and then
+ * stalled. Re-running published nothing: `pnpm publish` per-package through
+ * `--filter` does not skip a version npm already serves, so layer 1 exited
+ * non-zero on E403 and the only apparent recovery was a version bump - turning
+ * 5 remaining publishes into 36 and stranding a half-published 1.0.5 on npm.
+ */
+describe('partial-release resume', () => {
+  const pkg = (name: string) => ({ name, version: '1.0.5' });
+
+  it('publishes only what the registry does not already serve', async () => {
+    const live = new Set(['@wrongstack/tui', '@wrongstack/webui']);
+    const { live: skipped, pending } = await partitionLive(
+      [pkg('@wrongstack/tui'), pkg('@wrongstack/webui'), pkg('@wrongstack/webui-server')],
+      { registry: 'https://registry.test' },
+      {
+        checkPublished: async (_registry, name) =>
+          live.has(name) ? { ok: true } : { ok: false, reason: 'version missing from packument' },
+      },
+    );
+
+    expect(pending.map((p) => p.name)).toEqual(['@wrongstack/webui-server']);
+    expect(skipped.map((p) => p.name)).toEqual(['@wrongstack/tui', '@wrongstack/webui']);
+  });
+
+  it('treats an unreachable registry as not-published rather than as published', async () => {
+    // Erring the other way would silently skip a package and ship a layer with
+    // a hole in it - the ETARGET failure this script exists to prevent.
+    const { live, pending } = await partitionLive(
+      [pkg('@wrongstack/core')],
+      { registry: 'https://registry.test' },
+      { checkPublished: async () => ({ ok: false, reason: 'packument fetch failed: ECONNRESET' }) },
+    );
+
+    expect(live).toEqual([]);
+    expect(pending.map((p) => p.name)).toEqual(['@wrongstack/core']);
+  });
+
+  it('reports a fully-published layer as nothing left to do', async () => {
+    const { pending } = await partitionLive(
+      [pkg('@wrongstack/persistence'), pkg('@wrongstack/primitives')],
+      { registry: 'https://registry.test' },
+      { checkPublished: async () => ({ ok: true }) },
+    );
+
+    expect(pending).toEqual([]);
+  });
+
+  it('preserves layer order, so the resumed publish keeps the dependency plan', async () => {
+    const layer = [pkg('a'), pkg('b'), pkg('c'), pkg('d')];
+    const { pending } = await partitionLive(
+      layer,
+      { registry: 'https://registry.test' },
+      {
+        checkPublished: async (_registry, name) =>
+          name === 'b' ? { ok: true } : { ok: false, reason: 'version missing from packument' },
+      },
+    );
+
+    expect(pending.map((p) => p.name)).toEqual(['a', 'c', 'd']);
   });
 });
 
