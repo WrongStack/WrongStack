@@ -73,8 +73,14 @@ describe('classifyFamily', () => {
   it('maps google', () => {
     expect(classifyFamily('@ai-sdk/google')).toBe('google');
   });
+  it('maps native SDKs to their capability families', () => {
+    expect(classifyFamily('@ai-sdk/cohere')).toBe('openai-compatible');
+    expect(classifyFamily('@ai-sdk/azure')).toBe('openai');
+    expect(classifyFamily('@ai-sdk/amazon-bedrock')).toBe('openai-compatible');
+    expect(classifyFamily('@ai-sdk/google-vertex')).toBe('google');
+  });
   it('marks unknown as unsupported', () => {
-    expect(classifyFamily('@ai-sdk/cohere')).toBe('unsupported');
+    expect(classifyFamily('@ai-sdk/unknown')).toBe('unsupported');
     expect(classifyFamily(undefined)).toBe('unsupported');
   });
 });

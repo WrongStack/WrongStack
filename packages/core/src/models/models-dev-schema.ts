@@ -127,6 +127,7 @@ export const modelsDevModelSchema = z.looseObject({
   name: z.string().min(1),
   description: z.string().optional(),
   family: z.string().optional(),
+  provider: z.looseObject({ npm: z.string().optional(), api: z.string().optional() }).optional(),
   attachment: z.boolean().optional(),
   reasoning: z.boolean().optional(),
   reasoning_options: z.union([reasoningOptionSchema, z.array(reasoningOptionSchema)]).optional(),

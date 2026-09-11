@@ -1,3 +1,4 @@
+import { classifyFamily } from '@wrongstack/core/models';
 import type {
   Capabilities,
   CustomModelDefinition,
@@ -195,7 +196,14 @@ export async function capabilitiesFor(
   // map and the custom-model overrides all stay on the id the user typed.
   const catalogProviderId = options?.catalogProviderId ?? providerId;
   const provider = await registry.getProvider(catalogProviderId);
-  const knownFamily = provider?.family !== 'unsupported' ? provider?.family : undefined;
+  const catalogModel = provider?.models.find((entry) => entry.id === modelId);
+  const modelFamily = classifyFamily(catalogModel?.provider?.npm);
+  const knownFamily =
+    modelFamily !== 'unsupported'
+      ? modelFamily
+      : provider?.family !== 'unsupported'
+        ? provider?.family
+        : undefined;
   const family = knownFamily ?? FAMILY_BY_PROVIDER_ID[providerId] ?? 'unsupported';
   const siblingProviderId = SIBLING_CATALOG_BY_FAMILY[family];
   const siblingProvider =

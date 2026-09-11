@@ -892,9 +892,6 @@
     "packages/providers/src/openai-shared.ts": [
       "OPENAI_EFFORT_ACCEPT"
     ],
-    "packages/providers/src/opencode.ts": [
-      "usesResponsesEndpoint"
-    ],
     "packages/providers/src/presets/local-llm.ts": [
       "createLocalLlmPreset"
     ],

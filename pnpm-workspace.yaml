@@ -20,6 +20,10 @@ overrides:
   dompurify: ">=3.4.13"
   # sharp <0.35.0 libvips vulnerabilities (GHSA-f88m-g3jw-g9cj)
   sharp: ">=0.35.0"
+  # ai-gateway-provider@4.0.0 still declares its unused optional OpenRouter
+  # adapter as 2.x (AI SDK 6). Keep the optional package on its AI SDK 7 line
+  # so installing Cloudflare support does not leave an invalid peer graph.
+  "@openrouter/ai-sdk-provider": "3.0.0"
   wrongstack: link:apps/wrongstack
 peerDependencyRules:
   # TypeScript 7 was released before i18next/react-i18next widened their peer

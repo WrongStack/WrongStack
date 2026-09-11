@@ -40,9 +40,15 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "5.0.81",
+    "@ai-sdk/azure": "4.0.68",
+    "@ai-sdk/cohere": "4.0.40",
+    "@ai-sdk/google-vertex": "5.0.79",
     "@wrongstack/core": "workspace:*",
     "ai": "7.0.77",
-    "ws": "^8.21.3"
+    "ai-gateway-provider": "4.0.0",
+    "ws": "^8.21.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

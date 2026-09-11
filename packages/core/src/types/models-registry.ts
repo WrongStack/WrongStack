@@ -33,6 +33,8 @@ export interface ModelsDevModel {
   /** WrongStack merge metadata; absent in raw upstream models.dev payloads. */
   provenance?: ModelProvenance | undefined;
   family?: string | undefined;
+  /** Per-model SDK/wire override supplied by models.dev for mixed providers. */
+  provider?: { npm?: string | undefined; api?: string | undefined } | undefined;
   /**
    * One-line capability blurb. Not part of the upstream models.dev schema —
    * carried by our curated overlay (`packages/cli/data/providers.json`, synced

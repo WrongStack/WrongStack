@@ -3,7 +3,6 @@ import type {
   Capabilities,
   ModelsDevModel,
   Provider,
-  ReasoningEffort,
   Request,
   Response,
   StreamEvent,
@@ -12,37 +11,32 @@ import { AnthropicProvider } from './anthropic.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import type { BuildBodyContext } from './model-output-limits.js';
 import { type OpenAICompatibleOptions, OpenAICompatibleProvider } from './openai-compatible.js';
+import {
+  OpenAIResponsesProvider,
+  type OpenAIResponsesProviderOptions,
+} from './openai-responses.js';
 
 const DEFAULT_BASE_URL = 'https://opencode.ai/zen/go/v1';
+const OPENCODE_GO_USER_AGENT = 'wrongstack/1.0';
 
-/** Models documented by OpenCode Go as using its Anthropic Messages surface. */
-export const OPENCODE_GO_ANTHROPIC_MODELS = new Set([
-  'minimax-m3',
-  'minimax-m2.7',
-  'minimax-m2.5',
-  'qwen3.7-max',
-  'qwen3.7-plus',
-  'qwen3.6-plus',
-]);
+/** OpenCode Go routes models via sticky session affinity. */
+function buildOpenCodeGoHeaders(
+  stickySessionId: string,
+  extraHeaders?: Record<string, string>,
+): Record<string, string> {
+  const protectedHeaders = new Set(['user-agent', 'x-opencode-session']);
+  const filtered: Record<string, string> = {};
+  for (const [key, value] of Object.entries(extraHeaders ?? {})) {
+    if (!protectedHeaders.has(key.toLowerCase())) filtered[key] = value;
+  }
 
-const OPENCODE_GO_FIXED_ANTHROPIC_REASONING = new Set(['minimax-m2.7', 'minimax-m2.5']);
-const OPENCODE_GO_QWEN_MODELS = new Set(['qwen3.7-max', 'qwen3.7-plus', 'qwen3.6-plus']);
-
-const OPENCODE_GO_EFFORTS: Readonly<Record<string, ReadonlySet<ReasoningEffort>>> = {
-  'grok-4.5': new Set(['low', 'medium', 'high']),
-  'glm-5.2': new Set(['high', 'max']),
-  'kimi-k3': new Set(['max']),
-  'deepseek-v4-pro': new Set(['high', 'max']),
-  'deepseek-v4-flash': new Set(['high', 'max']),
-};
-
-/** OpenCode Go routes some models (e.g. deepseek-v4-flash) via sticky session affinity. */
-function buildOpenCodeGoHeaders(stickySessionId: string): Record<string, string> {
   return {
     'x-opencode-session': stickySessionId,
+    'user-agent': OPENCODE_GO_USER_AGENT,
     'x-opencode-client': 'wrongstack',
     'HTTP-Referer': 'https://opencode.ai/',
     'X-Title': 'wrongstack',
+    ...filtered,
   };
 }
 
@@ -93,6 +87,7 @@ export class OpenCodeGoProvider implements Provider {
 
   private readonly chat: OpenCodeGoChatProvider;
   private readonly messages: OpenCodeGoMessagesProvider;
+  private readonly responses: OpenCodeGoResponsesProvider;
   private readonly models: ReadonlyMap<string, ModelsDevModel>;
 
   constructor(opts: OpenCodeGoProviderOptions) {
@@ -100,10 +95,7 @@ export class OpenCodeGoProvider implements Provider {
     this.models = new Map((opts.models ?? []).map((model) => [model.id, model]));
     const baseUrl = opts.baseUrl ?? DEFAULT_BASE_URL;
     const stickySessionId = createOpenCodeGoStickySessionId();
-    const openCodeHeaders = {
-      ...buildOpenCodeGoHeaders(stickySessionId),
-      ...opts.headers,
-    };
+    const openCodeHeaders = buildOpenCodeGoHeaders(stickySessionId, opts.headers);
     this.chat = new OpenCodeGoChatProvider(
       {
         id: this.id,
@@ -131,6 +123,16 @@ export class OpenCodeGoProvider implements Provider {
       this.models,
       stickySessionId,
     );
+    this.responses = new OpenCodeGoResponsesProvider(
+      {
+        id: this.id,
+        apiKey: opts.apiKey,
+        baseUrl,
+        headers: openCodeHeaders,
+        fetchImpl: opts.fetchImpl,
+      },
+      stickySessionId,
+    );
   }
 
   stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
@@ -146,12 +148,13 @@ export class OpenCodeGoProvider implements Provider {
   }
 
   private delegate(model: string): Provider {
-    const family = this.models.get(model)?.family?.toLowerCase();
-    const catalogUsesMessages =
-      family?.startsWith('minimax') === true || family?.startsWith('qwen') === true;
-    return catalogUsesMessages || OPENCODE_GO_ANTHROPIC_MODELS.has(model)
-      ? this.messages
-      : this.chat;
+    const catalogModel = this.models.get(model);
+    const modelNpm = catalogModel?.provider?.npm?.toLowerCase();
+    if (modelNpm === '@ai-sdk/openai') return this.responses;
+    if (modelNpm === '@ai-sdk/anthropic') return this.messages;
+    if (modelNpm === '@ai-sdk/openai-compatible') return this.chat;
+
+    return this.chat;
   }
 
   private syncCapabilities(delegate: Provider): void {
@@ -161,6 +164,23 @@ export class OpenCodeGoProvider implements Provider {
       configurable: true,
       enumerable: true,
     });
+  }
+}
+
+class OpenCodeGoResponsesProvider extends OpenAIResponsesProvider {
+  constructor(
+    opts: OpenAIResponsesProviderOptions,
+    private readonly fallbackSessionId: string,
+  ) {
+    super(opts);
+  }
+
+  protected override buildHeaders(req: Request): Record<string, string> {
+    return {
+      ...super.buildHeaders(req),
+      'user-agent': OPENCODE_GO_USER_AGENT,
+      'x-opencode-session': sessionIdForOpenCodeGoRequest(req, this.fallbackSessionId),
+    };
   }
 }
 
@@ -176,6 +196,7 @@ class OpenCodeGoChatProvider extends OpenAICompatibleProvider {
   protected override buildHeaders(req: Request): Record<string, string> {
     return {
       ...super.buildHeaders(req),
+      'user-agent': OPENCODE_GO_USER_AGENT,
       'x-opencode-session': sessionIdForOpenCodeGoRequest(req, this.fallbackSessionId),
     };
   }
@@ -190,7 +211,7 @@ class OpenCodeGoChatProvider extends OpenAICompatibleProvider {
     delete body['reasoning_effort'];
     const effort = req.reasoning?.enabled === false ? undefined : req.reasoning?.effort;
     const catalogEfforts = this.models.get(req.model)?.reasoningConfig?.effortLevels;
-    const supported = catalogEfforts ? new Set(catalogEfforts) : OPENCODE_GO_EFFORTS[req.model];
+    const supported = catalogEfforts ? new Set(catalogEfforts) : undefined;
     if (effort && supported?.has(effort)) {
       body['reasoning_effort'] = effort;
     }
@@ -234,7 +255,11 @@ class OpenCodeGoMessagesProvider extends AnthropicProvider {
     }
     return {
       ...filtered,
-      ...super.buildHeaders(req),
+      'content-type': 'application/json',
+      accept: 'text/event-stream',
+      'anthropic-version': '2023-06-01',
+      'x-api-key': this.apiKey,
+      'user-agent': OPENCODE_GO_USER_AGENT,
       'x-opencode-session': sessionIdForOpenCodeGoRequest(req, this.fallbackSessionId),
     };
   }
@@ -242,35 +267,28 @@ class OpenCodeGoMessagesProvider extends AnthropicProvider {
   protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
     let normalized = req;
     const model = this.models.get(req.model);
-    const family = model?.family?.toLowerCase();
-    const fixedMiniMaxReasoning =
-      family?.startsWith('minimax-m2') === true && model?.reasoningConfig?.default === 'always_on';
-    const qwenModel = family?.startsWith('qwen') === true;
+    const fixedReasoning = model?.reasoningConfig?.default === 'always_on';
+    const rawOptions = model?.reasoning_options;
+    const reasoningOptions = Array.isArray(rawOptions)
+      ? rawOptions
+      : rawOptions
+        ? [rawOptions]
+        : [];
+    const budgetReasoning = reasoningOptions.some((option) => option.type === 'budget_tokens');
 
-    // M2.7/M2.5 expose fixed reasoning without a toggle or effort control.
-    if (
-      (fixedMiniMaxReasoning || OPENCODE_GO_FIXED_ANTHROPIC_REASONING.has(req.model)) &&
-      req.reasoning
-    ) {
+    // Fixed-reasoning models expose no toggle or effort control.
+    if (fixedReasoning && req.reasoning) {
       normalized = { ...req, reasoning: undefined };
     } else if (
-      (qwenModel || OPENCODE_GO_QWEN_MODELS.has(req.model)) &&
+      budgetReasoning &&
       req.reasoning?.effort !== undefined &&
       req.reasoning.enabled === undefined
     ) {
-      // Qwen's Go metadata exposes a thinking budget. An effort-only runtime
-      // request therefore needs to enable thinking so the Anthropic adapter
-      // can translate that effort into budget_tokens.
+      // A budget-token catalog entry needs thinking enabled so the Anthropic
+      // adapter can translate the requested effort into budget_tokens.
       normalized = { ...req, reasoning: { ...req.reasoning, enabled: true } };
     }
 
-    const body = super.buildBody(normalized, ctx);
-    if (family === 'minimax-m3' || req.model === 'minimax-m3') {
-      // MiniMax's Anthropic surface defaults thinking off; OpenCode enables
-      // adaptive reasoning for M3 unless the caller explicitly disables it.
-      body['thinking'] =
-        req.reasoning?.enabled === false ? { type: 'disabled' } : { type: 'adaptive' };
-    }
-    return body;
+    return super.buildBody(normalized, ctx);
   }
 }

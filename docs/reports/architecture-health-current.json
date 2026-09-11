@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T21:06:57.432Z",
+  "generatedAt": "2026-09-11T21:30:36.744Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3741,
-    "testFiles": 3252,
-    "sourceLines": 903916,
+    "sourceFiles": 3743,
+    "testFiles": 3254,
+    "sourceLines": 904548,
     "workspaceEdges": 128,
-    "moduleEdges": 11906,
+    "moduleEdges": 11916,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 910
+    "testOnlyExports": 909
   },
   "errors": [],
   "packageCycles": [],
@@ -479,8 +479,8 @@
     {
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
-      "sourceFiles": 66,
-      "testFiles": 61,
+      "sourceFiles": 68,
+      "testFiles": 63,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -493,7 +493,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 61
+          "testFiles": 63
         }
       ]
     },
@@ -11067,6 +11067,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/catalog-routed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/codex-websocket-live.test.ts",
         "projects": [
           "root-node"
@@ -11152,6 +11158,12 @@
       },
       {
         "file": "packages/providers/tests/model-output-limits.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/native-catalog.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21008,6 +21020,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/providers/src/index.ts",
+      "lines": 844,
+      "relativeImports": 57
+    },
+    {
       "file": "packages/providers/src/openai-codex.ts",
       "lines": 1581,
       "relativeImports": 17
@@ -23350,10 +23367,6 @@
     {
       "file": "packages/providers/src/openai-shared.ts",
       "name": "OPENAI_EFFORT_ACCEPT"
-    },
-    {
-      "file": "packages/providers/src/opencode.ts",
-      "name": "usesResponsesEndpoint"
     },
     {
       "file": "packages/providers/src/presets/local-llm.ts",

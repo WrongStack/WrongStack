@@ -6,9 +6,7 @@ import type {
   Response,
   StreamEvent,
 } from '@wrongstack/core/types';
-import { capabilitiesForFamily } from './family-capabilities.js';
-import { OpenAICompatibleProvider } from './openai-compatible.js';
-import { OpenAIResponsesProvider } from './openai-responses.js';
+import { CatalogRoutedProvider } from './catalog-routed.js';
 
 export interface OpenCodeZenProviderOptions {
   id?: string | undefined;
@@ -20,51 +18,36 @@ export interface OpenCodeZenProviderOptions {
 }
 
 /**
- * OpenCode Zen exposes model-dependent OpenAI transports under one key:
- * GPT-5 models use `/responses`; the remaining catalog uses
- * `/chat/completions`.
+ * OpenCode Zen exposes four model-dependent transports under one key. The
+ * models.dev per-model `provider.npm` value is authoritative. Models without
+ * an override use the provider's catalog default; model names are never used
+ * as a second routing catalog.
  */
 export class OpenCodeZenProvider implements Provider {
   readonly id: string;
-  readonly capabilities: Capabilities = capabilitiesForFamily('openai-compatible', {
-    reasoning: true,
-    tools: true,
-  });
-
-  private readonly chat: OpenAICompatibleProvider;
-  private readonly responses: OpenAIResponsesProvider;
+  readonly capabilities: Capabilities;
+  private readonly router: CatalogRoutedProvider;
 
   constructor(opts: OpenCodeZenProviderOptions) {
     this.id = opts.id ?? 'opencode';
-    this.chat = new OpenAICompatibleProvider({
+    this.router = new CatalogRoutedProvider({
       id: this.id,
       apiKey: opts.apiKey,
+      defaultNpm: '@ai-sdk/openai-compatible',
       baseUrl: opts.baseUrl,
+      baseUrlOverride: opts.baseUrl,
       headers: opts.headers,
+      models: opts.models,
       fetchImpl: opts.fetchImpl,
     });
-    this.responses = new OpenAIResponsesProvider({
-      id: this.id,
-      apiKey: opts.apiKey,
-      baseUrl: opts.baseUrl,
-      headers: opts.headers,
-      fetchImpl: opts.fetchImpl,
-    });
+    this.capabilities = this.router.capabilities;
   }
 
   stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
-    return this.delegate(req.model).stream(req, opts);
+    return this.router.stream(req, opts);
   }
 
   complete(req: Request, opts: { signal: AbortSignal }): Promise<Response> {
-    return this.delegate(req.model).complete(req, opts);
+    return this.router.complete(req, opts);
   }
-
-  private delegate(model: string): Provider {
-    return usesResponsesEndpoint(model) ? this.responses : this.chat;
-  }
-}
-
-export function usesResponsesEndpoint(model: string): boolean {
-  return /^gpt-5(?:[.-]|$)/i.test(model);
 }

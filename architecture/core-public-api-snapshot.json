@@ -1504,7 +1504,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 11,
-      "sourceLines": 2555
+      "sourceLines": 2561
     },
     {
       "directory": "notifications",
@@ -1623,7 +1623,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 72,
-      "sourceLines": 13561
+      "sourceLines": 13563
     },
     {
       "directory": "utils",

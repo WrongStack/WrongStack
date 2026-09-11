@@ -40,7 +40,7 @@ function sseFetch(events: string): typeof fetch {
 }
 
 describe('OpenCodeGoProvider', () => {
-  it('routes Chat Completions and Anthropic Messages models behind one provider', async () => {
+  it('routes Responses, Chat Completions, and Anthropic Messages models behind one provider', async () => {
     const calls: Array<{
       url: string;
       body: Record<string, unknown>;
@@ -57,16 +57,71 @@ describe('OpenCodeGoProvider', () => {
       });
       return new Response('', { status: 200 });
     }) as never as typeof fetch;
-    const provider = new OpenCodeGoProvider({ apiKey: 'oc-test', fetchImpl });
+    const provider = new OpenCodeGoProvider({
+      apiKey: 'oc-test',
+      fetchImpl,
+      models: [
+        { id: 'grok-4.5', name: 'Chat', provider: { npm: '@ai-sdk/openai-compatible' } },
+        { id: 'minimax-m3', name: 'Messages', provider: { npm: '@ai-sdk/anthropic' } },
+        { id: 'grok-4.6', name: 'Responses', provider: { npm: '@ai-sdk/openai' } },
+      ],
+    });
 
     await drain(provider, request('grok-4.5', { effort: 'high' }));
     await drain(provider, request('minimax-m3', { enabled: true }));
+    await drain(provider, request('grok-4.6', { effort: 'xhigh' }));
 
     expect(calls[0]?.url).toBe('https://opencode.ai/zen/go/v1/chat/completions');
     expect(calls[1]?.url).toBe('https://opencode.ai/zen/go/v1/messages');
+    expect(calls[2]?.url).toBe('https://opencode.ai/zen/go/v1/responses');
     expect(calls[0]?.headers['x-opencode-session']).toMatch(/^sess_/);
     expect(calls[1]?.headers['x-opencode-session']).toBe(calls[0]?.headers['x-opencode-session']);
+    expect(calls[2]?.headers['x-opencode-session']).toBe(calls[0]?.headers['x-opencode-session']);
+    expect(calls[0]?.headers['user-agent']).toBe('wrongstack/1.0');
+    expect(calls[1]?.headers['user-agent']).toBe('wrongstack/1.0');
+    expect(calls[2]?.headers['user-agent']).toBe('wrongstack/1.0');
     expect(provider.id).toBe('opencode-go');
+  });
+
+  it('prefers the models.dev per-model SDK override over family and name heuristics', async () => {
+    const urls: string[] = [];
+    const fetchImpl = vi.fn(async (input: unknown) => {
+      urls.push(String(input));
+      return new Response('', { status: 200 });
+    }) as never as typeof fetch;
+    const provider = new OpenCodeGoProvider({
+      apiKey: 'oc-test',
+      fetchImpl,
+      models: [
+        {
+          id: 'custom-responses-model',
+          name: 'Custom Responses Model',
+          family: 'qwen',
+          provider: { npm: '@ai-sdk/openai' },
+        },
+        {
+          id: 'custom-messages-model',
+          name: 'Custom Messages Model',
+          family: 'grok',
+          provider: { npm: '@ai-sdk/anthropic' },
+        },
+        {
+          id: 'grok-4.6',
+          name: 'Forced Compatible Model',
+          provider: { npm: '@ai-sdk/openai-compatible' },
+        },
+      ],
+    });
+
+    await drain(provider, request('custom-responses-model'));
+    await drain(provider, request('custom-messages-model'));
+    await drain(provider, request('grok-4.6'));
+
+    expect(urls).toEqual([
+      'https://opencode.ai/zen/go/v1/responses',
+      'https://opencode.ai/zen/go/v1/messages',
+      'https://opencode.ai/zen/go/v1/chat/completions',
+    ]);
   });
 
   it('uses one conversation-scoped session header across provider rebuilds and wire surfaces', async () => {
@@ -89,14 +144,27 @@ describe('OpenCodeGoProvider', () => {
       new OpenCodeGoProvider({
         apiKey: 'oc-test',
         fetchImpl,
-        headers: { 'x-opencode-session': 'must-not-override-conversation' },
+        models: [{ id: 'grok-4.5', name: 'Chat', provider: { npm: '@ai-sdk/openai-compatible' } }],
+        headers: {
+          'X-OpenCode-Session': 'must-not-override-conversation',
+          'User-Agent': 'generic-sdk/0.0',
+        },
       }),
       firstRequest,
     );
-    await drain(new OpenCodeGoProvider({ apiKey: 'oc-test', fetchImpl }), rebuiltRequest);
+    await drain(
+      new OpenCodeGoProvider({
+        apiKey: 'oc-test',
+        fetchImpl,
+        models: [{ id: 'minimax-m3', name: 'Messages', provider: { npm: '@ai-sdk/anthropic' } }],
+      }),
+      rebuiltRequest,
+    );
 
     expect(calls[0]?.headers['x-opencode-session']).toBe('sess_conversation_alpha');
     expect(calls[1]?.headers['x-opencode-session']).toBe(calls[0]?.headers['x-opencode-session']);
+    expect(calls[0]?.headers['user-agent']).toBe('wrongstack/1.0');
+    expect(calls[1]?.headers['user-agent']).toBe('wrongstack/1.0');
   });
 
   it('keeps only model-supported effort values even when tools are present', async () => {
@@ -105,7 +173,23 @@ describe('OpenCodeGoProvider', () => {
       bodies.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>);
       return new Response('', { status: 200 });
     }) as never as typeof fetch;
-    const provider = new OpenCodeGoProvider({ apiKey: 'oc-test', fetchImpl });
+    const provider = new OpenCodeGoProvider({
+      apiKey: 'oc-test',
+      fetchImpl,
+      models: [
+        {
+          id: 'glm-5.2',
+          name: 'Effort model',
+          reasoningConfig: {
+            default: 'enabled',
+            disableSupported: false,
+            effortSupported: true,
+            effortLevels: ['high', 'max'],
+            preserveThinking: 'unsupported',
+          },
+        },
+      ],
+    });
 
     await drain(provider, request('glm-5.2', { effort: 'max' }));
     await drain(provider, request('glm-5.2', { effort: 'none' }));
@@ -116,23 +200,44 @@ describe('OpenCodeGoProvider', () => {
     expect(bodies[2]).not.toHaveProperty('reasoning_effort');
   });
 
-  it('uses adaptive thinking for MiniMax M3 and budget thinking for Qwen', async () => {
+  it('derives fixed and budget thinking behavior from catalog metadata', async () => {
     const bodies: Record<string, unknown>[] = [];
     const fetchImpl = vi.fn(async (_input: unknown, init?: RequestInit) => {
       bodies.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>);
       return new Response('', { status: 200 });
     }) as never as typeof fetch;
-    const provider = new OpenCodeGoProvider({ apiKey: 'oc-test', fetchImpl });
+    const provider = new OpenCodeGoProvider({
+      apiKey: 'oc-test',
+      fetchImpl,
+      models: [
+        {
+          id: 'budget-model',
+          name: 'Budget model',
+          provider: { npm: '@ai-sdk/anthropic' },
+          reasoning_options: { type: 'budget_tokens', max: 65_536 },
+        },
+        {
+          id: 'fixed-model',
+          name: 'Fixed model',
+          provider: { npm: '@ai-sdk/anthropic' },
+          reasoningConfig: {
+            default: 'always_on',
+            disableSupported: false,
+            effortSupported: false,
+            effortLevels: [],
+            preserveThinking: 'always_on',
+          },
+        },
+      ],
+    });
 
-    await drain(provider, request('minimax-m3', { enabled: true, effort: 'high' }));
-    await drain(provider, request('qwen3.7-plus', { effort: 'high' }));
-    await drain(provider, request('minimax-m2.7', { enabled: false, effort: 'none' }));
+    await drain(provider, request('budget-model', { effort: 'high' }));
+    await drain(provider, request('fixed-model', { enabled: false, effort: 'none' }));
 
-    expect(bodies[0]?.['thinking']).toEqual({ type: 'adaptive' });
-    expect(bodies[1]?.['thinking']).toMatchObject({ type: 'enabled' });
-    const qwenThinking = bodies[1]?.['thinking'] as Record<string, unknown> | undefined;
-    expect(qwenThinking?.['budget_tokens']).toBeGreaterThan(0);
-    expect(bodies[2]).not.toHaveProperty('thinking');
+    expect(bodies[0]?.['thinking']).toMatchObject({ type: 'enabled' });
+    const budgetThinking = bodies[0]?.['thinking'] as Record<string, unknown> | undefined;
+    expect(budgetThinking?.['budget_tokens']).toBeGreaterThan(0);
+    expect(bodies[1]).not.toHaveProperty('thinking');
   });
 
   it('synthesizes a terminal message_stop when Zen closes the chat stream without [DONE]/finish_reason', async () => {
@@ -201,6 +306,7 @@ describe('OpenCodeGoProvider', () => {
         Accept: 'text/html',
       },
       fetchImpl,
+      models: [{ id: 'minimax-m3', name: 'Messages', provider: { npm: '@ai-sdk/anthropic' } }],
     });
 
     await drain(provider, request('minimax-m3'));
@@ -208,12 +314,11 @@ describe('OpenCodeGoProvider', () => {
     const headers = calls[0]?.headers ?? {};
     // Caller-supplied identity / routing headers survive.
     expect(headers['x-tenant-id']).toBe('tenant-42');
-    // Provider-required Anthropic-surface headers always win. OpenCode Go's
-    // host is not api.anthropic.com, so AnthropicProvider emits
-    // `Authorization: Bearer …` instead of `x-api-key` for non-Anthropic
-    // hosts — both keys must be guarded against caller-supplied overrides.
-    expect(headers['x-api-key']).toBeUndefined();
-    expect(headers['authorization']).toBe(['Bearer', 'oc-test'].join(' '));
+    // Match the native @ai-sdk/anthropic contract advertised by models.dev:
+    // x-api-key is provider-owned even though the gateway host is not
+    // api.anthropic.com. Both auth keys remain protected from caller input.
+    expect(headers['x-api-key']).toBe('oc-test');
+    expect(headers['authorization']).toBeUndefined();
     expect(headers['anthropic-version']).toBe('2023-06-01');
     expect(headers['content-type']).toBe('application/json');
     expect(headers['accept']).toBe('text/event-stream');

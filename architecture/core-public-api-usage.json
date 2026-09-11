@@ -89,9 +89,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 31,
+      "files": 32,
       "typeOnly": 9,
-      "runtimeOrMixed": 24
+      "runtimeOrMixed": 25
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1066,
-      "typeOnly": 987,
-      "runtimeOrMixed": 276
+      "files": 1070,
+      "typeOnly": 991,
+      "runtimeOrMixed": 278
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -6996,6 +6996,12 @@
     },
     {
       "specifier": "@wrongstack/core/models",
+      "file": "packages/providers/src/capabilities.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
       "file": "packages/providers/src/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13494,6 +13500,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/catalog-routed.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/codex-websocket.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -13545,6 +13557,12 @@
       "file": "packages/providers/src/model-output-limits.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/native-catalog.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -13794,6 +13812,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/catalog-routed.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/codex-websocket-live.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13867,6 +13891,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/model-output-limits.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/native-catalog.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

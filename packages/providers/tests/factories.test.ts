@@ -4,7 +4,7 @@ import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import type { ModelsDevPayload } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
-import { buildProviderFactoriesFromRegistry } from '../src/index.js';
+import { buildProviderFactoriesFromRegistry, CatalogRoutedProvider } from '../src/index.js';
 
 const SAMPLE: ModelsDevPayload = {
   anthropic: {
@@ -43,6 +43,56 @@ const SAMPLE: ModelsDevPayload = {
     env: ['MISTRAL_API_KEY'],
     api: 'https://api.mistral.ai/v1',
     models: { 'mistral-large': { id: 'mistral-large', name: 'Mistral Large' } },
+  },
+  mixed: {
+    id: 'mixed',
+    name: 'Mixed provider',
+    npm: '@ai-sdk/openai-compatible',
+    env: ['MIXED_API_KEY'],
+    api: 'https://mixed.example/v1',
+    models: {
+      chat: { id: 'chat', name: 'Chat' },
+      claude: {
+        id: 'claude',
+        name: 'Claude',
+        provider: { npm: '@ai-sdk/anthropic', api: 'https://mixed.example/anthropic/v1' },
+      },
+    },
+  },
+  cohere: {
+    id: 'cohere',
+    name: 'Cohere',
+    npm: '@ai-sdk/cohere',
+    env: ['COHERE_API_KEY'],
+    models: { command: { id: 'command', name: 'Command' } },
+  },
+  azure: {
+    id: 'azure',
+    name: 'Azure',
+    npm: '@ai-sdk/azure',
+    env: ['AZURE_RESOURCE_NAME', 'AZURE_API_KEY'],
+    models: { gpt: { id: 'gpt', name: 'GPT' } },
+  },
+  'amazon-bedrock': {
+    id: 'amazon-bedrock',
+    name: 'Amazon Bedrock',
+    npm: '@ai-sdk/amazon-bedrock',
+    env: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION'],
+    models: { model: { id: 'model', name: 'Model' } },
+  },
+  'google-vertex': {
+    id: 'google-vertex',
+    name: 'Google Vertex',
+    npm: '@ai-sdk/google-vertex',
+    env: ['GOOGLE_VERTEX_PROJECT', 'GOOGLE_VERTEX_LOCATION'],
+    models: { gemini: { id: 'gemini', name: 'Gemini' } },
+  },
+  'cloudflare-ai-gateway': {
+    id: 'cloudflare-ai-gateway',
+    name: 'Cloudflare AI Gateway',
+    npm: 'ai-gateway-provider',
+    env: ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_GATEWAY_ID'],
+    models: { model: { id: 'model', name: 'Model' } },
   },
 };
 
@@ -131,6 +181,55 @@ describe('buildProviderFactoriesFromRegistry', () => {
     const f = factories.find((x) => x.type === 'mistral');
     const provider = f!.create({ type: 'mistral', apiKey: 'msk-test' });
     expect(provider.id).toBe('mistral');
+  });
+
+  it('builds a catalog router when one provider mixes supported wire SDKs', async () => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const factory = factories.find((entry) => entry.type === 'mixed');
+    const provider = factory!.create({
+      type: 'mixed',
+      apiKey: 'mixed-key',
+      family: 'openai-compatible',
+      baseUrl: 'https://mixed.example/v1',
+    });
+    expect(provider).toBeInstanceOf(CatalogRoutedProvider);
+  });
+
+  it('builds a native AI SDK provider for a native catalog family', async () => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const factory = factories.find((entry) => entry.type === 'cohere');
+    const provider = factory!.create({ type: 'cohere', apiKey: 'cohere-key' });
+    expect(provider.id).toBe('cohere');
+    expect(provider.constructor.name).toBe('AiGatewayProvider');
+  });
+
+  it.each([
+    ['azure', 'native-key'],
+    ['amazon-bedrock', undefined],
+    ['google-vertex', undefined],
+    ['cloudflare-ai-gateway', 'native-key'],
+  ] as const)('registers and constructs native provider %s', async (id, apiKey) => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const factory = factories.find((entry) => entry.type === id);
+    expect(factory).toBeDefined();
+    const provider = factory!.create({ type: id, ...(apiKey ? { apiKey } : {}) });
+    expect(provider.id).toBe(id);
+  });
+
+  it('keeps a genuinely different explicit family override authoritative', async () => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const factory = factories.find((entry) => entry.type === 'mixed');
+    const provider = factory!.create({
+      type: 'mixed',
+      apiKey: 'mixed-key',
+      family: 'anthropic',
+      baseUrl: 'https://override.example/v1',
+    });
+    expect(provider).not.toBeInstanceOf(CatalogRoutedProvider);
   });
 
   it('reads apiKey from env vars when not provided in config', async () => {

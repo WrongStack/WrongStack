@@ -26,6 +26,22 @@ const SAMPLE: ModelsDevPayload = {
       } satisfies ModelsDevModel,
     },
   },
+  mixed: {
+    id: 'mixed',
+    name: 'Mixed',
+    env: ['MIXED_API_KEY'],
+    npm: '@ai-sdk/openai-compatible',
+    api: 'https://mixed.example/v1',
+    models: {
+      claude: {
+        id: 'claude',
+        name: 'Claude',
+        provider: { npm: '@ai-sdk/anthropic', api: 'https://mixed.example/anthropic/v1' },
+        tool_call: true,
+        limit: { context: 500_000 },
+      },
+    },
+  },
 };
 
 function reg() {
@@ -125,6 +141,30 @@ describe('withCatalogCapabilities', () => {
     });
 
     expect(out).toBe(provider);
+  });
+
+  it('uses the model-level wire family as the capability baseline', async () => {
+    const provider = fakeProvider({
+      tools: true,
+      parallelTools: true,
+      vision: false,
+      streaming: true,
+      promptCache: false,
+      systemPrompt: true,
+      jsonMode: false,
+      reasoning: false,
+      maxContext: 0,
+      cacheControl: 'none',
+    });
+
+    const out = await withCatalogCapabilities(reg(), 'mixed', provider, {
+      type: 'mixed',
+      model: 'claude',
+    });
+
+    expect(out.capabilities.promptCache).toBe(true);
+    expect(out.capabilities.cacheControl).toBe('native');
+    expect(out.capabilities.maxContext).toBe(500_000);
   });
 
   it('lets customModels override the catalog value', async () => {

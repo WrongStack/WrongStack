@@ -133,6 +133,11 @@ const FAMILY_BY_NPM: Record<string, WireFamily> = {
   'venice-ai-sdk-provider': 'openai-compatible',
   '@ai-sdk/deepseek': 'openai-compatible',
   '@ai-sdk/google': 'google',
+  '@ai-sdk/azure': 'openai',
+  '@ai-sdk/cohere': 'openai-compatible',
+  '@ai-sdk/amazon-bedrock': 'openai-compatible',
+  '@ai-sdk/amazon-bedrock/mantle': 'openai',
+  '@ai-sdk/google-vertex': 'google',
 };
 
 const FAMILY_BY_PROVIDER_ID: Partial<Record<string, WireFamily>> = {
