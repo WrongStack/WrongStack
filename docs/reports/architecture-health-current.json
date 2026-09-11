@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T19:25:54.145Z",
+  "generatedAt": "2026-09-11T19:56:35.713Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3741,
     "testFiles": 3252,
-    "sourceLines": 903871,
+    "sourceLines": 903916,
     "workspaceEdges": 128,
     "moduleEdges": 11906,
     "nonCommandSlashImports": 0,
@@ -21104,7 +21104,7 @@
     },
     {
       "file": "packages/tools/src/session-kanban.ts",
-      "lines": 875,
+      "lines": 914,
       "relativeImports": 4
     },
     {

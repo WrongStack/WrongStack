@@ -4,7 +4,8 @@ import * as path from 'node:path';
 import type { Message, SessionStore, SessionWriter } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setupSession } from '../src/wiring/session.js';
+import { settleSessionKanbanBackgroundWork } from '@wrongstack/tools/session-kanban';
+import { type SessionResult, setupSession } from '../src/wiring/session.js';
 
 /**
  * `setupSession` reaches @wrongstack/tools/session-kanban -> @wrongstack/kanban,
@@ -16,11 +17,33 @@ process.env['WRONGSTACK_KANBAN_SERVER'] = '0';
 
 let tmp: string;
 
+/**
+ * A booted session keeps writing after the assertions finish: the Kanban
+ * mirror touches presence, refreshes the board, and pumps todo graphs on its
+ * own schedule. Deleting `tmp` with any of that still in flight made those
+ * writes fail against a directory that no longer existed, and the resulting
+ * warning was logged after the file's environment had been torn down —
+ * surfacing as `Closing rpc while "onUserConsoleLog" was pending` attributed
+ * to whichever file happened to be running. So every session booted here is
+ * detached (which drains that work) before the directory goes away.
+ */
+const booted: SessionResult[] = [];
+
+async function boot(params: Parameters<typeof setupSession>[0]): Promise<SessionResult> {
+  const result = await setupSession(params);
+  booted.push(result);
+  return result;
+}
+
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wiring-session-'));
 });
 
 afterEach(async () => {
+  for (const result of booted.splice(0)) {
+    await result.detachTodosCheckpoint();
+  }
+  await settleSessionKanbanBackgroundWork();
   await fs.rm(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 
@@ -83,7 +106,7 @@ describe('setupSession', () => {
       path.join(tmp, 'active.json'),
       JSON.stringify({ v: 1, sessionId: 'old-session', pid: 4242 }),
     );
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
       projectRoot: tmp,
@@ -128,7 +151,7 @@ describe('setupSession', () => {
     });
     const renderer = makeRenderer();
     const claimSession = vi.fn(async () => async () => undefined);
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
       projectRoot: tmp,
@@ -187,7 +210,7 @@ describe('setupSession', () => {
         },
       }),
     });
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
       projectRoot: tmp,
@@ -204,7 +227,7 @@ describe('setupSession', () => {
   });
 
   it('leaves resumed model/provider undefined for a fresh (non-resume) session', async () => {
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
       projectRoot: tmp,
@@ -270,7 +293,7 @@ describe('setupSession', () => {
         ],
       }),
     );
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths,
       projectRoot: tmp,
@@ -299,7 +322,7 @@ describe('setupSession', () => {
         },
       }),
     });
-    await setupSession({
+    await boot({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
       projectRoot: tmp,
@@ -332,7 +355,7 @@ describe('setupSession', () => {
   });
 
   it('flushes the old todo checkpoint before rebinding to a new session', async () => {
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
       projectRoot: tmp,
@@ -370,7 +393,7 @@ describe('setupSession', () => {
 
   it('does not detach or flush when rebinding the todo checkpoint to the active session', async () => {
     const events = { emit: vi.fn(), on: vi.fn(() => () => undefined) };
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
       projectRoot: tmp,
@@ -398,7 +421,7 @@ describe('setupSession', () => {
   });
 
   it('serializes concurrent todo checkpoint rebinds without orphaning a listener', async () => {
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
       projectRoot: tmp,
@@ -456,7 +479,7 @@ describe('setupSession', () => {
         ],
       }),
     );
-    const result = await setupSession({
+    const result = await boot({
       config: { model: 'm', provider: 'p' },
       wpaths,
       projectRoot: tmp,
@@ -499,7 +522,7 @@ describe('setupSession', () => {
         ],
       }),
     );
-    await setupSession({
+    await boot({
       config: { model: 'm', provider: 'p' },
       wpaths,
       projectRoot: tmp,

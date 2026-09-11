@@ -31,6 +31,7 @@ import {
   attachSessionKanbanMirror,
   hydrateSessionKanban,
   sessionKanbanDegradation,
+  settleSessionKanbanBackgroundWork,
 } from '@wrongstack/tools/session-kanban';
 import { announceRecoverableSession, pickResumeCandidate } from './resume-candidate.js';
 export interface SessionResult {
@@ -417,6 +418,11 @@ export async function setupSession(params: {
     cacheLedger?.dispose();
     await checkpointRebindTail;
     await detachCurrentCheckpoint();
+    // The mirror's detach only stops new work; the passes already in flight
+    // keep writing to the session's board directory. Detaching has to mean
+    // "nothing is still writing", or the caller is free to delete a directory
+    // out from under a write that is still on its way.
+    await settleSessionKanbanBackgroundWork();
   };
 
   let dirState;

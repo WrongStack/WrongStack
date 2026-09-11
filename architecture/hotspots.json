@@ -327,7 +327,7 @@
       "relativeImports": 8
     },
     "packages/tools/src/session-kanban.ts": {
-      "lines": 875,
+      "lines": 914,
       "relativeImports": 4
     },
     "packages/tui/src/app-action-type.ts": {

@@ -403,7 +403,7 @@ function queueLatestMirror(
   });
   if (activeMirrors.has(key)) return;
   activeMirrors.add(key);
-  void (async () => {
+  const pump = (async () => {
     try {
       for (;;) {
         const pending = pendingMirrors.get(key);
@@ -468,6 +468,7 @@ function queueLatestMirror(
       }
     }
   })();
+  trackBackgroundWork(pump);
 }
 
 export function takeSessionMirrorFailure(
@@ -527,8 +528,45 @@ export function projectSessionPlanToKanban(
   );
 }
 
+/**
+ * Every background pass this module starts — presence touches, board
+ * refreshes, the mirror pump — outlives the call that started it. Nothing
+ * held a handle on that work, so a caller that had finished with a session
+ * (a test tearing down its temp dir, a surface closing a session) could not
+ * wait for it: the writes landed on a directory that was already gone and
+ * reported the ENOENT as a warning long after anyone was listening.
+ *
+ * The set is the handle. It holds settled-or-not promises that never reject,
+ * so tracking can never itself become an unhandled rejection.
+ */
+const backgroundWork = new Set<Promise<void>>();
+
+function trackBackgroundWork(work: Promise<unknown>): void {
+  const tracked = work.then(
+    () => undefined,
+    () => undefined,
+  );
+  backgroundWork.add(tracked);
+  void tracked.then(() => {
+    backgroundWork.delete(tracked);
+  });
+}
+
+/**
+ * Waits for background work started so far to finish. Background work can
+ * start more background work (the mirror pump re-queues itself), so this
+ * drains in passes until a full pass adds nothing; the pass cap keeps a
+ * pathological re-queue loop from hanging a caller forever.
+ */
+export async function settleSessionKanbanBackgroundWork(maxPasses = 25): Promise<void> {
+  for (let pass = 0; pass < maxPasses && backgroundWork.size > 0; pass += 1) {
+    await Promise.all([...backgroundWork]);
+  }
+}
+
 function fireAndForget(context: string, work: Promise<unknown>): void {
-  void work.catch((err: unknown) => {
+  trackBackgroundWork(
+    work.catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err);
     console.warn(
       JSON.stringify({
@@ -539,7 +577,8 @@ function fireAndForget(context: string, work: Promise<unknown>): void {
         timestamp: new Date().toISOString(),
       }),
     );
-  });
+    }),
+  );
 }
 
 export function mirrorSessionTodosToKanban(
