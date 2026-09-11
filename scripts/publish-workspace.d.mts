@@ -27,10 +27,20 @@ export function checkPublished(
   deps?: { fetch?: typeof globalThis.fetch },
 ): Promise<{ ok: true } | { ok: false; reason: string }>;
 
+export function checkOriginHasVersion(
+  registry: string,
+  name: string,
+  version: string,
+  deps?: { fetch?: typeof globalThis.fetch },
+): Promise<{ ok: true } | { ok: false; reason: string }>;
+
 export function partitionLive<T extends { name: string; version: string }>(
   layer: T[],
   options: { registry: string },
-  deps?: { checkPublished?: typeof checkPublished },
-): Promise<{ live: T[]; pending: T[] }>;
+  deps?: {
+    checkPublished?: typeof checkPublished;
+    checkOriginHasVersion?: typeof checkOriginHasVersion;
+  },
+): Promise<{ live: T[]; staged: T[]; pending: T[] }>;
 
 export function main(argv: string[]): Promise<number>;

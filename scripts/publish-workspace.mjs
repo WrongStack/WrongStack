@@ -339,7 +339,10 @@ export async function checkPublished(registry, name, version, deps = {}) {
     if (!response.ok) return { ok: false, reason: `packument HTTP ${response.status}` };
     packument = await response.json();
   } catch (error) {
-    return { ok: false, reason: `packument fetch failed: ${error?.message ?? error}` };
+    return {
+      ok: false,
+      reason: `packument fetch failed: ${error?.message ?? error}`,
+    };
   }
 
   const manifest = packument?.versions?.[version];
@@ -353,10 +356,58 @@ export async function checkPublished(registry, name, version, deps = {}) {
     const head = await get(tarball, { method: 'HEAD' });
     if (!head.ok) return { ok: false, reason: `tarball HTTP ${head.status}` };
   } catch (error) {
-    return { ok: false, reason: `tarball fetch failed: ${error?.message ?? error}` };
+    return {
+      ok: false,
+      reason: `tarball fetch failed: ${error?.message ?? error}`,
+    };
   }
 
   return { ok: true };
+}
+
+/**
+ * Ask the registry ORIGIN whether it has already accepted `name@version`.
+ *
+ * This answers a different question from `checkPublished`, and conflating the
+ * two is what broke the 1.0.6 release. `checkPublished` answers "can a user
+ * install this right now?", so it must read through the CDN edge - the edge IS
+ * the user's view. The resume path asks "did I already send this?", and for
+ * that the edge is the wrong oracle: npm had `@wrongstack/cli@1.0.6` staged
+ * while the edge still served a packument without it, so the re-run decided the
+ * package was unpublished, published it again, and npm answered
+ * `409 Cannot publish over previously staged version "1.0.6"` - a hard failure
+ * on a release that had, in fact, fully succeeded.
+ *
+ * `?write=true` is npm's documented origin read (it is what the publish client
+ * itself uses) and returns the full packument, bypassing the edge cache.
+ * There is no tarball check here on purpose: whether the bits are servable yet
+ * is a propagation question, and propagation is `verifyLayer`'s job. All this
+ * decides is whether publishing again would be a duplicate.
+ *
+ * @param {string} registry
+ * @param {string} name
+ * @param {string} version
+ * @param {{fetch?: typeof globalThis.fetch}} [deps] injection seam for tests
+ * @returns {Promise<{ok: true} | {ok: false, reason: string}>}
+ */
+export async function checkOriginHasVersion(registry, name, version, deps = {}) {
+  const get = deps.fetch ?? globalThis.fetch;
+  try {
+    const response = await get(`${registry}/${name.replace('/', '%2f')}?write=true`, {
+      headers: { accept: 'application/json', 'cache-control': 'no-store' },
+    });
+    if (!response.ok) return { ok: false, reason: `origin packument HTTP ${response.status}` };
+    const packument = await response.json();
+    if (!packument?.versions?.[version]) {
+      return { ok: false, reason: 'version missing from origin packument' };
+    }
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: `origin packument fetch failed: ${error?.message ?? error}`,
+    };
+  }
 }
 
 /**
@@ -376,19 +427,42 @@ export async function checkPublished(registry, name, version, deps = {}) {
  * one more thing that can disagree with reality after a crash, a different
  * machine, or a CI re-run; asking npm what it serves cannot go stale.
  *
+ * Three buckets, not two, because "npm has it" and "users can install it" are
+ * different facts and the gap between them is real (see
+ * `checkOriginHasVersion`):
+ *
+ *   live    - the edge serves it. Nothing to publish, nothing to wait for.
+ *   staged  - the origin has it, the edge does not. Publishing again is the
+ *             409 that killed the 1.0.6 re-run, so it must be SKIPPED - but it
+ *             is NOT yet installable, so it must still be VERIFIED before the
+ *             next layer goes out. Dropping it from the verify set would hand
+ *             back exactly the ETARGET window this script exists to close.
+ *   pending - neither. Publish it.
+ *
  * @param {import('./lib/publishable-packages.d.mts').PublishablePackage[]} layer
  * @param {{registry: string}} options
- * @param {{checkPublished?: typeof checkPublished}} [deps] injection seam for tests
- * @returns {Promise<{live: typeof layer, pending: typeof layer}>}
+ * @param {{checkPublished?: typeof checkPublished,
+ *          checkOriginHasVersion?: typeof checkOriginHasVersion}} [deps] injection seam for tests
+ * @returns {Promise<{live: typeof layer, staged: typeof layer, pending: typeof layer}>}
  */
 export async function partitionLive(layer, { registry }, deps = {}) {
   const check = deps.checkPublished ?? checkPublished;
+  const checkOrigin = deps.checkOriginHasVersion ?? checkOriginHasVersion;
   const results = await Promise.all(
-    layer.map(async (pkg) => ({ pkg, live: (await check(registry, pkg.name, pkg.version)).ok })),
+    layer.map(async (pkg) => {
+      if ((await check(registry, pkg.name, pkg.version)).ok) return { pkg, bucket: 'live' };
+      // Only ask the origin once the edge has said no: on a fresh release that
+      // is one extra round trip for packages that were never published, and on
+      // a resume it is the whole difference between skipping and a 409.
+      const staged = (await checkOrigin(registry, pkg.name, pkg.version)).ok;
+      return { pkg, bucket: staged ? 'staged' : 'pending' };
+    }),
   );
+  const bucket = (name) => results.filter((r) => r.bucket === name).map((r) => r.pkg);
   return {
-    live: results.filter((r) => r.live).map((r) => r.pkg),
-    pending: results.filter((r) => !r.live).map((r) => r.pkg),
+    live: bucket('live'),
+    staged: bucket('staged'),
+    pending: bucket('pending'),
   };
 }
 
@@ -526,21 +600,31 @@ export async function main(argv) {
     // On a fresh release this costs one round trip per package and skips
     // nothing; after a partial release it is the whole recovery.
     let todo = layer;
+    /**
+     * Published by an earlier run but not yet servable. Skipped by the publish
+     * step and added back for verification — see `partitionLive`.
+     * @type {typeof layer}
+     */
+    let staged = [];
     if (!options.dryRun) {
-      const { live, pending } = await partitionLive(layer, options);
-      for (const p of live) {
+      const partitioned = await partitionLive(layer, options);
+      staged = partitioned.staged;
+      for (const p of partitioned.live) {
         console.log(`   SKIP ${p.name}@${p.version} - already live on the registry`);
       }
-      todo = pending;
-      if (todo.length === 0) {
-        // Nothing to publish means nothing to wait for: `live` came from the
-        // same check `verifyLayer` polls, so the layer is already proven.
+      for (const p of staged) {
+        console.log(`   SKIP ${p.name}@${p.version} - npm already has it; waiting on propagation`);
+      }
+      todo = partitioned.pending;
+      if (todo.length === 0 && staged.length === 0) {
+        // Nothing to publish and nothing in flight: `live` came from the same
+        // check `verifyLayer` polls, so the layer is already proven.
         console.log('   layer already complete');
         continue;
       }
     }
 
-    console.log(`   publishing ${todo.length} package(s)`);
+    if (todo.length > 0) console.log(`   publishing ${todo.length} package(s)`);
     const filters = todo.flatMap((p) => ['--filter', p.name]);
     const args = [
       ...filters,
@@ -557,7 +641,9 @@ export async function main(argv) {
       ...options.passthrough,
     ];
     try {
-      if (options.tarballsDir) {
+      if (todo.length === 0) {
+        // Only propagation left. Fall through to verification.
+      } else if (options.tarballsDir) {
         // Tarball mode (M13/VF-19): publish exactly what the unprivileged
         // pack job already packed, in dependency layers, via `npm publish`.
         // No pnpm runs here — no install, build, or lifecycle script of any
@@ -583,9 +669,42 @@ export async function main(argv) {
         await runPnpm(args);
       }
     } catch (error) {
-      console.error(`\nLayer ${index + 1} publish failed: ${error.message}`);
-      console.error(RESUME_HINT);
-      return 1;
+      // A non-zero exit is not proof that nothing landed. npm rejects a
+      // duplicate with E403 ("cannot publish over the previously published
+      // version") or 409 ("cannot publish over previously staged version"),
+      // and pnpm surfaces both as exit 1 — so the run that already succeeded
+      // reports itself as failed. Ask the origin what it actually holds rather
+      // than parsing that message: the text differs across npm and pnpm
+      // versions and is localized, while the registry's answer is the fact we
+      // need. If every package in this layer is there, the layer is done and
+      // the only thing left is propagation.
+      //
+      // Not in --dry-run: nothing was being published there, so a non-zero exit
+      // is a fact about THIS run (an unclean tree, a bad flag) and must stay
+      // loud. Without this guard a dry run of an already-released version
+      // reports every real problem as "npm already holds it - continuing".
+      const stillMissing = options.dryRun ? todo : [];
+      if (!options.dryRun) {
+        for (const p of todo) {
+          if (!(await checkOriginHasVersion(options.registry, p.name, p.version)).ok) {
+            stillMissing.push(p);
+          }
+        }
+      }
+      if (stillMissing.length > 0) {
+        console.error(`\nLayer ${index + 1} publish failed: ${error.message}`);
+        console.error(
+          `Not on the registry: ${stillMissing.map((p) => `${p.name}@${p.version}`).join(', ')}`,
+        );
+        console.error(RESUME_HINT);
+        return 1;
+      }
+      console.log(
+        `   publish exited non-zero, but npm holds every package in layer ${index + 1} ` +
+          '(duplicate publish of an already-accepted version) - continuing',
+      );
+      staged = [...staged, ...todo];
+      todo = [];
     }
 
     if (!verify) {
@@ -594,7 +713,7 @@ export async function main(argv) {
     }
     console.log(`   verifying layer ${index + 1} against ${options.registry} ...`);
     try {
-      await verifyLayer(todo, options);
+      await verifyLayer([...staged, ...todo], options);
     } catch (error) {
       console.error(`\n${error.message}`);
       if (error instanceof VerificationTimeoutError) {
@@ -602,6 +721,20 @@ export async function main(argv) {
           `\nThis is NOT a publish failure. Layers 1-${index + 1} left this machine and ` +
             'npm has them; the registry just has not served them yet.',
         );
+        // The budget only buys the ORDERING guarantee: no dependent may reach
+        // npm before its dependencies. On the last layer there is no next layer
+        // to hold back, so waiting longer protects nothing — every package is
+        // published and the edge will catch up on its own. Failing here is what
+        // made a finished 1.0.6 release look broken and sent the operator into
+        // a re-publish that answered 409.
+        if (index === layers.length - 1) {
+          console.error(
+            '\nNothing depends on the final layer, so there is no ordering left to protect: ' +
+              'the release is COMPLETE and the edge is still catching up. ' +
+              'Confirm with `pnpm release:verify` when it settles.',
+          );
+          return 0;
+        }
         console.error(RESUME_HINT);
         return 3;
       }
