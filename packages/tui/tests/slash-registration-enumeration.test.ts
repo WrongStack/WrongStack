@@ -134,6 +134,13 @@ describe('useTuiSlashCommands registration enumeration (decomposition Phase 0.4)
       expect(entry.owner).toBe('tui');
       expect(entry.official).toBe(true);
     }
+    // `/resume` claims the TUI `/sessions` token as an alias (plus `/load`).
+    // Aliasing adds no registration, so the bare-name order above is
+    // unchanged — but every aliased key must resolve to the resume command.
+    const resumeCmd = registry.get('resume');
+    expect(resumeCmd?.aliases).toEqual(['load', 'sessions']);
+    expect(registry.get('load')).toBe(resumeCmd);
+    expect(registry.get('sessions')).toBe(resumeCmd);
     unmount();
   });
 

@@ -20,6 +20,8 @@ wstack resume <session-id>
 
 **Note:** The command was renamed from `/resume` to `/sessions` to match its behavior (it lists sessions, it doesn't actually resume them). The old aliases `/resume` and `/load` still work for backward compatibility.
 
+**TUI note:** Inside the TUI, `/sessions` — together with its `/resume` and `/load` aliases — is overridden by the TUI's official ResumePicker plugin: instead of printing the text list, it opens the interactive session picker (fed by the same `DefaultSessionStore`, up to the 500 most-recent entries). The text subcommands below (`rename`, `delete`, `kill`, `archive`, `recover`, `status`) are REPL/headless-only while the TUI is mounted; the live-sessions view stays on the F10 panel. The override is ownership-safe — exiting the TUI restores the text command.
+
 ### /sessions rename \<id\> [name...]
 
 Sets a user-supplied name on a session. The name is persisted in the session's `.summary.json` sidecar and the `_index.jsonl` cache, so it survives restarts and is visible everywhere sessions are listed (the CLI, the TUI, and the WebUI sidebar). When present, the name takes precedence over the auto-derived `title`; the `title` is still derived from the first user message and kept in sync as the conversation evolves.

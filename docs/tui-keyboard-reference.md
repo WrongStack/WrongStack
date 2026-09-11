@@ -76,7 +76,7 @@ Two-step: Step 1 = select provider, Step 2 = select model.
 | Enter | Apply selected autonomy mode, close picker |
 | Esc | Close picker (no change) |
 
-### Resume picker (`/resume`)
+### Resume picker (`/resume`, `/sessions`, `/load`)
 
 | Key | Effect |
 |---|---|

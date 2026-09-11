@@ -128,7 +128,11 @@ export function useSessionSlashCommands(
     if (part !== 'tail') return;
     const cmd = {
       name: 'resume',
-      aliases: ['load'],
+      // `sessions` deliberately shadows the CLI's text command inside the
+      // TUI: `/sessions` must open the same picker as `/resume`. The CLI's
+      // `/sessions <sub>` text subcommands (status/kill/rename/archive) stay
+      // REPL/headless-only; live sessions in the TUI remain on F10.
+      aliases: ['load', 'sessions'],
       description: 'Resume a previous session — pick from your session history.',
       async run() {
         if (!listSessions) {
@@ -149,7 +153,9 @@ export function useSessionSlashCommands(
       },
     };
     // Register as an official TUI plugin so it overrides the CLI's text-based
-    // /resume command (which is an alias on /sessions).
+    // /sessions command and every alias it carries (/resume, /load — the bare
+    // `sessions` token is claimed via the alias above). Lifecycle teardown
+    // restores the CLI command on unmount.
     return registerSlashCommandLifecycle(slashRegistry, cmd, {
       owner: 'tui',
       official: true,
