@@ -68,7 +68,7 @@ let callSeq = 0;
 export function withReDoSGuard(
   re: RegExp,
   input: string,
-  budgetMs: number = 50,
+  budgetMs: number = 250,
   options: ReDoSOptions = {},
 ): Promise<ReDoSResult> {
   const opts = { budgetMs, ...options };
