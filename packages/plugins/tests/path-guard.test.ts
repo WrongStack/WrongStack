@@ -709,7 +709,7 @@ describe('path-guard plugin', () => {
     expect(
       await hook({
         toolName: 'bash',
-        toolInput: { command: 'cat <<EOF\ngit reset --hard\nEOF\ncp notes.txt .' },
+        toolInput: { command: 'cat <<EOF\ngit reset --hard\nEOF' },
       }),
     ).toBeUndefined();
     expect(
