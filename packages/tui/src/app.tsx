@@ -1,16 +1,12 @@
-import * as path from 'node:path';
 import type { Director } from '@wrongstack/core/coordination';
-import React, { useCallback, useEffect } from 'react';
-import {
-  effectivePanelPositions,
-  mergeStatuslineHiddenItems,
-  resolveAppSidebarLayout,
-} from './app-ui-state.js';
+import type React from 'react';
+import { useCallback, useEffect } from 'react';
+import { effectivePanelPositions, mergeStatuslineHiddenItems } from './app-ui-state.js';
 import { AppView } from './app-view.js';
 import { deriveAppViewState } from './app-view-state.js';
 import { leaderTimelineFromEntries } from './components/agents-monitor.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
-import { useActiveTheme } from './hooks/use-active-theme.js';
+import { useAppEnvironment } from './hooks/use-app-environment.js';
 import { useAppExecutionPipeline } from './hooks/use-app-execution-pipeline.js';
 import { useAppPickerKeys } from './hooks/use-app-picker-keys.js';
 import { buildAppPipelineArgs } from './hooks/use-app-pipeline-builders.js';
@@ -18,7 +14,6 @@ import { useAppRefSpine } from './hooks/use-app-ref-spine.js';
 import { useAppState } from './hooks/use-app-state.js';
 import { useAuthPanel } from './hooks/use-auth-panel.js';
 import { useAutonomousCoordinator } from './hooks/use-autonomous-coordinator.js';
-import { useAutonomyDrivers } from './hooks/use-autonomy-drivers.js';
 import { useBrainPanel } from './hooks/use-brain-panel.js';
 import { useBrainRiskSync } from './hooks/use-brain-risk-sync.js';
 import { useBugHuntLoop } from './hooks/use-bug-hunt-loop.js';
@@ -27,21 +22,17 @@ import { useCoreTuiCommands } from './hooks/use-core-tui-commands.js';
 import { useDirectorFleetBridge } from './hooks/use-director-fleet-bridge.js';
 import { useExitCommand } from './hooks/use-exit-command.js';
 import { useFileSearch } from './hooks/use-file-search.js';
-import { useGitSessionStatus } from './hooks/use-git-session-status.js';
 import { useHelpPanel } from './hooks/use-help-panel.js';
 import { useHistoryArchive } from './hooks/use-history-archive.js';
 import { useHistoryAutoScroll } from './hooks/use-history-auto-scroll.js';
 import { useHistoryCopyNotice } from './hooks/use-history-copy-notice.js';
-import { useHistoryViewportSync } from './hooks/use-history-viewport-sync.js';
 import { useInitialPrompt } from './hooks/use-initial-prompt.js';
 import { useInputHistoryPersistence } from './hooks/use-input-history-persistence.js';
 import { useInterruptLadder } from './hooks/use-interrupt-ladder.js';
 import { useKanbanBoardFocus } from './hooks/use-kanban-board-focus.js';
-import { useLiveSettingsState } from './hooks/use-live-settings-state.js';
 import { useMailboxViewModel } from './hooks/use-mailbox-view-model.js';
 import { useModePicker } from './hooks/use-mode-picker.js';
 import { useModelPickRequest } from './hooks/use-model-pick.js';
-import { useMouseTracking } from './hooks/use-mouse-tracking.js';
 import { useNextStepsAutoSubmit } from './hooks/use-next-steps-auto-submit.js';
 import { usePanelControllers } from './hooks/use-panel-controllers.js';
 import { usePasteHandling } from './hooks/use-paste-handling.js';
@@ -50,25 +41,14 @@ import { useProviderEventBridge } from './hooks/use-provider-event-bridge.js';
 import { useQueueManager } from './hooks/use-queue-manager.js';
 import { useSessionInterruptController } from './hooks/use-session-interrupt-controller.js';
 import { useSessionRewind } from './hooks/use-session-rewind.js';
-import { useSettingsAutoSave } from './hooks/use-settings-auto-save.js';
 import { useShadowPanel } from './hooks/use-shadow-panel.js';
 import { useSlashPicker } from './hooks/use-slash-picker.js';
-import { useStatusSyncInterval } from './hooks/use-status-sync-interval.js';
 import { useStatusbarViewModel } from './hooks/use-statusbar-view-model.js';
-import {
-  useStatuslineHiddenSync,
-  useStatuslineLayoutSync,
-} from './hooks/use-statusline-hidden-sync.js';
-import { useStreamChipExpiration } from './hooks/use-stream-chip-expiration.js';
 import { useThemePickerHandler } from './hooks/use-theme-picker-handler.js';
-import { useThemeState } from './hooks/use-theme-state.js';
 import { useTokenCounterRefresh } from './hooks/use-token-counter-refresh.js';
-import { useTuiActivity } from './hooks/use-tui-activity.js';
 import { useTuiControllers } from './hooks/use-tui-controllers.js';
-import { useTuiEnvironmentState } from './hooks/use-tui-environment-state.js';
 import { useTuiEventBridge } from './hooks/use-tui-event-bridge.js';
 import { useTuiSlashCommands } from './hooks/use-tui-slash-commands.js';
-import { useWorkingDirChip } from './hooks/use-working-dir-chip.js';
 import { useApp, useStdout } from './ink.js';
 
 export { buildGoalPreamble } from '@wrongstack/core/execution';
@@ -185,52 +165,6 @@ export function App(props: AppProps): React.ReactElement {
   const { exit } = useApp();
   const { stdout } = useStdout();
 
-  useActiveTheme();
-  useThemeState({ configStore });
-
-  const environment = useTuiEnvironmentState({
-    events,
-    memoryStore,
-    model,
-    provider,
-    effectiveMaxContext,
-    yolo,
-    getAutonomy,
-    modeLabel,
-    statuslineHiddenItems,
-    toolCount,
-    getSettings,
-    setStatuslineHiddenItems,
-    saveStatuslineHiddenItems,
-    statuslineLines,
-  });
-  const {
-    liveModel,
-    setLiveModel,
-    liveProvider,
-    setLiveProvider,
-    activeMaxContext,
-    setActiveMaxContext,
-    yoloLive,
-    setYoloLive,
-    autonomyLive,
-    setAutonomyLive,
-    liveModeLabel,
-    setLiveModeLabel,
-    hiddenItems,
-    setHiddenItems,
-    lines,
-    setLines,
-    densities,
-    setDensities,
-    setSessionCount,
-    hiddenItemsRef,
-    setMemoryContextMonitor,
-    memoryContextMonitorRef,
-    memoryRecordTotalRef,
-    setLiveToolCount,
-  } = environment;
-
   const projectRoot = agent.ctx.projectRoot;
 
   // Decomposition Phase 4 A1 (docs/decomposition-a0-app-map.md): state
@@ -282,8 +216,6 @@ export function App(props: AppProps): React.ReactElement {
     historyScrollRef,
     statusBarClickMapRef,
     inspectOverlayHeaderRef,
-    linesRef,
-    densitiesRef,
     enhanceEnabledRef,
     midRunSendPickerRef,
     enhanceAbortRef,
@@ -299,7 +231,7 @@ export function App(props: AppProps): React.ReactElement {
     setRefineProviderId,
     refineModel,
     setRefineModel,
-  } = useAppRefSpine({ attachments, state, lines, densities, midRunSendPicker });
+  } = useAppRefSpine({ attachments, state, midRunSendPicker });
   const onScrollInfo = useCallback(
     (info: { scrolled: boolean }) =>
       dispatch({ type: 'setHistoryScrolled', scrolled: info.scrolled }),
@@ -349,31 +281,6 @@ export function App(props: AppProps): React.ReactElement {
 
   const { openHelpPanel } = useHelpPanel(dispatch, slashRegistry);
 
-  useStatuslineHiddenSync({
-    pickerOpen: state.statuslinePicker.open,
-    pickerHidden: state.statuslinePicker.hiddenItems,
-    hiddenItems,
-    setHiddenItems: (items) => setHiddenItems(items as typeof hiddenItems),
-  });
-
-  useStatuslineLayoutSync({
-    pickerOpen: state.statuslinePicker.open,
-    layoutSeeded: state.statuslinePicker.layoutSeeded,
-    pickerLines: state.statuslinePicker.lines,
-    pickerDensities: state.statuslinePicker.densities,
-    lines,
-    densities,
-    setLines,
-    setDensities,
-  });
-
-  useStreamChipExpiration({
-    brainPrompt: state.brainPrompt,
-    enhance: state.enhance,
-    visibleChips: state.statuslinePicker.visibleChips,
-    dispatch,
-  });
-
   useAutonomousCoordinator(subscribeCoordinatorEvents, dispatch);
 
   const bugHuntLoop = useBugHuntLoop(
@@ -386,49 +293,103 @@ export function App(props: AppProps): React.ReactElement {
     state.historyGen,
   );
 
-  const projectName = React.useMemo(() => {
-    const base = path.basename(projectRoot);
-    return base && base !== path.sep ? base : undefined;
-  }, [projectRoot]);
-
-  const workingDirChip = useWorkingDirChip(agent.ctx, projectRoot);
-
-  const {
-    liveSettings,
-    liveStatuslineMode,
-    liveAnimationStyle,
-    liveThinkingWord,
-    chimeRef,
-    confirmExitRef,
-  } = useLiveSettingsState({ getSettings, titleController, chime, confirmExit });
-
   const mailbox = useMailboxViewModel(events);
   const { setMailboxPanelOpen } = mailbox;
 
-  const sidebarLayout = resolveAppSidebarLayout(
-    state,
-    stdout?.columns ?? 80,
+  // Decomposition Phase 4 A2 (docs/decomposition-a0-app-map.md): environment
+  // facade — theme, env state, live settings, activity, layout, mouse,
+  // viewport, autonomy drivers, status syncs, settings auto-save. Call order
+  // fixed + unconditional (behavior contract §0.3); runs after the mailbox
+  // VM (consumes mailboxPanelOpen).
+  const {
+    environment,
+    activity,
+    refreshGoalSummary,
+    linesRef,
+    densitiesRef,
+    projectName,
+    workingDirChip,
     liveSettings,
-    mailbox.mailboxPanelOpen,
-  );
-
-  useEffect(() => {
-    titleController?.setModel(liveModel);
-  }, [titleController, liveModel]);
-
-  const activity = useTuiActivity({
-    status: state.status,
-    fleet: state.fleet,
-    enhanceBusy: state.enhanceBusy,
-    thinkingWord: liveThinkingWord,
-    projectRoot,
-    stateRef,
-    agentContext: agent.ctx,
-    dispatch,
+    liveStatuslineMode,
+    liveAnimationStyle,
+    chimeRef,
+    confirmExitRef,
+    sidebarLayout,
+    mouseMode,
+    setMouseMode,
+    nativeMouse,
+    setNativeMouse,
+    bottomRegionRef,
+    statusBarWrapRef,
+    belowStatusBarRef,
+    termRows,
+    statusBarRows,
+    gitInfo,
+    runEternalLoopRef,
+    runParallelLoopRef,
+    hiddenItems,
+    setHiddenItems,
+    hiddenItemsRef,
+    setMemoryContextMonitor,
+    memoryContextMonitorRef,
+    memoryRecordTotalRef,
+    setLiveToolCount,
+  } = useAppEnvironment({
+    agent,
     attachments,
+    configStore,
+    state,
+    dispatch,
+    mailboxPanelOpen: mailbox.mailboxPanelOpen,
+    stdout,
+    events,
+    memoryStore,
+    model,
+    provider,
+    effectiveMaxContext,
+    yolo,
+    mouse,
+    capability,
+    chime,
+    confirmExit,
+    stateRef,
     builderRef,
+    eternalLoopRunningRef,
+    parallelLoopRunningRef,
+    getAutonomy,
+    modeLabel,
+    statuslineHiddenItems,
+    toolCount,
+    getSettings,
+    setStatuslineHiddenItems,
+    saveStatuslineHiddenItems,
+    statuslineLines,
+    titleController,
+    getYolo: props.getYolo,
+    getModeLabel,
+    getEternalEngine,
+    getParallelEngine,
+    switchAutonomy,
+    subscribeEternalIteration: props.subscribeEternalIteration,
+    subscribeEternalStage: props.subscribeEternalStage,
+    getLiveSessions,
+    saveSettings,
   });
-  const { displayThinkingWord, refreshGoalSummary } = activity;
+  const {
+    liveModel,
+    setLiveModel,
+    liveProvider,
+    setLiveProvider,
+    activeMaxContext,
+    setActiveMaxContext,
+    yoloLive,
+    setYoloLive,
+    autonomyLive,
+    setAutonomyLive,
+    liveModeLabel,
+    setLiveModeLabel,
+  } = environment;
+  const { displayThinkingWord } = activity;
 
   const liveDirector = useCallback(
     (): Director | null => getDirector?.() ?? director,
@@ -492,21 +453,6 @@ export function App(props: AppProps): React.ReactElement {
     [dispatch, statuslineHiddenForPicker, linesRef, densitiesRef],
   );
 
-  const { mouseMode, setMouseMode, nativeMouse, setNativeMouse } = useMouseTracking({
-    initialMouseMode: mouse,
-    initialNativeMouse: getSettings?.().mouseNative,
-    overlayOpen: sidebarLayout.overlayOpen,
-    protocol: capability?.mouseProtocol,
-    stdout,
-  });
-
-  const { bottomRegionRef, statusBarWrapRef, belowStatusBarRef, termRows, statusBarRows } =
-    useHistoryViewportSync({
-      stdoutRows: stdout?.rows,
-      viewportRows: state.viewportRows,
-      setViewportRows: (rows) => dispatch({ type: 'setViewportRows', rows }),
-    });
-
   const { handleRewindTo } = useSessionRewind({
     agent,
     sessionsDir,
@@ -524,44 +470,6 @@ export function App(props: AppProps): React.ReactElement {
     draftRef.current = { buffer: '', cursor: 0 };
     dispatch({ type: 'clearInput' });
   };
-
-  const { runEternalLoopRef, runParallelLoopRef } = useAutonomyDrivers({
-    getEternalEngine,
-    getParallelEngine,
-    getAutonomy,
-    switchAutonomy,
-    subscribeEternalIteration: props.subscribeEternalIteration,
-    subscribeEternalStage: props.subscribeEternalStage,
-    refreshGoalSummary,
-    autonomyLive,
-    setAutonomyLive,
-    dispatch,
-    eternalLoopRunningRef,
-    parallelLoopRunningRef,
-  });
-
-  useStatusSyncInterval({
-    getAutonomy,
-    getYolo: props.getYolo,
-    getModeLabel,
-    getEternalEngine,
-    getParallelEngine,
-    agent,
-    autonomyLive,
-    yoloLive,
-    liveModeLabel,
-    liveModel,
-    liveProvider,
-    setAutonomyLive,
-    setYoloLive,
-    setLiveModeLabel,
-    setLiveModel,
-    setLiveProvider,
-    runEternalLoopRef,
-    runParallelLoopRef,
-  });
-
-  const gitInfo = useGitSessionStatus({ agent, getLiveSessions, setSessionCount, hiddenItems });
 
   const tokenRefresh = useTokenCounterRefresh(tokenCounter, events, agent.ctx.session?.id);
 
@@ -663,8 +571,6 @@ export function App(props: AppProps): React.ReactElement {
     clearDraft,
     runBlocksRef,
   });
-
-  useSettingsAutoSave(state, saveSettings, dispatch);
 
   useTuiSlashCommands({
     slashRegistry,

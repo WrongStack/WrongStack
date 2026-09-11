@@ -137,8 +137,11 @@ describe('all surfaces read routing through the shared authority', () => {
     });
   }
 
-  it('app.tsx and app-view.tsx both call resolveAppSidebarLayout', () => {
-    for (const file of ['app.tsx', 'app-view.tsx']) {
+  it('app.tsx (via the environment facade) and app-view.tsx both call resolveAppSidebarLayout', () => {
+    for (const file of [
+      join('hooks', 'use-app-environment.ts'),
+      'app-view.tsx',
+    ]) {
       const src = readFileSync(join(SRC_DIR, file), 'utf8');
       expect(src).toContain('resolveAppSidebarLayout(');
       expect(src).not.toMatch(/[^p]resolveSidebarLayout\(/);
