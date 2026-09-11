@@ -166,8 +166,8 @@ describe('ContextWindowEditor', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
 
     rerender(<ContextWindowEditor open={false} onClose={onClose} />);
-    await act(async () => {});
-    expect(document.activeElement).toBe(trigger);
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    trigger.remove();
   });
 
   it('renders loading state when open with no snapshot', async () => {

@@ -6,6 +6,179 @@ command it names; nothing here is recorded from reading the code.
 Rules: one variable per attempt; a delta inside the run spread or under the
 noise floor is REVERTED, not kept; correctness gates everything.
 
+## 2026-09-11 — CORRECTION + probe: core/security + core/utils cold import (round cli-probe-closeout; SUPERSEDES the cli-coreimports-premise verdict below)
+
+commit:   5362e165ac
+machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0
+command:  node .temp_files/perf-ratchet/cli-probe-closeout/probe.mjs   (5 fresh-process runs per specifier,
+          argv spawn — no stdin children, cwd packages/cli, in-process performance.now() around
+          await import(); node:path control run alongside)
+measured: node:path control median 0.18ms · @wrongstack/core/security median 21.11ms (18.51–21.72) ·
+          @wrongstack/core/utils median 42.62ms (41.19–44.20)
+verdict:  RE-OPENED — the close-out condition the cli-coreimports-premise entry itself recorded
+          ("either entry measuring >~30ms") is MET by core/utils at 42.62ms. Combined eager carry of
+          the two entries ≈ 63.7ms per invocation, not the 5–10ms that entry estimated.
+correction (why cli-coreimports-premise was wrong): its Layer C closure walk mangled two-dot relative
+          specifiers — '../chunk-X.js'.replace('./','') yields '.chunk-X.js', which failed to resolve,
+          so the walk reported dist/utils/index.js as a self-contained single file. In fact it is an
+          11KB re-export shell over the dist-root shared chunks: 31 import blocks `} from "../chunk-*.js"`
+          (T4BQ6RPM, Y34QKQ7W, 6Y3BBDTR, …). The "no bare workspace imports" grep was true but
+          irrelevant — the fan-out is RELATIVE. core-utils-r1's ~41ms stands; this entry's "stale
+          number" caution is retracted. Lesson (twice-earned today): closure walkers must resolve
+          '../' specifiers with join() on the dirname, never string-replace './'.
+next:     granular-subpath round re-opened and queued, not executed in this task slot: narrow entries
+          for the 5 boot-path symbols (writeErr, color, installCrashShield, runFatalSalvageSync,
+          scrubErrorText) per the child-env precedent (4.52ms vs 41ms) ≈ expected −50–55ms off the
+          ~102ms median.
+
+## 2026-09-11 — premise check: core/security + core/utils on the fast path (round cli-coreimports-premise, scope packages/cli — NO change attempted; verdict: granular round NOT justified)
+
+commit:   5362e165ac (dist = the cli-sessionshell-r1 build; worktree still carries unrelated peer edits)
+machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0
+command:  node .temp_files/perf-ratchet/cli-coreimports-premise/scan-coreimports.mjs   (artifact scan:
+          fast-path union, per-chunk named-import extraction, per-entry eager closure; scratch dir
+          removed after recording) + direct bare-import grep on both dist entries (independent method)
+result:   The fast-path union (7 chunks) eagerly imports @wrongstack/core/security and
+          @wrongstack/core/utils — 5 distinct symbols from 4 src leaves: scrubErrorText
+          (security/error-sanitize.ts), writeErr (utils/term.ts), color (utils/color.ts),
+          installCrashShield + runFatalSalvageSync (utils/crash-shield.ts). Consumers are
+          single/few-symbol: index.js 1 security symbol + 3 utils symbols, preflight chunk 1 utils
+          symbol, chunk-6WRKAACA 1 utils symbol.
+          BUT both core entries are SELF-CONTAINED single files in today's build:
+          dist/security/index.js = 68,846B, dist/utils/index.js = 11,320B — no relative fan-out,
+          no bare workspace imports, no dynamic imports (verified two independent ways).
+          Remaining eager workspace carry ≈ 2 files / ~80KB ≈ 5–10ms shaveable (calibration:
+          a ~35KB single-file cold import ≈ 8–10ms — sdk-runner-r2-era measurement).
+verdict:  granular-subpath round NOT justified by the numbers — expected win ~5–10ms (~5–10%) sits
+          inside the plausible noise band (max(repeat spread, 5%)), and sdk-runner-r2 already measured
+          that this shape loses (entry + build surface + maintenance for a win the band swallows).
+          Re-open conditions: (a) a direct cold-import probe of either entry measuring >~30ms
+          (would contradict the estimate with a measurement), or (b) a future core build regressing
+          utils/index.js or security/index.js into a chunk fan-out again.
+note:     core-utils-r1's "~41ms core/utils barrel" no longer matches today's artifact — that cost was
+          the OLD build's ~15-chunk fan-out; utils/index.js is self-contained now. Module-count
+          premises decay with the build, not just with commits: re-verify against the current dist
+          even within one repo. This is the same lesson as the hq-server hand-off, one level deeper.
+
+## 2026-09-11 — cli cold start round 3: granular session-shell subpath (round cli-sessionshell-r1, scope packages/cli + @wrongstack/tools)
+
+commit:   5362e165ac (worktree carries unrelated in-flight peer edits — plug-lsp, core/webui/tui tests,
+          architecture/test-only-exports.json; none are in this bundle path)
+machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0
+metric:   wstack --version cold start (process launch → exit) — perf-guard cli.cold-start metric
+commands: node .temp_files/perf-ratchet/cli-sessionshell-r1/run-bench.mjs <label>    (5 runs, 1 warmup,
+          CPU-load snapshots; spawnSync argv, no stdin children)
+          node .temp_files/perf-ratchet/cli-sessionshell-r1/verify-artifact.mjs     (artifact read-back
+          BEFORE trusting any number)
+          node scripts/perf-guard.mjs --only cli.            (independent cross-check: GAIN 65.1%)
+          node scripts/perf-guard.mjs --only cli. --write    (ratchet: GAIN 58.8%, "ratcheted: cli.cold-start")
+premise (verified BEFORE the change): _session-shell.ts has one runtime edge — ./_win32-resolve.js →
+          node builtins + a re-export from the narrow @wrongstack/core/utils entry. Light, not
+          barrel-pulling. Tools emits an explicit entry list, so the subpath needed a src/session-shell.ts
+          single-symbol re-export + a toolEntries line + an exports-map entry — the same flat-file
+          convention as ./session-kanban (the plugins directory-convention trap does not apply here;
+          verified by a chained build-emission gate, not typecheck).
+change:   ONE variable — the boot-path tools dependency: new subpath @wrongstack/tools/session-shell,
+          preflight.ts:49 repointed from the bare '@wrongstack/tools' barrel. All other barrel
+          consumers untouched.
+artifact: dist/session-shell.js (165B) exports ensureSessionShell; dist/session-shell.d.ts emitted and
+          read back (emitDeclarations can silently drop declarations on Windows). Fast-path union
+          verification: imports '@wrongstack/tools/session-shell', toolsBarrelOnFastPath: false. The
+          barrel's measured cost on that path was 81 files / 1,513,139B eager per invocation
+          (premise round cli-preflight-premise, same commit).
+baseline: [419 410 411 415 432]  median 415  (min 410 / max 432, spread 22, load 16→13%)
+after:    [102 102 105 146 101]  median 102  (min 101 / max 146, spread 45, load 12→4%)
+delta:    −313ms (−75.4%) vs band max(22, 5%) ≈ 22ms → ~14× outside. The after set's WORST run (146ms)
+          beats the baseline set's BEST (410ms) by 264ms.
+tests:    full packages/cli suite after: 1 failed | 5663 passed | 3 skipped — failure set IDENTICAL to
+          the HEAD before-state (FAIL-line identity: the pre-existing webui-server-projects.test.ts
+          "projects.add registers a folder…" failure). --version output verified: "WrongStack 1.0.5
+          (apiVersion 0.1.10, node v24.13.0, win32)", exit 0.
+verdict:  KEEP — cli.cold-start ratcheted to 164ms in architecture/perf-baseline.json
+          (recordedAt 2026-09-11T09:51:10.700Z, commit 5362e165a; was 398ms from 2026-09-01).
+calibration note for the next round: prediction was 15–30%, measured −75.4%. An eager multi-module
+          barrel graph costs far more than its byte count on a module-LOAD-bound path (81 stat/read
+          resolutions + compiles). Module-count share predicts such wins better than byte-share.
+
+## 2026-09-11 — premise check: preflight.js → @wrongstack/tools carry (round cli-preflight-premise, scope packages/cli — NO change attempted)
+
+commit:   5362e165ac (dist rebuilt at this commit during cli-hqchunk-r1; the scan below ran against that artifact)
+machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0
+command:  node .temp_files/perf-ratchet/cli-preflight-premise/scan-preflight.mjs   (two-layer artifact scan,
+          read-only; scratch dir removed after recording)
+result:   PREMISE HOLDS — this cli-coldstart-r1 hand-off lead is real, unlike the hq-server one.
+          Layer A: the --version fast-path union (dist/index.js static closure ∪
+          short-circuit-flags-KBTYSJTW.js static closure) is 7 cli chunks / 21,432B, and
+          chunk-O4A3HHKD.js (positively preflight.ts via the ensureSessionShell probe; the
+          hq-server/preflight, boot.ts and execution.ts probes came back empty) statically imports
+          the bare '@wrongstack/tools' barrel (preflight.ts:49).
+          Layer B: packages/tools/dist/index.js static closure = 81 files / 1,513,139B (~1.51MB)
+          found + compiled + evaluated eagerly on every invocation — static imports hoist before
+          the fast path runs.
+call-site nuance (shapes the fix): applySessionShellDefault() calls ensureSessionShell() and runs at
+          cli-entry-main.ts:34 BEFORE the --version short-circuit (also cli-context.ts:66 and
+          preflight.ts:133 runPreflight). A lazy dynamic import inside preflight would therefore NOT
+          remove the load from the fast path — the call itself happens there. Note preflight.ts
+          already lazy-imports @wrongstack/providers (line 117) for exactly this reason on a path
+          that IS off the fast path.
+next round's shape (queued hypothesis, prediction included): move ensureSessionShell to a granular
+          subpath export (implementation already isolated in packages/tools/src/_session-shell.ts:99;
+          verify that file's own imports are light FIRST — if it pulls the barrel, the leaf is fake)
+          and repoint preflight.ts:49; barrel re-export stays for API compat. Same plugins-rewire-r1
+          pattern as the plugin-sdk leaf shims. Prediction: expect roughly 15–30% (~60–140ms) off
+          the ~434ms median — the 1.51MB tools graph is plausibly the largest eager component of a
+          module-LOAD-bound cold start (cli-coldstart-r1 profile). Gate: full packages/cli suite +
+          pnpm perf:guard; KEEP only outside band = max(repeat spread, 5%).
+
+## 2026-09-11 — cli cold start round 2: defer the hq-server chunk (round cli-hqchunk-r1, scope packages/cli)
+
+commit:   5362e165ac (worktree also carries unrelated in-flight edits from a concurrent peer session —
+          packages/core, plug-lsp, webui, tui tests + plug-lsp src; none are in the CLI bundle path.
+          This round's own edits were fully reverted before the closing measurements.)
+machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0
+metric:   wstack --version cold start (process launch → exit) — the perf-guard cli.cold-start metric
+commands: node .temp_files/perf-ratchet/cli-hqchunk-r1/run-bench.mjs    (5 runs, 1 warmup, CPU-load
+          snapshots before/after per the shared-box rule)
+          node .temp_files/perf-ratchet/cli-hqchunk-r1/scan-graph.mjs  (chunk reference map, artifact)
+          node .temp_files/perf-ratchet/cli-hqchunk-r1/scan-entry.mjs  (entry static-closure reachability)
+          node scripts/perf-guard.mjs --only cli.
+hypothesis (the cli-coldstart-r1 hand-off): the always-loaded entry graph statically carries the
+          ~174KB hq-server chunk; deferring it should cut cold start ~10–20% (40–90ms).
+premise-check (before changing anything): artifact scan confirmed cli-context-E623MOHP.js statically
+          imported chunk-PQZPHGGD.js (178,299B, hq-server symbols) — pulled in solely by DEFAULT_PORT
+          (hq-server.ts:72) imported by boot/launch-menu.ts:38 and boot/short-circuit-hq.ts:22.
+change:   ONE variable — DEFAULT_PORT moved to leaf hq-server/utils.ts (already on the boot graph via
+          core/hq + core/utils imports both consumers already make); barrel re-exports it (internal
+          use at hq-server.ts:130 keeps a local import); the two boot files repointed. Rebuild
+          confirmed the edge broke: cli-context-JBUTSFFR.js → 0 static / 1 dynamic ref to
+          hq-server-MG5I4XRO.js.
+measurements:
+          baseline (load 66→45%, busy box):  [428 418 434 482 431]  median 431  spread 64
+          after    (load 7→11%, quiet box):   [435 423 450 418 423]  median 423  spread 32
+          post-revert HEAD (load 24→34%):     [416 468 434 409 462]  median 434  spread 59
+          Fair pair = after vs post-revert HEAD (both quiet-ish): Δ −11ms vs a 59ms band → inside
+          noise. The unfair pairing 431 vs 423 (−8ms vs 64ms band) was also inside. No reading
+          supports KEEP.
+verdict:  REVERT — git restore of the 4 files; dist rebuilt at HEAD (chunk hashes byte-identical to
+          the pre-round build); post-revert perf-guard reads 0.3% vs the recorded baseline (inside
+          the 15% band). Zero residue.
+why the hypothesis was wrong (do not retry blind): the hand-off's premise — "hq/ws/core-hq code
+          loaded on every invocation" — was true at b608d82f6 but stale at 5362e165ac. scan-entry
+          on the current dist: index.js's STATIC closure is 4 files; the --version fast path goes
+          index.js → short-circuit-flags-KBTYSJTW.js (dynamic) and never fetches cli-context at all —
+          the static hq edge removed here lived in a module off the measured path. LESSON:
+          premise-check ledger hand-offs against the CURRENT built artifact (one entry-closure scan)
+          before spending a round; chunk attribution does not transfer across commits that touched
+          the boot graph.
+tests:    before-state at HEAD: 1 failed / 5663 passed / 3 skipped (pre-existing
+          tests/webui-server-projects.test.ts "projects.add registers a folder…" — unrelated). The
+          change is reverted, so the tree is bit-identical to the before-state; the after-suite was
+          not re-run and did not need to be.
+note:     the deferral itself is technically sound (the chunk did move static→dynamic inside the
+          cli-context graph) and becomes the right change only if a future round's metric is a
+          cli-context-LOADING invocation (bare `wstack`, subcommand help). Scratch scripts lived in
+          .temp_files/perf-ratchet/cli-hqchunk-r1/ and were removed after the round per protocol.
+
 ## 2026-09-07 — PageRank pass cost inside a full index (round atlas-rank-r1, scope packages/tools/src/codebase-index)
 commit:   c0600448a (worktree dirty: the Codebase Atlas layers under measurement)
 machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0

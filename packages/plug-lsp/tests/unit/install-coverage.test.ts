@@ -20,6 +20,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 import {
+  installCoverage,
   installLang,
   LANGUAGE_SERVERS,
   SUPPORTED_LANGUAGES,
@@ -54,6 +55,20 @@ function nextChild(outcome: number | null | 'error' | 'string-error'): void {
 }
 
 describe('language-server installer completion coverage', () => {
+  it('builds portable and Windows-shim spawn options', () => {
+    expect(installCoverage.resolveInstallCommandInvocation('server', ['--stdio'], 'linux')).toEqual(
+      {
+        command: 'server',
+        args: ['--stdio'],
+        windowsVerbatimArguments: false,
+      },
+    );
+    expect(
+      installCoverage.resolveInstallCommandInvocation('C:\\Program Files\\ls.cmd', [], 'win32')
+        .windowsVerbatimArguments,
+    ).toBe(true);
+  });
+
   it('exports the complete language catalog and short-circuits installed binaries', async () => {
     expect(SUPPORTED_LANGUAGES).toEqual(expect.arrayContaining(['typescript', 'go', 'rust']));
     mocks.resolveServerCommand.mockResolvedValue('/bin/server');

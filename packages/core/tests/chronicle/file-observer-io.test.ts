@@ -192,7 +192,10 @@ describe('Chronicle file observer I/O', () => {
 
     await Promise.all(
       ['a.ts', 'b.ts', 'c.ts', 'd.ts'].map((name) =>
-        writeFile(path.join(root, name), `export const ${name[0]} = 2;\n`),
+        // Change the size as well as the content. This test guards the batch
+        // boundary, not filesystem timestamp resolution; same-sized rewrites
+        // can legitimately share an mtime tick on Windows under coverage load.
+        writeFile(path.join(root, name), `export const ${name[0]} = 22;\n`),
       ),
     );
     io.onWatch?.('change', null);

@@ -757,6 +757,9 @@
       "runSetup",
       "setupCoverage"
     ],
+    "packages/plug-lsp/src/slash-commands/install.ts": [
+      "installCoverage"
+    ],
     "packages/plug-lsp/src/slash-commands/lsp.ts": [
       "lspCommandCoverage"
     ],

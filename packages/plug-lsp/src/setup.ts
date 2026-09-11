@@ -3,11 +3,7 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import {
-  buildChildEnv,
-  buildWin32CmdShimInvocation,
-  expectDefined,
-} from '@wrongstack/core/utils';
+import { buildChildEnv, buildWin32CmdShimInvocation, expectDefined } from '@wrongstack/core/utils';
 import { languageServerForWorkspace } from './slash-commands/install.js';
 import { commandExistsOnPath, resolveServerCommand } from './utils/command-resolver.js';
 
@@ -260,17 +256,14 @@ export function runCommand(command: string, args: string[], cwd: string): Promis
   // this used to hand-roll `shell` instead, which is the same defect that was
   // fixed in `utils/safe-spawn.ts` and missed here because the S4 architecture
   // test only grepped for the literal `shell: true`.
-  const needsCmdShim = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
-  const invocation = needsCmdShim
-    ? buildWin32CmdShimInvocation(command, args)
-    : { command, args, windowsVerbatimArguments: false };
+  const invocation = resolveSetupCommandInvocation(command, args);
   return new Promise((resolve, reject) => {
     const child = spawn(invocation.command, invocation.args, {
       cwd,
       env: buildChildEnv(),
       stdio: 'inherit',
       windowsHide: true,
-      ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     child.on('error', reject);
     child.on('close', (code) => {
@@ -280,12 +273,26 @@ export function runCommand(command: string, args: string[], cwd: string): Promis
   });
 }
 
+function resolveSetupCommandInvocation(
+  command: string,
+  args: string[],
+  platform: NodeJS.Platform = process.platform,
+) {
+  const needsCmdShim = platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+  return needsCmdShim
+    ? buildWin32CmdShimInvocation(command, args)
+    : { command, args, windowsVerbatimArguments: false };
+}
+
 function formatExitCode(code: number | null): string {
   return code === null ? 'null' : String(code);
 }
 
 /** Direct-module test seam; not re-exported by the package barrel. */
-export const setupCoverage = { formatExitCode };
+export const setupCoverage = {
+  formatExitCode,
+  resolveSetupCommandInvocation,
+};
 
 async function exists(filePath: string): Promise<boolean> {
   try {

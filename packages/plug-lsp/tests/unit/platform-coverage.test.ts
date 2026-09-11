@@ -37,4 +37,19 @@ describe('platform helper coverage', () => {
     expect(setupCoverage.formatExitCode(7)).toBe('7');
     expect(setupCoverage.formatExitCode(null)).toBe('null');
   });
+
+  it('builds portable and Windows-shim setup spawn options', () => {
+    expect(setupCoverage.resolveSetupCommandInvocation('server', ['--stdio'], 'linux')).toEqual({
+      command: 'server',
+      args: ['--stdio'],
+      windowsVerbatimArguments: false,
+    });
+
+    const shim = setupCoverage.resolveSetupCommandInvocation(
+      'C:\\Program Files\\ls.cmd',
+      ['--stdio'],
+      'win32',
+    );
+    expect(shim.windowsVerbatimArguments).toBe(true);
+  });
 });

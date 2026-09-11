@@ -20,12 +20,12 @@
       "id": "cli.cold-start",
       "label": "wstack --version cold start",
       "metric": "cold-start-ms",
-      "value": 398,
+      "value": 164,
       "source": "Process launch to first useful output. The metric a CLI user feels on every single invocation.",
       "command": "node packages/cli/dist/index.js --version",
       "extract": "wall",
-      "recordedAt": "2026-09-01T11:53:21.050Z",
-      "commit": "b608d82f6",
+      "recordedAt": "2026-09-11T09:51:10.700Z",
+      "commit": "5362e165a",
       "machine": "AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0"
     },
     {

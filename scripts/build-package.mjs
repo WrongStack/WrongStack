@@ -161,6 +161,7 @@ const toolEntries = entryMap([
   'src/skill.ts',
   'src/task.ts',
   'src/session-kanban.ts',
+  'src/session-shell.ts',
   'src/process-registry.ts',
   'src/circuit-breaker.ts',
   'src/tool-icons.ts',

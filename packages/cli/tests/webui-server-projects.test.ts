@@ -35,12 +35,31 @@ afterEach(async () => {
   // Windows: the just-shutdown server may still hold file handles for a few
   // ticks, so a plain rm races into ENOTEMPTY. force + retries ride out the
   // handle-release window instead of failing the suite on cleanup.
-  await fs.promises.rm(tmpDir, {
-    recursive: true,
-    force: true,
-    maxRetries: 5,
-    retryDelay: 200,
-  });
+  //
+  // Observed wedge (2026-09-11): with a disposed sdd-board supervisor still
+  // chattering its reconnect warning, rm itself could stay pending past the
+  // entire retry budget (>60s), hanging the hook. Race it instead — a wedged
+  // rm leaves one tmp dir for the OS temp cleaner; the dangling promise is
+  // caught so it can never surface as an unhandled rejection.
+  const outcome = await Promise.race([
+    fs.promises
+      .rm(tmpDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 200,
+      })
+      .then(
+        () => 'removed' as const,
+        () => 'removed' as const, // force:true + best-effort: a failed rm must not fail the suite
+      ),
+    new Promise<'wedged'>((r) => setTimeout(() => r('wedged'), 5_000)),
+  ]);
+  if (outcome === 'wedged') {
+    process.stderr.write(
+      `[webui-projects] tmp cleanup wedged past 5s; leaving ${tmpDir} to the OS temp cleaner\n`,
+    );
+  }
 });
 
 /**

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T08:19:01.960Z",
+  "generatedAt": "2026-09-11T11:07:58.288Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3739,
-    "testFiles": 3249,
-    "sourceLines": 903365,
+    "sourceFiles": 3740,
+    "testFiles": 3250,
+    "sourceLines": 903395,
     "workspaceEdges": 128,
-    "moduleEdges": 11904,
+    "moduleEdges": 11905,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 908
+    "testOnlyExports": 909
   },
   "errors": [],
   "packageCycles": [],
@@ -734,7 +734,7 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 212,
+      "sourceFiles": 213,
       "testFiles": 216,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -759,7 +759,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 387,
-      "testFiles": 346,
+      "testFiles": 347,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -782,7 +782,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 346
+          "testFiles": 347
         }
       ]
     },
@@ -15819,6 +15819,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/run-tui-extracted-facades.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/run-tui-guard.test.ts",
         "projects": [
           "root-node"
@@ -23096,6 +23102,10 @@
     {
       "file": "packages/plug-lsp/src/setup.ts",
       "name": "setupCoverage"
+    },
+    {
+      "file": "packages/plug-lsp/src/slash-commands/install.ts",
+      "name": "installCoverage"
     },
     {
       "file": "packages/plug-lsp/src/slash-commands/lsp.ts",

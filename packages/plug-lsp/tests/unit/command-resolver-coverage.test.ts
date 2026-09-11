@@ -36,6 +36,7 @@ describe('command resolver completion coverage', () => {
     expect(await findLocalBinary(root, 'missing')).toBeNull();
     expect(await resolveServerCommand('definitely-missing-wrongstack-command', root)).toBeNull();
     expect(await resolveServerCommand(process.execPath, root)).toBe(process.execPath);
+    expect(await resolveServerCommand(path.join(root, 'missing-absolute'), root)).toBeNull();
     expect(await commandExistsOnPath('definitely-missing-wrongstack-command', 2_000)).toBe(false);
   });
 

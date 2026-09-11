@@ -87,6 +87,15 @@ describe('autoDiscoverServers', () => {
     expect(notice).toContain('/lsp setup');
   });
 
+  it('does not notify when no project-local preset exists', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-empty-bin-'));
+    const messages: string[] = [];
+
+    await withPath('', () => autoDiscoverServers({}, root, (message) => messages.push(message)));
+
+    expect(messages).toEqual([]);
+  });
+
   it('keeps user configured servers instead of overwriting presets', async () => {
     const servers = await autoDiscoverServers(
       {

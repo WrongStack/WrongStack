@@ -46,7 +46,7 @@
 // every test that needs to set up a fake `BootContext`.
 
 import type { Config } from '@wrongstack/core/types';
-import { ensureSessionShell } from '@wrongstack/tools';
+import { ensureSessionShell } from '@wrongstack/tools/session-shell';
 import { printUpdateNotice } from './cli-update-notice.js';
 import type { UpdateInfo } from './update-check.js';
 

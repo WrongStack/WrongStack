@@ -276,16 +276,13 @@ function runCommand(command: string, args: string[], cwd: string, label: string)
     // See `setup.ts#runCommand`: `shell: true` for a `.cmd` shim is the
     // BatBadBut / CVE-2024-27980 shape. Route through the repo's single safe
     // construction instead of hand-rolling the flag.
-    const isWindowsBatch = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
-    const invocation = isWindowsBatch
-      ? buildWin32CmdShimInvocation(command, args)
-      : { command, args, windowsVerbatimArguments: false };
+    const invocation = resolveInstallCommandInvocation(command, args);
     const child = spawn(invocation.command, invocation.args, {
       cwd,
       env: buildChildEnv(),
       stdio: 'inherit',
       windowsHide: true,
-      ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     child.on('error', reject);
     child.on('close', (code) => {
@@ -294,3 +291,17 @@ function runCommand(command: string, args: string[], cwd: string, label: string)
     });
   });
 }
+
+function resolveInstallCommandInvocation(
+  command: string,
+  args: string[],
+  platform: NodeJS.Platform = process.platform,
+) {
+  const isWindowsBatch = platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+  return isWindowsBatch
+    ? buildWin32CmdShimInvocation(command, args)
+    : { command, args, windowsVerbatimArguments: false };
+}
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const installCoverage = { resolveInstallCommandInvocation };
