@@ -274,6 +274,39 @@ describe('summarizeFriction', () => {
     expect(s.totalCollisions).toBe(1);
     expect(s.prose).toMatch(/Top friction pair: a ↔ b/);
   });
+
+  it('accepts direct WrongTraceFrictionRow[] arrays from client.getFrictionMatrix()', () => {
+    const rows = [
+      {
+        author_model: 'MiniMax-M3',
+        overwriter_model: 'gemini-3.7-flash',
+        file_count: 2,
+        deleted_lines: 40,
+        conflict_count: 3,
+        is_self_thrash: false,
+      },
+      {
+        author_model: 'glm-5.3',
+        overwriter_model: 'glm-5.3',
+        file_count: 1,
+        deleted_lines: 15,
+        conflict_count: 5,
+        is_self_thrash: true,
+      },
+    ];
+    const s = summarizeFriction(rows);
+    expect(s.totalCollisions).toBe(2);
+    expect(s.crossAgentRatioPct).toBe(50);
+    expect(s.selfThrashRatioPct).toBe(50);
+    expect(s.prose).toMatch(/Top friction pair/);
+  });
+
+  it('defaults missing conflict_count on edges to 1 conflict unit', () => {
+    const s = summarizeFriction({
+      edges: [{ author_model: 'model-a', overwriter_model: 'model-b' }],
+    });
+    expect(s.topPair).toBe('model-a ↔ model-b (1 conflicts)');
+  });
 });
 
 describe('getRecentActivity', () => {
@@ -337,5 +370,18 @@ describe('digestAtlas', () => {
     expect(d?.fragileFileCount).toBe(1);
     expect(d?.selfThrashWorkspaces).toContain('p1');
     expect(d?.prose).toMatch(/Atlas: 2 workspaces/);
+  });
+
+  it('counts fragile files in summary mode from fragile_files_count and is_fragile', () => {
+    const summaryAtlas = {
+      workspaces: ['packages'],
+      packages: [
+        { name: 'core', file_count: 50, fragile_files_count: 7, is_fragile: true },
+        { name: 'persistence', file_count: 10, fragile_files_count: 3, is_fragile: true },
+        { name: 'legacy', file_count: 5, is_fragile: true },
+      ],
+    };
+    const d = digestAtlas(summaryAtlas as never);
+    expect(d?.fragileFileCount).toBe(11); // 7 + 3 + 1
   });
 });

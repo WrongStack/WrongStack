@@ -202,8 +202,18 @@ export function summarizeFriction(friction: unknown): FrictionSummary {
   };
   if (!friction || typeof friction !== 'object') return empty;
   const r = friction as FrictionReport;
-  const edges = Array.isArray(r.edges) ? r.edges : [];
-  const total = typeof r.total_collisions === 'number' ? r.total_collisions : edges.length;
+  const edges = Array.isArray(friction)
+    ? (friction as Array<WrongTraceFrictionRow & { conflict_count?: number }>)
+    : Array.isArray(r.edges)
+      ? r.edges
+      : [];
+  const rawTotal = (friction as { total_collisions?: unknown }).total_collisions;
+  const total =
+    typeof rawTotal === 'number'
+      ? rawTotal
+      : typeof r.total_collisions === 'number'
+        ? r.total_collisions
+        : edges.length;
   if (total === 0) return empty;
 
   // Find top pair by total conflict_count across both directions.
@@ -211,7 +221,7 @@ export function summarizeFriction(friction: unknown): FrictionSummary {
   for (const e of edges) {
     const key = [e.author_model, e.overwriter_model].sort().join('|');
     const raw = (e as { conflict_count?: unknown }).conflict_count;
-    const c = typeof raw === 'number' ? raw : 0;
+    const c = typeof raw === 'number' ? raw : 1;
     const cur = pairTotals.get(key);
     if (cur) cur.count = cur.count + c;
     else pairTotals.set(key, { count: c, a: e.author_model, b: e.overwriter_model });
@@ -229,9 +239,11 @@ export function summarizeFriction(friction: unknown): FrictionSummary {
   // correct unit. Percentages are clamped to [0,100] so a self-thrash
   // collision sum bigger than the daemon's windowed total renders 100%,
   // never 1433%.
-  const collisionUnits = typeof r.total_collisions === 'number';
+  const collisionUnits =
+    typeof rawTotal === 'number' || typeof r.total_collisions === 'number';
   const selfThrash = edges.reduce((acc, e) => {
-    if (!e.is_self_thrash) return acc;
+    const isSelf = e.is_self_thrash ?? (e.author_model === e.overwriter_model);
+    if (!isSelf) return acc;
     if (!collisionUnits) return acc + 1;
     const raw = (e as { conflict_count?: unknown }).conflict_count;
     return acc + (typeof raw === 'number' ? raw : 1);
@@ -369,10 +381,19 @@ export function digestAtlas(atlas: WrongTraceAtlasSummary | AtlasShape | null): 
 
   for (const pkg of packages) {
     const files = pkg.files ?? [];
-    for (const f of files) {
-      if ((f.health_score ?? 100) < 40 || f.is_fragile === true) fragileFileCount++;
-      const thrash = f.recent_thrashing_count ?? 0;
-      if (thrash > 5) thrashCounts.set(pkg.name, (thrashCounts.get(pkg.name) ?? 0) + 1);
+    if (files.length > 0) {
+      for (const f of files) {
+        if ((f.health_score ?? 100) < 40 || f.is_fragile === true) fragileFileCount++;
+        const thrash = f.recent_thrashing_count ?? 0;
+        if (thrash > 5) thrashCounts.set(pkg.name, (thrashCounts.get(pkg.name) ?? 0) + 1);
+      }
+    } else {
+      const summaryPkg = pkg as { fragile_files_count?: number; is_fragile?: boolean };
+      if (typeof summaryPkg.fragile_files_count === 'number') {
+        fragileFileCount += summaryPkg.fragile_files_count;
+      } else if (summaryPkg.is_fragile === true) {
+        fragileFileCount++;
+      }
     }
   }
 

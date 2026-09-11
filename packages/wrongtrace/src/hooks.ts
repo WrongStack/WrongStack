@@ -302,9 +302,7 @@ export function createWrongTraceHookPair(
           // empty session identity and cannot re-derive it; only when no
           // acquisition was recorded do we fall back to the pair's session
           // id (pure self-leak cleanup).
-          let racerInvolved = false;
           if (racedSetFor(counters).has(path)) {
-            racerInvolved = true;
             const recordedOwner = claimedOwnerSetFor(counters).get(path);
             const expectedOwner = recordedOwner ?? `wrongstack:${sessionId()}`;
             const health = await wt.getFileHealth(path);
@@ -319,10 +317,12 @@ export function createWrongTraceHookPair(
             // performed; the TTL backstop reaps the lock instead.
             emitSafe(emit, { kind: 'lock-released', path });
           }
-          if (racerInvolved) racedSetFor(counters).delete(path);
         }
       } catch {
         // TTL backstop will reap it.
+      } finally {
+        racedSetFor(counters).delete(path);
+        claimedOwnerSetFor(counters).delete(path);
       }
     },
   };

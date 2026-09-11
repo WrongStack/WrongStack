@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
+import { buildWin32CmdShimInvocation } from '@wrongstack/core/utils';
 
 export type AuditablePackageManager = 'npm' | 'pnpm';
 export type PackageAuditSeverity = 'critical' | 'high' | 'moderate' | 'low' | 'info' | 'unknown';
@@ -75,18 +76,36 @@ export async function detectAuditablePackageManager(
 
 const defaultExecutor: PackageAuditExecutor = (command, args, cwd) =>
   new Promise((resolve) => {
-    const executable = process.platform === 'win32' ? `${command}.cmd` : command;
+    // `npm`/`pnpm` are `.cmd` shims on Windows, which Node refuses to exec
+    // directly (CVE-2024-27980). Route through the canonical cmd-shim builder
+    // rather than `shell: true`: it quotes every token and refuses arguments
+    // carrying shell metacharacters, so the `.cmd` wrapper cannot be used to
+    // chain a second command. See S4 in shell-true-parity.test.ts.
+    let executable = command;
+    let execArgs: readonly string[] = args;
+    let windowsVerbatimArguments: true | undefined;
+    if (process.platform === 'win32') {
+      try {
+        const shim = buildWin32CmdShimInvocation(command, args);
+        executable = shim.command;
+        execArgs = shim.args;
+        windowsVerbatimArguments = shim.windowsVerbatimArguments;
+      } catch (error) {
+        resolve({ stdout: '', stderr: '', exitCode: null, error: error as Error });
+        return;
+      }
+    }
     try {
       execFile(
         executable,
-        args,
+        [...execArgs],
         {
           cwd,
           encoding: 'utf8',
           timeout: 120_000,
           maxBuffer: 10 * 1024 * 1024,
           windowsHide: true,
-          shell: process.platform === 'win32',
+          ...(windowsVerbatimArguments ? { windowsVerbatimArguments } : {}),
         },
         (error, stdout, stderr) => {
           const errorWithCode = error as (Error & { code?: string | number | undefined }) | null;

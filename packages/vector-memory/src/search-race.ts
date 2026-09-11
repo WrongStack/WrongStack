@@ -126,6 +126,7 @@ export async function runSearchRace(
     const mem = lexicalCapped[i]!;
     const score = lexicalCapped.length <= 1 ? 1 : 1 - i / Math.max(1, lexicalCapped.length - 1);
     const id = mem.id;
+    if (seenIds.has(id)) continue;
     seenIds.add(id);
     overlap.push({
       id,

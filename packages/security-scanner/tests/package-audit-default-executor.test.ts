@@ -51,7 +51,18 @@ describe('default package audit executor', () => {
     const error = Object.assign(new Error('vulnerabilities found'), { code: 1 });
     respond(error, JSON.stringify({ vulnerabilities: {} }));
     const result = await new PackageAuditRunner().run(root);
-    expect(childProcess.execFile.mock.calls[0]?.[0]).toBe('npm.cmd');
+    const [command, args, options] = childProcess.execFile.mock.calls[0] as [
+      string,
+      string[],
+      { shell?: unknown; windowsVerbatimArguments?: boolean },
+    ];
+    // The `.cmd` shim runs through `cmd.exe /d /c call "npm" ...`, never
+    // through `shell: true` — a shell would let a metacharacter in an argument
+    // chain a second command (CVE-2024-27980 / WS-SEC-11).
+    expect(command).toBe(process.env['COMSPEC'] ?? 'cmd.exe');
+    expect(args).toEqual(['/d', '/c', 'call "npm" "audit" "--json"']);
+    expect(options.windowsVerbatimArguments).toBe(true);
+    expect(options.shell).toBeUndefined();
     expect(result.exitCode).toBe(1);
     expect(result.success).toBe(true);
   });

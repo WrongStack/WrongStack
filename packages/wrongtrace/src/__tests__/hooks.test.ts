@@ -241,4 +241,67 @@ describe('createWrongTraceHookPair gate events', () => {
     expect(unlockCalls).toBe(1); // the LAST finisher releases exactly once
     expect(events).toContain('lock-released');
   });
+
+  it('cleans up recorded owner and race state so a subsequent session can release its own lock', async () => {
+    let currentSession = 'sess-1';
+    let currentLockOwner: string | undefined = undefined;
+    let unlockCalls = 0;
+
+    globalThis.fetch = makeFetch(async (url) => {
+      const u = new URL(url);
+      if (u.pathname === '/api/health') return healthyHealth();
+      if (u.pathname === '/api/file/health') {
+        return jsonResponse({
+          path: 'src/foo.ts',
+          health_score: 100,
+          is_fragile: false,
+          recent_thrashing_count: 0,
+          is_locked: currentLockOwner !== undefined,
+          lock_owner: currentLockOwner,
+        });
+      }
+      if (u.pathname === '/api/guardrail/lock') {
+        if (currentLockOwner && currentLockOwner !== `wrongstack:${currentSession}`) {
+          return jsonResponse({ ok: false, status: 'conflict', owner: currentLockOwner }, 409);
+        }
+        currentLockOwner = `wrongstack:${currentSession}`;
+        return jsonResponse({ ok: true, path: 'src/foo.ts', status: 'locked' });
+      }
+      if (u.pathname === '/api/guardrail/unlock') {
+        unlockCalls++;
+        currentLockOwner = undefined;
+        return jsonResponse({ ok: true, path: 'src/foo.ts', status: 'unlocked' });
+      }
+      return jsonResponse({});
+    });
+
+    const counters = new Map<string, number>();
+    const pair = createWrongTraceHookPair(() => currentSession, {}, counters);
+
+    // Session 1 acquires and releases
+    currentSession = 'sess-1';
+    await pair.preToolUse({ toolName: 'edit', toolInput: { path: 'src/foo.ts' } });
+    await pair.postToolUse({ toolName: 'edit', toolInput: { path: 'src/foo.ts' } });
+    expect(unlockCalls).toBe(1);
+
+    // Session 2 runs. Daemon lock is held by sess-2, but a transient conflict race occurs in preToolUse
+    currentSession = 'sess-2';
+    currentLockOwner = 'wrongstack:sess-2';
+
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = makeFetch(async (url, init) => {
+      const u = new URL(url);
+      if (u.pathname === '/api/guardrail/lock') {
+        return jsonResponse({ ok: false, status: 'conflict', owner: 'wrongstack:sess-2' }, 409);
+      }
+      return origFetch(url, init);
+    });
+
+    await pair.preToolUse({ toolName: 'edit', toolInput: { path: 'src/foo.ts' } });
+    globalThis.fetch = origFetch;
+
+    // Session 2 finishes. Stale owner from sess-1 must NOT block unlock
+    await pair.postToolUse({ toolName: 'edit', toolInput: { path: 'src/foo.ts' } });
+    expect(unlockCalls).toBe(2);
+  });
 });

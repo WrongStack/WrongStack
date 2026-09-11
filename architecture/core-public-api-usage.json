@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 584,
+      "files": 585,
       "typeOnly": 55,
-      "runtimeOrMixed": 557
+      "runtimeOrMixed": 558
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -19315,6 +19315,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/security-scanner/src/orchestrator.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/security-scanner/src/package-audit.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

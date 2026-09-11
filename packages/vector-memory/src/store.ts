@@ -212,8 +212,11 @@ export class VectorMemoryStore {
       .get(contentHash) as Record<string, unknown> | undefined;
     if (!row) return undefined;
     const vectorRow = this.db
-      .prepare('SELECT * FROM vectors WHERE entry_id = ?')
-      .get(row.id as string) as
+      .prepare(
+        `SELECT * FROM vectors WHERE entry_id = ?
+          ORDER BY (provider_id = ?) DESC, created_at DESC LIMIT 1`,
+      )
+      .get(row.id as string, this.provider.id) as
       | { provider_id: string; dimensions: number; vector: Buffer | Uint8Array }
       | undefined;
     return this.rowToEntry(row, vectorRow);
@@ -242,8 +245,11 @@ export class VectorMemoryStore {
       .get(sageId) as Record<string, unknown> | undefined;
     if (!row) return undefined;
     const vectorRow = this.db
-      .prepare('SELECT * FROM vectors WHERE entry_id = ?')
-      .get(row.id as string) as
+      .prepare(
+        `SELECT * FROM vectors WHERE entry_id = ?
+          ORDER BY (provider_id = ?) DESC, created_at DESC LIMIT 1`,
+      )
+      .get(row.id as string, this.provider.id) as
       | { provider_id: string; dimensions: number; vector: Buffer | Uint8Array }
       | undefined;
     return this.rowToEntry(row, vectorRow);
@@ -345,7 +351,12 @@ export class VectorMemoryStore {
       | Record<string, unknown>
       | undefined;
     if (!row) return undefined;
-    const vectorRow = this.db.prepare('SELECT * FROM vectors WHERE entry_id = ?').get(id) as
+    const vectorRow = this.db
+      .prepare(
+        `SELECT * FROM vectors WHERE entry_id = ?
+          ORDER BY (provider_id = ?) DESC, created_at DESC LIMIT 1`,
+      )
+      .get(id, this.provider.id) as
       | { provider_id: string; dimensions: number; vector: Buffer | Uint8Array }
       | undefined;
     return this.rowToEntry(row, vectorRow);
@@ -639,8 +650,8 @@ export class VectorMemoryStore {
         const toRemove = total - keepMostRecent;
         const stmt = this.db.prepare(
           `DELETE FROM embedding_cache
-            WHERE content_hash IN (
-              SELECT content_hash FROM embedding_cache
+            WHERE rowid IN (
+              SELECT rowid FROM embedding_cache
                ORDER BY last_used_at ASC
                LIMIT ?
             )`,
