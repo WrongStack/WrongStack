@@ -206,9 +206,15 @@ export type Action =
    * Advance the progress block. Every field is optional so the same action
    * serves the spinner ticker (nothing but a frame bump), the byte-progress
    * sink, and the host's stage reports.
+   *
+   * `sessionId` attributes the tick to its runResume chain: after a
+   * cross-path start is rejected, the SUPERSEDED chain keeps ticking with the
+   * other session's byte counts, and the reducer drops those instead of
+   * mutating the winning load. Unstamped ticks keep legacy semantics.
    */
   | {
       type: 'resumeLoadTick';
+      sessionId?: string | undefined;
       loadedBytes?: number | undefined;
       totalBytes?: number | undefined;
       /** Human-readable stage line to push onto the rolling log. */
@@ -223,14 +229,26 @@ export type Action =
    */
   | {
       type: 'resumeStreamChunk';
+      /**
+       * Session the chunk belongs to. Stamped by the runResume chain so the
+       * reducer can drop a SUPERSEDED run's terminating `done` chunk instead
+       * of settling the winning load with another session's transcript.
+       * Unstamped chunks keep legacy semantics.
+       */
+      sessionId?: string | undefined;
       entries: HistoryEntry[];
       /** Total entries in the replay, for the batch counter. */
       total: number;
       done?: boolean | undefined;
       contextSnapshot?: ContextSnapshot | undefined;
     }
-  /** Abandon an in-flight resume (failure, or a second resume superseding it). */
-  | { type: 'resumeLoadAbort' }
+  /**
+   * Abandon an in-flight resume (failure, or a second resume superseding it).
+   * `sessionId` attributes the abort to its runResume chain: a SUPERSEDED
+   * chain's abort must not cancel the winning load. Unstamped aborts keep
+   * legacy semantics.
+   */
+  | { type: 'resumeLoadAbort'; sessionId?: string | undefined }
   /** Replace all history entries with the given hydrated entries from a resumed session. */
   | {
       type: 'replaceHistory';

@@ -255,6 +255,111 @@ describe('resume loading reducer flow', () => {
     expect(state.resumeLoad).toBeNull();
     expect(state.entries).toHaveLength(2);
   });
+
+  it('rejects a second start while a load is already in flight', () => {
+    // The picker lock (resumeInFlightRef) and the F10 sessions-panel lock
+    // (sessionsResumeInFlightRef) are independent refs: a resume started from
+    // one surface can race a resume started from the other. The reducer is the
+    // shared arbiter — a second `resumeLoadStart` while `resumeLoad` is active
+    // must be a no-op, or it clobbers the in-flight load (session identity
+    // lost, first load's block orphaned) and re-wipes the screen mid-load.
+    const first = started();
+    const second = reducer(first, {
+      type: 'resumeLoadStart',
+      sessionId: 'sess_other',
+      label: 'other session',
+    });
+    expect(second).toBe(first);
+    expect(second.resumeLoad?.sessionId).toBe('sess_x');
+    expect(second.entries).toHaveLength(2);
+  });
+
+  it('re-arms a fresh start once the in-flight load aborts', () => {
+    // The guard must not deadlock retries: resumeLoadAbort clears the
+    // in-flight marker, so the next start (same or different session) begins
+    // a real load again.
+    const aborted = reducer(started(), { type: 'resumeLoadAbort' });
+    const restarted = reducer(aborted, {
+      type: 'resumeLoadStart',
+      sessionId: 'sess_retry',
+      label: 'retry session',
+    });
+    expect(restarted.resumeLoad?.sessionId).toBe('sess_retry');
+    expect(restarted.resumeLoad?.phase).toBe('reading');
+    expect(restarted.entries).toHaveLength(2);
+  });
+
+  it('re-arms a fresh start once the in-flight load completes', () => {
+    // resumeStreamChunk(done) settles the load; resuming a different session
+    // afterwards starts clean instead of being rejected by the guard.
+    const settled = reducer(started(), {
+      type: 'resumeStreamChunk',
+      entries: [],
+      total: 0,
+      done: true,
+    });
+    const restarted = reducer(settled, {
+      type: 'resumeLoadStart',
+      sessionId: 'sess_next',
+      label: 'next session',
+    });
+    expect(restarted.resumeLoad?.sessionId).toBe('sess_next');
+  });
+
+  it('drops ticks stamped for a superseded resume instead of mutating the live load', () => {
+    // c2r3: after a cross-path start is rejected by the in-flight guard, the
+    // losing runResume chain keeps ticking with the other session's byte
+    // counts. A tick stamped with a foreign sessionId must not mutate the
+    // winning load.
+    const first = started();
+    const stamped = reducer(first, {
+      type: 'resumeLoadTick',
+      sessionId: 'sess_other',
+      loadedBytes: 999,
+      totalBytes: 1000,
+    });
+    expect(stamped).toBe(first);
+    // loadedBytes stays at its seeded 0 — the foreign tick's 999 never landed.
+    expect(stamped.resumeLoad?.loadedBytes).toBe(0);
+    expect(stamped.resumeLoad?.totalBytes).toBe(0);
+  });
+
+  it('keeps the live load alive when a superseded chain aborts', () => {
+    // A stale abort from a superseded chain must not cancel the winning load —
+    // it would strip the live load of its progress block and attribution.
+    const first = started();
+    const aborted = reducer(first, { type: 'resumeLoadAbort', sessionId: 'sess_other' });
+    expect(aborted).toBe(first);
+    expect(aborted.resumeLoad?.sessionId).toBe('sess_x');
+  });
+
+  it('ignores transcript chunks stamped for a superseded resume', () => {
+    // A superseded chain's terminating done chunk must neither splice its
+    // entries nor settle the winning load.
+    const first = started();
+    const settled = reducer(first, {
+      type: 'resumeStreamChunk',
+      sessionId: 'sess_other',
+      entries: [{ id: 900, kind: 'info', text: 'other transcript' }],
+      total: 1,
+      done: true,
+    });
+    expect(settled).toBe(first);
+    expect(settled.resumeLoad?.sessionId).toBe('sess_x');
+    expect(settled.entries).toHaveLength(2);
+  });
+
+  it('applies progress stamped for the live session', () => {
+    // Attribution cuts both ways: the WINNING run's stamped progress applies.
+    const first = started();
+    const ticked = reducer(first, {
+      type: 'resumeLoadTick',
+      sessionId: 'sess_x',
+      loadedBytes: 50,
+      totalBytes: 100,
+    });
+    expect(ticked.resumeLoad?.loadedBytes).toBe(50);
+  });
 });
 
 describe('todosForScreen', () => {

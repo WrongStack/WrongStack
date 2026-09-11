@@ -116,7 +116,7 @@ const EXPECTED_REGISTRATION_ORDER = [
   'cron',
   'prompts',
   'theme',
-  'resume',
+  'sessions',
 ];
 
 describe('useTuiSlashCommands registration enumeration (decomposition Phase 0.4)', () => {
@@ -134,13 +134,16 @@ describe('useTuiSlashCommands registration enumeration (decomposition Phase 0.4)
       expect(entry.owner).toBe('tui');
       expect(entry.official).toBe(true);
     }
-    // `/resume` claims the TUI `/sessions` token as an alias (plus `/load`).
+    // The picker registers under the host's canonical name `/sessions` and
+    // claims `/resume` + `/load` as aliases — see the comment on the command
+    // itself: naming it `resume` made it collide with a core-owned alias and
+    // the real registry refused the bare write (resume-slash-routing.test.ts).
     // Aliasing adds no registration, so the bare-name order above is
-    // unchanged — but every aliased key must resolve to the resume command.
-    const resumeCmd = registry.get('resume');
-    expect(resumeCmd?.aliases).toEqual(['load', 'sessions']);
-    expect(registry.get('load')).toBe(resumeCmd);
-    expect(registry.get('sessions')).toBe(resumeCmd);
+    // unchanged — but every aliased key must resolve to the picker command.
+    const sessionsCmd = registry.get('sessions');
+    expect(sessionsCmd?.aliases).toEqual(['resume', 'load']);
+    expect(registry.get('load')).toBe(sessionsCmd);
+    expect(registry.get('resume')).toBe(sessionsCmd);
     unmount();
   });
 

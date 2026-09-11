@@ -717,6 +717,13 @@ export function reduceComposer(state: State, action: ComposerAction): State {
         resumePicker: { ...state.resumePicker, error: action.text, busy: false, hint: undefined },
       };
     case 'resumeLoadStart': {
+      // A load is already in flight: double-Enter on the picker, or a resume
+      // started from the F10 panel / another path while one runs (the per-hook
+      // refs serialize same-path double-fires but are independent of each
+      // other). `resumeLoad` is the shared in-flight marker; it clears on
+      // completion (resumeStreamChunk done) or abort (resumeLoadAbort), both
+      // of which re-arm a subsequent start.
+      if (state.resumeLoad) return state;
       // Wipe to the same clean slate `/clear` leaves: the banner and nothing
       // else. The previous conversation must not sit under a different
       // session's loading block — that is how the user loses track of which
@@ -772,6 +779,13 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       // Late ticks after an abort/finish are expected: the loader is throttled
       // and the spinner interval can fire once more before it is cleared.
       if (!current) return state;
+      // A tick stamped for a SUPERSEDED run must not mutate the winning load's
+      // block: after a cross-path start is rejected, the losing runResume
+      // chain keeps ticking with the other session's byte counts. Unstamped
+      // ticks (legacy callers) keep applying to the in-flight load.
+      if (action.sessionId !== undefined && action.sessionId !== current.sessionId) {
+        return state;
+      }
       const next: ResumeLoadState = {
         ...current,
         frame: current.frame + 1,
@@ -786,6 +800,12 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       return { ...state, entries, resumeLoad: next };
     }
     case 'resumeStreamChunk': {
+      // A chunk stamped for a SUPERSEDED run must neither splice its entries
+      // into the transcript nor settle the winning load (a stale done:true
+      // would clear it). Unstamped chunks keep legacy semantics.
+      if (action.sessionId !== undefined && action.sessionId !== state.resumeLoad?.sessionId) {
+        return state;
+      }
       const first = state.resumeLoad?.phase === 'reading';
       // The first batch drops the progress block: from here the transcript
       // itself is the progress indicator, scrolling into place the way it did
@@ -823,6 +843,15 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       // Leaves the entries alone: the block stays as the last thing that
       // happened, and the caller writes the reason beneath it. Blanking the
       // screen here would erase the only record of what was attempted.
+      // An abort stamped for a SUPERSEDED run must not cancel the winning
+      // load; unstamped aborts keep legacy semantics.
+      if (
+        action.sessionId !== undefined &&
+        state.resumeLoad !== null &&
+        action.sessionId !== state.resumeLoad.sessionId
+      ) {
+        return state;
+      }
       return state.resumeLoad ? { ...state, resumeLoad: null } : state;
     case 'replaceHistory': {
       // Preserve any existing banner entries (kind='banner') and prepend them

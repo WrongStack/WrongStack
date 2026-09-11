@@ -2546,7 +2546,15 @@ describe('useAppPickerKeys — resume in-flight guards (/resume picker + F10 ses
       (call) => (call[0] as { type?: string }).type === 'resumeLoadTick',
     );
     expect(tickCalls).toContainEqual([
-      { type: 'resumeLoadTick', loadedBytes: 5_242_880, totalBytes: 10_485_760 },
+      {
+        type: 'resumeLoadTick',
+        loadedBytes: 5_242_880,
+        totalBytes: 10_485_760,
+        // Attribution stamp (c2r3): the sink carries the resumed session id so
+        // the reducer can drop superseded-run ticks after a cross-path
+        // resumeLoadStart is rejected by the in-flight guard.
+        sessionId: 'sess_target',
+      },
     ]);
 
     // Enter #2 arrives after the debounce window but before any re-render: the

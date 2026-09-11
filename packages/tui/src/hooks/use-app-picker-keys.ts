@@ -158,7 +158,7 @@ export function useAppPickerKeys({
     // reports a single completed tick, so neither can carry the animation.
     const spinner = setInterval(() => {
       if (!alive()) return;
-      dispatch({ type: 'resumeLoadTick' });
+      dispatch({ type: 'resumeLoadTick', sessionId });
     }, RESUME_SPINNER_MS);
     const stop = () => clearInterval(spinner);
 
@@ -179,6 +179,7 @@ export function useAppPickerKeys({
           if (!alive()) return;
           dispatch({
             type: 'resumeLoadTick',
+            sessionId,
             loadedBytes: progress.loadedBytes,
             totalBytes: progress.totalBytes,
           });
@@ -188,7 +189,7 @@ export function useAppPickerKeys({
         // being silently dropped.
         (stage) => {
           if (!alive()) return;
-          dispatch({ type: 'resumeLoadTick', note: resumeStageLabel(stage) });
+          dispatch({ type: 'resumeLoadTick', sessionId, note: resumeStageLabel(stage) });
         },
       );
       stop();
@@ -196,7 +197,7 @@ export function useAppPickerKeys({
       if (!result) {
         // The host resolved without a session instead of rejecting. There is no
         // reason to show, so say exactly that rather than implying one was.
-        dispatch({ type: 'resumeLoadAbort' });
+        dispatch({ type: 'resumeLoadAbort', sessionId });
         dispatch({
           type: 'addEntry',
           entry: {
@@ -218,6 +219,7 @@ export function useAppPickerKeys({
         const done = index + size >= total;
         dispatch({
           type: 'resumeStreamChunk',
+          sessionId,
           entries: slice,
           total,
           ...(done ? { done: true, contextSnapshot: result.contextSnapshot } : {}),
