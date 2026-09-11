@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T19:08:51.528Z",
+  "generatedAt": "2026-09-11T19:25:54.145Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3741,
     "testFiles": 3252,
-    "sourceLines": 903861,
+    "sourceLines": 903871,
     "workspaceEdges": 128,
     "moduleEdges": 11906,
     "nonCommandSlashImports": 0,
@@ -20949,7 +20949,7 @@
     },
     {
       "file": "packages/mcp/src/client.ts",
-      "lines": 1055,
+      "lines": 1064,
       "relativeImports": 12
     },
     {
@@ -21375,6 +21375,11 @@
       "relativeImports": 10
     },
     {
+      "file": "packages/mcp/src/client.ts",
+      "lines": 1064,
+      "relativeImports": 12
+    },
+    {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
       "lines": 1058,
       "relativeImports": 50
@@ -21388,11 +21393,6 @@
       "file": "packages/cli/src/slash-commands/settings-mutations.ts",
       "lines": 1055,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/mcp/src/client.ts",
-      "lines": 1055,
-      "relativeImports": 12
     },
     {
       "file": "packages/core/src/index.ts",

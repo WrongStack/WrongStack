@@ -84,8 +84,8 @@ export function applySlotTools(
       },
     }),
   );
+  slot.lazyTools = wrapped;
   if (ctx.lazyMode) {
-    slot.lazyTools = wrapped;
     return;
   }
   for (const tool of wrapped) {

@@ -65,6 +65,7 @@ export class SSETransport extends BaseHTTPTransport {
   }
 
   async connect(): Promise<void> {
+    this.readerDone = false;
     this.state = 'connecting';
     this.serverMetadata = undefined;
     this.abortController = new AbortController();

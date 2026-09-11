@@ -119,6 +119,7 @@ export class MCPClient {
   private _drainPending = false;
   private _lastNotifySkipped = false;
   private closePromise?: Promise<void> | undefined;
+  private connectPromise?: Promise<void> | undefined;
   // HTTP transports
   private sseTransport?: SSETransport | undefined;
   private httpTransport?: StreamableHTTPTransport | undefined;
@@ -191,7 +192,15 @@ export class MCPClient {
     // it later exits, its handler flips `state` to 'disconnected' under the
     // healthy replacement connection, tripping spurious reconnects. Callers
     // that want a fresh connection call close() first.
-    if (this.state === 'connected' || this.state === 'connecting') return;
+    if (this.state === 'connected') return;
+    if (this.connectPromise) return this.connectPromise;
+    this.connectPromise = this.connectInner().finally(() => {
+      this.connectPromise = undefined;
+    });
+    return this.connectPromise;
+  }
+
+  private async connectInner(): Promise<void> {
     this.state = 'connecting';
     this._serverMetadata = undefined;
 

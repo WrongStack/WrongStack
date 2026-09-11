@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-11T19:08:51.528Z
+**Generated:** 2026-09-11T19:25:54.145Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3741 |
-| Production source lines | 903861 |
+| Production source lines | 903871 |
 | Test files | 3252 |
 | Workspace dependency edges | 128 |
 | Relative module edges | 11906 |
@@ -88,10 +88,10 @@ None.
 | 1581 | `packages/providers/src/openai-codex.ts` |
 | 1119 | `apps/desktop/src/main/runtime-manager.ts` |
 | 1067 | `packages/core/src/coordination/delegate-tool.ts` |
+| 1064 | `packages/mcp/src/client.ts` |
 | 1058 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1057 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 1055 | `packages/cli/src/slash-commands/settings-mutations.ts` |
-| 1055 | `packages/mcp/src/client.ts` |
 | 1051 | `packages/core/src/index.ts` |
 | 1051 | `packages/webui/src/components/SkillDetailView.tsx` |
 | 1049 | `packages/webui/src/components/OfficeMapCanvas.tsx` |

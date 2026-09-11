@@ -203,7 +203,7 @@
       "relativeImports": 0
     },
     "packages/mcp/src/client.ts": {
-      "lines": 1055,
+      "lines": 1064,
       "relativeImports": 12
     },
     "packages/mcp/src/server.ts": {
