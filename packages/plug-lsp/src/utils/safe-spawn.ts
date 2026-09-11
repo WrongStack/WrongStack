@@ -21,22 +21,24 @@ import type { ServerConfig } from '../types.js';
 export function safeSpawn(cfg: ServerConfig, cwd: string): ChildProcessWithoutNullStreams {
   const env = buildChildEnv({ extra: cfg.env });
   const stdio = ['pipe', 'pipe', 'pipe'] as const;
-  if (shouldUseShell(cfg.command, process.platform)) {
-    const shim = buildWin32CmdShimInvocation(cfg.command, serverArgs(cfg.args));
-    return spawn(shim.command, shim.args, {
-      cwd,
-      env,
-      stdio: [...stdio],
-      windowsVerbatimArguments: shim.windowsVerbatimArguments,
-      windowsHide: true,
-    });
-  }
-  return spawn(cfg.command, serverArgs(cfg.args), {
+  const invocation = resolveCommandInvocation(cfg.command, cfg.args, process.platform);
+  return spawn(invocation.command, invocation.args, {
     cwd,
     env,
     stdio: [...stdio],
+    windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     windowsHide: true,
   });
+}
+
+function resolveCommandInvocation(
+  command: string,
+  args: string[] | undefined,
+  platform: NodeJS.Platform,
+): { command: string; args: string[]; windowsVerbatimArguments: boolean } {
+  if (shouldUseShell(command, platform))
+    return buildWin32CmdShimInvocation(command, serverArgs(args));
+  return { command, args: serverArgs(args), windowsVerbatimArguments: false };
 }
 
 function shouldUseShell(command: string, platform: NodeJS.Platform): boolean {
@@ -48,4 +50,4 @@ function serverArgs(args: string[] | undefined): string[] {
 }
 
 /** Direct-module test seam; not re-exported by the package barrel. */
-export const safeSpawnCoverage = { serverArgs, shouldUseShell };
+export const safeSpawnCoverage = { resolveCommandInvocation, serverArgs, shouldUseShell };

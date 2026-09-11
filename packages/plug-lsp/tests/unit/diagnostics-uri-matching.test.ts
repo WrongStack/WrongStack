@@ -28,6 +28,7 @@ describe('uriKey', () => {
   it('passes through anything it cannot turn into a path', () => {
     expect(uriKey('untitled:Untitled-1')).toBe('untitled:Untitled-1');
     expect(uriKey('file://')).toBe('file://');
+    expect(uriKey('file:///')).toBe('file:///');
   });
 
   it('uses the running platform by default', () => {

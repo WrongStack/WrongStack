@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T21:32:51.661Z",
+  "generatedAt": "2026-09-11T22:15:22.563Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3743,
+    "sourceFiles": 3744,
     "testFiles": 3254,
-    "sourceLines": 904548,
+    "sourceLines": 904589,
     "workspaceEdges": 128,
-    "moduleEdges": 11916,
+    "moduleEdges": 11918,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -479,7 +479,7 @@
     {
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
-      "sourceFiles": 68,
+      "sourceFiles": 69,
       "testFiles": 63,
       "workspaceDependencies": [
         "@wrongstack/core"
@@ -21018,11 +21018,6 @@
       "file": "packages/primitives/src/regex-guard.ts",
       "lines": 871,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/providers/src/index.ts",
-      "lines": 844,
-      "relativeImports": 57
     },
     {
       "file": "packages/providers/src/openai-codex.ts",

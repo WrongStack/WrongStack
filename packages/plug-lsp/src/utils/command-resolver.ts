@@ -63,6 +63,10 @@ export async function resolveServerCommand(
   // a package script inside a hostile repo puts that repo's binaries on PATH
   // and reopens WS-SEC-01 through this branch. Gate on where the file actually
   // lives, which covers both the local walk above and PATH injection.
+  return gateProjectLocalPath(onPath, cwd);
+}
+
+function gateProjectLocalPath(onPath: string | null, cwd: string): string | null {
   return onPath !== null && isInsideProject(onPath, cwd) ? null : onPath;
 }
 
@@ -174,6 +178,7 @@ function shellQuote(value: string): string {
 
 /** Direct-module test seam; not re-exported by the package barrel. */
 export const commandResolverCoverage = {
+  gateProjectLocalPath,
   commandCandidates,
   commandProbe,
   fileExists,

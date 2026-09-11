@@ -174,9 +174,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1070,
-      "typeOnly": 991,
-      "runtimeOrMixed": 278
+      "files": 1071,
+      "typeOnly": 992,
+      "runtimeOrMixed": 279
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -13497,6 +13497,12 @@
       "file": "packages/providers/src/capabilities.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/catalog-provider-routing.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

@@ -11,6 +11,16 @@ describe('platform helper coverage', () => {
     expect(safeSpawnCoverage.shouldUseShell('server.cmd', 'linux')).toBe(false);
     expect(safeSpawnCoverage.serverArgs(undefined)).toEqual([]);
     expect(safeSpawnCoverage.serverArgs(['--stdio'])).toEqual(['--stdio']);
+    expect(safeSpawnCoverage.resolveCommandInvocation('server', ['--stdio'], 'linux')).toEqual({
+      command: 'server',
+      args: ['--stdio'],
+      windowsVerbatimArguments: false,
+    });
+    expect(safeSpawnCoverage.resolveCommandInvocation('server.cmd', ['--stdio'], 'win32')).toEqual({
+      command: process.env['COMSPEC'] ?? 'cmd.exe',
+      args: ['/d', '/c', 'call "server.cmd" "--stdio"'],
+      windowsVerbatimArguments: true,
+    });
   });
 
   // The local `quoteForShell` was removed with WS-SEC-11: quoting the command

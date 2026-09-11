@@ -2,7 +2,6 @@ import { CODEX_MODELS } from '@wrongstack/core/models';
 import type { ProviderFactory } from '@wrongstack/core/registry';
 import type {
   Logger,
-  ModelsDevModel,
   ModelsRegistry,
   Provider,
   ProviderApiKey,
@@ -16,12 +15,10 @@ import { AiGatewayProvider, createAiGatewayProviderFactory } from './ai-gateway.
 import { AnthropicProvider } from './anthropic.js';
 import { AnthropicOAuthProvider } from './anthropic-oauth.js';
 import { CATALOG_ALIAS_BY_PROVIDER_TYPE, capabilitiesFor } from './capabilities.js';
-import { CatalogRoutedProvider, type CatalogWireNpm, isCatalogWireNpm } from './catalog-routed.js';
-import { capabilitiesForFamily } from './family-capabilities.js';
+import { createCatalogAwareProvider } from './catalog-provider-routing.js';
 import { GitHubCopilotProvider } from './github-copilot.js';
 import { GoogleProvider } from './google.js';
 import { MiniMaxProvider } from './minimax.js';
-import { createNativeCatalogProvider, isNativeCatalogNpm } from './native-catalog.js';
 import { OpenAIProvider } from './openai.js';
 import { OpenAICodexProvider } from './openai-codex.js';
 import {
@@ -474,30 +471,15 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
   // re-arm the credential from the catalog preset". Only an absent/undefined
   // envVars falls back to the preset.
   const envVars = Array.isArray(cfg.envVars) ? cfg.envVars : p.envVars;
-  const nativeNpm =
-    isNativeCatalogNpm(p.npm) && (cfg.family === undefined || cfg.family === p.family)
-      ? p.npm
-      : undefined;
-  const apiKey = nativeNpm
-    ? resolveNativeCatalogKey(p.id, nativeNpm, cfg)
-    : (resolveActiveKey(cfg) ?? readFromEnv(envVars));
-  if (nativeNpm) {
-    if ((nativeNpm === '@ai-sdk/azure' || nativeNpm === '@ai-sdk/cohere') && !apiKey) {
-      throw new ConfigError({
-        message: `Provider "${p.id}" requires an API key.`,
-        code: 'CONFIG_INVALID',
-      });
-    }
-    return createNativeCatalogProvider({
-      id: p.id,
-      npm: nativeNpm,
-      models: mergeCatalogModels(p.models, cfg.customModels),
-      capabilities: capabilitiesForFamily(p.family, { reasoning: true, tools: true }),
-      apiKey,
-      baseUrl: cfg.baseUrl,
-      headers: cfg.headers,
-    });
-  }
+  const explicitApiKey = resolveActiveKey(cfg);
+  const catalogAware = createCatalogAwareProvider({
+    provider: p,
+    config: cfg,
+    explicitApiKey,
+    quirks: validateQuirks(p.id, cfg.quirks),
+  });
+  if (catalogAware) return catalogAware;
+  const apiKey = explicitApiKey ?? readFromEnv(envVars);
   if (!apiKey && family !== 'unsupported') {
     throw new ConfigError({
       message: `Provider "${p.id}" requires an API key. Set ${
@@ -507,34 +489,6 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
     });
   }
   const baseUrl = cfg.baseUrl ?? p.apiBase;
-  const catalogModels = mergeCatalogModels(p.models, cfg.customModels);
-  const usesCatalogFamily = cfg.family === undefined || cfg.family === p.family;
-  const explicitBaseUrl = sameEndpoint(cfg.baseUrl, p.apiBase) ? undefined : cfg.baseUrl;
-
-  // A growing number of catalog providers expose several native protocols
-  // behind one credential. Keep explicit config family overrides and bespoke
-  // providers authoritative; otherwise route each model by models.dev's
-  // provider.npm/provider.api metadata instead of forcing the provider-wide
-  // default onto every request.
-  if (
-    usesCatalogFamily &&
-    p.id !== 'opencode' &&
-    p.id !== 'opencode-go' &&
-    p.id !== 'minimax' &&
-    p.id !== 'minimax-coding-plan' &&
-    hasMixedCatalogRoutes(p.npm, catalogModels)
-  ) {
-    return new CatalogRoutedProvider({
-      id: p.id,
-      apiKey: expectDefined(apiKey),
-      defaultNpm: p.npm as CatalogWireNpm,
-      baseUrl: p.apiBase,
-      baseUrlOverride: explicitBaseUrl,
-      headers: cfg.headers,
-      models: catalogModels,
-      quirks: validateQuirks(p.id, cfg.quirks),
-    });
-  }
 
   if (!family || family === 'unsupported') {
     if (family === 'unsupported') {
@@ -710,65 +664,6 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
         code: 'CONFIG_INVALID',
       });
   }
-}
-
-function resolveNativeCatalogKey(
-  providerId: string,
-  npm: string,
-  cfg: ProviderConfig,
-): string | undefined {
-  const explicit = resolveActiveKey(cfg);
-  if (explicit) return explicit;
-  if (npm === '@ai-sdk/cohere') return process.env['COHERE_API_KEY'];
-  if (npm === '@ai-sdk/amazon-bedrock') return process.env['AWS_BEARER_TOKEN_BEDROCK'];
-  if (npm === '@ai-sdk/google-vertex') return process.env['GOOGLE_VERTEX_API_KEY'];
-  if (npm === 'ai-gateway-provider') return process.env['CLOUDFLARE_API_TOKEN'];
-  if (npm === '@ai-sdk/azure') {
-    return providerId === 'azure-cognitive-services'
-      ? process.env['AZURE_COGNITIVE_SERVICES_API_KEY']
-      : process.env['AZURE_API_KEY'];
-  }
-  return undefined;
-}
-
-function sameEndpoint(left: string | undefined, right: string | undefined): boolean {
-  if (left === undefined) return true;
-  if (right === undefined) return false;
-  return (
-    left.trim().replace(/\/+$/, '').toLowerCase() === right.trim().replace(/\/+$/, '').toLowerCase()
-  );
-}
-
-function hasMixedCatalogRoutes(
-  providerNpm: string | undefined,
-  models: readonly ModelsDevModel[],
-): boolean {
-  if (!isCatalogWireNpm(providerNpm)) return false;
-  return models.some((model) => {
-    const modelNpm = model.provider?.npm?.toLowerCase();
-    return isCatalogWireNpm(modelNpm) && modelNpm !== providerNpm;
-  });
-}
-
-function mergeCatalogModels(
-  models: readonly ModelsDevModel[],
-  customModels: ProviderConfig['customModels'],
-): ModelsDevModel[] {
-  if (!customModels) return [...models];
-  const merged = new Map(models.map((model) => [model.id, model]));
-  for (const [id, definition] of Object.entries(customModels)) {
-    const modelsDev = definition.modelsDev;
-    if (!modelsDev) continue;
-    const current = merged.get(id);
-    const customName = modelsDev['name'];
-    merged.set(id, {
-      ...(current ?? { id, name: id }),
-      ...modelsDev,
-      id,
-      name: typeof customName === 'string' ? customName : (current?.name ?? id),
-    });
-  }
-  return [...merged.values()];
 }
 
 /**

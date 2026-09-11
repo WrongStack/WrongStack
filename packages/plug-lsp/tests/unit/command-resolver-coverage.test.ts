@@ -59,6 +59,14 @@ describe('command resolver completion coverage', () => {
     expect(commandResolverCoverage.shellQuote("it's")).toBe("'it'\\''s'");
     expect(await commandResolverCoverage.fileExists(process.execPath)).toBe(true);
     expect(await commandResolverCoverage.fileExists(path.join(os.tmpdir(), 'missing'))).toBe(false);
+    const project = path.join(os.tmpdir(), 'project');
+    expect(commandResolverCoverage.gateProjectLocalPath(null, project)).toBeNull();
+    expect(
+      commandResolverCoverage.gateProjectLocalPath(path.join(project, 'bin', 'server'), project),
+    ).toBeNull();
+    expect(commandResolverCoverage.gateProjectLocalPath(process.execPath, project)).toBe(
+      process.execPath,
+    );
   });
 
   it('handles successful, failed, errored, and timed out PATH probes', async () => {

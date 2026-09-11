@@ -23,11 +23,9 @@ export function uriToPath(uri: string): string {
 export function uriKey(uri: string, platform: NodeJS.Platform = process.platform): string {
   if (!uri.startsWith('file:')) return uri;
   try {
+    const parsed = new URL(uri);
+    if (parsed.hostname === '' && parsed.pathname === '/') return uri;
     const filePath = fileURLToPath(uri);
-    // A file URI with no path component (degenerate forms like 'file://')
-    // normalizes to the POSIX root on Linux; keep the caller's stable
-    // identifier instead of collapsing every such URI to '/'.
-    if (filePath === '/' || filePath === '') return uri;
     // Windows paths are case-insensitive and the drive letter's case is not
     // meaningful; POSIX paths are case-sensitive and must not be folded.
     return platform === 'win32' ? path.resolve(filePath).toLowerCase() : path.resolve(filePath);
