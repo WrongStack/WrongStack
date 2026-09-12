@@ -42,6 +42,11 @@
       "fingerprint": "cdceee059ef2523c"
     },
     {
+      "file": "packages/cli/tests/subagent-models-tui-e2e.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "07183e30819b9cfe"
+    },
+    {
       "file": "packages/core/tests/chronicle/metrics-store-sqlite-source.test.ts",
       "kind": "skipIf",
       "fingerprint": "1b4c70186dfe382c"
