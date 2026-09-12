@@ -194,6 +194,15 @@ function modelDetails(
         tools: model.tool_call,
         vision: model.modalities?.input?.includes('image'),
         reasoning: model.reasoning ?? model.reasoningConfig !== undefined,
+        // Documented effort vocabulary, mirroring the gate
+        // `getActiveModelReasoningEffortLevels` applies for the settings
+        // panel: `effortSupported === false` is a documented "no effort
+        // control", and the picker must not offer a strip for it. An absent
+        // field stays absent, which the strip reads as "undocumented →
+        // canonical set".
+        ...(model.reasoningConfig?.effortSupported && model.reasoningConfig.effortLevels?.length
+          ? { effortLevels: [...model.reasoningConfig.effortLevels] }
+          : {}),
         maxContext: model.limit?.context,
         maxOutput: model.limit?.output,
         inputCost: model.cost?.input,

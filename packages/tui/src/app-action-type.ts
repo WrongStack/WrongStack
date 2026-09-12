@@ -139,6 +139,8 @@ export type Action =
   | { type: 'modelPickerHint'; text?: string | undefined }
   /** Update the search filter in step 2. */
   | { type: 'modelPickerSearch'; query: string }
+  /** ←/→ on the focused model row: cycle its reasoning-effort choice. */
+  | { type: 'modelPickerEffort'; delta: number }
   | { type: 'autonomyPickerOpen'; options: AutonomyOption[] }
   | { type: 'autonomyPickerClose' }
   | { type: 'autonomyPickerMove'; delta: number }

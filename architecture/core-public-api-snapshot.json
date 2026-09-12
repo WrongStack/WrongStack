@@ -1594,7 +1594,7 @@
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 11,
-      "sourceLines": 2361
+      "sourceLines": 2376
     },
     {
       "directory": "statusline",

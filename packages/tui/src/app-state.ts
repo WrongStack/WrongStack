@@ -236,6 +236,12 @@ export type State = {
     /** Live search filter in step 2. */
     searchQuery: string;
     /**
+     * Reasoning effort chosen for the FOCUSED model with ←/→. `'default'`
+     * (the sentinel every navigation resets to) means "leave the persisted
+     * effort alone", which is what Enter did before the strip existed.
+     */
+    effort: string;
+    /**
      * 'switch' — Enter switches the SESSION model (the /model command).
      * 'pick'   — generic reusable selection: Enter just RETURNS the choice
      *            to whoever called requestModelPick (Brain pool/voters/judge,

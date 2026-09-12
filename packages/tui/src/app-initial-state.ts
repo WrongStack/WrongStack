@@ -9,6 +9,7 @@ import { AUTH_PANEL_INITIAL } from './auth-panel-model.js';
 import { retainCheckpoints } from './checkpoint-retention.js';
 import { replaySessionMessages } from './components/history/replay.js';
 import type { AutonomyAgentStatus } from './components/history/types.js';
+import { EFFORT_KEEP } from './components/model-picker-effort.js';
 import { type ContextMode, DEFAULT_STATUSLINE_MODE } from './components/settings-picker.js';
 import { retainTuiHistory, TUI_RESUME_HISTORY_BUDGET } from './history-retention.js';
 import { rehydrateHistory } from './rehydrate-history.js';
@@ -234,6 +235,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       filteredOptions: [],
       selected: 0,
       searchQuery: '',
+      effort: EFFORT_KEEP,
       purpose: 'switch',
     },
     autonomyPicker: { open: false, options: [], selected: 0 },

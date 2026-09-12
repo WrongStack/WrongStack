@@ -1266,6 +1266,9 @@
       "summarizeGoalMetrics",
       "summarizeSuccessCriteria"
     ],
+    "packages/tui/src/components/model-picker-effort.ts": [
+      "modelEffortOptions"
+    ],
     "packages/tui/src/components/powerline-rail.tsx": [
       "visibleNodeText"
     ],

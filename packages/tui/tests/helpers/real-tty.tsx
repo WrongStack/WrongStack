@@ -39,6 +39,9 @@ class FakeStdin extends EventEmitter {
   }
   ref(): void {}
   unref(): void {}
+  write(input: string): void {
+    this.emit('data', Buffer.from(input));
+  }
 }
 
 /** Let Ink flush renders, layout effects, and follow-up commits. */
@@ -59,6 +62,7 @@ export interface RealTtyView {
   resize(columns: number, rows: number): void;
   unmount(): void;
   stdout: FakeStdout;
+  stdin: FakeStdin;
 }
 
 /** Render into a fake TTY of the given size with Ink's real renderer. */
@@ -67,9 +71,10 @@ export function renderRealTty(
   { columns = 60, rows = 30 }: { columns?: number; rows?: number } = {},
 ): RealTtyView {
   const stdout = new FakeStdout(columns, rows);
+  const stdin = new FakeStdin();
   const instance = render(element, {
     stdout: stdout as unknown as NodeJS.WriteStream,
-    stdin: new FakeStdin() as unknown as NodeJS.ReadStream,
+    stdin: stdin as unknown as NodeJS.ReadStream,
     debug: true,
     exitOnCtrlC: false,
     patchConsole: false,
@@ -85,5 +90,6 @@ export function renderRealTty(
     },
     unmount: () => instance.unmount(),
     stdout,
+    stdin,
   };
 }

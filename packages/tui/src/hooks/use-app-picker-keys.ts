@@ -326,6 +326,18 @@ export function useAppPickerKeys({
     currentContextTokens,
     currentProvider: liveProvider,
     currentModel: liveModel,
+    // The picker's effort strip writes through the SAME saveSettings the
+    // settings panel uses (field 24), so both surfaces land on
+    // `modelRuntime.reasoning.effort` and the live ConfigStore in one step.
+    // `getSettings()` supplies the untouched rest of the shape — the host
+    // contract takes a full Settings object, not a patch.
+    saveReasoningEffort: host.saveSettings
+      ? (effort) => {
+          const current = host.getSettings?.();
+          if (!current) return 'Settings are not available in this host.';
+          return host.saveSettings?.({ ...current, reasoningEffort: effort }) ?? null;
+        }
+      : undefined,
     switchAutonomy,
     submit: (text) => submitRef.current(text),
     onPromptPickerEnter: () => {

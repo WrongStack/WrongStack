@@ -1,5 +1,7 @@
 import { authPanelRows, WIRE_FAMILIES } from '../auth-panel-model.js';
 import type { KeyEvent } from '../components/input.js';
+import { EFFORT_KEEP, effortOptionsForFocused } from '../components/model-picker-effort.js';
+import type { ReasoningEffort } from '../settings-contracts.js';
 import type { PickerKeysHost } from './use-picker-keys-types.js';
 
 export function tryAuthModelPickerKeys(
@@ -199,6 +201,13 @@ export function tryAuthModelPickerKeys(
       dispatch({ type: 'modelPickerMove', delta: 1 });
       return true;
     }
+    // Arrows BEFORE the type-to-filter branch: a left/right key event can
+    // arrive with a non-empty `input` on some terminals, and the filter would
+    // then swallow it as a search character.
+    if (state.modelPicker.step === 'model' && (key.leftArrow || key.rightArrow)) {
+      dispatch({ type: 'modelPickerEffort', delta: key.rightArrow ? 1 : -1 });
+      return true;
+    }
     if (state.modelPicker.step === 'model' && input && !isEnter && !key.backspace) {
       dispatch({ type: 'modelPickerSearch', query: state.modelPicker.searchQuery + input });
       return true;
@@ -228,6 +237,13 @@ export function tryAuthModelPickerKeys(
         }
         const providerId = state.modelPicker.pickedProviderId;
         const modelId = state.modelPicker.filteredOptions[state.modelPicker.selected];
+        // Re-derived rather than trusted: the reducer resets the choice on
+        // every navigation, but a model whose strip is empty must never carry
+        // one (a stale 'max' from a sibling row would be saved silently).
+        const effortChoice =
+          effortOptionsForFocused(state.modelPicker).length > 0
+            ? state.modelPicker.effort
+            : EFFORT_KEEP;
         if (!providerId || !modelId) return true;
         if (state.modelPicker.purpose === 'pick') {
           host.onModelPicked?.(providerId, modelId);
@@ -260,6 +276,34 @@ export function tryAuthModelPickerKeys(
               runActive: state.status !== 'idle',
             },
           });
+          // Effort rides the SAME Enter as the model: the strip is a property
+          // of the row being committed, so a chosen level is persisted only
+          // once the switch itself reported success.
+          if (effortChoice !== EFFORT_KEEP) {
+            void Promise.resolve(host.saveReasoningEffort?.(effortChoice as ReasoningEffort))
+              .then((saveErr) => {
+                dispatch({
+                  type: 'addEntry',
+                  entry: saveErr
+                    ? {
+                        kind: 'warn',
+                        text: `Model switched, but reasoning effort was not saved: ${saveErr}`,
+                      }
+                    : { kind: 'info', text: `Reasoning effort → ${effortChoice}` },
+                });
+              })
+              .catch((saveErr: unknown) => {
+                dispatch({
+                  type: 'addEntry',
+                  entry: {
+                    kind: 'warn',
+                    text: `Model switched, but reasoning effort was not saved: ${
+                      saveErr instanceof Error ? saveErr.message : String(saveErr)
+                    }`,
+                  },
+                });
+              });
+          }
           dispatch({ type: 'modelPickerClose' });
         };
         const result = host.switchProviderAndModel?.(providerId, modelId);

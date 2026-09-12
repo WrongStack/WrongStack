@@ -25,6 +25,7 @@ import { HelpPanel } from './components/help-panel.js';
 import { McpPicker } from './components/mcp-picker.js';
 import { ModePicker } from './components/mode-picker.js';
 import { ModelPicker } from './components/model-picker.js';
+import { effortOptionsForFocused } from './components/model-picker-effort.js';
 import { PluginPicker } from './components/plugin-picker.js';
 import { ProjectPicker } from './components/project-picker.js';
 import { filterPromptPicker, PromptPicker } from './components/prompt-picker.js';
@@ -123,6 +124,8 @@ export function AppViewPickers({
           titleLabel={state.modelPicker.title}
           columns={mainColumnWidth}
           maxRows={pickerMaxRows}
+          effortOptions={effortOptionsForFocused(state.modelPicker)}
+          effortChoice={state.modelPicker.effort}
         />
       ) : null}
       {state.autonomyPicker.open ? (

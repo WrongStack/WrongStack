@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T12:04:05.355Z",
+  "generatedAt": "2026-09-12T12:45:03.188Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3761,
-    "testFiles": 3268,
-    "sourceLines": 910442,
+    "sourceFiles": 3762,
+    "testFiles": 3271,
+    "sourceLines": 910783,
     "workspaceEdges": 128,
-    "moduleEdges": 11984,
+    "moduleEdges": 11994,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 914
+    "testOnlyExports": 915
   },
   "errors": [],
   "packageCycles": [],
@@ -758,8 +758,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 388,
-      "testFiles": 349,
+      "sourceFiles": 389,
+      "testFiles": 352,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -782,7 +782,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 349
+          "testFiles": 352
         }
       ]
     },
@@ -15603,6 +15603,24 @@
         ]
       },
       {
+        "file": "packages/tui/tests/model-picker-effort-reducer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/model-picker-effort-view.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/model-picker-effort.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/model-picker.test.ts",
         "projects": [
           "root-node"
@@ -21205,12 +21223,12 @@
     },
     {
       "file": "packages/tui/src/app-action-type.ts",
-      "lines": 831,
+      "lines": 833,
       "relativeImports": 13
     },
     {
       "file": "packages/tui/src/app-state.ts",
-      "lines": 992,
+      "lines": 998,
       "relativeImports": 14
     },
     {
@@ -21275,8 +21293,8 @@
     },
     {
       "file": "packages/tui/src/reducers/composer.ts",
-      "lines": 913,
-      "relativeImports": 8
+      "lines": 942,
+      "relativeImports": 9
     },
     {
       "file": "packages/tui/src/reducers/settings-values.ts",
@@ -21646,6 +21664,11 @@
       "relativeImports": 13
     },
     {
+      "file": "packages/tui/src/app-state.ts",
+      "lines": 998,
+      "relativeImports": 14
+    },
+    {
       "file": "packages/webui/src/stores/fleet-store.ts",
       "lines": 996,
       "relativeImports": 2
@@ -21654,11 +21677,6 @@
       "file": "packages/core/src/types/session.ts",
       "lines": 994,
       "relativeImports": 4
-    },
-    {
-      "file": "packages/tui/src/app-state.ts",
-      "lines": 992,
-      "relativeImports": 14
     },
     {
       "file": "packages/tools/src/codebase-index/writer.ts",
@@ -24174,6 +24192,10 @@
     {
       "file": "packages/tui/src/components/kanban-panel.tsx",
       "name": "summarizeSuccessCriteria"
+    },
+    {
+      "file": "packages/tui/src/components/model-picker-effort.ts",
+      "name": "modelEffortOptions"
     },
     {
       "file": "packages/tui/src/components/powerline-rail.tsx",

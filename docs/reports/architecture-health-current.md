@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-12T12:04:05.355Z
+**Generated:** 2026-09-12T12:45:03.188Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3761 |
-| Production source lines | 910442 |
-| Test files | 3268 |
+| Production source files | 3762 |
+| Production source lines | 910783 |
+| Test files | 3271 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 11984 |
+| Relative module edges | 11994 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -55,7 +55,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 37 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 32 | @wrongstack/core |
 | @wrongstack/tools | 213 | 217 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 388 | 349 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 389 | 352 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 18 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 545 | 374 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 119 | 39 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -123,9 +123,9 @@ None.
 | 1003 | `packages/kanban/src/types.ts` |
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 999 | `packages/kanban/src/manager/assignment.ts` |
+| 998 | `packages/tui/src/app-state.ts` |
 | 996 | `packages/webui/src/stores/fleet-store.ts` |
 | 994 | `packages/core/src/types/session.ts` |
-| 992 | `packages/tui/src/app-state.ts` |
 | 991 | `packages/tools/src/codebase-index/writer.ts` |
 | 984 | `packages/tui/src/components/agents-monitor.tsx` |
 | 982 | `packages/core/src/coordination/sqlite-mailbox.ts` |
@@ -138,7 +138,7 @@ None.
 
 ## Exports only tests reference
 
-- 914 runtime exports are referenced by tests and by no other production file.
+- 915 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

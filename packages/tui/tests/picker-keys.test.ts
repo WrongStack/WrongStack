@@ -2912,3 +2912,113 @@ describe('useAppPickerKeys — resume in-flight guards (/resume picker + F10 ses
     unmount();
   });
 });
+
+// ── /model effort strip ──────────────────────────────────────────────────
+//
+// ←/→ on the focused model row picks the reasoning effort the session should
+// run that model at. Two things must hold: the arrows must reach the effort
+// action instead of the type-to-filter branch, and a chosen level must be
+// persisted on the SAME Enter that commits the switch.
+describe('usePickerKeys — /model effort strip', () => {
+  const REASONER: ProviderOption[] = [
+    {
+      id: 'openai',
+      family: 'openai',
+      models: ['o3'],
+      modelDetails: { o3: { reasoning: true, effortLevels: ['low', 'high'] } },
+    },
+  ];
+
+  function effortState(effort: string, overrides: Record<string, unknown> = {}) {
+    return baseState({
+      modelPicker: {
+        open: true,
+        step: 'model',
+        providerOptions: REASONER,
+        modelOptions: ['o3'],
+        filteredOptions: ['o3'],
+        selected: 0,
+        searchQuery: '',
+        effort,
+        pickedProviderId: 'openai',
+        purpose: 'switch',
+        ...overrides,
+      },
+    });
+  }
+
+  it('routes ←/→ to the effort action, not the search filter', () => {
+    const host = makeHost(effortState('default'));
+
+    runPickerKey(host, '', key({ rightArrow: true }), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'modelPickerEffort', delta: 1 });
+
+    host.dispatch.mockClear();
+    runPickerKey(host, '', key({ leftArrow: true }), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'modelPickerEffort', delta: -1 });
+    expect(host.dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'modelPickerSearch' }),
+    );
+  });
+
+  it('saves the chosen effort on the Enter that switches the model', async () => {
+    const saveReasoningEffort = vi.fn().mockResolvedValue(null);
+    const host = makeHost(effortState('high'), { saveReasoningEffort });
+
+    runPickerKey(host, '', key(), true);
+
+    expect(host.switchProviderAndModel).toHaveBeenCalledWith('openai', 'o3');
+    expect(saveReasoningEffort).toHaveBeenCalledWith('high');
+    await vi.waitFor(() =>
+      expect(host.dispatch).toHaveBeenCalledWith({
+        type: 'addEntry',
+        entry: { kind: 'info', text: 'Reasoning effort → high' },
+      }),
+    );
+  });
+
+  it('leaves the persisted effort untouched on the default sentinel', () => {
+    const saveReasoningEffort = vi.fn().mockResolvedValue(null);
+    const host = makeHost(effortState('default'), { saveReasoningEffort });
+
+    runPickerKey(host, '', key(), true);
+
+    expect(host.switchProviderAndModel).toHaveBeenCalledWith('openai', 'o3');
+    expect(saveReasoningEffort).not.toHaveBeenCalled();
+  });
+
+  it('refuses a stale choice on a model whose strip is empty', () => {
+    const saveReasoningEffort = vi.fn().mockResolvedValue(null);
+    const host = makeHost(
+      effortState('high', {
+        providerOptions: [{ id: 'openai', family: 'openai', models: ['gpt-4o'], modelDetails: {} }],
+        modelOptions: ['gpt-4o'],
+        filteredOptions: ['gpt-4o'],
+      }),
+      { saveReasoningEffort },
+    );
+
+    runPickerKey(host, '', key(), true);
+
+    expect(host.switchProviderAndModel).toHaveBeenCalledWith('openai', 'gpt-4o');
+    expect(saveReasoningEffort).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed save as a warning without undoing the switch', async () => {
+    const saveReasoningEffort = vi.fn().mockResolvedValue('config is read-only');
+    const host = makeHost(effortState('low'), { saveReasoningEffort });
+
+    runPickerKey(host, '', key(), true);
+
+    expect(host.switchProviderAndModel).toHaveBeenCalledWith('openai', 'o3');
+    await vi.waitFor(() =>
+      expect(host.dispatch).toHaveBeenCalledWith({
+        type: 'addEntry',
+        entry: {
+          kind: 'warn',
+          text: 'Model switched, but reasoning effort was not saved: config is read-only',
+        },
+      }),
+    );
+  });
+});

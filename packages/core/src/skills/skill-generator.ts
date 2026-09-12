@@ -289,6 +289,16 @@ export async function writeSkeletonSkill(
     });
   }
   const skillDir = path.join(skillsDir, name);
+  // Reject a name that escapes skillsDir — prevents arbitrary directory creation
+  // outside the skills root (e.g. name: "../../../etc" on a malicious skill body).
+  if (!isInside(path.resolve(skillDir), path.resolve(skillsDir))) {
+    throw new WrongStackError({
+      message: `Skill name "${name}" resolves outside the skills directory.`,
+      code: ERROR_CODES.VALIDATION_ERROR,
+      subsystem: 'general',
+      context: { skillDir, skillsDir },
+    });
+  }
   const skillFile = path.join(skillDir, 'SKILL.md');
   if (!opts.overwrite) {
     try {
@@ -351,6 +361,11 @@ function toKebab(s: string): string {
 
 function dedupe<T>(arr: T[]): T[] {
   return [...new Set(arr)];
+}
+
+function isInside(resolved: string, destDir: string): boolean {
+  const root = path.resolve(destDir);
+  return resolved === root || resolved.startsWith(root + path.sep);
 }
 
 function defaultEditor(): string | undefined {

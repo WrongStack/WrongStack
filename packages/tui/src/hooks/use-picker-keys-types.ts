@@ -1,6 +1,7 @@
 import type React from 'react';
 import type { Action, State } from '../app-reducer.js';
 import type { BrainPanelRow } from '../brain-panel-model.js';
+import type { ReasoningEffort } from '../settings-contracts.js';
 import type { AutonomyStage } from './use-statusline-state.js';
 
 export interface PickerKeysHost {
@@ -20,6 +21,15 @@ export interface PickerKeysHost {
   currentContextTokens: number;
   currentProvider: string | undefined;
   currentModel: string | undefined;
+
+  /**
+   * Persist the reasoning effort chosen on the /model picker's effort strip.
+   * Returns an error string (or a promise of one) on failure, null on success
+   * — same contract as `saveSettings`, which is what the app wiring forwards to.
+   */
+  saveReasoningEffort:
+    | ((effort: ReasoningEffort) => string | null | Promise<string | null>)
+    | undefined;
 
   switchAutonomy: ((mode: AutonomyStage) => string | null) | undefined;
   submit: ((text: string) => void) | undefined;

@@ -1,6 +1,11 @@
 import { type PersistedQueueItem, retainPersistedQueueItems } from '@wrongstack/core/storage';
 import type { Action } from '../app-action-type.js';
 import type { QueueItem, State } from '../app-state.js';
+import {
+  cycleEffort,
+  EFFORT_KEEP,
+  effortOptionsForFocused,
+} from '../components/model-picker-effort.js';
 import { filterPromptPicker } from '../components/prompt-picker.js';
 import { filterResourceMenuItems } from '../components/resource-menu.js';
 import { retainTuiHistory, TUI_RESUME_HISTORY_BUDGET } from '../history-retention.js';
@@ -40,6 +45,7 @@ const composerActionTypes = [
   'modelPickerPickProvider',
   'modelPickerBack',
   'modelPickerSearch',
+  'modelPickerEffort',
   'modelPickerHint',
   'autonomyPickerOpen',
   'autonomyPickerClose',
@@ -342,6 +348,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
           selected: 0,
           hint: undefined,
           searchQuery: '',
+          effort: EFFORT_KEEP,
           purpose,
           title: action.title,
         },
@@ -358,6 +365,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
           filteredOptions: [],
           selected: 0,
           searchQuery: '',
+          effort: EFFORT_KEEP,
           purpose: 'switch',
           title: undefined,
         },
@@ -373,7 +381,10 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       const next = (state.modelPicker.selected + action.delta + len) % len;
       return {
         ...state,
-        modelPicker: { ...state.modelPicker, selected: next },
+        // The effort choice belongs to the row it was made on: moving the
+        // cursor must not carry "max" over to the next model, whose catalog
+        // may not even document that level.
+        modelPicker: { ...state.modelPicker, selected: next, effort: EFFORT_KEEP },
       };
     }
     case 'modelPickerPickProvider':
@@ -388,6 +399,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
           pickedProviderId: action.providerId,
           hint: undefined,
           searchQuery: '',
+          effort: EFFORT_KEEP,
         },
       };
     case 'modelPickerBack':
@@ -402,6 +414,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
           pickedProviderId: undefined,
           hint: undefined,
           searchQuery: '',
+          effort: EFFORT_KEEP,
         },
       };
     case 'modelPickerSearch': {
@@ -419,6 +432,22 @@ export function reduceComposer(state: State, action: ComposerAction): State {
           filteredOptions: filtered,
           selected,
           searchQuery: action.query,
+          effort: EFFORT_KEEP,
+          hint: undefined,
+        },
+      };
+    }
+    case 'modelPickerEffort': {
+      if (!state.modelPicker.open || state.modelPicker.step !== 'model') return state;
+      const options = effortOptionsForFocused(state.modelPicker);
+      // Non-reasoning model (or a 'pick' invocation): the strip is not shown,
+      // so ←/→ are inert rather than silently arming a value Enter would save.
+      if (options.length === 0) return state;
+      return {
+        ...state,
+        modelPicker: {
+          ...state.modelPicker,
+          effort: cycleEffort(options, state.modelPicker.effort, action.delta),
           hint: undefined,
         },
       };

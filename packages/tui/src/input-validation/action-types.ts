@@ -176,6 +176,7 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'modePickerOpen',
   'modelPickerBack',
   'modelPickerClose',
+  'modelPickerEffort',
   'modelPickerHint',
   'modelPickerMove',
   'modelPickerOpen',

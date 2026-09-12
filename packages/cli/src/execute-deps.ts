@@ -20,6 +20,7 @@ import type { BrainAutoRisk } from '@wrongstack/core/execution';
 import type { JournalEntry } from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import type { QueueStore } from '@wrongstack/core/storage';
 import type {
   AttachmentStore,
@@ -48,7 +49,6 @@ import type { ReadlineInputReader } from './input-reader.js';
 import type { LiveSettingsInput } from './live-settings-input.js';
 import type { TerminalRenderer } from './renderer.js';
 import type { AutonomyMode } from './services/autonomy-mode.js';
-import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import type { StatuslineConfigKey } from './services/statusline-config.js';
 import type { SessionStats } from './session-stats.js';
 import type { UpdateInfo } from './update-check.js';
@@ -203,6 +203,8 @@ interface ProviderDeps {
               tools?: boolean | undefined;
               vision?: boolean | undefined;
               reasoning?: boolean | undefined;
+              /** Documented reasoning-effort levels (drives the picker strip). */
+              effortLevels?: readonly string[] | undefined;
               maxContext?: number | undefined;
               maxOutput?: number | undefined;
               inputCost?: number | undefined;

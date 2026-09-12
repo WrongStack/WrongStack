@@ -1,5 +1,6 @@
 import type React from 'react';
 import { Box, Text } from '../ink.js';
+import { EFFORT_KEEP, type ModelEffortChoice } from './model-picker-effort.js';
 import { colorForFamily, UI_COLORS } from './provider-colors.js';
 
 export interface ProviderOption {
@@ -18,6 +19,13 @@ export interface ProviderOption {
           tools?: boolean | undefined;
           vision?: boolean | undefined;
           reasoning?: boolean | undefined;
+          /**
+           * Effort vocabulary this model documents (models.dev
+           * `reasoning_options`). Drives the ←/→ effort strip in step 2;
+           * absent/empty on a model whose levels are undocumented, which the
+           * strip reads as "offer the full canonical set".
+           */
+          effortLevels?: readonly string[] | undefined;
           maxContext?: number | undefined;
           maxOutput?: number | undefined;
           inputCost?: number | undefined;
@@ -50,6 +58,14 @@ interface ModelPickerProps {
   titleLabel?: string | undefined;
   columns?: number | undefined;
   maxRows?: number | undefined;
+  /**
+   * Effort choices for the focused model, led by `default`. Empty when the
+   * model does not reason (or in 'pick' purpose) — the strip is then hidden
+   * and ←/→ are inert.
+   */
+  effortOptions?: readonly ModelEffortChoice[] | undefined;
+  /** Currently highlighted entry of {@link effortOptions}. */
+  effortChoice?: string | undefined;
 }
 
 const MAX_VISIBLE = 10;
@@ -88,6 +104,8 @@ export function ModelPicker({
   titleLabel,
   columns = 0,
   maxRows,
+  effortOptions = [],
+  effortChoice = EFFORT_KEEP,
 }: ModelPickerProps): React.ReactElement {
   const title = titleLabel ?? 'Switch model';
   if (step === 'provider') {
@@ -215,8 +233,26 @@ export function ModelPicker({
       : '';
 
   const focusedModel = filteredOptions[Math.max(0, Math.min(selected, filteredOptions.length - 1))];
+  // Built as a string, not JSX children: a conditional segment inline in JSX
+  // loses the separating space to whitespace collapsing.
+  const navHint = [
+    '↑/↓ navigate',
+    ...(effortOptions.length > 0 ? ['←/→ effort'] : []),
+    'Enter select',
+    'Esc back',
+    'Ctrl+C exit',
+    'type to filter',
+  ].join(' · ');
   const longestModel = filteredOptions.reduce((value, model) => Math.max(value, model.length), 0);
-  const modelListWidth = Math.max(38, Math.min(62, longestModel + 7));
+  // The focused row carries an effort chip ("  ‹ medium ›"). Its width is added
+  // to the fixed list width rather than eaten from it: a bordered Box with a
+  // hard `width` clips, it does not grow, so a chip sized in after the fact
+  // would truncate the model id it belongs to.
+  const effortChipWidth =
+    effortOptions.length > 0
+      ? effortOptions.reduce((value, option) => Math.max(value, option.length), 0) + 6
+      : 0;
+  const modelListWidth = Math.max(38, Math.min(62, longestModel + 7) + effortChipWidth);
   const split = columns >= modelListWidth + 42 && Boolean(focusedModel);
   const modelList = (
     <Box
@@ -230,7 +266,7 @@ export function ModelPicker({
         {`━━ ${title} — Step 2/2: Pick model `}({pickedProviderId}
         {searchHint}){' ━━'}
       </Text>
-      <Text dimColor>↑/↓ navigate · Enter select · Esc back · Ctrl+C exit · type to filter</Text>
+      <Text dimColor>{navHint}</Text>
       {total === 0 ? (
         <Text dimColor>
           {searchQuery
@@ -251,6 +287,7 @@ export function ModelPicker({
               >
                 {isSelected ? '› ' : '  '}
                 {id}
+                {isSelected && effortOptions.length > 0 ? `  ‹ ${effortChoice} ›` : ''}
               </Text>
             );
           })}
@@ -307,6 +344,25 @@ export function ModelPicker({
             .join(', ') || 'not reported'}
         </Text>
         <Text>
+          <Text dimColor>effort (←/→): </Text>
+          {effortOptions.length === 0 ? (
+            <Text dimColor>not adjustable for this model</Text>
+          ) : (
+            effortOptions.map((option, index) => (
+              <Text key={option}>
+                {index > 0 ? <Text dimColor> · </Text> : null}
+                <Text
+                  bold={option === effortChoice}
+                  dimColor={option !== effortChoice}
+                  {...(option === effortChoice ? { color: UI_COLORS.selectedModel } : {})}
+                >
+                  {option === effortChoice ? `[${option}]` : option}
+                </Text>
+              </Text>
+            ))
+          )}
+        </Text>
+        <Text>
           <Text dimColor>cost in/out/cache: </Text>
           {formatCost(detail?.inputCost)} / {formatCost(detail?.outputCost)} /{' '}
           {formatCost(detail?.cacheReadCost)}
@@ -328,7 +384,11 @@ export function ModelPicker({
           {searchQuery || '(none)'}
         </Text>
         <Text> </Text>
-        <Text dimColor>Enter switches the active session to this provider/model pair.</Text>
+        <Text dimColor>
+          {effortOptions.length > 0 && effortChoice !== EFFORT_KEEP
+            ? `Enter switches to this provider/model and saves reasoning effort "${effortChoice}".`
+            : 'Enter switches the active session to this provider/model pair.'}
+        </Text>
       </Box>
     </Box>
   );

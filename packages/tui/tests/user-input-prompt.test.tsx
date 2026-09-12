@@ -158,7 +158,7 @@ describe('TUI structured user input prompt', () => {
       />,
     );
 
-    expect(view.lastFrame()).toContain('Submit answers');
+    expect(view.lastFrame()).toContain('SUBMIT');
     expect(view.lastFrame()).not.toContain('Metni Gönder');
     view.stdin.write('d');
     await new Promise((resolveTick) => setTimeout(resolveTick, 0));
@@ -204,11 +204,63 @@ describe('TUI structured user input prompt', () => {
     expect(view.lastFrame()).toContain('Second question?');
   });
 
-  it('keeps navigation and submit controls visible in a short terminal', async () => {
+  it('submits through the measured mouse target only when the form is valid', async () => {
+    const resolve = vi.fn();
     const view = renderRealTty(
       <UserInputPrompt
         pending={{
-          resolve: vi.fn(),
+          resolve,
+          request: {
+            id: 'mouse-submit',
+            title: 'Mouse submit',
+            tabs: [
+              {
+                id: 'main',
+                label: 'Main',
+                questions: [
+                  {
+                    id: 'database',
+                    prompt: 'Database?',
+                    kind: 'single_select',
+                    required: true,
+                    options: [
+                      { id: 'pg', label: 'PostgreSQL' },
+                      { id: 'sqlite', label: 'SQLite' },
+                    ],
+                    recommendedOptionIds: ['pg'],
+                  },
+                ],
+              },
+            ],
+          },
+        }}
+      />,
+      { columns: 80, rows: 24 },
+    );
+
+    await settle();
+    const lines = view.lines();
+    const row = lines.findIndex((line) => line.includes('SUBMIT'));
+    const column = lines[row]!.indexOf('SUBMIT');
+    expect(row).toBeGreaterThanOrEqual(0);
+    expect(column).toBeGreaterThanOrEqual(0);
+    expect(lines[row]).not.toContain('LOCKED');
+    view.stdin.write(`\u001b[<0;${column + 1};${row + 1}M`);
+    await settle();
+
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(resolve.mock.calls[0]?.[0].answers[0]).toEqual(
+      expect.objectContaining({ questionId: 'database', selectedOptionIds: ['pg'] }),
+    );
+    view.unmount();
+  });
+
+  it('keeps navigation and submit controls visible in a short terminal', async () => {
+    const resolve = vi.fn();
+    const view = renderRealTty(
+      <UserInputPrompt
+        pending={{
+          resolve,
           request: {
             id: 'r3',
             title: 'A deliberately long decision form title',
@@ -238,9 +290,15 @@ describe('TUI structured user input prompt', () => {
     await settle();
     expect(view.lines().length).toBeLessThanOrEqual(14);
     expect(view.lastFrame()).toContain('QUESTION 1/8');
+    expect(view.lastFrame()).toContain('SUBMIT LOCKED');
     expect(view.lastFrame()).toContain('Tab category');
     expect(view.lastFrame()).toContain('s submit');
     expect(view.lastFrame()).toContain('required answer(s) missing');
+    const lockedRow = view.lines().findIndex((line) => line.includes('SUBMIT LOCKED'));
+    const lockedColumn = view.lines()[lockedRow]!.indexOf('SUBMIT LOCKED');
+    view.stdin.write(`\u001b[<0;${lockedColumn + 1};${lockedRow + 1}M`);
+    await settle();
+    expect(resolve).not.toHaveBeenCalled();
     view.unmount();
   });
 

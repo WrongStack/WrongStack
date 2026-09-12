@@ -6,8 +6,17 @@ import type {
   UserInputResponse,
 } from '@wrongstack/core/types';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { Box, Text, useInput, useStdout } from '../ink.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Box,
+  type DOMElement,
+  measureElement,
+  Text,
+  useInput,
+  useStdin,
+  useStdout,
+} from '../ink.js';
+import { isLeakedMouseInput, parseMouseEvents, splitTrailingMousePartial } from '../mouse.js';
 
 export type PendingUserInput = {
   request: UserInputRequest;
@@ -48,6 +57,8 @@ export function UserInputPrompt({ pending }: { pending: PendingUserInput }): Rea
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState('');
   const [draft, setDraft] = useState<Draft>(() => initialDraft(pending.request));
+  const submitButtonRef = useRef<DOMElement | null>(null);
+  const mousePartialRef = useRef('');
 
   const allQuestions = useMemo(
     () => pending.request.tabs.flatMap((tab) => tab.questions),
@@ -117,7 +128,33 @@ export function UserInputPrompt({ pending }: { pending: PendingUserInput }): Rea
     });
   };
 
+  const { stdin } = useStdin();
+  useEffect(() => {
+    if (!stdin) return;
+    const handleMouse = (data: Buffer) => {
+      const { consumed, pending: partial } = splitTrailingMousePartial(
+        mousePartialRef.current + data.toString(),
+      );
+      mousePartialRef.current = partial;
+      for (const event of parseMouseEvents(consumed)) {
+        if (
+          validation.valid &&
+          event.kind === 'press' &&
+          event.button === 'left' &&
+          pointInsideElement(submitButtonRef.current, event.x, event.y)
+        ) {
+          submit();
+        }
+      }
+    };
+    stdin.on('data', handleMouse);
+    return () => {
+      stdin.off('data', handleMouse);
+    };
+  }, [stdin, validation.valid, submit]);
+
   useInput((input, key) => {
+    if (input && isLeakedMouseInput(input)) return;
     if (editing) {
       if (key.escape || key.return) {
         setEditing(false);
@@ -464,13 +501,24 @@ export function UserInputPrompt({ pending }: { pending: PendingUserInput }): Rea
             <Text dimColor>R recommend all · D delegate blanks · s submit</Text>
           </Box>
         ) : null}
-        <Text color={validation.valid ? 'green' : 'yellow'}>
-          {compact && notice
-            ? notice
-            : validation.valid
-              ? 'Ready · Submit answers with s'
-              : `${validation.missingCount} required answer(s) missing`}
-        </Text>
+        <Box justifyContent="space-between">
+          <Text color={validation.valid ? 'green' : 'yellow'}>
+            {compact && notice
+              ? notice
+              : validation.valid
+                ? 'Ready · s or click to submit'
+                : `${validation.missingCount} required answer(s) missing`}
+          </Text>
+          <Box
+            ref={submitButtonRef}
+            paddingX={1}
+            backgroundColor={validation.valid ? 'green' : undefined}
+          >
+            <Text bold color={validation.valid ? 'black' : 'gray'}>
+              {validation.valid ? 'SUBMIT' : 'SUBMIT LOCKED'}
+            </Text>
+          </Box>
+        </Box>
       </Box>
     </Box>
   );
@@ -604,6 +652,18 @@ function renderTabs(
 function progressBar(completed: number, total: number, width: number): string {
   const filled = total > 0 ? Math.round((completed / total) * width) : 0;
   return `[${'█'.repeat(filled)}${'░'.repeat(Math.max(0, width - filled))}]`;
+}
+
+/** Match one-based SGR mouse cells against Ink's measured zero-based rectangle. */
+export function pointInsideElement(element: DOMElement | null, x: number, y: number): boolean {
+  if (!element) return false;
+  const measured = measureElement(element);
+  return (
+    x >= measured.x + 1 &&
+    x <= measured.x + measured.width &&
+    y >= measured.y + 1 &&
+    y <= measured.y + measured.height
+  );
 }
 
 function truncate(value: string, width: number): string {

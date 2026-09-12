@@ -331,11 +331,11 @@
       "relativeImports": 4
     },
     "packages/tui/src/app-action-type.ts": {
-      "lines": 831,
+      "lines": 833,
       "relativeImports": 13
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 992,
+      "lines": 998,
       "relativeImports": 14
     },
     "packages/tui/src/app.tsx": {
@@ -387,8 +387,8 @@
       "relativeImports": 1
     },
     "packages/tui/src/reducers/composer.ts": {
-      "lines": 913,
-      "relativeImports": 8
+      "lines": 942,
+      "relativeImports": 9
     },
     "packages/tui/src/reducers/settings-values.ts": {
       "lines": 880,
