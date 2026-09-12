@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T22:06:42.313Z",
+  "generatedAt": "2026-09-12T22:09:48.227Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3771,
-    "testFiles": 3290,
+    "testFiles": 3291,
     "sourceLines": 914233,
     "workspaceEdges": 128,
     "moduleEdges": 12025,
@@ -813,7 +813,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 548,
-      "testFiles": 375,
+      "testFiles": 376,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -836,7 +836,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 375
+          "testFiles": 376
         }
       ]
     },
@@ -18544,6 +18544,12 @@
       },
       {
         "file": "packages/webui/tests/components/ChatInput/code-detect.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/ChatInput/subagent-model-picker-dialog.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
