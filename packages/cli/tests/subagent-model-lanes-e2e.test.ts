@@ -195,7 +195,11 @@ describe('subagent model lanes reach the provider', () => {
       model: 'leader-chosen',
       modelChosenByLeader: true,
     });
-    await director.assign(subagentId, { id: 'leader-task', description: 'do a thing' });
+    await director.assign({
+      id: 'leader-task',
+      description: 'do a thing',
+      subagentId,
+    });
     await director.awaitTasks(['leader-task']);
 
     const targets = builtTargets();
@@ -244,7 +248,11 @@ describe('subagent model lanes reach the provider', () => {
     const director = host.getDirector();
     if (!director) throw new Error('director not built');
     const subagentId = await director.spawn({ name: 'Reviewer', role: 'reviewer' });
-    await director.assign(subagentId, { id: 'review-task', description: 'review it' });
+    await director.assign({
+      id: 'review-task',
+      description: 'review it',
+      subagentId,
+    });
     await director.awaitTasks(['review-task']);
 
     const targets = builtTargets();

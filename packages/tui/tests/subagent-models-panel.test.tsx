@@ -1,8 +1,19 @@
 import { render } from 'ink-testing-library';
+import type React from 'react';
+import { act, useEffect, useReducer } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '../src/app-initial-state.js';
-import { reducer } from '../src/app-reducer.js';
+import { reducer, type State } from '../src/app-reducer.js';
+import { AppViewPickers } from '../src/app-view-pickers.js';
+import type { KeyEvent } from '../src/components/input.js';
+import { ModelPicker } from '../src/components/model-picker.js';
 import { SubagentModelsPanel } from '../src/components/subagent-models-panel.js';
+import { tryAuthModelPickerKeys } from '../src/hooks/use-picker-keys-auth-model.js';
+import { tryToolsSettingsPickerKeys } from '../src/hooks/use-picker-keys-tools-settings.js';
+import type { PickerKeysHost } from '../src/hooks/use-picker-keys.js';
+import { useModelPickRequest } from '../src/hooks/use-model-pick.js';
+import { useSubagentModelsPanel } from '../src/hooks/use-subagent-models-panel.js';
+import type { SubagentModelsPanelHost } from '../src/subagent-models-panel-model.js';
 
 function baseState() {
   return createInitialState({
@@ -43,6 +54,21 @@ describe('SubagentModelsPanel', () => {
     expect(frame).toContain('cheap lane');
     expect(frame).toContain('inherit');
     expect(frame).toContain('lanes override the leader');
+  });
+
+  it('documents the use-session-model shortcut', () => {
+    const { lastFrame } = render(
+      <SubagentModelsPanel
+        lanes={lanes}
+        roles={[]}
+        selected={0}
+        enabled
+        lock
+        followSessionModel={false}
+        sessionTarget="openai/gpt-5"
+      />,
+    );
+    expect(lastFrame() ?? '').toContain('s session model');
   });
 
   it('says the leader wins when the lock is off', () => {
@@ -92,6 +118,188 @@ describe('SubagentModelsPanel — use session model', () => {
     const frame = lastFrame() ?? '';
     expect(frame).toContain('openai/gpt-5');
     expect(frame).toContain('lanes are inactive');
+  });
+});
+
+describe('subagent-models overlay layering', () => {
+  it('hides the lane plan while the shared model picker is active', () => {
+    const state = baseState();
+    state.modelPicker = {
+      ...state.modelPicker,
+      open: true,
+      providerOptions: [{ id: 'openai', family: 'openai', models: ['gpt-5'] }],
+      filteredOptions: ['openai'],
+    };
+    state.subagentModels = {
+      ...state.subagentModels,
+      open: true,
+      lanes,
+      sessionTarget: 'openai/gpt-5',
+    };
+
+    const { lastFrame } = render(
+      <AppViewPickers
+        host={{} as never}
+        runtime={
+          {
+            state,
+            dispatch: vi.fn(),
+            activity: { nowTick: 0, enhanceDots: '' },
+            environment: { setYoloLive: vi.fn() },
+            viewState: { inputHeight: 1 },
+          } as never
+        }
+        mainColumnWidth={80}
+        pickerMaxRows={12}
+        routedToSidebar={() => false}
+        panelPositions={{} as never}
+      />,
+    );
+
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('Switch model');
+    expect(frame).not.toContain('Subagent models (this session)');
+  });
+});
+
+describe('subagent-models picker integration', () => {
+  it('routes Enter through the shared picker, updates the lane, and restores the panel', async () => {
+    let laneTarget = '';
+    const panelHost: SubagentModelsPanelHost = {
+      snapshot: () => ({
+        enabled: true,
+        lock: true,
+        followSessionModel: false,
+        sessionTarget: 'anthropic/claude-opus-5',
+        lanes: [{ target: laneTarget, busy: 0 }],
+        roles: [],
+      }),
+      setLane: vi.fn(async (_index, target) => {
+        laneTarget = `${target.provider}/${target.model}`;
+        return null;
+      }),
+      clearLane: vi.fn(async () => null),
+      toggle: vi.fn(async () => null),
+    };
+    const initial = baseState();
+    initial.subagentModels = {
+      ...initial.subagentModels,
+      open: true,
+      lanes: panelHost.snapshot().lanes,
+      sessionTarget: 'anthropic/claude-opus-5',
+    };
+
+    let flow:
+      | {
+          state: State;
+          dispatch: React.Dispatch<Parameters<typeof reducer>[1]>;
+          modelPick: ReturnType<typeof useModelPickRequest>;
+          controller: ReturnType<typeof useSubagentModelsPanel>;
+        }
+      | undefined;
+
+    function Harness(): React.ReactElement {
+      const [state, dispatch] = useReducer(reducer, initial);
+      const modelPick = useModelPickRequest({
+        dispatch,
+        getPickableProviders: async () => [{ id: 'openai', family: 'openai', models: ['gpt-5'] }],
+        pickerOpen: state.modelPicker.open,
+      });
+      const controller = useSubagentModelsPanel({
+        dispatch,
+        subagentModelsHost: panelHost,
+        requestModelPick: modelPick.requestModelPick,
+      });
+
+      useEffect(() => {
+        flow = { state, dispatch, modelPick, controller };
+      }, [state, dispatch, modelPick, controller]);
+
+      return (
+        <>
+          {state.modelPicker.open ? (
+            <ModelPicker
+              step={state.modelPicker.step}
+              providerOptions={state.modelPicker.providerOptions}
+              modelOptions={state.modelPicker.modelOptions}
+              filteredOptions={state.modelPicker.filteredOptions}
+              selected={state.modelPicker.selected}
+              pickedProviderId={state.modelPicker.pickedProviderId}
+              titleLabel={state.modelPicker.title}
+            />
+          ) : null}
+          {state.subagentModels.open && !state.modelPicker.open ? (
+            <SubagentModelsPanel
+              lanes={state.subagentModels.lanes}
+              roles={state.subagentModels.roles}
+              selected={state.subagentModels.selected}
+              enabled={state.subagentModels.enabled}
+              lock={state.subagentModels.lock}
+              followSessionModel={state.subagentModels.followSessionModel}
+              sessionTarget={state.subagentModels.sessionTarget}
+              hint={state.subagentModels.hint}
+            />
+          ) : null}
+        </>
+      );
+    }
+
+    const view = render(<Harness />);
+    const enter: KeyEvent = {
+      upArrow: false,
+      downArrow: false,
+      leftArrow: false,
+      rightArrow: false,
+      return: true,
+      escape: false,
+      ctrl: false,
+      meta: false,
+      shift: false,
+      tab: false,
+      backspace: false,
+      delete: false,
+      pageUp: false,
+      pageDown: false,
+      home: false,
+      end: false,
+    };
+    const keyHost = {
+      get state(): State {
+        if (!flow) throw new Error('Harness has not mounted');
+        return flow.state;
+      },
+      dispatch: (action: Parameters<typeof reducer>[1]) => flow?.dispatch(action),
+      inputGateRef: { current: false },
+      onSubagentLaneEdit: (index: number) => flow?.controller.onSubagentLaneEdit(index),
+      onModelPicked: (provider: string, model: string) =>
+        flow?.modelPick.handleModelPicked(provider, model),
+    } as PickerKeysHost;
+    const noDebounce = () => false;
+
+    await act(async () => {
+      expect(tryToolsSettingsPickerKeys(keyHost, '', enter, true, noDebounce)).toBe(true);
+      await Promise.resolve();
+    });
+    expect(flow?.state.modelPicker.open).toBe(true);
+    expect(view.lastFrame() ?? '').toContain('Lane 1 model');
+
+    await act(async () => {
+      expect(tryAuthModelPickerKeys(keyHost, '', enter, true, noDebounce)).toBe(true);
+    });
+    expect(flow?.state.modelPicker.step).toBe('model');
+
+    await act(async () => {
+      expect(tryAuthModelPickerKeys(keyHost, '', enter, true, noDebounce)).toBe(true);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(panelHost.setLane).toHaveBeenCalledWith(0, { provider: 'openai', model: 'gpt-5' });
+    expect(flow?.state.modelPicker.open).toBe(false);
+    expect(flow?.state.subagentModels.lanes[0]?.target).toBe('openai/gpt-5');
+    expect(view.lastFrame() ?? '').toContain('openai/gpt-5');
+    view.unmount();
   });
 });
 

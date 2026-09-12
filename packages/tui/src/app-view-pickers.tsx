@@ -327,7 +327,7 @@ export function AppViewPickers({
           hint={state.helpPanel.hint}
         />
       ) : null}
-      {state.subagentModels.open ? (
+      {state.subagentModels.open && !state.modelPicker.open ? (
         <SubagentModelsPanel
           lanes={state.subagentModels.lanes}
           roles={state.subagentModels.roles}

@@ -111,7 +111,10 @@ describe('spawn model resolution has a single owner', () => {
     director.fleet.onAny((e) => {
       if (e.type === 'subagent.spawned') {
         const payload = e.payload as { provider?: string; model?: string };
-        spawned.push({ provider: payload.provider, model: payload.model });
+        spawned.push({
+          ...(payload.provider ? { provider: payload.provider } : {}),
+          ...(payload.model ? { model: payload.model } : {}),
+        });
       }
     });
 

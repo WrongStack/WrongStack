@@ -250,7 +250,7 @@ describe('lock semantics in the resolver', () => {
     // kind the lock may override.
     if (config.provider || config.model) config.modelChosenByLeader = true;
     resolveDirectorSpawnModel(config, {
-      sessionPlan: { target: lane, lock, slotIndex: 0 },
+      sessionPlan: { kind: 'lane', target: lane, lock, slotIndex: 0 },
     });
     return config;
   }
@@ -300,7 +300,9 @@ describe('lock semantics in the resolver', () => {
 
   it('leaves a spawn alone when the lane is empty', () => {
     const config: SubagentConfig = { name: 'w', provider: 'openai', model: 'gpt-5-mini' };
-    resolveDirectorSpawnModel(config, { sessionPlan: { target: {}, lock: true, slotIndex: 0 } });
+    resolveDirectorSpawnModel(config, {
+      sessionPlan: { kind: 'lane', target: {}, lock: true, slotIndex: 0 },
+    });
     expect(config).toMatchObject({ provider: 'openai', model: 'gpt-5-mini' });
   });
 });

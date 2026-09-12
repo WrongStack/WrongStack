@@ -60,7 +60,10 @@ function captureSpawned(d: Director): Array<{ provider?: string; model?: string 
   d.fleet.onAny((e) => {
     if (e.type === 'subagent.spawned') {
       const p = e.payload as { provider?: string; model?: string };
-      out.push({ provider: p.provider, model: p.model });
+      out.push({
+        ...(p.provider ? { provider: p.provider } : {}),
+        ...(p.model ? { model: p.model } : {}),
+      });
     }
   });
   return out;

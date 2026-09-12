@@ -21,7 +21,7 @@ vi.mock('node:child_process', async (o) => ({ ...(await o()), execFile: cp.execF
 const fsm = vi.hoisted(() => ({ existsSync: vi.fn() }));
 vi.mock('node:fs', async (o) => ({ ...(await o()), existsSync: fsm.existsSync }));
 
-import gitAutocommitPlugin from '../src/git-autocommit';
+import gitAutocommitPlugin from '../src/git-autocommit/index.js';
 
 interface Tool {
   name: string;

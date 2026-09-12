@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T16:19:45.112Z",
+  "generatedAt": "2026-09-12T16:41:14.515Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3770,
-    "testFiles": 3281,
-    "sourceLines": 913374,
+    "testFiles": 3282,
+    "sourceLines": 913376,
     "workspaceEdges": 128,
     "moduleEdges": 12017,
     "nonCommandSlashImports": 0,
@@ -146,7 +146,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 493,
-      "testFiles": 483,
+      "testFiles": 484,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -185,7 +185,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 483
+          "testFiles": 484
         }
       ]
     },
@@ -4138,6 +4138,12 @@
       },
       {
         "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/subagent-models-panel-service.test.ts",
         "projects": [
           "root-node"
         ]

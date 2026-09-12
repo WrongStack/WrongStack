@@ -47,7 +47,9 @@ export function SubagentModelsPanel({
       <Text bold color="blue">
         ━━ Subagent models (this session) ━━
       </Text>
-      <Text dimColor>↑↓ move · Enter set model · c clear · l lock · space on/off · Esc close</Text>
+      <Text dimColor>
+        ↑↓ move · Enter set model · c clear · l lock · s session model · space on/off · Esc close
+      </Text>
 
       <Box marginTop={1}>
         <Text bold>Plan: </Text>

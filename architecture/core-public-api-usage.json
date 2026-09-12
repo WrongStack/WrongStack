@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 216,
+      "files": 217,
       "typeOnly": 84,
-      "runtimeOrMixed": 187
+      "runtimeOrMixed": 188
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -159,9 +159,9 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/storage": {
-      "files": 121,
+      "files": 122,
       "typeOnly": 33,
-      "runtimeOrMixed": 118
+      "runtimeOrMixed": 119
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -174,8 +174,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1088,
-      "typeOnly": 1008,
+      "files": 1089,
+      "typeOnly": 1009,
       "runtimeOrMixed": 284
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -3085,6 +3085,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/subagent-models-panel-service.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9894,6 +9900,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/subagent-models-panel-service.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/subcommands.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12745,6 +12757,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/subagent-models-panel-service.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
