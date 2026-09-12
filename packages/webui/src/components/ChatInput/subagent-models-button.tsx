@@ -125,7 +125,12 @@ export function SubagentModelsButton() {
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 z-50 mb-2 w-80 rounded-lg border border-border bg-popover p-3 shadow-lg">
+        <div
+          // `w-80` is the comfortable width; the clamp keeps the popover inside
+          // the viewport when the chat column is narrow (side panel open, phone
+          // width) instead of pushing a horizontal scrollbar onto the page.
+          className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-popover p-3 shadow-lg"
+        >
           <div className="mb-2 flex items-start justify-between gap-2">
             <div>
               <p className="text-xs font-semibold">Subagent models</p>
@@ -187,8 +192,8 @@ export function SubagentModelsButton() {
           >
             {lanes.map((lane, index) => (
               <div
-                // Lane identity IS its position, so the index is the stable key.
-                // biome-ignore lint/suspicious/noArrayIndexKey: lane position is the identity
+                // Lane identity IS its position — the Nth lane stays the Nth
+                // lane across edits — so the index belongs in the key.
                 key={`lane-${index}`}
                 className="flex items-center gap-2"
               >
