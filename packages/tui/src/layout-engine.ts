@@ -16,7 +16,11 @@
  *   - Model-switch cards, brain cards, memory cards, etc.
  */
 
+import { stripVTControlCharacters } from 'node:util';
 import { displayWidth } from './terminal-width.js';
+
+const CONTROL_STRING =
+  /(?:(?:\x1b\]|\x9d)[\s\S]*?(?:\x07|\x1b\\|\x9c|$)|(?:\x1b[PX^_]|[\x90\x98\x9e\x9f])[\s\S]*?(?:\x1b\\|\x9c|$))/g;
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -109,9 +113,7 @@ export function wrappedRows(text: string, width: number, maxRows = MAX_ESTIMATE_
  * visible output. Strips ANSI escape sequences before counting.
  */
 export function visibleChars(text: string): number {
-  // Strip ANSI escapes before counting
-  const cleaned = text.replace(/\x1b\[[0-9;]*m/g, '');
-  return cleaned.length;
+  return [...stripVTControlCharacters(text.replace(CONTROL_STRING, ''))].length;
 }
 
 // ── Per-kind exact layout computation ────────────────────────────────────

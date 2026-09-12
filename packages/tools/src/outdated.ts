@@ -9,7 +9,11 @@ import {
   normalizeCommandOutput,
   safeResolveReal,
 } from './_util.js';
-import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
+import {
+  buildWin32CmdShimInvocation,
+  isWinCmdShim,
+  resolveWin32Command,
+} from './_win32-resolve.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
 
 export interface OutdatedInput {
@@ -182,8 +186,7 @@ function runOutdated(
     const stderrDecoder = new StringDecoder('utf8');
 
     const resolved = resolveWin32Command(manager);
-    const needsShell =
-      process.platform === 'win32' && (resolved.endsWith('.cmd') || resolved.endsWith('.bat'));
+    const needsShell = process.platform === 'win32' && isWinCmdShim(resolved);
     const shim = needsShell ? buildWin32CmdShimInvocation(resolved, args) : null;
     const spawnCmd = shim?.command ?? resolved;
     const spawnArgs = shim?.args ?? args;

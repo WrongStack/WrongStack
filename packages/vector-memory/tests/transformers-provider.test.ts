@@ -31,6 +31,33 @@ describe('TransformersEmbeddingProvider', () => {
     expect(provider.id).toBe('transformers-js:Xenova/all-mpnet-base-v2:fp32');
   });
 
+  it('normalizes a non-finite batch size before embedding', async () => {
+    const provider = new TransformersEmbeddingProvider({ batchSize: Number.NaN });
+    Object.defineProperty(provider, 'getExtractor', {
+      configurable: true,
+      value: async () => async (texts: string[]) => ({
+        data: new Float32Array(texts.length * 2),
+      }),
+    });
+
+    await expect(provider.embed(['one text'])).resolves.toHaveLength(1);
+  });
+
+  it('splits flat batched output into one vector per input', async () => {
+    const provider = new TransformersEmbeddingProvider({ batchSize: 2 });
+    Object.defineProperty(provider, 'getExtractor', {
+      configurable: true,
+      value: async () => async () => ({
+        tolist: () => [1, 2, 3, 4],
+        dims: [2, 2],
+      }),
+    });
+
+    const vectors = await provider.embed(['one', 'two']);
+    expect(vectors).toHaveLength(2);
+    expect(vectors.map((vector) => vector.length)).toEqual([2, 2]);
+  });
+
   it('reports availability based on whether the optional dep is installed', async () => {
     const provider = new TransformersEmbeddingProvider({
       cacheDir: path.join(os.tmpdir(), `vt-${Date.now()}`),

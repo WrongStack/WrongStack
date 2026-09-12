@@ -1,7 +1,7 @@
 {
   "name": "wrongstack-monorepo",
   "private": true,
-  "version": "1.0.8",
+  "version": "1.0.9",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@12.3.4+sha512.961aa41fb077da3a04a441d9f8e15ebc0c96da8ef710b2eb67bf9ee7cb0610eabd48f1fd85f51cffe73846785fa0f87c56a3a872a1d893f8446741b5cce45457",
@@ -76,6 +76,7 @@
     "release:prepare": "pnpm build && pnpm providers:catalog:write && pnpm plugins:manifest:write && pnpm check:architecture:sync && pnpm report:architecture && pnpm test-skips:sync",
     "release:check": "node scripts/release-check-matrix.mjs",
     "release:dry": "node scripts/publish-workspace.mjs --dry-run -- --no-git-checks --force",
+    "release:fast": "node scripts/release-check-matrix.mjs --profile release-fast && node scripts/publish-workspace.mjs",
     "release:portable:win": "pnpm build && pnpm smoke:bun && node scripts/build-portable.mjs",
     "release": "pnpm release:check && node scripts/publish-workspace.mjs",
     "release:ci": "node scripts/publish-workspace.mjs --verify-timeout 120 -- --no-git-checks",

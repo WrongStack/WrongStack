@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "1.0.8",
+  "packageVersion": "1.0.9",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1581,7 +1581,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 7545
+      "sourceLines": 7555
     },
     {
       "directory": "session-catalog",
@@ -1637,7 +1637,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 69,
-      "sourceLines": 12192
+      "sourceLines": 12207
     },
     {
       "directory": "wiring",

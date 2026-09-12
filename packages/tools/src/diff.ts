@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { statSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
@@ -297,6 +298,10 @@ function runGit(
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
+    // Per-stream decoders: `chunk.toString()` corrupts multi-byte sequences
+    // that straddle a pipe chunk boundary (each half decodes to U+FFFD).
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
 
     const child = spawn('git', args, {
       cwd,
@@ -306,12 +311,17 @@ function runGit(
       windowsHide: true,
     });
     child.stdout?.on('data', (c) => {
-      stdout += c.toString();
+      stdout += stdoutDecoder.write(c);
     });
     child.stderr?.on('data', (c) => {
-      stderr += c.toString();
+      stderr += stderrDecoder.write(c);
     });
-    child.on('close', (code) => resolve({ stdout, stderr, exitCode: code ?? 0 }));
+    child.on('close', (code) => {
+      // Flush any partial trailing sequence before the payload is consumed.
+      stdout += stdoutDecoder.end();
+      stderr += stderrDecoder.end();
+      resolve({ stdout, stderr, exitCode: code ?? 0 });
+    });
     /* v8 ignore next -- spawn 'error' only fires when the git binary is missing; defensive. */
     child.on('error', (e) => resolve({ stdout: '', stderr: e.message, exitCode: 1 }));
   });

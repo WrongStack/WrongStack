@@ -10,6 +10,21 @@ export function uriToPath(uri: string): string {
 }
 
 /**
+ * Best-effort filesystem path for a URI: the decoded path for `file:` URIs,
+ * the URI verbatim for any other scheme. Unlike {@link uriToPath} this never
+ * throws — servers may answer with schemes (`jdt:`, `vscode-remote:`) that
+ * cannot be mapped to a path.
+ */
+export function uriToPathOrUri(uri: string): string {
+  if (!uri.startsWith('file:')) return uri;
+  try {
+    return fileURLToPath(uri);
+  } catch {
+    return uri;
+  }
+}
+
+/**
  * Canonical key for a `file:` URI, for matching a URI we sent against one a
  * server sent back. Servers do not agree on spelling: on Windows
  * `typescript-language-server` answers a `didOpen` for

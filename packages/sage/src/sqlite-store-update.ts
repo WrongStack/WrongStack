@@ -6,6 +6,7 @@ import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { cleanReferencingMemories, memoryNodeId } from './sqlite-store-graph-helpers.js';
 import {
   clamp01,
+  isEphemeralMemoryText,
   MAX_MEMORY_METADATA_ITEMS,
   MAX_MEMORY_TEXT_CHARS,
   normalizeAnchors,
@@ -14,6 +15,8 @@ import {
   normalizeText,
   STRUCTURAL_KINDS,
   VALID_KINDS,
+  validateMemoryAnchors,
+  validateMemoryTags,
 } from './store-helpers.js';
 import type { Sage, SageStatus, UpdateSageInput } from './types.js';
 import { DEFAULT_PERSISTENCE, VALID_PERSISTENCE } from './types.js';
@@ -76,8 +79,19 @@ export function updateSqliteSage(
       throw new Error(`SAGE ${name} exceeds ${MAX_MEMORY_METADATA_ITEMS} items.`);
     }
   }
+  validateMemoryTags(input.tags);
+  validateMemoryAnchors(input.anchors);
   const existing = readSqliteSageRow(ctx.stmt, id);
   if (!existing) throw new Error(`SAGE ${id} not found.`);
+  if (
+    input.text !== undefined &&
+    existing.scope !== 'session' &&
+    isEphemeralMemoryText(normalizeText(input.text))
+  ) {
+    throw new Error(
+      'SAGE rejected ephemeral progress text. Store durable facts, decisions, conventions, or root causes — not WIP/todo chatter. Use todos for task state.',
+    );
+  }
   const resultingKind = input.kind ?? existing.kind;
   const resultingAnchors = input.anchors ?? existing.anchors;
   if (STRUCTURAL_KINDS.has(resultingKind) && resultingAnchors.length === 0) {

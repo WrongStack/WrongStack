@@ -416,7 +416,7 @@ function checkType(value: unknown, type: string): boolean {
     case 'string':
       return typeof value === 'string';
     case 'number':
-      return typeof value === 'number' && !Number.isNaN(value);
+      return typeof value === 'number' && Number.isFinite(value);
     case 'integer':
       return typeof value === 'number' && Number.isInteger(value);
     case 'boolean':

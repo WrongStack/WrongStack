@@ -1,5 +1,5 @@
 import type { TextEdit, WorkspaceEdit } from 'vscode-languageserver-protocol';
-import { displayPath, uriToPath } from '../utils/uri.js';
+import { displayPath, uriToPathOrUri } from '../utils/uri.js';
 
 export function summarizeWorkspaceEdit(edit: WorkspaceEdit, cwd: string): string {
   const entries = editsByPath(edit);
@@ -17,12 +17,12 @@ export function summarizeWorkspaceEdit(edit: WorkspaceEdit, cwd: string): string
 export function editsByPath(edit: WorkspaceEdit): Map<string, TextEdit[]> {
   const out = new Map<string, TextEdit[]>();
   for (const [uri, edits] of Object.entries(edit.changes ?? {})) {
-    out.set(uriToPath(uri), edits);
+    out.set(uriToPathOrUri(uri), edits);
   }
   for (const change of edit.documentChanges ?? []) {
     if ('textDocument' in change && Array.isArray(change.edits)) {
       out.set(
-        uriToPath(change.textDocument.uri),
+        uriToPathOrUri(change.textDocument.uri),
         change.edits.filter((e): e is TextEdit => 'newText' in e),
       );
     }

@@ -1,9 +1,10 @@
 import { Split, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useProviderModels } from '@/hooks/useProviderModels';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { cn } from '@/lib/utils';
 import { type LocalPrefs, useLocalPrefs } from '@/stores/local-prefs';
 import { useSessionStore } from '@/stores/session-store';
+import { SubagentModelPickerDialog } from './subagent-model-picker-dialog.js';
 
 /**
  * Subagent model lanes, inline in the composer toolbar next to the model chip
@@ -15,6 +16,11 @@ import { useSessionStore } from '@/stores/session-store';
  * included — lives in Settings → Routing; this popover carries the two controls
  * worth reaching for mid-conversation: "everything on my model", and per-lane
  * pins for a parallel fan-out.
+ *
+ * Per-lane selection now opens the same flat searchable dialog the main chat's
+ * Cmd/Ctrl+M switcher uses (`SubagentModelPickerDialog`): search, favorites,
+ * provider filter, keyboard nav, rich model rows. The toolbar popover itself
+ * only carries the session-wide toggles + a one-click summary.
  */
 
 type SubagentModelPlan = LocalPrefs['subagentModelPlan'];
@@ -31,18 +37,6 @@ function laneValue(lane: SubagentLane | undefined): string {
   return '';
 }
 
-function laneFromValue(value: string): SubagentLane {
-  if (!value) return {};
-  // The tier/profile prefixes round-trip: the passthrough <option> re-offers a
-  // lane pinned from another surface, and parsing it as a bare model id would
-  // corrupt it into `{ model: 'tier:budget' }`.
-  if (value.startsWith('tier:')) return { tier: value.slice(5) };
-  if (value.startsWith('profile:')) return { fallbackProfile: value.slice(8) };
-  const i = value.indexOf('/');
-  if (i <= 0) return { model: value };
-  return { provider: value.slice(0, i), model: value.slice(i + 1) };
-}
-
 function isPinned(lane: SubagentLane | undefined): boolean {
   return Boolean(lane?.provider || lane?.model || lane?.tier || lane?.fallbackProfile);
 }
@@ -50,18 +44,24 @@ function isPinned(lane: SubagentLane | undefined): boolean {
 export function SubagentModelsButton() {
   const { updatePrefs } = useWebSocket();
   const [open, setOpen] = useState(false);
+  const [pickerLane, setPickerLane] = useState<number | null>(null);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
   const plan = useLocalPrefs((s) => s.subagentModelPlan);
   const sessionProvider = useSessionStore((s) => s.session?.provider);
   const sessionModel = useSessionStore((s) => s.session?.model);
-  // Gated on `open`: the catalogue round-trip only fires while the popover is
-  // showing, exactly like the SDD worker picker.
-  const candidates = useProviderModels(open);
 
   useEffect(() => {
     if (!open) return undefined;
     const onPointerDown = (event: MouseEvent) => {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node | null;
+      if (!target) return;
+      // Clicks inside the popover root close nothing. Clicks inside the
+      // portal-rendered dialog must also be ignored — the dialog's own
+      // backdrop / Escape handling dismisses it, and Radix portals the
+      // content outside `wrapRef`.
+      if (wrapRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest('[role="dialog"]')) return;
+      setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
@@ -108,6 +108,20 @@ export function SubagentModelsButton() {
     : pinnedCount > 0
       ? `${pinnedCount} lane${pinnedCount === 1 ? '' : 's'}`
       : 'auto';
+
+  // The lane being edited by the dialog (if any). Pass through the full lane
+  // shape — the dialog uses `tier` / `fallbackProfile` to surface a sticky
+  // banner when a legacy tier/profile pin is being replaced by a concrete
+  // provider/model pair.
+  const pickerLaneValue = pickerLane !== null ? lanes[pickerLane] : undefined;
+  const pickerCurrentLane = pickerLaneValue
+    ? {
+        provider: pickerLaneValue.provider,
+        model: pickerLaneValue.model,
+        tier: pickerLaneValue.tier,
+        fallbackProfile: pickerLaneValue.fallbackProfile,
+      }
+    : {};
 
   return (
     <span ref={wrapRef} className="relative inline-flex shrink-0">
@@ -188,47 +202,73 @@ export function SubagentModelsButton() {
           </div>
 
           <div
-            className={`mt-2 max-h-56 space-y-1 overflow-y-auto ${following ? 'pointer-events-none opacity-50' : ''}`}
+            className={cn(
+              'mt-2 max-h-56 space-y-1 overflow-y-auto',
+              following ? 'pointer-events-none opacity-50' : '',
+            )}
           >
-            {lanes.map((lane, index) => (
-              <div
-                // Lane identity IS its position — the Nth lane stays the Nth
-                // lane across edits — so the index belongs in the key.
-                key={`lane-${index}`}
-                className="flex items-center gap-2"
-              >
-                <span className="w-6 shrink-0 font-mono text-[10px] text-muted-foreground">
-                  #{index + 1}
-                </span>
-                <select
-                  aria-label={`Lane ${index + 1} model`}
-                  value={laneValue(lane)}
-                  onChange={(e) => setLane(index, laneFromValue(e.target.value))}
-                  className="h-7 min-w-0 flex-1 rounded border bg-background px-1 font-mono text-[10px]"
+            {lanes.map((lane, index) => {
+              const value = laneValue(lane);
+              const pinned = isPinned(lane);
+              return (
+                <div
+                  // Lane identity IS its position — the Nth lane stays the Nth
+                  // lane across edits — so the index belongs in the key.
+                  key={`lane-${index}`}
+                  className="flex items-center gap-2"
                 >
-                  <option value="">inherit — routing / session</option>
-                  {/* A lane pinned to a tier or profile from another surface
-                      keeps its value visible instead of reading as "inherit". */}
-                  {laneValue(lane) && !lane.provider ? (
-                    <option value={laneValue(lane)}>{laneValue(lane)}</option>
-                  ) : null}
-                  {candidates.map((candidate) => (
-                    <option
-                      key={`${candidate.provider}/${candidate.model}`}
-                      value={`${candidate.provider}/${candidate.model}`}
-                    >
-                      {candidate.provider}/{candidate.model}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+                  <span className="w-6 shrink-0 font-mono text-[10px] text-muted-foreground">
+                    #{index + 1}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={following}
+                    onClick={() => setPickerLane(index)}
+                    aria-label={`Lane ${index + 1} model${pinned ? `: ${value}` : ''}`}
+                    className="h-7 min-w-0 flex-1 truncate rounded border bg-background px-2 text-left font-mono text-[10px] hover:border-primary/40 disabled:cursor-not-allowed"
+                  >
+                    {pinned ? value : 'inherit — routing / session'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={following || !pinned}
+                    onClick={() => setLane(index, {})}
+                    aria-label={`Clear lane ${index + 1}`}
+                    title="Clear lane"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded border border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground disabled:opacity-40"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           <p className="mt-2 text-[10px] leading-tight text-muted-foreground">
             /setmodel routing is untouched — a role you routed there keeps its model.
           </p>
         </div>
+      )}
+
+      {pickerLane !== null && (
+        <SubagentModelPickerDialog
+          laneIndex={pickerLane}
+          currentLane={pickerCurrentLane}
+          sessionProvider={sessionProvider}
+          sessionModel={sessionModel}
+          open
+          onOpenChange={(next) => {
+            if (!next) setPickerLane(null);
+          }}
+          onPick={(pick) => {
+            if (pick === null) {
+              setLane(pickerLane, {});
+            } else {
+              setLane(pickerLane, { provider: pick.provider, model: pick.model });
+            }
+            setPickerLane(null);
+          }}
+        />
       )}
     </span>
   );

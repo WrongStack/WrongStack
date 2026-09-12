@@ -315,6 +315,9 @@ async function* runRgStream(
 
   type Chunk = { kind: 'out' | 'close' | 'error'; data: string };
   const queue: Chunk[] = [];
+  // rg stdout arrives in pipe chunks, so the same multi-byte boundary split the
+  // native walker handles must be decoded with a streaming decoder here too.
+  const stdoutDecoder = new StringDecoder('utf8');
   let queuedChars = 0;
   let waiter: (() => void) | undefined;
   let paused = false;
@@ -336,7 +339,8 @@ async function* runRgStream(
     child.stdout?.resume();
   };
   const onStdoutData = (c: Buffer): void => {
-    const data = c.toString();
+    const data = stdoutDecoder.write(c);
+    if (data.length === 0) return;
     queue.push({ kind: 'out', data });
     queuedChars += data.length;
     wake();
@@ -347,6 +351,12 @@ async function* runRgStream(
     wake();
   };
   const onClose = (): void => {
+    // Flush a partial trailing sequence so the final match line is complete.
+    const tail = stdoutDecoder.end();
+    if (tail.length > 0) {
+      queue.push({ kind: 'out', data: tail });
+      queuedChars += tail.length;
+    }
     queue.push({ kind: 'close', data: '' });
     wake();
   };

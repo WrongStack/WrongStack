@@ -12,7 +12,11 @@ import { type DangerAssessment, detectDanger } from './_danger-detect.js';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { COMMAND_OUTPUT_MAX_BYTES, normalizeCommandOutput, safeResolveReal } from './_util.js';
-import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
+import {
+  buildWin32CmdShimInvocation,
+  isWinCmdShim,
+  resolveWin32Command,
+} from './_win32-resolve.js';
 import { DEFAULT_ALLOWED_COMMANDS } from './exec-allowlist.js';
 import { checkExecKillCommand } from './exec-kill-guard.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
@@ -597,7 +601,7 @@ function runCommand(
       // resolveWin32Command() finds the full path, then the shim helper launches
       // it through cmd.exe without Node's deprecated shell+args path.
       const resolved = resolveWin32Command(cmd);
-      const needsShell = isWin && (resolved.endsWith('.cmd') || resolved.endsWith('.bat'));
+      const needsShell = isWin && isWinCmdShim(resolved);
       const shim = needsShell ? buildWin32CmdShimInvocation(resolved, args) : null;
       const spawnCmd = shim?.command ?? resolved;
       const spawnArgs = shim?.args ?? args;

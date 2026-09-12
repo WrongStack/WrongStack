@@ -566,7 +566,12 @@ function extractUsage(
   const r = result as Record<string, unknown>;
   if (typeof r.usage === 'object' && r.usage !== null) {
     const u = r.usage as { used?: unknown; size?: unknown; cost?: unknown };
-    if (typeof u.used === 'number' && typeof u.size === 'number') {
+    if (
+      typeof u.used === 'number' &&
+      Number.isFinite(u.used) &&
+      typeof u.size === 'number' &&
+      Number.isFinite(u.size)
+    ) {
       return {
         used: u.used,
         size: u.size,

@@ -36,6 +36,7 @@ function repairTruncated(s: string): string {
   let inString = false;
   let escaped = false;
   let sawKey = false; // have we seen any string (i.e. real content) yet?
+  let isKey = false;
   let prevSig = ''; // last significant char seen outside of a string
   let contentEnd = 0; // index just past the last significant char
 
@@ -63,12 +64,17 @@ function repairTruncated(s: string): string {
     if (ch === '"') {
       inString = true;
       sawKey = true;
+      isKey = stack[stack.length - 1] === '{' && (prevSig === '{' || prevSig === ',');
       prevSig = '"';
+    } else if (ch === ':') {
+      isKey = false;
+      prevSig = ':';
     } else if (ch === '{' || ch === '[') {
       stack.push(ch);
       prevSig = ch;
     } else if (ch === '}' || ch === ']') {
       stack.pop();
+      isKey = false;
       prevSig = ch;
     } else {
       prevSig = ch;
@@ -97,6 +103,14 @@ function repairTruncated(s: string): string {
       }
     }
     result += '"';
+    if (isKey) {
+      result += ':null';
+      isKey = false;
+    }
+  } else if (isKey) {
+    // An object key with no colon or value (e.g. `{"k"` or `{"a": 1, "b"`)
+    result += ':null';
+    isKey = false;
   } else if (prevSig === ':') {
     // A key with no value (e.g. `{"k":`) — complete it to null.
     result += 'null';
@@ -116,7 +130,8 @@ function repairTruncated(s: string): string {
   if (!tryParse(result).ok) {
     const patched = result
       .replace(/:(\s*)([}\]])/g, ':null$2')
-      .replace(/,(\s*[}\]])/g, '$1');
+      .replace(/,(\s*[}\]])/g, '$1')
+      .replace(/({|,)(\s*)("[^"\\]*(?:\\.[^"\\]*)*")(\s*})/g, '$1$2$3:null$4');
     if (tryParse(patched).ok) result = patched;
   }
 

@@ -9,6 +9,7 @@
 export {
   assertSafeWin32ShellArgs,
   buildWin32CmdShimInvocation,
+  isWinCmdShim,
   resolvePowerShell,
   resolveWin32Command,
   type Win32CmdShimInvocation,

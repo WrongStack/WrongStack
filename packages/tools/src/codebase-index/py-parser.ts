@@ -11,6 +11,7 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { resolveWin32Command } from '../_win32-resolve.js';
 import { parseGeneric } from './generic-parser.js';
 import { parseParserOutput } from './parser-output.js';
@@ -387,8 +388,11 @@ function spawnPyParser(
     proc.stdin?.end();
 
     let stdout = '';
+    // Decoder, not `chunk.toString()`: stdout is parsed as JSON, so a
+    // multi-byte character split across a pipe chunk boundary corrupts it.
+    const stdoutDecoder = new StringDecoder('utf8');
     proc.stdout?.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString();
+      stdout += stdoutDecoder.write(chunk);
     });
 
     // Discard stderr to avoid backpressure deadlocks when Python emits
@@ -407,6 +411,8 @@ function spawnPyParser(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      // Flush a partial trailing sequence before the JSON payload is parsed.
+      stdout += stdoutDecoder.end();
       resolve({ code, stdout });
     });
   });

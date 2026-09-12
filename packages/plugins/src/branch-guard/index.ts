@@ -215,16 +215,16 @@ function detectGitCommand(command: string): GitCommandMatch | null {
   // Normalize whitespace for matching.
   const cmd = command.trim();
 
-  // git commit (but NOT git commit-tree or similar)
-  if (/\bgit\s+commit\b/.test(cmd)) {
+  // git commit (but NOT git commit-tree, git commit-graph, or similar)
+  if (/\bgit\s+commit(?![a-zA-Z0-9_-])/.test(cmd)) {
     return { type: 'commit', snippet: cmd.slice(0, 120) };
   }
-  // git push
-  if (/\bgit\s+push\b/.test(cmd)) {
+  // git push (but NOT git push-to-checkout or similar)
+  if (/\bgit\s+push(?![a-zA-Z0-9_-])/.test(cmd)) {
     return { type: 'push', snippet: cmd.slice(0, 120) };
   }
-  // git merge (but NOT git merge-base, git merge-file as standalone tool)
-  if (/\bgit\s+merge\s/.test(cmd)) {
+  // git merge (but NOT git merge-base, git merge-file, git merge-tree)
+  if (/\bgit\s+merge(?![a-zA-Z0-9_-])/.test(cmd)) {
     return { type: 'merge', snippet: cmd.slice(0, 120) };
   }
   return null;

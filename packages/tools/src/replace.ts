@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
@@ -500,9 +501,13 @@ function spawnRgFind(pattern: string, base: string): { promise: Promise<string[]
   const MAX_BUF_CHARS = 8 * 1024 * 1024;
   let buf = '';
   let truncated = false;
+  // Decoder, not `chunk.toString()`: a path containing a non-ASCII character
+  // split across a pipe chunk boundary would otherwise be enumerated with
+  // U+FFFD in it, and the replace would miss (or mis-target) the file.
+  const stdoutDecoder = new StringDecoder('utf8');
   child.stdout?.on('data', (chunk: Buffer) => {
     if (truncated) return;
-    buf += chunk.toString();
+    buf += stdoutDecoder.write(chunk);
     if (buf.length > MAX_BUF_CHARS) {
       truncated = true;
       // Drop the partial trailing path so we never emit a half-written name.
@@ -518,6 +523,9 @@ function spawnRgFind(pattern: string, base: string): { promise: Promise<string[]
           reject(new Error(`rg exited with code ${code}`));
           return;
         }
+        // Flush the decoder tail. When the buffer was capped the trailing
+        // partial line was already dropped, so there is nothing to append.
+        if (!truncated) buf += stdoutDecoder.end();
         resolve(
           buf
             .split(/\r?\n/)

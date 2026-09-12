@@ -236,9 +236,7 @@ export async function codebaseIndexHealth(
       clients: health.server?.clients,
       activeRequests: health.server?.activeRequests,
       queuedWork: health.server?.queuedWrites,
-      watcher: health.server
-        ? { active: health.server.watchingExternal, watchedFiles: health.server.watchingClients }
-        : undefined,
+      watcher: health.server ? { active: health.server.watchingExternal } : undefined,
     };
   } catch (error) {
     if (!isOfflineConnectionError(error)) {

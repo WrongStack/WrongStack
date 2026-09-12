@@ -11,6 +11,30 @@ import type { WebuiDeps, WebuiMutableState } from './routes.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 import { broadcast } from './ws-utils.js';
 
+/**
+ * Identity of the config slice that determines the live provider's
+ * construction: the saved per-provider entry, or the top-level
+ * `apiKey`/`baseUrl` fallback the build uses when no entry exists. Keying the
+ * change guard on `providers[id]` alone missed a top-level credential rotation
+ * for providers configured that way, so the live provider kept the old key.
+ */
+function activeProviderConfigKey(
+  cfg: {
+    providers?: Record<string, ProviderConfig> | undefined;
+    apiKey?: string | undefined;
+    baseUrl?: string | undefined;
+  },
+  providerId: string,
+): string {
+  return JSON.stringify(
+    cfg.providers?.[providerId] ?? {
+      type: providerId,
+      ...(cfg.apiKey !== undefined ? { apiKey: cfg.apiKey } : {}),
+      ...(cfg.baseUrl !== undefined ? { baseUrl: cfg.baseUrl } : {}),
+    },
+  );
+}
+
 export function setupWebuiCredentialWatcher(options: {
   watchConfigPath: string;
   vault: WebuiDeps['vault'];
@@ -25,9 +49,7 @@ export function setupWebuiCredentialWatcher(options: {
   }
   const { watchConfigPath, vault, logger, state, deps, clients, updateAutoCompactionMaxContext } =
     options;
-  let lastActiveCfg = JSON.stringify(
-    state.getConfig().providers?.[deps.context.provider.id] ?? null,
-  );
+  let lastActiveCfg = activeProviderConfigKey(state.getConfig(), deps.context.provider.id);
   let lastUiLocale: string | undefined = state.getConfig().uiLocale;
   const credentialWatcher = watchProviderConfig(
     watchConfigPath,
@@ -84,7 +106,7 @@ export function setupWebuiCredentialWatcher(options: {
       }
 
       const activeId = deps.context.provider.id;
-      const newCfgStr = JSON.stringify(snapshot.providers[activeId] ?? null);
+      const newCfgStr = activeProviderConfigKey(snapshot, activeId);
       if (newCfgStr === lastActiveCfg) return; // active provider creds unchanged
       lastActiveCfg = newCfgStr;
       try {

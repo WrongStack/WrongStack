@@ -970,7 +970,22 @@
     "noFavoritesMatch": "Filtreyle eşleşen favori model bulunamadı.",
     "noSavedProviders": "Kayıtlı sağlayıcı yok — önce Ayarlar'da bir anahtar kaydedin.",
     "noMatch": "Eşleşen model yok",
-    "active": "etkin"
+    "active": "etkin",
+    "laneSearchPlaceholder": "Sağlayıcı veya model ara…",
+    "laneFavoritesToggle": "Favoriler",
+    "laneKeyboardHint": "↑↓ · Enter · Esc",
+    "laneInheritRow": "Devral — yönlendirme / oturum",
+    "laneInheritHint": "lane boş bırakılsın; yönlendirme karar verir",
+    "laneNoProviders": "Henüz bağlı sağlayıcı yok.",
+    "laneLoadingModels": "Modeller yükleniyor…",
+    "laneOnThisLane": "bu lane üzerinde",
+    "laneSessionModel": "oturum modeli",
+    "laneBannerPrefix": "Lane #{{index}} şu anda şuna sabitlenmiş durumda",
+    "laneBannerSuffix": ". Model seçmek bu sabitlemeyi değiştirir.",
+    "laneBannerTier": "tier:",
+    "laneBannerProfile": "profil:",
+    "lanePickerTitle": "Alt ajan lane’i {{index}} için model seç",
+    "lanePickerDescription": "Bağlı tüm sağlayıcılar/modeller arasında arayın ve bu lane’e sabitlemek için birini seçin."
   },
   "work": {
     "todos": "Yapılacaklar",

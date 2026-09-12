@@ -1,5 +1,5 @@
 import type { Location, LocationLink } from 'vscode-languageserver-protocol';
-import { displayPath, uriToPath } from '../utils/uri.js';
+import { displayPath, uriToPathOrUri } from '../utils/uri.js';
 
 export function formatLocations(
   locations: Array<Location | LocationLink> | null,
@@ -18,14 +18,11 @@ export function formatLocations(
 
 /**
  * A definition/reference target is usually a `file:` URI, but some servers
- * answer with a custom scheme (`jdt:`, `vscode-remote:`). `fileURLToPath`
- * throws on every one of those, which aborted the whole result; fall back to
- * the URI verbatim so the location is still reported.
+ * answer with a custom scheme (`jdt:`, `vscode-remote:`). Those cannot be
+ * mapped to a path, so fall back to the URI verbatim instead of aborting the
+ * whole result.
  */
 function displayUri(uri: string, cwd: string): string {
-  try {
-    return displayPath(uriToPath(uri), cwd);
-  } catch {
-    return uri;
-  }
+  const resolved = uriToPathOrUri(uri);
+  return uri.startsWith('file:') ? displayPath(resolved, cwd) : resolved;
 }

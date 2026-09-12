@@ -65,7 +65,9 @@ async function walk(root: string, rel: string, depth: number, out: string[]): Pr
  */
 function score(s: string, query: string): number | null {
   if (!query) return s.length;
-  const ql = query.toLowerCase();
+  // Index paths always use `/` (see walk()). Treat `\` as the same separator
+  // so `@src\foo` on Windows matches `src/foo.ts`.
+  const ql = query.toLowerCase().replaceAll('\\', '/');
   const sl = s.toLowerCase();
   let si = 0;
   let firstHit = -1;

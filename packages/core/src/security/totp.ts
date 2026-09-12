@@ -181,7 +181,14 @@ export function verifyTotpCounter(
     const c = code.charCodeAt(i);
     if (c < 0x30 || c > 0x39) return undefined;
   }
-  const secret = base32Decode(secretBase32);
+  if (typeof secretBase32 !== 'string') return undefined;
+  let secret: Buffer;
+  try {
+    secret = base32Decode(secretBase32);
+  } catch {
+    return undefined;
+  }
+  if (secret.length === 0) return undefined;
   const currentCounter = totpCounter(Math.floor(atMs / 1000), stepSeconds);
 
   for (let offset = -window; offset <= window; offset++) {
@@ -253,6 +260,7 @@ export function generateRecoveryCodes(count = RECOVERY_CODE_COUNT): string[] {
  * reveal unused codes.
  */
 export function hashRecoveryCode(code: string): string {
+  if (typeof code !== 'string') return '';
   // Normalize: strip whitespace and hyphens before hashing so the stored
   // form is independent of how the user typed or pasted the code.
   const normalized = code.replace(/[\s-]/g, '').toLowerCase();
@@ -265,11 +273,13 @@ export function hashRecoveryCode(code: string): string {
  * hash from the store after a successful verification (single-use).
  */
 export function verifyRecoveryCode(code: string, storedHashes: string[]): boolean {
+  if (typeof code !== 'string' || !Array.isArray(storedHashes)) return false;
   const candidate = hashRecoveryCode(code);
   for (const stored of storedHashes) {
+    if (typeof stored !== 'string') continue;
     const a = Buffer.from(stored, 'hex');
     const b = Buffer.from(candidate, 'hex');
-    if (a.length === b.length && timingSafeEqual(a, b)) {
+    if (a.length === b.length && a.length > 0 && timingSafeEqual(a, b)) {
       return true;
     }
   }

@@ -102,6 +102,12 @@ describe('truncateChip', () => {
     expect(out).toBe(`${'a'.repeat(23)}…`);
     expect([...out].length).toBe(24);
   });
+
+  it('caps CJK on terminal columns, not character count', () => {
+    const out = truncateChip('中'.repeat(8), 8);
+    expect(displayWidth(out)).toBeLessThanOrEqual(8);
+    expect(out.endsWith('…')).toBe(true);
+  });
 });
 
 describe('nodeText', () => {

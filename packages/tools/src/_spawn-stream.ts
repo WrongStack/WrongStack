@@ -8,7 +8,11 @@ import {
 import type { ToolProgressEvent } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
-import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
+import {
+  buildWin32CmdShimInvocation,
+  isWinCmdShim,
+  resolveWin32Command,
+} from './_win32-resolve.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
 
 const isWin = process.platform === 'win32';
@@ -66,7 +70,7 @@ export async function* spawnStream(
   const spool = createOutputSpool({ tool: opts.cmd, thresholdBytes: max });
 
   const resolved = resolveWin32Command(opts.cmd);
-  const needsShell = isWin && (resolved.endsWith('.cmd') || resolved.endsWith('.bat'));
+  const needsShell = isWin && isWinCmdShim(resolved);
   const shim = needsShell ? buildWin32CmdShimInvocation(resolved, opts.args) : null;
   const cmd = shim?.command ?? resolved;
   const args = shim?.args ?? opts.args;

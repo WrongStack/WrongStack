@@ -28,6 +28,11 @@ describe('json-schema-validate / validateAgainstSchema', () => {
       expect(validateAgainstSchema(Number.NaN, { type: 'number' }).ok).toBe(false);
     });
 
+    it('rejects infinities for number', () => {
+      expect(validateAgainstSchema(Number.POSITIVE_INFINITY, { type: 'number' }).ok).toBe(false);
+      expect(validateAgainstSchema(Number.NEGATIVE_INFINITY, { type: 'number' }).ok).toBe(false);
+    });
+
     it('accepts integer for integer type', () => {
       expect(validateAgainstSchema(7, { type: 'integer' }).ok).toBe(true);
     });

@@ -30,14 +30,17 @@ interface ContextPanelSummary {
 
 /** Compact context-pressure bar shared by the interactive Ink panel. */
 export function contextBar(pct: number, width: number): string {
-  if (pct <= 0) return `[${'░'.repeat(width)}]   0%`;
-  const filled = Math.round(pct * width);
-  const empty = width - filled;
-  const label = ` ${fmtRatioPct(pct)}`;
-  const bar = `[${'█'.repeat(Math.max(1, filled))}${'░'.repeat(Math.max(0, empty))}]`;
-  return bar.length + label.length <= width + 4
-    ? `${bar}${label}`
-    : `${'█'.repeat(Math.max(1, filled))}${'░'.repeat(Math.max(0, empty))} ${label}`;
+  const w = Math.max(0, Math.floor(width));
+  const clamped = Math.max(0, Math.min(1, Number.isFinite(pct) ? pct : 0));
+  if (clamped <= 0 || w === 0) return `[${'░'.repeat(w)}]   0%`;
+  // Keep the glyph track exactly `w` cells: a tiny non-zero fill still shows
+  // one █, but must steal it from the empty track (not append it).
+  const filled = Math.min(w, Math.max(1, Math.round(clamped * w)));
+  const empty = w - filled;
+  const inner = `${'█'.repeat(filled)}${'░'.repeat(empty)}`;
+  const label = ` ${fmtRatioPct(clamped)}`;
+  const bar = `[${inner}]`;
+  return bar.length + label.length <= w + 4 ? `${bar}${label}` : `${inner} ${label}`;
 }
 
 /**

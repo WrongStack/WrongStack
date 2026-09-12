@@ -420,6 +420,10 @@ const EPHEMERAL_REMEMBER_PATTERNS: readonly RegExp[] = [
   /^(fixed|updated|changed) (the )?(bug|issue|test|file)\.?$/i,
 ];
 
+export function isEphemeralMemoryText(text: string): boolean {
+  return EPHEMERAL_REMEMBER_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 /**
  * Score a remember payload for injection quality. Returns caps rather than
  * rejecting so tests and short user preferences still persist; structural
@@ -467,7 +471,7 @@ export function assessRememberQuality(input: {
     importanceCap = Math.min(importanceCap, 0.75);
     reasons.push('root_cause_unanchored');
   }
-  if (EPHEMERAL_REMEMBER_PATTERNS.some((pattern) => pattern.test(text))) {
+  if (isEphemeralMemoryText(text)) {
     confidenceCap = Math.min(confidenceCap, 0.35);
     importanceCap = Math.min(importanceCap, 0.35);
     reasons.push('ephemeral_pattern');
@@ -505,9 +509,7 @@ export function validateRememberInput(input: RememberSageInput): void {
       throw new Error(`SAGE ${name} exceeds ${MAX_MEMORY_METADATA_ITEMS} items.`);
     }
   }
-  if (input.tags?.some((tag) => typeof tag !== 'string' || tag.length > 256)) {
-    throw new Error('SAGE tags must be strings no longer than 256 characters.');
-  }
+  validateMemoryTags(input.tags);
   if (input.scope && !VALID_SCOPES.has(input.scope)) throw new Error('Invalid SAGE scope.');
   if (input.kind && !VALID_KINDS.has(input.kind)) throw new Error('Invalid SAGE kind.');
   // Runtime enforcement of the persistence class (the types.ts doc promises
@@ -538,14 +540,47 @@ export function validateRememberInput(input: RememberSageInput): void {
   // is allowed to hold short-lived notes that expire.
   if (
     (input.scope ?? 'project') !== 'session' &&
-    EPHEMERAL_REMEMBER_PATTERNS.some((pattern) => pattern.test(normalizedText))
+    isEphemeralMemoryText(normalizedText)
   ) {
     throw new Error(
       'SAGE rejected ephemeral progress text. Store durable facts, decisions, conventions, or root causes — not WIP/todo chatter. Use todos for task state.',
     );
   }
   normalizeAudience(input.audience);
-  for (const anchor of input.anchors ?? []) {
+  validateMemoryAnchors(input.anchors);
+  for (const source of input.sources ?? []) {
+    if (
+      !source ||
+      ![
+        'user',
+        'session',
+        'tool_result',
+        'project_instruction',
+        'file',
+        'test',
+        'command',
+        'legacy_memory',
+      ].includes(source.type)
+    ) {
+      throw new Error('Invalid SAGE source type.');
+    }
+  }
+}
+
+export function validateMemoryTags(tags: string[] | undefined): void {
+  if (
+    tags !== undefined &&
+    (!Array.isArray(tags) || tags.some((tag) => typeof tag !== 'string' || tag.length > 256))
+  ) {
+    throw new Error('SAGE tags must be strings no longer than 256 characters.');
+  }
+}
+
+export function validateMemoryAnchors(anchors: MemoryAnchor[] | undefined): void {
+  if (anchors !== undefined && !Array.isArray(anchors)) {
+    throw new Error('SAGE anchors must be an array.');
+  }
+  for (const anchor of anchors ?? []) {
     if (!anchor || !VALID_ANCHOR_TYPES.has(anchor.type))
       throw new Error('Invalid SAGE anchor type.');
     if (anchor.type === 'command') {
@@ -572,23 +607,6 @@ export function validateRememberInput(input: RememberSageInput): void {
       throw new Error(
         'SAGE anchor strings are too long (path ≤ 4096, symbol ≤ 1024, command ≤ 8192, role ≤ 96 characters).',
       );
-    }
-  }
-  for (const source of input.sources ?? []) {
-    if (
-      !source ||
-      ![
-        'user',
-        'session',
-        'tool_result',
-        'project_instruction',
-        'file',
-        'test',
-        'command',
-        'legacy_memory',
-      ].includes(source.type)
-    ) {
-      throw new Error('Invalid SAGE source type.');
     }
   }
 }

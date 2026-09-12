@@ -1,14 +1,16 @@
 import type React from 'react';
 import { isValidElement } from 'react';
 import { pastel, theme } from '../theme.js';
+import { truncateDisplay } from '../terminal-width.js';
 import { normalizeTuiThinkingWord } from '../thinking-word.js';
 
 /**
  * Head-truncate a chip's free-text payload (branch, path, project name) with a
  * trailing ellipsis so one long value can't blow out the line width.
+ * Caps on terminal columns, not UTF-16 length (CJK/emoji are 2 cells).
  */
 export function truncateChip(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  return truncateDisplay(text, max);
 }
 
 /**
@@ -194,7 +196,8 @@ export function fmtMemory(bytes: number): string {
 }
 
 export function fmtElapsed(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
+  const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
+  const totalSec = Math.floor(safeMs / 1000);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;

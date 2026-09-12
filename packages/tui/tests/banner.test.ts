@@ -483,4 +483,11 @@ describe('shortenPath (banner cwd)', () => {
   it('treats an empty string as a no-op', () => {
     expect(shortenPath('', 10)).toBe('');
   });
+
+  it('caps CJK paths on terminal columns, not character count', () => {
+    const out = shortenPath(`${'中'.repeat(20)}/file.ts`, 10);
+    expect(displayWidth(out)).toBeLessThanOrEqual(10);
+    expect(out.startsWith('…')).toBe(true);
+    expect(out.endsWith('file.ts')).toBe(true);
+  });
 });

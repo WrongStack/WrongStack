@@ -21,6 +21,7 @@ import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { resolveWin32Command } from '../_win32-resolve.js';
 import { parseParserBatchOutput } from './parser-output.js';
 import { recordParserSubprocess } from './perf-metrics.js';
@@ -622,8 +623,11 @@ function runToolchainChild(
     }, timeoutMs);
     timer.unref?.();
     proc.on('error', () => finish(null));
+    // Decoder, not `chunk.toString()`: the payload is parsed as JSON, so a
+    // multi-byte character split across a pipe chunk boundary would corrupt it.
+    const stdoutDecoder = new StringDecoder('utf8');
     proc.stdout?.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString();
+      stdout += stdoutDecoder.write(chunk);
     });
     proc.stderr?.resume();
     proc.stdin?.on('error', () => {
@@ -631,7 +635,11 @@ function runToolchainChild(
     });
     proc.stdin?.write(stdinPayload);
     proc.stdin?.end();
-    proc.on('close', (code) => finish({ code, stdout }));
+    proc.on('close', (code) => {
+      // Flush a partial trailing sequence before the JSON payload is parsed.
+      stdout += stdoutDecoder.end();
+      finish({ code, stdout });
+    });
   });
 }
 

@@ -152,6 +152,7 @@ export class CollaborationWebSocketHandler {
       stateMessage: (sessionId) => this.registry.stateMessage(sessionId),
       errorMessage: (detail) => this.errorMessage(detail),
       detachSocket: (ws) => this.detachSocket(ws),
+      attachSocket: (ws) => this.addClient(ws),
       removeSocket: (ws) => this.removeSocket(ws),
     };
   }

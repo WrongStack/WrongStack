@@ -1,6 +1,8 @@
+import { displayWidth, truncateDisplay, truncateDisplayStart } from '../../terminal-width.js';
+
 export function shortenPath(p: string, max: number): string {
-  if (p.length <= max) return p;
-  return `…${p.slice(p.length - (max - 1))}`;
+  if (displayWidth(p) <= max) return p;
+  return truncateDisplayStart(p, max);
 }
 
 const MAX_PREVIEW = 120;
@@ -21,7 +23,7 @@ export function previewOutput(output: string): string {
 
 function collapse(s: string, max: number): string {
   const oneLine = s.replace(/\r?\n/g, '↵').replace(/\s+/g, ' ').trim();
-  return oneLine.length <= max ? oneLine : `${oneLine.slice(0, max - 1)}…`;
+  return truncateDisplay(oneLine, max);
 }
 
 export function fmtTok(n: number): string {
@@ -32,9 +34,10 @@ export function fmtTok(n: number): string {
 }
 
 export function fmtDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  const totalSec = Math.floor(ms / 1000);
+  const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
+  if (safeMs < 1000) return `${safeMs}ms`;
+  if (safeMs < 60_000) return `${(safeMs / 1000).toFixed(1)}s`;
+  const totalSec = Math.floor(safeMs / 1000);
   return `${Math.floor(totalSec / 60)}m${totalSec % 60}s`;
 }
 
@@ -45,8 +48,7 @@ export function fmtBytes(n: number): string {
 }
 
 export function truncMid(s: string, max: number): string {
-  if (s.length <= max) return s;
-  return `${s.slice(0, max - 1)}…`;
+  return truncateDisplay(s, max);
 }
 
 export function stringOf(v: unknown): string | undefined {

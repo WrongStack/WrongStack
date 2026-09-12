@@ -6,7 +6,7 @@
  * hosts (e.g. a headless fleet dashboard) are unaffected.
  */
 import type * as http from 'node:http';
-import { getSageSurface, type Sage } from '@wrongstack/sage';
+import { cosineSimilarity, getSageSurface, type Sage } from '@wrongstack/sage';
 import type { VectorMemoryStore, VectorSearchHit } from '@wrongstack/vector-memory';
 import type { MemoryPort } from '@wrongstack/core/types';
 
@@ -174,12 +174,11 @@ function cosineMatrix(vectors: ReadonlyArray<Float32Array>): number[][] {
   for (let i = 0; i < n; i++) {
     out[i]![i] = 1;
     for (let j = i + 1; j < n; j++) {
-      const a = vectors[i]!;
-      const b = vectors[j]!;
-      let dot = 0;
-      const len = Math.min(a.length, b.length);
-      for (let k = 0; k < len; k++) dot += (a[k] ?? 0) * (b[k] ?? 0);
-      const score = Math.max(0, Math.min(1, dot));
+      // A bare dot product is only cosine similarity when both vectors are
+      // unit-length; the EmbeddingProvider contract does not require that.
+      // Reuse the canonical implementation (zero-vector and dimension-safe)
+      // and clamp to the store's [0, 1] convention.
+      const score = Math.max(0, Math.min(1, cosineSimilarity(vectors[i]!, vectors[j]!)));
       out[i]![j] = score;
       out[j]![i] = score;
     }

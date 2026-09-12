@@ -20,6 +20,11 @@ export class MembershipFeature implements CollabFeature {
   }
 
   private join(ctx: CollabContext, ws: WebSocket, raw: unknown): void {
+    // A previous `collab.leave` detached this still-open socket's close/error
+    // listeners and dropped it from the client set. A rejoin on the same socket
+    // must re-attach it, otherwise the participant added below is never removed
+    // when the socket finally closes (phantom participant + leak).
+    ctx.attachSocket(ws);
     const payload = raw as
       | { sessionId?: string | undefined; role?: Participant['role'] | undefined }
       | undefined;

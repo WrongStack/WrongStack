@@ -13,6 +13,14 @@ export {
 } from '@wrongstack/core/utils';
 
 /**
+ * Check whether a file path or command names a Windows batch / cmd shim
+ * (`.cmd` or `.bat`), case-insensitively.
+ */
+export function isWinCmdShim(filePath: string): boolean {
+  return /\.(?:cmd|bat)$/i.test(filePath);
+}
+
+/**
  * On Windows, Node.js `spawn()` without a shell does NOT resolve .cmd/.bat
  * extensions through PATHEXT — it only auto-resolves .exe. Most Node.js CLI
  * tools (npx, pnpm, biome, tsc, vitest, etc.) ship as .cmd wrappers on

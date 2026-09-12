@@ -109,6 +109,15 @@ describe('buildSlashCommandMatches', () => {
     expect(matches).toMatchObject([{ name: 'myplugin:plugin', matchedAlias: 'myplugin:pl' }]);
   });
 
+  it('matches namespaced plugin commands by bare name and short alias', () => {
+    expect(buildSlashCommandMatches(entries, 'plugin').map((m) => m.name)).toEqual([
+      'myplugin:plugin',
+    ]);
+    expect(buildSlashCommandMatches(entries, 'pl')).toMatchObject([
+      { name: 'myplugin:plugin', matchedAlias: 'pl' },
+    ]);
+  });
+
   it('returns empty array for no matches', () => {
     const matches = buildSlashCommandMatches(entries, 'zzzzzz');
     expect(matches).toEqual([]);

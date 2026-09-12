@@ -358,6 +358,38 @@ describe('makeACPServerAgentTurn', () => {
     expect(result?.result?.stopReason).toBe('end_turn');
   });
 
+  it('omits non-finite usage updates from the ACP wire', async () => {
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () =>
+        ({
+          run: vi.fn(async () => ({
+            text: 'done',
+            stopReason: 'end_turn',
+            usage: { used: Number.POSITIVE_INFINITY, size: 100 },
+          })),
+          teardown: vi.fn(async () => {}),
+        }) as never as Agent,
+    });
+    const updates: unknown[] = [];
+    await turn(
+      {
+        sessionId: 'non-finite-usage',
+        prompt: [{ type: 'text', text: 'go' }],
+        signal: new AbortController().signal,
+      },
+      (update) => updates.push(update),
+    );
+
+    expect(
+      updates.some(
+        (update) =>
+          typeof update === 'object' &&
+          update !== null &&
+          (update as { sessionUpdate?: unknown }).sessionUpdate === 'usage_update',
+      ),
+    ).toBe(false);
+  });
+
   it('handles agent results that have plan and usage in run result', async () => {
     const fakeAgent = {
       run: vi.fn(async () => ({

@@ -15,6 +15,10 @@ export async function assertBrowserUrlAllowed(
   const url = parseBrowserUrl(rawUrl, opts.navigation ?? true);
   if (!opts.navigation && SAFE_SUBRESOURCE_PROTOCOLS.has(url.protocol)) return url;
   if (!opts.allowPrivateHosts && !isAllowedPrivateOrigin(url, opts.allowedPrivateOrigins)) {
+    const normalizedHost = unbracket(url.hostname).replace(/\.+$/, '').toLowerCase();
+    if (normalizedHost === 'localhost' || normalizedHost.endsWith('.localhost')) {
+      throw new Error('browser: blocked localhost target');
+    }
     await assertNotPrivateHost(url.hostname);
   }
   return url;
@@ -54,7 +58,8 @@ export async function resolvePinnedBrowserTarget(
     }
     return { url, address: hostname, family: literalFamily };
   }
-  if ((hostname === 'localhost' || hostname.endsWith('.localhost')) && !allowPrivate) {
+  const normalizedHost = hostname.replace(/\.+$/, '').toLowerCase();
+  if ((normalizedHost === 'localhost' || normalizedHost.endsWith('.localhost')) && !allowPrivate) {
     throw new Error('browser: blocked localhost target');
   }
 
@@ -146,14 +151,12 @@ export function safeBrowserUrl(rawUrl: string): string {
 
 export function redactBrowserText(text: string): string {
   return text
-    .replace(/\bauthorization\b\s*[:=]\s*[^\r\n]+/gi, 'Authorization=[REDACTED]')
-    .replace(
-      /\bauthorization\b\s*[:=]\s*(?:Basic|Bearer)\s+[^\s,;]+/gi,
-      'Authorization=[REDACTED]',
-    )
     .replace(/\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [REDACTED]')
     .replace(
-      /\b(authorization|set[-_ ]?cookie|cookie|api[-_ ]?key|private[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|session[-_ ]?token|auth[-_ ]?token|token|password|secret)\b\s*[:=]\s*[^\s,;]+/gi,
-      '$1=[REDACTED]',
+      /(["']?)\b(authorization|set[-_ ]?cookie|cookie|api[-_ ]?key|private[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|session[-_ ]?token|auth[-_ ]?token|token|password|secret)\b\1(\s*[:=]\s*)((?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Basic|Bearer)\s+[^\s,;]+|[^\s,;]+))/gi,
+      (_match, q1, key, sep, val) => {
+        const quote = val.startsWith('"') ? '"' : val.startsWith("'") ? "'" : '';
+        return `${q1}${key}${q1}${sep}${quote}[REDACTED]${quote}`;
+      },
     );
 }

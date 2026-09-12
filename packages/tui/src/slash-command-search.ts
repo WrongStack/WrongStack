@@ -56,8 +56,10 @@ function rankSlashCommand(entry: SlashCommandEntry, query: string): RankedMatch 
 
   const name = displayName(entry);
   const lowerName = name.toLowerCase();
+  const lowerBare = cmd.name.toLowerCase();
   const aliases = aliasCandidates(entry);
   const category = cmd.category ?? 'App';
+  const namespaced = lowerBare !== lowerName;
 
   let rank: number | null = null;
   let matchedAlias: string | undefined;
@@ -66,11 +68,16 @@ function rankSlashCommand(entry: SlashCommandEntry, query: string): RankedMatch 
     rank = 100;
   } else if (lowerName === query) {
     rank = 0;
+  } else if (namespaced && lowerBare === query) {
+    // `/plugin` must find `myplugin:plugin`, not only `/myplugin:plugin`.
+    rank = 2;
   } else if (aliases.find((alias) => alias.toLowerCase() === query)) {
     rank = 5;
     matchedAlias = aliases.find((alias) => alias.toLowerCase() === query);
   } else if (lowerName.startsWith(query)) {
     rank = 10;
+  } else if (namespaced && lowerBare.startsWith(query)) {
+    rank = 12;
   } else {
     const prefixAlias = aliases.find((alias) => alias.toLowerCase().startsWith(query));
     if (prefixAlias) {
@@ -97,7 +104,7 @@ function displayName({ cmd, owner, fullName }: SlashCommandEntry): string {
   return fullName.includes(':') ? fullName : cmd.name;
 }
 
-function aliasCandidates({ cmd, owner, fullName }: SlashCommandEntry): string[] {
+function aliasCandidates({ cmd, owner }: SlashCommandEntry): string[] {
   const aliases = cmd.aliases ?? [];
   if (owner === 'core') return aliases;
 
@@ -105,10 +112,5 @@ function aliasCandidates({ cmd, owner, fullName }: SlashCommandEntry): string[] 
   for (const alias of aliases) {
     out.push(`${owner}:${alias}`);
   }
-
-  if (fullName.includes(':')) {
-    return out.filter((alias) => alias.includes(':'));
-  }
-
   return out;
 }

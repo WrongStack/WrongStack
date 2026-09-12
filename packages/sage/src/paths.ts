@@ -18,7 +18,21 @@ export function resolveSagePaths(projectRoot: string, directory = DEFAULT_SAGE_D
   }
   const resolvedProjectRoot = path.resolve(projectRoot);
   const rootDir = path.resolve(resolvedProjectRoot, directory);
-  const relative = path.relative(resolvedProjectRoot, rootDir);
+  const canonicalProjectRoot = cachedRealpath(resolvedProjectRoot);
+  let containmentTarget: string;
+  try {
+    containmentTarget = fs.realpathSync(rootDir);
+  } catch {
+    const parentDir = path.dirname(rootDir);
+    let realParent: string;
+    try {
+      realParent = fs.realpathSync(parentDir);
+    } catch {
+      realParent = path.resolve(parentDir);
+    }
+    containmentTarget = path.join(realParent, path.basename(rootDir));
+  }
+  const relative = path.relative(canonicalProjectRoot, containmentTarget);
   if (escapesRoot(relative)) {
     throw new Error('SAGE directory must stay inside the project root.');
   }

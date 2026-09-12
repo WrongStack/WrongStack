@@ -975,7 +975,22 @@
     "noFavoritesMatch": "No favorite models match the filter.",
     "noSavedProviders": "No saved providers — register a key in Settings first.",
     "noMatch": "No matching models",
-    "active": "active"
+    "active": "active",
+    "laneSearchPlaceholder": "Search provider or model…",
+    "laneFavoritesToggle": "Favorites",
+    "laneKeyboardHint": "↑↓ · Enter · Esc",
+    "laneInheritRow": "Inherit — routing / session",
+    "laneInheritHint": "leave the lane empty; routing decides",
+    "laneNoProviders": "No providers connected yet.",
+    "laneLoadingModels": "Loading models…",
+    "laneOnThisLane": "on this lane",
+    "laneSessionModel": "session model",
+    "laneBannerPrefix": "Lane #{{index}} is currently pinned to",
+    "laneBannerSuffix": ". Picking a model replaces this pin.",
+    "laneBannerTier": "tier:",
+    "laneBannerProfile": "profile:",
+    "lanePickerTitle": "Pick a model for subagent lane {{index}}",
+    "lanePickerDescription": "Search across every provider/model you've connected, then pick one to pin to this lane."
   },
   "work": {
     "todos": "Todos",

@@ -98,6 +98,13 @@ describe('contextBar', () => {
     expect(contextBar(0.5, 10)).toContain('50%');
     expect(contextBar(0.5, 10)).toContain('█████');
   });
+
+  it('keeps the glyph track exactly `width` cells for tiny and overflowing ratios', () => {
+    const inner = (s: string) => (s.match(/[█░]+/) ?? [''])[0]!.length;
+    expect(inner(contextBar(0.01, 10))).toBe(10);
+    expect(inner(contextBar(1.5, 10))).toBe(10);
+    expect(inner(contextBar(0, 10))).toBe(10);
+  });
 });
 
 describe('formatContextPanelSummary', () => {

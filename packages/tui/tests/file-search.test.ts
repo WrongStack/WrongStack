@@ -61,4 +61,11 @@ describe('searchFiles', () => {
     const matches = await searchFiles(root, 'zzzzzzzzz', 5);
     expect(matches).toEqual([]);
   });
+
+  it('treats backslash as a path separator so Windows @-queries match', async () => {
+    const slash = await searchFiles(root, 'src/components/Button', 5);
+    const backslash = await searchFiles(root, 'src\\components\\Button', 5);
+    expect(slash[0]).toContain('Button.tsx');
+    expect(backslash).toEqual(slash);
+  });
 });

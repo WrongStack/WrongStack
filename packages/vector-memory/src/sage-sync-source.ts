@@ -72,12 +72,20 @@ export function createSageSurfaceSyncSource(
         metadata?: Record<string, unknown>;
       }> = [];
       let cursor: string | undefined;
+      const seenCursors = new Set<string>();
       // Hard stop on no-progress to defend against broken enumerators that
       // never return `nextCursor: null`. The page size is the smallest
       // legitimate progress signal — if a page returned nothing AND we
       // were given a cursor, the upstream is misbehaving; bail.
       let noProgressPages = 0;
       while (memories.length < requested) {
+        // A broken upstream can repeat a non-empty page and cursor forever;
+        // stop before issuing the repeated request rather than relying only on
+        // empty-page detection below.
+        if (cursor !== undefined) {
+          if (seenCursors.has(cursor)) break;
+          seenCursors.add(cursor);
+        }
         const remaining = requested - memories.length;
         const page = await sage.listSagePage({
           statuses: ['active'],
@@ -100,6 +108,7 @@ export function createSageSurfaceSyncSource(
           });
         }
         if (!page.nextCursor) break;
+        if (seenCursors.has(page.nextCursor)) break;
         if (rows.length === 0) {
           noProgressPages++;
           if (noProgressPages > 3) break;

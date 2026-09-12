@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import type { Tool } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
@@ -544,6 +545,11 @@ function runPatchProcess(
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
+    // Per-stream decoders, not `chunk.toString()`: this stdout is parsed by
+    // `extractPatchedFiles`, and a filename containing a non-ASCII character
+    // split across a pipe chunk boundary would be reported as U+FFFD.
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
 
     // Force C locale so `extractPatchedFiles` (which greps for the English
     // "patching file" prefix) doesn't silently miss-count on systems with
@@ -559,14 +565,17 @@ function runPatchProcess(
     });
     child.stdin?.end();
     child.stdout?.on('data', (c) => {
-      stdout += c.toString();
+      stdout += stdoutDecoder.write(c);
     });
     child.stderr?.on('data', (c) => {
-      stderr += c.toString();
+      stderr += stderrDecoder.write(c);
     });
-    child.on('close', (code) =>
-      resolve({ exitCode: code ?? 1, stdout, stderr, unavailable: false }),
-    );
+    child.on('close', (code) => {
+      // Flush any partial trailing sequence before the payload is parsed.
+      stdout += stdoutDecoder.end();
+      stderr += stderrDecoder.end();
+      resolve({ exitCode: code ?? 1, stdout, stderr, unavailable: false });
+    });
     child.on('error', (e: NodeJS.ErrnoException) =>
       resolve({
         exitCode: 1,

@@ -129,6 +129,66 @@ describe('glob tool', () => {
     expect(out.files.length).toBeLessThanOrEqual(2);
   });
 
+  /** Write `count` files with distinct, deterministic mtimes (seconds). */
+  async function writeDatedFiles(count: number): Promise<Array<{ name: string; mtime: number }>> {
+    const out: Array<{ name: string; mtime: number }> = [];
+    for (let i = 0; i < count; i++) {
+      const name = `f${i}.ts`;
+      const full = path.join(sb.dir, name);
+      await fs.writeFile(full, '');
+      const t = 1_700_000_000 + i;
+      await fs.utimes(full, t, t);
+      out.push({ name, mtime: t });
+    }
+    return out;
+  }
+
+  it('keeps exactly the N newest files by mtime when truncated (regression)', async () => {
+    // Pins the min-heap retention: the previous linear rescan picked the same
+    // set, so this guards the rewrite rather than the old cost.
+    const files = await writeDatedFiles(12);
+    const limit = 5;
+    const out = await globTool.execute({ pattern: '*.ts', limit }, sb.ctx, {
+      signal: newSignal(),
+    });
+
+    const expected = files
+      .slice()
+      .sort((a, b) => b.mtime - a.mtime)
+      .slice(0, limit)
+      .map((f) => f.name);
+
+    expect(out.truncated).toBe(true);
+    expect(out.files).toHaveLength(limit);
+    expect(out.files.map((f) => path.basename(f)).sort()).toEqual([...expected].sort());
+    // Newest first.
+    expect(path.basename(out.files[0]!)).toBe(expected[0]);
+    // The oldest file must have been evicted.
+    expect(out.files.some((f) => f.endsWith('f0.ts'))).toBe(false);
+  });
+
+  it('keeps only the single newest file at limit=1 (regression)', async () => {
+    const files = await writeDatedFiles(6);
+    const newest = files.reduce((a, b) => (b.mtime > a.mtime ? b : a)).name;
+    const out = await globTool.execute({ pattern: '*.ts', limit: 1 }, sb.ctx, {
+      signal: newSignal(),
+    });
+    expect(out.truncated).toBe(true);
+    expect(out.files.map((f) => path.basename(f))).toEqual([newest]);
+  });
+
+  it('returns every match with truncated=false when the limit is not reached', async () => {
+    const files = await writeDatedFiles(4);
+    const out = await globTool.execute({ pattern: '*.ts', limit: 1000 }, sb.ctx, {
+      signal: newSignal(),
+    });
+    expect(out.truncated).toBe(false);
+    expect(out.files).toHaveLength(files.length);
+    expect([...out.files.map((f) => path.basename(f))].sort()).toEqual(
+      [...files.map((f) => f.name)].sort(),
+    );
+  });
+
   describe('symlink containment (CWE-59)', () => {
     it('does not recurse into a symlink whose target is outside the project root', async () => {
       // Place files inside the sandbox and inside the sibling outsideRoot.

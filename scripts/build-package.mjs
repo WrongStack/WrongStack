@@ -404,6 +404,7 @@ const profiles = {
     // process registry — 12 independent copies of what the source treats as
     // one process-wide singleton. Splitting collapses them into one chunk.
     splitting: true,
+    postBuild: copyToolsWasm,
     // Chunks live at the dist ROOT, not in a subdirectory. Several modules
     // locate sibling artifacts (daemon entry points, worker scripts, the
     // `instructions/` tree) with `new URL(rel, import.meta.url)`, and once
@@ -489,6 +490,17 @@ const profiles = {
     ],
   },
 };
+
+function copyToolsWasm() {
+  const source = join(packageRoot, 'src/codebase-index/wasm');
+  // The split tree-sitter parser chunk is emitted at dist/ (chunkNames is
+  // root-level), so its import.meta.url resolves ./wasm from dist/wasm.
+  const target = join(packageRoot, 'dist/wasm');
+  if (!existsSync(source)) {
+    throw new Error(`Missing vendored tree-sitter WASM directory: ${source}`);
+  }
+  cpSync(source, target, { recursive: true, force: true });
+}
 
 function prependServerShebang() {
   const path = join(packageRoot, 'dist/server/entry.js');

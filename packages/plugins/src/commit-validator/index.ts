@@ -285,11 +285,11 @@ function parseCommitMessage(message: string, cfg: CommitValidatorConfig): Parsed
  */
 const GIT_MESSAGE_FLAG_RE = new RegExp(
   [
-    // -m "…" | -m '…' | -m=… ; --message "…" | --message='…' | --message=…
-    String.raw`(?:^|\s)(?:-m|--message)(?:\s+|=)"([^"]*)"`,
-    String.raw`(?:^|\s)(?:-m|--message)(?:\s+|=)'([^']*)'`,
+    // -m "…" | -am "…" | -m '…' | -m=… ; --message "…" | --message='…' | --message=…
+    String.raw`(?:^|\s)(?:-[a-zA-Z]*m|--message)(?:\s+|=)"([^"]*)"`,
+    String.raw`(?:^|\s)(?:-[a-zA-Z]*m|--message)(?:\s+|=)'([^']*)'`,
     // Bare value: stops at whitespace or a shell separator.
-    String.raw`(?:^|\s)(?:-m|--message)(?:\s+|=)([^\s;&|"']+)`,
+    String.raw`(?:^|\s)(?:-[a-zA-Z]*m|--message)(?:\s+|=)([^\s;&|"']+)`,
   ].join('|'),
   'g',
 );
@@ -444,8 +444,8 @@ const plugin: Plugin = {
           (inp['script'] as string | undefined) ??
           (inp['input'] as string | undefined);
         if (typeof command !== 'string') return;
-        // Only intercept git commit commands.
-        if (!/\bgit\s+commit\b/.test(command)) return;
+        // Only intercept git commit commands (not plumbing like commit-tree).
+        if (!/\bgit\s+commit(?![a-zA-Z0-9_-])/.test(command)) return;
         message = extractMessageFromBash(command);
         if (!message) return; // No -m flag found — can't validate, let it through.
       } else {

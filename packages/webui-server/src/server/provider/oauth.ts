@@ -107,7 +107,11 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
         void (async () => {
           try {
             const outcome = await session.waitForCompletion();
-            await finishOAuth(ws, kind, outcome, customProviderIds.get(kind));
+            // Use the id captured when THIS session started: a newer sign-in
+            // for the same kind may have replaced `customProviderIds` while
+            // this one was in flight, and applying our outcome to its id would
+            // save the credential under the wrong provider.
+            await finishOAuth(ws, kind, outcome, customProviderId);
           } catch (err) {
             sendOAuthStatus(ws, kind, 'error', { message: errMessage(err) });
           } finally {
@@ -135,8 +139,12 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
       sendOAuthStatus(ws, kind, 'exchanging', {
         providerId: customProviderIds.get(kind) ?? session.providerId,
       });
+      // Capture the target before awaiting: a concurrent sign-in start for the
+      // same kind replaces the map entry, and this completion belongs to the
+      // session we looked up, not to whatever started while it was in flight.
+      const customProviderId = customProviderIds.get(kind);
       const outcome = await session.completeWithCode(input);
-      await finishOAuth(ws, kind, outcome, customProviderIds.get(kind));
+      await finishOAuth(ws, kind, outcome, customProviderId);
     } catch (err) {
       sendOAuthStatus(ws, kind, 'error', { message: errMessage(err) });
     } finally {

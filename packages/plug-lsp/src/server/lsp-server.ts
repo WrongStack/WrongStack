@@ -83,7 +83,15 @@ export class LSPServer {
   }
 
   async start(signal: AbortSignal = new AbortController().signal): Promise<void> {
-    if (this.state === 'ready' || this.state === 'starting' || this.state === 'initializing')
+    // `shutting_down` is terminal for this call: a concurrent
+    // start would spawn a replacement that the in-flight shutdown then closes
+    // and kills through `this.connection`/`this.child`.
+    if (
+      this.state === 'ready' ||
+      this.state === 'starting' ||
+      this.state === 'initializing' ||
+      this.state === 'shutting_down'
+    )
       return;
     if (this.config.enabled === false) {
       this.state = 'disabled';

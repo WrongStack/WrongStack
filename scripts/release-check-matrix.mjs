@@ -29,7 +29,10 @@
  *   --list            print the gate plan (id, command, prereq) and exit
  *   --only a,b,...    run only the named gate ids (comma separated)
  *   --tail N          failure-tail length in the report (default 25)
- *   --profile name    `release` (default, `pnpm release:check`) or `local`
+ *   --profile name    `release` (default, `pnpm release:check`), `release-fast`
+ *                     (`pnpm release:fast` — every release gate except coverage
+ *                     and audit, both of which CI runs on the same commit), or
+ *                     `local`
  *                     (`pnpm ci:local`). Local is the GitHub CI
  *                     subset that is practical on a laptop: lint, build,
  *                     typecheck, tests, and the snapshot/architecture gates.
@@ -74,6 +77,36 @@ function stripAnsi(line) {
   return line.replace(ANSI_ESCAPE, '');
 }
 
+/**
+ * A package.json contributes to the fingerprint with its top-level `version`
+ * blanked out.
+ *
+ * Every release starts with a version-only bump across all 39 manifests, and
+ * before this that bump invalidated the entire gate cache — so the one run that
+ * most needs a cache hit (the release itself) could never get one, and paid the
+ * full matrix including the ~300s coverage gate every single time.
+ *
+ * Sound only because no CACHEABLE gate asserts on a package version: the gates
+ * that do read versions (`build`, `build-manifest-write`/`-verify`,
+ * `package-contracts`) are deliberately absent from CACHEABLE_GATES and re-run
+ * unconditionally. Adding a version-sensitive gate to that set means dropping
+ * this normalization too.
+ *
+ * @param {Buffer} raw
+ * @returns {string | Buffer} content to hash
+ */
+function versionInsensitiveManifest(raw) {
+  try {
+    const parsed = JSON.parse(raw.toString('utf8'));
+    if (typeof parsed !== 'object' || parsed === null || !('version' in parsed)) return raw;
+    parsed.version = '0.0.0-fingerprint';
+    return JSON.stringify(parsed);
+  } catch {
+    // Unparseable manifest: hash it verbatim rather than silently ignoring it.
+    return raw;
+  }
+}
+
 function releaseInputFingerprint() {
   const files = execFileSync('git', ['ls-files', '-co', '--exclude-standard'], {
     encoding: 'utf8',
@@ -86,7 +119,8 @@ function releaseInputFingerprint() {
   for (const file of files) {
     hash.update(`${file}\0`);
     try {
-      hash.update(readFileSync(file));
+      const raw = readFileSync(file);
+      hash.update(path.basename(file) === 'package.json' ? versionInsensitiveManifest(raw) : raw);
     } catch {
       hash.update('unreadable');
     }
@@ -165,6 +199,12 @@ const GATES = [
     id: 'build',
     label: 'Production build (esbuild + tsc declarations)',
     cmd: 'pnpm build',
+  },
+  {
+    id: 'tools-package-smoke',
+    label: '@wrongstack/tools extracted-package WASM smoke',
+    cmd: 'node scripts/check-tools-package-smoke.mjs',
+    prereq: 'build',
   },
   {
     id: 'dist-hidden',
@@ -274,8 +314,30 @@ const LOCAL_ONLY_GATES = [
   },
 ];
 
+/**
+ * `release-fast` swaps the coverage gate for a plain test run and drops the
+ * network audit. Both replacements are deliberate, not corner-cutting:
+ *
+ * - `coverage` -> `test`: the same suite still runs, just without V8
+ *   instrumentation and threshold accounting. A release must never publish
+ *   untested code, so the gate is replaced rather than removed — only the
+ *   coverage-threshold assertion is given up, and CI re-asserts it on the same
+ *   commit.
+ * - `audit` is dropped because it needs the network and CI already runs it.
+ *
+ * Skips are a denylist so a gate added to GATES later is picked up by
+ * `release-fast` automatically; the fast path can only ever be missing a gate
+ * someone named here on purpose.
+ */
+const FAST_SKIPPED_GATES = new Set(['coverage', 'audit']);
+/** Gate id substituted in at the position `coverage` held. @see FAST_SKIPPED_GATES */
+const FAST_TEST_GATE = 'test';
+
 const PROFILES = {
   release: GATES.map((g) => g.id),
+  'release-fast': GATES.flatMap((g) =>
+    g.id === 'coverage' ? [FAST_TEST_GATE] : FAST_SKIPPED_GATES.has(g.id) ? [] : [g.id],
+  ),
   // Mirrors .github/workflows/ci.yml jobs that a laptop can actually run:
   // lint, typecheck, build, manifests, tests. Omits coverage, e2e, and the
   // artifact-lineage write/verify pair (those exist to shuttle dist/ between
@@ -371,7 +433,7 @@ for (let i = 0; i < args.length; i++) {
     tail = v;
   } else if (a === '--profile') {
     const raw = args[++i];
-    if (!raw) fail('--profile expects a name (release | local)');
+    if (!raw) fail('--profile expects a name (release | release-fast | local)');
     profile = raw;
   } else if (a === '--only') {
     const raw = args[++i];
@@ -397,7 +459,8 @@ if (only) {
   }
 }
 
-const title = profile === 'local' ? 'local CI' : 'release:check';
+const title =
+  profile === 'local' ? 'local CI' : profile === 'release-fast' ? 'release:fast' : 'release:check';
 const LOG_DIR = LOG_DIRS[profile] ?? LOG_DIRS.release;
 
 if (listOnly) {

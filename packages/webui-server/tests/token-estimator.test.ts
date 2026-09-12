@@ -145,6 +145,12 @@ describe('messageTokens', () => {
     expect(messageTokens(content)).toBeGreaterThan(0);
   });
 
+  it('handles malformed content blocks without throwing', () => {
+    const content = [null, 7, 'raw'];
+    expect(messageTokens(content)).toBeGreaterThan(0);
+    expect(messagePreview(content)).toBe('[null] [7] [raw]');
+  });
+
   it('sums tokens across multiple blocks', () => {
     const content = [
       { type: 'text', text: 'Hello' },

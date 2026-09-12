@@ -91,11 +91,12 @@ export function messageTokens(content: unknown): number {
   if (typeof content === 'string') return estimateTokens(content);
   if (!Array.isArray(content)) return 0;
   let tk = 0;
-  for (const b of content as ContentBlock[]) {
-    if (b.type === 'text') tk += estimateTokens(b.text ?? '');
-    else if (b.type === 'tool_use') tk += estimateToolInputTokens(b.input);
-    else if (b.type === 'tool_result') tk += estimateToolResultTokens(b.content);
-    else tk += estimateTokens(stringifyContent(b));
+  for (const raw of content as unknown[]) {
+    const b = raw !== null && typeof raw === 'object' ? (raw as ContentBlock) : undefined;
+    if (b?.type === 'text') tk += estimateTokens(b.text ?? '');
+    else if (b?.type === 'tool_use') tk += estimateToolInputTokens(b.input);
+    else if (b?.type === 'tool_result') tk += estimateToolResultTokens(b.content);
+    else tk += estimateTokens(stringifyContent(raw));
   }
   return tk;
 }
@@ -103,16 +104,18 @@ export function messageTokens(content: unknown): number {
 export function messagePreview(content: unknown): string {
   if (typeof content === 'string') return content.slice(0, 60);
   if (!Array.isArray(content)) return '';
-  return (content as ContentBlock[])
-    .map((b) =>
-      b.type === 'text'
-        ? (b.text ?? '').slice(0, 40)
-        : b.type === 'tool_use'
-          ? `[tool_use: ${b.name}]`
-          : b.type === 'tool_result'
+  return (content as unknown[])
+    .map((raw) => {
+      const b = raw !== null && typeof raw === 'object' ? (raw as ContentBlock) : undefined;
+      const type = b?.type ?? (b ? 'undefined' : stringifyContent(raw));
+      return type === 'text'
+        ? (b?.text ?? '').slice(0, 40)
+        : type === 'tool_use'
+          ? `[tool_use: ${b?.name}]`
+          : type === 'tool_result'
             ? '[tool_result]'
-            : `[${b.type}]`,
-    )
+            : `[${type}]`;
+    })
     .join(' ')
     .slice(0, 60);
 }

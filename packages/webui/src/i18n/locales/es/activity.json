@@ -970,7 +970,22 @@
     "noFavoritesMatch": "Ningún modelo favorito coincide con el filtro.",
     "noSavedProviders": "Sin proveedores guardados — registra primero una clave en Ajustes.",
     "noMatch": "Ningún modelo coincide",
-    "active": "activo"
+    "active": "activo",
+    "laneSearchPlaceholder": "Buscar proveedor o modelo…",
+    "laneFavoritesToggle": "Favoritos",
+    "laneKeyboardHint": "↑↓ · Enter · Esc",
+    "laneInheritRow": "Heredar — enrutamiento / sesión",
+    "laneInheritHint": "dejar la lane vacía; decide el enrutamiento",
+    "laneNoProviders": "Aún no hay proveedores conectados.",
+    "laneLoadingModels": "Cargando modelos…",
+    "laneOnThisLane": "en esta lane",
+    "laneSessionModel": "modelo de sesión",
+    "laneBannerPrefix": "La lane #{{index}} está fijada actualmente a",
+    "laneBannerSuffix": ". Elegir un modelo reemplaza esta configuración.",
+    "laneBannerTier": "tier:",
+    "laneBannerProfile": "perfil:",
+    "lanePickerTitle": "Elegir modelo para la lane de subagente {{index}}",
+    "lanePickerDescription": "Busca entre todos los proveedores/modelos conectados y elige uno para fijarlo a esta lane."
   },
   "work": {
     "todos": "Por hacer",

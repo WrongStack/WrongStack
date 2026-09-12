@@ -27,6 +27,9 @@ export async function initializeSqliteSageStore(input: {
   const DBCtor = loadDatabaseSync();
   const db = new DBCtor(dbPath);
   setDb(db);
+  db.function('sage_unicode_lower', { deterministic: true }, (value) =>
+    typeof value === 'string' ? value.normalize('NFKC').toLowerCase() : '',
+  );
   initSchema(db);
 
   const row = stmt('SELECT value FROM schema_meta WHERE key = ?').get('version') as

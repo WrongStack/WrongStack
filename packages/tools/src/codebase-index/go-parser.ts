@@ -11,6 +11,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
+import { StringDecoder } from 'node:string_decoder';
 import { resolveWin32Command } from '../_win32-resolve.js';
 import { parseParserOutput } from './parser-output.js';
 import { recordParserSubprocess } from './perf-metrics.js';
@@ -484,8 +485,11 @@ async function syncGoParse(
         });
 
         let stdout = '';
+        // Decoder, not `chunk.toString()`: stdout is parsed as JSON, so a
+        // multi-byte character split across a pipe chunk boundary corrupts it.
+        const stdoutDecoder = new StringDecoder('utf8');
         proc.stdout?.on('data', (chunk: Buffer) => {
-          stdout += chunk.toString();
+          stdout += stdoutDecoder.write(chunk);
         });
         // Drain stderr to avoid backpressure deadlocks from Go toolchain
         // diagnostics (e.g. "found packages …").
@@ -507,6 +511,8 @@ async function syncGoParse(
           if (settled) return;
           settled = true;
           clearTimeout(timer);
+          // Flush a partial trailing sequence before the JSON payload is parsed.
+          stdout += stdoutDecoder.end();
           resolve({ code, stdout });
         });
       },

@@ -250,19 +250,24 @@ const plugin: Plugin = {
       }
 
       const rawUsage = usage as Record<string, unknown>;
-      const promptTokens =
+      // Provider usage is an untrusted response boundary. A non-finite value
+      // would poison the cumulative budget (`NaN`) or make it unbounded
+      // (`Infinity`), preventing threshold comparisons from firing.
+      const promptTokensRaw =
         (typeof rawUsage['input'] === 'number' ? rawUsage['input'] : undefined) ??
         (typeof rawUsage['prompt_tokens'] === 'number' ? rawUsage['prompt_tokens'] : undefined) ??
         (typeof rawUsage['input_tokens'] === 'number' ? rawUsage['input_tokens'] : undefined) ??
         (typeof rawUsage['promptTokens'] === 'number' ? rawUsage['promptTokens'] : 0);
+      const promptTokens = Number.isFinite(promptTokensRaw) ? promptTokensRaw : 0;
 
-      const completionTokens =
+      const completionTokensRaw =
         (typeof rawUsage['output'] === 'number' ? rawUsage['output'] : undefined) ??
         (typeof rawUsage['completion_tokens'] === 'number'
           ? rawUsage['completion_tokens']
           : undefined) ??
         (typeof rawUsage['output_tokens'] === 'number' ? rawUsage['output_tokens'] : undefined) ??
         (typeof rawUsage['completionTokens'] === 'number' ? rawUsage['completionTokens'] : 0);
+      const completionTokens = Number.isFinite(completionTokensRaw) ? completionTokensRaw : 0;
       const total = promptTokens + completionTokens;
 
       state.totalPromptTokens += promptTokens;
@@ -282,9 +287,9 @@ const plugin: Plugin = {
       const percent = (state.totalTokens / cfg.limit) * 100;
 
       // Warning threshold (one-shot injection).
-      if (!state.warningFired && percent >= cfg.warnPercent && percent < cfg.stopPercent) {
+      if (!state.warningFired && percent >= cfg.warnPercent) {
         state.warningFired = true;
-        const remaining = cfg.limit - state.totalTokens;
+        const remaining = Math.max(cfg.limit - state.totalTokens, 0);
         api.log.info('token-budget: warning threshold reached', {
           percent: Math.round(percent),
           remaining,
@@ -348,6 +353,7 @@ const plugin: Plugin = {
       // One-shot: first time crossing stopPercent after a tool call.
       if (state.stopFired && !state.stopContextInjected) {
         state.stopContextInjected = true;
+        state.warnContextInjected = true;
         return {
           additionalContext:
             `\n🛑 token-budget: HARD LIMIT REACHED — ${state.totalTokens.toLocaleString()} / ${cfg.limit.toLocaleString()} tokens (${percent}%). ` +

@@ -23,9 +23,12 @@ export function listSqliteSagePage(
   ctx: SqliteListSagePageContext,
   options: ListSagePageOptions = {},
 ): ListSagePageResult {
+  const session = buildSessionClause(options);
+  const sessionPredicate = session.clause.replace(/^\s*AND\s+/i, '');
+  const statusVisibility = sessionPredicate ? ` WHERE ${sessionPredicate}` : '';
   const statusRows = ctx
-    .stmt('SELECT status, COUNT(*) AS n FROM memories GROUP BY status')
-    .all() as SqliteCountRow[];
+    .stmt(`SELECT status, COUNT(*) AS n FROM memories${statusVisibility} GROUP BY status`)
+    .all(...session.params) as SqliteCountRow[];
   const statusCounts = countRowsByField(statusRows, 'status');
 
   const requested =
@@ -34,7 +37,7 @@ export function listSqliteSagePage(
       : DEFAULT_PAGE_STATUSES;
   const statuses = requested.length > 0 ? requested : DEFAULT_PAGE_STATUSES;
   const kind = options.kind && options.kind !== 'all' ? options.kind : undefined;
-  const query = options.query?.trim().toLowerCase();
+  const query = options.query?.trim().normalize('NFKC').toLowerCase();
   const limit = clampPageLimit(options.limit);
 
   const where: string[] = [];
@@ -47,16 +50,15 @@ export function listSqliteSagePage(
     params.push(kind);
   }
   if (query) {
-    where.push("LOWER(json_extract(data, '$.text')) LIKE ? ESCAPE '\\'");
+    where.push("sage_unicode_lower(json_extract(data, '$.text')) LIKE ? ESCAPE '\\'");
     params.push(`%${escapeLikePattern(query)}%`);
   }
   // Session isolation, the same rule every other retrieval surface applies.
   // This is the bulk enumerator — up to 500 rows a page, cursor-paged across
   // the whole corpus — so without it one session can page through every other
   // session's private memories.
-  const session = buildSessionClause(options);
-  if (session.clause) {
-    where.push(session.clause.replace(/^\s*AND\s+/i, ''));
+  if (sessionPredicate) {
+    where.push(sessionPredicate);
     params.push(...session.params);
   }
 

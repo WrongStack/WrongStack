@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`pnpm release:fast` skips the two gates CI already covers.** The new
+  `release-fast` gate profile swaps the coverage gate for a plain `pnpm test`
+  run — the same suite, without V8 instrumentation or threshold accounting —
+  and drops the network `audit` gate. Both are re-asserted by CI on the same
+  commit. `pnpm release` still runs the full 17-gate matrix.
+- **A version bump no longer invalidates the release gate cache.** Every release
+  begins with a version-only bump across all workspace manifests, and the cache
+  fingerprint hashed those manifests verbatim — so the one run that most needs
+  a cache hit could never get one. `package.json` files now contribute to the
+  fingerprint with their top-level `version` blanked out. Gates that read
+  versions are absent from the cacheable set and still re-run unconditionally.
+
+### Fixed
+
+- **Rotated-out HQ credentials no longer linger until restart.** Reloading the
+  login-attempt store clears its in-memory entries before applying the
+  persisted snapshot.
+- **README no longer documents a `--no-features` flag.** The flag was never
+  implemented in any package; the offline claims that rested on it were removed
+  and the comparison table now describes running against local models instead.
+
+## [1.0.8] — 2026-09-12
+
+### Fixed
+
+- **Adaptive concurrency now sees rate limits at all.** It listened for event
+  names the runtime never emits, so a 429 never reached it. Detection keys on
+  `provider.attempt.failed` — deliberately the only trigger, because
+  `provider.retry` and `provider.error` fire for the same attempt and counting
+  all three halved concurrency three times per 429. Recovery keys on
+  `provider.attempt.completed`.
+- **Search no longer leaks build output.** The recursive walkers skip ignored
+  directory entries, but that never protected the walk root itself, so naming
+  `dist` (or a file under it) explicitly returned matches from it.
+- **Pasting text that mentions bracketed-paste markers is no longer corrupted.**
+  The TUI stripped every `[200~` / `[201~` occurrence globally, deleting the
+  literal spellings inside pasted docs, logs, and tests; the closer is now the
+  last match and the opener only the first. The partial-ANSI filter was also
+  unanchored, which swallowed ordinary fragments shaped like `[hello]` or
+  `[file:a.ts]`.
+- **`/lsp restart` no longer reports success and then leaves the server
+  failed.** A restart replaces the child process before the previous one's exit
+  event arrives; the stale event closed the new connection and overwrote its
+  state.
+- **LSP results survive non-`file:` URIs.** Servers that answer with `jdt:` or
+  `vscode-remote:` targets threw inside path conversion and aborted the entire
+  result; those locations are now reported verbatim. The diagnostics freshness
+  set is bounded alongside its cache.
+- **A skipped task no longer strands its dependency graph.** `skip` was the one
+  terminal transition that could leave a dependent permanently blocked by an
+  already-failed dependency without emitting `deadlock`.
+- **`git clean` force detection covers combined short flags** in any order
+  (`-df`, `-xdf`), not only clusters beginning with `f`.
+- **An empty IPC socket path is reported as what it is.** It previously
+  surfaced as a length problem, sending the operator off to shorten `TMPDIR`,
+  which cannot help.
+- **Project-root containment no longer rejects paths by prefix.** A path whose
+  first segment merely begins with `..` was treated as escaping the root.
+- **The SQLite driver is resolved once** instead of on every database open.
+- **An empty `USERNAME` environment variable no longer shadows `USER`.**
+
 ## [1.0.7] — 2026-09-11
 
 ### Fixed

@@ -163,6 +163,8 @@ describe('fmtElapsed', () => {
   it('pads seconds and minutes with leading zeros under an hour', () => {
     expect(fmtElapsed(3_000)).toBe('00:03');
     expect(fmtElapsed(63_000)).toBe('01:03');
+    expect(fmtElapsed(-5_000)).toBe('00:00');
+    expect(fmtElapsed(Number.NaN)).toBe('00:00');
   });
 });
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T20:23:53.204Z",
+  "generatedAt": "2026-09-12T22:06:42.313Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3770,
-    "testFiles": 3286,
-    "sourceLines": 913688,
+    "sourceFiles": 3771,
+    "testFiles": 3290,
+    "sourceLines": 914233,
     "workspaceEdges": 128,
-    "moduleEdges": 12021,
+    "moduleEdges": 12025,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -393,7 +393,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 50,
-      "testFiles": 39,
+      "testFiles": 41,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/tools"
@@ -407,7 +407,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 39
+          "testFiles": 41
         }
       ]
     },
@@ -735,7 +735,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 213,
-      "testFiles": 217,
+      "testFiles": 219,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -751,7 +751,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 217
+          "testFiles": 219
         }
       ]
     },
@@ -812,7 +812,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 547,
+      "sourceFiles": 548,
       "testFiles": 375,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -10257,6 +10257,12 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/unit/lsp-server-start-shutdown-guard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/unit/lsp-slash-command.test.ts",
         "projects": [
           "root-node"
@@ -10330,6 +10336,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/typescript-flavor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/unit/workspace-edit-nonfile-uri.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14085,6 +14097,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/grep-rg-stream-decoding.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/grep.test.ts",
         "projects": [
           "root-node"
@@ -14326,6 +14344,12 @@
       },
       {
         "file": "packages/tools/tests/next-steps.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/no-raw-chunk-decode.test.ts",
         "projects": [
           "root-node"
         ]

@@ -63,6 +63,22 @@ describe('createSageSurfaceSyncSource', () => {
     expect(surface.calls[1]).toMatchObject({ cursor: 'c1' });
   });
 
+  it('stops when the upstream repeats a non-empty cursor', async () => {
+    let calls = 0;
+    const row = sageRow('a', 'first');
+    const source = createSageSurfaceSyncSource({
+      listSagePage: async ({ cursor }) => {
+        calls++;
+        if (!cursor) return { memories: [row], nextCursor: 'loop' };
+        return { memories: [row], nextCursor: 'loop' };
+      },
+    } as unknown as SageSurface);
+
+    const memories = await source.listActiveMemories({ limit: Number.POSITIVE_INFINITY });
+    expect(memories.map((memory) => memory.id)).toEqual(['a', 'a']);
+    expect(calls).toBe(2);
+  });
+
   it('maps fields and folds sage metadata', async () => {
     const surface = fakeSurface([
       {

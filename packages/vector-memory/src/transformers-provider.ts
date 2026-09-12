@@ -83,7 +83,8 @@ export class TransformersEmbeddingProvider implements EmbeddingProvider {
     this.cacheDir = opts.cacheDir;
     this.dtype = opts.dtype ?? DEFAULT_VECTOR_DTYPE;
     this.device = opts.device ?? 'cpu';
-    this.batchSize = opts.batchSize ?? 16;
+    const batchSize = opts.batchSize ?? 16;
+    this.batchSize = Number.isFinite(batchSize) && batchSize >= 1 ? Math.floor(batchSize) : 16;
     this.maxChars = opts.maxChars ?? 2048;
     this.allowRemote = opts.allowRemoteModels ?? true;
     this.dimensions = DEFAULT_VECTOR_DIMENSIONS;
@@ -141,7 +142,14 @@ export class TransformersEmbeddingProvider implements EmbeddingProvider {
         return (nested as unknown as number[][]).map((row) => Float32Array.from(row));
       }
       // Single-row fallback (the pipeline sometimes collapses batch=1).
-      return [Float32Array.from(nested as unknown as number[])];
+      const flat = nested as unknown as number[];
+      if (batchSize > 1 && flat.length > 0 && flat.length % batchSize === 0) {
+        const dimensions = flat.length / batchSize;
+        return Array.from({ length: batchSize }, (_, index) =>
+          Float32Array.from(flat.slice(index * dimensions, (index + 1) * dimensions)),
+        );
+      }
+      return [Float32Array.from(flat)];
     }
     const flat = out.data;
     if (flat instanceof Float32Array) {

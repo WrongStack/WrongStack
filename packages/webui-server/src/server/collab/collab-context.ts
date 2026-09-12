@@ -47,6 +47,12 @@ export interface CollabContext {
   /** Detach close/error listeners tracked by the transport (leave path). */
   detachSocket(ws: WebSocket): void;
   /**
+   * Ensure the transport tracks this socket again (idempotent). `collab.leave`
+   * detaches a still-open socket's close/error listeners, so a later rejoin on
+   * the same socket must re-attach them or the participant is never removed.
+   */
+  attachSocket(ws: WebSocket): void;
+  /**
    * Full socket teardown shared by `collab.leave` and WS close/error:
    * client removal, listener detach, leave choreography, and the
    * stop-broadcast-when-empty check. (Original handleDisconnect.)

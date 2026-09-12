@@ -290,7 +290,10 @@ const plugin: Plugin = {
             usage?: { input?: number; output?: number };
           };
           const rawUsage = response?.usage as Record<string, unknown> | undefined;
-          const inputTokens =
+          // Provider usage is an untrusted response boundary. Non-finite
+          // measurements would poison the rolling window and distort every
+          // subsequent throttle decision.
+          const inputTokensRaw =
             (typeof rawUsage?.['input'] === 'number' ? rawUsage['input'] : undefined) ??
             (typeof rawUsage?.['prompt_tokens'] === 'number'
               ? rawUsage['prompt_tokens']
@@ -302,7 +305,8 @@ const plugin: Plugin = {
               ? rawUsage['promptTokens']
               : undefined) ??
             (typeof rawUsage?.['inputTokens'] === 'number' ? rawUsage['inputTokens'] : 0);
-          const outputTokens =
+          const inputTokens = Number.isFinite(inputTokensRaw) ? inputTokensRaw : 0;
+          const outputTokensRaw =
             (typeof rawUsage?.['output'] === 'number' ? rawUsage['output'] : undefined) ??
             (typeof rawUsage?.['completion_tokens'] === 'number'
               ? rawUsage['completion_tokens']
@@ -314,13 +318,15 @@ const plugin: Plugin = {
               ? rawUsage['completionTokens']
               : undefined) ??
             (typeof rawUsage?.['outputTokens'] === 'number' ? rawUsage['outputTokens'] : 0);
-          const totalTokens =
+          const outputTokens = Number.isFinite(outputTokensRaw) ? outputTokensRaw : 0;
+          const totalTokensRaw =
             (typeof rawUsage?.['total_tokens'] === 'number'
               ? rawUsage['total_tokens']
               : undefined) ??
             (typeof rawUsage?.['totalTokens'] === 'number' ? rawUsage['totalTokens'] : undefined) ??
             (typeof rawUsage?.['total'] === 'number' ? rawUsage['total'] : undefined) ??
             inputTokens + outputTokens;
+          const totalTokens = Number.isFinite(totalTokensRaw) ? totalTokensRaw : 0;
           const used = totalTokens > 0 ? totalTokens : projected;
           state.window.push({ at: Date.now(), tokens: used });
           return response;

@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { atomicWrite } from '@wrongstack/core/utils';
 import type { TextEdit, WorkspaceEdit } from 'vscode-languageserver-protocol';
 import type { DocumentTracker } from '../document-tracker.js';
@@ -17,6 +18,11 @@ export async function applyWorkspaceEdit(
   const entries = editsByPath(edit);
   const ops: Array<{ path: string; original: string; next: string; edits: number }> = [];
   for (const [file, edits] of entries) {
+    // `editsByPath` keys custom-scheme targets (`jdt:`, `vscode-remote:`) by
+    // their URI, which is not a writable filesystem path. Only `file:` targets
+    // resolve to an absolute path, so skip anything else rather than failing
+    // the whole edit on read.
+    if (!path.isAbsolute(file)) continue;
     const original = await fs.readFile(file, 'utf8');
     ops.push({ path: file, original, next: applyTextEdits(original, edits), edits: edits.length });
   }
