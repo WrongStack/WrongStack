@@ -55,6 +55,16 @@ function allEventKinds(): SessionEvent[] {
 
   return [
     { type: 'session_start', ts, id: 's1', model: 'gpt-5', provider: 'openai' },
+    { type: 'subagent_policy', ts, allowed: true },
+    {
+      type: 'subagent_model_plan',
+      ts,
+      plan: {
+        enabled: true,
+        lock: true,
+        slots: [{ provider: 'openai', model: 'gpt-5' }],
+      },
+    },
     { type: 'session_resumed', ts, id: 's1', model: 'gpt-5', provider: 'openai' },
     {
       type: 'session_forked',
@@ -415,6 +425,7 @@ describe('session-history event taxonomy regression', () => {
     const events = allEventKinds().filter((e) =>
       [
         'session_start',
+        'subagent_model_plan',
         'session_resumed',
         'llm_request',
         'llm_response',
@@ -463,5 +474,16 @@ describe('session-history event taxonomy regression', () => {
     );
     const payload = buildInspectPayload(SUMMARY, safeEvents, FALLBACK);
     expect(payload.events).toHaveLength(4);
+  });
+
+  it('normalizes malformed subagent model plan journal payloads', () => {
+    const event: SessionEvent = {
+      type: 'subagent_model_plan',
+      ts: '2026-08-04T10:00:00.000Z',
+      plan: { slots: 'invalid', lock: 'invalid' },
+    };
+
+    const payload = buildInspectPayload(SUMMARY, [event], FALLBACK);
+    expect(payload.events[0]?.detail).toBe('0 lane(s) pinned, lock on');
   });
 });

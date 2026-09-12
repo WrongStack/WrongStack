@@ -218,6 +218,17 @@ export function createTestState(
       shadow: { activeId: null, running: false, model: '', intervalMs: 30000 },
       hint: undefined,
     },
+    subagentModels: {
+      open: false,
+      lanes: [],
+      roles: [],
+      selected: 0,
+      enabled: true,
+      lock: true,
+      followSessionModel: false,
+      sessionTarget: '',
+      hint: undefined,
+    },
     authPanel: {
       open: false,
       view: 'list',

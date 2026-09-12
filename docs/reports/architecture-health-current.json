@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T15:48:57.483Z",
+  "generatedAt": "2026-09-12T16:19:45.112Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,21 +14,17 @@
     "packages": 36,
     "sourceFiles": 3770,
     "testFiles": 3281,
-    "sourceLines": 913372,
+    "sourceLines": 913374,
     "workspaceEdges": 128,
-    "moduleEdges": 12018,
+    "moduleEdges": 12017,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 7,
+    "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 916
   },
-  "errors": [
-    "1 unexcepted module cycle(s)",
-    "ARCH-CYCLE-TYPE-09: exception no longer matches an active cycle",
-    "ARCH-CYCLE-TYPE-12: exception no longer matches an active cycle"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -989,49 +985,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/core/src/chronicle/prompt-manifest.ts",
-          "packages/core/src/coordination/brain-rules.ts",
-          "packages/core/src/coordination/brain-telemetry.ts",
-          "packages/core/src/coordination/brain.ts",
-          "packages/core/src/coordination/session-subagent-models.ts",
-          "packages/core/src/core/context-conversation-journal.ts",
-          "packages/core/src/core/context-file-tracker.ts",
-          "packages/core/src/core/context-session-id.ts",
-          "packages/core/src/core/context.ts",
-          "packages/core/src/core/conversation-state.ts",
-          "packages/core/src/kernel/events.ts",
-          "packages/core/src/kernel/events/agent-events.ts",
-          "packages/core/src/kernel/events/brain-events.ts",
-          "packages/core/src/kernel/events/provider-events.ts",
-          "packages/core/src/kernel/events/session-events.ts",
-          "packages/core/src/kernel/events/tool-events.ts",
-          "packages/core/src/types/blocks.ts",
-          "packages/core/src/types/compactor.ts",
-          "packages/core/src/types/config.ts",
-          "packages/core/src/types/config/mcp-features.ts",
-          "packages/core/src/types/config/model-tiers.ts",
-          "packages/core/src/types/config/providers.ts",
-          "packages/core/src/types/config/root.ts",
-          "packages/core/src/types/config/runtime.ts",
-          "packages/core/src/types/config/skills-fleet-brain.ts",
-          "packages/core/src/types/context.ts",
-          "packages/core/src/types/conversation-state.ts",
-          "packages/core/src/types/messages.ts",
-          "packages/core/src/types/models-registry.ts",
-          "packages/core/src/types/permission.ts",
-          "packages/core/src/types/provider.ts",
-          "packages/core/src/types/run-env.ts",
-          "packages/core/src/types/session.ts",
-          "packages/core/src/types/token-counter.ts",
-          "packages/core/src/types/tool.ts",
-          "packages/core/src/utils/context-evidence.ts",
-          "packages/core/src/utils/token-estimate.ts",
-          "packages/core/src/utils/tool-wire-compact.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/core/src/coordination/agents/agent-prompts.ts",
           "packages/core/src/coordination/agents/index.ts",
           "packages/core/src/coordination/agents/phase1-discovery.ts",
@@ -1056,6 +1009,16 @@
           "packages/core/src/execution/parallel-eternal-engine.ts",
           "packages/core/src/types/autonomy.ts",
           "packages/core/src/types/index.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/core/src/coordination/brain-telemetry.ts",
+          "packages/core/src/coordination/brain.ts",
+          "packages/core/src/kernel/events.ts",
+          "packages/core/src/kernel/events/brain-events.ts",
+          "packages/core/src/kernel/events/session-events.ts"
         ]
       },
       {
@@ -1095,61 +1058,33 @@
           "packages/core/src/tools/mcp-control.ts",
           "packages/core/src/tools/mcp-use.ts"
         ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/core/src/types/blocks.ts",
+          "packages/core/src/types/context.ts",
+          "packages/core/src/types/conversation-state.ts",
+          "packages/core/src/types/messages.ts",
+          "packages/core/src/types/provider.ts",
+          "packages/core/src/types/run-env.ts",
+          "packages/core/src/types/session.ts",
+          "packages/core/src/types/token-counter.ts",
+          "packages/core/src/types/tool.ts"
+        ]
       }
     ],
     "matchedExceptions": [
       "ARCH-CYCLE-TYPE-05",
+      "ARCH-CYCLE-TYPE-09",
       "ARCH-CYCLE-TYPE-11",
+      "ARCH-CYCLE-TYPE-12",
       "ARCH-CYCLE-TYPE-13",
       "ARCH-CYCLE-TYPE-14",
       "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
-    "unexcepted": [
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/core/src/chronicle/prompt-manifest.ts",
-          "packages/core/src/coordination/brain-rules.ts",
-          "packages/core/src/coordination/brain-telemetry.ts",
-          "packages/core/src/coordination/brain.ts",
-          "packages/core/src/coordination/session-subagent-models.ts",
-          "packages/core/src/core/context-conversation-journal.ts",
-          "packages/core/src/core/context-file-tracker.ts",
-          "packages/core/src/core/context-session-id.ts",
-          "packages/core/src/core/context.ts",
-          "packages/core/src/core/conversation-state.ts",
-          "packages/core/src/kernel/events.ts",
-          "packages/core/src/kernel/events/agent-events.ts",
-          "packages/core/src/kernel/events/brain-events.ts",
-          "packages/core/src/kernel/events/provider-events.ts",
-          "packages/core/src/kernel/events/session-events.ts",
-          "packages/core/src/kernel/events/tool-events.ts",
-          "packages/core/src/types/blocks.ts",
-          "packages/core/src/types/compactor.ts",
-          "packages/core/src/types/config.ts",
-          "packages/core/src/types/config/mcp-features.ts",
-          "packages/core/src/types/config/model-tiers.ts",
-          "packages/core/src/types/config/providers.ts",
-          "packages/core/src/types/config/root.ts",
-          "packages/core/src/types/config/runtime.ts",
-          "packages/core/src/types/config/skills-fleet-brain.ts",
-          "packages/core/src/types/context.ts",
-          "packages/core/src/types/conversation-state.ts",
-          "packages/core/src/types/messages.ts",
-          "packages/core/src/types/models-registry.ts",
-          "packages/core/src/types/permission.ts",
-          "packages/core/src/types/provider.ts",
-          "packages/core/src/types/run-env.ts",
-          "packages/core/src/types/session.ts",
-          "packages/core/src/types/token-counter.ts",
-          "packages/core/src/types/tool.ts",
-          "packages/core/src/utils/context-evidence.ts",
-          "packages/core/src/utils/token-estimate.ts",
-          "packages/core/src/utils/tool-wire-compact.ts"
-        ]
-      }
-    ]
+    "unexcepted": []
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -21139,7 +21074,7 @@
     {
       "file": "packages/core/src/types/session.ts",
       "lines": 1003,
-      "relativeImports": 5
+      "relativeImports": 4
     },
     {
       "file": "packages/core/src/utils/tool-output-serializer.ts",
@@ -21786,7 +21721,7 @@
     {
       "file": "packages/core/src/types/session.ts",
       "lines": 1003,
-      "relativeImports": 5
+      "relativeImports": 4
     },
     {
       "file": "packages/kanban/src/types.ts",

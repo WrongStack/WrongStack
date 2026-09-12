@@ -164,7 +164,7 @@
     },
     "packages/core/src/types/session.ts": {
       "lines": 1003,
-      "relativeImports": 5
+      "relativeImports": 4
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
       "lines": 915,

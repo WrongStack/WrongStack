@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 215,
+      "files": 216,
       "typeOnly": 84,
-      "runtimeOrMixed": 186
+      "runtimeOrMixed": 187
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -3529,6 +3529,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/webui-server/src/server/session-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/session-history.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

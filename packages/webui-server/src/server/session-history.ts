@@ -1,4 +1,5 @@
 import type { ContentBlock, SessionEvent, SessionSummary } from '@wrongstack/core/types';
+import { normalizeSubagentModelPlan } from '@wrongstack/core/coordination';
 
 /**
  * Stable WebSocket projection for the WebUI history surfaces.
@@ -221,10 +222,11 @@ function detailForEvent(e: SessionEvent): string {
     case 'subagent_policy':
       return e.allowed ? 'allowed' : 'blocked';
     case 'subagent_model_plan': {
-      const pinned = e.plan.slots.filter(
+      const plan = normalizeSubagentModelPlan(e.plan);
+      const pinned = plan.slots.filter(
         (slot) => slot.provider || slot.model || slot.tier || slot.fallbackProfile,
       ).length;
-      return `${pinned} lane(s) pinned, lock ${e.plan.lock ? 'on' : 'off'}`;
+      return `${pinned} lane(s) pinned, lock ${plan.lock ? 'on' : 'off'}`;
     }
     case 'session_resumed':
       return `${e.model} @ ${e.provider}`;

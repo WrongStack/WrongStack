@@ -103,7 +103,7 @@ type SessionEventVariant =
   | {
       type: 'subagent_model_plan';
       ts: string;
-      plan: import('../coordination/session-subagent-models.js').SessionSubagentModelPlan;
+      plan: unknown; // Untrusted journal payload; normalized by the coordination layer.
     }
   | {
       type: 'session_forked';
