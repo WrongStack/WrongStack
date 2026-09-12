@@ -133,6 +133,7 @@ describe('TUI structured user input prompt', () => {
           request: {
             id: 'delegated',
             title: 'Decision',
+            submitLabel: 'Metni Gönder',
             tabs: [
               {
                 id: 'main',
@@ -157,6 +158,8 @@ describe('TUI structured user input prompt', () => {
       />,
     );
 
+    expect(view.lastFrame()).toContain('Submit answers');
+    expect(view.lastFrame()).not.toContain('Metni Gönder');
     view.stdin.write('d');
     await new Promise((resolveTick) => setTimeout(resolveTick, 0));
     expect(view.lastFrame()).toContain('delegated to the model');
@@ -168,6 +171,37 @@ describe('TUI structured user input prompt', () => {
       delegated: true,
       usedRecommendation: false,
     });
+  });
+
+  it('moves between multiple questions in the same category', async () => {
+    const view = render(
+      <UserInputPrompt
+        pending={{
+          resolve: vi.fn(),
+          request: {
+            id: 'multiple',
+            title: 'Multiple questions',
+            tabs: [
+              {
+                id: 'main',
+                label: 'Main',
+                questions: [
+                  { id: 'first', prompt: 'First question?', kind: 'text', required: true },
+                  { id: 'second', prompt: 'Second question?', kind: 'text', required: true },
+                ],
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(view.lastFrame()).toContain('QUESTION 1/2');
+    expect(view.lastFrame()).toContain('First question?');
+    view.stdin.write('\u001b[C');
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0));
+    expect(view.lastFrame()).toContain('QUESTION 2/2');
+    expect(view.lastFrame()).toContain('Second question?');
   });
 
   it('keeps navigation and submit controls visible in a short terminal', async () => {
@@ -203,6 +237,7 @@ describe('TUI structured user input prompt', () => {
 
     await settle();
     expect(view.lines().length).toBeLessThanOrEqual(14);
+    expect(view.lastFrame()).toContain('QUESTION 1/8');
     expect(view.lastFrame()).toContain('Tab category');
     expect(view.lastFrame()).toContain('s submit');
     expect(view.lastFrame()).toContain('required answer(s) missing');

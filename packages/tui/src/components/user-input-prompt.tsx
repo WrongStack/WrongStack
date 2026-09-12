@@ -299,11 +299,13 @@ export function UserInputPrompt({ pending }: { pending: PendingUserInput }): Rea
 
   const answerPanel = (
     <Box flexDirection="column" flexGrow={1} overflow="hidden">
-      {!compact ? (
-        <Text color="gray">
-          QUESTION {activeQuestionNumber}/{allQuestions.length} · {question.kind.replace('_', ' ')}
-        </Text>
-      ) : null}
+      <Text color="gray">
+        QUESTION {questionIndex + 1}/{questions.length}
+        {!compact && allQuestions.length !== questions.length
+          ? ` · FORM ${activeQuestionNumber}/${allQuestions.length}`
+          : ''}{' '}
+        · {compact ? '←/→ navigate' : question.kind.replace('_', ' ')}
+      </Text>
       <Text bold color="white">
         {question.prompt}
         {question.required ? <Text color="yellow"> *</Text> : <Text dimColor> optional</Text>}
@@ -466,7 +468,7 @@ export function UserInputPrompt({ pending }: { pending: PendingUserInput }): Rea
           {compact && notice
             ? notice
             : validation.valid
-              ? `Ready · ${pending.request.submitLabel ?? 'Submit answers'} with s`
+              ? 'Ready · Submit answers with s'
               : `${validation.missingCount} required answer(s) missing`}
         </Text>
       </Box>
