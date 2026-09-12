@@ -186,10 +186,10 @@ export function SubagentModelPickerDialog({
         }}
       >
         <DialogTitle className="sr-only">
-          {`Pick a model for subagent lane ${laneIndex + 1}`}
+          {t('activity:modelSwitcher.lanePickerTitle', { index: laneIndex + 1 })}
         </DialogTitle>
         <DialogDescription className="sr-only">
-          Search across every provider/model you've connected, then pick one to pin to this lane.
+          {t('activity:modelSwitcher.lanePickerDescription', { index: laneIndex + 1 })}
         </DialogDescription>
 
         <div className="flex items-center gap-2 border-b px-3 py-2">
