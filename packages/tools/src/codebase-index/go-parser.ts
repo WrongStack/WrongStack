@@ -56,7 +56,7 @@ function fallbackParse(filePath: string, content: string, lang: SymbolLang): Fil
   const lines = content.split(/\r?\n/);
   for (const [idx, line] of lines.entries()) {
     const trimmed = line.trimStart();
-    const col = line.length - trimmed.length + 1;
+    const col = line.length - trimmed.length;
     const fn = /^func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*\(/.exec(trimmed);
     if (fn?.[1]) {
       addFallbackSymbol(symbols, {
@@ -224,7 +224,7 @@ func main() {
 			}
 			pos := fset.Position(d.Pos())
 			sig := formatFuncSig(d)
-			syms = append(syms, Sym{Name: name, Kind: kind, Line: pos.Line, Col: pos.Column, Signature: sig, Scope: scope})
+			syms = append(syms, Sym{Name: name, Kind: kind, Line: pos.Line, Col: pos.Column - 1, Signature: sig, Scope: scope})
 
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
@@ -243,7 +243,7 @@ func main() {
 					} else {
 						sig += " = " + formatType(s.Type)
 					}
-					syms = append(syms, Sym{Name: name, Kind: "type", Line: pos.Line, Col: pos.Column, Signature: sig, Scope: pkgScope})
+					syms = append(syms, Sym{Name: name, Kind: "type", Line: pos.Line, Col: pos.Column - 1, Signature: sig, Scope: pkgScope})
 
 				case *ast.ValueSpec:
 					for _, n := range s.Names {
@@ -257,7 +257,7 @@ func main() {
 						if s.Type != nil {
 							sig += " " + formatType(s.Type)
 						}
-						syms = append(syms, Sym{Name: name, Kind: kind, Line: pos.Line, Col: pos.Column, Signature: sig, Scope: pkgScope})
+						syms = append(syms, Sym{Name: name, Kind: kind, Line: pos.Line, Col: pos.Column - 1, Signature: sig, Scope: pkgScope})
 					}
 				}
 			}

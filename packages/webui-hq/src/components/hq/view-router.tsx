@@ -19,6 +19,9 @@ export const HQ_VIEW_COMPONENTS: Record<HqViewId, LazyExoticComponent<ComponentT
   kanban: lazy(() =>
     import('../../views/kanban/index.js').then((m) => ({ default: m.KanbanView })),
   ),
+  approvals: lazy(() =>
+    import('../../views/approvals.js').then((m) => ({ default: m.ApprovalsView })),
+  ),
   alerts: lazy(() => import('../../views/alerts.js').then((m) => ({ default: m.AlertsView }))),
   cost: lazy(() => import('../../views/cost.js').then((m) => ({ default: m.CostView }))),
   trends: lazy(() => import('../../views/trends.js').then((m) => ({ default: m.TrendsView }))),

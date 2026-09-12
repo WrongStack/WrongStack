@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Columns3,
   Command,
+  FlaskConical,
   FolderOpen,
   GitCompare,
   GitFork,
@@ -108,6 +109,7 @@ const VIEWS: ViewDef[] = [
   { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },
   { id: 'codemap', icon: <Network size={16} />, label: 'CodeMap' },
   { id: 'techstack', icon: <Boxes size={16} />, label: 'TechStack' },
+  { id: 'provider-test', icon: <FlaskConical size={16} />, label: 'Provider Test' },
   { id: 'history', icon: <GitFork size={16} />, label: 'Repository History' },
   { id: 'chronicle', icon: <ChartNoAxesCombined size={16} />, label: 'Chronicle' },
   { id: 'prompts', icon: <ScrollText size={16} />, label: 'Prompt Journal' },
@@ -168,9 +170,7 @@ export function splitDesktopActivityBarItems(
   // user-prioritized view stays visible on short viewports.
   const visibleViewIds = orderedViews.slice(0, visibleViewCount).map((def) => def.id);
   const visibleViewSet = new Set(visibleViewIds);
-  const overflowViewIds = orderedViews
-    .map((def) => def.id)
-    .filter((id) => !visibleViewSet.has(id));
+  const overflowViewIds = orderedViews.map((def) => def.id).filter((id) => !visibleViewSet.has(id));
   return { visiblePanelIds, overflowPanelIds, visibleViewIds, overflowViewIds };
 }
 

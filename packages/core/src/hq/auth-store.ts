@@ -80,6 +80,11 @@ export function resolveHqDataDir(override?: string, env: NodeJS.ProcessEnv = pro
  * unrestricted (backward-compat with tokens minted before Phase 3). Known
  * capability strings:
  *   - `control.enqueue` — browser token may enqueue commands to clients
+ *   - `control.approve` — browser token may answer a client's permission
+ *     prompts (`approve`). Deliberately separate from `control.enqueue`:
+ *     `always`/`deny` write persistent trust policy and `yes` can release a
+ *     destructive call, so a steer-only credential must not carry it. Not
+ *     granted to the first-run token; the operator mints it explicitly.
  *   - `control.execute` — client token may execute `run-command` commands
  *   - `telemetry.publish` — client token may publish telemetry
  */

@@ -24,7 +24,6 @@ import { navigateToView, openMainView } from './components/activity-bar/nav';
 import { CommandPalette } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ConfirmModalHost, PromptModalHost } from './components/ConfirmModal';
-import { RestoreTabsModal } from './components/RestoreTabsModal';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { ContextBreakdownModal } from './components/ContextBreakdownModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -32,6 +31,7 @@ import { FallbackModal } from './components/FallbackModal';
 import { InspectorPanel } from './components/InspectorPanel';
 import { PromptLibraryModal } from './components/PromptLibraryModal';
 import { QuickModelSwitcher } from './components/QuickModelSwitcher';
+import { RestoreTabsModal } from './components/RestoreTabsModal';
 import { SessionTabBar } from './components/SessionTabBar';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { SidePanel } from './components/SidePanel';
@@ -39,6 +39,7 @@ import { SystemPromptDialog } from './components/SystemPromptDialog';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { Toaster } from './components/Toaster';
 import { UpdateBanner } from './components/UpdateBanner';
+import { UserInputDialog } from './components/UserInputDialog';
 import { ViewRouter } from './components/ViewRouter';
 import { WorkbenchTopbar } from './components/WorkbenchTopbar';
 import { WorkspaceDockInspector } from './components/WorkspaceDock';
@@ -390,6 +391,7 @@ function AppInner() {
 
       {/* Global overlays */}
       <ConfirmDialog />
+      <UserInputDialog />
       <SystemPromptDialog />
       <ConfirmModalHost />
       <RestoreTabsModal />

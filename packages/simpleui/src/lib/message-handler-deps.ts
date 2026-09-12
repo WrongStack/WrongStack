@@ -26,6 +26,7 @@ import type { SimplePrefs } from './prefs-model.js';
 import type { QueuedItem } from './queue-model.js';
 import type { RefineState } from './refine-model.js';
 import type { StatusNoticeProjection } from './status-notice.js';
+import type { PendingUserInputRequest } from './user-input-queue.js';
 import type { WorklistStore } from './worklist-store.js';
 
 export interface MessageHandlerDeps {
@@ -71,6 +72,9 @@ export interface MessageHandlerDeps {
   setQueue: React.Dispatch<React.SetStateAction<QueuedItem[]>>;
   setRefineState: React.Dispatch<React.SetStateAction<RefineState | null>>;
   setPendingConfirm: React.Dispatch<React.SetStateAction<PendingConfirm | null>>;
+  setUserInputRequests?:
+    | React.Dispatch<React.SetStateAction<PendingUserInputRequest[]>>
+    | undefined;
   setSelectedAgentId: React.Dispatch<React.SetStateAction<string>>;
   setSessionStart: React.Dispatch<React.SetStateAction<number | null>>;
   setShowJumpToLatest: React.Dispatch<React.SetStateAction<boolean>>;

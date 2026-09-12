@@ -16,6 +16,7 @@ import type {
   ContextEditorRemoval,
   WSModelSwitch,
   WSToolConfirmResult,
+  WSUserInputSubmit,
 } from './runtime.js';
 import type { SageAnchor, SageScope, SageStatus, WSMemorySageForFileRequest } from './sage.js';
 import type { OAuthKind, WSCompletionRequest } from './system.js';
@@ -85,6 +86,7 @@ export type WSClientMessageCore =
       };
     }
   | WSToolConfirmResult
+  | WSUserInputSubmit
   | { type: 'side_effects.list'; payload?: SessionScopedPayload | undefined }
   | {
       type: 'goal.start';
@@ -346,8 +348,22 @@ export type WSClientMessageCore =
   | WSModelSwitch
   | { type: 'codebase.index.server.shutdown'; payload: { requestId: string } }
   | { type: 'providers.list' }
-  | { type: 'provider.models'; payload: { providerId: string } }
+  | {
+      type: 'provider.models';
+      payload: { providerId: string; includeDisabled?: boolean | undefined };
+    }
   | { type: 'provider.models.search'; payload: { query: string; limit?: number | undefined } }
+  | {
+      type: 'provider.test.run';
+      payload: {
+        requestId: string;
+        providerId: string;
+        modelIds: string[];
+        timeoutMs?: number | undefined;
+        maxTokens?: number | undefined;
+      };
+    }
+  | { type: 'provider.test.cancel'; payload: { requestId: string } }
   | { type: 'providers.saved' }
   | { type: 'key.add'; payload: { providerId: string; label: string; apiKey: string } }
   | { type: 'key.update'; payload: { providerId: string; label: string; apiKey: string } }

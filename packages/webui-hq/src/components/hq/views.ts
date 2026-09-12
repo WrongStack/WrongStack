@@ -19,6 +19,7 @@ import {
   Network,
   RadioTower,
   Settings2,
+  ShieldQuestion,
 } from 'lucide-react';
 import type { HqViewId } from '../../data/store/index.js';
 
@@ -81,6 +82,14 @@ export const HQ_VIEWS: readonly HqViewDefinition[] = [
     description: 'Read-only project boards synchronized across clones and machines.',
     group: 'Operations',
     icon: Columns3,
+  },
+  {
+    id: 'approvals',
+    label: 'Approvals',
+    eyebrow: 'Human in the loop',
+    description: 'Permission prompts blocking a run, mirrored from every surface.',
+    group: 'Operations',
+    icon: ShieldQuestion,
   },
   {
     id: 'alerts',

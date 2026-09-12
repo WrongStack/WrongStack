@@ -17,6 +17,7 @@ export type HqClientCapability =
   | 'mailbox.summary'
   | 'mailbox.serve'
   | 'control.receive'
+  | 'control.approve'
   | 'kanban.dispatch';
 
 export interface HqClientIdentity {

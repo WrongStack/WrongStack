@@ -41,7 +41,7 @@ import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
 import { dispatchSimplePanel } from './lib/panel-events.js';
 import { onPersistedWriteFailure } from './lib/persisted.js';
-import { type QueueMode, type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
+import { type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
 import type { RefineState } from './lib/refine-model.js';
 import {
   compactTokens,
@@ -53,6 +53,7 @@ import {
 import { aggregateFileEdits } from './lib/timeline-model.js';
 import { agentTranscriptToToolCalls } from './lib/tool-model.js';
 import { buildTranscriptMarkdown } from './lib/transcript-export.js';
+import type { PendingUserInputRequest } from './lib/user-input-queue.js';
 import type { SimpleSocket } from './lib/ws.js';
 import { SessionAgentStrip } from './session-agent-strip.js';
 import { SessionMailboxDrawer } from './session-mailbox-drawer.js';
@@ -68,6 +69,7 @@ import type {
   ToolCallInfo,
 } from './types.js';
 import { UpdateBanner } from './update-banner.js';
+import { UserInputModal } from './user-input-modal.js';
 
 export { compactTokens, isIncomingMailboxPayload, messageId, payloadSucceeded, payloadText };
 
@@ -93,6 +95,7 @@ export function SimpleUiSession() {
   const [queue, setQueue] = useState<QueuedItem[]>([]);
   const [refineState, setRefineState] = useState<RefineState | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+  const [userInputRequests, setUserInputRequests] = useState<PendingUserInputRequest[]>([]);
   const [fallbackPending, setFallbackPending] = useState<FallbackPendingProjection | null>(null);
   const [draft, setDraft] = useState('');
   const [fileRefs, setFileRefs] = useState<string[]>([]);
@@ -537,6 +540,7 @@ export function SimpleUiSession() {
     setQueue,
     setRefineState,
     setPendingConfirm,
+    setUserInputRequests,
     setSelectedAgentId,
     setSessionStart,
     setShowJumpToLatest,
@@ -994,6 +998,11 @@ export function SimpleUiSession() {
         outage={outage}
         onDismissOutage={dismissOutage}
         sessionId={sessionIdRef.current}
+      />
+      <UserInputModal
+        pending={userInputRequests[0] ?? null}
+        queuedCount={userInputRequests.length}
+        send={(type, payload) => socketRef.current?.send(type, payload)}
       />
 
       {leaderSelected && showJumpToLatest && (

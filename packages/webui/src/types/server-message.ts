@@ -94,6 +94,8 @@ import type {
   WSToolsList,
   WSTopicAdviceResult,
   WSTrustPersisted,
+  WSUserInputRequested,
+  WSUserInputResolved,
 } from './runtime.js';
 import type {
   WSMemorySageBackfillRecoverable,
@@ -144,6 +146,9 @@ import type {
   WSModelSwitchResult,
   WSProviderCatalog,
   WSProviderModels,
+  WSProviderModelTestComplete,
+  WSProviderModelTestResult,
+  WSProviderModelTestStarted,
   WSProviderProbe,
   WSSavedProviders,
   WSSessionInspect,
@@ -185,6 +190,8 @@ export type WSServerMessage =
   | WSError
   | WSToolConfirmNeeded
   | WSToolConfirmResolved
+  | WSUserInputRequested
+  | WSUserInputResolved
   | WSTrustPersisted
   | WSToolLoopDetected
   | WSDelegateStarted
@@ -265,6 +272,9 @@ export type WSServerMessage =
   | WSProviderCatalog
   | WSCatalogModelSearchResult
   | WSProviderModels
+  | WSProviderModelTestStarted
+  | WSProviderModelTestResult
+  | WSProviderModelTestComplete
   | WSSavedProviders
   | WSProviderProbe
   | WSKeyOperationResult

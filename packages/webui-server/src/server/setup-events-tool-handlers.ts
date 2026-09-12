@@ -51,6 +51,24 @@ export function registerSetupEventsToolHandlers(options: {
   const scrub = <T>(value: T): T => (projection?.scrubObject?.(value) ?? value) as T;
   const projectRoot = context.projectRoot;
 
+  on('user.input_requested', (event) => {
+    broadcast(clients, {
+      type: 'user.input_requested',
+      payload: sessionPayload({ sessionId: event.sessionId, request: event.request }),
+    });
+  });
+  on('user.input_resolved', (event) => {
+    broadcast(clients, {
+      type: 'user.input_resolved',
+      payload: sessionPayload({
+        sessionId: event.sessionId,
+        requestId: event.requestId,
+        response: event.response,
+        source: event.source,
+      }),
+    });
+  });
+
   on('tool.started', (e) => {
     projection?.flushAllStreamBuffers?.();
     broadcast(clients, {

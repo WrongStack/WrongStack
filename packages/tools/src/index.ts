@@ -71,9 +71,11 @@ export {
 export {
   type ClarifyAnswerItem,
   type ClarifyInput,
+  type ClarifyOptionInput,
   type ClarifyOutput,
   type ClarifyQuestionInput,
   type ClarifyQuestionItem,
+  type ClarifyTabInput,
   clarifyTool,
 } from './clarify.js';
 export type {

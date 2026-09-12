@@ -94,7 +94,10 @@ describe('setupWebuiCredentialWatcher', () => {
       payload: { uiLocale: 'fr' },
     });
     expect(context.meta['uiLocale']).toBe('fr');
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ type: 'openai', apiKey: 'new' }));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'openai', apiKey: 'new' }),
+      'openai',
+    );
     expect(context.provider).toEqual({ id: 'replacement' });
     expect(updateAutoCompactionMaxContext).toHaveBeenCalledWith({ id: 'replacement' });
   });

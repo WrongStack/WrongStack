@@ -14,6 +14,7 @@ import { toErrorMessage } from '../utils/error.js';
 import { capSageLines, splitSageOutputBlock } from '../utils/sage-output-block.js';
 import { sizeSignals, truncateForEvent } from '../utils/tool-output-serializer.js';
 import type { AgentInternals } from './agent-internals.js';
+import { confirmObserverCount } from './confirm-observers.js';
 import { resolveEventSessionId } from './context.js';
 
 /**
@@ -120,7 +121,12 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     // construct a minimal agent without wiring a TUI/WebUI confirm handler.
     // Fall back to `deny` so the tool surfaces an error the model can react
     // to, instead of hanging silently.
-    if (a.events.listenerCount('tool.confirm_needed') === 0) {
+    //
+    // Passive observers are subtracted: the HQ approval bridge subscribes to
+    // MIRROR prompts a local surface raised, and can never answer on its own.
+    // Counting it would have turned every headless auto-deny into a
+    // 120-second wait for nobody, just because HQ was connected.
+    if (a.events.listenerCount('tool.confirm_needed') - confirmObserverCount() <= 0) {
       // Structured warning to stdout — matches the observability skill's JSON
       // log convention. Kept off the session store to avoid coupling the
       // permission fallback to SessionWriter availability.
@@ -148,23 +154,29 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       const signal = a.ctx.signal;
       const settle = (
         choice: 'yes' | 'no' | 'always' | 'deny' | 'abort',
-        source?: 'brain_timeout' | 'abort',
+        source: 'brain_timeout' | 'abort' | 'user' = 'user',
         rationale?: string,
       ) => {
         if (settled) return;
         settled = true;
         if (timeout) clearTimeout(timeout);
         signal.removeEventListener('abort', onAbort);
-        if (source) {
-          a.events.emit('tool.confirm_resolved', {
-            sessionId: resolveEventSessionId(a.ctx),
-            toolUseId: info.toolUseId,
-            toolName: info.tool.name,
-            decision: choice,
-            source,
-            rationale,
-          });
-        }
+        // Emitted for EVERY resolution, not just the timeout/abort ones.
+        //
+        // A prompt is now shown on more than one surface at a time (the local
+        // UI and the HQ dashboard), so "someone answered" has to be an event
+        // the other surfaces can see — otherwise HQ keeps offering buttons for
+        // a decision that was already made at the keyboard. `settled` makes a
+        // second resolve a no-op, so first answer wins and the late one is
+        // harmlessly ignored.
+        a.events.emit('tool.confirm_resolved', {
+          sessionId: resolveEventSessionId(a.ctx),
+          toolUseId: info.toolUseId,
+          toolName: info.tool.name,
+          decision: choice,
+          source,
+          rationale,
+        });
         resolve(choice);
       };
       const onAbort = () => settle('abort', 'abort');

@@ -17,6 +17,7 @@ export interface ProviderModelDescriptor {
   description?: string | undefined;
   releaseDate?: string | undefined;
   contextWindow?: number | undefined;
+  maxOutput?: number | undefined;
   inputCost?: number | undefined;
   outputCost?: number | undefined;
   /** Declared output modalities, used by agent-model pickers to exclude image/video-only models. */
@@ -33,6 +34,7 @@ export function describeCatalogModel(m: ModelsDevModel): ProviderModelDescriptor
     ...(m.description !== undefined ? { description: m.description } : {}),
     releaseDate: m.release_date,
     contextWindow: m.limit?.context,
+    maxOutput: m.limit?.output,
     inputCost: m.cost?.input,
     outputCost: m.cost?.output,
     ...(m.modalities?.output !== undefined ? { outputModalities: m.modalities.output } : {}),

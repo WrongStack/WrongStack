@@ -64,9 +64,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/hq": {
-      "files": 129,
-      "typeOnly": 83,
-      "runtimeOrMixed": 76
+      "files": 136,
+      "typeOnly": 88,
+      "runtimeOrMixed": 79
     },
     "@wrongstack/core/hq/protocol": {
       "files": 5,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
-      "files": 260,
-      "typeOnly": 139,
-      "runtimeOrMixed": 134
+      "files": 262,
+      "typeOnly": 140,
+      "runtimeOrMixed": 135
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 152,
+      "files": 154,
       "typeOnly": 27,
-      "runtimeOrMixed": 129
+      "runtimeOrMixed": 131
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1071,
-      "typeOnly": 992,
-      "runtimeOrMixed": 279
+      "files": 1085,
+      "typeOnly": 1005,
+      "runtimeOrMixed": 282
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 585,
+      "files": 586,
       "typeOnly": 55,
-      "runtimeOrMixed": 558
+      "runtimeOrMixed": 559
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -4464,6 +4464,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/permission-prompt-mirror.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/slash-commands/hq.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -4497,6 +4503,18 @@
       "file": "packages/cli/tests/governance-hq-telemetry.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-approval-roundtrip-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-approve-capability.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -4710,6 +4728,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/permission-prompt-mirror.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/core/tests/hq/auth-audit.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4854,6 +4878,18 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/use-pending-approvals.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/use-pending-user-inputs.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/src/domain/use-session-transcript.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -4956,6 +4992,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/tests/domain/pending-approvals.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/tests/domain/session-transcript-refetch.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5018,7 +5060,7 @@
       "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-server/src/server/client-presence.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -5934,6 +5976,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/hq-approval-roundtrip-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6499,6 +6547,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/tui/src/components/status-bar-types.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/tui/src/components/user-input-prompt.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -8472,6 +8526,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/permission-prompt-mirror.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/permission-prompt.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9092,6 +9152,12 @@
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/provider-store.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/provider/model-test.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -10926,6 +10992,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/hq-command-controller.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/input-reader.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10947,6 +11019,12 @@
       "file": "packages/cli/src/mcp-serve.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/permission-prompt-mirror.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12351,6 +12429,12 @@
       "file": "packages/cli/tests/openai-codex-oauth.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/permission-prompt-mirror.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -15252,6 +15336,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/tests/clarify-tool.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/tests/fetch-lookup.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15415,6 +15505,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/components/status-bar-types.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/components/user-input-prompt.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15990,6 +16086,18 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-hq/src/domain/use-pending-user-inputs.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-hq/src/views/approvals.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-protocol/src/index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16155,6 +16263,12 @@
       "file": "packages/webui-server/src/server/http-server/api-router.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/http-server/integration-connect-src.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -16347,6 +16461,12 @@
       "file": "packages/webui-server/src/server/provider/keys.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/provider/model-test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -16602,6 +16722,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/integration-connect-src.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/model-catalog-search.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16647,6 +16773,12 @@
       "file": "packages/webui-server/tests/provider-keys-and-probe.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/provider-model-test.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -16752,6 +16884,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui/src/components/UserInputDialog.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui/src/hooks/ws-handlers/session-replay-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16800,7 +16938,19 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui/src/stores/user-input-store.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui/src/types/protocol-core.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui/src/types/runtime.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -20331,6 +20481,12 @@
       "file": "packages/webui-server/src/server/provider-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/provider/model-test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

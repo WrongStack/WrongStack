@@ -211,10 +211,13 @@
         "export { buildBtwBlock, consumeBtwNotes, pendingBtwCount, setBtwNote, } from './btw.js';",
         "export { buildSessionNoteBlock, consumeSessionNotes, enqueueSessionNote, pendingSessionNoteCount, type SessionNote, type SessionNoteKind, } from './session-notes.js';",
         "export { clearPendingNextSteps, hasNextStepsTag, MAX_PENDING_NEXT_STEPS, maybeAppendPendingNextSteps, type PendingNextStep, readPendingNextSteps, renderNextStepsBlock, writePendingNextSteps, } from './next-steps-slot.js';",
+        "export { confirmObserverCount, markConfirmObserver, resetConfirmObserversForTest, } from './confirm-observers.js';",
         "export { countSystemPromptTokens, isSystemInstructionVariant, persistSystemPromptVariant, readSavedSystemPromptVariant, SYSTEM_PROMPT_VARIANT_OPTIONS, SYSTEM_PROMPT_VARIANTS, type SystemPromptVariantPaths, systemPromptVariantLabel, } from './system-prompt-variants.js';",
+        "export { createEventUserInputAwaiter } from './user-input-awaiter.js';",
         "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackGateFn, type FallbackModelDeps, fallbackProfileChain, runtimeFallbackChain, smartDefaultFallbackChain, } from './fallback-model.js';",
         "export { diagnoseFallbackConfig, type FallbackDiagnosticReport, type FallbackDiagnosticWarning, type FallbackSimulationResult, type FallbackSimulationStep, simulateFallbackFailover, } from './fallback-doctor.js';",
         "export { formatModelRef, type ModelRef, normalizeModelRef, parseModelRef, } from './model-ref.js';",
+        "export { markUserInputObserver, userInputObserverCount } from './user-input-observers.js';",
         "export { runProviderWithRetry } from './provider-runner.js';",
         "export { setQueuedMessagesSnapshot } from './queued-messages.js';",
         "export { type AgentInit, type AgentInput, type AgentPipelines, createDefaultPipelines, type ToolCallPipelinePayload, } from './agent-types.js';",
@@ -315,7 +318,7 @@
         "export type { ErrorCode, ErrorSeverity, ErrorSubsystem } from './errors.js';",
         "export type { FileEventRecord } from './file-event-record.js';",
         "export type { FileSnapshot, ForkedSession, ResumedSession, ResumeFileStatus, ResumeFileValidationEntry, ResumeValidation, SessionArchiveIdleResult, SessionArchiveResult, SessionData, SessionEvent, SessionForkOptions, SessionLoadProgress, SessionMetadata, SessionStoragePolicy, SessionStore, SessionSummary, SessionWriter, WorkspaceCheckpointRef, WorkspaceMaterializationResult, } from './session.js';",
-        "export type { InputReader, PromptOption } from './input-reader.js';",
+        "export type { InputReader, PromptOption, ReadKeyOptions } from './input-reader.js';",
         "export type { InstalledPromptEntry, PromptManifestData, PromptRegistryManifest, PromptRegistryRef, RegistryDiff, } from './prompt-registry.js';",
         "export type { JSONSchema, Permission, RiskTier, Tool, ToolCallContext, ToolErrorInfo, ToolFinalEvent, ToolIconId, ToolProgressEvent, ToolStreamEvent, } from './tool.js';",
         "export type { Logger, LogLevel } from './logger.js';",
@@ -337,6 +340,7 @@
         "export type { SlashCommand } from './slash-command.js';",
         "export type { SpecAnalysis, SpecApiEndpoint, Specification, SpecRequirement, SpecSection, SpecSectionType, SpecStatus, SpecTemplate, SpecValidationResult, } from './spec.js';",
         "export type { SystemPromptContributor } from './system-prompt-contributor.js';",
+        "export type { UserInputAnswer, UserInputAwaiter, UserInputOption, UserInputQuestion, UserInputQuestionKind, UserInputRequest, UserInputResponse, UserInputTab, } from './user-input.js';",
         "export { AgentError, ConfigError, ERROR_CODES, FetchError, FsError, isAgentError, isConfigError, isFetchError, isFsError, isParseError, isPluginError, isSddError, isSessionError, isToolError, isToolValidationError, isWrongStackError, ParseError, PluginError, SddError, SessionError, ToolError, ToolValidationError, toWrongStackError, WrongStackError, } from './errors.js';",
         "export { BUILTIN_MODEL_TIER_IDS, DEFAULT_TUI_THINKING_WORD, FLEET_CHAT_VERBOSITY_VALUES, MAX_TUI_THINKING_WORD_LENGTH, MAX_WRONGPROXY_URL_LENGTH, normalizeTokenSavingTier, normalizeTuiThinkingWord, resolveFleetChatVerbosity, resolveTokenSavingTier, THEME_PRESET_IDS, } from './config.js';",
         "export { BUILTIN_PROMPT_CATEGORIES, isBuiltinCategory, PROMPT_CATEGORY_LABELS } from './prompt.js';",
@@ -996,6 +1000,7 @@
         "export { clampSubagentCapabilities, DANGEROUS_FOR_SUBAGENTS, getDangerousCapabilities, hasCapability, hasDangerousCapabilityForSubagents, ToolCapabilities, type ToolCapability, WIDE_SUBAGENT_CAPABILITIES, } from './capabilities.js';",
         "export { createCompatibilityTrustBoundary, decodeTrustBoundaryDecision, decodeTrustBoundaryRequest, isTrustDecisionAllowed, TRUST_BOUNDARY_VERSION, } from './trust-boundary.js';",
         "export { decryptConfigSecrets, encryptConfigSecrets, isSecretField } from './config-secrets.js';",
+        "export { describeWriteTargets } from './permission-helpers.js';",
         "export { evaluateToolKanbanBoundary, type ToolKanbanBoundaryEvaluation, } from './kanban-boundary.js';",
         "export { noOpVault } from '../types/secret-vault.js';",
         "export { restrictDirPermissions, restrictFilePermissions, SECRET_DIR_MODE, SECRET_FILE_MODE, } from './file-permissions.js';",
@@ -1127,6 +1132,7 @@
       "source": "packages/core/src/hq/index.ts",
       "declarations": [
         "export * from './alerts.js';",
+        "export * from './approval-bridge.js';",
         "export * from './auth-audit.js';",
         "export * from './auth-store.js';",
         "export * from './bootstrap-store.js';",
@@ -1440,8 +1446,8 @@
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 53,
-      "sourceLines": 12792
+      "sourceFiles": 56,
+      "sourceLines": 12964
     },
     {
       "directory": "design",
@@ -1482,8 +1488,8 @@
       "directory": "hq",
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
-      "sourceFiles": 49,
-      "sourceLines": 9727
+      "sourceFiles": 50,
+      "sourceLines": 10412
     },
     {
       "directory": "infrastructure",
@@ -1497,14 +1503,14 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3989
+      "sourceLines": 4017
     },
     {
       "directory": "models",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 11,
-      "sourceLines": 2561
+      "sourceLines": 2563
     },
     {
       "directory": "notifications",
@@ -1574,7 +1580,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 7544
+      "sourceLines": 7545
     },
     {
       "directory": "session-catalog",
@@ -1602,7 +1608,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 106,
-      "sourceLines": 23419
+      "sourceLines": 23426
     },
     {
       "directory": "tasking",
@@ -1622,8 +1628,8 @@
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
-      "sourceFiles": 72,
-      "sourceLines": 13563
+      "sourceFiles": 73,
+      "sourceLines": 13660
     },
     {
       "directory": "utils",

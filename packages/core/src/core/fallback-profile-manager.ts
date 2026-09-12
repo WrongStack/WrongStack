@@ -98,6 +98,24 @@ function visibleProviderModels(
   return Array.isArray(entry?.models) ? [...entry.models] : providerModels;
 }
 
+function disabledModelKeys(config: Config): ReadonlySet<string> {
+  const keys = new Set<string>();
+  for (const ref of asRefList(config.disabledModels) ?? []) {
+    const parsed = parseModelRef(ref);
+    if (!parsed.model) continue;
+    keys.add(`${parsed.provider ?? config.provider}/${parsed.model}`.toLowerCase());
+  }
+  return keys;
+}
+
+function isDisabledModel(
+  disabled: ReadonlySet<string>,
+  providerId: string,
+  model: string,
+): boolean {
+  return disabled.has(`${providerId}/${model}`.toLowerCase());
+}
+
 function buildProfiles(config: Config): ReadonlyMap<string, readonly string[]> {
   const entries = new Map<string, readonly string[]>();
   for (const [name, chain] of Object.entries(config.fallbackProfiles ?? {})) {
@@ -194,6 +212,7 @@ export class FallbackProfileManager {
 
     const resolved: FallbackChainEntry[] = [];
     const seen = new Set<string>();
+    const disabled = disabledModelKeys(this.config);
 
     for (const ref of chain) {
       const parsed = parseModelRef(ref);
@@ -206,6 +225,7 @@ export class FallbackProfileManager {
 
       // Skip self-reference
       if (excludeKey && key === excludeKey) continue;
+      if (isDisabledModel(disabled, providerId, parsed.model)) continue;
 
       // NOTE: `checkProvider().usable` is deliberately NOT applied here.
       // It reports whether the CONFIG carries a key or endpoint for the
@@ -515,6 +535,7 @@ export class FallbackProfileManager {
     const excludeKey = exclude ? `${exclude.providerId}/${exclude.model}` : undefined;
     const resolved: FallbackChainEntry[] = [];
     const seen = new Set<string>();
+    const disabled = disabledModelKeys(this.config);
 
     for (const ref of refs) {
       const parsed = parseModelRef(ref);
@@ -525,6 +546,7 @@ export class FallbackProfileManager {
       if (seen.has(key)) continue;
       seen.add(key);
       if (excludeKey && key === excludeKey) continue;
+      if (isDisabledModel(disabled, providerId, parsed.model)) continue;
 
       // Skip entries blocked by the runtime status tracker
       if (this.statusTracker && !this.statusTracker.isAvailable(providerId, parsed.model)) continue;
@@ -564,6 +586,7 @@ export class FallbackProfileManager {
     );
     const hasFavorites = favoriteSet.size > 0;
     const favoritesOnly = this.config.favoriteModelsOnly === true;
+    const disabled = disabledModelKeys(this.config);
     const seen = new Set<string>();
     const favorites: string[] = [];
     const sameProvider: string[] = [];
@@ -587,6 +610,7 @@ export class FallbackProfileManager {
         if (seen.has(ref)) continue;
         seen.add(ref);
         if (excludeKey && ref === excludeKey) continue;
+        if (isDisabledModel(disabled, id, model)) continue;
         // Skip models blocked by the runtime status tracker
         if (this.statusTracker && !this.statusTracker.isAvailable(id, model)) continue;
         if (!evaluateModelCalendar(this.config.modelAvailabilitySchedule, id, model).allowed)

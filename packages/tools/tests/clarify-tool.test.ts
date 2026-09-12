@@ -53,7 +53,8 @@ describe('clarify tool', () => {
   });
 
   it('supports multi-question batching with ask_question parity', async () => {
-    const mockHostAsk = vi.fn()
+    const mockHostAsk = vi
+      .fn()
       .mockResolvedValueOnce({
         selected: ['PostgreSQL'],
       })
@@ -131,5 +132,84 @@ describe('clarify tool', () => {
 
     expect(output.status).toBe('skipped');
     expect(output.error).toContain('at least 2');
+  });
+
+  it('submits a tabbed mixed form once and reports recommended-answer usage', async () => {
+    const requestUserInput = vi.fn(
+      async (request: import('@wrongstack/core/types').UserInputRequest) => ({
+        requestId: request.id,
+        status: 'submitted' as const,
+        answers: [
+          { questionId: 'database', selectedOptionIds: ['postgres'], usedRecommendation: true },
+          {
+            questionId: 'features',
+            selectedOptionIds: ['audit', 'sso'],
+            text: 'SCIM later',
+            usedRecommendation: false,
+          },
+          {
+            questionId: 'tenant_name',
+            selectedOptionIds: [],
+            text: 'Acme',
+            usedRecommendation: false,
+          },
+        ],
+      }),
+    );
+    const output = await clarifyTool.execute(
+      {
+        title: 'Architecture decisions',
+        tabs: [
+          {
+            label: 'Data',
+            questions: [
+              {
+                id: 'database',
+                question: 'Database?',
+                options: [
+                  { id: 'postgres', label: 'PostgreSQL', description: 'Strong default' },
+                  { id: 'sqlite', label: 'SQLite' },
+                ],
+                recommendedOption: 'postgres',
+                recommendationReason: 'Concurrent production writes.',
+              },
+            ],
+          },
+          {
+            label: 'Product',
+            questions: [
+              {
+                id: 'features',
+                question: 'Features?',
+                type: 'multi_select',
+                options: [
+                  { id: 'audit', label: 'Audit log' },
+                  { id: 'sso', label: 'SSO' },
+                ],
+                recommendedOptions: ['audit'],
+              },
+              {
+                id: 'tenant_name',
+                question: 'Tenant name?',
+                type: 'text',
+                recommendedText: 'Example Inc.',
+              },
+            ],
+          },
+        ],
+      },
+      { signal: makeOpts().signal, requestUserInput } as never,
+      makeOpts(),
+    );
+
+    expect(requestUserInput).toHaveBeenCalledOnce();
+    expect(requestUserInput.mock.calls[0]?.[0].tabs).toHaveLength(2);
+    expect(output.status).toBe('answered');
+    expect(output.answers?.map((answer) => answer.usedRecommendation)).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    expect(output.answers?.[2]?.customResponse).toBe('Acme');
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildModelCandidates,
   type CatalogModelLite,
+  isModelDisabled,
   isModelInFavorites,
   type SavedProviderLite,
 } from '../../src/components/QuickModelSwitcher.filter';
@@ -242,6 +243,30 @@ describe('isModelInFavorites — matching logic', () => {
     expect(isModelInFavorites('OpenAI', 'GPT-5', [' openai/gpt-5 '])).toBe(true);
     expect(isModelInFavorites('openai', 'gpt-5', [' OPENAI / GPT-5 '])).toBe(true);
     expect(isModelInFavorites('google', 'gemini-2-5-pro', ['google gemini-2-5-pro'])).toBe(true);
+  });
+});
+
+describe('disabled model filtering', () => {
+  it('recognizes the existing model-ref grammar', () => {
+    expect(isModelDisabled('openai', 'gpt-5', ['openai/gpt-5'])).toBe(true);
+    expect(isModelDisabled('openai', 'gpt-5', ['anthropic/gpt-5'])).toBe(false);
+  });
+
+  it('removes disabled entries from the candidate list', () => {
+    const out = buildModelCandidates(
+      saved,
+      models,
+      '',
+      undefined,
+      undefined,
+      null,
+      false,
+      [],
+      ['openai/gpt-5'],
+    );
+    expect(
+      out.some((candidate) => candidate.provider === 'openai' && candidate.model === 'gpt-5'),
+    ).toBe(false);
   });
 });
 

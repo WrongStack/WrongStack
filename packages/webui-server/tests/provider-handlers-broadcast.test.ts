@@ -99,9 +99,11 @@ describe('createProviderHandlers saved-provider broadcasts', () => {
         providers: [
           {
             id: 'local',
+            type: 'openai-compatible',
             family: 'openai-compatible',
             baseUrl: 'http://localhost:11434/v1',
             models: ['llama3.1:8b', 'qwen2.5:7b'],
+            customModels: undefined,
             pickedModelId: 'llama3.1:8b',
             apiKeys: [
               {
@@ -322,6 +324,61 @@ describe('createProviderHandlers saved-provider broadcasts', () => {
         ],
       },
     });
+  });
+
+  it('omits disabled models from the provider model picker projection', async () => {
+    mockLoadSavedProviders.mockResolvedValueOnce({
+      openai: { type: 'openai', family: 'openai', models: [] },
+    });
+    const getProvider = vi.fn(
+      async (): Promise<ResolvedProvider> => ({
+        id: 'openai',
+        name: 'OpenAI',
+        family: 'openai',
+        envVars: [],
+        models: [
+          { id: 'working', name: 'Working' },
+          { id: 'disabled', name: 'Disabled' },
+        ],
+      }),
+    );
+    const ws = mockWs();
+    const { handlers } = makeHandlers({
+      modelsRegistry: makeModelsRegistry({ getProvider }),
+      getDisabledModels: () => ['openai/disabled'],
+    });
+
+    await handlers.handleProviderModels(ws, 'openai');
+
+    const message = ws.send.mock.calls
+      .map(
+        ([raw]) =>
+          JSON.parse(String(raw)) as {
+            type: string;
+            payload: { models: Array<{ id: string }> };
+          },
+      )
+      .find((item) => item.type === 'provider.models');
+    expect(message?.payload.models.map((model) => model.id)).toEqual(['working']);
+
+    mockLoadSavedProviders.mockResolvedValueOnce({
+      openai: { type: 'openai', family: 'openai', models: [] },
+    });
+    const testScreenWs = mockWs();
+    await handlers.handleProviderModels(testScreenWs, 'openai', { includeDisabled: true });
+    const testScreenMessage = testScreenWs.send.mock.calls
+      .map(
+        ([raw]) =>
+          JSON.parse(String(raw)) as {
+            type: string;
+            payload: { models: Array<{ id: string }> };
+          },
+      )
+      .find((item) => item.type === 'provider.models');
+    expect(testScreenMessage?.payload.models.map((model) => model.id)).toEqual([
+      'working',
+      'disabled',
+    ]);
   });
 
   it('keeps an existing OAuth provider model allowlist when live lookup returns none', async () => {

@@ -35,6 +35,7 @@ import {
   envFlag,
   findFreePort,
   findInstalledPackageJson,
+  integrationConnectSources,
   isStrictPort,
   type PendingConfirm,
   resolveAuthToken,
@@ -47,8 +48,8 @@ import {
   startWebUILiveStatusLogger,
   toSessionHistoryEntries,
 } from '@wrongstack/webui-server';
-import { type WebSocket, WebSocketServer } from 'ws';
 import { verifyClient as verifyWsClient } from '@wrongstack/webui-server/server/ws-auth';
+import { type WebSocket, WebSocketServer } from 'ws';
 import { createWebuiClientRegistration } from './webui-server/client-registration.js';
 import type {
   WSClientMessage as EmbeddedWSClientMessage,
@@ -331,6 +332,10 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     requireToken,
     deferListen: surface === 'simpleui',
     strictPort,
+    // HQ / WrongProxy status chips fetch those endpoints straight from the
+    // browser; without their origins in `connect-src` the page's own CSP
+    // blocks the probe and both chips report a healthy server as down.
+    getExtraConnectSrc: () => integrationConnectSources(opts.appConfig),
     ...(opts.getVectorMemoryStore ? { getVectorMemoryStore: opts.getVectorMemoryStore } : {}),
     ...(opts.vectorMemoryModelCacheDir
       ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }
@@ -361,9 +366,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       wsHost: host,
       expectedToken: wsToken,
       requireToken,
-      allowedHostnames: [publicUrl, publicWsUrl].filter(
-        (value): value is string => Boolean(value),
-      ),
+      allowedHostnames: [publicUrl, publicWsUrl].filter((value): value is string => Boolean(value)),
       allowBrowserUrlToken: Boolean(publicWsUrl),
       allowCrossPortLoopbackCookie: process.env['WRONGSTACK_WEBUI_DEV_CROSS_PORT_WS'] === '1',
     });
@@ -545,6 +548,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     ),
     modelsRegistry: opts.modelsRegistry,
     providerAuthRegistry: opts.providerAuthRegistry,
+    getDisabledModels: () => opts.appConfig?.disabledModels ?? [],
     send,
     broadcast,
     log: (m) => console.log(m),

@@ -60,6 +60,8 @@ export const CLIENT_CONFIGURATION_MESSAGE_TYPES = [
   'provider.status.clear',
   'provider.status.get',
   'provider.status.retry',
+  'provider.test.cancel',
+  'provider.test.run',
   'provider.undo_clear',
   'provider.update',
   'providers.list',

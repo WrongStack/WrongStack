@@ -49,6 +49,7 @@
     "build": "vite build && node ../../scripts/build-package.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:user-input-browser": "node tests/user-input-browser-smoke.mjs",
     "test:watch": "vitest",
     "test:coverage": "node ../../scripts/coverage-lock.mjs node ../../scripts/run-vitest-coverage.mjs run --coverage"
   },

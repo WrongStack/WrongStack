@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { isModelInFavorites } from '@/components/QuickModelSwitcher.filter';
+import { isModelDisabled, isModelInFavorites } from '@/components/QuickModelSwitcher.filter';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from '@/stores';
@@ -25,6 +25,7 @@ export interface ModelCandidate {
 export function useProviderModels(active: boolean): ModelCandidate[] {
   const wsUrl = useConfigStore((s) => s.wsUrl);
   const favoriteModels = useLocalPrefs((s) => s.favoriteModels);
+  const disabledModels = useLocalPrefs((s) => s.disabledModels);
   const { listSavedProviders, listProviderModels } = useWebSocket();
   const [saved, setSaved] = useState<string[]>([]);
   const [byProvider, setByProvider] = useState<
@@ -78,6 +79,7 @@ export function useProviderModels(active: boolean): ModelCandidate[] {
     const out: ModelCandidate[] = [];
     for (const provider of saved) {
       for (const m of byProvider[provider] ?? []) {
+        if (isModelDisabled(provider, m.id, disabledModels)) continue;
         // Unknown modalities remain eligible for custom/local providers. A
         // catalog model that explicitly cannot emit text cannot drive an
         // agent or prompt-refiner completion.
@@ -94,5 +96,5 @@ export function useProviderModels(active: boolean): ModelCandidate[] {
       }
     }
     return out;
-  }, [saved, byProvider, favoriteModels]);
+  }, [saved, byProvider, favoriteModels, disabledModels]);
 }

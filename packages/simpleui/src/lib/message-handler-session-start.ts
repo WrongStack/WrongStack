@@ -42,6 +42,7 @@ export function handleSessionStartMessage(params: {
     setFileMention,
     clearComposerDraft,
     setPendingConfirm,
+    setUserInputRequests,
     setRunning,
     setActivity,
     setToolCalls,
@@ -142,6 +143,7 @@ export function handleSessionStartMessage(params: {
   }
   if (resetSessionState) {
     setPendingConfirm(null);
+    setUserInputRequests?.([]);
     setRunning(isRunning);
     const runningTool = replayedToolCalls.find((call) => call.status === 'running');
     setActivity(isRunning ? (runningTool ? `Running ${runningTool.name}` : 'Thinking') : '');

@@ -24,8 +24,14 @@
 
 import type { Agent } from '@wrongstack/core/agent';
 import { AgentStatusTracker } from '@wrongstack/core/coordination';
-import { startSessionTelemetryBridge } from '@wrongstack/core/hq';
+import {
+  type ApprovalRegistry,
+  createApprovalRegistry,
+  startApprovalTelemetryBridge,
+  startSessionTelemetryBridge,
+} from '@wrongstack/core/hq';
 import type { Config } from '@wrongstack/core/types';
+import { createHqCommandDispatcher } from './hq-command-controller.js';
 import { startCliHqConnection } from './hq-publisher.js';
 
 /**
@@ -36,11 +42,7 @@ import { startCliHqConnection } from './hq-publisher.js';
  * has grown (it now carries the client's `mcpServers`). A wrapper that names
  * its parameters silently drops the ones added after it was written.
  */
-type AcpAgentFactory = (
-  sessionId: string,
-  cwd: string,
-  ...rest: never[]
-) => Promise<Agent>;
+type AcpAgentFactory = (sessionId: string, cwd: string, ...rest: never[]) => Promise<Agent>;
 
 export interface AcpHqTelemetryOptions {
   projectRoot: string;
@@ -66,20 +68,66 @@ export interface AcpHqTelemetry {
 const NO_REGISTRY = { updateAgents: async (): Promise<void> => undefined };
 
 export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTelemetry {
+  interface Entry {
+    tracker: AgentStatusTracker;
+    stopBridge: () => void;
+    approvals?: ApprovalRegistry | undefined;
+    stopApprovalBridge?: (() => void) | undefined;
+  }
+  const entries = new Map<string, Entry>();
+  let stopped = false;
+
+  /**
+   * Answer a permission prompt on the ACP session that raised it.
+   *
+   * Unlike every other host, ACP gives each session its OWN EventBus, so there
+   * is a registry per session rather than one per process. That makes the
+   * session id load-bearing: without it there is nothing to pick a registry
+   * with, and answering "whichever" would approve a tool call in a different
+   * editor tab than the operator was looking at.
+   */
+  const resolveApproval = (
+    toolUseId: string,
+    decision: 'yes' | 'no' | 'always' | 'deny',
+    sessionId?: string,
+  ): boolean => {
+    if (sessionId !== undefined) {
+      return entries.get(sessionId)?.approvals?.resolve(toolUseId, decision, sessionId) ?? false;
+    }
+    // No session named: the prompt id is unique across them, so it still
+    // identifies exactly one prompt. Only reached by an older dashboard.
+    for (const entry of entries.values()) {
+      if (entry.approvals?.resolve(toolUseId, decision) === true) return true;
+    }
+    return false;
+  };
+
   const connection = startCliHqConnection({
     clientKind: 'acp',
     projectRoot: options.projectRoot,
     ...(options.projectName !== undefined ? { projectName: options.projectName } : {}),
     ...(options.appConfig !== undefined ? { appConfig: options.appConfig } : {}),
-    capabilities: ['telemetry.publish', 'mailbox.summary', 'fleet.summary', 'session.summary'],
+    capabilities: [
+      'telemetry.publish',
+      'mailbox.summary',
+      'fleet.summary',
+      'session.summary',
+      // Approvals are the ONLY control this host accepts. `control.receive` is
+      // the server's gate for any command at all, so it has to be declared;
+      // everything except `approve` falls through the dispatcher and is
+      // refused, because an ACP session has no mailbox to steer and no leader
+      // to abort.
+      'control.receive',
+      'control.approve',
+    ],
+    onCommand: createHqCommandDispatcher({
+      interruptLeader: () => false,
+      sessionTag: () => 'acp',
+      ownsSession: (sessionId) => entries.has(sessionId),
+      allowRunCommand: () => false,
+      resolveApproval,
+    }),
   });
-
-  interface Entry {
-    tracker: AgentStatusTracker;
-    stopBridge: () => void;
-  }
-  const entries = new Map<string, Entry>();
-  let stopped = false;
 
   const attach = (sessionId: string, agent: Agent, cwd: string): void => {
     if (stopped || entries.has(sessionId)) return;
@@ -108,7 +156,22 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
       tracker.stop();
       return;
     }
-    entries.set(sessionId, { tracker, stopBridge });
+    const entry: Entry = { tracker, stopBridge };
+    try {
+      // Per session, because the bus is per session. Disposed in `detach`, so
+      // a closed editor tab does not leave its prompts answerable.
+      const approvals = createApprovalRegistry(events);
+      entry.approvals = approvals;
+      entry.stopApprovalBridge = startApprovalTelemetryBridge({
+        registry: approvals,
+        publisher,
+        projectRoot: cwd,
+        sessionId,
+      });
+    } catch {
+      // Approval mirroring is optional; the session still reports normally.
+    }
+    entries.set(sessionId, entry);
   };
 
   const detach = (sessionId: string): void => {
@@ -123,6 +186,19 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
       /* best-effort */
     }
     try {
+      entry.stopApprovalBridge?.();
+    } catch {
+      /* best-effort */
+    }
+    try {
+      // Disposed, not drained: the prompts belong to the editor session that
+      // raised them, and answering them here because HQ lost sight of the
+      // session would decide for the user.
+      entry.approvals?.dispose();
+    } catch {
+      /* best-effort */
+    }
+    try {
       entry.tracker.stop();
     } catch {
       /* best-effort */
@@ -131,11 +207,7 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
 
   return {
     wrapAgentFactory<T extends AcpAgentFactory>(agentFor: T): T {
-      const wrapped = async (
-        sessionId: string,
-        cwd: string,
-        ...rest: never[]
-      ): Promise<Agent> => {
+      const wrapped = async (sessionId: string, cwd: string, ...rest: never[]): Promise<Agent> => {
         const agent = await agentFor(sessionId, cwd, ...rest);
         try {
           attach(sessionId, agent, cwd);

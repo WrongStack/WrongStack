@@ -19,6 +19,40 @@ import {
 const DEFAULT_BASE_URL = 'https://opencode.ai/zen/go/v1';
 const OPENCODE_GO_USER_AGENT = 'wrongstack/1.0';
 
+// OpenCode Go's endpoint table is authoritative for its provider-specific
+// wire routing. models.dev currently carries the Anthropic npm override for
+// Qwen3.8 Flash but omits it for the other documented Qwen subscription
+// models, which would incorrectly fall back to Chat Completions.
+const OPENCODE_GO_ANTHROPIC_MODEL_IDS = new Set([
+  'minimax-m2.5',
+  'minimax-m2.7',
+  'minimax-m3',
+  'qwen3.6-plus',
+  'qwen3.7-max',
+  'qwen3.7-plus',
+  'qwen3.8-flash',
+  'qwen3.8-max',
+]);
+const OPENCODE_GO_RESPONSES_MODEL_IDS = new Set([
+  'gpt-5.6-luna',
+  'grok-4.6',
+  'muse-spark-1.2-contributor',
+  'muse-spark-1.3-contributor',
+]);
+
+export function openCodeGoWireForModel(
+  modelId: string,
+  catalogNpm?: string | undefined,
+): '@ai-sdk/openai' | '@ai-sdk/anthropic' | '@ai-sdk/openai-compatible' {
+  const normalized = catalogNpm?.toLowerCase();
+  if (normalized === '@ai-sdk/openai') return '@ai-sdk/openai';
+  if (normalized === '@ai-sdk/anthropic') return '@ai-sdk/anthropic';
+  if (normalized === '@ai-sdk/openai-compatible') return '@ai-sdk/openai-compatible';
+  if (OPENCODE_GO_RESPONSES_MODEL_IDS.has(modelId)) return '@ai-sdk/openai';
+  if (OPENCODE_GO_ANTHROPIC_MODEL_IDS.has(modelId)) return '@ai-sdk/anthropic';
+  return '@ai-sdk/openai-compatible';
+}
+
 /** OpenCode Go routes models via sticky session affinity. */
 function buildOpenCodeGoHeaders(
   stickySessionId: string,
@@ -149,11 +183,9 @@ export class OpenCodeGoProvider implements Provider {
 
   private delegate(model: string): Provider {
     const catalogModel = this.models.get(model);
-    const modelNpm = catalogModel?.provider?.npm?.toLowerCase();
-    if (modelNpm === '@ai-sdk/openai') return this.responses;
-    if (modelNpm === '@ai-sdk/anthropic') return this.messages;
-    if (modelNpm === '@ai-sdk/openai-compatible') return this.chat;
-
+    const wire = openCodeGoWireForModel(model, catalogModel?.provider?.npm);
+    if (wire === '@ai-sdk/openai') return this.responses;
+    if (wire === '@ai-sdk/anthropic') return this.messages;
     return this.chat;
   }
 

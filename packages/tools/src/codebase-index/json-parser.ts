@@ -232,16 +232,7 @@ function regexParse(opts: {
 
     // For tsconfig.json compilerOptions, extract nested keys
     if (isTsconfig && key === 'compilerOptions') {
-      extractCompilerOptions(
-        content,
-        symbols,
-        file,
-        lang,
-        lineOffsets,
-        line,
-        lineFromOffset,
-        maxSymbols,
-      );
+      extractCompilerOptions(content, symbols, file, lang, lineOffsets, lineFromOffset, maxSymbols);
     }
   }
 
@@ -293,8 +284,17 @@ function extractPackageScripts(
     match = scriptsBlockRegex.exec(content)
   ) {
     if (symbols.length >= maxSymbols) return;
-    const blockContent = expectDefined(match[0]);
-    const blockOffset = match.index ?? 0;
+    // Scan only the block's INNER content (capture group 1). Scanning
+    // match[0] re-matched the `"scripts":` header itself and re-emitted
+    // `scripts` as a spurious `function`-kind symbol alongside the
+    // legitimate `const`-kind block symbol.
+    const scriptInner = expectDefined(match[1]);
+    const scriptFull = expectDefined(match[0]);
+    const blockContent = scriptInner;
+    // Offset of the inner capture inside the file: match[0] ends with the
+    // closing `}` that group 1 excludes, so the inner starts at
+    // len(full) - len(inner) - 1 past the match start.
+    const blockOffset = (match.index ?? 0) + (scriptFull.length - scriptInner.length - 1);
 
     // Extract each "key" inside the block (simple approach)
     const scriptKeyRegex = /"(\w[\w-]*)"\s*:/g;
@@ -328,7 +328,6 @@ function extractCompilerOptions(
   file: string,
   lang: SymbolLang,
   lineOffsets: number[],
-  parentLine: number,
   lineFromOffset: (offset: number) => number,
   maxSymbols: number,
 ): void {
@@ -340,8 +339,18 @@ function extractCompilerOptions(
     match = optsBlockRegex.exec(content)
   ) {
     if (symbols.length >= maxSymbols) return;
-    const blockContent = expectDefined(match[0]);
-    const blockOffset = match.index ?? 0;
+    // Scan only the block's INNER content (capture group 1). Scanning
+    // match[0] re-matched the `"compilerOptions":` header itself, which the
+    // `line <= parentLine` guard then suppressed — and that guard over-fired:
+    // legitimate nested keys on the SAME line as the header (single-line
+    // `{"compilerOptions": {"noEmit": true}}`) were silently dropped.
+    const optsInner = expectDefined(match[1]);
+    const optsFull = expectDefined(match[0]);
+    const blockContent = optsInner;
+    // Offset of the inner capture inside the file: match[0] ends with the
+    // closing `}` that group 1 excludes, so the inner starts at
+    // len(full) - len(inner) - 1 past the match start.
+    const blockOffset = (match.index ?? 0) + (optsFull.length - optsInner.length - 1);
 
     // Extract nested key inside compilerOptions (up to depth 1)
     const optKeyRegex = /"(\w[\w]*)"\s*:/g;
@@ -354,7 +363,6 @@ function extractCompilerOptions(
       const key = expectDefined(optMatch[1]);
       const keyOffset = blockOffset + expectDefined(optMatch.index);
       const line = lineFromOffset(keyOffset);
-      if (line <= parentLine) continue; // Skip top-level (already captured)
       symbols.push(
         makeSymbol({
           name: key,

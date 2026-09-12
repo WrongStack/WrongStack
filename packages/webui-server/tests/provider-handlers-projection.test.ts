@@ -138,10 +138,12 @@ describe('projectSavedProviders', () => {
     });
     expect(view).toEqual({
       id: 'ollama',
+      type: 'ollama',
       family: 'openai-compatible',
       baseUrl: 'http://localhost:11434/v1',
       pickedModelId: 'llama3.1:8b',
       models: ['llama3.1:8b'],
+      customModels: undefined,
       apiKeys: [
         {
           label: 'default',

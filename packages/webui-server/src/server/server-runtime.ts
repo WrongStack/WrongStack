@@ -506,6 +506,8 @@ export function startHttpServer(opts: {
     | undefined;
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
+  /** Extra `connect-src` origins for the served page (HQ / WrongProxy probes). */
+  getExtraConnectSrc?: (() => readonly string[]) | undefined;
 }): import('node:http').Server {
   const intakeService =
     opts.intakeService ??
@@ -525,6 +527,7 @@ export function startHttpServer(opts: {
     executePackageOperation: opts.executePackageOperation,
     projectRoot: opts.projectRoot,
     intakeService,
+    ...(opts.getExtraConnectSrc ? { getExtraConnectSrc: opts.getExtraConnectSrc } : {}),
     ...(opts.getVectorMemoryStore ? { getVectorMemoryStore: opts.getVectorMemoryStore } : {}),
     ...(opts.vectorMemoryModelCacheDir
       ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }

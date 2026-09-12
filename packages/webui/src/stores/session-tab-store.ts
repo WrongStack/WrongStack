@@ -54,6 +54,7 @@ import { useSessionStore } from './session-store';
 import { useSystemPromptStore } from './system-prompt-store';
 import { useToolStatsStore } from './tool-stats-store';
 import { useUIStore } from './ui-store';
+import { useUserInputStore } from './user-input-store';
 
 export const MAX_OPEN_TABS = MAX_LANES;
 export const TAB_STORAGE_KEY = 'wrongstack.open_session_tabs';
@@ -354,6 +355,7 @@ export function releaseTab(sessionId: string): void {
   useLocalPrefs.getState().forgetSession(sessionId);
   useSystemPromptStore.getState().dropSession(sessionId);
   useUIStore.getState().forgetSession(sessionId);
+  useUserInputStore.getState().forgetSession(sessionId);
   useFileStore.getState().forgetSessionFiles(sessionId);
   useGitChangesStore.getState().forgetSessionGitChanges(sessionId);
   useFleetStore.getState().applyEvent({ kind: 'session_stopped', sessionId });

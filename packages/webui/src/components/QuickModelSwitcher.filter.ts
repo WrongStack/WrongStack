@@ -68,6 +68,15 @@ export function isModelInFavorites(
   });
 }
 
+/** Same reference grammar as favorites, but exclusion wins in every picker. */
+export function isModelDisabled(
+  provider: string,
+  model: string,
+  disabledModels?: readonly string[] | null,
+): boolean {
+  return isModelInFavorites(provider, model, disabledModels);
+}
+
 /**
  * Build the full list of (provider, model) candidates from saved
  * providers and the cached model catalog, apply the search filter
@@ -90,12 +99,14 @@ export function buildModelCandidates(
   providerFilter?: string | null,
   favoritesOnly?: boolean,
   favoriteModels?: readonly string[],
+  disabledModels?: readonly string[],
 ): ModelCandidate[] {
   const list: ModelCandidate[] = [];
   for (const sp of saved) {
     if (providerFilter && sp.id !== providerFilter) continue;
     const models = modelsByProvider[sp.id] ?? [];
     for (const m of models) {
+      if (isModelDisabled(sp.id, m.id, disabledModels)) continue;
       const isFav = isModelInFavorites(sp.id, m.id, favoriteModels);
       if (favoritesOnly && !isFav) continue;
       list.push({

@@ -822,8 +822,11 @@ function validateJsonSchema(
 
     if (typeof value === 'object' && value !== null && !Array.isArray(value) && s['properties']) {
       const props = s['properties'] as Record<string, Record<string, unknown>>;
+      const obj = value as Record<string, unknown>;
       for (const [k, propSchema] of Object.entries(props)) {
-        check((value as Record<string, unknown>)[k], propSchema, `${path}.${k}`);
+        if (Object.prototype.hasOwnProperty.call(obj, k)) {
+          check(obj[k], propSchema, `${path}.${k}`);
+        }
       }
     }
   }

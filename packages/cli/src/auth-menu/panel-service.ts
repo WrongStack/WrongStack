@@ -176,6 +176,9 @@ function removeProviderFallbackReferences(config: Record<string, unknown>, provi
   if (Array.isArray(config['favoriteModels'])) {
     config['favoriteModels'] = removeModelRefs(config['favoriteModels'])!;
   }
+  if (Array.isArray(config['disabledModels'])) {
+    config['disabledModels'] = removeModelRefs(config['disabledModels'])!;
+  }
   if (isRecord(config['models'])) {
     for (const [modelId, definition] of Object.entries(config['models'])) {
       if (isRecord(definition) && definition['provider'] === providerId) {

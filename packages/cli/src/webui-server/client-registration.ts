@@ -63,11 +63,15 @@ export function createWebuiClientRegistration(
       }),
     ...(control
       ? {
-          createCommandHandler: (mailbox) =>
+          createCommandHandler: (mailbox, approvals) =>
             createHqCommandDispatcher({
               steerMailbox: mailbox,
               interruptLeader: control.interruptLeader,
               allowRunCommand: control.allowRunCommand,
+              // Same registry the approval bridge publishes from, so every
+              // prompt HQ shows is one this handler can actually answer.
+              resolveApproval: (toolUseId, decision, sessionId) =>
+                approvals.resolve(toolUseId, decision, sessionId),
               ...(deps.projectRoot
                 ? {
                     kanbanTransition: createProjectKanbanTransitionHandler(deps.projectRoot),

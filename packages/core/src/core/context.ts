@@ -1,7 +1,12 @@
 import type { TextBlock } from '../types/blocks.js';
 // Roadmap 10A: TodoItem's canonical home is the types/context.ts leaf
 // (single source of truth, acyclic); re-exported here for existing import paths.
-import type { AgentContext, ContextMessageLimits, ConversationJournalQueueApi, TodoItem } from '../types/context.js';
+import type {
+  AgentContext,
+  ContextMessageLimits,
+  ConversationJournalQueueApi,
+  TodoItem,
+} from '../types/context.js';
 import type { ContextEvidenceState } from '../types/context-evidence.js';
 import type { FileEventRecord } from '../types/file-event-record.js';
 import type { Message } from '../types/messages.js';
@@ -10,6 +15,7 @@ import type { RunEnv } from '../types/run-env.js';
 import type { SessionEvent, SessionWriter } from '../types/session.js';
 import type { TokenCounter } from '../types/token-counter.js';
 import type { Tool } from '../types/tool.js';
+import type { UserInputAwaiter, UserInputRequest, UserInputResponse } from '../types/user-input.js';
 import { createContextEvidenceState } from '../utils/context-evidence.js';
 import {
   ConversationJournalQueue,
@@ -73,6 +79,8 @@ export interface ContextInit {
   agentId?: string | undefined;
   /** Human-readable agent name. */
   agentName?: string | undefined;
+  /** Optional host bridge for structured model-to-user questions. */
+  userInputAwaiter?: UserInputAwaiter | undefined;
   /**
    * Session-level trace ID for correlating storage events with agent
    * iterations in observability pipelines. Stored on the SessionWriter
@@ -101,6 +109,7 @@ export interface ContextInit {
  * process. All changes must stay inside `projectRoot`.
  */
 export class Context implements RunEnv, AgentContext {
+  userInputAwaiter: UserInputAwaiter | undefined;
   messages: Message[] = [];
   /**
    * Maximum number of messages retained in the conversation history.
@@ -369,11 +378,22 @@ export class Context implements RunEnv, AgentContext {
     this.catalogTools = init.catalogTools ?? this.tools;
     this.agentId = init.agentId ?? 'unknown';
     this.agentName = init.agentName ?? 'Unknown Agent';
+    this.userInputAwaiter = init.userInputAwaiter;
     this.traceId = init.traceId;
     this.allowOutsideProjectRoot = init.allowOutsideProjectRoot ?? false;
     // Propagate traceId to the SessionWriter so storage operations
     // can read it without needing a direct handle on the Context.
     this.session.traceId = init.traceId;
+  }
+
+  requestUserInput(
+    request: UserInputRequest,
+    signal: AbortSignal = this.signal,
+  ): Promise<UserInputResponse | undefined> {
+    return (
+      this.userInputAwaiter?.(request, { signal, sessionId: this.eventSessionId() }) ??
+      Promise.resolve(undefined)
+    );
   }
 
   /**

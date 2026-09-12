@@ -17,13 +17,10 @@ export {
   setBtwNote,
 } from './btw.js';
 export {
-  buildSessionNoteBlock,
-  consumeSessionNotes,
-  enqueueSessionNote,
-  pendingSessionNoteCount,
-  type SessionNote,
-  type SessionNoteKind,
-} from './session-notes.js';
+  confirmObserverCount,
+  markConfirmObserver,
+  resetConfirmObserversForTest,
+} from './confirm-observers.js';
 export {
   Context,
   type ContextInit,
@@ -97,6 +94,14 @@ export {
 export { runProviderWithRetry } from './provider-runner.js';
 export { setQueuedMessagesSnapshot } from './queued-messages.js';
 export {
+  buildSessionNoteBlock,
+  consumeSessionNotes,
+  enqueueSessionNote,
+  pendingSessionNoteCount,
+  type SessionNote,
+  type SessionNoteKind,
+} from './session-notes.js';
+export {
   // Exported so surfaces that need to *predict* the identity block (e.g. the
   // CLI's startup system-prompt menu, which shows a per-variant token count)
   // compose it exactly the way the builder does instead of re-implementing the
@@ -120,3 +125,5 @@ export {
   type SystemPromptVariantPaths,
   systemPromptVariantLabel,
 } from './system-prompt-variants.js';
+export { createEventUserInputAwaiter } from './user-input-awaiter.js';
+export { markUserInputObserver, userInputObserverCount } from './user-input-observers.js';

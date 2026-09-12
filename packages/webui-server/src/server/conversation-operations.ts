@@ -1,6 +1,6 @@
 import type { Agent } from '@wrongstack/core/agent';
 import { startFreshTopicContext, TopicShiftAdvisor } from '@wrongstack/core/execution';
-import type { ContentBlock } from '@wrongstack/core/types';
+import type { ContentBlock, UserInputResponse } from '@wrongstack/core/types';
 import {
   buildUserContentBlocks,
   IncomingImageError,
@@ -39,6 +39,7 @@ export interface ConversationOperationsContext {
   hasSession?: ((id: string) => boolean) | undefined;
   runControl: ConversationRunControl;
   pendingConfirms: Map<string, PendingConfirm>;
+  submitUserInput: (sessionId: string, response: UserInputResponse) => void;
   send: (ws: WebSocket, message: OutboundMessage) => void;
   notifyAbort: (ws: WebSocket, message: OutboundMessage) => void;
   /**
@@ -345,6 +346,13 @@ export function createConversationOperations(
 
       ctx.pendingConfirms.delete(id);
       confirm.resolve(decision as ConfirmDecision);
+    },
+    submitUserInput: (_ws, msg) => {
+      const sessionId = requestedSessionId(msg) ?? ctx.getSessionId();
+      const response = (msg.payload as { response?: UserInputResponse } | undefined)?.response;
+      if (!response || typeof response.requestId !== 'string' || !Array.isArray(response.answers))
+        return;
+      ctx.submitUserInput(sessionId, response);
     },
   };
 }

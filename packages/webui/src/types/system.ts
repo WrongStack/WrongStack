@@ -172,6 +172,7 @@ export interface WSProviderModels {
       description?: string | undefined;
       releaseDate?: string | undefined;
       contextWindow?: number | undefined;
+      maxOutput?: number | undefined;
       inputCost?: number | undefined;
       outputCost?: number | undefined;
       provenance?: ModelProvenance | undefined;
@@ -185,6 +186,7 @@ export interface WSSavedProviders {
   payload: {
     providers: Array<{
       id: string;
+      type?: string | undefined;
       family?: string | undefined;
       baseUrl?: string | undefined;
       /** Saved model allowlist, in the order the user pinned them. */
@@ -224,6 +226,54 @@ export interface WSSavedProviders {
         createdAt: string;
       }>;
     }>;
+  };
+}
+
+export interface WSProviderModelTestStarted {
+  type: 'provider.test.started';
+  payload: {
+    requestId: string;
+    providerId: string;
+    modelIds: string[];
+    total: number;
+    timeoutMs: number;
+    maxTokens: number;
+  };
+}
+
+export interface WSProviderModelTestResult {
+  type: 'provider.test.result';
+  payload: {
+    requestId: string;
+    providerId: string;
+    modelId: string;
+    status: 'passed' | 'failed' | 'cancelled';
+    diagnosis: string;
+    latencyMs: number;
+    stopReason?: string | undefined;
+    usage?: { input: number; output: number; cacheRead?: number; cacheWrite?: number } | undefined;
+    error?: string | undefined;
+    errorKind?: string | undefined;
+    httpStatus?: number | undefined;
+    family?: string | undefined;
+    wire?: string | undefined;
+    maxContext?: number | undefined;
+    maxOutput?: number | undefined;
+    inputCost?: number | undefined;
+    outputCost?: number | undefined;
+    capabilities?: string[] | undefined;
+  };
+}
+
+export interface WSProviderModelTestComplete {
+  type: 'provider.test.complete';
+  payload: {
+    requestId: string;
+    providerId: string;
+    passed: number;
+    failed: number;
+    cancelled: number;
+    error?: string | undefined;
   };
 }
 

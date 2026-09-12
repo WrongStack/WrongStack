@@ -407,6 +407,8 @@ export function computeConfigPrefUpdates(
   }
   if (Array.isArray(payload['favoriteModels']))
     updates.favoriteModels = payload['favoriteModels'] as string[];
+  if (Array.isArray(payload['disabledModels']))
+    updates.disabledModels = payload['disabledModels'] as string[];
   if (typeof payload['favoriteModelsOnly'] === 'boolean')
     updates.favoriteModelsOnly = payload['favoriteModelsOnly'];
   if (Array.isArray(payload['modelAvailabilitySchedule']))
@@ -444,6 +446,7 @@ export function buildRoutes(
     broadcast: (msg) => broadcast(state.getClients(), msg),
     clients: state.getClients(),
     modelsRegistry: deps.modelsRegistry,
+    getDisabledModels: () => state.getConfig().disabledModels ?? [],
     hasActiveModel: () => Boolean(state.getConfig().model),
     onProvidersLoaded: (providers) => {
       state.setConfig(patchConfig(state.getConfig(), { providers }));
@@ -496,14 +499,15 @@ export function buildRoutes(
       const cur = state.getConfig();
       const newCfg = patchConfig(cur, { provider: newProvider, model: newModel });
       const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
+      const factoryType = providerCfg.type ?? newProvider;
       // WrongProxy / WrongTrace: rewrite the switched provider's base URL
       // through the shared helper so the live WebUI session honors the
       // proxy toggle, same as the CLI's `/model` switch path. `newCfg.baseUrl`
       // is the fallback when the saved cfg carries no explicit baseUrl.
       const routedCfg = routeProviderCfgThroughProxy(providerCfg, newCfg.baseUrl, newProvider);
-      const built = deps.providerRegistry.has(newProvider)
-        ? deps.providerRegistry.create({ ...routedCfg, type: newProvider } as never)
-        : makeProviderFromConfig(newProvider, routedCfg);
+      const built = deps.providerRegistry.has(factoryType)
+        ? deps.providerRegistry.create({ ...routedCfg, type: newProvider } as never, factoryType)
+        : makeProviderFromConfig(newProvider, { ...routedCfg, type: factoryType });
       // Overlay the target model's catalog facts. A freshly constructed provider
       // only has the wire-family baseline, so without this the session keeps the
       // previous model's context window and loses `maxOutput` entirely.
@@ -551,10 +555,15 @@ export function buildRoutes(
     modelsRegistry: deps.modelsRegistry,
     getConfig: state.getConfig,
     getLiveProviderId: () => state.getConfig().provider ?? '',
-    buildProvider: (providerId, providerConfig) =>
-      deps.providerRegistry.has(providerId)
-        ? deps.providerRegistry.create({ ...providerConfig, type: providerId } as never)
-        : makeProviderFromConfig(providerId, providerConfig),
+    buildProvider: (providerId, providerConfig) => {
+      const factoryType = providerConfig.type ?? providerId;
+      return deps.providerRegistry.has(factoryType)
+        ? deps.providerRegistry.create(
+            { ...providerConfig, type: providerId } as never,
+            factoryType,
+          )
+        : makeProviderFromConfig(providerId, { ...providerConfig, type: factoryType });
+    },
     applyModelSwitch: applyModelSwitchCore,
     isRunActive: state.isRunActive,
     getSessionContext: (sessionId?: string) => sessionContext(sessionId),
@@ -571,6 +580,11 @@ export function buildRoutes(
       providerHandlers.handleProviderModels(
         ws,
         (msg as { payload: { providerId: string } }).payload.providerId,
+        {
+          includeDisabled:
+            (msg as { payload: { includeDisabled?: boolean | undefined } }).payload
+              .includeDisabled === true,
+        },
       ),
     searchProviderModels: (ws, query, limit) =>
       providerHandlers.handleProviderModelsSearch(ws, query, limit),

@@ -101,6 +101,8 @@ export interface Config {
    * `provider model`.
    */
   favoriteModels?: string[] | undefined;
+  /** Provider-qualified model refs hidden from pickers and excluded from fallback routing. */
+  disabledModels?: string[] | undefined;
   /**
    * When true, auto-derived fallback chains are restricted to `favoriteModels`.
    * Explicit fallback profiles/chains are always honored as written.

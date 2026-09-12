@@ -265,6 +265,9 @@ export function createMessageDispatcher(
       },
     },
     pendingConfirms,
+    submitUserInput: (sessionId, response) => {
+      deps.events.emit('user.input_submitted', { sessionId, response });
+    },
     send,
     notifyAbort: (_ws, message) => broadcast(state.getClients(), message),
     getMaxIterations: (sessionId?: string) => {

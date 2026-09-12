@@ -25,4 +25,12 @@ describe('go-parser parseSymbols', () => {
     expect(res.symbols).toEqual([]);
     expect(res.file).toBe('main.go');
   });
+
+  it('reports 0-based columns per schema (go token.Column is 1-based)', async () => {
+    const res = await parse(['package main', 'func Main() {}'].join('\n'));
+    const fn = res.symbols.find((s) => s.name === 'Main');
+    expect(fn).toBeDefined();
+    expect(fn?.line).toBe(2);
+    expect(fn?.col).toBe(0);
+  });
 });

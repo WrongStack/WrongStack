@@ -300,7 +300,9 @@ function lineColAt(offsets: number[], index: number): { line: number; col: numbe
   }
   // low = number of newlines before index; line is 1-based
   const lastNl = low > 0 ? offsets[low - 1]! : -1;
-  return { line: low + 1, col: index - lastNl };
+  // col is 0-based per schema.ts: `col: number; // 0-based`. lastNl is the
+  // offset of the preceding newline (or -1), so subtract one more.
+  return { line: low + 1, col: index - lastNl - 1 };
 }
 
 /** Soft default: enough for normal sources without runaway regex on minified blobs. */

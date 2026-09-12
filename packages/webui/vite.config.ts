@@ -73,7 +73,12 @@ export default defineConfig({
         "script-src 'self' 'unsafe-inline'",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: https:",
-        "connect-src 'self' ws://127.0.0.1:* wss://127.0.0.1:* ws://localhost:* wss://localhost:*",
+        // http://…:* alongside the WS entries: the topbar's HQ and WrongProxy
+        // status chips fetch those loopback endpoints directly. The production
+        // header narrows this to the configured origins (see
+        // `integrationConnectSources`); the dev server cannot read the config,
+        // and it only ever serves a local browser.
+        "connect-src 'self' ws://127.0.0.1:* wss://127.0.0.1:* ws://localhost:* wss://localhost:* http://127.0.0.1:* http://localhost:*",
         "worker-src 'self' blob:",
         "font-src 'self' data:",
         "object-src 'none'",

@@ -21,8 +21,23 @@ export type ConfirmAwaiter = (
   suggestedPattern: string,
 ) => Promise<'yes' | 'no' | 'always' | 'deny'>;
 
+/**
+ * The terminal approval prompt.
+ *
+ * `signal` exists because the same question can now be answered somewhere else
+ * — from the HQ dashboard — while this prompt is on screen. Aborting takes it
+ * down and, crucially, gets stdin back out of raw mode; see
+ * `permission-prompt-mirror.ts`. Absent, behaviour is exactly as before: the
+ * prompt blocks until a key is pressed.
+ */
 export function makePromptDelegate(reader: InputReader) {
-  return async (tool: Tool, input: unknown, suggestedPattern: string): Promise<PromptDecision> => {
+  return async (
+    tool: Tool,
+    input: unknown,
+    suggestedPattern: string,
+    signal?: AbortSignal,
+  ): Promise<PromptDecision> => {
+    if (signal?.aborted) return 'no';
     // Terminal bell (\x07) to alert the user that action is required.
     // Without this, the prompt can be easily missed when output is
     // scrolling or the user has switched to another window.
@@ -67,6 +82,7 @@ export function makePromptDelegate(reader: InputReader) {
     const answer = await reader.readKey(
       `${theme.bold('[y]')}es  ${theme.bold('[n]')}o${alwaysHint}  ${theme.bold('[d]')}eny: `,
       options,
+      ...(signal ? [{ signal }] : []),
     );
     return answer as PromptDecision;
   };

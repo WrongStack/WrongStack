@@ -57,6 +57,11 @@ vi.mock('@wrongstack/providers', () => ({
     capabilities: { maxContext: 128000 },
     complete: vi.fn(),
   })),
+  // `runModeldiagTest` builds its factory map from the registry before handing
+  // providers to the (fully mocked) smoke runner. Keep the mock complete for
+  // every export that path touches — a missing key surfaces as vitest's
+  // "No <export> is defined on the mock" error, not as a normal test failure.
+  buildProviderFactoriesFromRegistry: vi.fn(async () => []),
   setOAuthTokenPersister: vi.fn(),
 }));
 

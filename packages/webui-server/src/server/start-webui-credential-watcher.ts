@@ -56,6 +56,9 @@ export function setupWebuiCredentialWatcher(options: {
         ...(snapshot.favoriteModels !== undefined
           ? { favoriteModels: snapshot.favoriteModels }
           : {}),
+        ...(snapshot.disabledModels !== undefined
+          ? { disabledModels: snapshot.disabledModels }
+          : {}),
         ...(snapshot.favoriteModelsOnly !== undefined
           ? { favoriteModelsOnly: snapshot.favoriteModelsOnly }
           : {}),
@@ -90,6 +93,7 @@ export function setupWebuiCredentialWatcher(options: {
           ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
           ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
         };
+        const factoryType = providerCfg.type ?? activeId;
         // WrongProxy / WrongTrace: keep the hot-reloaded provider on the proxy
         // too. A credential/config reload must not silently drop the rewrite
         // and send the live session back to the upstream directly. The live
@@ -100,9 +104,9 @@ export function setupWebuiCredentialWatcher(options: {
           state.getConfig().baseUrl,
           activeId,
         );
-        const newProv = deps.providerRegistry.has(activeId)
-          ? deps.providerRegistry.create({ ...routedCfg, type: activeId } as never)
-          : makeProviderFromConfig(activeId, { ...routedCfg, type: activeId });
+        const newProv = deps.providerRegistry.has(factoryType)
+          ? deps.providerRegistry.create({ ...routedCfg, type: activeId } as never, factoryType)
+          : makeProviderFromConfig(activeId, { ...routedCfg, type: factoryType });
         const previousProvider = deps.context.provider;
         deps.context.provider = newProv;
         // New credentials are a project fact — every open tab has to get them,

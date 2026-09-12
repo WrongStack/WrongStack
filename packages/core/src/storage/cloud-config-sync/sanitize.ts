@@ -169,6 +169,7 @@ const MODELS_ROUTING_TREE: ContractNode = {
   provider: true,
   model: true,
   favoriteModels: true,
+  disabledModels: true,
   favoriteModelsOnly: true,
   fallbackModels: true,
   fallbackProfiles: true,

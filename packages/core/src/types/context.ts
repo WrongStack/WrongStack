@@ -34,6 +34,7 @@ import type { RunEnv } from './run-env.js';
 import type { SessionEvent, SessionWriter } from './session.js';
 import type { SideEffect } from './side-effect.js';
 import type { Tool } from './tool.js';
+import type { UserInputAwaiter, UserInputRequest, UserInputResponse } from './user-input.js';
 
 /** A single todo row projected to the model and the UI. */
 export interface TodoItem {
@@ -110,6 +111,12 @@ export interface ConversationJournalQueueApi {
  * makes tsc enforce compatibility on every core build.
  */
 export interface AgentContext extends RunEnv {
+  /** Host-owned structured interaction channel used by tools such as clarify. */
+  userInputAwaiter: UserInputAwaiter | undefined;
+  requestUserInput(
+    request: UserInputRequest,
+    signal?: AbortSignal,
+  ): Promise<UserInputResponse | undefined>;
   messages: Message[];
   meta: Record<string, unknown>;
   todos: TodoItem[];

@@ -200,6 +200,9 @@
       "buildPredictionPrompt",
       "parsePredictions"
     ],
+    "packages/cli/src/permission-prompt-mirror.ts": [
+      "REPL_MIRROR_TTL_MS"
+    ],
     "packages/cli/src/picker.ts": [
       "filterProviders",
       "renderLiveProviderList"
@@ -271,6 +274,9 @@
     ],
     "packages/cli/src/subcommands/handlers/modeldiag-profiles.ts": [
       "ROLE_CATEGORY"
+    ],
+    "packages/cli/src/subcommands/handlers/modeldiag-test.ts": [
+      "createModelDiagSmokeProvider"
     ],
     "packages/cli/src/subcommands/handlers/models-add-help.ts": [
       "buildModelsAddUsageLine",
@@ -1496,6 +1502,9 @@
     "packages/webui-hq/src/domain/mailbox-live.ts": [
       "buildLiveFeed"
     ],
+    "packages/webui-hq/src/domain/use-pending-approvals.ts": [
+      "derivePendingApprovals"
+    ],
     "packages/webui-hq/src/domain/use-session-transcript.ts": [
       "coalesceStreamedText"
     ],
@@ -1544,6 +1553,10 @@
     ],
     "packages/webui-server/src/server/provider-config-standalone.ts": [
       "vaultKeyFileForConfigPath"
+    ],
+    "packages/webui-server/src/server/provider/model-test.ts": [
+      "diagnoseProviderModelTestFailure",
+      "runProviderModelTests"
     ],
     "packages/webui-server/src/server/proxy-runtime.ts": [
       "probeWrongProxyActive",

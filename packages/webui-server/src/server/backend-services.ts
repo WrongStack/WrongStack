@@ -21,7 +21,7 @@
  * `modelCapabilitiesRef` it just built).
  */
 import { join } from 'node:path';
-import { type AgentPipelines, Context } from '@wrongstack/core/agent';
+import { type AgentPipelines, Context, createEventUserInputAwaiter } from '@wrongstack/core/agent';
 import type { CollaborationBus, ObservableBrainArbiter } from '@wrongstack/core/coordination';
 import type {
   AutoCompactionMiddleware,
@@ -461,6 +461,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   };
 
   // Agent
+  context.userInputAwaiter ??= createEventUserInputAwaiter(events);
   const secretScrubber = container.resolve(TOKENS.SecretScrubber);
   const renderer = container.has(TOKENS.Renderer) ? container.resolve(TOKENS.Renderer) : undefined;
   const permissionPolicy = container.resolve(TOKENS.PermissionPolicy);
@@ -871,6 +872,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
         agentName: 'Leader Agent',
         allowOutsideProjectRoot: context.allowOutsideProjectRoot,
         signal: context.signal,
+        userInputAwaiter: context.userInputAwaiter,
         // The session's own counter (see createSessionTokenCounter): reads are
         // this tab's, writes still reach the process-wide one.
         tokenCounter: createSessionTokenCounter({

@@ -66,6 +66,7 @@ export function startWebuiCredentialWatcher({
         hadFallbackBridge ||
         snapshot.fallbackProfiles !== undefined ||
         snapshot.favoriteModels !== undefined ||
+        snapshot.disabledModels !== undefined ||
         snapshot.favoriteModelsOnly !== undefined ||
         snapshot.modelMatrix !== undefined ||
         snapshot.fallbackAuto !== undefined;
@@ -83,6 +84,9 @@ export function startWebuiCredentialWatcher({
             : {}),
           ...(snapshot.favoriteModels !== undefined
             ? { favoriteModels: snapshot.favoriteModels }
+            : {}),
+          ...(snapshot.disabledModels !== undefined
+            ? { disabledModels: snapshot.disabledModels }
             : {}),
           ...(snapshot.favoriteModelsOnly !== undefined
             ? { favoriteModelsOnly: snapshot.favoriteModelsOnly }

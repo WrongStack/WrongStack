@@ -119,6 +119,14 @@ export interface CreateHttpServerOptions {
    */
   onFleetPing?: (() => void) | undefined;
   /**
+   * Extra origins added to the served page's `connect-src`, read fresh on
+   * every HTML response. The WebUI's topbar probes the operator's HQ and
+   * WrongProxy endpoints directly from the browser, and CSP blocks those
+   * cross-origin fetches unless the origin is listed here. Hosts wire this to
+   * `integrationConnectSources(liveConfig)`.
+   */
+  getExtraConnectSrc?: (() => readonly string[]) | undefined;
+  /**
    * Project root path for the codebase index. When provided, the
    * /api/codemap/* endpoints serve the dependency graph.
    */

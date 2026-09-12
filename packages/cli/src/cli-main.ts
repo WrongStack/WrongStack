@@ -65,6 +65,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     needsSetup,
     events,
     container,
+    approvalMirror,
     configStore,
     updateInfo,
     webuiSessionChild,
@@ -528,6 +529,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     teardownHandlers,
     mailboxSessionTag,
     hqPublisherRef,
+    approvalMirror,
     mcpRegistry,
   });
 

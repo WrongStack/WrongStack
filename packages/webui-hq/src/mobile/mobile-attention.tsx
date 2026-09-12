@@ -1,9 +1,18 @@
-import { Bot, CircleAlert, Gauge, RadioTower, ServerOff, ShieldCheck } from 'lucide-react';
+import {
+  Bot,
+  CircleAlert,
+  Gauge,
+  RadioTower,
+  ServerOff,
+  ShieldCheck,
+  ShieldQuestion,
+} from 'lucide-react';
 import type * as React from 'react';
 import { EmptyState } from '../components/hq/primitives.js';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
 import { useHqStore } from '../data/store/index.js';
+import { useAnswerApproval, usePendingApprovals } from '../domain/use-pending-approvals.js';
 
 export interface MobileAttentionProps {
   onOpenConsole: (sessionId: string, agentId: string) => void;
@@ -82,7 +91,12 @@ export function MobileAttention({
   const disconnected = (snapshot?.clients ?? []).filter((client) => !client.connected);
   const activeAlerts = alerts.filter((alert) => alert.severity !== 'info');
   const unread = snapshot?.totals.unreadMailboxMessages ?? 0;
+  // Listed first below: an approval is the only signal here with a clock on
+  // it — every other one waits indefinitely.
+  const { approvals } = usePendingApprovals();
+  const { answer, pendingFor } = useAnswerApproval();
   const total =
+    approvals.length +
     waitingAgents.length +
     governance.length +
     failedCommands.length +
@@ -102,7 +116,7 @@ export function MobileAttention({
         <EmptyState
           icon={ShieldCheck}
           title="Fleet quiet"
-          hint="Waiting agents, failed commands, alerts and unread mail will appear here."
+          hint="Approvals, waiting agents, failed commands, alerts and unread mail will appear here."
         />
       </section>
     );
@@ -121,6 +135,38 @@ export function MobileAttention({
         <NotificationControl permission={notificationPermission} onEnable={onEnableNotifications} />
       </div>
       <div className="space-y-2">
+        {approvals.map((approval) => (
+          <SignalCard
+            key={approval.toolUseId}
+            icon={ShieldQuestion}
+            title={`${approval.toolName} needs approval`}
+            detail={`${approval.projectId} · ${Math.max(0, Math.ceil(approval.remainingMs / 1000))}s left`}
+            tone="error"
+            action={
+              // Only the two one-shot answers on the phone. `always` and
+              // `deny` write persistent policy onto the machine, which is not
+              // a thing to commit to with a thumb on a card this small — the
+              // Approvals view carries the full set.
+              <div className="flex shrink-0 gap-1">
+                <Button
+                  size="sm"
+                  disabled={pendingFor(approval.toolUseId)}
+                  onClick={() => void answer(approval, 'yes')}
+                >
+                  Allow
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pendingFor(approval.toolUseId)}
+                  onClick={() => void answer(approval, 'no')}
+                >
+                  Refuse
+                </Button>
+              </div>
+            }
+          />
+        ))}
         {waitingAgents.map(({ session, agent }) => (
           <SignalCard
             key={`${session.sessionId}:${agent.id}`}

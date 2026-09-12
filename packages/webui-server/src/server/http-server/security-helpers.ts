@@ -99,14 +99,80 @@ function cspSourceFromUrl(rawUrl: string): string | undefined {
 
 const EXTRA_SCRIPT_SOURCES: readonly string[] = ["'wasm-unsafe-eval'"];
 
+const LOOPBACK_HOST_SPELLINGS: readonly string[] = ['127.0.0.1', 'localhost'];
+
+/**
+ * Project an absolute URL onto the `scheme://host[:port]` form CSP accepts as
+ * a source expression, or `undefined` when it is not a URL this page may talk
+ * to at all.
+ *
+ * Wider than {@link cspSourceFromUrl}, which only answers for `ws:`/`wss:`:
+ * the integration probes in the topbar are plain `fetch()` calls against the
+ * operator's HQ and WrongProxy endpoints, so `http:`/`https:` must project too.
+ * Anything else (`file:`, `data:`, a bare hostname that does not parse) is
+ * dropped rather than echoed into the header.
+ */
+export function cspConnectOrigin(rawUrl: string): string | undefined {
+  try {
+    const url = new URL(rawUrl.trim());
+    if (
+      url.protocol !== 'http:' &&
+      url.protocol !== 'https:' &&
+      url.protocol !== 'ws:' &&
+      url.protocol !== 'wss:'
+    ) {
+      return undefined;
+    }
+    return `${url.protocol}//${formatCspHostname(url.hostname)}${url.port ? `:${url.port}` : ''}`;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Every spelling of one loopback origin.
+ *
+ * `127.0.0.1` and `localhost` are the same server but two distinct CSP
+ * sources, and the two halves of the WebUI disagree about which to use: the
+ * persisted config may say `http://127.0.0.1:3499` while the browser field
+ * (or a default) says `http://localhost:3499`. Allowing only the configured
+ * spelling reintroduces the same block for the other one, so a loopback
+ * origin contributes both.
+ */
+function expandLoopbackOrigin(origin: string): string[] {
+  const parsed = (() => {
+    try {
+      return new URL(origin);
+    } catch {
+      return undefined;
+    }
+  })();
+  if (!parsed) return [origin];
+  // `new URL(...).hostname` keeps the brackets on an IPv6 literal, and the CSP
+  // host-source grammar has no place for them — a bracketed source is silently
+  // dropped by browsers. Unwrap before the loopback test so `http://[::1]:3499`
+  // lands on the two spellings that do parse, and drop any other bracketed
+  // host rather than emitting a token the browser will ignore.
+  const hostname = parsed.hostname.replace(/^\[(.*)\]$/, '$1');
+  const suffix = parsed.port ? `:${parsed.port}` : '';
+  if (!isLoopbackHostname(hostname)) return parsed.hostname.startsWith('[') ? [] : [origin];
+  return LOOPBACK_HOST_SPELLINGS.map((h) => `${parsed.protocol}//${h}${suffix}`);
+}
+
 export function buildCspHeader(
   publicWsUrl?: string | undefined,
   host?: string,
   port?: number,
+  extraConnectSrc?: readonly string[] | undefined,
 ): string {
   const connect = new Set(["'self'"]);
   const publicWsSource = publicWsUrl ? cspSourceFromUrl(publicWsUrl) : undefined;
   if (publicWsSource) connect.add(publicWsSource);
+  for (const raw of extraConnectSrc ?? []) {
+    const origin = cspConnectOrigin(raw);
+    if (!origin) continue;
+    for (const spelling of expandLoopbackOrigin(origin)) connect.add(spelling);
+  }
   if (host && isLoopbackHostname(host)) {
     const p = port ?? 3456;
     if (p > 0 && p <= 65535) {

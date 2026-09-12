@@ -101,6 +101,7 @@ const BOOLEAN_PREF_KEYS = new Set([
 const STRING_ARRAY_PREF_KEYS = new Set([
   'fallbackModels',
   'favoriteModels',
+  'disabledModels',
   // Auto-review explicit fallback chain (derived when fallbackProfile is unset;
   // surfaced for visibility/override).
   'autoReviewFallbackModels',

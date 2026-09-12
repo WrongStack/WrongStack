@@ -3,6 +3,7 @@ import {
   type AgentPipelines,
   type Context,
   createDefaultPipelines,
+  createEventUserInputAwaiter,
 } from '@wrongstack/core/agent';
 import {
   AutoCompactionMiddleware,
@@ -247,6 +248,9 @@ export function createAgent(params: {
   /** Surface label for the bootstrap log breadcrumb. */
   source?: 'cli' | 'webui' | 'eternal' | undefined;
 }): Agent {
+  if (!params.context.userInputAwaiter) {
+    params.context.userInputAwaiter = createEventUserInputAwaiter(params.events);
+  }
   const secretScrubber = params.container.resolve(TOKENS.SecretScrubber);
   const renderer = params.container.has(TOKENS.Renderer)
     ? params.container.resolve(TOKENS.Renderer)

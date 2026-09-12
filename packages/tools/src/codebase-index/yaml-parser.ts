@@ -45,8 +45,11 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   }
 
   // ── 1. Anchors and aliases ─────────────────────────────────────────────────
-  // &anchor_name
-  const anchorRegex = /&(\w[\w-]*)/g;
+  // &anchor_name — the sigil must sit in value position (start of line,
+  // whitespace, or after `:`, `[`, `{`, `,`, `-`). Without this, `&word`
+  // inside a plain scalar (e.g. a URL query string `?a=1&b=2`) was emitted
+  // as a phantom `const` anchor symbol.
+  const anchorRegex = /(?:^|(?<=[\s:\-[{,]))&(\w[\w-]*)/gm;
   for (let match = anchorRegex.exec(content); match !== null; match = anchorRegex.exec(content)) {
     const name = expectDefined(match[1]);
     const offset = match.index ?? 0;
@@ -65,8 +68,9 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
     );
   }
 
-  // *alias_name
-  const aliasRegex = /\*(\w[\w-]*)/g;
+  // *alias_name — same value-position rule as anchors: a bare `*` inside a
+  // scalar (`a*b`, `**bold**`) is not a YAML alias.
+  const aliasRegex = /(?:^|(?<=[\s:\-[{,]))\*(\w[\w-]*)/gm;
   for (let match = aliasRegex.exec(content); match !== null; match = aliasRegex.exec(content)) {
     const name = expectDefined(match[1]);
     const offset = match.index ?? 0;
@@ -106,7 +110,14 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
     // Skip keys that are clearly part of a string value (unusual indent)
     if (indent > 12) continue;
 
-    const value = extractValue(content, match.index ?? 0);
+    // Slice the value from the END of the `key:` match. Passing match.index
+    // (the line start: indent + key) made extractValue return the whole line
+    // (`"count: 42"`), so isScalar never fired and the signature doubled
+    // the key (`"count: count: 42"`).
+    // Block-scalar headers (`key: |`, `key: >`) are owned by section 4;
+    // emitting them here too produced two near-identical symbols per header.
+    const value = extractValue(content, (match.index ?? 0) + expectDefined(match[0]).length);
+    if (/^[|>](\s|$)/.test(value)) continue;
     const kind: IndexSymbol['kind'] = isScalar(value) ? 'literal' : 'property';
     const signature = `${key}: ${truncate(value, 60)}`;
 
@@ -114,14 +125,18 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   }
 
   // ── 3. List item keys ──────────────────────────────────────────────────────
-  // `- key: value` (list item that is a keyed object)
-  const listItemRegex = /^-(\s+)([^:#\s][^:#\s]*)\s*:/gm;
+  // `- key: value` (list item that is a keyed object), at any indentation.
+  // Items normally sit indented under a parent key (`items:\n  - num: 42`);
+  // anchoring `-` at column 0 silently dropped every indented item, and the
+  // section-2 kvRegex cannot catch them either (`-` + space never satisfies
+  // `\s*:`), so they produced no symbol at all.
+  const listItemRegex = /^(\s*)-(\s+)([^:#\s][^:#\s]*)\s*:/gm;
   for (
     let match = listItemRegex.exec(content);
     match !== null;
     match = listItemRegex.exec(content)
   ) {
-    const key = expectDefined(match[2]);
+    const key = expectDefined(match[3]);
     const offset = match.index ?? 0;
     const line = lineFromOffset(offset);
     const col = offset - (lineOffsets[line - 1] ?? 0);

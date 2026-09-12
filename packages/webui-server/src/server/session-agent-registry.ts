@@ -341,6 +341,7 @@ export function createSessionAgentRegistry(
       }),
       tools: root.tools,
       catalogTools: root.catalogTools,
+      userInputAwaiter: root.userInputAwaiter,
     });
     // Host-level facts (mode, feature flags, resolved window size) describe the
     // project, not one tab — copied so a new tab starts configured rather than

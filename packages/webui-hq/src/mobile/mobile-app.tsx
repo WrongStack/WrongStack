@@ -39,6 +39,7 @@ import { useHqLocalPrefs } from '../data/local-prefs.js';
 import { attentionCount } from '../data/selectors.js';
 import { useHqStore } from '../data/store/index.js';
 import { resolveConsoleControlTarget } from '../domain/console-target.js';
+import { usePendingApprovals } from '../domain/use-pending-approvals.js';
 import { turnKey, useSessionTranscript } from '../domain/use-session-transcript.js';
 import { applyPalette, applyTheme, watchSystemTheme } from '../lib/theme.js';
 import { cn } from '../lib/utils.js';
@@ -174,7 +175,12 @@ export function MobileApp(): React.ReactElement {
   const canControl = target?.controllable === true;
   const canUseMailbox = target?.mailboxServeActive === true;
   const canMessage = target !== null && (canControl || canUseMailbox);
-  const attention = attentionCount(snapshot, alerts, commandStatuses);
+  // Approvals are event-derived rather than part of the snapshot, so they are
+  // added here instead of inside `attentionCount`. They belong in the
+  // notification total above everything else: a prompt expires on a clock, so
+  // a missed push means the decision was made without the operator.
+  const { approvals } = usePendingApprovals();
+  const attention = attentionCount(snapshot, alerts, commandStatuses) + approvals.length;
   const unread = snapshot?.totals.unreadMailboxMessages ?? 0;
   const notifications = useMobileNotifications(attention + Number(unread > 0));
 

@@ -16,14 +16,15 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { isModelDisabled } from '@/components/QuickModelSwitcher.filter';
 import { toast } from '@/components/Toaster';
 import { useProviderModels } from '@/hooks/useProviderModels';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
-import { showPanel } from '@/lib/view-navigation';
+import { openMainView, showPanel } from '@/lib/view-navigation';
 import { useConfigStore, useUIStore } from '@/stores';
 import { type LocalPrefs, useLocalPrefs } from '@/stores/local-prefs';
 import type { ProviderCustomModelWire, WSServerMessage } from '@/types';
@@ -160,6 +161,7 @@ interface CatalogModel {
   name: string;
   releaseDate?: string | undefined;
   contextWindow?: number | undefined;
+  maxOutput?: number | undefined;
   inputCost?: number | undefined;
   outputCost?: number | undefined;
   capabilities: string[];
@@ -221,6 +223,15 @@ export function SettingsPanel() {
     window.location.reload();
   }, [localPrefs]);
   const currentCatalogProvider = catalogProviders.find((p) => p.id === provider);
+  const selectableCatalogModels = useMemo(
+    () => ({
+      ...catalogModels,
+      [provider]: (catalogModels[provider] ?? []).filter(
+        (candidate) => !isModelDisabled(provider, candidate.id, localPrefs.disabledModels),
+      ),
+    }),
+    [catalogModels, localPrefs.disabledModels, provider],
+  );
   const activeTabDef = TABS.find((tab) => tab.id === settingsActiveTab);
 
   useEffect(() => {
@@ -434,6 +445,18 @@ export function SettingsPanel() {
               </TabsContent>
 
               <TabsContent value="provider" className="mt-0 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
+                  <div>
+                    <p className="text-sm font-semibold">Provider Test</p>
+                    <p className="text-xs text-muted-foreground">
+                      Test every model on a saved provider or subscription and inspect quota,
+                      authentication, latency, and token-limit failures.
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={() => openMainView('provider-test')}>
+                    Open Provider Test
+                  </Button>
+                </div>
                 <ProviderSection
                   activeProvider={provider}
                   catalogProviders={catalogProviders}
@@ -460,7 +483,7 @@ export function SettingsPanel() {
                   </h3>
                   <ModelSection
                     provider={provider}
-                    catalogModels={catalogModels}
+                    catalogModels={selectableCatalogModels}
                     currentCatalogProvider={currentCatalogProvider}
                     isLoadingModels={isLoadingModels}
                     setIsLoadingModels={setIsLoadingModels}

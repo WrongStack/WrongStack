@@ -185,6 +185,7 @@ export {
   SIDEBAR_MIN_WIDTH,
   useUIStore,
 } from './ui-store.js';
+export { pendingUserInputForSession, useUserInputStore } from './user-input-store.js';
 export type { VizEdge, VizEvent, VizNode } from './viz-store.js';
 export { useVizStore } from './viz-store.js';
 export { useWorktreeStore } from './worktree-store.js';

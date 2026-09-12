@@ -499,6 +499,7 @@ export function createEmbeddedMessageRouter(
     broadcast: deps.providerCtx.broadcast,
     send: deps.providerCtx.send,
     modelsRegistry: deps.providerCtx.modelsRegistry,
+    getDisabledModels: deps.providerCtx.getDisabledModels,
     providerAuthRegistry: deps.providerCtx.providerAuthRegistry,
     log: deps.providerCtx.log,
     hasActiveModel: () => Boolean(deps.agentConfigCtx.agent.ctx.model),
@@ -549,6 +550,10 @@ export function createEmbeddedMessageRouter(
       providerOperations.handleProviderModels(
         ws,
         (msg.payload as { providerId: string }).providerId,
+        {
+          includeDisabled:
+            (msg.payload as { includeDisabled?: boolean | undefined }).includeDisabled === true,
+        },
       ),
     searchProviderModels: (ws, query, limit) =>
       providerOperations.handleProviderModelsSearch(ws, query, limit),

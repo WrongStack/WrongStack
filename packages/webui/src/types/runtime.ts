@@ -1,4 +1,22 @@
+import type { UserInputRequest, UserInputResponse } from '@wrongstack/core/types';
 import type { SessionScopedPayload } from './protocol-core.js';
+
+export interface WSUserInputRequested {
+  type: 'user.input_requested';
+  payload: SessionScopedPayload & { request: UserInputRequest };
+}
+export interface WSUserInputResolved {
+  type: 'user.input_resolved';
+  payload: SessionScopedPayload & {
+    requestId: string;
+    response: UserInputResponse;
+    source: 'user' | 'abort';
+  };
+}
+export interface WSUserInputSubmit {
+  type: 'user.input_submit';
+  payload: SessionScopedPayload & { response: UserInputResponse };
+}
 
 export interface WSSessionStats {
   type: 'session.stats';

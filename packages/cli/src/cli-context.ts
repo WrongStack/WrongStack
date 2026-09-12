@@ -49,6 +49,8 @@ import { TerminalRenderer } from './renderer.js';
 export interface CliContext extends BootContext {
   events: EventBus;
   container: ReturnType<typeof wireContainer>['container'];
+  /** Late-bound handle the REPL prompt uses to mirror approvals to HQ. */
+  approvalMirror: ReturnType<typeof wireContainer>['approvalMirror'];
   configStore: ConfigStore;
   webuiSessionChild?: WebuiSessionChildOptions | undefined;
 }
@@ -308,7 +310,7 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
   });
 
   // Container wiring (EventBus, DI container).
-  const { events, container } = wireContainer({
+  const { events, container, approvalMirror } = wireContainer({
     config,
     wpaths,
     cwd,
@@ -332,6 +334,7 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
     updateInfo: refreshedUpdateInfo,
     events,
     container,
+    approvalMirror,
     configStore,
     webuiSessionChild,
   } as CliContext;

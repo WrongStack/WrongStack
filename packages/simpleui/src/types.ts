@@ -2,6 +2,37 @@ import type { ExactServerMessageType } from '@wrongstack/webui-protocol';
 
 export type ConnectionState = 'connecting' | 'open' | 'closed';
 
+export interface UserInputOption {
+  id: string;
+  label: string;
+  description?: string | undefined;
+}
+export interface UserInputQuestion {
+  id: string;
+  prompt: string;
+  description?: string | undefined;
+  kind: 'single_select' | 'multi_select' | 'text';
+  required?: boolean | undefined;
+  options?: UserInputOption[] | undefined;
+  recommendedOptionIds?: string[] | undefined;
+  recommendedText?: string | undefined;
+  recommendationReason?: string | undefined;
+  allowCustomResponse?: boolean | undefined;
+  placeholder?: string | undefined;
+}
+export interface UserInputRequest {
+  id: string;
+  title: string;
+  description?: string | undefined;
+  submitLabel?: string | undefined;
+  tabs: Array<{
+    id: string;
+    label: string;
+    description?: string | undefined;
+    questions: UserInputQuestion[];
+  }>;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'thinking' | 'assistant' | 'system';

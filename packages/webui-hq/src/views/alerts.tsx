@@ -8,7 +8,15 @@
  * just anxiety.
  */
 import type { HqAlert } from '@wrongstack/core/hq';
-import { Bot, CircleAlert, Gauge, RadioTower, ServerOff, ShieldCheck } from 'lucide-react';
+import {
+  Bot,
+  CircleAlert,
+  Gauge,
+  RadioTower,
+  ServerOff,
+  ShieldCheck,
+  ShieldQuestion,
+} from 'lucide-react';
 import type * as React from 'react';
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -19,8 +27,9 @@ import { Button } from '../components/ui/button.js';
 import { Card, CardContent } from '../components/ui/card.js';
 import { fetchJson } from '../data/api.js';
 import { type HqViewId, useHqStore } from '../data/store/index.js';
-import { cn } from '../lib/utils.js';
+import { usePendingApprovals } from '../domain/use-pending-approvals.js';
 import { formatClock } from '../lib/format.js';
+import { cn } from '../lib/utils.js';
 
 /** Alert history is polled, not pushed — 15s is well inside a rule's cadence. */
 const ALERTS_POLL_MS = 15_000;
@@ -142,11 +151,17 @@ export function AlertsView(): React.ReactElement {
   );
   const disconnectedClients = (snapshot?.clients ?? []).filter((client) => !client.connected);
 
+  // Counted here as well as on its own view because this is the rail an
+  // operator watches, and an approval is the one signal with a deadline: miss
+  // it and the Brain arbiter decides instead of you.
+  const { approvals } = usePendingApprovals();
+
   const needsAction =
     active.length +
     governanceWarnings.length +
     waitingAgents.length +
     failedCommands.length +
+    approvals.length +
     disconnectedClients.length;
 
   return (
@@ -154,7 +169,7 @@ export function AlertsView(): React.ReactElement {
       <ViewHero
         eyebrow="Operator attention center"
         headline={needsAction === 0 ? 'Fleet quiet' : 'Fleet requires review'}
-        description="Alerts, waiting agents, governance warnings, failed commands and lost clients, resolved into one queue."
+        description="Approvals, alerts, waiting agents, governance warnings, failed commands and lost clients, resolved into one queue."
         tone={needsAction === 0 ? 'active' : errorCount > 0 ? 'error' : 'warn'}
         metrics={
           <>
@@ -162,6 +177,11 @@ export function AlertsView(): React.ReactElement {
               label="needs action"
               value={needsAction}
               tone={needsAction > 0 ? 'warn' : 'active'}
+            />
+            <HeroMetric
+              label="approvals"
+              value={approvals.length}
+              tone={approvals.length > 0 ? 'error' : 'active'}
             />
             <HeroMetric
               label="waiting agents"
@@ -195,10 +215,21 @@ export function AlertsView(): React.ReactElement {
           <EmptyState
             icon={ShieldCheck}
             title="Nothing needs operator action"
-            hint="This rail wakes when an agent blocks, a rule fires, a command fails or a client drops."
+            hint="This rail wakes when a tool needs approval, an agent blocks, a rule fires, a command fails or a client drops."
           />
         ) : (
           <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
+            {approvals.length > 0 && (
+              <AttentionCard
+                icon={ShieldQuestion}
+                tone="error"
+                label="Awaiting approval"
+                value={approvals.length}
+                detail={`${approvals[0]?.toolName ?? 'tool'} · ${Math.max(0, Math.ceil((approvals[0]?.remainingMs ?? 0) / 1000))}s left`}
+                action="Answer now"
+                view="approvals"
+              />
+            )}
             {waitingAgents.length > 0 && (
               <AttentionCard
                 icon={Bot}

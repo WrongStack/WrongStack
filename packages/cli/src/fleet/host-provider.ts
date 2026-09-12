@@ -1,12 +1,12 @@
 import type { Config, Provider, ReasoningConfig, SubagentConfig } from '@wrongstack/core/types';
-import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
-import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from '../context-limit.js';
-import type { MultiAgentDeps } from './host-types.js';
 import {
   getProxyConfig,
   rewriteBaseUrl,
   shouldRewriteFor,
 } from '@wrongstack/core/wiring/proxy-rewrite';
+import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
+import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from '../context-limit.js';
+import type { MultiAgentDeps } from './host-types.js';
 
 export async function buildHostSubagentProvider(
   deps: MultiAgentDeps,
@@ -46,9 +46,9 @@ export async function buildHostSubagentProvider(
     ...(baseUrl !== newCfg.baseUrl ? { baseUrl } : {}),
     ...(model ? { model } : {}),
   };
-  let provider = deps.providerRegistry.has(providerId)
-    ? deps.providerRegistry.create(cfgWithType)
-    : makeProviderFromConfig(providerId, cfgWithType);
+  let provider = deps.providerRegistry.has(factoryType)
+    ? deps.providerRegistry.create(cfgWithType, factoryType)
+    : makeProviderFromConfig(providerId, { ...cfgWithType, type: factoryType });
   if (deps.modelsRegistry) {
     const resolvedModel = model ?? config.model;
     // Subagents routinely run a different model than the leader (model

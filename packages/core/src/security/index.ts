@@ -47,6 +47,7 @@ export {
   kanbanGovernance,
   setKanbanGovernance,
 } from './kanban-governance-port.js';
+export { describeWriteTargets } from './permission-helpers.js';
 export {
   AutoApprovePermissionPolicy,
   alwaysAllowUnavailableReason,

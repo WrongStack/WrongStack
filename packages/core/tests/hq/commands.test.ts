@@ -170,6 +170,32 @@ describe('validateHqCommand', () => {
     expect(validateHqCommand(queued('steer', 'not-an-object'))).toBeNull();
     expect(validateHqCommand(queued('steer', null))).toBeNull();
   });
+
+  it('validates an approve command and carries its session address', () => {
+    const c = validateHqCommand(
+      queued('approve', { toolUseId: 'toolu_1', decision: 'always', sessionId: 'tab-3' }),
+    );
+    expect(c).toMatchObject({
+      type: 'approve',
+      toolUseId: 'toolu_1',
+      decision: 'always',
+      sessionId: 'tab-3',
+    });
+  });
+
+  it('rejects an approve command with a decision outside the closed set', () => {
+    // `abort` is a lifecycle outcome the run produces for itself; an operator
+    // must never be able to send it, and anything else is a typo that would
+    // otherwise reach the resolver.
+    for (const decision of ['abort', 'maybe', '', 'YES', true, undefined]) {
+      expect(validateHqCommand(queued('approve', { toolUseId: 'toolu_1', decision }))).toBeNull();
+    }
+  });
+
+  it('rejects an approve command with no tool call to answer', () => {
+    expect(validateHqCommand(queued('approve', { decision: 'yes' }))).toBeNull();
+    expect(validateHqCommand(queued('approve', { toolUseId: '', decision: 'yes' }))).toBeNull();
+  });
 });
 
 describe('HqCommandAuditLog', () => {

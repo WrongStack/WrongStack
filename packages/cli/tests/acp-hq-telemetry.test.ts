@@ -28,8 +28,32 @@ class FakeTracker {
 vi.mock('@wrongstack/core/coordination', () => ({ AgentStatusTracker: FakeTracker }));
 
 const bridges: { sessionId: string; projectRoot: string; events: unknown; stopped: boolean }[] = [];
+
+/**
+ * Stand-in for the per-session approval registry.
+ *
+ * Deliberately real enough to answer with: the production code calls
+ * `createApprovalRegistry` inside a try/catch (mirroring is optional), so a
+ * mock missing this export would make every assertion below pass while ACP
+ * approvals silently did nothing.
+ */
+interface FakeApprovals {
+  sessionId: string | undefined;
+  answered: Array<{ toolUseId: string; decision: string; expectSessionId?: string | undefined }>;
+  live: Set<string>;
+  disposed: boolean;
+  resolve: (toolUseId: string, decision: string, expectSessionId?: string) => boolean;
+  dispose: () => void;
+}
+const approvalRegistries: FakeApprovals[] = [];
+const approvalBridges: { sessionId: string; projectRoot: string; stopped: boolean }[] = [];
+
 vi.mock('@wrongstack/core/hq', () => ({
-  startSessionTelemetryBridge: (opts: { sessionId: string; projectRoot: string; events: unknown }) => {
+  startSessionTelemetryBridge: (opts: {
+    sessionId: string;
+    projectRoot: string;
+    events: unknown;
+  }) => {
     const record = {
       sessionId: opts.sessionId,
       projectRoot: opts.projectRoot,
@@ -41,15 +65,62 @@ vi.mock('@wrongstack/core/hq', () => ({
       record.stopped = true;
     };
   },
+  createApprovalRegistry: (_events: unknown) => {
+    const registry: FakeApprovals = {
+      sessionId: undefined,
+      answered: [],
+      live: new Set<string>(),
+      disposed: false,
+      resolve: (toolUseId, decision, expectSessionId) => {
+        if (!registry.live.has(toolUseId)) return false;
+        if (expectSessionId !== undefined && expectSessionId !== registry.sessionId) return false;
+        registry.live.delete(toolUseId);
+        registry.answered.push({ toolUseId, decision, expectSessionId });
+        return true;
+      },
+      dispose: () => {
+        registry.disposed = true;
+      },
+    };
+    approvalRegistries.push(registry);
+    return registry;
+  },
+  startApprovalTelemetryBridge: (opts: { sessionId: string; projectRoot: string }) => {
+    const record = { sessionId: opts.sessionId, projectRoot: opts.projectRoot, stopped: false };
+    approvalBridges.push(record);
+    // The registry created immediately before this call is the one for this
+    // session — record it so a test can pretend a prompt is live on it.
+    const registry = approvalRegistries.at(-1);
+    if (registry) registry.sessionId = opts.sessionId;
+    return () => {
+      record.stopped = true;
+    };
+  },
 }));
 
-const connections: { capabilities: unknown; clientKind: string; stopped: boolean }[] = [];
+type CommandHandler = (command: {
+  commandId: string;
+  type: string;
+  payload: unknown;
+}) => Promise<{ status: string; message?: string }>;
+
+const connections: {
+  capabilities: unknown;
+  clientKind: string;
+  stopped: boolean;
+  onCommand?: CommandHandler | undefined;
+}[] = [];
 let publisherAvailable = true;
 vi.mock('../src/hq-publisher.js', () => ({
-  startCliHqConnection: (options: { capabilities: unknown; clientKind: string }) => {
+  startCliHqConnection: (options: {
+    capabilities: unknown;
+    clientKind: string;
+    onCommand?: CommandHandler;
+  }) => {
     const record = {
       capabilities: options.capabilities,
       clientKind: options.clientKind,
+      onCommand: options.onCommand,
       stopped: false,
     };
     connections.push(record);
@@ -75,6 +146,8 @@ function harness() {
   trackers.length = 0;
   bridges.length = 0;
   connections.length = 0;
+  approvalRegistries.length = 0;
+  approvalBridges.length = 0;
   publisherAvailable = true;
   const created: string[] = [];
   const telemetry = startAcpHqTelemetry({
@@ -168,6 +241,119 @@ describe('startAcpHqTelemetry', () => {
     await wrapped('sess-a', '/work/a');
     await wrapped('sess-a', '/work/a');
     expect(bridges).toHaveLength(1);
+    telemetry.stop();
+  });
+});
+
+describe('ACP approval mirroring', () => {
+  async function approve(
+    sessionId: string | undefined,
+    toolUseId: string,
+    decision = 'yes',
+  ): Promise<{ status: string; message?: string }> {
+    const handler = connections[0]?.onCommand;
+    if (!handler) throw new Error('ACP connection declared no command handler');
+    return handler({
+      commandId: 'c1',
+      type: 'approve',
+      payload: { toolUseId, decision, ...(sessionId ? { sessionId } : {}) },
+    });
+  }
+
+  it('declares the capabilities the server gates approvals on', () => {
+    const { telemetry } = harness();
+    // `control.receive` is the server's gate for ANY command; `control.approve`
+    // is the one for this one. Missing either means an operator's answer is
+    // refused with a 409/403 they cannot act on.
+    expect(connections[0]?.capabilities).toContain('control.receive');
+    expect(connections[0]?.capabilities).toContain('control.approve');
+    telemetry.stop();
+  });
+
+  it('creates a registry and bridge per ACP session', async () => {
+    const { telemetry, agentFor } = harness();
+    const wrapped = telemetry.wrapAgentFactory(agentFor);
+    await wrapped('sess-a', '/work/a');
+    await wrapped('sess-b', '/work/b');
+
+    // Per session, not per process: ACP gives each session its own EventBus.
+    expect(approvalRegistries).toHaveLength(2);
+    expect(approvalBridges.map((b) => b.sessionId)).toEqual(['sess-a', 'sess-b']);
+    telemetry.stop();
+  });
+
+  it('routes an answer to the session that raised the prompt', async () => {
+    const { telemetry, agentFor } = harness();
+    const wrapped = telemetry.wrapAgentFactory(agentFor);
+    await wrapped('sess-a', '/work/a');
+    await wrapped('sess-b', '/work/b');
+    const [a, b] = approvalRegistries;
+    b!.live.add('toolu_1');
+
+    const result = await approve('sess-b', 'toolu_1', 'always');
+
+    expect(result.status).toBe('completed');
+    expect(b!.answered).toEqual([
+      { toolUseId: 'toolu_1', decision: 'always', expectSessionId: 'sess-b' },
+    ]);
+    // The other editor tab must be untouched — approving a tool call in the
+    // wrong conversation is the failure this routing exists to prevent.
+    expect(a!.answered).toEqual([]);
+    telemetry.stop();
+  });
+
+  it('refuses an answer for a session this process does not have', async () => {
+    const { telemetry, agentFor } = harness();
+    const wrapped = telemetry.wrapAgentFactory(agentFor);
+    await wrapped('sess-a', '/work/a');
+
+    const result = await approve('sess-gone', 'toolu_1');
+    expect(result.status).toBe('rejected');
+    telemetry.stop();
+  });
+
+  it('refuses a prompt that is no longer pending instead of reporting success', async () => {
+    const { telemetry, agentFor } = harness();
+    const wrapped = telemetry.wrapAgentFactory(agentFor);
+    await wrapped('sess-a', '/work/a');
+
+    const result = await approve('sess-a', 'toolu_never_raised');
+    expect(result.status).toBe('rejected');
+    expect(result.message).toContain('no longer pending');
+    telemetry.stop();
+  });
+
+  it('refuses every other command — ACP has no mailbox and no leader', async () => {
+    const { telemetry, agentFor } = harness();
+    const wrapped = telemetry.wrapAgentFactory(agentFor);
+    await wrapped('sess-a', '/work/a');
+    const handler = connections[0]!.onCommand!;
+
+    const steer = await handler({
+      commandId: 'c2',
+      type: 'steer',
+      payload: { to: 'leader', subject: 'x', body: 'y', sessionId: 'sess-a' },
+    });
+    expect(steer.status).toBe('rejected');
+    telemetry.stop();
+  });
+
+  it('disposes a closed session registry so its prompts stop being answerable', async () => {
+    const { telemetry, agentFor } = harness();
+    const wrapped = telemetry.wrapAgentFactory(agentFor);
+    await wrapped('sess-a', '/work/a');
+    const [registry] = approvalRegistries;
+    registry!.live.add('toolu_1');
+
+    telemetry.wrapDispose(vi.fn())('sess-a');
+
+    expect(registry!.disposed).toBe(true);
+    expect(approvalBridges[0]?.stopped).toBe(true);
+    const result = await approve('sess-a', 'toolu_1');
+    expect(result.status).toBe('rejected');
+    // Disposed, NOT drained: the prompt belongs to the editor session, and
+    // answering it because HQ lost sight would decide for the user.
+    expect(registry!.answered).toEqual([]);
     telemetry.stop();
   });
 });

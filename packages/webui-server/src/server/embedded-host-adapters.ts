@@ -44,6 +44,7 @@ export interface EmbeddedProviderContext extends EmbeddedHostTransport {
   providerStore: EmbeddedProviderStore;
   modelsRegistry: ModelsRegistry | undefined;
   providerAuthRegistry?: import('@wrongstack/core/registry').ProviderAuthRegistry | undefined;
+  getDisabledModels?: (() => readonly string[]) | undefined;
 }
 
 export interface EmbeddedAgentConfigContext extends EmbeddedHostTransport {
@@ -148,12 +149,14 @@ export function createEmbeddedProviderOperations(ctx: EmbeddedProviderContext) {
     send: ctx.send,
     modelsRegistry: ctx.modelsRegistry,
     providerAuthRegistry: ctx.providerAuthRegistry,
+    getDisabledModels: ctx.getDisabledModels,
     log: ctx.log,
   });
 }
 
 export interface EmbeddedConversationContext extends EmbeddedHostTransport {
   agent: Agent;
+  events: EventBus;
   /**
    * The Agent that owns ONE session's runs.
    *
@@ -241,6 +244,9 @@ export function createEmbeddedConversationRoutes(
       },
     },
     pendingConfirms: ctx.pendingConfirms,
+    submitUserInput: (sessionId, response) => {
+      ctx.events.emit('user.input_submitted', { sessionId, response });
+    },
     send: ctx.send,
     // Broadcast, not reply: the abort notice belongs to the SESSION, and a
     // second page showing that tab has to clear its spinner too. The host's

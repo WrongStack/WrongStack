@@ -6734,7 +6734,6 @@ input:focus-visible,
 
 /* ── Transcript windowing ─────────────────────────────────────────── */
 
-
 /* ── Forced colors (Windows High Contrast) ─────────────────────────
    The UA recolors everything, so what breaks is boundaries that were
    only shadows or background deltas. Restore structural borders with
@@ -6752,7 +6751,7 @@ input:focus-visible,
     border: 1px solid CanvasText;
   }
   button,
-  [role='button'] {
+  [role="button"] {
     border: 1px solid ButtonBorder;
   }
   .stream-caret {
@@ -6779,4 +6778,122 @@ input:focus-visible,
 .window-earlier:hover {
   color: var(--accent);
   border-color: var(--accent);
+}
+.user-input-modal {
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+}
+.user-input-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.user-input-tabs button {
+  padding: 8px 10px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.user-input-tabs button.selected {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.user-input-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  display: grid;
+  gap: 18px;
+}
+.user-input-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.user-input-progress button {
+  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+.user-input-question-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  outline: none;
+}
+.user-input-question-card.missing {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--line));
+}
+.user-input-question-card:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.user-input-question {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.user-input-question legend {
+  font-weight: 700;
+}
+.user-input-question > p {
+  color: var(--muted);
+  font-size: 12px;
+}
+.user-input-question label {
+  display: flex;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.user-input-question label.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.user-input-question label span {
+  display: grid;
+  gap: 3px;
+}
+.user-input-question label small {
+  color: var(--muted);
+}
+.user-input-question label em {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent);
+  font-size: 10px;
+  font-style: normal;
+}
+.user-input-question textarea,
+.user-input-custom {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 9px;
+}
+.user-input-question textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.user-input-reason {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: 7px;
+  font-size: 12px;
 }

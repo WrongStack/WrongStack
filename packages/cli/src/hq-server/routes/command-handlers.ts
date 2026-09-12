@@ -95,6 +95,58 @@ export async function handleApiCommand(
     return;
   }
 
+  // Approving a tool call remotely is a stronger act than steering one:
+  // `always` and `deny` write persistent policy, and `yes` can release a
+  // destructive call. It gets its OWN capability rather than riding on
+  // `control.enqueue`, so an operator can hand out a steer-only credential.
+  if (
+    (validated.type === 'approve' || validated.type === 'answer-input') &&
+    isCookieAuth(auth) &&
+    auth.capabilities !== undefined &&
+    !auth.capabilities.includes('control.approve')
+  ) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: 'forbidden: browser session lacks control.approve capability',
+      }),
+    );
+    return;
+  }
+
+  if (
+    (validated.type === 'approve' || validated.type === 'answer-input') &&
+    isTokenAuth(auth) &&
+    auth.capabilities !== undefined &&
+    !auth.capabilities.includes('control.approve')
+  ) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: 'forbidden: token lacks control.approve capability',
+      }),
+    );
+    return;
+  }
+
+  // The target has to advertise that it mirrors approvals. Without this an
+  // `approve` queues against a client that will never answer it, and the
+  // operator watches a command sit at "delivered" while the prompt on the
+  // machine times out.
+  if (
+    (validated.type === 'approve' || validated.type === 'answer-input') &&
+    !target.capabilities.includes('control.approve')
+  ) {
+    res.writeHead(409, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: 'client does not mirror approvals',
+        clientId: body.clientId,
+      }),
+    );
+    return;
+  }
+
   if (
     validated.type === 'run-command' &&
     isCookieAuth(auth) &&

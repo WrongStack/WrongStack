@@ -67,10 +67,11 @@ export function setupWebuiProxyInstantApply(options: WebuiProxyApplyOptions): ()
         if (deps.context.provider?.id !== providerId) return; // superseded
         const cur = state.getConfig();
         const providerCfg: ProviderConfig = cur.providers?.[providerId] ?? { type: providerId };
+        const factoryType = providerCfg.type ?? providerId;
         const routedCfg = routeProviderCfgThroughProxy(providerCfg, cur.baseUrl, providerId);
-        const built = deps.providerRegistry.has(providerId)
-          ? deps.providerRegistry.create({ ...routedCfg, type: providerId } as never)
-          : makeProviderFromConfig(providerId, routedCfg);
+        const built = deps.providerRegistry.has(factoryType)
+          ? deps.providerRegistry.create({ ...routedCfg, type: providerId } as never, factoryType)
+          : makeProviderFromConfig(providerId, { ...routedCfg, type: factoryType });
         // Overlay the LIVE model's catalog facts — same rule as
         // applyModelSwitchCore: a freshly built provider only carries the
         // wire-family baseline, which would drop maxContext/maxOutput.

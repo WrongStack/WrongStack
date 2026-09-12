@@ -18,6 +18,7 @@
 
 import type { RemoteMailbox } from '@wrongstack/core/coordination';
 import type { HqCommand, HqPublisherCommandResult } from '@wrongstack/core/hq';
+import type { UserInputResponse } from '@wrongstack/core/types';
 
 /**
  * Mutable holder for the command dispatch targets. Each field is populated
@@ -75,6 +76,28 @@ export interface HqCommandController {
   ownsSession?: ((sessionId: string) => boolean) | undefined;
   /** Whether raw shell execution is explicitly opted-in by the operator. */
   allowRunCommand: () => boolean;
+  /**
+   * Answer a permission prompt that is live on this host.
+   *
+   * Returns false when the prompt is no longer pending — it was answered at
+   * the keyboard, aborted, or timed out. HQ mirrors prompts rather than owning
+   * them, so losing the race is the normal case and must be reported back
+   * instead of silently swallowed.
+   *
+   * Bound to the process-wide approval registry
+   * (`createApprovalRegistry` in `@wrongstack/core/hq`), which is the only
+   * holder of the resolver closures.
+   */
+  resolveApproval?:
+    | ((
+        toolUseId: string,
+        decision: 'yes' | 'no' | 'always' | 'deny',
+        sessionId?: string | undefined,
+      ) => boolean)
+    | undefined;
+  resolveUserInput?:
+    | ((requestId: string, response: UserInputResponse, sessionId?: string | undefined) => boolean)
+    | undefined;
   /** Apply a lifecycle transition through the project's Kanban IPC client. */
   kanbanTransition?:
     | ((input: {
@@ -424,6 +447,60 @@ async function dispatch(
         ...(sessionId !== undefined ? { sessionId } : {}),
       });
       return { commandId, status: 'completed', message };
+    }
+
+    case 'approve': {
+      const resolveApproval = controller.resolveApproval;
+      if (resolveApproval === undefined) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'this client does not mirror approvals',
+        };
+      }
+      const toolUseId = typeof payload['toolUseId'] === 'string' ? payload['toolUseId'] : '';
+      const decision = payload['decision'];
+      if (
+        toolUseId.length === 0 ||
+        (decision !== 'yes' && decision !== 'no' && decision !== 'always' && decision !== 'deny')
+      ) {
+        return { commandId, status: 'rejected', message: 'malformed approve command' };
+      }
+      // `sessionId` (not `namedSession`): a prompt always belongs to a
+      // session, so checking against this host's default when the operator
+      // named none keeps a single-session host honest too.
+      const applied = resolveApproval(toolUseId, decision, sessionId);
+      if (!applied) {
+        return {
+          commandId,
+          status: 'rejected',
+          // Says WHY, because "rejected" alone reads as a failure the operator
+          // should retry — and retrying a settled prompt does nothing.
+          message: `approval ${toolUseId} is no longer pending (already answered, aborted or timed out)`,
+        };
+      }
+      return { commandId, status: 'completed', message: `approval ${decision}` };
+    }
+
+    case 'answer-input': {
+      const resolver = controller.resolveUserInput;
+      if (!resolver)
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'this client does not mirror user input forms',
+        };
+      const requestId = typeof payload['requestId'] === 'string' ? payload['requestId'] : '';
+      const response = payload['response'] as UserInputResponse | undefined;
+      if (!requestId || !response || !Array.isArray(response.answers))
+        return { commandId, status: 'rejected', message: 'malformed answer-input command' };
+      if (!resolver(requestId, response, sessionId))
+        return {
+          commandId,
+          status: 'rejected',
+          message: `user input ${requestId} is no longer pending`,
+        };
+      return { commandId, status: 'completed', message: 'user input submitted' };
     }
 
     case 'run-command': {

@@ -55,6 +55,9 @@ export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'provider.probe',
   'provider.quota',
   'provider.status.snapshot',
+  'provider.test.complete',
+  'provider.test.result',
+  'provider.test.started',
   'providers.saved',
   'system_prompt.info',
 ] as const;

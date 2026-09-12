@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Heavy mocking: backend-services constructs ~20 core modules.
 // We mock the constructor-level imports so the factory body runs.
 vi.mock('@wrongstack/core/agent', () => ({
+  createEventUserInputAwaiter: vi.fn(() => vi.fn(async () => undefined)),
   Agent: class FakeAgent {
     ctx: any;
     extensions = { register: vi.fn() };

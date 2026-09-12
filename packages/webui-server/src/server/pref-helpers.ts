@@ -76,6 +76,7 @@ export const PREF_KEYS = [
   'fallbackModels',
   'fallbackProfiles',
   'favoriteModels',
+  'disabledModels',
   'favoriteModelsOnly',
   'modelAvailabilitySchedule',
   'modelMatrix',
@@ -379,6 +380,8 @@ export async function persistPrefsToConfig(
       }
       if (Array.isArray(payload['favoriteModels']))
         decrypted.favoriteModels = payload['favoriteModels'];
+      if (Array.isArray(payload['disabledModels']))
+        decrypted.disabledModels = payload['disabledModels'];
       if (typeof payload['favoriteModelsOnly'] === 'boolean')
         decrypted.favoriteModelsOnly = payload['favoriteModelsOnly'];
       if (Array.isArray(payload['modelAvailabilitySchedule']))

@@ -6,6 +6,7 @@ import { AppView } from './app-view.js';
 import { deriveAppViewState } from './app-view-state.js';
 import { leaderTimelineFromEntries } from './components/agents-monitor.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
+import { UserInputPrompt, usePendingUserInput } from './components/user-input-prompt.js';
 import { useAppEnvironment } from './hooks/use-app-environment.js';
 import { useAppExecutionPipeline } from './hooks/use-app-execution-pipeline.js';
 import { useAppPickerKeys } from './hooks/use-app-picker-keys.js';
@@ -162,6 +163,7 @@ export function App(props: AppProps): React.ReactElement {
     memoryStore,
     configStore,
   } = props;
+  const pendingUserInput = usePendingUserInput(events);
   const { exit } = useApp();
   const { stdout } = useStdout();
 
@@ -891,6 +893,8 @@ export function App(props: AppProps): React.ReactElement {
     liveAnimationStyle,
     panelPositions: effectivePanelPositions(state, liveSettings),
   });
+
+  if (pendingUserInput) return <UserInputPrompt pending={pendingUserInput} />;
 
   return (
     <AppView

@@ -90,6 +90,9 @@ const ChimeraReviewsView = lazy(() =>
   import('./ChimeraReviewsView').then((m) => ({ default: m.ChimeraReviewsView })),
 );
 const SetupScreen = lazy(() => import('./SetupScreen').then((m) => ({ default: m.SetupScreen })));
+const ProviderTestView = lazy(() =>
+  import('./ProviderTestView').then((m) => ({ default: m.ProviderTestView })),
+);
 
 // Eager ones stay eager — they're small and chat is in front anyway. Errors
 // in `SettingsPanel` and `ContextDashboard` would otherwise double-import
@@ -146,6 +149,12 @@ export interface ViewMeta {
  * preserves consumers' `ViewMeta | undefined` lookup type.
  */
 const VIEW_REGISTRY_STRICT = {
+  'provider-test': {
+    Component: ProviderTestView,
+    wrapperClassName: 'flex-1 min-h-0 min-w-0 overflow-hidden',
+    boundaryNameKey: 'activity:nav.provider-test',
+    loadingLabelKey: 'activity:nav.provider-test',
+  },
   settings: {
     Component: SettingsPanel as unknown as ComponentType<Record<string, unknown>>,
     wrapperClassName: 'flex-1 min-h-0 min-w-0 overflow-hidden',

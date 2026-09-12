@@ -392,6 +392,7 @@ export function createWebuiRouteContexts({
 
   const connectionCtx: EmbeddedConversationContext = {
     agent: opts.agent,
+    events: opts.events,
     getAgent: getSessionAgent,
     // Non-creating peek for the hasSession ownership gate (background-tab
     // requests are legitimate; arbitrary strings are not).

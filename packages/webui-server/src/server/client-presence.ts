@@ -6,10 +6,12 @@ import {
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
 import type {
+  ApprovalRegistry,
   CreateHqPublisherOptions,
   HqClientCapability,
   HqPublisher,
 } from '@wrongstack/core/hq';
+import { createApprovalRegistry, startApprovalTelemetryBridge } from '@wrongstack/core/hq';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config } from '@wrongstack/core/types';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
@@ -55,8 +57,17 @@ export interface WebuiClientPresenceDeps {
     | ((sessionId: string) => import('@wrongstack/core/types').SessionWriter | undefined)
     | undefined;
   startHqConnection: (options: WebuiHqConnectionOptions) => WebuiHqConnection;
+  /**
+   * Build the HQ command handler. The approval registry is handed in rather
+   * than created by the caller because it must be the SAME one the telemetry
+   * bridge publishes from — two registries would show the operator prompts
+   * that the command path cannot answer.
+   */
   createCommandHandler?:
-    | ((mailbox: RemoteMailbox) => NonNullable<CreateHqPublisherOptions['onCommand']>)
+    | ((
+        mailbox: RemoteMailbox,
+        approvals: ApprovalRegistry,
+      ) => NonNullable<CreateHqPublisherOptions['onCommand']>)
     | undefined;
 }
 
@@ -72,6 +83,8 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
   let sessionTelemetry: WebuiHqSessionTelemetry | undefined;
   let syncTimer: ReturnType<typeof setInterval> | null = null;
   let hqConnection: WebuiHqConnection | undefined;
+  let approvals: ApprovalRegistry | undefined;
+  let stopApprovalBridge: (() => void) | undefined;
   let closed = false;
 
   const register = async (): Promise<string | null> => {
@@ -86,14 +99,18 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
       );
       mailbox = nextMailbox;
 
-      const onCommand = deps.createCommandHandler?.(nextMailbox);
+      // Created once per registration, and disposed in `unregister` — not per
+      // HQ connection. It holds the resolver for every permission prompt open
+      // in a browser tab, and a reconnect must not drop them.
+      approvals ??= createApprovalRegistry(deps.events);
+      const onCommand = deps.createCommandHandler?.(nextMailbox, approvals);
       const capabilities: HqClientCapability[] = [
         'telemetry.publish',
         'mailbox.summary',
         'fleet.summary',
         'session.summary',
       ];
-      if (onCommand) capabilities.push('control.receive');
+      if (onCommand) capabilities.push('control.receive', 'control.approve');
 
       hqConnection = deps.startHqConnection({
         clientKind: 'webui',
@@ -102,7 +119,21 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
         appConfig: deps.appConfig,
         capabilities,
         ...(onCommand ? { onCommand } : {}),
-        onConnect: () => {
+        onConnect: (publisher) => {
+          stopApprovalBridge?.();
+          stopApprovalBridge = undefined;
+          if (approvals !== undefined) {
+            try {
+              stopApprovalBridge = startApprovalTelemetryBridge({
+                registry: approvals,
+                publisher,
+                projectRoot,
+                sessionId: deps.hqSessionId,
+              });
+            } catch {
+              /* approval mirroring is optional telemetry */
+            }
+          }
           // Every open tab is its own session; HQ used to hear about only the
           // boot one. The manager keeps a bridge alive per displayed session
           // and reconciles on each sync.
@@ -170,6 +201,13 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
     syncTimer = null;
     sessionTelemetry?.stop();
     sessionTelemetry = undefined;
+    stopApprovalBridge?.();
+    stopApprovalBridge = undefined;
+    // Disposed, not drained: the prompts stay live on the tabs that raised
+    // them, and answering them here because HQ went away would decide for the
+    // user at their own keyboard.
+    approvals?.dispose();
+    approvals = undefined;
     hqConnection?.stop();
     hqConnection = undefined;
     const previousClientId = clientId;

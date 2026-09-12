@@ -1,5 +1,6 @@
 export type { HqClientConfig } from '../types/config.js';
 export * from './alerts.js';
+export * from './approval-bridge.js';
 export * from './auth-audit.js';
 export * from './auth-store.js';
 export * from './bootstrap-store.js';

@@ -1,52 +1,62 @@
-/**
- * `clarify` tool — Proactive Ambiguity Clarifier & Intent Alignment.
- *
- * Prompts the user with structured, multiple-choice questions when architectural,
- * database schema, API contract, or domain logic assumptions are underspecified.
- * Bridges clarify + ask_question into a single unified interactive tool
- * functioning consistently across CLI, TUI, and WebUI.
- */
-
-import type { Tool } from '@wrongstack/core/types';
+/** Structured, cross-surface model-to-user clarification form. */
+import { randomUUID } from 'node:crypto';
+import type {
+  Tool,
+  UserInputAnswer,
+  UserInputQuestion,
+  UserInputRequest,
+  UserInputResponse,
+  UserInputTab,
+} from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
+export interface ClarifyOptionInput {
+  id?: string | undefined;
+  label: string;
+  description?: string | undefined;
+}
 export interface ClarifyQuestionItem {
-  /** The core decision or question to clarify with the user. */
+  id?: string | undefined;
   question: string;
-  /** Context or explanation of why this decision matters (e.g. index performance, validation). */
   context?: string | undefined;
-  /** 2 to 6 structured, distinct choices for the user to select. */
-  options: string[];
-  /** The option recommended by the assistant based on best practices. */
+  type?: 'single_select' | 'multi_select' | 'text' | undefined;
+  options?: Array<string | ClarifyOptionInput> | undefined;
   recommendedOption?: string | undefined;
-  /** Whether the user can select multiple options simultaneously. */
+  recommendedOptions?: string[] | undefined;
+  recommendedText?: string | undefined;
+  recommendationReason?: string | undefined;
   isMultiSelect?: boolean | undefined;
-  /** Snake-case alias for isMultiSelect (Antigravity compatibility). */
   is_multi_select?: boolean | undefined;
-  /** Allow write-in custom responses in addition to options (default: true). */
   allowCustomResponse?: boolean | undefined;
+  required?: boolean | undefined;
+  placeholder?: string | undefined;
 }
-
+export interface ClarifyTabInput {
+  id?: string | undefined;
+  label: string;
+  description?: string | undefined;
+  questions: ClarifyQuestionItem[];
+}
 export interface ClarifyQuestionInput extends Partial<ClarifyQuestionItem> {
-  /** Batch questions list (Antigravity ask_question parity). */
+  title?: string | undefined;
+  description?: string | undefined;
+  submitLabel?: string | undefined;
   questions?: ClarifyQuestionItem[] | undefined;
+  tabs?: ClarifyTabInput[] | undefined;
 }
-
 export type ClarifyInput = ClarifyQuestionInput;
-
 export interface ClarifyAnswerItem {
+  questionId: string;
   question: string;
   selectedOptions: string[];
   customResponse?: string | undefined;
+  usedRecommendation: boolean;
 }
-
 export interface ClarifyOutput {
   status: 'answered' | 'auto_decided' | 'skipped';
-  /** Primary / single question (for backward compatibility). */
   question: string;
   selectedOptions: string[];
   customResponse?: string | undefined;
-  /** Complete list of answers when clarifying one or more questions. */
   answers?: ClarifyAnswerItem[] | undefined;
   decisionSummary: string;
   error?: string | undefined;
@@ -59,69 +69,43 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
   permission: 'auto',
   mutating: false,
   description:
-    'Ask the user structured multiple-choice clarification question(s) when an architectural, ' +
-    'database schema, API, or domain decision has mutually exclusive trade-offs. Supports single or batch questions, ' +
-    'recommended defaults, multi-select, and custom write-in responses across TUI, CLI, and WebUI.',
+    'Pause and ask the user for required decisions in one structured, tabbed form. Supports single-select, multi-select, free text, option descriptions, write-ins, and explicitly recommended answers. Submit returns all answers to the model at once.',
   usageHint:
-    'Use when requirements are ambiguous or have critical trade-offs.\n' +
-    '- Single question: pass `question` and `options` (min 2).\n' +
-    '- Multiple questions: pass `questions: [{ question, options, recommendedOption? }]`.\n' +
-    '- Format options as clear user decisions. Prefix best practice choices with "(Recommended)".\n' +
-    '- Autonomous fallback: if running headless without an interactive UI, the recommended option is automatically selected.',
+    'Prefer `tabs` with stable snake_case ids. Every decision should include a recommended answer and a short recommendationReason. Use `type: "text"` for free-form input. Legacy `question`/`questions` inputs remain supported.',
   inputSchema: {
     type: 'object',
     properties: {
-      question: {
-        type: 'string',
-        description: 'The specific architectural, schema, or contract decision to clarify.',
-      },
-      context: {
-        type: 'string',
-        description: 'Brief explanation of tradeoffs or why this decision is needed.',
-      },
-      options: {
+      title: { type: 'string', description: 'Short form title.' },
+      description: { type: 'string', description: 'Why these answers are needed.' },
+      submitLabel: { type: 'string', description: 'Submit button label.' },
+      question: { type: 'string' },
+      context: { type: 'string' },
+      type: { type: 'string', enum: ['single_select', 'multi_select', 'text'] },
+      options: optionArraySchema(),
+      recommendedOption: { type: 'string' },
+      recommendedOptions: { type: 'array', items: { type: 'string' } },
+      recommendedText: { type: 'string' },
+      recommendationReason: { type: 'string' },
+      isMultiSelect: { type: 'boolean' },
+      is_multi_select: { type: 'boolean' },
+      allowCustomResponse: { type: 'boolean' },
+      required: { type: 'boolean' },
+      placeholder: { type: 'string' },
+      questions: { type: 'array', minItems: 1, items: questionSchema() },
+      tabs: {
         type: 'array',
-        items: { type: 'string' },
-        description: '2 to 6 distinct options formatted as clear user decisions.',
-        minItems: 2,
-        maxItems: 6,
-      },
-      recommendedOption: {
-        type: 'string',
-        description: 'The assistant-recommended default choice.',
-      },
-      isMultiSelect: {
-        type: 'boolean',
-        description: 'Whether multiple options can be chosen simultaneously.',
-      },
-      is_multi_select: {
-        type: 'boolean',
-        description: 'Snake-case alias for isMultiSelect.',
-      },
-      allowCustomResponse: {
-        type: 'boolean',
-        description: 'Whether to allow the user to type a custom write-in response (default: true).',
-      },
-      questions: {
-        type: 'array',
-        description: 'List of questions for batch clarification (Antigravity ask_question parity).',
+        minItems: 1,
+        maxItems: 8,
         items: {
           type: 'object',
           properties: {
-            question: { type: 'string' },
-            context: { type: 'string' },
-            options: {
-              type: 'array',
-              items: { type: 'string' },
-              minItems: 2,
-              maxItems: 6,
-            },
-            recommendedOption: { type: 'string' },
-            isMultiSelect: { type: 'boolean' },
-            is_multi_select: { type: 'boolean' },
-            allowCustomResponse: { type: 'boolean' },
+            id: { type: 'string' },
+            label: { type: 'string' },
+            description: { type: 'string' },
+            questions: { type: 'array', minItems: 1, maxItems: 12, items: questionSchema() },
           },
-          required: ['question', 'options'],
+          required: ['label', 'questions'],
+          additionalProperties: false,
         },
       },
     },
@@ -129,112 +113,264 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
   },
   async execute(input, ctx, opts) {
     try {
-      const signal = opts?.signal ?? ctx?.signal;
-      signal?.throwIfAborted();
-
-      // Normalize items: either batch `questions` or single question fields
-      const items: ClarifyQuestionItem[] = [];
-      if (Array.isArray(input.questions) && input.questions.length > 0) {
-        items.push(...input.questions);
-      } else if (input.question && Array.isArray(input.options)) {
-        items.push({
-          question: input.question,
-          context: input.context,
-          options: input.options,
-          recommendedOption: input.recommendedOption,
-          isMultiSelect: input.isMultiSelect ?? input.is_multi_select,
-          allowCustomResponse: input.allowCustomResponse,
-        });
-      }
-
-      if (items.length === 0) {
-        throw new Error('clarify requires either `question` with `options`, or a `questions` array with at least 1 item.');
-      }
-
-      for (const item of items) {
-        if (!item.options || item.options.length < 2) {
-          throw new Error(`clarify question "${item.question}" requires at least 2 distinct options.`);
-        }
-      }
-
-      // Host interactive question handler check
-      type HostAskFn = (
-        q: string,
-        opts: string[],
-        multiOrConfig?: boolean | {
-          isMultiSelect?: boolean;
-          context?: string;
-          recommendedOption?: string;
-          allowCustomResponse?: boolean;
-        },
-      ) => Promise<{ selected: string[]; custom?: string }>;
-
-      const hostAsk = (ctx as unknown as { askUserChoices?: HostAskFn })?.askUserChoices;
-
-      const answers: ClarifyAnswerItem[] = [];
-      let isAutoDecided = false;
-
-      for (const item of items) {
-        const multi = item.isMultiSelect ?? item.is_multi_select ?? false;
-        const options = item.options;
-
-        if (typeof hostAsk === 'function') {
-          const res = await hostAsk(item.question, options, {
-            isMultiSelect: multi,
-            ...(item.context === undefined ? {} : { context: item.context }),
-            ...(item.recommendedOption === undefined
-              ? {}
-              : { recommendedOption: item.recommendedOption }),
-            allowCustomResponse: item.allowCustomResponse ?? true,
-          });
-          const selected = Array.isArray(res?.selected) ? res.selected : [];
-          answers.push({
-            question: item.question,
-            selectedOptions: selected,
-            customResponse: res?.custom,
-          });
-        } else {
-          // Autonomous or non-interactive headless mode: pick recommended or first option
-          isAutoDecided = true;
-          const rec = item.recommendedOption ??
-            options.find((opt) => /^\(?recommended\)?/i.test(opt)) ??
-            options[0] ??
-            'Default';
-          answers.push({
-            question: item.question,
-            selectedOptions: [rec],
-            customResponse: undefined,
-          });
-        }
-      }
-
+      const signal = opts?.signal ?? ctx.signal;
+      signal.throwIfAborted();
+      const request = normalizeRequest(input);
+      let response: UserInputResponse | undefined;
+      if (typeof ctx.requestUserInput === 'function')
+        response = await ctx.requestUserInput(request, signal);
+      else response = await legacyHostResponse(ctx, request);
+      const autoDecided = response === undefined;
+      const resolved = response ?? recommendedResponse(request);
+      if (resolved.status === 'cancelled')
+        return skipped(request, 'User cancelled the clarification form.');
+      const answers = materializeAnswers(request, resolved.answers);
       const primary = answers[0]!;
-      const summaries = answers.map((ans) => {
-        const customPart = ans.customResponse ? ` (Custom: "${ans.customResponse}")` : '';
-        return `"${ans.question}": ${ans.selectedOptions.join(', ')}${customPart}`;
-      });
-
-      const decisionSummary = isAutoDecided
-        ? `Auto-selected recommended option(s) in non-interactive mode: ${summaries.join('; ')}`
-        : `User clarified: ${summaries.join('; ')}`;
-
+      const decisionSummary = `${autoDecided ? 'Auto-selected recommended answers in non-interactive mode' : 'User clarified'}: ${answers
+        .map((answer) => {
+          const values = [
+            ...answer.selectedOptions,
+            ...(answer.customResponse ? [answer.customResponse] : []),
+          ];
+          return `"${answer.question}": ${values.join(', ') || '(blank)'}`;
+        })
+        .join('; ')}`;
       return {
-        status: isAutoDecided ? 'auto_decided' : 'answered',
+        status: autoDecided ? 'auto_decided' : 'answered',
         question: primary.question,
         selectedOptions: primary.selectedOptions,
         customResponse: primary.customResponse,
         answers,
         decisionSummary,
       };
-    } catch (err) {
-      const fallbackQuestion = input.question ?? input.questions?.[0]?.question ?? '';
-      return {
-        status: 'skipped',
-        question: fallbackQuestion,
-        selectedOptions: [],
-        decisionSummary: '',
-        error: toErrorMessage(err),
-      };
+    } catch (error) {
+      return skippedFromInput(input, toErrorMessage(error));
     }
   },
 };
+
+function optionArraySchema() {
+  return {
+    type: 'array',
+    minItems: 2,
+    maxItems: 8,
+    items: {
+      oneOf: [
+        { type: 'string' },
+        {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            label: { type: 'string' },
+            description: { type: 'string' },
+          },
+          required: ['label'],
+          additionalProperties: false,
+        },
+      ],
+    },
+  };
+}
+function questionSchema() {
+  return {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      question: { type: 'string' },
+      context: { type: 'string' },
+      type: { type: 'string', enum: ['single_select', 'multi_select', 'text'] },
+      options: optionArraySchema(),
+      recommendedOption: { type: 'string' },
+      recommendedOptions: { type: 'array', items: { type: 'string' } },
+      recommendedText: { type: 'string' },
+      recommendationReason: { type: 'string' },
+      isMultiSelect: { type: 'boolean' },
+      is_multi_select: { type: 'boolean' },
+      allowCustomResponse: { type: 'boolean' },
+      required: { type: 'boolean' },
+      placeholder: { type: 'string' },
+    },
+    required: ['question'],
+    additionalProperties: false,
+  };
+}
+function slug(value: string, fallback: string): string {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') || fallback
+  );
+}
+function normalizeRequest(input: ClarifyQuestionInput): UserInputRequest {
+  const sourceTabs: ClarifyTabInput[] = input.tabs?.length
+    ? input.tabs
+    : [
+        {
+          label: 'Questions',
+          questions: input.questions?.length ? input.questions : [input as ClarifyQuestionItem],
+        },
+      ];
+  const seen = new Set<string>();
+  const tabs: UserInputTab[] = sourceTabs.map((tab, tabIndex) => ({
+    id: tab.id ?? slug(tab.label, `tab_${tabIndex + 1}`),
+    label: tab.label,
+    description: tab.description,
+    questions: tab.questions.map((question, questionIndex) => {
+      if (!question.question?.trim())
+        throw new Error('Every clarify question requires non-empty `question`.');
+      const id = question.id ?? slug(question.question, `question_${questionIndex + 1}`);
+      if (seen.has(id)) throw new Error(`Duplicate clarify question id: ${id}`);
+      seen.add(id);
+      const kind =
+        question.type ??
+        ((question.isMultiSelect ?? question.is_multi_select) ? 'multi_select' : 'single_select');
+      const options = (question.options ?? []).map((option, index) => {
+        const value = typeof option === 'string' ? { label: option } : option;
+        return {
+          id: value.id ?? slug(value.label, `option_${index + 1}`),
+          label: value.label,
+          description: value.description,
+        };
+      });
+      if (kind !== 'text' && options.length < 2)
+        throw new Error(`clarify question "${question.question}" requires at least 2 options.`);
+      const recommended =
+        question.recommendedOptions ??
+        (question.recommendedOption ? [question.recommendedOption] : []);
+      const recommendedOptionIds = recommended.map(
+        (value) =>
+          options.find((option) => option.id === value || option.label === value)?.id ?? value,
+      );
+      if (kind === 'single_select' && recommendedOptionIds.length > 1)
+        throw new Error(
+          `Single-select question "${question.question}" can recommend only one option.`,
+        );
+      return {
+        id,
+        prompt: question.question,
+        description: question.context,
+        kind,
+        required: question.required ?? true,
+        options: kind === 'text' ? undefined : options,
+        recommendedOptionIds,
+        recommendedText: question.recommendedText,
+        recommendationReason: question.recommendationReason,
+        allowCustomResponse: kind === 'text' ? undefined : (question.allowCustomResponse ?? true),
+        placeholder: question.placeholder,
+      } satisfies UserInputQuestion;
+    }),
+  }));
+  return {
+    id: `clarify_${randomUUID()}`,
+    title: input.title?.trim() || 'A few decisions are needed',
+    description: input.description,
+    submitLabel: input.submitLabel ?? 'Submit answers',
+    tabs,
+  };
+}
+function recommendedResponse(request: UserInputRequest): UserInputResponse {
+  return {
+    requestId: request.id,
+    status: 'submitted',
+    answers: request.tabs.flatMap((tab) =>
+      tab.questions.map((question) => ({
+        questionId: question.id,
+        selectedOptionIds: question.recommendedOptionIds?.length
+          ? question.recommendedOptionIds
+          : question.kind === 'text'
+            ? []
+            : (question.options?.slice(0, 1).map((option) => option.id) ?? []),
+        text: question.recommendedText,
+        usedRecommendation: Boolean(
+          question.recommendedOptionIds?.length || question.recommendedText,
+        ),
+      })),
+    ),
+  };
+}
+function materializeAnswers(
+  request: UserInputRequest,
+  answers: UserInputAnswer[],
+): ClarifyAnswerItem[] {
+  const byId = new Map(answers.map((answer) => [answer.questionId, answer]));
+  return request.tabs.flatMap((tab) =>
+    tab.questions.map((question) => {
+      const answer = byId.get(question.id) ?? {
+        questionId: question.id,
+        selectedOptionIds: [],
+        usedRecommendation: false,
+      };
+      return {
+        questionId: question.id,
+        question: question.prompt,
+        selectedOptions: answer.selectedOptionIds.map(
+          (id) => question.options?.find((option) => option.id === id)?.label ?? id,
+        ),
+        customResponse: answer.text,
+        usedRecommendation: answer.usedRecommendation,
+      };
+    }),
+  );
+}
+async function legacyHostResponse(
+  ctx: unknown,
+  request: UserInputRequest,
+): Promise<UserInputResponse | undefined> {
+  type Ask = (
+    question: string,
+    options: string[],
+    config?: object,
+  ) => Promise<{ selected: string[]; custom?: string }>;
+  const ask = (ctx as { askUserChoices?: Ask }).askUserChoices;
+  if (typeof ask !== 'function') return undefined;
+  const answers: UserInputAnswer[] = [];
+  for (const question of request.tabs.flatMap((tab) => tab.questions)) {
+    const result = await ask(
+      question.prompt,
+      question.options?.map((option) => option.label) ?? [],
+      {
+        isMultiSelect: question.kind === 'multi_select',
+        context: question.description,
+        recommendedOption: question.recommendedOptionIds?.[0],
+        allowCustomResponse: question.allowCustomResponse,
+      },
+    );
+    const ids = result.selected.map(
+      (value) =>
+        question.options?.find((option) => option.label === value || option.id === value)?.id ??
+        value,
+    );
+    answers.push({
+      questionId: question.id,
+      selectedOptionIds: ids,
+      text: result.custom,
+      usedRecommendation:
+        ids.length === (question.recommendedOptionIds?.length ?? 0) &&
+        ids.every((id) => question.recommendedOptionIds?.includes(id)),
+    });
+  }
+  return { requestId: request.id, status: 'submitted', answers };
+}
+function skipped(request: UserInputRequest, error: string): ClarifyOutput {
+  return {
+    status: 'skipped',
+    question: request.tabs[0]?.questions[0]?.prompt ?? '',
+    selectedOptions: [],
+    decisionSummary: '',
+    error,
+  };
+}
+function skippedFromInput(input: ClarifyQuestionInput, error: string): ClarifyOutput {
+  return {
+    status: 'skipped',
+    question:
+      input.question ??
+      input.questions?.[0]?.question ??
+      input.tabs?.[0]?.questions[0]?.question ??
+      '',
+    selectedOptions: [],
+    decisionSummary: '',
+    error,
+  };
+}

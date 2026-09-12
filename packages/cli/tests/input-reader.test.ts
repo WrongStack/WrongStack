@@ -105,3 +105,75 @@ describe('ReadlineInputReader.readKey', () => {
     await expect(promise).resolves.toBe('resume');
   });
 });
+
+describe('ReadlineInputReader.readKey cancellation', () => {
+  let originalStdin: NodeJS.ReadStream;
+
+  beforeEach(() => {
+    originalStdin = process.stdin;
+    Object.defineProperty(process, 'stdin', {
+      value: makeFakeStdin(),
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, 'stdin', {
+      value: originalStdin,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  const OPTIONS = [
+    { key: 'y', label: 'yes', value: 'yes' },
+    { key: 'n', label: 'no', value: 'no' },
+  ];
+
+  it('restores terminal state and stops listening when aborted', async () => {
+    // The prompt was answered from the HQ dashboard. If stdin stayed in raw
+    // mode with the data listener attached, the user's next keystroke would be
+    // eaten by a question nobody is asking any more.
+    const reader = new ReadlineInputReader();
+    const controller = new AbortController();
+    const stdin = process.stdin;
+
+    const pending = reader.readKey('confirm: ', OPTIONS, { signal: controller.signal });
+    await vi.waitFor(() => expect(stdin.listenerCount('data')).toBe(1));
+    expect(stdin.isRaw).toBe(true);
+
+    controller.abort();
+
+    await expect(pending).resolves.toBe('');
+    expect(stdin.listenerCount('data')).toBe(0);
+    expect(stdin.isRaw).toBe(false);
+  });
+
+  it('does not touch the terminal at all when already aborted', async () => {
+    const reader = new ReadlineInputReader();
+    const controller = new AbortController();
+    controller.abort();
+    const stdin = process.stdin;
+
+    await expect(reader.readKey('confirm: ', OPTIONS, { signal: controller.signal })).resolves.toBe(
+      '',
+    );
+    expect(stdin.listenerCount('data')).toBe(0);
+    expect(stdin.isRaw).toBe(false);
+  });
+
+  it('still answers normally when a signal is supplied but never fires', async () => {
+    const reader = new ReadlineInputReader();
+    const controller = new AbortController();
+    const stdin = process.stdin;
+
+    const pending = reader.readKey('confirm: ', OPTIONS, { signal: controller.signal });
+    await vi.waitFor(() => expect(stdin.listenerCount('data')).toBe(1));
+    stdin.emit('data', Buffer.from('y'));
+
+    await expect(pending).resolves.toBe('yes');
+    expect(stdin.listenerCount('data')).toBe(0);
+    expect(stdin.isRaw).toBe(false);
+  });
+});

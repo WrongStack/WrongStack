@@ -23,7 +23,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('is wired into the persist middleware at the current version', () => {
     const opts = useLocalPrefs.persist.getOptions();
     expect(opts.name).toBe('wrongstack-local-prefs');
-    expect(opts.version).toBe(17);
+    expect(opts.version).toBe(18);
     expect(typeof opts.migrate).toBe('function');
   });
 
@@ -119,17 +119,24 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('resets non-array list prefs to []', () => {
     const p = migrate({
       favoriteModels: 'a,b',
+      disabledModels: 'bad',
       modelAvailabilitySchedule: {},
       autoReviewFallbackModels: 'x',
     });
     expect(p.favoriteModels).toEqual([]);
+    expect(p.disabledModels).toEqual([]);
     expect(p.modelAvailabilitySchedule).toEqual([]);
     expect(p.autoReviewFallbackModels).toEqual([]);
   });
 
   it('keeps well-formed list prefs', () => {
-    const p = migrate({ favoriteModels: ['opus'], autoReviewFallbackModels: ['sonnet'] });
+    const p = migrate({
+      favoriteModels: ['opus'],
+      disabledModels: ['openai/broken'],
+      autoReviewFallbackModels: ['sonnet'],
+    });
     expect(p.favoriteModels).toEqual(['opus']);
+    expect(p.disabledModels).toEqual(['openai/broken']);
     expect(p.autoReviewFallbackModels).toEqual(['sonnet']);
   });
 

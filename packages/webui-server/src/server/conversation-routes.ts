@@ -7,6 +7,7 @@ export interface ConversationRouteHandlers {
   abort: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
   ping: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
   confirmTool: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
+  submitUserInput: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
 }
 
 export async function handleConversationRoute(
@@ -29,6 +30,9 @@ export async function handleConversationRoute(
       return true;
     case 'tool.confirm_result':
       await handlers.confirmTool(ws, msg);
+      return true;
+    case 'user.input_submit':
+      await handlers.submitUserInput(ws, msg);
       return true;
     default:
       return false;

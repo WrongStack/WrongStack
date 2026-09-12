@@ -11,6 +11,7 @@ import { maskedKey, normalizeKeys } from './keys-records.js';
  */
 export interface SavedProviderView {
   id: string;
+  type?: string | undefined;
   family?: string | undefined;
   baseUrl?: string | undefined;
   /** Saved model allowlist, verbatim (undefined / [] both possible). */
@@ -43,6 +44,7 @@ export function projectSavedProviders(
     const models = cfg.models;
     const view: SavedProviderView = {
       id,
+      type: cfg.type,
       family: cfg.family ?? id,
       baseUrl: cfg.baseUrl,
       models,

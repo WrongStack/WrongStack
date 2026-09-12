@@ -1,7 +1,8 @@
 import { bindRequestConversation } from '@wrongstack/core/request-conversation';
 import type { Request, StreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
-import { OpenCodeGoProvider } from '../src/opencode-go.js';
+import { makeProviderFromConfig } from '../src/index.js';
+import { OpenCodeGoProvider, openCodeGoWireForModel } from '../src/opencode-go.js';
 
 function request(model: string, reasoning?: Request['reasoning']): Request {
   return {
@@ -40,6 +41,46 @@ function sseFetch(events: string): typeof fetch {
 }
 
 describe('OpenCodeGoProvider', () => {
+  it('keeps the session-aware adapter when a config-only runtime rebuild uses an alias', async () => {
+    const calls: Array<{ headers: Record<string, string> }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: unknown, init?: RequestInit) => {
+        calls.push({
+          headers: Object.fromEntries(
+            Object.entries(init?.headers ?? {}).map(([key, value]) => [
+              key.toLowerCase(),
+              String(value),
+            ]),
+          ),
+        });
+        return new Response('', { status: 200 });
+      }),
+    );
+    try {
+      const provider = makeProviderFromConfig('opencode-go-ws', {
+        type: 'opencode-go',
+        family: 'openai-compatible',
+        apiKey: 'oc-test',
+        baseUrl: 'https://opencode.ai/zen/go/v1',
+      });
+      expect(provider).toBeInstanceOf(OpenCodeGoProvider);
+      expect(provider.id).toBe('opencode-go-ws');
+
+      await drain(provider as OpenCodeGoProvider, request('deepseek-v4.1-flash'));
+      expect(calls[0]?.headers['x-opencode-session']).toMatch(/^sess_/);
+      expect(calls[0]?.headers['user-agent']).toBe('wrongstack/1.0');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('reports the same documented wire used by request delegation', () => {
+    expect(openCodeGoWireForModel('gpt-5.6-luna', '@ai-sdk/openai')).toBe('@ai-sdk/openai');
+    expect(openCodeGoWireForModel('qwen3.7-plus')).toBe('@ai-sdk/anthropic');
+    expect(openCodeGoWireForModel('glm-5.3')).toBe('@ai-sdk/openai-compatible');
+  });
+
   it('routes Responses, Chat Completions, and Anthropic Messages models behind one provider', async () => {
     const calls: Array<{
       url: string;
@@ -121,6 +162,36 @@ describe('OpenCodeGoProvider', () => {
       'https://opencode.ai/zen/go/v1/responses',
       'https://opencode.ai/zen/go/v1/messages',
       'https://opencode.ai/zen/go/v1/chat/completions',
+    ]);
+  });
+
+  it('uses the documented Messages wire when models.dev omits a Qwen npm override', async () => {
+    const urls: string[] = [];
+    const fetchImpl = vi.fn(async (input: unknown) => {
+      urls.push(String(input));
+      return new Response('', { status: 200 });
+    }) as never as typeof fetch;
+    const provider = new OpenCodeGoProvider({
+      apiKey: 'oc-test',
+      fetchImpl,
+      models: [
+        { id: 'qwen3.6-plus', name: 'Qwen 3.6 Plus', family: 'qwen3.6' },
+        { id: 'qwen3.7-max', name: 'Qwen 3.7 Max', family: 'qwen3.7-max' },
+        { id: 'qwen3.7-plus', name: 'Qwen 3.7 Plus', family: 'qwen3.7-plus' },
+        { id: 'qwen3.8-max', name: 'Qwen 3.8 Max', family: 'qwen3.8-max' },
+      ],
+    });
+
+    await drain(provider, request('qwen3.6-plus'));
+    await drain(provider, request('qwen3.7-max'));
+    await drain(provider, request('qwen3.7-plus'));
+    await drain(provider, request('qwen3.8-max'));
+
+    expect(urls).toEqual([
+      'https://opencode.ai/zen/go/v1/messages',
+      'https://opencode.ai/zen/go/v1/messages',
+      'https://opencode.ai/zen/go/v1/messages',
+      'https://opencode.ai/zen/go/v1/messages',
     ]);
   });
 

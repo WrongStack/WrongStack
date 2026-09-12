@@ -12,9 +12,9 @@
  * Pure config → meta projection. No behaviour change.
  */
 
-import { ALL_DESTRUCTIVE_KINDS, resolveYoloConfirmKinds } from '@wrongstack/core/security';
 import { FallbackProfileManager } from '@wrongstack/core/agent';
 import { resolvePluginEnablement } from '@wrongstack/core/plugin';
+import { ALL_DESTRUCTIVE_KINDS, resolveYoloConfirmKinds } from '@wrongstack/core/security';
 import type { Config } from '@wrongstack/core/types';
 import { FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
 
@@ -43,9 +43,9 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['yoloConfirm'] = Object.fromEntries(
     ALL_DESTRUCTIVE_KINDS.map((kind) => [
       kind,
-      resolveYoloConfirmKinds(autonomyCfg['yoloConfirm'] as Record<string, boolean> | undefined).has(
-        kind,
-      ),
+      resolveYoloConfirmKinds(
+        autonomyCfg['yoloConfirm'] as Record<string, boolean> | undefined,
+      ).has(kind),
     ]),
   );
   meta['chime'] = (autonomyCfg['chime'] as boolean) ?? true;
@@ -60,6 +60,7 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['fallbackBridge'] = config.fallbackBridge ?? '';
   meta['fallbackProfiles'] = config.fallbackProfiles ?? {};
   meta['favoriteModels'] = config.favoriteModels ?? [];
+  meta['disabledModels'] = config.disabledModels ?? [];
   meta['favoriteModelsOnly'] = config.favoriteModelsOnly === true;
   meta['modelAvailabilitySchedule'] = config.modelAvailabilitySchedule ?? [];
   meta['modelMatrix'] = config.modelMatrix ?? {};

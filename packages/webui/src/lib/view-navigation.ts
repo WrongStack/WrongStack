@@ -16,6 +16,7 @@ export type MainView =
   | 'kanban'
   | 'sddhub'
   | 'settings'
+  | 'provider-test'
   | 'memory'
   | 'roster'
   | 'codemap'

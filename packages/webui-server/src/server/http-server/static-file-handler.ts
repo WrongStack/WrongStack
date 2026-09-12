@@ -9,6 +9,21 @@ import {
   setStaticSecurityHeaders,
 } from './security-helpers.js';
 
+/**
+ * Live read of the host's extra `connect-src` origins. A getter rather than a
+ * captured array: the operator can change the HQ / WrongProxy URL from the
+ * settings panel, and the next page load must advertise the new origin.
+ */
+function extraConnectSrc(opts: {
+  getExtraConnectSrc?: (() => readonly string[]) | undefined;
+}): readonly string[] {
+  try {
+    return opts.getExtraConnectSrc?.() ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function handleStaticFileRequest(
   _req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -17,6 +32,7 @@ export async function handleStaticFileRequest(
   opts: {
     publicWsUrl?: string | undefined;
     host: string;
+    getExtraConnectSrc?: (() => readonly string[]) | undefined;
   },
   port: number,
   shouldSetAuthCookie: boolean,
@@ -43,7 +59,7 @@ export async function handleStaticFileRequest(
 
   if (ext === '.html') {
     if (!shouldSetAuthCookie) res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Content-Security-Policy', buildCspHeader(opts.publicWsUrl, opts.host, port));
+    res.setHeader('Content-Security-Policy', buildCspHeader(opts.publicWsUrl, opts.host, port, extraConnectSrc(opts)));
     const html = await fs.readFile(resolvedPath, 'utf8');
     res.writeHead(200);
     res.end(injectWsConfig(html, { publicWsUrl: opts.publicWsUrl }));
@@ -69,6 +85,7 @@ export async function handleSpaFallback(
   opts: {
     publicWsUrl?: string | undefined;
     host: string;
+    getExtraConnectSrc?: (() => readonly string[]) | undefined;
   },
   port: number,
 ): Promise<void> {
@@ -77,7 +94,7 @@ export async function handleSpaFallback(
     setStaticSecurityHeaders(res);
     res.writeHead(200, {
       'Content-Type': 'text/html',
-      'Content-Security-Policy': buildCspHeader(opts.publicWsUrl, opts.host, port),
+      'Content-Security-Policy': buildCspHeader(opts.publicWsUrl, opts.host, port, extraConnectSrc(opts)),
     });
     res.end(injectWsConfig(html, { publicWsUrl: opts.publicWsUrl }));
   } catch {

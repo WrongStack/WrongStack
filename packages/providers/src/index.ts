@@ -138,7 +138,11 @@ export {
   type OpenAICompatibleOptions,
   OpenAICompatibleProvider,
 } from './openai-compatible.js';
-export { OpenCodeGoProvider, type OpenCodeGoProviderOptions } from './opencode-go.js';
+export {
+  OpenCodeGoProvider,
+  type OpenCodeGoProviderOptions,
+  openCodeGoWireForModel,
+} from './opencode-go.js';
 export { anthropicWireFormat } from './presets/anthropic.js';
 export { googleWireFormat } from './presets/google.js';
 export { lmstudioWireFormat, ollamaWireFormat, vllmWireFormat } from './presets/local-llm.js';
@@ -462,7 +466,11 @@ function resolveActiveKeyEntry(cfg: ProviderConfig): ProviderApiKey | undefined 
   return undefined;
 }
 
-function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
+function makeProvider(
+  p: ResolvedProvider,
+  cfg: ProviderConfig,
+  factoryType: string = p.id,
+): Provider {
   // Config overrides the catalog. This is the path that lets users wire
   // up internal proxies / self-hosted endpoints without needing models.dev.
   const family: WireFamily = cfg.family ?? p.family;
@@ -476,7 +484,7 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
     provider: p,
     config: cfg,
     explicitApiKey,
-    quirks: validateQuirks(p.id, cfg.quirks),
+    quirks: validateQuirks(factoryType, cfg.quirks),
   });
   if (catalogAware) return catalogAware;
   const apiKey = explicitApiKey ?? readFromEnv(envVars);
@@ -531,7 +539,7 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
     case 'openai-compatible': {
       // Provider/model discovery remains owned by models.dev. This adapter
       // only selects the gateway's per-model wire protocol.
-      if (p.id === 'opencode') {
+      if (factoryType === 'opencode') {
         return new OpenCodeZenProvider({
           id: p.id,
           apiKey: expectDefined(apiKey),
@@ -540,7 +548,7 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
           models: p.models,
         });
       }
-      if (p.id === 'opencode-go') {
+      if (factoryType === 'opencode-go') {
         return new OpenCodeGoProvider({
           id: p.id,
           apiKey: expectDefined(apiKey),
@@ -554,7 +562,7 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
       // OpenAI fallback for everything else. Without this special-case the
       // trusted preset fell through to the generic OpenAICompatibleProvider,
       // so the routing existed only under unit tests.
-      if (p.id === 'minimax' || p.id === 'minimax-coding-plan') {
+      if (factoryType === 'minimax' || factoryType === 'minimax-coding-plan') {
         return new MiniMaxProvider({
           id: p.id,
           apiKey: expectDefined(apiKey),
@@ -563,31 +571,31 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
         });
       }
       // Use a tuned preset when available (Mistral, Ollama, vLLM, LM Studio, …).
-      if (p.id === 'mistral') {
+      if (factoryType === 'mistral') {
         return createWireFormatFactory(mistralWireFormat, {
           apiKey: expectDefined(apiKey),
           baseUrl: baseUrl ?? mistralWireFormat.defaultBaseUrl,
         }).create(cfg);
       }
-      if (p.id === 'ollama') {
+      if (factoryType === 'ollama') {
         return createWireFormatFactory(ollamaWireFormat, {
           apiKey: expectDefined(apiKey),
           baseUrl: baseUrl ?? ollamaWireFormat.defaultBaseUrl,
         }).create(cfg);
       }
-      if (p.id === 'vllm') {
+      if (factoryType === 'vllm') {
         return createWireFormatFactory(vllmWireFormat, {
           apiKey: expectDefined(apiKey),
           baseUrl: baseUrl ?? vllmWireFormat.defaultBaseUrl,
         }).create(cfg);
       }
-      if (p.id === 'lmstudio') {
+      if (factoryType === 'lmstudio') {
         return createWireFormatFactory(lmstudioWireFormat, {
           apiKey: expectDefined(apiKey),
           baseUrl: baseUrl ?? lmstudioWireFormat.defaultBaseUrl,
         }).create(cfg);
       }
-      const preset = COMPATIBLE_PRESETS[p.id];
+      const preset = COMPATIBLE_PRESETS[factoryType];
       const resolvedBaseUrl = baseUrl ?? preset?.defaultBaseUrl;
       if (!resolvedBaseUrl?.trim()) {
         throw new ConfigError({
@@ -689,7 +697,7 @@ export function makeProviderFromConfig(id: string, cfg: ProviderConfig): Provide
     models: seedConfigModels(cfg),
     npm: undefined,
   };
-  return makeProvider(synthetic, cfg);
+  return makeProvider(synthetic, cfg, cfg.type ?? id);
 }
 
 /**

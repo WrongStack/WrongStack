@@ -268,12 +268,9 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return true;
     }
-    await handleRequirementIntakeCreate(
-      res,
-      req,
-      deps.intakeService,
-      decodeURIComponent(intakeProjectMatch[1]!),
-    );
+    const projectId = strictDecodeParam(intakeProjectMatch[1]!, res);
+    if (projectId === null) return true;
+    await handleRequirementIntakeCreate(res, req, deps.intakeService, projectId);
     return true;
   }
   if (intakeProjectMatch && req.method === 'GET') {
@@ -282,11 +279,9 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return true;
     }
-    await handleRequirementIntakeList(
-      res,
-      deps.intakeService,
-      decodeURIComponent(intakeProjectMatch[1]!),
-    );
+    const projectId = strictDecodeParam(intakeProjectMatch[1]!, res);
+    if (projectId === null) return true;
+    await handleRequirementIntakeList(res, deps.intakeService, projectId);
     return true;
   }
 

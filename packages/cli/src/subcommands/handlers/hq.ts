@@ -466,7 +466,9 @@ async function computeAuditHashField(
 type TokenScope = 'browser' | 'client';
 
 const TOKEN_CAPABILITIES: Record<TokenScope, readonly string[]> = {
-  browser: ['control.enqueue'],
+  // `control.approve` is grantable but never default — see
+  // DEFAULT_TOKEN_CAPABILITIES below.
+  browser: ['control.enqueue', 'control.approve'],
   client: ['telemetry.publish', 'control.execute'],
 };
 
@@ -827,7 +829,7 @@ function printHelp(deps: SubcommandDeps): void {
     `  --client, -c        Operate on client tokens instead of browser tokens.\n`,
   );
   deps.renderer.write(
-    `  --capabilities <csv>  Token grants (browser: control.enqueue; client: telemetry.publish,control.execute).\n`,
+    `  --capabilities <csv>  Token grants (browser: control.enqueue,control.approve; client: telemetry.publish,control.execute).\n`,
   );
   deps.renderer.write(
     `  --ttl <duration>    Stamp an expiresAt on the token (e.g. --ttl 1h, --ttl 7d, --ttl 3600s).\n`,
@@ -871,7 +873,7 @@ function printTokenHelp(deps: SubcommandDeps): void {
     `  --client, -c        Operate on client tokens instead of browser tokens.\n`,
   );
   deps.renderer.write(
-    `  --capabilities <csv>  Comma-separated capability grants (browser: control.enqueue; client: telemetry.publish,control.execute).\n`,
+    `  --capabilities <csv>  Comma-separated capability grants (browser: control.enqueue,control.approve; client: telemetry.publish,control.execute).\n`,
   );
   deps.renderer.write(
     `  --ttl <duration>    Stamp an expiresAt on the token (e.g. --ttl 1h, --ttl 7d, --ttl 3600s).\n`,

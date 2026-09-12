@@ -54,7 +54,14 @@ export async function authorizeHqCommand(input: {
     // bootstrap exchange, which is the same thing the dashboard does.
     actor: { kind: authMethod === 'session' ? 'user' : 'remote-client', id: enqueuedBy },
     surface: 'hq',
-    capability: command.type === 'run-command' ? 'hq.control.execute' : 'hq.control.enqueue',
+    capability:
+      command.type === 'run-command'
+        ? 'hq.control.execute'
+        : // Approvals get their own capability string so a policy can allow
+          // steering while still refusing remote approval of tool calls.
+          command.type === 'approve' || command.type === 'answer-input'
+          ? 'hq.control.approve'
+          : 'hq.control.enqueue',
     subject,
     risk: command.type === 'run-command' ? 'critical' : 'high',
     scope: { projectId: target.projectId },

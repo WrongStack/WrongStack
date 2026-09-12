@@ -172,6 +172,51 @@ describe('buildCspHeader', () => {
   });
 });
 
+describe('buildCspHeader — integration connect-src', () => {
+  it('allows a configured loopback HQ origin under both host spellings', () => {
+    const csp = buildCspHeader(undefined, '127.0.0.1', 3456, ['http://127.0.0.1:3499']);
+    expect(csp).toContain('http://127.0.0.1:3499');
+    // The browser field and the persisted config disagree about the spelling
+    // often enough that allowing only the configured one re-breaks the probe.
+    expect(csp).toContain('http://localhost:3499');
+  });
+
+  it('allows a remote HQ origin verbatim, path and query stripped', () => {
+    const csp = buildCspHeader(undefined, '127.0.0.1', 3456, [
+      'https://hq.example.com:8443/api/auth/status?token=secret',
+    ]);
+    expect(csp).toContain('https://hq.example.com:8443');
+    expect(csp).not.toContain('/api/auth/status');
+    expect(csp).not.toContain('secret');
+  });
+
+  it('drops entries that are not http/https/ws/wss URLs', () => {
+    const csp = buildCspHeader(undefined, '127.0.0.1', 3456, [
+      'file:///etc/passwd',
+      'not a url',
+      '',
+      'javascript:alert(1)',
+    ]);
+    const connect = csp.split('connect-src ')[1]?.split(';')[0] ?? '';
+    expect(connect.trim()).toBe(
+      "'self' ws://127.0.0.1:3456 wss://127.0.0.1:3456 ws://localhost:3456 wss://localhost:3456",
+    );
+  });
+
+  it('never emits a bracketed IPv6 source', () => {
+    const csp = buildCspHeader(undefined, '127.0.0.1', 3456, [
+      'http://[::1]:3499',
+      'http://[2001:db8::1]:3499',
+    ]);
+    expect(csp).not.toContain('[');
+    // IPv6 loopback still reaches the same server under the spellings that do
+    // parse, so the probe works; a routable IPv6 host has no such fallback and
+    // is dropped rather than emitted as a token browsers ignore.
+    expect(csp).toContain('http://127.0.0.1:3499');
+    expect(csp).toContain('http://localhost:3499');
+  });
+});
+
 describe('buildCspHeader — loopback edge cases', () => {
   it('excludes bracketed IPv6 from CSP for ::1 bind (covered by self)', () => {
     const csp = buildCspHeader(undefined, '::1', 3466);

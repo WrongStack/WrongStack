@@ -46,6 +46,7 @@ import { createDefaultContainer } from '@wrongstack/runtime';
 import { resolveBundledPromptsDir } from '../cli-bundled-prompts.js';
 import { resolveBundledSkillsDir } from '../cli-bundled-skills.js';
 import { makePromptDelegate } from '../permission-prompt.js';
+import { type ApprovalMirrorRef, makeMirroredPromptDelegate } from '../permission-prompt-mirror.js';
 
 interface WireContainerDeps {
   config: Config;
@@ -74,10 +75,12 @@ export function wireContainer(deps: WireContainerDeps): {
   pathResolver: InstanceType<typeof DefaultPathResolver>;
   events: EventBus;
   container: ReturnType<typeof createDefaultContainer>;
+  approvalMirror: ApprovalMirrorRef;
 } {
   const pathResolver = new DefaultPathResolver(deps.cwd);
   const events = new CoreEventBus();
   events.setLogger(deps.logger);
+  const approvalMirror: ApprovalMirrorRef = { current: undefined };
 
   const container = createDefaultContainer({
     config: deps.config,
@@ -87,7 +90,15 @@ export function wireContainer(deps: WireContainerDeps): {
     events,
     permission: {
       yolo: deps.config.yolo,
-      promptDelegate: makePromptDelegate(deps.reader) as NonNullable<
+      // Wrapped so the REPL's terminal prompt also appears on the HQ
+      // dashboard and can be answered from there. The wrapper is a no-op
+      // until `approvalMirror.current` is populated (HQ telemetry boot), and
+      // the terminal prompt itself behaves exactly as it always has.
+      promptDelegate: makeMirroredPromptDelegate({
+        inner: makePromptDelegate(deps.reader),
+        getRegistry: () => approvalMirror.current,
+        getSessionId: () => approvalMirror.sessionId?.(),
+      }) as NonNullable<
         NonNullable<Parameters<typeof createDefaultContainer>[0]['permission']>['promptDelegate']
       >,
     },
@@ -109,5 +120,5 @@ export function wireContainer(deps: WireContainerDeps): {
   container.bind(TOKENS.Renderer, () => deps.renderer);
   container.bind(TOKENS.InputReader, () => deps.reader);
 
-  return { pathResolver, events, container };
+  return { pathResolver, events, container, approvalMirror };
 }

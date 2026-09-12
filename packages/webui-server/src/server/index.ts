@@ -234,6 +234,7 @@ export {
   handleApiAnalyticsPost,
   handleApiAnalyticsSummary,
 } from './http-server/analytics-handler.js';
+export { integrationConnectSources } from './http-server/integration-connect-src.js';
 export type { CreateHttpServerOptions } from './http-server.js';
 export {
   buildCspHeader,

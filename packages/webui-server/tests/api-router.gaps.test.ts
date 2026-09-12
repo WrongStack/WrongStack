@@ -291,6 +291,26 @@ describe('handleApiRoutes — requirement intake routes', () => {
     );
   });
 
+  it('rejects malformed percent-encoding in the project segment with 400 and no dispatch', async () => {
+    // `decodeURIComponent('%zz')` throws URIError. Before this route used
+    // strictDecodeParam, the throw escaped handleApiRoutes and the http-server
+    // catch converted it to a 500 "Server error" (+ an error-log line) for a
+    // client-input mistake — while the package convention (strictDecodeParam,
+    // sessionIdOrReject) answers 400 with the invalid-encoding body.
+    for (const [method, handler] of [
+      ['GET', 'handleRequirementIntakeList'],
+      ['POST', 'handleRequirementIntakeCreate'],
+    ] as const) {
+      const out = await route(method, '/api/projects/%zz/requirement-intakes');
+      expect(out.handled, method).toBe(true);
+      expect(out.res.statusCode, method).toBe(400);
+      expect(JSON.parse(out.res.body).error, method).toBe(
+        'Invalid URI encoding in path parameter',
+      );
+      expect(intake[handler], method).not.toHaveBeenCalled();
+    }
+  });
+
   it('gets and updates a single intake', async () => {
     await route('GET', '/api/requirement-intakes/intake-1');
     expect(intake['handleRequirementIntakeGet']).toHaveBeenCalledWith(

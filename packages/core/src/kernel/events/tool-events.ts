@@ -2,8 +2,27 @@ import type { AgentContext } from '../../types/context.js';
 import type { ToolOutputMetadata } from '../../types/context-evidence.js';
 import type { PermissionDecision } from '../../types/permission.js';
 import type { RiskTier, Tool, ToolErrorCategory, ToolProgressEvent } from '../../types/tool.js';
+import type { UserInputRequest, UserInputResponse } from '../../types/user-input.js';
 
 export interface ToolEventMap {
+  /** A tool is blocked until an interactive surface submits this structured form. */
+  'user.input_requested': {
+    sessionId?: string | undefined;
+    request: UserInputRequest;
+    resolve: (response: UserInputResponse) => void;
+  };
+  /** Closes mirrored forms after the first surface answers or the run aborts. */
+  'user.input_resolved': {
+    sessionId?: string | undefined;
+    requestId: string;
+    response: UserInputResponse;
+    source: 'user' | 'abort';
+  };
+  /** Browser/HQ transport submits a candidate response to the owning awaiter. */
+  'user.input_submitted': {
+    sessionId?: string | undefined;
+    response: UserInputResponse;
+  };
   'tool.started': {
     sessionId?: string | undefined;
     traceId?: string | undefined;
@@ -134,13 +153,22 @@ export interface ToolEventMap {
     deadlineAt: number;
     resolve: (decision: 'yes' | 'no' | 'always' | 'deny') => void;
   };
-  /** Fired when abort or the 120-second Brain fallback settles a visible prompt. */
+  /**
+   * Fired when a visible prompt settles, whatever settled it: a human answer
+   * on any surface (`user`), an abort (`abort`), or the 120-second Brain
+   * fallback (`brain_timeout`).
+   *
+   * `user` exists because a prompt is mirrored to more than one surface at
+   * once (the local TUI/WebUI/SimpleUI dialog and the HQ dashboard). Without
+   * an event on the ordinary path, HQ would keep offering buttons for a
+   * decision already made at the keyboard.
+   */
   'tool.confirm_resolved': {
     sessionId?: string | undefined;
     toolUseId: string;
     toolName: string;
     decision: 'yes' | 'no' | 'always' | 'deny' | 'abort';
-    source: 'brain_timeout' | 'abort';
+    source: 'brain_timeout' | 'abort' | 'user';
     rationale?: string | undefined;
   };
   /**

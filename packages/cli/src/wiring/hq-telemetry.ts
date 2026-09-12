@@ -2,6 +2,9 @@ import * as path from 'node:path';
 import type { AgentMonitorService, RemoteMailbox } from '@wrongstack/core/coordination';
 import type { HqPublisher } from '@wrongstack/core/hq';
 import {
+  type ApprovalRegistry,
+  createApprovalRegistry,
+  startApprovalTelemetryBridge,
   startBrainTelemetryBridge,
   startCostTelemetryBridge,
   startFleetTelemetryBridge,
@@ -21,6 +24,7 @@ import {
 } from '../hq-command-controller.js';
 import { startCliHqConnection } from '../hq-publisher.js';
 import type { KanbanHqSyncStats } from '../kanban-hq-sync.js';
+import type { ApprovalMirrorRef } from '../permission-prompt-mirror.js';
 
 /**
  * Mutable holder for the HQ publisher reference. The ref is created in
@@ -47,6 +51,12 @@ interface SetupHqTelemetryDeps {
   teardownHandlers: (() => void)[];
   mailboxSessionTag: (sessionId: string) => string;
   hqPublisherRef: HqPublisherRef;
+  /**
+   * Late-bound handle the plain REPL's prompt delegate reads through. Populated
+   * here because this is where the registry is created; until then the REPL
+   * prompt simply runs unmirrored.
+   */
+  approvalMirror?: ApprovalMirrorRef | undefined;
   mcpRegistry: Pick<MCPRegistry, 'onOperation' | 'operationalHealth'>;
 }
 
@@ -88,6 +98,27 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
   let stopHqSessionBridge: (() => void) | undefined;
   const stopHqAuxBridges: Array<() => void> = [];
 
+  // The approval registry outlives any single HQ connection on purpose: it
+  // holds the resolver closures for prompts currently on screen, and dropping
+  // them on a reconnect would strand the run waiting on an answer nobody can
+  // give. The BRIDGE is what restarts with each connection; it republishes
+  // whatever the registry still holds.
+  const approvalRegistry: ApprovalRegistry = createApprovalRegistry(events);
+  teardownHandlers.push(() => approvalRegistry.dispose());
+  if (deps.approvalMirror) {
+    deps.approvalMirror.current = approvalRegistry;
+    // The LIVE session, read per prompt: an in-process `/resume` or
+    // `session.new` swaps the writer, and a captured id would address an
+    // HQ answer to a conversation that is no longer on screen.
+    deps.approvalMirror.sessionId = () => session.id;
+    teardownHandlers.push(() => {
+      if (deps.approvalMirror?.current === approvalRegistry) {
+        deps.approvalMirror.current = undefined;
+        deps.approvalMirror.sessionId = undefined;
+      }
+    });
+  }
+
   // ── Phase 4 control plane — HQ command dispatch holder ──────────────────
   const hqCommandController: HqCommandController = {
     steerMailbox: brainMailbox as never,
@@ -98,6 +129,10 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
     // `ctx.session` for a new writer object and this captured one goes stale.
     sessionId: () => session.id,
     allowRunCommand: () => flags['hq-allow-exec'] === true,
+    resolveApproval: (toolUseId, decision, commandSessionId) =>
+      approvalRegistry.resolve(toolUseId, decision, commandSessionId),
+    resolveUserInput: (requestId, response, commandSessionId) =>
+      approvalRegistry.resolveUserInput?.(requestId, response, commandSessionId) ?? false,
     kanbanTransition: createProjectKanbanTransitionHandler(projectRoot),
     kanbanAssign: createProjectKanbanAssignHandler(projectRoot),
   };
@@ -115,6 +150,7 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
       'fleet.summary',
       'session.summary',
       'control.receive',
+      'control.approve',
       'kanban.dispatch',
     ],
     onConnect: (publisher) => {
@@ -215,6 +251,18 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
       try {
         stopHqAuxBridges.push(
           startCostTelemetryBridge({ events, publisher, sessionId: session.id }),
+        );
+      } catch {
+        /* optional */
+      }
+      try {
+        stopHqAuxBridges.push(
+          startApprovalTelemetryBridge({
+            registry: approvalRegistry,
+            publisher,
+            projectRoot,
+            sessionId: session.id,
+          }),
         );
       } catch {
         /* optional */

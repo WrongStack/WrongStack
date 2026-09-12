@@ -17,10 +17,26 @@ describe('yaml-parser parseSymbols', () => {
     expect(consts.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('ignores &/* inside scalar values (URL query strings, mid-token stars)', () => {
+    const content = ['endpoint: https://example.com/?a=1&b=2', 'note: a*b'].join('\n');
+    const consts = parse(content).symbols.filter((s) => s.kind === 'const');
+    expect(consts.map((s) => s.name)).not.toContain('b');
+    expect(find(content, 'endpoint')).toBeDefined();
+  });
+
   it('classifies top-level keys as property (value spans the whole line)', () => {
     const content = ['name: hello', 'parent:', '  child: 1'].join('\n');
     expect(find(content, 'name')?.kind).toBe('property');
     expect(find(content, 'parent')?.kind).toBe('property');
+  });
+
+  it('marks top-level scalar values as literal with a clean signature', () => {
+    const content = ['count: 42', 'enabled: true'].join('\n');
+    expect(find(content, 'count')).toMatchObject({ kind: 'literal', signature: 'count: 42' });
+    expect(find(content, 'enabled')).toMatchObject({
+      kind: 'literal',
+      signature: 'enabled: true',
+    });
   });
 
   it('marks list-item scalar values as literal (number, boolean, quoted)', () => {
@@ -48,10 +64,19 @@ describe('yaml-parser parseSymbols', () => {
     expect(find(content, 'name')).toBeDefined();
   });
 
-  it('extracts block scalar keys (key: | and key: >)', () => {
+  it('extracts indented list-item keys under a parent key', () => {
+    const content = ['items:', '  - num: 42', '  - flag: true'].join('\n');
+    expect(find(content, 'num')).toMatchObject({ kind: 'literal', line: 2 });
+    expect(find(content, 'flag')).toMatchObject({ kind: 'literal', line: 3 });
+  });
+
+  it('emits each block-scalar header exactly once (section 2 defers to section 4)', () => {
     const content = ['literal: |', '  multi', '  line', 'folded: >', '  text'].join('\n');
-    expect(find(content, 'literal')?.kind).toBe('property');
-    expect(find(content, 'folded')?.kind).toBe('property');
+    const res = parse(content);
+    expect(res.symbols.filter((s) => s.name === 'literal').length).toBe(1);
+    expect(res.symbols.filter((s) => s.name === 'folded').length).toBe(1);
+    expect(find(content, 'literal')?.signature).toBe('literal: | ...');
+    expect(find(content, 'folded')?.signature).toBe('folded: | ...');
   });
 
   it('skips document markers (--- and ...)', () => {

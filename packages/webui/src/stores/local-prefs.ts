@@ -54,6 +54,8 @@ export interface LocalPrefs {
   fallbackProfiles: Record<string, string[]>;
   /** User-curated model references prioritized by pickers and smart fallbacks. */
   favoriteModels: string[];
+  /** Provider-qualified models intentionally hidden from selection and fallback routing. */
+  disabledModels: string[];
   /** Restrict auto-derived fallback chains to favorite models. */
   favoriteModelsOnly: boolean;
   /** Per-role/phase/default model routing matrix. */
@@ -424,6 +426,7 @@ const DEFAULTS: LocalPrefsData = {
   fallbackModels: [],
   fallbackProfiles: {},
   favoriteModels: [],
+  disabledModels: [],
   favoriteModelsOnly: false,
   modelMatrix: {},
   modelTiers: {},
@@ -625,7 +628,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 17,
+      version: 18,
       // v17 (2026-08-26): session-scoped preferences. `bySession` /
       // `sessionDefaults` / `activeSessionId` carry per-tab overrides for the
       // keys in `SESSION_SCOPED_PREFS`; the flat fields stay the EFFECTIVE
@@ -739,6 +742,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
           p.fallbackProfiles = {};
         }
         if (!Array.isArray(p.favoriteModels)) p.favoriteModels = [];
+        if (!Array.isArray(p.disabledModels)) p.disabledModels = [];
         if (typeof p.favoriteModelsOnly !== 'boolean') p.favoriteModelsOnly = false;
         if (!Array.isArray(p.modelAvailabilitySchedule)) p.modelAvailabilitySchedule = [];
         if (!p.modelMatrix || typeof p.modelMatrix !== 'object' || Array.isArray(p.modelMatrix)) {

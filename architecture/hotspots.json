@@ -7,7 +7,7 @@
       "relativeImports": 19
     },
     "packages/cli/src/auth-menu/panel-service.ts": {
-      "lines": 1040,
+      "lines": 1043,
       "relativeImports": 7
     },
     "packages/cli/src/boot/tui-session-resume.ts": {
@@ -19,7 +19,7 @@
       "relativeImports": 18
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 870,
+      "lines": 872,
       "relativeImports": 34
     },
     "packages/cli/src/execution.ts": {
@@ -59,7 +59,7 @@
       "relativeImports": 5
     },
     "packages/cli/src/subcommands/handlers/hq.ts": {
-      "lines": 904,
+      "lines": 906,
       "relativeImports": 10
     },
     "packages/cli/src/subcommands/handlers/providers-models.ts": {
@@ -67,7 +67,7 @@
       "relativeImports": 5
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1008,
+      "lines": 1012,
       "relativeImports": 21
     },
     "packages/core/src/boot.ts": {
@@ -135,11 +135,11 @@
       "relativeImports": 8
     },
     "packages/core/src/hq/auth-store.ts": {
-      "lines": 973,
+      "lines": 978,
       "relativeImports": 7
     },
     "packages/core/src/hq/protocol/core.ts": {
-      "lines": 946,
+      "lines": 1031,
       "relativeImports": 13
     },
     "packages/core/src/index.ts": {
@@ -283,12 +283,12 @@
       "relativeImports": 3
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 842,
-      "relativeImports": 16
+      "lines": 868,
+      "relativeImports": 18
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1058,
-      "relativeImports": 50
+      "lines": 1067,
+      "relativeImports": 52
     },
     "packages/tools/src/bash.ts": {
       "lines": 883,
@@ -319,7 +319,7 @@
       "relativeImports": 24
     },
     "packages/tools/src/json.ts": {
-      "lines": 935,
+      "lines": 938,
       "relativeImports": 2
     },
     "packages/tools/src/pwsh.ts": {
@@ -339,8 +339,8 @@
       "relativeImports": 14
     },
     "packages/tui/src/app.tsx": {
-      "lines": 951,
-      "relativeImports": 56
+      "lines": 955,
+      "relativeImports": 57
     },
     "packages/tui/src/components/agents-monitor.tsx": {
       "lines": 984,
@@ -447,7 +447,7 @@
       "relativeImports": 8
     },
     "packages/webui/src/components/SettingsPanel/ProviderSection.tsx": {
-      "lines": 886,
+      "lines": 887,
       "relativeImports": 7
     },
     "packages/webui/src/components/SidePanel/SessionList.tsx": {
@@ -483,19 +483,19 @@
       "relativeImports": 2
     },
     "packages/webui/src/stores/local-prefs.ts": {
-      "lines": 925,
+      "lines": 929,
       "relativeImports": 0
     },
     "packages/webui/src/stores/session-tab-store.ts": {
-      "lines": 926,
-      "relativeImports": 16
+      "lines": 928,
+      "relativeImports": 17
     },
     "packages/webui/src/types/client-message.ts": {
-      "lines": 880,
+      "lines": 896,
       "relativeImports": 7
     },
     "packages/webui-server/src/server/backend-services.ts": {
-      "lines": 951,
+      "lines": 953,
       "relativeImports": 14
     },
     "packages/webui-server/src/server/context-editor.ts": {
@@ -503,7 +503,7 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/embedded-message-router.ts": {
-      "lines": 874,
+      "lines": 879,
       "relativeImports": 53
     },
     "packages/webui-server/src/server/git-handlers.ts": {
@@ -519,7 +519,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 1032,
+      "lines": 1046,
       "relativeImports": 47
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

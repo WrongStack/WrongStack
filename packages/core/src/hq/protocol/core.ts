@@ -49,7 +49,15 @@ import type {
   HqTranscriptAppendPayload,
   HqTranscriptEntry,
 } from './session.js';
-import type { HqRedactionPolicy, HqToolCompletedPayload, HqToolStartedPayload } from './tool.js';
+import type {
+  HqApprovalRequestedPayload,
+  HqApprovalResolvedPayload,
+  HqRedactionPolicy,
+  HqToolCompletedPayload,
+  HqToolStartedPayload,
+  HqUserInputRequestedPayload,
+  HqUserInputResolvedPayload,
+} from './tool.js';
 
 export type { HqEventEnvelope, HqEventType, HqProtocolVersion };
 export { HQ_PROTOCOL_VERSION };
@@ -156,6 +164,7 @@ const HQ_CLIENT_CAPABILITIES = new Set<HqClientCapability>([
   'mailbox.summary',
   'mailbox.serve',
   'control.receive',
+  'control.approve',
   'kanban.dispatch',
 ]);
 const HQ_COMMAND_ACK_STATUSES = new Set<HqClientCommandAckMessage['status']>([
@@ -390,6 +399,10 @@ const KNOWN_HQ_EVENT_PAYLOAD_TYPES = new Set<string>([
   'worktree.event',
   'tool.started',
   'tool.completed',
+  'approval.requested',
+  'approval.resolved',
+  'user_input.requested',
+  'user_input.resolved',
   'session.usage',
   'client.heartbeat',
   'mcp.health.snapshot',
@@ -784,6 +797,62 @@ function isHqToolCompletedPayload(x: unknown): x is HqToolCompletedPayload {
   );
 }
 
+const HQ_APPROVAL_DECISIONS = new Set(['yes', 'no', 'always', 'deny', 'abort']);
+const HQ_APPROVAL_SOURCES = new Set(['brain_timeout', 'abort', 'user']);
+
+function isHqApprovalRequestedPayload(x: unknown): x is HqApprovalRequestedPayload {
+  if (typeof x !== 'object' || x === null || Array.isArray(x)) return false;
+  const v = x as Record<string, unknown>;
+  return (
+    typeof v.toolUseId === 'string' &&
+    v.toolUseId.length > 0 &&
+    typeof v.toolName === 'string' &&
+    typeof v.suggestedPattern === 'string' &&
+    // Required, not optional: the dashboard derives "still pending" purely
+    // from this deadline, so a payload without one would strand a card on
+    // screen forever.
+    typeof v.deadlineAt === 'number' &&
+    Number.isFinite(v.deadlineAt) &&
+    typeof v.destructive === 'boolean' &&
+    (v.writeTargets === undefined || Array.isArray(v.writeTargets))
+  );
+}
+
+function isHqApprovalResolvedPayload(x: unknown): x is HqApprovalResolvedPayload {
+  if (typeof x !== 'object' || x === null || Array.isArray(x)) return false;
+  const v = x as Record<string, unknown>;
+  return (
+    typeof v.toolUseId === 'string' &&
+    v.toolUseId.length > 0 &&
+    typeof v.toolName === 'string' &&
+    typeof v.decision === 'string' &&
+    HQ_APPROVAL_DECISIONS.has(v.decision) &&
+    typeof v.source === 'string' &&
+    HQ_APPROVAL_SOURCES.has(v.source)
+  );
+}
+
+function isHqUserInputRequestedPayload(x: unknown): x is HqUserInputRequestedPayload {
+  if (typeof x !== 'object' || x === null || Array.isArray(x)) return false;
+  const request = (x as Record<string, unknown>)['request'];
+  return (
+    typeof request === 'object' &&
+    request !== null &&
+    typeof (request as Record<string, unknown>)['id'] === 'string' &&
+    Array.isArray((request as Record<string, unknown>)['tabs'])
+  );
+}
+function isHqUserInputResolvedPayload(x: unknown): x is HqUserInputResolvedPayload {
+  if (typeof x !== 'object' || x === null || Array.isArray(x)) return false;
+  const v = x as Record<string, unknown>;
+  return (
+    typeof v['requestId'] === 'string' &&
+    typeof v['response'] === 'object' &&
+    v['response'] !== null &&
+    (v['source'] === 'user' || v['source'] === 'abort')
+  );
+}
+
 function isHqUsagePayload(x: unknown): x is HqUsagePayload {
   if (typeof x !== 'object' || x === null) return false;
   // HqUsagePayload has all-optional numeric fields; accept any object so the
@@ -882,6 +951,22 @@ export function parseHqEventPayload(
         : { ok: false, reason: 'malformed-payload' };
     case 'tool.completed':
       return isHqToolCompletedPayload(payload)
+        ? { ok: true, payload }
+        : { ok: false, reason: 'malformed-payload' };
+    case 'approval.requested':
+      return isHqApprovalRequestedPayload(payload)
+        ? { ok: true, payload }
+        : { ok: false, reason: 'malformed-payload' };
+    case 'approval.resolved':
+      return isHqApprovalResolvedPayload(payload)
+        ? { ok: true, payload }
+        : { ok: false, reason: 'malformed-payload' };
+    case 'user_input.requested':
+      return isHqUserInputRequestedPayload(payload)
+        ? { ok: true, payload }
+        : { ok: false, reason: 'malformed-payload' };
+    case 'user_input.resolved':
+      return isHqUserInputResolvedPayload(payload)
         ? { ok: true, payload }
         : { ok: false, reason: 'malformed-payload' };
     case 'session.usage':

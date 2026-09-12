@@ -9,6 +9,7 @@ import { Context } from '../../src/core/context.js';
 import { DefaultErrorHandler } from '../../src/execution/error-handler.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
+import { createApprovalRegistry } from '../../src/hq/approval-bridge.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import { Container } from '../../src/kernel/container.js';
@@ -184,6 +185,88 @@ describe('Headless confirm fallback (P1 #4)', () => {
     expect(result.finalText).toBe('ok');
   }, 10_000);
 
+  it('still auto-denies when the ONLY listener is the passive HQ mirror', async () => {
+    // HQ mirrors prompts a local surface raised; it can never answer on its
+    // own. Counting it as a listener would silently convert this instant
+    // denial into a 120-second wait for a human who is not there — a safety
+    // regression with no visible cause, triggered purely by a dashboard
+    // happening to be connected.
+    let executed = false;
+    const danger: Tool = {
+      name: 'danger',
+      description: 'a destructive op requiring confirm',
+      inputSchema: { type: 'object' },
+      permission: 'confirm',
+      riskTier: 'destructive',
+      mutating: true,
+      async execute() {
+        executed = true;
+        return 'should-not-reach';
+      },
+    } as Tool;
+    const provider = new MockProvider([
+      {
+        content: [{ type: 'tool_use', id: 'u1', name: 'danger', input: {} }],
+        stopReason: 'tool_use',
+      },
+      { content: [{ type: 'text', text: 'recovered after denial' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, events, tmp } = await buildHeadlessAgent(provider, [danger]);
+    cleanupDirs.push(tmp);
+
+    const registry = createApprovalRegistry(events);
+    try {
+      expect(events.listenerCount('tool.confirm_needed')).toBe(1);
+
+      const result = await agent.run('do the dangerous thing');
+      expect(result.status).toBe('done');
+      expect(result.finalText).toBe('recovered after denial');
+      expect(executed).toBe(false);
+    } finally {
+      registry.dispose();
+    }
+  }, 10_000);
+
+  it('announces an ordinary human answer as tool.confirm_resolved', async () => {
+    // A prompt is now shown on more than one surface at once. Without an event
+    // on the ORDINARY path (this used to fire only for abort and the Brain
+    // timeout), HQ would keep offering buttons for a decision already made at
+    // the keyboard.
+    const danger: Tool = {
+      name: 'danger',
+      description: 'a destructive op requiring confirm',
+      inputSchema: { type: 'object' },
+      permission: 'confirm',
+      riskTier: 'destructive',
+      mutating: true,
+      async execute() {
+        return 'did the thing';
+      },
+    } as Tool;
+    const provider = new MockProvider([
+      {
+        content: [{ type: 'tool_use', id: 'u1', name: 'danger', input: {} }],
+        stopReason: 'tool_use',
+      },
+      { content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, events, tmp } = await buildHeadlessAgent(provider, [danger]);
+    cleanupDirs.push(tmp);
+
+    const resolved: Array<{ toolUseId: string; decision: string; source: string }> = [];
+    events.on('tool.confirm_resolved', (e) => resolved.push(e as never));
+    events.on(
+      'tool.confirm_needed',
+      (e: { resolve: (d: 'yes' | 'no' | 'always' | 'deny') => void }) => e.resolve('yes'),
+    );
+
+    const result = await agent.run('do the dangerous thing');
+    expect(result.status).toBe('done');
+    expect(resolved).toEqual([
+      expect.objectContaining({ toolUseId: 'u1', decision: 'yes', source: 'user' }),
+    ]);
+  }, 10_000);
+
   it('unblocks a pending confirm when the run is aborted (/interrupt path)', async () => {
     let executed = false;
     const danger: Tool = {
@@ -271,17 +354,15 @@ describe('Headless confirm fallback (P1 #4)', () => {
 
     const nativeSetTimeout = globalThis.setTimeout.bind(globalThis);
     let fireApprovalTimeout: (() => void) | undefined;
-    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation((
-      handler,
-      timeout,
-      ...args
-    ) => {
-      const scheduled = nativeSetTimeout(handler, timeout, ...args);
-      if (timeout === HUMAN_APPROVAL_TIMEOUT_MS && typeof handler === 'function') {
-        fireApprovalTimeout = () => handler(...args);
-      }
-      return scheduled;
-    });
+    const timeoutSpy = vi
+      .spyOn(globalThis, 'setTimeout')
+      .mockImplementation((handler, timeout, ...args) => {
+        const scheduled = nativeSetTimeout(handler, timeout, ...args);
+        if (timeout === HUMAN_APPROVAL_TIMEOUT_MS && typeof handler === 'function') {
+          fireApprovalTimeout = () => handler(...args);
+        }
+        return scheduled;
+      });
     try {
       const startedAt = Date.now();
       const run = agent.run('do the dangerous thing');

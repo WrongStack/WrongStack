@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
-import type { InputReader, PromptOption } from '@wrongstack/core/types';
+import type { InputReader, PromptOption, ReadKeyOptions } from '@wrongstack/core/types';
 import {
   resolveWstackPaths,
   setOutputLineGuard,
@@ -206,9 +206,17 @@ export class ReadlineInputReader implements InputReader {
     });
   }
 
-  async readKey(prompt: string, options: PromptOption[]): Promise<string> {
+  async readKey(
+    prompt: string,
+    options: PromptOption[],
+    opts: ReadKeyOptions = {},
+  ): Promise<string> {
     // This flow drives stdin directly; no readline prompt to protect.
     setOutputLineGuard(null);
+    const signal = opts.signal;
+    // Already answered elsewhere before this even printed: say nothing and
+    // take no terminal state, rather than flashing a prompt that is dead.
+    if (signal?.aborted) return '';
     writeOut(prompt);
     return new Promise<string>((resolve) => {
       const stdin = process.stdin;
@@ -238,14 +246,25 @@ export class ReadlineInputReader implements InputReader {
         cleanup();
         resolve('');
       };
+      // The prompt was answered somewhere else (the HQ dashboard). Restoring
+      // terminal state is the whole point: without this, stdin stays in raw
+      // mode with `onData` attached, and the user's next keystroke is eaten by
+      // a question nobody is asking any more.
+      const onAbort = () => {
+        cleanup();
+        writeOut('\n');
+        resolve('');
+      };
       const cleanup = () => {
         stdin.off('data', onData);
         stdin.off('close', onClose);
+        signal?.removeEventListener('abort', onAbort);
         setRawMode(stdin, wasRaw);
         if (wasPaused) stdin.pause();
       };
       stdin.on('data', onData);
       stdin.on('close', onClose);
+      signal?.addEventListener('abort', onAbort, { once: true });
     });
   }
 

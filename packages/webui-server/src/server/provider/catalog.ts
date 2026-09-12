@@ -17,6 +17,14 @@ import { probeModelDescriptors, projectSavedProviders } from './projection.js';
  * default-provider adoption flow.
  */
 export function createCatalogHandlers(ctx: ProviderServiceContext) {
+  const isDisabled = (providerId: string, modelId: string): boolean => {
+    const full = `${providerId}/${modelId}`.toLowerCase();
+    const bare = modelId.toLowerCase();
+    return (ctx.deps.getDisabledModels?.() ?? []).some((entry) => {
+      const normalized = entry.trim().toLowerCase();
+      return normalized === full || normalized === bare;
+    });
+  };
   async function handleProvidersList(ws: WebSocket): Promise<void> {
     const { deps, sendMessage, sendOperationResult } = ctx;
     if (!deps.modelsRegistry) {
@@ -81,7 +89,11 @@ export function createCatalogHandlers(ctx: ProviderServiceContext) {
     }
   }
 
-  async function handleProviderModels(ws: WebSocket, providerId: string): Promise<void> {
+  async function handleProviderModels(
+    ws: WebSocket,
+    providerId: string,
+    options: { includeDisabled?: boolean | undefined } = {},
+  ): Promise<void> {
     if (!ctx.deps.modelsRegistry) {
       ctx.sendOperationResult(ws, false, 'Models registry not available');
       return;
@@ -158,7 +170,12 @@ export function createCatalogHandlers(ctx: ProviderServiceContext) {
       );
       ctx.sendMessage(ws, {
         type: 'provider.models',
-        payload: { provider: providerId, models: enriched },
+        payload: {
+          provider: providerId,
+          models: options.includeDisabled
+            ? enriched
+            : enriched.filter((model) => !isDisabled(providerId, model.id)),
+        },
       });
     } catch (error) {
       ctx.sendOperationResult(ws, false, errMessage(error));

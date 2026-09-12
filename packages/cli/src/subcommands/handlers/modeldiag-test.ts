@@ -5,9 +5,19 @@
  */
 
 import type { DefaultModelsRegistry } from '@wrongstack/core/models';
-import type { Config, ProviderConfig } from '@wrongstack/core/types';
+import type {
+  Config,
+  ModelsRegistry,
+  Provider,
+  ProviderConfig,
+  ProviderFactory,
+} from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
-import { makeProviderFromConfig, setOAuthTokenPersister } from '@wrongstack/providers';
+import {
+  buildProviderFactoriesFromRegistry,
+  makeProviderFromConfig,
+  setOAuthTokenPersister,
+} from '@wrongstack/providers';
 import { discoverAndMergeProviders } from '../../boot/auto-discover-providers.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import {
@@ -23,6 +33,46 @@ import {
   runModelSmokeTests,
 } from './model-smoke-test.js';
 import { fmtMs } from './modeldiag-profiles.js';
+
+export async function createModelDiagSmokeProvider(params: {
+  providerId: string;
+  config: Config;
+  modelsRegistry: ModelsRegistry;
+  providerFactories: ReadonlyMap<string, ProviderFactory>;
+}): Promise<Provider> {
+  const { providerId, config, modelsRegistry, providerFactories } = params;
+  const saved = config.providers?.[providerId];
+  const factoryType = saved?.type ?? providerId;
+  const resolved =
+    (await modelsRegistry.getProvider(providerId).catch(() => undefined)) ??
+    (factoryType !== providerId
+      ? await modelsRegistry.getProvider(factoryType).catch(() => undefined)
+      : undefined);
+  const providerConfig: ProviderConfig = {
+    ...(providerId === config.provider
+      ? {
+          ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+          ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
+        }
+      : {}),
+    ...saved,
+    // Keep the user-visible alias on the factory input. The selected factory
+    // already captures the canonical models.dev provider and its per-model
+    // wire metadata.
+    type: providerId,
+    ...((saved?.family ?? resolved?.family) ? { family: saved?.family ?? resolved?.family } : {}),
+    ...((saved?.baseUrl ?? resolved?.apiBase)
+      ? { baseUrl: saved?.baseUrl ?? resolved?.apiBase }
+      : {}),
+    ...((saved?.envVars ?? resolved?.envVars)
+      ? { envVars: saved?.envVars ?? resolved?.envVars }
+      : {}),
+  };
+  const factory = providerFactories.get(factoryType);
+  return factory
+    ? factory.create(providerConfig)
+    : makeProviderFromConfig(providerId, providerConfig);
+}
 
 export async function runModeldiagTest(
   args: string[],
@@ -176,39 +226,21 @@ export async function runModeldiagTest(
 
   let results;
   try {
+    const providerFactories = new Map(
+      (await buildProviderFactoriesFromRegistry({ registry: deps.modelsRegistry })).map(
+        (factory) => [factory.type, factory],
+      ),
+    );
     results = await runModelSmokeTests({
       targets,
       options: smokeOptions,
-      createProvider: async (providerId) => {
-        const saved = (config.providers as Record<string, ProviderConfig> | undefined)?.[
-          providerId
-        ];
-        const resolved =
-          (await deps.modelsRegistry.getProvider(providerId).catch(() => undefined)) ??
-          (saved?.type && saved.type !== providerId
-            ? await deps.modelsRegistry.getProvider(saved.type).catch(() => undefined)
-            : undefined);
-        const providerConfig: ProviderConfig = {
-          ...(providerId === config.provider
-            ? {
-                ...(config.apiKey ? { apiKey: config.apiKey as string } : {}),
-                ...(config.baseUrl ? { baseUrl: config.baseUrl as string } : {}),
-              }
-            : {}),
-          ...saved,
-          type: providerId,
-          ...((saved?.family ?? resolved?.family)
-            ? { family: saved?.family ?? resolved?.family }
-            : {}),
-          ...((saved?.baseUrl ?? resolved?.apiBase)
-            ? { baseUrl: saved?.baseUrl ?? resolved?.apiBase }
-            : {}),
-          ...((saved?.envVars ?? resolved?.envVars)
-            ? { envVars: saved?.envVars ?? resolved?.envVars }
-            : {}),
-        };
-        return makeProviderFromConfig(providerId, providerConfig);
-      },
+      createProvider: (providerId) =>
+        createModelDiagSmokeProvider({
+          providerId,
+          config: config as unknown as Config,
+          modelsRegistry: deps.modelsRegistry,
+          providerFactories,
+        }),
       onTargetComplete: resultLines,
     });
   } finally {

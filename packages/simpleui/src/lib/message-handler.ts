@@ -52,6 +52,7 @@ import type { RefineResultPayload } from './refine-model.js';
 import { projectRefineResult } from './refine-model.js';
 import { parseSessionSummaries } from './session-model.js';
 import { projectStatusNotice } from './status-notice.js';
+import { enqueuePendingUserInput, resolvePendingUserInput } from './user-input-queue.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
     setQueue,
     setRefineState,
     setPendingConfirm,
+    setUserInputRequests,
     setFileMatches,
     setFilePickerIndex,
     setFileSearching,
@@ -746,6 +748,30 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
           setPendingConfirm((current) => (current?.id === payload['id'] ? null : current));
         }
         break;
+      case 'user.input_requested': {
+        const request = payload['request'];
+        if (
+          request &&
+          typeof request === 'object' &&
+          typeof (request as { id?: unknown }).id === 'string'
+        ) {
+          const entry = {
+            request: request as import('../types.js').UserInputRequest,
+            ...(typeof payload['sessionId'] === 'string'
+              ? { sessionId: payload['sessionId'] }
+              : {}),
+          };
+          setUserInputRequests?.((current) => enqueuePendingUserInput(current, entry));
+        }
+        break;
+      }
+      case 'user.input_resolved': {
+        const requestId = payload['requestId'];
+        if (typeof requestId === 'string') {
+          setUserInputRequests?.((current) => resolvePendingUserInput(current, requestId));
+        }
+        break;
+      }
       case 'coordinator.stats': {
         const fleet = projectFleetMessage(message);
         const statuses = fleet?.kind === 'coordinator' ? fleet.agents : [];

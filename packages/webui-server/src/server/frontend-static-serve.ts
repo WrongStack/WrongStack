@@ -142,6 +142,14 @@ export interface StaticServeOptions {
   getVectorMemoryStore?: CreateHttpServerOptions['getVectorMemoryStore'];
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
+  /**
+   * Extra origins added to the served page's `connect-src`. The WebUI topbar
+   * probes the operator's HQ / WrongProxy endpoints from the browser, so this
+   * must be wired here as well as in the standalone `start-webui` server, or
+   * the CLI-hosted WebUI keeps reporting those integrations as unreachable
+   * while the standalone one reads them correctly.
+   */
+  getExtraConnectSrc?: CreateHttpServerOptions['getExtraConnectSrc'];
 }
 
 /**
@@ -356,6 +364,7 @@ export async function startStaticServe(
     requireToken: opts.requireToken,
     allowedHostnames: opts.allowedHostnames,
     intakeService,
+    ...(opts.getExtraConnectSrc ? { getExtraConnectSrc: opts.getExtraConnectSrc } : {}),
     ...(opts.getVectorMemoryStore ? { getVectorMemoryStore: opts.getVectorMemoryStore } : {}),
     ...(opts.vectorMemoryModelCacheDir
       ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }

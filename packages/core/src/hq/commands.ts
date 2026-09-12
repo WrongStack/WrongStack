@@ -6,13 +6,20 @@
  * type-erased. This module gives them a discriminated union for type-safe
  * dispatch on the client side (Phase 4).
  *
- * Security model: `run-command` (raw shell) is gated by a per-token
- * `control.execute` capability AND an operator opt-in; the other four commands
- * route through the agent's own decision loop / mailbox and inherit their
- * existing guardrails. See `docs/plans/hq-command-center-2026-07.md`.
+ * Security model: two commands carry their own capability because they do
+ * something the rest cannot. `run-command` (raw shell) is gated by a per-token
+ * `control.execute` AND an operator opt-in. `approve` answers a permission
+ * prompt on the target machine — `always`/`deny` write persistent trust policy
+ * there and `yes` can release a destructive call — so it is gated by
+ * `control.approve` on both the browser credential and the target client.
+ * Every other command routes through the agent's own decision loop / mailbox
+ * and inherits their existing guardrails.
+ * See `docs/plans/hq-command-center-2026-07.md`.
  *
  * @module hq/commands
  */
+
+import type { UserInputResponse } from '../types/user-input.js';
 import type { HqQueuedCommand } from './protocol/fleet.js';
 
 // ── Command types ───────────────────────────────────────────────────────────
@@ -28,6 +35,8 @@ export const HQ_COMMAND_TYPES = [
   'kanban-transition',
   'kanban-assign',
   'kanban-dispatch',
+  'approve',
+  'answer-input',
   'run-command',
 ] as const;
 
@@ -150,6 +159,36 @@ export interface HqBroadcastCommand {
   priority?: 'low' | 'normal' | 'high';
 }
 
+/**
+ * Answer a permission prompt that is currently on screen on the target client.
+ * GATED by `control.approve` on BOTH the browser credential and the target
+ * client's token.
+ *
+ * HQ is a MIRROR of the prompt, not its owner: the same prompt is live in the
+ * TUI/WebUI/SimpleUI dialog that raised it, and whichever surface answers
+ * first wins. A command that arrives after the prompt was settled locally is
+ * rejected with "no longer pending" rather than silently dropped, so the
+ * operator learns the decision was already made instead of assuming theirs
+ * applied.
+ *
+ * The decision set matches the local surfaces exactly, including the two that
+ * write persistent policy: `always` persists a trust rule and `deny` persists
+ * a permanent denial, both keyed on the prompt's suggested pattern.
+ */
+export interface HqApproveCommand {
+  type: 'approve';
+  /** The tool call the prompt belongs to — the id carried in `approval.requested`. */
+  toolUseId: string;
+  decision: 'yes' | 'no' | 'always' | 'deny';
+  sessionId?: string;
+}
+export interface HqAnswerInputCommand {
+  type: 'answer-input';
+  requestId: string;
+  response: UserInputResponse;
+  sessionId?: string;
+}
+
 /** Run a shell command on the target machine. GATED by `control.execute`. */
 export interface HqRunCommandCommand {
   type: 'run-command';
@@ -209,6 +248,8 @@ export type HqCommand =
   | HqKanbanTransitionCommand
   | HqKanbanAssignCommand
   | HqKanbanDispatchCommand
+  | HqApproveCommand
+  | HqAnswerInputCommand
   | HqRunCommandCommand;
 
 // ── Validation ──────────────────────────────────────────────────────────────
@@ -391,6 +432,38 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
           boardId: p['boardId'],
           taskId: p['taskId'],
           comment: p['comment'],
+        },
+        p,
+      );
+    }
+    case 'approve': {
+      if (typeof p['toolUseId'] !== 'string' || p['toolUseId'].length === 0) return null;
+      const decision = p['decision'];
+      // Closed set on purpose: `abort` is a lifecycle outcome the run produces
+      // for itself, never something an operator sends.
+      if (decision !== 'yes' && decision !== 'no' && decision !== 'always' && decision !== 'deny') {
+        return null;
+      }
+      return withSessionId<HqApproveCommand>(
+        { type: 'approve', toolUseId: p['toolUseId'], decision },
+        p,
+      );
+    }
+    case 'answer-input': {
+      if (typeof p['requestId'] !== 'string' || p['requestId'].length === 0) return null;
+      const response = p['response'];
+      if (
+        typeof response !== 'object' ||
+        response === null ||
+        Array.isArray(response) ||
+        !Array.isArray((response as Record<string, unknown>)['answers'])
+      )
+        return null;
+      return withSessionId<HqAnswerInputCommand>(
+        {
+          type: 'answer-input',
+          requestId: p['requestId'],
+          response: response as UserInputResponse,
         },
         p,
       );

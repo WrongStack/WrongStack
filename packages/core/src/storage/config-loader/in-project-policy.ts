@@ -37,6 +37,7 @@ const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   // and this one can only name a profile the user already defined.
   'fallbackProfile',
   'favoriteModels',
+  'disabledModels',
   'favoriteModelsOnly',
   'modelAvailabilitySchedule',
   'fallbackAuto',
@@ -139,6 +140,7 @@ const KNOWN_CONFIG_TOP_LEVEL_KEY_LIST = [
   'fallbackProfiles',
   'fallbackProfile',
   'favoriteModels',
+  'disabledModels',
   'favoriteModelsOnly',
   'modelAvailabilitySchedule',
   'fallbackAuto',
@@ -286,7 +288,7 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
     // the quiet one. Same reasoning as `tools.autoThin` above.
     path: 'tools.loopDetection',
     reason:
-      'The runaway-loop cutter is the control that stops a repetition from burning the operator\'s API budget without end. A repo-committed config could switch it off (or push its thresholds out of reach) before the operator sees a single iteration.',
+      "The runaway-loop cutter is the control that stops a repetition from burning the operator's API budget without end. A repo-committed config could switch it off (or push its thresholds out of reach) before the operator sees a single iteration.",
   },
   {
     // The other half of the control `tools.loopDetection` above protects, and

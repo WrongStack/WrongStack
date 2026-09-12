@@ -475,3 +475,57 @@ describe('createHqCommandDispatcher — session addressing', () => {
     expect(killFleet).toHaveBeenCalledWith('tab-2');
   });
 });
+
+describe('approve command dispatch', () => {
+  it('answers the prompt and reports completed', async () => {
+    const resolveApproval = vi.fn(() => true);
+    const dispatch = createHqCommandDispatcher(makeController({ resolveApproval }));
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'approve',
+      payload: { toolUseId: 'toolu_1', decision: 'always', sessionId: 'tab-3' },
+    });
+    expect(resolveApproval).toHaveBeenCalledWith('toolu_1', 'always', 'tab-3');
+    expect(result).toMatchObject({ commandId: 'c1', status: 'completed' });
+  });
+
+  it('says WHY when the prompt was already answered at the keyboard', async () => {
+    // HQ mirrors the prompt rather than owning it, so losing the race is
+    // routine. A bare "rejected" reads as a failure to retry, and retrying a
+    // settled prompt does nothing — the message has to name the cause.
+    const dispatch = createHqCommandDispatcher(
+      makeController({ resolveApproval: vi.fn(() => false) }),
+    );
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'approve',
+      payload: { toolUseId: 'toolu_1', decision: 'yes' },
+    });
+    expect(result.status).toBe('rejected');
+    expect(result.message).toContain('no longer pending');
+  });
+
+  it('rejects a host that does not mirror approvals', async () => {
+    const dispatch = createHqCommandDispatcher(makeController({ resolveApproval: undefined }));
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'approve',
+      payload: { toolUseId: 'toolu_1', decision: 'yes' },
+    });
+    expect(result).toMatchObject({ status: 'rejected' });
+  });
+
+  it('refuses a malformed decision rather than passing it to the resolver', async () => {
+    const resolveApproval = vi.fn(() => true);
+    const dispatch = createHqCommandDispatcher(makeController({ resolveApproval }));
+    for (const decision of ['abort', 'maybe', undefined]) {
+      const result = await dispatch({
+        commandId: 'c1',
+        type: 'approve',
+        payload: { toolUseId: 'toolu_1', decision },
+      });
+      expect(result.status).toBe('rejected');
+    }
+    expect(resolveApproval).not.toHaveBeenCalled();
+  });
+});

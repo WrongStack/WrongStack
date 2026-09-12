@@ -41,6 +41,7 @@ export interface CatalogProvider {
 
 export interface SavedProvider {
   id: string;
+  type?: string | undefined;
   family?: string | undefined;
   baseUrl?: string | undefined;
   /** Saved model allowlist, in the order the user pinned them. */

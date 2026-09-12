@@ -27,6 +27,7 @@ interface CliWebUIOptions {
         fallbackModels?: string[] | undefined;
         fallbackProfiles?: Record<string, string[]> | undefined;
         favoriteModels?: string[] | undefined;
+        disabledModels?: string[] | undefined;
         favoriteModelsOnly?: boolean | undefined;
         modelAvailabilitySchedule?: ModelBlackoutRule[] | undefined;
         fallbackAuto?: boolean | undefined;
@@ -107,6 +108,9 @@ export function createPrefsSeeding(opts: CliWebUIOptions): PrefsSeeding {
     }
     if (Array.isArray(payload['favoriteModels'])) {
       patchLiveAppConfig({ favoriteModels: payload['favoriteModels'] as string[] });
+    }
+    if (Array.isArray(payload['disabledModels'])) {
+      patchLiveAppConfig({ disabledModels: payload['disabledModels'] as string[] });
     }
     if (typeof payload['favoriteModelsOnly'] === 'boolean') {
       patchLiveAppConfig({ favoriteModelsOnly: payload['favoriteModelsOnly'] });

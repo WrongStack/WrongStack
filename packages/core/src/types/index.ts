@@ -238,7 +238,7 @@ export type {
   ShellHook,
 } from './hooks.js';
 // ── input-reader (2 symbols) ──
-export type { InputReader, PromptOption } from './input-reader.js';
+export type { InputReader, PromptOption, ReadKeyOptions } from './input-reader.js';
 // ── logger (2 symbols) ──
 export type { Logger, LogLevel } from './logger.js';
 export type {
@@ -582,5 +582,15 @@ export type {
 export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';
 // ── tool-markers (1 symbols) ──
 export { MALFORMED_ARG_MARKERS } from './tool-markers.js';
+export type {
+  UserInputAnswer,
+  UserInputAwaiter,
+  UserInputOption,
+  UserInputQuestion,
+  UserInputQuestionKind,
+  UserInputRequest,
+  UserInputResponse,
+  UserInputTab,
+} from './user-input.js';
 // ── utility-types (1 symbols) ──
 export type { DistributiveOmit } from './utility-types.js';

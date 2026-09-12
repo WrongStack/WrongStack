@@ -11,6 +11,7 @@ import {
   parseModelSmokeOptions,
   runModelSmokeTests,
 } from '../src/subcommands/handlers/model-smoke-test.js';
+import { createModelDiagSmokeProvider } from '../src/subcommands/handlers/modeldiag-test.js';
 
 function provider(
   id: string,
@@ -148,6 +149,41 @@ describe('model smoke targets', () => {
 });
 
 describe('model smoke runner', () => {
+  it('uses the canonical catalog factory for a saved provider alias', async () => {
+    const created = {
+      id: 'opencode-go-ws',
+      capabilities: {},
+      complete: vi.fn(),
+      stream: vi.fn(),
+    } as unknown as Provider;
+    const create = vi.fn(() => created);
+    const modelsRegistry = registry([provider('opencode-go', ['grok-4.5'])]);
+
+    const result = await createModelDiagSmokeProvider({
+      providerId: 'opencode-go-ws',
+      config: {
+        provider: 'opencode-go-ws',
+        model: 'grok-4.5',
+        providers: {
+          'opencode-go-ws': {
+            type: 'opencode-go',
+            family: 'openai-compatible',
+            apiKey: 'oc-test',
+          },
+        },
+      } as unknown as Config,
+      modelsRegistry,
+      providerFactories: new Map([
+        ['opencode-go', { type: 'opencode-go', family: 'openai-compatible', create }],
+      ]),
+    });
+
+    expect(result).toBe(created);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'opencode-go-ws', apiKey: 'oc-test' }),
+    );
+  });
+
   it('runs sequentially, reuses one provider instance, and continues after a model failure', async () => {
     const calls: string[] = [];
     let activeCalls = 0;

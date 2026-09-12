@@ -2,6 +2,13 @@ import * as path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  createApprovalRegistry: vi.fn(() => ({
+    list: vi.fn(() => []),
+    resolve: vi.fn(() => false),
+    dispose: vi.fn(),
+    onChange: vi.fn(() => () => undefined),
+  })),
+  startApprovalTelemetryBridge: vi.fn(),
   createHqCommandDispatcher: vi.fn(),
   createProjectKanbanAssignHandler: vi.fn(),
   createProjectKanbanTransitionHandler: vi.fn(),
@@ -16,6 +23,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@wrongstack/core/hq', () => ({
+  createApprovalRegistry: mocks.createApprovalRegistry,
+  startApprovalTelemetryBridge: mocks.startApprovalTelemetryBridge,
   startBrainTelemetryBridge: mocks.startBrainTelemetryBridge,
   startCostTelemetryBridge: mocks.startCostTelemetryBridge,
   startFleetTelemetryBridge: mocks.startFleetTelemetryBridge,

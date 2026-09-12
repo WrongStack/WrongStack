@@ -1,6 +1,6 @@
 import type { SystemInstructionVariant } from '@wrongstack/core/agent';
-import { toErrorMessage } from '@wrongstack/core/utils';
 import type { ConfigStore } from '@wrongstack/core/types';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { type PendingConfirm, resolveYoloEligiblePendingConfirms } from './pending-confirms.js';
@@ -104,6 +104,7 @@ function routingPatch(payload: Record<string, unknown>): Record<string, unknown>
     patch['fallbackProfiles'] = payload['fallbackProfiles'];
   }
   if (Array.isArray(payload['favoriteModels'])) patch['favoriteModels'] = payload['favoriteModels'];
+  if (Array.isArray(payload['disabledModels'])) patch['disabledModels'] = payload['disabledModels'];
   if (typeof payload['favoriteModelsOnly'] === 'boolean') {
     patch['favoriteModelsOnly'] = payload['favoriteModelsOnly'];
   }
@@ -304,9 +305,7 @@ export async function handlePrefsUpdate(
         ctx,
         ws,
         false,
-        `System prompt saved, but the live prompt could not be rebuilt: ${
-          toErrorMessage(err)
-        }`,
+        `System prompt saved, but the live prompt could not be rebuilt: ${toErrorMessage(err)}`,
       );
     }
     // The catalogue is broadcast (it is the same everywhere), but `current`

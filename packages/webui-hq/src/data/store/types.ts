@@ -7,13 +7,14 @@ import type {
   HqSnapshot,
 } from '@wrongstack/core/hq';
 
-/** The twelve HQ surfaces. The router, the nav and the palette all key on this. */
+/** The HQ surfaces. The router, the nav and the palette all key on this. */
 export type HqViewId =
   | 'cockpit'
   | 'fleet'
   | 'console'
   | 'mailbox'
   | 'kanban'
+  | 'approvals'
   | 'alerts'
   | 'cost'
   | 'trends'

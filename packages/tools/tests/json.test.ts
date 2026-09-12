@@ -287,6 +287,23 @@ describe('jsonTool action: validate', () => {
     expect(bad.errors?.some((e) => e.includes('missing required property "age"'))).toBe(true);
   });
 
+  it('accepts omitted optional object properties', async () => {
+    const result = await jsonTool.execute({
+      action: 'validate',
+      data: '{"name": "Ada"}',
+      schema: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string' },
+          age: { type: 'number' },
+        },
+      },
+    });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
   it('returns error when schema is missing', async () => {
     const result = await jsonTool.execute({ action: 'validate', data: '{}' });
     expect(result.error).toContain('schema is required');

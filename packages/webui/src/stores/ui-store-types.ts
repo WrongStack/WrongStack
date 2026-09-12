@@ -54,6 +54,7 @@ export function coerceActivity(value: unknown): Activity {
 export const VIEWS = [
   'chat',
   'settings',
+  'provider-test',
   'memory',
   'roster',
   'context',

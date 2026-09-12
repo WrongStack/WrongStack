@@ -57,6 +57,17 @@ export interface ProviderMutationHandlers {
     providerId: string,
     timeoutMs?: number | undefined,
   ) => Promise<void>;
+  handleProviderModelTestRun: (
+    ws: WebSocket,
+    input: {
+      requestId: string;
+      providerId: string;
+      modelIds: string[];
+      timeoutMs: number;
+      maxTokens: number;
+    },
+  ) => Promise<void>;
+  handleProviderModelTestCancel: (requestId: string) => void;
   handleOAuthStart: (ws: WebSocket, kind: string, providerId?: string | undefined) => Promise<void>;
   handleOAuthCode: (ws: WebSocket, kind: string, input: string) => Promise<void>;
   handleOAuthCancel: (ws: WebSocket, kind: string) => void;
@@ -453,6 +464,49 @@ export async function handleProviderRoute(
       if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || timeoutMs === null)
         return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderProbe(ws, providerId, timeoutMs);
+      return true;
+    }
+
+    case 'provider.test.run': {
+      const payload = asPayloadRecord(msg);
+      const requestId = payload ? requiredString(payload, 'requestId') : null;
+      const providerId = payload ? requiredString(payload, 'providerId') : null;
+      const modelIds = payload ? optionalStringArray(payload, 'modelIds') : null;
+      const timeoutMs = payload ? optionalNumber(payload, 'timeoutMs') : null;
+      const maxTokens = payload ? optionalNumber(payload, 'maxTokens') : null;
+      if (
+        !requestId ||
+        !SAFE_CONFIG_KEY.test(requestId) ||
+        !providerId ||
+        !SAFE_CONFIG_KEY.test(providerId) ||
+        !modelIds ||
+        modelIds.length === 0 ||
+        modelIds.length > 200 ||
+        modelIds.some((modelId) => !SAFE_CONFIG_KEY.test(modelId)) ||
+        timeoutMs === null ||
+        maxTokens === null ||
+        (timeoutMs !== undefined &&
+          (!Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 120_000)) ||
+        (maxTokens !== undefined &&
+          (!Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > 4_096))
+      ) {
+        return invalidPayload(ws, msg.type);
+      }
+      void routes.providerHandlers.handleProviderModelTestRun(ws, {
+        requestId,
+        providerId,
+        modelIds: [...new Set(modelIds)],
+        timeoutMs: timeoutMs ?? 45_000,
+        maxTokens: maxTokens ?? 32,
+      });
+      return true;
+    }
+
+    case 'provider.test.cancel': {
+      const payload = asPayloadRecord(msg);
+      const requestId = payload ? requiredString(payload, 'requestId') : null;
+      if (!requestId || !SAFE_CONFIG_KEY.test(requestId)) return invalidPayload(ws, msg.type);
+      routes.providerHandlers.handleProviderModelTestCancel(requestId);
       return true;
     }
 

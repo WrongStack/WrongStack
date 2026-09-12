@@ -42,6 +42,26 @@ describe('FallbackProfileManager', () => {
     expect(chain[1]?.model).toBe('gpt-4o-mini');
   });
 
+  it('excludes disabled models from named, explicit, and smart fallback routes', () => {
+    const mgr = new FallbackProfileManager(
+      makeConfig({
+        disabledModels: ['anthropic/claude-opus-4-8', 'openai/gpt-4o-mini'],
+      }),
+    );
+
+    expect(mgr.resolve('primary-failover')).toEqual([]);
+    expect(mgr.resolveRefs(['anthropic/claude-opus-4-8', 'openai/gpt-4o-mini'])).toEqual([]);
+    expect(
+      mgr
+        .resolveEffective({})
+        .some(
+          (entry) =>
+            (entry.providerId === 'anthropic' && entry.model === 'claude-opus-4-8') ||
+            (entry.providerId === 'openai' && entry.model === 'gpt-4o-mini'),
+        ),
+    ).toBe(false);
+  });
+
   it('keeps profile entries whose provider carries no credentials in config', () => {
     // Config-level "usability" is not a reliable signal (a key can reach the
     // provider without appearing in `config.providers`), and applying it only

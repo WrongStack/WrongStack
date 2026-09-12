@@ -179,4 +179,37 @@ describe('json-parser parseSymbols', () => {
     expect(blockDefs.length).toBe(1);
     expect(names('openapi.json', content)).toEqual(expect.arrayContaining(['schemas']));
   });
+
+  it('emits the "scripts" block exactly once (script keys are not the header)', () => {
+    const content = [
+      '{',
+      '  "name": "pkg",',
+      '  "scripts": { "build": "tsc", "test": "vitest" },',
+      '}',
+    ].join('\n');
+    const res = parse('package.json', content);
+    expect(res.symbols.filter((s) => s.name === 'scripts').map((s) => s.kind)).toEqual(['const']);
+    expect(find('package.json', content, 'build')).toMatchObject({
+      kind: 'function',
+      line: 3,
+    });
+    expect(find('package.json', content, 'test')).toMatchObject({
+      kind: 'function',
+      line: 3,
+    });
+  });
+
+  it('emits single-line compilerOptions nested keys (no header-line suppression)', () => {
+    const content = '{\n  "compilerOptions": { "noEmit": true }\n}';
+    const res = parse('tsconfig.json', content);
+    expect(names('tsconfig.json', content)).toEqual(
+      expect.arrayContaining(['compilerOptions', 'noEmit']),
+    );
+    expect(find('tsconfig.json', content, 'noEmit')).toMatchObject({
+      kind: 'property',
+      line: 2,
+    });
+    const headerKinds = res.symbols.filter((s) => s.name === 'compilerOptions').map((s) => s.kind);
+    expect(headerKinds).toEqual(['property']);
+  });
 });

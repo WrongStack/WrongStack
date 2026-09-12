@@ -64,6 +64,7 @@ export interface ProviderConfigSnapshot {
   /** Selected named profile (Config.fallbackProfile). */
   fallbackProfile?: string;
   favoriteModels?: string[];
+  disabledModels?: string[];
   favoriteModelsOnly?: boolean;
   modelMatrix?: Record<string, unknown>;
   fallbackAuto?: boolean;
@@ -126,6 +127,7 @@ export async function readProviderSnapshot(
     fallbackProfiles?: Record<string, string[]>;
     fallbackProfile?: string;
     favoriteModels?: string[];
+    disabledModels?: string[];
     favoriteModelsOnly?: boolean;
     modelMatrix?: Record<string, unknown>;
     fallbackAuto?: boolean;
@@ -159,6 +161,7 @@ export async function readProviderSnapshot(
     snapshot.fallbackMaxLastResortCandidates = decrypted.fallbackMaxLastResortCandidates;
   }
   if (Array.isArray(decrypted.favoriteModels)) snapshot.favoriteModels = decrypted.favoriteModels;
+  if (Array.isArray(decrypted.disabledModels)) snapshot.disabledModels = decrypted.disabledModels;
   if (typeof decrypted.favoriteModelsOnly === 'boolean')
     snapshot.favoriteModelsOnly = decrypted.favoriteModelsOnly;
   if (decrypted.modelMatrix) snapshot.modelMatrix = decrypted.modelMatrix;
@@ -180,6 +183,7 @@ function serializeSnapshot(s: ProviderConfigSnapshot): string {
     fallbackProfiles: s.fallbackProfiles ?? null,
     fallbackProfile: s.fallbackProfile ?? null,
     favoriteModels: s.favoriteModels ?? null,
+    disabledModels: s.disabledModels ?? null,
     favoriteModelsOnly: s.favoriteModelsOnly ?? null,
     modelMatrix: s.modelMatrix ?? null,
     fallbackAuto: s.fallbackAuto ?? null,
