@@ -296,7 +296,11 @@ export class TaskDAG {
     }
 
     this._emit({ type: 'node:skipped', nodeId: id, reason });
-    if (hasUnblocked || this.isDone()) this._emitReady();
+    // `hasDeadlock()` matters here for the same reason it does in `complete()`:
+    // skipping the last runnable node can leave a dependent permanently blocked
+    // by an already-failed dep. Without it, `skip` is the only terminal
+    // transition that strands the graph without emitting `deadlock`.
+    if (hasUnblocked || this.isDone() || this.hasDeadlock()) this._emitReady();
   }
 
   // ── Queries ────────────────────────────────────────────────────────────

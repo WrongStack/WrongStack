@@ -39,7 +39,7 @@ export function checkUnixSocketPath(
   platform: NodeJS.Platform = process.platform,
 ): UnixSocketPathCheck {
   const maxBytes = platform === 'win32' ? Number.MAX_SAFE_INTEGER : unixSocketPathLimit(platform);
-  if (typeof socketPath !== 'string' || socketPath.includes('\0')) {
+  if (typeof socketPath !== 'string' || socketPath.length === 0 || socketPath.includes('\0')) {
     return { ok: false, byteLength: 0, maxBytes };
   }
   const byteLength = Buffer.byteLength(socketPath, 'utf8');
@@ -61,12 +61,18 @@ export function assertUnixSocketPathWithinLimit(
 ): void {
   const check = checkUnixSocketPath(socketPath, platform);
   if (check.ok) return;
-  // A NUL byte (or a non-string) is not a length problem. `checkUnixSocketPath`
-  // reports byteLength 0 for it, so the length message below would read "is 0
-  // bytes, over the limit of 107 usable bytes" and send the operator off to
-  // shorten TMPDIR, which cannot help. Name the actual defect instead.
+  // A NUL byte (or a non-string or empty path) is not a length problem.
+  // `checkUnixSocketPath` reports byteLength 0 for it, so the length message below
+  // would read "is 0 bytes, over the limit of 107 usable bytes" and send the
+  // operator off to shorten TMPDIR, which cannot help. Name the actual defect instead.
   if (typeof socketPath !== 'string') {
     throw new Error(`${service} IPC socket path must be a string, received ${typeof socketPath}.`);
+  }
+  if (socketPath.length === 0) {
+    throw new Error(
+      `${service} IPC socket path must not be empty. ` +
+        `Check whatever derives this endpoint; the value is not a usable path.`,
+    );
   }
   if (socketPath.includes('\u0000')) {
     throw new Error(

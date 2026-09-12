@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T16:41:14.515Z",
+  "generatedAt": "2026-09-12T18:18:34.504Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3770,
-    "testFiles": 3282,
-    "sourceLines": 913376,
+    "testFiles": 3283,
+    "sourceLines": 913590,
     "workspaceEdges": 128,
-    "moduleEdges": 12017,
+    "moduleEdges": 12019,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -146,7 +146,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 493,
-      "testFiles": 484,
+      "testFiles": 485,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -185,7 +185,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 484
+          "testFiles": 485
         }
       ]
     },
@@ -4144,6 +4144,12 @@
       },
       {
         "file": "packages/cli/tests/subagent-models-panel-service.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/subagent-models-tui-e2e.test.ts",
         "projects": [
           "root-node"
         ]

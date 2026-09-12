@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 import {
@@ -42,6 +43,19 @@ const NATIVE_READ_CHUNK_BYTES = 64 * 1024;
 const NATIVE_MAX_FILE_BYTES = 1_000_000;
 const RG_MAX_QUEUE_CHUNKS = 128;
 const RG_MAX_QUEUE_CHARS = 8 * 1024 * 1024;
+
+function isInsideDefaultIgnoredDirectory(target: string, root: string): boolean {
+  const relative = path.relative(root, target);
+  if (
+    !relative ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    return false;
+  }
+  return relative.split(path.sep).some((segment) => DEFAULT_IGNORE.has(segment));
+}
 
 export const grepTool: Tool<GrepInput, GrepOutput> = {
   name: 'grep',
@@ -130,6 +144,10 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
     // upgraded and carries a regression test for exactly this case
     // (glob.test.ts:183); grep was missed.
     const base = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
+    const ignoreRoot = await fs
+      .realpath(ctx.projectRoot ?? ctx.cwd)
+      .catch(() => path.resolve(ctx.projectRoot ?? ctx.cwd));
+    const ignoreTarget = await fs.realpath(base).catch(() => path.resolve(base));
     const mode = input.output_mode ?? 'content';
     const rawLimit =
       typeof input.limit === 'number' && Number.isFinite(input.limit) ? input.limit : 200;
@@ -149,6 +167,23 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
     // absolute — see `makeRootRelativizer`.
     const relativize = makeRootRelativizer(ctx.cwd);
     const rgAvailable = await detectRg();
+    // The recursive walkers skip ignored directory entries, but that does not
+    // protect the walk root itself. An explicit path such as
+    // `packages/app/dist` (or a file below it) therefore leaked build output
+    // through the native fallback. Apply the same rule to the resolved search
+    // root before selecting an engine so rg and native behavior stay aligned.
+    if (isInsideDefaultIgnoredDirectory(ignoreTarget, ignoreRoot)) {
+      yield {
+        type: 'final',
+        output: {
+          matches: [],
+          count: 0,
+          truncated: false,
+          used: rgAvailable ? 'rg' : 'native',
+        },
+      };
+      return;
+    }
     if (rgAvailable) {
       try {
         yield* runRgStream(input, base, mode, limit, signal, relativize);
@@ -501,6 +536,11 @@ async function runNative(
         let lineNumber = 0;
         let fileHits = 0;
         let leftover = '';
+        // Chunk-boundary-safe decoding: a multi-byte character can be split
+        // across two reads, so `chunk.toString('utf8')` would decode both
+        // halves as U+FFFD. The decoder carries the incomplete sequence into
+        // the next chunk.
+        const decoder = new StringDecoder('utf8');
         let binaryChecked = false;
         const buffer = Buffer.allocUnsafe(Math.min(NATIVE_READ_CHUNK_BYTES, maxBytes));
 
@@ -519,7 +559,7 @@ async function runNative(
             if (isBinaryBuffer(chunk)) return;
           }
           bytesReadTotal += bytesRead;
-          const text = leftover + chunk.toString('utf8');
+          const text = leftover + decoder.write(chunk);
           const lines = text.split(/\r?\n/);
           leftover = lines.pop() ?? '';
 
@@ -548,6 +588,9 @@ async function runNative(
 
           if (mode === 'files_with_matches' && fileHits > 0) break;
         }
+
+        // Flush the decoder's tail into the final line before it is tested.
+        leftover += decoder.end();
 
         if (!stopped && !signal.aborted && leftover.length > 0) {
           lineNumber++;

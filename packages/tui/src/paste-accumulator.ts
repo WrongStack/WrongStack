@@ -21,11 +21,19 @@ interface PasteOverflowState {
 export type PasteAccumState = string | PasteOverflowState | null;
 
 const OVERFLOW_STATE: PasteOverflowState = Object.freeze({ overflow: true });
-const BEGIN_RE = /\x1b?\[200~/g;
-const END_RE = /\x1b?\[201~/g;
+// First match only: a paste body may legally contain the marker spellings
+// (docs, logs, tests). Global replace used to delete those too.
+const BEGIN_RE = /\x1b?\[200~/;
+const END_RE = /\x1b?\[201~/;
 // Partial ANSI CSI without the ESC prefix — Ink strips ESC from sequences
 // like \x1b[0m, leaving [0m which would otherwise appear as literal text.
-const PARTIAL_ANSI_RE = /^\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]/;
+//
+// MUST match the whole fragment: CSI's "final byte" range 0x40-0x7e includes
+// every ASCII letter and `]`, so an unanchored `/^\[[...]/` treats `[hello]`,
+// `[file:a.ts]`, and `[]` as leaked control and swallows them. Restrict the
+// final to the CSI verbs terminals actually leak after stripping ESC (SGR,
+// cursor, erase, mode, DSR).
+const PARTIAL_ANSI_RE = /^\[[\x30-\x3f]*[\x20-\x2f]*[mHJKfA-Dhlnsu]$/;
 const ANSI_RE = new RegExp(
   [
     // CSI: ESC [ params* intermediates* final
@@ -113,19 +121,31 @@ export function feedPaste(accum: PasteAccumState, input: string): PasteFeedResul
   // fragment is joined with the accumulator FIRST: a marker split across
   // stdin reads straddles this boundary (`\x1b[20` arrived earlier, `0~hel`
   // arrives now), and only the joined string contains the complete marker
-  // that must be removed whole. The accumulator never contains a full
-  // marker (each fragment was already stripped), so a join cannot hide one.
+  // that must be removed whole.
+  //
+  // Opening BEGIN is removed only when this fragment starts a paste or
+  // completes a split marker prefix already in `accum`. Later `[200~` bytes
+  // are payload. Closing END is the LAST match so a body that mentions
+  // `[201~` is not truncated at the first occurrence; the terminal places
+  // the real closer at the end of the wrapped paste.
   const combined = `${accum ?? ''}${input}`;
-  const stripped = combined.replace(BEGIN_RE, '').replace(END_RE, '').replace(ANSI_RE, '');
+  const stripOpeningBegin =
+    accum === null || (typeof accum === 'string' && isMarkerPrefix(accum));
+  let working = stripOpeningBegin ? combined.replace(BEGIN_RE, '') : combined;
+  const endMatches = [...working.matchAll(new RegExp(END_RE, 'g'))];
+  const closed = endMatches.length > 0;
+  if (closed) {
+    const last = endMatches[endMatches.length - 1];
+    if (last && last.index !== undefined) working = working.slice(0, last.index);
+  }
+  const stripped = working.replace(ANSI_RE, '');
   if (stripped.length > MAX_PASTE_CHARS) {
     return {
-      accum: combined.includes(END) ? null : OVERFLOW_STATE,
+      accum: closed ? null : OVERFLOW_STATE,
       complete: null,
       error: `Paste rejected: exceeds ${MAX_PASTE_CHARS.toLocaleString()} characters.`,
     };
   }
-  // `combined` (not `input`) decides completion: a split END marker only
-  // becomes `[201~` once both halves have been joined.
-  if (combined.includes(END)) return { accum: null, complete: stripped };
+  if (closed) return { accum: null, complete: stripped };
   return { accum: stripped, complete: null };
 }

@@ -96,6 +96,14 @@ export class LSPServer {
     this.child = child;
     child.stderr.on('data', (chunk: Buffer) => this.captureStderr(chunk));
     child.on('exit', (code, sig) => {
+      // A restart/spawn replaces `this.child` before the previous process'
+      // exit event arrives. A stale event must not close the new connection or
+      // overwrite the new child's state — that is what made `/lsp restart`
+      // report success and then leave the server failed.
+      if (this.child !== child) {
+        this.ctx.events.emit('lsp.server.exited', { name: this.name, code, signal: sig });
+        return;
+      }
       const shouldReconnect = this.processReachedReady;
       this.connection?.close();
       this.connection = null;
@@ -112,6 +120,8 @@ export class LSPServer {
       this.processReachedReady = false;
     });
     child.on('error', (err) => {
+      /* v8 ignore next -- stale-child error after a restart is defensive; spawn failure is covered. */
+      if (this.child !== child) return;
       const shouldReconnect = this.processReachedReady;
       this.state = 'failed';
       this.ctx.events.emit('lsp.server.crashed', { name: this.name, error: err.message });
@@ -400,6 +410,10 @@ export class LSPServer {
       const oldest = this.diagnostics.keys().next().value;
       if (oldest === undefined) break;
       this.diagnostics.delete(oldest);
+      // Keep the freshness set bounded too: an evicted URI that stayed in
+      // `diagnosticsFresh` would both leak forever and make waitForDiagnostics
+      // return an empty buffer immediately instead of waiting for a republish.
+      this.diagnosticsFresh.delete(oldest);
     }
   }
 

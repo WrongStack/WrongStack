@@ -496,6 +496,10 @@ export interface RunTuiOptions {
     | undefined;
   /** Full Brain settings editor bridge (live apply + persist to global config). */
   brainPanelHost?: import('./brain-panel-model.js').BrainPanelHost | undefined;
+  /** Session-scoped model-lane bridge for the interactive `/subagent-models` panel. */
+  subagentModelsHost?:
+    | import('./subagent-models-panel-model.js').SubagentModelsPanelHost
+    | undefined;
   /** Get current Shadow Agent state. */
   getShadowData?:
     | (() => { activeId: string | null; running: boolean; model: string; intervalMs: number })

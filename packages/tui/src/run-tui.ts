@@ -261,6 +261,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
         getBrainData: opts.getBrainData,
         onBrainRiskLevel: opts.onBrainRiskLevel,
         brainPanelHost: opts.brainPanelHost,
+        subagentModelsHost: opts.subagentModelsHost,
         getShadowData: opts.getShadowData,
         onShadowStart: opts.onShadowStart,
         onShadowStop: opts.onShadowStop,

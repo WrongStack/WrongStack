@@ -547,14 +547,14 @@ async function runStopCommand(ctx: LspContext, name?: string): Promise<{ message
     if (!srv) {
       return { message: `${colorize('Server not found:', 'red')} ${targetName}` };
     }
-    ctx.registry.stop(targetName);
+    await ctx.registry.stop(targetName);
     return { message: `${colorize('Stopped:', 'yellow')} ${targetName}` };
   }
 
   // Stop all servers
   const allServers = ctx.registry.list();
   for (const srv of allServers) {
-    ctx.registry.stop(srv.name);
+    await ctx.registry.stop(srv.name);
   }
 
   return {
@@ -571,7 +571,7 @@ async function runRestartCommand(ctx: LspContext, name?: string): Promise<{ mess
       return { message: `${colorize('Server not found:', 'red')} ${targetName}` };
     }
 
-    ctx.registry.stop(targetName);
+    await ctx.registry.stop(targetName);
     try {
       await ctx.registry.start(targetName);
       return { message: `${colorize('Restarted:', 'green')} ${targetName}` };
@@ -587,7 +587,7 @@ async function runRestartCommand(ctx: LspContext, name?: string): Promise<{ mess
   const failed: string[] = [];
 
   for (const srv of allServers) {
-    ctx.registry.stop(srv.name);
+    await ctx.registry.stop(srv.name);
     try {
       await ctx.registry.start(srv.name);
       restarted.push(srv.name);

@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import { rejectIfUnsafeInput } from './shared/candidate-lifecycle.js';
+import { VALID_MEMORY_STATUSES } from './shared/pagination.js';
 import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { cleanReferencingMemories, memoryNodeId } from './sqlite-store-graph-helpers.js';
 import {
@@ -55,6 +56,9 @@ export function updateSqliteSage(
     throw new Error(
       `SAGE kind must be one of: ${[...VALID_KINDS].join(', ')}; got "${input.kind}".`,
     );
+  }
+  if (input.status !== undefined && !VALID_MEMORY_STATUSES.has(input.status)) {
+    throw new Error(`Invalid SAGE status: "${input.status}".`);
   }
   const existing = readSqliteSageRow(ctx.stmt, id);
   if (!existing) throw new Error(`SAGE ${id} not found.`);

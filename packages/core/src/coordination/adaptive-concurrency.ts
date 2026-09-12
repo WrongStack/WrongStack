@@ -53,6 +53,8 @@ export class AdaptiveConcurrencyController {
   private readonly disposers: (() => void)[] = [];
   private stateChangeHandlers: ((state: AdaptiveConcurrencyState) => void)[] = [];
   private readonly logger: Pick<Logger, 'warn'> | undefined;
+  /** Epoch ms of the last increase/decrease — gates `recoveryIntervalMs`. */
+  private lastAdjustmentAt = Date.now();
 
   constructor(
     fleetBus: FleetBus,
@@ -104,7 +106,30 @@ export class AdaptiveConcurrencyController {
     const off = fleetBus.onAny((event: FleetEvent) => {
       if (!this.config.enabled) return;
 
-      // Check for rate limit indicators
+      // A completed provider attempt is the success signal for recovery.
+      // `provider-runner` emits exactly one per successful call.
+      if (event.type === 'provider.attempt.completed') {
+        this.handleSuccess(setMaxConcurrent);
+        return;
+      }
+
+      // Check for rate limit indicators.
+      //
+      // `provider.attempt.failed` is the event the runtime actually emits for
+      // a rejected provider call (see core/provider-runner.ts); it carries
+      // `status` and `failureKind`. It is the ONLY real-vocabulary trigger on
+      // purpose: `provider.retry` and `provider.error` fire for the same
+      // attempt, so counting them too would halve concurrency three times for
+      // a single 429. The legacy `error` / `provider_error` shapes are kept so
+      // embedders (and buses that re-tag events) still work.
+      if (event.type === 'provider.attempt.failed') {
+        const payload = event.payload as { status?: number; failureKind?: string };
+        if (payload?.status === 429 || payload?.failureKind === 'rate_limit') {
+          this.handleRateLimit(setMaxConcurrent);
+        }
+        return;
+      }
+
       if (event.type === 'error' || event.type === 'provider_error') {
         const payload = event.payload as { status?: number; code?: string; kind?: string };
         if (
@@ -143,6 +168,7 @@ export class AdaptiveConcurrencyController {
       this.state.consecutiveFailures++;
       this.state.consecutiveSuccesses = 0;
       this.state.totalDecreases++;
+      this.lastAdjustmentAt = Date.now();
 
       setMaxConcurrent(this.state.current);
       this.notifyStateChange();
@@ -155,6 +181,52 @@ export class AdaptiveConcurrencyController {
         totalDecreases: this.state.totalDecreases,
       });
     }
+  }
+
+  /**
+   * Handle a successful provider attempt — the recovery half of the loop.
+   *
+   * Additive increase (+1) paired with the multiplicative decrease above: the
+   * classic AIMD shape. Jumping straight back to `maxConcurrent` would just
+   * re-trigger the rate limit that caused the decrease. Recovery is gated on
+   * BOTH `successThreshold` consecutive successes and `recoveryIntervalMs`
+   * since the last adjustment, so a burst of fast successes cannot walk the
+   * limit back up faster than the provider's window.
+   */
+  private handleSuccess(setMaxConcurrent: (n: number) => void): void {
+    this.state.consecutiveSuccesses++;
+    this.state.consecutiveFailures = 0;
+
+    if (this.state.current >= this.config.maxConcurrent) {
+      this.notifyStateChange();
+      return;
+    }
+    if (this.state.consecutiveSuccesses < this.config.successThreshold) {
+      this.notifyStateChange();
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastAdjustmentAt < this.config.recoveryIntervalMs) {
+      this.notifyStateChange();
+      return;
+    }
+
+    const previousConcurrent = this.state.current;
+    this.state.current = Math.min(this.config.maxConcurrent, this.state.current + 1);
+    this.state.consecutiveSuccesses = 0;
+    this.state.totalIncreases++;
+    this.lastAdjustmentAt = now;
+
+    setMaxConcurrent(this.state.current);
+    this.notifyStateChange();
+
+    this.logger?.warn('adaptive_concurrency.increased', {
+      reason: 'recovery',
+      previousConcurrent,
+      newConcurrent: this.state.current,
+      successThreshold: this.config.successThreshold,
+      totalIncreases: this.state.totalIncreases,
+    });
   }
 
   /**
@@ -175,6 +247,7 @@ export class AdaptiveConcurrencyController {
       this.state.current = newConcurrent;
       this.state.consecutiveSuccesses = 0;
       this.state.totalDecreases++;
+      this.lastAdjustmentAt = Date.now();
 
       this.setMaxConcurrent(this.state.current);
       this.notifyStateChange();

@@ -4,6 +4,14 @@ import type { SagePaths } from './types.js';
 
 export const DEFAULT_SAGE_DIR = '.wrongstack/memories';
 
+function escapesRoot(relativePath: string): boolean {
+  return (
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  );
+}
+
 export function resolveSagePaths(projectRoot: string, directory = DEFAULT_SAGE_DIR): SagePaths {
   if (path.isAbsolute(directory)) {
     throw new Error('SAGE directory must be project-relative.');
@@ -11,7 +19,7 @@ export function resolveSagePaths(projectRoot: string, directory = DEFAULT_SAGE_D
   const resolvedProjectRoot = path.resolve(projectRoot);
   const rootDir = path.resolve(resolvedProjectRoot, directory);
   const relative = path.relative(resolvedProjectRoot, rootDir);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+  if (escapesRoot(relative)) {
     throw new Error('SAGE directory must stay inside the project root.');
   }
   return {
@@ -123,7 +131,7 @@ export function normalizeProjectPath(projectRoot: string, inputPath: string): st
     abs = path.join(realParent, callerBasename);
   }
   const rel = path.relative(root, abs);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+  if (escapesRoot(rel)) {
     throw new Error(`Memory path must stay inside the project root: ${inputPath}`);
   }
   return normalizeSlashes(rel || '.');

@@ -334,17 +334,20 @@ const RULES: readonly DangerRule[] = [
       if (cmd !== 'git') return false;
       const cleanIdx = args.indexOf('clean');
       if (cleanIdx < 0) return false;
-      // Must include -f / --force (without it, git clean errors out and
-      // does nothing). -fd / -fdX combinations are subsumed.
-      return args
-        .slice(cleanIdx + 1)
-        .some(
-          (a) =>
-            a === '-f' ||
-            a === '--force' ||
-            a.startsWith('-f') /* -fd, -fdx, etc. */ ||
-            a.startsWith('--force='),
-        );
+      // Must include -f / --force (without it, git clean errors out and does
+      // nothing). Short flags combine, so the force flag is any single-dash
+      // all-letter cluster containing `f` — `-fd`, `-df`, `-xdf` — not just
+      // ones where `f` happens to be first.
+      const after = args.slice(cleanIdx + 1);
+      // A dry run rewrites nothing; exempt it before the force check, the same
+      // shape the git-push-force rule uses (`-n`, `-nd`, `--dry-run`).
+      if (after.some((a) => a === '--dry-run' || /^-[a-z]*n[a-z]*$/i.test(a))) return false;
+      return after.some(
+        (a) =>
+          a === '--force' ||
+          a.startsWith('--force=') ||
+          (/^-[a-z]+$/i.test(a) && a.toLowerCase().includes('f')),
+      );
     },
     reason: 'git clean -f (deletes untracked files)',
   },

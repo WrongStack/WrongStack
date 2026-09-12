@@ -42,6 +42,13 @@ function databaseSyncFromBun(module: unknown): DatabaseSyncConstructor | null {
   return BunDatabaseSync as unknown as DatabaseSyncConstructor;
 }
 
+let _defaultRequire: ModuleLoader | undefined;
+let _cachedDefaultDatabaseSync: DatabaseSyncConstructor | undefined;
+
+function getDefaultRequire(): ModuleLoader {
+  return (_defaultRequire ??= createRequire(import.meta.url));
+}
+
 /**
  * Resolve the synchronous SQLite constructor for the active JavaScript runtime.
  * Node uses `node:sqlite`; Bun uses a small constructor adapter over `bun:sqlite`.
@@ -49,12 +56,21 @@ function databaseSyncFromBun(module: unknown): DatabaseSyncConstructor | null {
  * and `close`) is shared by both implementations.
  */
 export function loadRuntimeDatabaseSync(
-  loadModule: ModuleLoader = createRequire(import.meta.url),
+  loadModule?: ModuleLoader,
 ): DatabaseSyncConstructor {
+  const isDefault = loadModule === undefined;
+  if (isDefault && _cachedDefaultDatabaseSync) {
+    return _cachedDefaultDatabaseSync;
+  }
+  const loader = loadModule ?? getDefaultRequire();
+
   let nodeError: unknown;
   try {
-    const Database = databaseSyncFromNode(loadModule('node:sqlite'));
-    if (Database) return Database;
+    const Database = databaseSyncFromNode(loader('node:sqlite'));
+    if (Database) {
+      if (isDefault) _cachedDefaultDatabaseSync = Database;
+      return Database;
+    }
     nodeError = new Error('node:sqlite did not export DatabaseSync');
   } catch (error) {
     nodeError = error;
@@ -62,8 +78,11 @@ export function loadRuntimeDatabaseSync(
 
   let bunError: unknown;
   try {
-    const Database = databaseSyncFromBun(loadModule('bun:sqlite'));
-    if (Database) return Database;
+    const Database = databaseSyncFromBun(loader('bun:sqlite'));
+    if (Database) {
+      if (isDefault) _cachedDefaultDatabaseSync = Database;
+      return Database;
+    }
     bunError = new Error('bun:sqlite did not export Database');
   } catch (error) {
     bunError = error;

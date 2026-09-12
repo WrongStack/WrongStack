@@ -24,6 +24,11 @@ describe('search tools emit project-root-relative paths', () => {
     sb = await mkSandbox();
     await fs.mkdir(path.join(sb.dir, 'src', 'nested'), { recursive: true });
     await fs.writeFile(path.join(sb.dir, 'src', 'nested', 'hit.ts'), 'const needle = 1;\n');
+    await fs.mkdir(path.join(sb.dir, 'packages', 'app', 'dist', 'nested'), { recursive: true });
+    await fs.writeFile(
+      path.join(sb.dir, 'packages', 'app', 'dist', 'nested', 'generated.js'),
+      'const needle = 1;\n',
+    );
   });
   afterEach(async () => {
     __resetRgDetectionForTests();
@@ -81,6 +86,32 @@ describe('search tools emit project-root-relative paths', () => {
         // which sub-directory the search happened to be scoped to.
         expect(norm(hit!).startsWith(`${REL}:`)).toBe(true);
       });
+
+      it('does not search an explicitly targeted dist directory or file below it', async () => {
+        const directoryResult = await grepTool.execute(
+          { pattern: 'needle', path: 'packages/app/dist' },
+          sb.ctx,
+          { signal: newSignal() },
+        );
+        const fileResult = await grepTool.execute(
+          { pattern: 'needle', path: 'packages/app/dist/nested/generated.js' },
+          sb.ctx,
+          { signal: newSignal() },
+        );
+
+        expect(directoryResult).toEqual({
+          matches: [],
+          count: 0,
+          truncated: false,
+          used: engine,
+        });
+        expect(fileResult).toEqual({
+          matches: [],
+          count: 0,
+          truncated: false,
+          used: engine,
+        });
+      });
     });
   }
 
@@ -92,7 +123,9 @@ describe('search tools emit project-root-relative paths', () => {
   });
 
   it('glob with explicit path option matches pattern and returns root-relative files', async () => {
-    const out = await globTool.execute({ pattern: '**/*.ts', path: 'src' }, sb.ctx, { signal: newSignal() });
+    const out = await globTool.execute({ pattern: '**/*.ts', path: 'src' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.files.length).toBeGreaterThanOrEqual(1);
     for (const f of out.files) expect(path.isAbsolute(f)).toBe(false);
     expect(out.files.map(norm)).toContain(REL);
