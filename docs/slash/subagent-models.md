@@ -135,6 +135,9 @@ event, so `/resume` brings it back. It is never written to `config.json` — use
   full editor, role overrides included, is in Settings → Routing → *Subagent
   models*. Per tab, because each tab is its own session.
 - **SimpleUI** — Settings → SESSION → *Subagent models*.
+- **HQ** — read-only: each live worker reports its resolved `provider/model` in
+  the fleet snapshot, which is how you check from outside the machine that the
+  lanes took effect.
 
 ## Code reference
 

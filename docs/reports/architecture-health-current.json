@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T15:40:11.755Z",
+  "generatedAt": "2026-09-12T15:48:57.483Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3770,
-    "testFiles": 3280,
-    "sourceLines": 913349,
+    "testFiles": 3281,
+    "sourceLines": 913372,
     "workspaceEdges": 128,
     "moduleEdges": 12018,
     "nonCommandSlashImports": 0,
@@ -150,7 +150,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 493,
-      "testFiles": 482,
+      "testFiles": 483,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -189,7 +189,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 482
+          "testFiles": 483
         }
       ]
     },
@@ -2421,6 +2421,12 @@
       },
       {
         "file": "packages/cli/tests/director-setup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/director-stats-bridge-model.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21102,7 +21108,7 @@
     },
     {
       "file": "packages/core/src/hq/protocol/core.ts",
-      "lines": 1031,
+      "lines": 1032,
       "relativeImports": 13
     },
     {
@@ -21704,7 +21710,7 @@
     },
     {
       "file": "packages/core/src/hq/protocol/core.ts",
-      "lines": 1031,
+      "lines": 1032,
       "relativeImports": 13
     },
     {

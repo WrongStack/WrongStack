@@ -165,10 +165,24 @@ export function registerDirectorStatsBridge(input: {
             toolCalls?: number | undefined;
           }
         | undefined;
-      if (u === undefined) return s;
+      // Prefer the RESOLVED pair: usage tracking knows the model id but not
+      // which provider served it, and per-session lane routing is exactly the
+      // case where two workers run the same-looking id on different providers.
+      const resolved = director.resolvedModelFor?.(s.subagentId);
+      const qualified =
+        resolved?.provider && resolved.model
+          ? `${resolved.provider}/${resolved.model}`
+          : (resolved?.model ?? undefined);
+      if (u === undefined) {
+        return qualified === undefined ? s : { ...s, model: qualified };
+      }
       return {
         ...s,
-        ...(u.model !== undefined ? { model: u.model } : {}),
+        ...(qualified !== undefined
+          ? { model: qualified }
+          : u.model !== undefined
+            ? { model: u.model }
+            : {}),
         ...(u.cost !== undefined ? { costUsd: u.cost } : {}),
         ...(u.startedAt !== undefined ? { runtimeMs: Date.now() - u.startedAt } : {}),
         ...(u.lastEventAt !== undefined

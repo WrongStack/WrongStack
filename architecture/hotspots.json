@@ -139,7 +139,7 @@
       "relativeImports": 7
     },
     "packages/core/src/hq/protocol/core.ts": {
-      "lines": 1031,
+      "lines": 1032,
       "relativeImports": 13
     },
     "packages/core/src/index.ts": {

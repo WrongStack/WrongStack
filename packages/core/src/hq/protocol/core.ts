@@ -706,7 +706,8 @@ function isHqSubagentSummary(x: unknown): x is HqSubagentSummary {
   return (
     typeof v.subagentId === 'string' &&
     typeof v.status === 'string' &&
-    HQ_FLEET_SUBAGENT_STATUS.has(v.status)
+    HQ_FLEET_SUBAGENT_STATUS.has(v.status) &&
+    (v.model === undefined || typeof v.model === 'string')
   );
 }
 

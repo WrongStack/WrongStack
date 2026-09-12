@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 214,
+      "files": 215,
       "typeOnly": 84,
-      "runtimeOrMixed": 185
+      "runtimeOrMixed": 186
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 43
     },
     "@wrongstack/core/kernel": {
-      "files": 263,
+      "files": 264,
       "typeOnly": 140,
-      "runtimeOrMixed": 136
+      "runtimeOrMixed": 137
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -2925,6 +2925,12 @@
       "file": "packages/cli/tests/director-setup.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/director-stats-bridge-model.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -5917,6 +5923,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/codex-prompt-prefix-stability.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/director-stats-bridge-model.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -29,6 +29,14 @@ export interface HqSubagentSummary {
   runtimeMs?: number;
   costUsd?: number;
   lastActivityAt?: string;
+  /**
+   * The provider/model this worker actually runs on, `provider/model` when the
+   * provider is known. `FleetTelemetryBridge` has always put it on the wire —
+   * the field was missing from this contract, so a consumer could not read it
+   * type-safely. It is the answer to "did my per-session model routing take
+   * effect", which is otherwise invisible from HQ.
+   */
+  model?: string;
 }
 
 /** Payload for `agent.message` events — a subagent's conversational output. */

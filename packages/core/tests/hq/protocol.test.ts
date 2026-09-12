@@ -641,6 +641,22 @@ describe('parseHqEventPayload', () => {
       false,
     );
     expect(parseHqEventPayload('fleet.snapshot', { ...valid, maxSpawns: 'x' }).ok).toBe(false);
+
+    // A worker's resolved `provider/model`. The telemetry bridge has always put
+    // it on the wire; the guard has to accept it (a rejected frame drops the
+    // whole snapshot) and reject a non-string.
+    expect(
+      parseHqEventPayload('fleet.snapshot', {
+        ...valid,
+        subagents: [{ subagentId: 's1', status: 'running', model: 'openai/gpt-5' }],
+      }).ok,
+    ).toBe(true);
+    expect(
+      parseHqEventPayload('fleet.snapshot', {
+        ...valid,
+        subagents: [{ subagentId: 's1', status: 'running', model: 5 }],
+      }).ok,
+    ).toBe(false);
   });
 
   it('validates fleet.event payloads', () => {
