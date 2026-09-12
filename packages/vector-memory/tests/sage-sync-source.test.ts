@@ -67,7 +67,7 @@ describe('createSageSurfaceSyncSource', () => {
     let calls = 0;
     const row = sageRow('a', 'first');
     const source = createSageSurfaceSyncSource({
-      listSagePage: async ({ cursor }) => {
+      listSagePage: async ({ cursor }: { cursor?: string }) => {
         calls++;
         if (!cursor) return { memories: [row], nextCursor: 'loop' };
         return { memories: [row], nextCursor: 'loop' };
