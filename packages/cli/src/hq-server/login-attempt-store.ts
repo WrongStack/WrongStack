@@ -50,6 +50,10 @@ export class LoginAttemptStore {
    * debounced rewrite scrubs them from the file.
    */
   async load(): Promise<void> {
+    // Reload semantics: discard entries from an earlier load before applying
+    // the current persisted snapshot. Otherwise deletions on disk remain
+    // active in memory until the process restarts.
+    this.store.clear();
     let legacyCredEntries = 0;
     try {
       const raw = await fs.readFile(this.filePath, 'utf8');

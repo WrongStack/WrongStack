@@ -629,8 +629,8 @@ importers:
         specifier: 7.0.77
         version: 7.0.77(zod@4.4.3)
       ai-gateway-provider:
-        specifier: 4.0.0
-        version: 4.0.0(@ai-sdk/openai-compatible@3.0.47(zod@4.4.3))(@ai-sdk/provider-utils@5.0.39(zod@4.4.3))(@ai-sdk/provider@4.0.13)(ai@7.0.77(zod@4.4.3))(supports-color@7.2.0)(zod@4.4.3)
+        specifier: 4.0.1
+        version: 4.0.1(@ai-sdk/openai-compatible@3.0.47(zod@4.4.3))(@ai-sdk/provider-utils@5.0.39(zod@4.4.3))(@ai-sdk/provider@4.0.13)(ai@7.0.77(zod@4.4.3))(supports-color@7.2.0)(zod@4.4.3)
       ws:
         specifier: ^8.21.3
         version: 8.21.3
@@ -3203,10 +3203,10 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
-  ai-gateway-provider@4.0.0:
-    resolution: {integrity: sha512-EK8f06Bma1d7kHyrQl05iAfxcG1uRIwUYZj8x8JM11YqFXyWGrC65T+QykccG/J9swI4LeUBuXkwCs7lrwJ0RQ==}
+  ai-gateway-provider@4.0.1:
+    resolution: {integrity: sha512-8m0ZEth/PynMFhBPgAj/Dvjyytrj7tm6EsYrusF+g8TzdUK7HpotKNeDVx0DCopzvYTz50OYsfABpmJ9mKXrXA==}
     peerDependencies:
-      '@ai-sdk/openai-compatible': ^3.0.3
+      '@ai-sdk/openai-compatible': ^3.0.32
       '@ai-sdk/provider': ^4.0.1
       '@ai-sdk/provider-utils': ^5.0.3
       ai: ^7.0.11
@@ -7340,7 +7340,7 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai-gateway-provider@4.0.0(@ai-sdk/openai-compatible@3.0.47(zod@4.4.3))(@ai-sdk/provider-utils@5.0.39(zod@4.4.3))(@ai-sdk/provider@4.0.13)(ai@7.0.77(zod@4.4.3))(supports-color@7.2.0)(zod@4.4.3):
+  ai-gateway-provider@4.0.1(@ai-sdk/openai-compatible@3.0.47(zod@4.4.3))(@ai-sdk/provider-utils@5.0.39(zod@4.4.3))(@ai-sdk/provider@4.0.13)(ai@7.0.77(zod@4.4.3))(supports-color@7.2.0)(zod@4.4.3):
     dependencies:
       '@ai-sdk/openai-compatible': 3.0.47(zod@4.4.3)
       '@ai-sdk/provider': 4.0.13

@@ -29,15 +29,13 @@ Kanban boards** with atomic verification, an **inter-agent mailbox** that links
 every client, and **Chimera** auto-review agents that critique your diffs.
 It ships with a deep built-in toolbox, bundled skills, managed first-party
 plugins, and a provider catalog pulled live from
-[models.dev](https://models.dev) — all on top of a compact, swappable kernel that
-boots fully offline with `--no-features`.
+[models.dev](https://models.dev) — all on top of a compact, swappable kernel.
 
 **Built from scratch, stands on its own.** WrongStack is not a plugin layer or an
 orchestration kit bolted onto another coding tool — it's a complete agent written
 top to bottom: its own compact kernel, its own provider transports with real SSE,
 its own tool executor, permission policy, memory system, and multi-agent runtime.
-Nothing here wraps a third-party CLI; everything works standalone, and
-`--no-features` even runs it fully offline.
+Nothing here wraps a third-party CLI; everything works standalone.
 
 ### The scale of it
 
@@ -139,7 +137,7 @@ See the complete [release notes](CHANGELOG.md).
   repo-committed config can turn it back off.
 - 🪶 **A kernel you can actually read.** `Container · Pipeline · EventBus ·
   RunController` — small enough to read in one sitting. Everything above it is
-  swappable; `--no-features` boots it fully offline.
+  swappable.
 
 ---
 
@@ -155,7 +153,7 @@ agent written from scratch, so the whole stack is first-party and consistent.
 | **Core** | Coordinates an external agent CLI (Claude Code, etc.) | **Own compact kernel** — `Container · Pipeline · EventBus · RunController` |
 | **Providers** | Inherits whatever the wrapped tool supports | **Own transports** — multiple wire families + real SSE, catalog from models.dev |
 | **Tools** | Whatever the underlying CLI exposes | **First-party built-in tools** — edit, exec, search, browser/E2E, SQLite codebase index |
-| **Offline** | Needs the upstream tool + network | **`--no-features` runs fully offline** — no MCP, plugins, memory, or network at startup |
+| **Local-only** | Needs the upstream tool + network | **Runs entirely on localhost** — one-command Ollama / vLLM / LM Studio presets; tools, memory, and fleet stay on your machine |
 | **Memory** | Usually none, or bolted-on files | **SAGE** — SQLite/FTS5, code-anchored, auto-injected long-term memory |
 | **Multi-agent** | Orchestrates external processes | **Native fleet + Director** — specialist roster, isolated budgets, one mailbox |
 | **Surfaces** | One (a terminal) | **Six** — REPL, TUI, WebUI, SimpleUI, Desktop, HQ |
@@ -480,11 +478,11 @@ Encrypted secrets at rest, a permission policy on every tool call, project-root
 containment that YOLO can't weaken, and a typed observability event catalog.
 Threat model: [`SECURITY.md`](SECURITY.md).
 
-### Token-saving & minimal modes
+### Token-saving mode
 
-`--token-saving-mode` trims the tool surface and prompt to cut cost.
-`--no-features` boots a minimal kernel — no MCP, plugins, memory tools,
-models.dev fetch, or skill discovery — fully offline.
+`--token-saving-mode` trims the tool surface and prompt to cut cost. The tier
+resolves once at boot (`off | auto | minimal | light | medium | aggressive`);
+set `features.tokenSavingMode: "off"` to describe every tool on every turn.
 
 ---
 
@@ -522,7 +520,7 @@ Services  → deterministic local IPC → one owner each → SQLite-backed proje
 1. **Minimal kernel** — the four primitives stay small enough to read end to end.
 2. **Zero non-overridable behavior** — services bound through `Container`, pipelines as middleware, all extension points in registries.
 3. **Standalone sufficiency** — works with the built-in tools and no plugins.
-4. **Layered, not monolithic** — `--no-features` runs offline with zero startup network calls.
+4. **Layered, not monolithic** — every feature composes over the kernel through registries; nothing above it is load-bearing.
 
 Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
@@ -558,7 +556,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- **v1.0.7** — production-ready; semver from 1.0.0 onward
+- **v1.0.8** — production-ready; semver from 1.0.0 onward
 - Full test suite passing in the release gate
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
 - Every package and app builds clean with TypeScript strict + `noUncheckedIndexedAccess`

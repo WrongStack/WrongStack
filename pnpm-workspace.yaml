@@ -20,9 +20,12 @@ overrides:
   dompurify: ">=3.4.13"
   # sharp <0.35.0 libvips vulnerabilities (GHSA-f88m-g3jw-g9cj)
   sharp: ">=0.35.0"
-  # ai-gateway-provider@4.0.0 still declares its unused optional OpenRouter
-  # adapter as 2.x (AI SDK 6). Keep the optional package on its AI SDK 7 line
-  # so installing Cloudflare support does not leave an invalid peer graph.
+  # ai-gateway-provider still declares its unused optional OpenRouter adapter
+  # as ^2.10.0 (AI SDK 6) — as of 4.0.1 it is an optionalDependency, but npm and
+  # bun install those by default, so the invalid peer graph is still reachable.
+  # Keep the optional package on its AI SDK 7 line. Consumers do not inherit
+  # this override (it is root-only), so an npm/bun install of the published CLI
+  # still prints one 'incorrect peer dependency ai@7' warning; it is cosmetic.
   "@openrouter/ai-sdk-provider": "3.0.0"
   wrongstack: link:apps/wrongstack
 peerDependencyRules:

@@ -169,6 +169,38 @@ describe('WS-103 — session cookie name preference', () => {
 });
 
 describe('WS-104 — credential-scoped login backoff', () => {
+  it('reloads persisted state instead of retaining entries removed from disk', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-attempts-reload-'));
+    try {
+      const file = path.join(dir, 'login-attempts.json');
+      await fs.writeFile(
+        file,
+        JSON.stringify({
+          '10.0.0.1': { count: 1, blockedUntil: 0, lastAttempt: Date.now() },
+        }),
+        'utf8',
+      );
+
+      const store = new LoginAttemptStore(dir);
+      await store.load();
+      expect(store.get('10.0.0.1')).toBeDefined();
+
+      await fs.writeFile(
+        file,
+        JSON.stringify({
+          '10.0.0.2': { count: 1, blockedUntil: 0, lastAttempt: Date.now() },
+        }),
+        'utf8',
+      );
+      await store.load();
+
+      expect(store.get('10.0.0.1')).toBeUndefined();
+      expect(store.get('10.0.0.2')).toBeDefined();
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
+    }
+  });
+
   it('keys on the password alone, so rotating IPs cannot reset the counter', () => {
     const a = LoginAttemptStore.credentialKey('hunter2');
     const b = LoginAttemptStore.credentialKey('hunter2');

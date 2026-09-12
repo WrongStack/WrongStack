@@ -46,7 +46,7 @@
     "@ai-sdk/google-vertex": "5.0.79",
     "@wrongstack/core": "workspace:*",
     "ai": "7.0.77",
-    "ai-gateway-provider": "4.0.0",
+    "ai-gateway-provider": "4.0.1",
     "ws": "^8.21.3",
     "zod": "4.4.3"
   },
