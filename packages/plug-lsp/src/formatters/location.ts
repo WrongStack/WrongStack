@@ -26,7 +26,6 @@ function displayUri(uri: string, cwd: string): string {
   try {
     return displayPath(uriToPath(uri), cwd);
   } catch {
-    /* v8 ignore next -- non-file/unparseable URIs are server-specific. */
     return uri;
   }
 }

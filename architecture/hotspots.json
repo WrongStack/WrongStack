@@ -291,7 +291,7 @@
       "relativeImports": 52
     },
     "packages/tools/src/bash.ts": {
-      "lines": 883,
+      "lines": 884,
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {

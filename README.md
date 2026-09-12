@@ -2,7 +2,7 @@
 
 # WrongStack
 
-### Ships with a Brain, a Memory, and 67 tools. Yours to run anywhere.
+### Ships with a Brain, a Memory, and a full toolbox. Yours to run anywhere.
 
 **A free, open-source AI coding agent that gets better at _your_ codebase over time. It reads code, runs tools, and coordinates specialist agents — with durable memory, visible permission boundaries, and no subscription required.**
 
@@ -27,53 +27,43 @@ loops, parallel subagent fan-out, and Brain-governed policy decisions — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
 Kanban boards** with atomic verification, an **inter-agent mailbox** that links
 every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with **67 built-in tools**, **29 bundled skills**, **73 managed first-party
-plugins**, and **~140 providers** pulled live from
+It ships with a deep built-in toolbox, bundled skills, managed first-party
+plugins, and a provider catalog pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
 boots fully offline with `--no-features`.
 
 **Built from scratch, stands on its own.** WrongStack is not a plugin layer or an
 orchestration kit bolted onto another coding tool — it's a complete agent written
-top to bottom: its own compact kernel, its own provider transports (4 wire
-families, real SSE), its own 67-tool executor, permission policy, memory system,
-and multi-agent runtime. Nothing here wraps a third-party CLI; everything works
-standalone, and `--no-features` even runs it fully offline.
+top to bottom: its own compact kernel, its own provider transports with real SSE,
+its own tool executor, permission policy, memory system, and multi-agent runtime.
+Nothing here wraps a third-party CLI; everything works standalone, and
+`--no-features` even runs it fully offline.
 
 ### The scale of it
 
-Not a thin wrapper — a real engine. To put it in perspective: the codebase spans
-**34 packages and 2 apps** of first-party, TypeScript-strict source, with **tens of
-thousands of tests** guarding it. You get **67 built-in tools**, a **77-role agent
-roster**, **~140 providers**, and **six surfaces** — all sharing **one compact
-kernel** (~1,670 lines) that boots **fully offline** with `--no-features`.
+Not a thin wrapper — a real engine. The codebase is first-party,
+TypeScript-strict source across a full monorepo, guarded by an extensive test
+suite. Memory, tools, providers, permissions, and the multi-agent runtime are all
+first-party and work together, on your machine, with no upstream agent to phone
+home to.
 
-Every capability below — memory, tools, providers, permissions, the multi-agent
-runtime — is first-party and works together, on your machine, with no upstream
-agent to phone home to.
+### What's new in 1.0.7
 
-### What's new in 1.0.0
+- **Cold start is 75% faster.** Granular session-shell subpath loading cuts
+  roughly 313 ms off CLI startup.
+- **The TUI sidebar reaches bottom-panel quality.** Every sidebar twin gains
+  direct scrolling and a persistent scrollbar rail, and the sidebar stays pinned
+  while a routed panel needs it.
+- **`/resume` opens the session picker directly**, and WebUI activity-bar icons
+  are drag-reorderable with the order persisted.
+- **The LSP plugin validates its options** and handles lazy-start faults instead
+  of failing silently.
+- **Security fixes:** two open-mode credential paths closed, HQ password
+  rotation now requires a real authentication factor, the desktop trust boundary
+  receives the real actor so its gates can deny, and every project-supplied
+  prompt fence routes through a single helper.
 
-- **WrongStack reaches production-ready 1.0.0.** The kernel is stable, the tool
-  contract is sealed, and the runtime gate passes reliably. Everything from here
-  follows semver.
-- **Benchmarks now report variance instead of a lucky single run.**
-  `wstack bench run --repeats N` reports Pass@N, All-pass, and flaky-task
-  counts, while the bundled six-task `core` suite works without cloning a
-  dataset or writing a config file.
-- **Benchmark failures remain diagnosable after long runs.** Rows are appended
-  to `results.jsonl` as they finish, reports name failure reasons and explain
-  when cost/token figures are lower bounds, and `wstack bench compare` checks
-  harness fingerprints before comparing results.
-- **Brain councils deliberate for a second round by default.** Seats see
-  the other ballots only as quoted data, can revise only for substantive new
-  evidence, and surface how many votes changed so cost and conformity stay
-  visible.
-- **Chronicle retains decision-relevant history more efficiently.** Its detail
-  policy folds high-volume events into counters, applies configurable
-  retention limits, and compresses stored payloads without invalidating
-  integrity verification.
-
-See the complete [1.0.0 release notes](CHANGELOG.md).
+See the complete [release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -82,7 +72,6 @@ See the complete [1.0.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 1.0.0](#whats-new-in-100)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
@@ -102,22 +91,55 @@ See the complete [1.0.0 release notes](CHANGELOG.md).
 
 ## Why WrongStack
 
-- 🧠 **Six surfaces, one brain** — a plain readline REPL, an Ink/React **TUI** (`--tui`), the full **WebUI** (`--webui`), lightweight **SimpleUI**, **WrongStack Desktop** (`--desktop`), and the cross-machine **HQ Command Center** (`--hq`). Plain `wstack` opens a launch menu on a TTY (bypass with `--no-menu`).
-- 🤖 **A fleet, not a lone agent** — a 77-role roster + smart dispatcher fan out under a Director, each subagent isolated with its own budget and JSONL transcript.
-- 🛰️ **HQ for the whole room** — aggregate live sessions, agents, fleets, mailbox state, cost, tools, Brain decisions, and worktrees across machines — then steer, note, queue, or stop connected clients through their own guardrails.
-- 🧠 **Brain as an authority seam** — risky Goal and Director choices can be auto-decided by policy, denied, or escalated to a human in the TUI.
-- ♾️ **Set a goal, walk away** — `/goal` locks a contract and the eternal / parallel engines grind until it's _verifiably_ done.
-- 🧠 **Memory that lasts** — project-wide **SAGE** long-term memory (SQLite/FTS5, code-anchored, auto-injected) so the agent remembers decisions, conventions, and root causes across sessions.
-- 🗂️ **Real work tracking** — durable **Kanban boards** and typed tasks with dependencies, lifecycle stages, and **atomic verification** gates.
-- 📬 **Agents that talk** — one **inter-agent mailbox** links every client, session, and worktree so parallel agents coordinate instead of collide.
-- 🦂 **Chimera auto-review** — changed files get critiqued by a review agent (severity-ranked, `file:line`, one-line fixes), with fixer agents to follow up.
-- 📈 **Agents that learn the project** — each role turns useful outcomes into skill-specific practice, ranks the skills that work here, and applies that learning on its next relevant task.
-- 🔀 **Per-role model routing** — assign different providers/models per role or phase, with automatic **fallback chains** when a model is overloaded.
-- 🔌 **~140 providers, zero lock-in** — Anthropic, OpenAI, Google, and ~125 OpenAI-compatible endpoints, catalog refreshed from models.dev at boot.
-- 🏠 **Local & custom endpoints** — one-command presets for **Ollama / vLLM / LM Studio**, plus any custom `baseUrl` or **OmniRoute**-style gateway; run fully on localhost.
-- 🔑 **Sign in with a subscription** — authenticate with a **ChatGPT (Codex)**, **Claude Pro/Max**, or **GitHub Copilot** subscription over OAuth, *alongside* API keys. See [OAuth sign-in](docs/oauth-signin.md).
-- 🔐 **Locked down where it counts** — encrypted secrets and a permission policy on every tool call, both always on. Project-root containment is opt-in (`/settings` → Filesystem access); once you enable it, neither YOLO nor a repo-committed config can turn it back off.
-- 🪶 **A compact kernel** — `Container · Pipeline · EventBus · RunController` (~1670 lines incl. the full event catalog). Everything above it is swappable; `--no-features` boots it fully offline.
+- 🧠 **It remembers your project.** **SAGE** keeps long-term memory in
+  SQLite/FTS5, anchored to real files, symbols, commands, and commits — and
+  re-verified as they change. Decisions, conventions, and root causes survive the
+  session that produced them.
+- 🤖 **A fleet, not a lone agent.** A full specialist roster and smart dispatcher
+  fan out under a Director, each subagent isolated with its own budget and JSONL
+  transcript.
+- 📈 **The roster gets better here.** Each role turns useful outcomes into
+  skill-specific practice, ranks what actually works in *this* repo, and applies
+  it on the next matching task.
+- 🛠️ **A deep toolbox, no plugins required.** Edits, lint/format/typecheck/test,
+  execution, git, web, browser/E2E, and a SQLite codebase index with symbol and
+  call-graph navigation.
+- 🖥️ **Six surfaces, one brain.** A plain readline REPL, an Ink/React **TUI**
+  (`--tui`), the full **WebUI** (`--webui`), lightweight **SimpleUI**,
+  **Desktop** (`--desktop`), and the cross-machine **HQ** (`--hq`) — same engine,
+  same session, same memory underneath.
+- 🛰️ **HQ for the whole room.** Aggregate live sessions, agents, fleets, mailbox
+  state, cost, tools, Brain decisions, and worktrees across machines — then
+  steer, note, queue, or stop connected clients through their own guardrails.
+- 📬 **Agents that coordinate instead of collide.** One project-wide mailbox
+  links every client, session, branch, and linked worktree, with typed messages
+  and live presence.
+- ♾️ **Set a goal, walk away.** `/goal` locks a contract and the eternal /
+  parallel engines grind until it is *verifiably* done — with the **Brain**
+  deciding risky calls by policy, denying them, or escalating to a human.
+- 🗂️ **Work tracking that resists lying.** Durable Kanban boards and typed tasks
+  with dependencies, lifecycle stages, and **atomic verification** gates that let
+  a card reach Done only when its criteria actually pass.
+- 🦂 **Your diffs get reviewed.** **Chimera** critiques changed files with
+  severity-ranked `file:line` findings and a one-line fix each, and fixer agents
+  can follow up.
+- 🔌 **Providers without lock-in.** Anthropic, OpenAI, Google, and a broad range
+  of OpenAI-compatible endpoints, refreshed from models.dev at boot.
+- 🏠 **Local & custom endpoints.** One-command presets for **Ollama / vLLM / LM
+  Studio**, plus any custom `baseUrl` or **OmniRoute**-style gateway; run fully
+  on localhost.
+- 🔑 **Sign in with a subscription.** Authenticate with a **ChatGPT (Codex)**,
+  **Claude Pro/Max** (for extra usage credits), or **GitHub Copilot** account
+  over OAuth, *alongside* API keys.
+- 🔀 **Per-role model routing.** Assign different providers/models per role or
+  phase, with automatic **fallback chains** when a model is overloaded.
+- 🔐 **Locked down where it counts.** Encrypted secrets and a permission policy
+  on every tool call, both always on. Project-root containment is opt-in
+  (`/settings` → Filesystem access); once you enable it, neither YOLO nor a
+  repo-committed config can turn it back off.
+- 🪶 **A kernel you can actually read.** `Container · Pipeline · EventBus ·
+  RunController` — small enough to read in one sitting. Everything above it is
+  swappable; `--no-features` boots it fully offline.
 
 ---
 
@@ -130,12 +152,12 @@ agent written from scratch, so the whole stack is first-party and consistent.
 
 | | Wrapper / orchestration-only tools | **WrongStack** |
 |---|---|---|
-| **Core** | Coordinates an external agent CLI (Claude Code, etc.) | **Own compact kernel** — `Container · Pipeline · EventBus · RunController` (~1670 lines) |
-| **Providers** | Inherits whatever the wrapped tool supports | **Own transports** — 4 wire families + real SSE, ~140 providers from models.dev |
-| **Tools** | Whatever the underlying CLI exposes | **61 first-party built-in tools** — edit, exec, search, browser/E2E, SQLite codebase index |
+| **Core** | Coordinates an external agent CLI (Claude Code, etc.) | **Own compact kernel** — `Container · Pipeline · EventBus · RunController` |
+| **Providers** | Inherits whatever the wrapped tool supports | **Own transports** — multiple wire families + real SSE, catalog from models.dev |
+| **Tools** | Whatever the underlying CLI exposes | **First-party built-in tools** — edit, exec, search, browser/E2E, SQLite codebase index |
 | **Offline** | Needs the upstream tool + network | **`--no-features` runs fully offline** — no MCP, plugins, memory, or network at startup |
 | **Memory** | Usually none, or bolted-on files | **SAGE** — SQLite/FTS5, code-anchored, auto-injected long-term memory |
-| **Multi-agent** | Orchestrates external processes | **Native fleet + Director** — 77-role roster, isolated budgets, one mailbox |
+| **Multi-agent** | Orchestrates external processes | **Native fleet + Director** — specialist roster, isolated budgets, one mailbox |
 | **Surfaces** | One (a terminal) | **Six** — REPL, TUI, WebUI, SimpleUI, Desktop, HQ |
 | **Review** | Manual | **Chimera** auto-review + fixer agents on your diffs |
 | **Permissions** | Depends on the wrapped tool | **Per-tool policy on every call**, project-root containment YOLO can't override |
@@ -150,7 +172,6 @@ memory, tools, providers, permissions, and the multi-agent runtime actually work
 
 - **npm/pnpm install:** Node.js ≥ 22.19.0 and pnpm ≥ 11.5.3 (recommended) or npm
 - **Bun runtime:** Bun ≥ 1.3.10
-- **Windows portable ZIP:** no separate Node.js or package manager required
 
 ---
 
@@ -161,42 +182,6 @@ npm i -g wrongstack
 # or
 pnpm add -g wrongstack
 ```
-
-### Always-on HQ service (Ubuntu)
-
-Install the globally available CLI as a boot-persistent, automatically
-restarting systemd service. The password is written to a root-only environment
-file rather than the unit or process arguments:
-
-```bash
-sudo npm install -g wrongstack
-sudo -E WRONGSTACK_HQ_PASSWORD='use-a-long-random-password' \
-  wstack hq service install
-```
-
-The service listens on `0.0.0.0:3499`. Password authentication remains
-mandatory. An optional comma-separated exact-IP/CIDR admission list can reject
-traffic before HTTP/WebSocket authentication:
-
-```bash
-sudo -E WRONGSTACK_HQ_PASSWORD='use-a-long-random-password' \
-  WRONGSTACK_HQ_ALLOWLIST='198.51.100.42,10.20.0.0/16,2001:db8::/48' \
-  wstack hq service install
-```
-
-Without `WRONGSTACK_HQ_ALLOWLIST`, no network allowlist is applied. Loopback is
-always admitted when a list is active. Matching uses the real TCP peer, never
-`X-Forwarded-For`; when a reverse proxy is used, allow its source network here
-and perform end-user IP filtering at that proxy.
-
-The installation creates `wrongstack-hq.service` plus a persistent daily
-update timer. Updates stop HQ only for the replacement window, verify that the
-new CLI starts, and reinstall the previous version when startup fails. Inspect
-or trigger it with `wstack hq service status` and
-`sudo wstack hq service update`. `service uninstall` removes the units while
-preserving `/var/lib/wrongstack-hq` and `/etc/wrongstack/hq.env`.
-Runtime logs remain in journald (`journalctl -u wrongstack-hq -f`); managed
-service startup suppresses bootstrap URLs and client-token secrets.
 
 This pulls the full stack. The TUI ships but is lazy-loaded behind `--tui`, so
 plain-REPL users pay no React/Ink cost at startup. The browser UI, HQ, and
@@ -219,21 +204,9 @@ bun run start:bun
 WebUI server module graph, and CLI entry point. Node continues to use
 `node:sqlite`; Bun selects `bun:sqlite` automatically.
 
-### Windows portable executable
-
-Each GitHub release also includes a `wrongstack-v*-windows-*.zip`. Extract the
-whole directory and run `WrongStack.exe`; keep the adjacent `app` directory
-beside the executable. The archive contains its own Node runtime and Electron
-desktop shell, so it does not use Bun or require a system Node.js installation.
-
-```powershell
-.\WrongStack.exe
-.\WrongStack.exe desktop
-```
-
-Release maintainers can build the same artifact locally on Windows with
-`pnpm release:portable:win`. The normal `pnpm release` gate produces the
-portable artifact before publishing the workspace packages to npm.
+To run HQ as a boot-persistent, auto-restarting systemd service with password
+authentication and an optional IP/CIDR admission list, see
+[HQ service](docs/hq-service.md).
 
 ---
 
@@ -307,7 +280,7 @@ Full flag and subcommand reference: [`docs/cli-reference.md`](docs/cli-reference
 Plain `wstack` on a TTY opens a launch menu; add `--no-menu` to go straight to the
 REPL. See [WebUI](docs/webui.md) for the browser surface details.
 
-**SimpleUI** is a full, independent chat surface (Vite + React 19), not a
+**SimpleUI** is a full, independent chat surface (Vite + React), not a
 stripped WebUI. It reuses the same WebSocket backend but ships its own bundle,
 with a sticky composer, `@`-file picker, streaming markdown + syntax highlighting,
 vision/image attachments, session switching, and a lazy-loaded Tools/Todo/Task/Plan
@@ -322,18 +295,18 @@ required**. Deep reference lives in [`docs/reference.md`](docs/reference.md).
 
 ### Tools & code intelligence
 
-**67 built-in tools** span filesystem edits, code quality (`lint`/`format`/
+The built-in toolbox spans filesystem edits, code quality (`lint`/`format`/
 `typecheck`/`test`), execution, web search/fetch, git, packages, browser/E2E
 controls, and a project-owned Codebase Index. The index combines SQLite/FTS5
 substring search, local semantic ranking, content-hash invalidation, symbol and
 call-graph navigation, and bounded parser workers for large repositories. Full map:
 [reference → tools](docs/reference.md#built-in-tools-67).
 
-All 67 are registered and callable at every setting. How many are *described* to
-the model on each request depends on the token-saving tier: the default trims
-that to a working set (26 on a large context window) and keeps the rest one
-`tool_search` away, so a long session does not pay for 67 schemas every turn.
-Set `features.tokenSavingMode: "off"` to describe them all directly.
+Every tool is registered and callable at every setting. How many are *described*
+to the model on each request depends on the token-saving tier: the default trims
+that to a working set and keeps the rest one `tool_search` away, so a long
+session does not pay for every schema on every turn. Set
+`features.tokenSavingMode: "off"` to describe them all directly.
 
 ### Autonomy & goals
 
@@ -344,8 +317,8 @@ quality gates, and circuit breaking.
 
 ### Multi-agent fleet + Director
 
-A 77-role roster and smart dispatcher fan out under a Director. Each subagent is
-isolated with its own budget and JSONL transcript, coordinated over a
+A specialist roster and smart dispatcher fan out under a Director. Each subagent
+is isolated with its own budget and JSONL transcript, coordinated over a
 project-wide mailbox. See [Director architecture](docs/director-architecture.md)
 and [agents](docs/agents.md).
 
@@ -421,17 +394,17 @@ implement one at a time, and validate against the spec before closing.
 
 ### Plugin ecosystem
 
-**73 managed first-party plugins** (6 core, 65 in `@wrongstack/plugins`, and 2
-bridges)
-extend the agent with focused, single-purpose capabilities. See
+A collection of managed first-party plugins extends the agent with focused,
+single-purpose capabilities, each auditable and individually disableable. See
 [plugin management](docs/plugin-management.md) and the
 [plugin author guide](docs/plugin-author-guide.md).
 
 ### Providers & subscription sign-in
 
-~140 providers from four API-key wire families, plus OAuth sign-in with ChatGPT
-(Codex), Claude Pro/Max, and GitHub Copilot subscriptions — usable alongside API
-keys. Browse with `wstack models`. See [OAuth sign-in](docs/oauth-signin.md).
+Providers span several API-key wire families, plus OAuth sign-in with ChatGPT
+(Codex), Claude Pro/Max (for extra usage credits), and GitHub Copilot accounts —
+usable alongside API keys. Browse with `wstack models`. See
+[OAuth sign-in](docs/oauth-signin.md).
 
 **Bring your own endpoint.** Beyond the catalog, you can point WrongStack at *any*
 OpenAI-compatible endpoint: **local models** via one-command presets for
@@ -504,8 +477,8 @@ Full details: [`docs/wrongtrace.md`](docs/wrongtrace.md).
 ### Security & privacy
 
 Encrypted secrets at rest, a permission policy on every tool call, project-root
-containment that YOLO can't weaken, and 97 typed observability events. Threat
-model: [`SECURITY.md`](SECURITY.md).
+containment that YOLO can't weaken, and a typed observability event catalog.
+Threat model: [`SECURITY.md`](SECURITY.md).
 
 ### Token-saving & minimal modes
 
@@ -539,16 +512,16 @@ WebUI     → Browser UI + WS bridge (standalone or --webui)
 Desktop   → Electron shell hosting a token-gated local WebUI
 Runtime   → Default host assembly + WrongStackPack extension composition
 Kernel    → Container · Pipeline · EventBus · RunController (the 4 primitives)
-Provider  → 4 wire families, factories built from ModelsRegistry, real SSE
+Provider  → Multiple wire families, factories built from ModelsRegistry, real SSE
 Models    → models.dev/api.json fetched + cached + classified
 Services  → deterministic local IPC → one owner each → SQLite-backed project state
 ```
 
 **Four contracts** hold the design together:
 
-1. **Minimal kernel** — the four primitives + token table total ~1670 lines; the agent loop adds ~525.
-2. **Zero non-overridable behavior** — 16 services bound through `Container`, 6 pipelines as middleware, all extension points in registries.
-3. **Standalone sufficiency** — works with 67 built-in tools and no plugins.
+1. **Minimal kernel** — the four primitives stay small enough to read end to end.
+2. **Zero non-overridable behavior** — services bound through `Container`, pipelines as middleware, all extension points in registries.
+3. **Standalone sufficiency** — works with the built-in tools and no plugins.
 4. **Layered, not monolithic** — `--no-features` runs offline with zero startup network calls.
 
 Full walk-through: [`docs/architecture.md`](docs/architecture.md).
@@ -562,7 +535,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/core` | Kernel, agent, types, registries, plugin contract |
 | `@wrongstack/runtime` | Default runtime implementations + host composition |
 | `@wrongstack/providers` | Anthropic/OpenAI/OpenAI-compatible/Google adapters + SSE |
-| `@wrongstack/tools` | 67 built-in tools (incl. browser/E2E + SQLite codebase index) |
+| `@wrongstack/tools` | Built-in tools (incl. browser/E2E + SQLite codebase index) |
 | `@wrongstack/mcp` | MCP server registry + reconnection logic |
 | `@wrongstack/acp` | Agent Client Protocol client + agent support |
 | `@wrongstack/bench` | Benchmark harness (Aider polyglot + SWE-bench Verified) |
@@ -578,17 +551,17 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/desktop` | Electron desktop shell |
 | `@wrongstack/plug-lsp` · `@wrongstack/telegram` | LSP and Telegram plugins |
 | `@wrongstack/wrongtrace` | Client adapter for the optional WrongTrace daemon (file locks, health, friction, atlas) — HTTP/IPC/MCP, no-op when absent |
-| `@wrongstack/plugins` | Official collection — 65 focused plugins via subpath exports |
+| `@wrongstack/plugins` | Official plugin collection via subpath exports |
 | `wrongstack` | Published CLI app entry (`wrongstack` / `wstack`) |
 
 ---
 
 ## Status
 
-- **v1.0.0** — first production-ready release
-- **Tens of thousands of tests** passing in the release gate across ~3,180 test files
+- **v1.0.7** — production-ready; semver from 1.0.0 onward
+- Full test suite passing in the release gate
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
-- All 34 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`
+- Every package and app builds clean with TypeScript strict + `noUncheckedIndexedAccess`
 - Node 22.19+ only, ESM-only, no CommonJS bundles
 - Threat model: [`SECURITY.md`](SECURITY.md)
 
@@ -606,6 +579,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | [Architecture](docs/architecture.md) | Kernel primitives, pipelines, agent lifecycle |
 | [SAGE memory](docs/sage/ARCHITECTURE.md) | Long-term memory: storage, anchors, knowledge graph, retrieval |
 | [OAuth sign-in](docs/oauth-signin.md) | Subscription authentication |
+| [HQ service](docs/hq-service.md) | Always-on HQ under systemd |
 | [Plugin author guide](docs/plugin-author-guide.md) | Building a plugin |
 | [Director architecture](docs/director-architecture.md) | Fleet orchestration internals |
 | [WrongTrace integration](docs/wrongtrace.md) | Optional daemon: guardrail hooks, file locks, proxy routing |

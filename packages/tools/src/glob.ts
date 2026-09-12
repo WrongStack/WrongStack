@@ -97,6 +97,42 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     const results: { rel: string; mtime: number }[] = [];
     const visitedRealDirs = new Set<string>();
     let truncated = false;
+    // `results` is kept as a binary MIN-heap keyed by mtime. Once it holds
+    // `limit` entries, each further match compares against the root in O(1)
+    // and, only when strictly newer, replaces it and sifts down in
+    // O(log limit). The previous code rescanned all `limit` entries for every
+    // additional match — O(matches x limit), which dominated the walk's CPU on
+    // large trees (~75M comparisons for 20k matches at limit=5000).
+    const siftUp = (start: number): void => {
+      let i = start;
+      while (i > 0) {
+        const parent = (i - 1) >> 1;
+        if (results[parent]!.mtime <= results[i]!.mtime) return;
+        const tmp = results[i]!;
+        results[i] = results[parent]!;
+        results[parent] = tmp;
+        i = parent;
+      }
+    };
+    const siftDown = (start: number): void => {
+      let i = start;
+      for (;;) {
+        const left = i * 2 + 1;
+        const right = left + 1;
+        let smallest = i;
+        if (left < results.length && results[left]!.mtime < results[smallest]!.mtime) {
+          smallest = left;
+        }
+        if (right < results.length && results[right]!.mtime < results[smallest]!.mtime) {
+          smallest = right;
+        }
+        if (smallest === i) return;
+        const tmp = results[i]!;
+        results[i] = results[smallest]!;
+        results[smallest] = tmp;
+        i = smallest;
+      }
+    };
     const pushResult = async (full: string): Promise<void> => {
       if (signal?.aborted) {
         truncated = true;
@@ -108,18 +144,17 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
           truncated = true;
           return;
         }
+        const entry = { rel: full, mtime: st.mtimeMs };
         if (results.length < limit) {
-          results.push({ rel: full, mtime: st.mtimeMs });
+          results.push(entry);
+          siftUp(results.length - 1);
           return;
         }
         truncated = true;
-        let oldestIndex = 0;
-        for (let i = 1; i < results.length; i++) {
-          if (results[i]!.mtime < results[oldestIndex]!.mtime) oldestIndex = i;
-        }
-        if (st.mtimeMs > results[oldestIndex]!.mtime) {
-          results[oldestIndex] = { rel: full, mtime: st.mtimeMs };
-        }
+        // Not newer than the oldest retained file — nothing to keep.
+        if (st.mtimeMs <= results[0]!.mtime) return;
+        results[0] = entry;
+        siftDown(0);
       } catch {
         // skip stat error
       }

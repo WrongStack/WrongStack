@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { grepTool } from '../src/grep.js';
+import { __resetRgDetectionForTests, __setRgAvailableForTests, grepTool } from '../src/grep.js';
 import { type Sandbox, mkSandbox, newSignal } from './fixtures.js';
 
 describe('grep tool', () => {
@@ -707,6 +707,53 @@ describe('grep tool', () => {
     expect(typeof out.count).toBe('number');
     expect(typeof out.truncated).toBe('boolean');
     expect(['rg', 'native']).toContain(out.used);
+  });
+
+  describe('native UTF-8 chunk-boundary decoding (regression)', () => {
+    // The native walker reads in 64 KiB chunks. A multi-byte character split
+    // across the boundary used to decode to U+FFFD on both halves, so a
+    // matching line was reported as corrupted and a pattern targeting that
+    // character found nothing. The native path is the fallback when ripgrep is
+    // absent, so force it here rather than depending on the environment.
+    beforeEach(() => __setRgAvailableForTests(false));
+    afterEach(() => __resetRgDetectionForTests());
+
+    const CHUNK = 64 * 1024;
+
+    /** A small file whose `char` starts at byte CHUNK-1 (split by the first read). */
+    function boundaryFile(char: string): Buffer {
+      return Buffer.concat([
+        Buffer.from('a\n'.repeat((CHUNK - 2) / 2), 'utf8'), // bytes 0 .. CHUNK-3
+        Buffer.from('x', 'utf8'), // byte CHUNK-2 — starts the short target line
+        Buffer.from(char, 'utf8'), // first byte at CHUNK-1 — split across reads
+        Buffer.from('\ntail\n', 'utf8'),
+      ]);
+    }
+
+    it('finds a match on a 2-byte character split across the boundary', async () => {
+      await fs.writeFile(path.join(sb.dir, 'boundary.txt'), boundaryFile('é'));
+      const out = await grepTool.execute(
+        { pattern: 'é', path: 'boundary.txt', output_mode: 'content' },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(out.used).toBe('native');
+      expect(out.matches).toHaveLength(1);
+      expect(out.matches[0]).toContain('xé');
+      expect(out.matches[0]).not.toContain('\uFFFD');
+    });
+
+    it('finds a match on a 4-byte astral character split across the boundary', async () => {
+      await fs.writeFile(path.join(sb.dir, 'emoji.txt'), boundaryFile('😀'));
+      const out = await grepTool.execute(
+        { pattern: '😀', path: 'emoji.txt', output_mode: 'content' },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(out.matches).toHaveLength(1);
+      expect(out.matches[0]).toContain('😀');
+      expect(out.matches[0]).not.toContain('\uFFFD');
+    });
   });
 });
 

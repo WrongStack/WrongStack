@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T18:18:34.504Z",
+  "generatedAt": "2026-09-12T19:18:30.561Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3770,
-    "testFiles": 3283,
-    "sourceLines": 913590,
+    "testFiles": 3286,
+    "sourceLines": 913684,
     "workspaceEdges": 128,
-    "moduleEdges": 12019,
+    "moduleEdges": 12021,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -393,7 +393,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 50,
-      "testFiles": 36,
+      "testFiles": 39,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/tools"
@@ -407,7 +407,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 36
+          "testFiles": 39
         }
       ]
     },
@@ -10143,6 +10143,12 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/integration/restart-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/integration/tools-e2e.test.ts",
         "projects": [
           "root-node"
@@ -10203,6 +10209,12 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/unit/formatters-location-uri.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/unit/formatters.test.ts",
         "projects": [
           "root-node"
@@ -10234,6 +10246,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/lsp-server-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/unit/lsp-server-diagnostics-freshness.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21245,7 +21263,7 @@
     },
     {
       "file": "packages/tools/src/bash.ts",
-      "lines": 883,
+      "lines": 884,
       "relativeImports": 7
     },
     {

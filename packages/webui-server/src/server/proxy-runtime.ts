@@ -84,10 +84,15 @@ export async function probeWrongProxyActive(): Promise<boolean> {
       headers: { accept: 'application/json' },
     });
     const ok = res.ok && res.status >= 200 && res.status < 300;
-    applyProxyConfig({ active: ok });
+    // A newer preferences update may have changed or disabled the target
+    // while this request was in flight. Its result must not overwrite that
+    // newer reachability state.
+    const live = getProxyConfig();
+    if (live.enabled && live.url === cfg.url) applyProxyConfig({ active: ok });
     return ok;
   } catch {
-    applyProxyConfig({ active: false });
+    const live = getProxyConfig();
+    if (live.enabled && live.url === cfg.url) applyProxyConfig({ active: false });
     return false;
   } finally {
     clearTimeout(timeout);

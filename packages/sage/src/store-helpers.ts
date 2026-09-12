@@ -17,8 +17,8 @@ import {
   type SageScope,
 } from './types.js';
 
-const MAX_MEMORY_TEXT_CHARS = 20_000;
-const MAX_MEMORY_METADATA_ITEMS = 128;
+export const MAX_MEMORY_TEXT_CHARS = 20_000;
+export const MAX_MEMORY_METADATA_ITEMS = 128;
 
 const VALID_SCOPES = new Set<SageScope>(['project', 'user', 'session', 'file', 'symbol']);
 export const VALID_KINDS = new Set<SageKind>([
@@ -311,7 +311,7 @@ export function isPossiblyContradictory(a: { text: string }, b: { text: string }
 }
 
 /** Kinds that are meaningless without a concrete structural binding. */
-const STRUCTURAL_KINDS: ReadonlySet<SageKind> = new Set([
+export const STRUCTURAL_KINDS: ReadonlySet<SageKind> = new Set([
   'file_note',
   'symbol_note',
   'command_note',
@@ -518,6 +518,12 @@ export function validateRememberInput(input: RememberSageInput): void {
     throw new Error(
       `Invalid SAGE persistence: expected one of ${[...VALID_PERSISTENCE].join(', ')}, got "${input.persistence}".`,
     );
+  }
+  if (
+    input.expiresAt !== undefined &&
+    (typeof input.expiresAt !== 'string' || !Number.isFinite(Date.parse(input.expiresAt)))
+  ) {
+    throw new Error('SAGE expiresAt must be a valid ISO-8601 timestamp.');
   }
   if (
     input.kind &&

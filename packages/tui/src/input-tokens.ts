@@ -8,6 +8,8 @@
  * `[VIBE]` is a protocol chip: it renders and deletes as a token, but it is
  * not an attachment and must stay in the prompt sent to the refiner/agent.
  */
+import { displayWidth } from './terminal-width.js';
+
 /** Attachment placeholders only. Protocol tags must not be stripped as chips. */
 export const ATTACHMENT_TOKEN_SRC = '\\[(?:pasted|image|file) #\\d+[^\\]]*\\]|\\[file:[^\\]]+\\]';
 /** Protocol trigger rendered as a chip but kept in the prompt text. */
@@ -17,6 +19,12 @@ export const INLINE_TOKEN_SRC = `${ATTACHMENT_TOKEN_SRC}|${PROTOCOL_TOKEN_SRC}`;
 const AT_END = new RegExp(`(?:${INLINE_TOKEN_SRC})$`, 'i');
 const AT_START = new RegExp(`^(?:${INLINE_TOKEN_SRC})`, 'i');
 const GLOBAL = new RegExp(INLINE_TOKEN_SRC, 'gi');
+
+/** True when appending `next` would make the current row exceed `width` columns. */
+function rowWouldOverflow(rowChars: string, next: string, width: number): boolean {
+  if (!rowChars) return false;
+  return displayWidth(rowChars + next) > width;
+}
 
 /**
  * If a whole chip ends immediately before `cursor`, return the buffer and
@@ -120,9 +128,11 @@ export function layoutInputRows(
   } else {
     (cells[cursorIdx] as InputCell).cursor = true;
   }
-  // Wrap into rows: break on explicit '\n' (consumed) or when a row fills `w`.
+  // Wrap into rows: break on explicit '\n' (consumed) or when a row would
+  // exceed `w` terminal columns (CJK/emoji are 2 cells, not 1).
   const rows: InputCell[][] = [];
   let row: InputCell[] = [];
+  let rowChars = '';
   for (const cell of cells) {
     if (cell.ch === '\n') {
       if (cell.cursor) {
@@ -130,21 +140,26 @@ export function layoutInputRows(
         // and vanish from the rendered input. Render it the way a terminal
         // does: a virtual trailing-space cell terminating the row (spilling
         // to a fresh row when this one is already full).
-        if (row.length >= w) {
+        if (rowWouldOverflow(rowChars, ' ', w)) {
           rows.push(row);
           row = [];
+          rowChars = '';
         }
         row.push({ ch: ' ', chip: false, prompt: false, cursor: true });
+        rowChars += ' ';
       }
       rows.push(row);
       row = [];
+      rowChars = '';
       continue;
     }
-    row.push(cell);
-    if (row.length >= w) {
+    if (rowWouldOverflow(rowChars, cell.ch, w)) {
       rows.push(row);
       row = [];
+      rowChars = '';
     }
+    row.push(cell);
+    rowChars += cell.ch;
   }
   if (row.length > 0 || rows.length === 0) rows.push(row);
   return rows;
@@ -173,26 +188,30 @@ export function inputIndexAtRowCol(
   for (let i = 0; i < prompt.length; i++) flat.push({ ch: prompt[i] as string, buf: -1 });
   for (let i = 0; i < value.length; i++) flat.push({ ch: value[i] as string, buf: i });
 
-  const rows: Array<{ buf: number }[]> = [];
+  const rows: Array<{ buf: number; ch: string }[]> = [];
   const starts: number[] = []; // value index where each row's content begins
-  let cur: Array<{ buf: number }> = [];
+  let cur: Array<{ buf: number; ch: string }> = [];
+  let curChars = '';
   let curStart = 0;
   for (const cell of flat) {
     if (cell.ch === '\n') {
       rows.push(cur);
       starts.push(curStart);
       cur = [];
+      curChars = '';
       curStart = cell.buf + 1; // content after the newline
       continue;
     }
-    if (cur.length === 0 && cell.buf >= 0) curStart = cell.buf;
-    cur.push({ buf: cell.buf });
-    if (cur.length >= w) {
+    if (rowWouldOverflow(curChars, cell.ch, w)) {
       rows.push(cur);
       starts.push(curStart);
       cur = [];
-      curStart = -1; // set by the next pushed cell (or stays for a trailing newline)
+      curChars = '';
+      curStart = -1;
     }
+    if (cur.length === 0 && cell.buf >= 0) curStart = cell.buf;
+    cur.push({ buf: cell.buf, ch: cell.ch });
+    curChars += cell.ch;
   }
   if (cur.length > 0 || rows.length === 0) {
     rows.push(cur);
@@ -202,15 +221,20 @@ export function inputIndexAtRowCol(
   const clamp = (n: number) => Math.max(0, Math.min(value.length, n));
   if (row < 0) return 0;
   if (row >= rows.length) return value.length;
-  const r = rows[row] as { buf: number }[];
+  const r = rows[row] as { buf: number; ch: string }[];
   const c = Math.max(0, col);
-  if (c < r.length) {
-    const b = (r[c] as { buf: number }).buf;
-    return b < 0 ? 0 : clamp(b); // prompt cell → start of value
+  let visual = 0;
+  for (const cell of r) {
+    const span = displayWidth(cell.ch);
+    const hit = span <= 0 ? visual === c : c >= visual && c < visual + span;
+    if (hit) {
+      return cell.buf < 0 ? 0 : clamp(cell.buf); // prompt cell → start of value
+    }
+    visual += span;
   }
   // Past the last visible cell: place after the row's last value char…
   for (let k = r.length - 1; k >= 0; k--) {
-    const b = (r[k] as { buf: number }).buf;
+    const b = (r[k] as { buf: number; ch: string }).buf;
     if (b >= 0) return clamp(b + 1);
   }
   // …or, for an empty / prompt-only row, at the row's start offset.

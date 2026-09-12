@@ -16,6 +16,8 @@
  *   - Model-switch cards, brain cards, memory cards, etc.
  */
 
+import { displayWidth } from './terminal-width.js';
+
 // ── Types ────────────────────────────────────────────────────────────────
 
 export interface EntryLayout {
@@ -57,11 +59,12 @@ export interface LayoutSnapshot {
 // ── Constants ────────────────────────────────────────────────────────────
 
 /** Current layout computation version. Bump when the algorithm changes. */
+// Version 3 wraps on terminal columns (CJK/emoji = 2 cells), not UTF-16 length.
 // Version 2 keeps copy icons in the already-reserved scrollbar rail instead of
 // narrowing copyable cards. Version 1 measurements were stamped with the outer
 // history width even though those cards rendered one column narrower, making
 // their prefix sums unsafe to reuse.
-export const LAYOUT_VERSION = 2;
+export const LAYOUT_VERSION = 3;
 
 /** Default fallback row count for entries without computed layout. */
 export const FALLBACK_ROWS = 3;
@@ -90,9 +93,11 @@ export function wrappedRows(text: string, width: number, maxRows = MAX_ESTIMATE_
   let lineStart = 0;
   for (let index = 0; index <= text.length; index++) {
     if (index < text.length && text.charCodeAt(index) !== 10) continue;
-    // lineStart..index is one logical line (excluding the \n at index)
-    const lineLen = index - lineStart;
-    rows += lineLen === 0 ? 1 : Math.max(1, Math.ceil(lineLen / w));
+    // lineStart..index is one logical line (excluding the \n at index).
+    // Terminal columns, not UTF-16 length: CJK/emoji are 2 cells.
+    const line = text.slice(lineStart, index);
+    const cols = displayWidth(line);
+    rows += line.length === 0 ? 1 : Math.max(1, Math.ceil(cols / w));
     if (rows >= maxRows) return maxRows;
     lineStart = index + 1;
   }
@@ -162,12 +167,8 @@ export function computeEntryRows(
       // pasteContent is folded into `text` by the caller for pure-text sizing.
       // For pure-text computation we assume text already contains pasteContent
       // concatenated if present (caller handles this).
-      const lines = baseText.split('\n');
-      let rows = 0;
-      for (const line of lines) {
-        rows += Math.max(1, Math.ceil(line.length / contentWidth));
-      }
-      return Math.max(1, rows + 1); // +1 for the border chrome row
+      const bodyRows = wrappedRows(baseText, contentWidth);
+      return Math.max(1, bodyRows + 1); // +1 for the border chrome row
     }
 
     // ── Assistant entry ──

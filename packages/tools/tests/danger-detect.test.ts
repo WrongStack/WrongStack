@@ -467,6 +467,31 @@ describe('detectDanger — git clean -f', () => {
     expect(r.matchedRule).toBe('git-clean-force');
   });
 
+  it('flags combined short-flag clusters regardless of letter order', () => {
+    // git parses `-df` exactly like `-d -f`; the force flag must be detected by
+    // cluster membership, not by `f` happening to be the first letter.
+    for (const args of [
+      ['clean', '-df'],
+      ['clean', '-xdf'],
+      ['clean', '-Xf'],
+    ]) {
+      const r = detectDanger('git', args);
+      expect(r.level, args.join(' ')).toBe('destructive');
+      expect(r.matchedRule, args.join(' ')).toBe('git-clean-force');
+    }
+  });
+
+  it('does NOT flag a dry-run cluster containing n', () => {
+    for (const args of [
+      ['clean', '-n'],
+      ['clean', '-nd'],
+      ['clean', '-ndf'],
+      ['clean', '--dry-run'],
+    ]) {
+      expect(detectDanger('git', args).level, args.join(' ')).toBe('safe');
+    }
+  });
+
   it('flags `git clean -f` (no -d) as destructive', () => {
     const r = detectDanger('git', ['clean', '-f']);
     expect(r.level).toBe('destructive');

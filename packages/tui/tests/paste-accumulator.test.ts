@@ -117,6 +117,22 @@ describe('feedPaste', () => {
     expect(feedPaste(null, 'a')).toBeNull();
   });
 
+  it('does not swallow ordinary bracket text as leaked CSI', () => {
+    expect(feedPaste(null, '[hello]')).toBeNull();
+    expect(feedPaste(null, '[file:a.ts]')).toBeNull();
+    expect(feedPaste(null, '[]')).toBeNull();
+    expect(feedPaste(null, '[1, 2, 3]')).toBeNull();
+  });
+
+  it('keeps bracketed-paste marker spellings that appear in the payload', () => {
+    expect(feedPaste(null, `${BEGIN}terminals wrap pastes as [200~text[201~${END}`)?.complete).toBe(
+      'terminals wrap pastes as [200~text[201~',
+    );
+    expect(feedPaste(null, `${BEGIN}if (s.includes("[200~")) {${END}`)?.complete).toBe(
+      'if (s.includes("[200~")) {',
+    );
+  });
+
   // ── Markers split across stdin reads ─────────────────────────────────────
   // A terminal can split a bracketed paste at ANY byte boundary, including
   // INSIDE the markers themselves (`\x1b[200~` / `\x1b[201~`). The module's

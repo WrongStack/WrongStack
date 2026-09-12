@@ -6,10 +6,13 @@ import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { cleanReferencingMemories, memoryNodeId } from './sqlite-store-graph-helpers.js';
 import {
   clamp01,
+  MAX_MEMORY_METADATA_ITEMS,
+  MAX_MEMORY_TEXT_CHARS,
   normalizeAnchors,
   normalizeAudience,
   normalizeTags,
   normalizeText,
+  STRUCTURAL_KINDS,
   VALID_KINDS,
 } from './store-helpers.js';
 import type { Sage, SageStatus, UpdateSageInput } from './types.js';
@@ -41,6 +44,9 @@ export function updateSqliteSage(
   // memory's scope and session ownership are immutable after creation
   // (change = delete+recreate).
   if (input.text !== undefined) {
+    if (input.text.length > MAX_MEMORY_TEXT_CHARS) {
+      throw new Error(`SAGE text exceeds ${MAX_MEMORY_TEXT_CHARS} characters.`);
+    }
     const normalizedText = normalizeText(input.text);
     if (!normalizedText) throw new Error('SAGE text must not be empty.');
     if (normalizedText.length < 4) {
@@ -60,8 +66,25 @@ export function updateSqliteSage(
   if (input.status !== undefined && !VALID_MEMORY_STATUSES.has(input.status)) {
     throw new Error(`Invalid SAGE status: "${input.status}".`);
   }
+  for (const [name, values] of [
+    ['tags', input.tags],
+    ['anchors', input.anchors],
+    ['supersedes', input.supersedes],
+    ['contradicts', input.contradicts],
+  ] as const) {
+    if (values && values.length > MAX_MEMORY_METADATA_ITEMS) {
+      throw new Error(`SAGE ${name} exceeds ${MAX_MEMORY_METADATA_ITEMS} items.`);
+    }
+  }
   const existing = readSqliteSageRow(ctx.stmt, id);
   if (!existing) throw new Error(`SAGE ${id} not found.`);
+  const resultingKind = input.kind ?? existing.kind;
+  const resultingAnchors = input.anchors ?? existing.anchors;
+  if (STRUCTURAL_KINDS.has(resultingKind) && resultingAnchors.length === 0) {
+    throw new Error(
+      `SAGE kind "${resultingKind}" requires at least one anchor (file/symbol/command binding).`,
+    );
+  }
   if (input.status === 'deleted') {
     const permanentTarget =
       (existing.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ||

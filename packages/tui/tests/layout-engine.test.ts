@@ -35,8 +35,8 @@ describe('wrappedRows', () => {
   });
 
   it('handles multi-byte characters correctly', () => {
-    const lorem = 'あ'.repeat(200); // Japanese — each char is multi-byte but display width
-    expect(wrappedRows(lorem, 80)).toBe(3); // ceil(200/80) = 3
+    const lorem = 'あ'.repeat(200); // Japanese — 2 terminal columns each
+    expect(wrappedRows(lorem, 80)).toBe(5); // ceil(400/80) = 5
   });
 
   it('caps at maxRows', () => {

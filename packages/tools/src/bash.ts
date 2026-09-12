@@ -186,7 +186,8 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     // only — the note is appended to the TOOL RESULT so the model and the
     // user actually see it. (A console.warn here used to corrupt the TUI's
     // stdout frame instead of reaching anyone.)
-    const PIPE_TO_SHELL_PATTERN = /\|\s*(sh|bash|ksh|zsh|fish|cmd|powershell|pwsh)/i;
+    const PIPE_TO_SHELL_PATTERN =
+      /\|\s*(?:sudo\s+)?(sh|bash|ksh|zsh|fish|cmd|powershell|pwsh)(?:\.exe)?\b/i;
     const pipeToShellNote = PIPE_TO_SHELL_PATTERN.test(input.command)
       ? '\n\n[wrongstack] Caution: this command pipes output into a shell interpreter ' +
         '(pipe-to-shell). Piped content executes as arbitrary code — review the source ' +

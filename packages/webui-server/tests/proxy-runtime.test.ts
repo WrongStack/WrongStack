@@ -16,13 +16,13 @@
  * active=true/false gate coverage is the unit-level proxy of those sites.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Config } from '@wrongstack/core/types';
 import {
+  __resetProxyConfigForTests,
   applyProxyConfig,
   getProxyConfig,
-  __resetProxyConfigForTests,
 } from '@wrongstack/core/wiring/proxy-rewrite';
-import type { Config } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@wrongstack/core/wiring/proxy-rewrite', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wrongstack/core/wiring/proxy-rewrite')>();
@@ -195,6 +195,54 @@ describe('applyWrongProxyPrefs', () => {
     await applyWrongProxyPrefs({ someOther: 'pref' });
     expect(applyProxyConfig).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not let a stale healthy probe activate a newer URL that failed its health check', async () => {
+    const stale = Promise.withResolvers<{ ok: boolean; status: number }>();
+    fetchMock.mockReturnValueOnce(stale.promise).mockResolvedValueOnce({ ok: false, status: 503 });
+
+    const oldUpdate = applyWrongProxyPrefs({
+      wrongProxyEnabled: true,
+      wrongProxyUrl: 'http://localhost:3444',
+    });
+    await applyWrongProxyPrefs({
+      wrongProxyEnabled: true,
+      wrongProxyUrl: 'http://localhost:3555',
+    });
+    expect(getProxyConfig()).toEqual({
+      enabled: true,
+      url: 'http://localhost:3555',
+      active: false,
+    });
+
+    stale.resolve({ ok: true, status: 200 });
+    await oldUpdate;
+
+    expect(getProxyConfig()).toEqual({
+      enabled: true,
+      url: 'http://localhost:3555',
+      active: false,
+    });
+  });
+
+  it('does not let a stale failed probe deactivate a newer URL that passed its health check', async () => {
+    const stale = Promise.withResolvers<{ ok: boolean; status: number }>();
+    fetchMock.mockReturnValueOnce(stale.promise).mockResolvedValueOnce({ ok: true, status: 200 });
+
+    const oldUpdate = applyWrongProxyPrefs({
+      wrongProxyEnabled: true,
+      wrongProxyUrl: 'http://localhost:3444',
+    });
+    await applyWrongProxyPrefs({
+      wrongProxyEnabled: true,
+      wrongProxyUrl: 'http://localhost:3555',
+    });
+    expect(getProxyConfig()).toEqual({ enabled: true, url: 'http://localhost:3555', active: true });
+
+    stale.resolve({ ok: false, status: 503 });
+    await oldUpdate;
+
+    expect(getProxyConfig()).toEqual({ enabled: true, url: 'http://localhost:3555', active: true });
   });
 });
 

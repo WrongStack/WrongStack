@@ -9,6 +9,7 @@ import {
   tokenLengthForward,
   tokenSpanAt,
 } from '../src/input-tokens.js';
+import { displayWidth } from '../src/terminal-width.js';
 
 const rowText = (row: { ch: string }[]) => row.map((c) => c.ch).join('');
 
@@ -160,6 +161,17 @@ describe('layoutInputRows', () => {
     const rows = layoutInputRows(PROMPT, 'abcdefghijklmnop', 3, 6);
     for (const row of rows) expect(row.length).toBeLessThanOrEqual(6);
   });
+
+  it('wraps CJK on terminal columns, not UTF-16 length', () => {
+    // width 6: "› " is 2 columns, leaving 4 for content. Each 中 is 2 columns,
+    // so two ideographs fill the first row — not six.
+    const rows = layoutInputRows(PROMPT, '中'.repeat(6), 0, 6);
+    expect(rows[0]!.map((c) => c.ch).join('')).toBe('› 中中');
+    expect(rows.length).toBeGreaterThan(1);
+    for (const row of rows) {
+      expect(displayWidth(row.map((c) => c.ch).join(''))).toBeLessThanOrEqual(6);
+    }
+  });
 });
 
 describe('inputIndexAtRowCol (click → cursor index)', () => {
@@ -207,6 +219,14 @@ describe('inputIndexAtRowCol (click → cursor index)', () => {
     expect(inputIndexAtRowCol(PROMPT, 'abcdefgh', 6, 0, 5)).toBe(3); // 'd'
     expect(inputIndexAtRowCol(PROMPT, 'abcdefgh', 6, 1, 0)).toBe(4); // 'e'
     expect(inputIndexAtRowCol(PROMPT, 'abcdefgh', 6, 1, 99)).toBe(8); // end
+  });
+
+  it('maps clicks onto double-width CJK cells by visual column', () => {
+    // row0 visual: 0='›' 1=' ' 2-3='中'(0) 4-5='中'(1)
+    expect(inputIndexAtRowCol(PROMPT, '中中', 80, 0, 2)).toBe(0);
+    expect(inputIndexAtRowCol(PROMPT, '中中', 80, 0, 3)).toBe(0);
+    expect(inputIndexAtRowCol(PROMPT, '中中', 80, 0, 4)).toBe(1);
+    expect(inputIndexAtRowCol(PROMPT, '中中', 80, 0, 5)).toBe(1);
   });
 });
 

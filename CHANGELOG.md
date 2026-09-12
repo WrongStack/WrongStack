@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.7] — 2026-09-11
+
+### Fixed
+
+- **Interrupted publishes can be resumed.** The workspace publish script covers
+  the partial-release path, so a run that fails partway no longer requires
+  republishing packages that already landed.
+- **A director test flake was closed** by draining pending manifest writes
+  before cleanup tears the temporary directory down.
+
+## [1.0.6] — 2026-09-11
+
+### Added
+
+- **`/resume` opens the session picker directly.** The command is aliased onto
+  `/sessions` so the picker is reachable from either name.
+
+### Changed
+
+- **CLI cold start is roughly 75% faster (−313 ms).** The session shell is
+  loaded through granular subpaths instead of one broad import.
+- **Tool errors carry usable diagnostics.** JSON schema validation was tightened
+  and error detail no longer restates the error category.
+- **The TUI runtime was decomposed.** `runTui`, the key handler, and the slash
+  command hook were split into focused units behind frozen export-surface,
+  registration-order, and key-replay tests that pin the previous behavior.
+- **The audit workflow gained an advisory-suppression gate.**
+
+### Fixed
+
+- **The TUI sidebar scrollbar rail is persistent**, ending a bottom-right
+  flicker.
+
+### Security
+
+- **Two open-mode credential paths were closed** (WS-SEC-06, WS-SEC-10).
+- **Rotating the HQ password now requires a real authentication factor**, not
+  just `auth.admin`.
+- **The desktop trust boundary receives the real actor**, so its gates can
+  actually deny.
+- **Every project-supplied prompt fence routes through a single helper**,
+  removing the duplicate definitions that could drift apart.
+
+## [1.0.5] — 2026-09-10
+
+### Added
+
+- **The TUI sidebar reaches bottom-panel quality.** All 13 sidebar twins gain
+  direct scrolling and a scrollbar, the sidebar stays pinned while a routed
+  panel needs it, and the inspect overlay body scrolls too.
+- **WebUI activity-bar icons are drag-reorderable**, and the order persists.
+- **The LSP plugin validates its arguments.** `parseArgs` covers every option
+  and lazy-start faults are handled instead of surfacing as silent failures.
+
+### Changed
+
+- **Activity-bar main-view icons are ordered by delivery pipeline.**
+- **The LSP plugin's `/stop` is namespaced-only**, so it cannot shadow a core
+  command.
+
 ## [1.0.4] — 2026-09-09
 
 ### Added

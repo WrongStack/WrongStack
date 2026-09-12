@@ -79,9 +79,9 @@
       "runtimeOrMixed": 43
     },
     "@wrongstack/core/kernel": {
-      "files": 264,
+      "files": 266,
       "typeOnly": 140,
-      "runtimeOrMixed": 137
+      "runtimeOrMixed": 139
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -174,8 +174,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1089,
-      "typeOnly": 1009,
+      "files": 1091,
+      "typeOnly": 1011,
       "runtimeOrMixed": 284
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -6324,6 +6324,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/plug-lsp/tests/integration/restart-race.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/plug-lsp/tests/integration/tools-e2e.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6337,6 +6343,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/plug-lsp/tests/unit/lsp-server-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/plug-lsp/tests/unit/lsp-server-diagnostics-freshness.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -13224,7 +13236,19 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/tests/integration/restart-race.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/plug-lsp/tests/integration/tools-e2e.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/tests/unit/lsp-server-diagnostics-freshness.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
