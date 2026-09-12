@@ -140,7 +140,7 @@ describe('clarify tool', () => {
         requestId: request.id,
         status: 'submitted' as const,
         answers: [
-          { questionId: 'database', selectedOptionIds: ['postgres'], usedRecommendation: true },
+          { questionId: 'database', selectedOptionIds: ['postgres'], usedRecommendation: false },
           {
             questionId: 'features',
             selectedOptionIds: ['audit', 'sso'],
@@ -211,5 +211,101 @@ describe('clarify tool', () => {
       false,
     ]);
     expect(output.answers?.[2]?.customResponse).toBe('Acme');
+  });
+
+  it('returns an explicit model delegation without leaking stale answer values', async () => {
+    const requestUserInput = vi.fn(
+      async (request: import('@wrongstack/core/types').UserInputRequest) => ({
+        requestId: request.id,
+        status: 'submitted' as const,
+        answers: [
+          {
+            questionId: request.tabs[0]!.questions[0]!.id,
+            selectedOptionIds: ['postgres'],
+            text: 'stale manual value',
+            delegated: true,
+            usedRecommendation: true,
+          },
+        ],
+      }),
+    );
+    const output = await clarifyTool.execute(
+      {
+        question: 'Database?',
+        options: ['PostgreSQL', 'SQLite'],
+        recommendedOption: 'PostgreSQL',
+      },
+      { signal: makeOpts().signal, requestUserInput } as never,
+      makeOpts(),
+    );
+
+    expect(output.answers?.[0]).toEqual({
+      questionId: 'database',
+      question: 'Database?',
+      selectedOptions: [],
+      delegatedToModel: true,
+      usedRecommendation: false,
+    });
+    expect(output.decisionSummary).toContain('model should decide (user delegated)');
+  });
+
+  it('generates readable Turkish ids and rejects contradictory select flags', async () => {
+    const requestUserInput = vi.fn(
+      async (request: import('@wrongstack/core/types').UserInputRequest) => ({
+        requestId: request.id,
+        status: 'submitted' as const,
+        answers: request.tabs.flatMap((tab) =>
+          tab.questions.map((question) => ({
+            questionId: question.id,
+            selectedOptionIds: question.recommendedOptionIds ?? [],
+            usedRecommendation: false,
+          })),
+        ),
+      }),
+    );
+    const output = await clarifyTool.execute(
+      {
+        question: 'Ödeme şekli nasıl olmalı?',
+        options: ['(Recommended) Kredi kartı', 'Banka havalesi'],
+      },
+      { signal: makeOpts().signal, requestUserInput } as never,
+      makeOpts(),
+    );
+    expect(requestUserInput.mock.calls[0]?.[0].tabs[0]?.questions[0]?.id).toBe(
+      'odeme_sekli_nasil_olmali',
+    );
+    expect(output.answers?.[0]?.usedRecommendation).toBe(true);
+
+    const conflict = await clarifyTool.execute(
+      {
+        question: 'Choose?',
+        type: 'multi_select',
+        isMultiSelect: false,
+        options: ['A', 'B'],
+      },
+      {} as never,
+      makeOpts(),
+    );
+    expect(conflict.status).toBe('skipped');
+    expect(conflict.error).toContain('conflicting');
+  });
+
+  it('returns explicit validation errors for structurally unusable forms', async () => {
+    const descriptionOnly = await clarifyTool.execute(
+      {
+        question: 'Choose?',
+        options: [{ description: 'No visible choice' } as never, 'Valid'],
+      },
+      {} as never,
+      makeOpts(),
+    );
+    expect(descriptionOnly.error).toContain('requires a non-empty `label`');
+
+    const emptyTab = await clarifyTool.execute(
+      { tabs: [{ label: 'Empty', questions: [] }] },
+      {} as never,
+      makeOpts(),
+    );
+    expect(emptyTab.error).toContain('requires at least one question');
   });
 });

@@ -153,6 +153,18 @@ async function runSurface(browser, root, source, name) {
     await tab('Product').click();
     await page.getByRole('textbox').fill('Acme');
     await tab('Architecture').click();
+    await page.getByRole('textbox', { name: 'Custom answer' }).first().fill('Manual database');
+    const customSelected = await page
+      .getByRole('radio', { name: 'Select custom answer' })
+      .first()
+      .isChecked();
+    const recommendedCleared = !(await page
+      .getByRole('radio', { name: /Option 1/ })
+      .first()
+      .isChecked());
+    if (!customSelected || !recommendedCleared) {
+      throw new Error(`${name} did not select Other and clear the single radio choice`);
+    }
     await page
       .getByRole('radio', { name: /Option 2/ })
       .first()
@@ -163,6 +175,18 @@ async function runSurface(browser, root, source, name) {
       .first()
       .isChecked();
     if (!recommendedChecked) throw new Error(`${name} failed to restore the recommended answer`);
+    const delegate = page.getByRole('button', { name: /You decide/ }).first();
+    await delegate.click();
+    if ((await delegate.getAttribute('aria-pressed')) !== 'true') {
+      throw new Error(`${name} failed to select the model-delegation answer`);
+    }
+    await page
+      .getByRole('radio', { name: /Option 2/ })
+      .first()
+      .click();
+    if ((await delegate.getAttribute('aria-pressed')) !== 'false') {
+      throw new Error(`${name} did not clear delegation after a concrete answer`);
+    }
     if (name === 'SimpleUI') {
       await page.getByRole('button', { name: 'Submit answers' }).click();
       const submitted = await page.evaluate(() => window.__submitted);

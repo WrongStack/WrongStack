@@ -45,6 +45,8 @@ export interface UserInputAnswer {
   questionId: string;
   selectedOptionIds: string[];
   text?: string | undefined;
+  /** True when the user explicitly asked the model to make this decision. */
+  delegated?: boolean | undefined;
   /** True when the submitted value equals the model's recommendation. */
   usedRecommendation: boolean;
 }

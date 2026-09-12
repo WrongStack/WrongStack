@@ -250,7 +250,19 @@ export function ApprovalsView(): React.ReactElement {
   );
 }
 
-type InputDraft = Record<string, { selected: string[]; text: string }>;
+type InputDraftAnswer = {
+  selected: string[];
+  text: string;
+  customSelected: boolean;
+  delegated: boolean;
+};
+type InputDraft = Record<string, InputDraftAnswer>;
+const EMPTY_INPUT_DRAFT: InputDraftAnswer = {
+  selected: [],
+  text: '',
+  customSelected: false,
+  delegated: false,
+};
 function UserInputCard({
   input,
   sending,
@@ -267,13 +279,24 @@ function UserInputCard({
     Object.fromEntries(
       questions.map((q) => [
         q.id,
-        { selected: [...(q.recommendedOptionIds ?? [])], text: q.recommendedText ?? '' },
+        {
+          selected: [...(q.recommendedOptionIds ?? [])],
+          text: q.recommendedText ?? '',
+          customSelected: Boolean(q.recommendedText),
+          delegated: false,
+        },
       ]),
     ),
   );
   const tab = request.tabs[activeTab] ?? request.tabs[0]!;
   const valid = questions.every(
-    (q) => !q.required || Boolean(draft[q.id]?.selected.length || draft[q.id]?.text.trim()),
+    (q) =>
+      !q.required ||
+      Boolean(
+        draft[q.id]?.delegated ||
+          draft[q.id]?.selected.length ||
+          (draft[q.id]?.customSelected && draft[q.id]?.text.trim()),
+      ),
   );
   const submit = () => {
     if (!valid) return;
@@ -281,19 +304,45 @@ function UserInputCard({
       requestId: request.id,
       status: 'submitted',
       answers: questions.map((q) => {
-        const value = draft[q.id] ?? { selected: [], text: '' };
+        const value = draft[q.id] ?? EMPTY_INPUT_DRAFT;
         const rec = q.recommendedOptionIds ?? [];
         return {
           questionId: q.id,
-          selectedOptionIds: value.selected,
-          ...(value.text.trim() ? { text: value.text.trim() } : {}),
+          selectedOptionIds: value.delegated ? [] : value.selected,
+          ...(!value.delegated && (q.kind === 'text' || value.customSelected) && value.text.trim()
+            ? { text: value.text.trim() }
+            : {}),
+          delegated: value.delegated,
           usedRecommendation:
+            !value.delegated &&
             value.selected.length === rec.length &&
             value.selected.every((id) => rec.includes(id)) &&
-            (q.recommendedText ?? '') === value.text.trim() &&
+            (q.recommendedText ?? '') ===
+              (q.kind === 'text' || value.customSelected ? value.text.trim() : '') &&
             (rec.length > 0 || Boolean(q.recommendedText)),
         };
       }),
+    });
+  };
+  const delegateUnanswered = () => {
+    setDraft((current) => {
+      const next = { ...current };
+      for (const question of questions) {
+        const value = current[question.id] ?? EMPTY_INPUT_DRAFT;
+        if (
+          !value.delegated &&
+          value.selected.length === 0 &&
+          !(value.customSelected && value.text.trim())
+        ) {
+          next[question.id] = {
+            ...value,
+            selected: [],
+            customSelected: false,
+            delegated: true,
+          };
+        }
+      }
+      return next;
     });
   };
   return (
@@ -327,11 +376,14 @@ function UserInputCard({
             <HqQuestion
               key={q.id}
               question={q}
-              value={draft[q.id] ?? { selected: [], text: '' }}
+              value={draft[q.id] ?? EMPTY_INPUT_DRAFT}
               onChange={(value) => setDraft((old) => ({ ...old, [q.id]: value }))}
             />
           ))}
         </div>
+        <Button variant="ghost" onClick={delegateUnanswered}>
+          Let model decide unanswered
+        </Button>
         <Button disabled={!valid || sending} onClick={submit}>
           {sending ? 'Submitting…' : (request.submitLabel ?? 'Submit answers')}
         </Button>
@@ -345,8 +397,8 @@ function HqQuestion({
   onChange,
 }: {
   question: UserInputQuestion;
-  value: InputDraft[string];
-  onChange: (value: InputDraft[string]) => void;
+  value: InputDraftAnswer;
+  onChange: (value: InputDraftAnswer) => void;
 }): React.ReactElement {
   return (
     <fieldset className="space-y-2">
@@ -367,7 +419,14 @@ function HqQuestion({
           className="min-h-20 w-full rounded border bg-background p-2 text-sm"
           value={value.text}
           placeholder={question.placeholder}
-          onChange={(event) => onChange({ ...value, text: event.target.value })}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              text: event.target.value,
+              customSelected: true,
+              delegated: false,
+            })
+          }
         />
       ) : (
         <div className="space-y-2">
@@ -388,6 +447,9 @@ function HqQuestion({
                             ? value.selected.filter((id) => id !== option.id)
                             : [...value.selected, option.id]
                           : [option.id],
+                      customSelected:
+                        question.kind === 'single_select' ? false : value.customSelected,
+                      delegated: false,
                     })
                   }
                 />
@@ -406,15 +468,61 @@ function HqQuestion({
             );
           })}
           {question.allowCustomResponse && (
-            <input
-              className="w-full rounded border bg-background p-2 text-sm"
-              value={value.text}
-              placeholder={question.placeholder ?? 'Custom answer (optional)'}
-              onChange={(event) => onChange({ ...value, text: event.target.value })}
-            />
+            <label className="flex items-center gap-2 rounded border p-2 text-sm">
+              <input
+                type={question.kind === 'multi_select' ? 'checkbox' : 'radio'}
+                name={question.id}
+                aria-label="Select custom answer"
+                checked={value.customSelected}
+                onChange={() =>
+                  onChange({
+                    ...value,
+                    selected: question.kind === 'single_select' ? [] : value.selected,
+                    customSelected: !value.customSelected,
+                    delegated: false,
+                  })
+                }
+              />
+              <input
+                className="min-w-0 flex-1 rounded border bg-background p-2 text-sm"
+                aria-label="Custom answer"
+                value={value.text}
+                placeholder={question.placeholder ?? 'Other / custom answer (optional)'}
+                onFocus={() =>
+                  onChange({
+                    ...value,
+                    selected: question.kind === 'single_select' ? [] : value.selected,
+                    customSelected: true,
+                    delegated: false,
+                  })
+                }
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    selected: question.kind === 'single_select' ? [] : value.selected,
+                    text: event.target.value,
+                    customSelected: true,
+                    delegated: false,
+                  })
+                }
+              />
+            </label>
           )}
         </div>
       )}
+      <button
+        type="button"
+        aria-pressed={value.delegated}
+        className={`w-full rounded border p-2 text-left text-sm ${value.delegated ? 'border-primary bg-primary/5 font-medium' : 'text-muted-foreground'}`}
+        onClick={() =>
+          onChange({ ...value, selected: [], customSelected: false, delegated: !value.delegated })
+        }
+      >
+        You decide
+        <small className="block font-normal text-muted-foreground">
+          I do not want to answer this question. Let the model choose.
+        </small>
+      </button>
     </fieldset>
   );
 }

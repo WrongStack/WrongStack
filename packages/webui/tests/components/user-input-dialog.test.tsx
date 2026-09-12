@@ -119,7 +119,7 @@ describe('WebUI structured user input dialog', () => {
     fireEvent.change(tenantInput, { target: { value: 'Acme' } });
     fireEvent.click(screen.getByRole('tab', { name: /Delivery/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /Mobile/ }));
-    fireEvent.change(screen.getByPlaceholderText('Add a custom answer (optional)'), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Custom answer' }), {
       target: { value: 'Desktop later' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
@@ -169,5 +169,58 @@ describe('WebUI structured user input dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply tab recommendations' }));
     expect(postgres.checked).toBe(true);
     expect(screen.getByRole('tab', { name: /Architecture 1\/2/ })).toBeTruthy();
+  });
+
+  it('treats manual text as a real Other radio choice', () => {
+    render(<UserInputDialog />);
+    act(() => socket.emit('user.input_requested', request('r1', 'Custom answer')));
+    const postgres = screen.getByRole('radio', { name: /PostgreSQL/ }) as HTMLInputElement;
+    const customRadio = screen.getByRole('radio', {
+      name: 'Select custom answer',
+    }) as HTMLInputElement;
+    const customText = screen.getByRole('textbox', { name: 'Custom answer' });
+
+    fireEvent.change(customText, { target: { value: 'CockroachDB' } });
+    expect(customRadio.checked).toBe(true);
+    expect(postgres.checked).toBe(false);
+
+    fireEvent.click(postgres);
+    expect(postgres.checked).toBe(true);
+    expect(customRadio.checked).toBe(false);
+  });
+
+  it('delegates unanswered questions while preserving existing answers', () => {
+    render(<UserInputDialog />);
+    act(() => socket.emit('user.input_requested', request('r1', 'Delegated answers')));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Let model decide unanswered' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
+
+    expect(socket.client.send.mock.calls[0]?.[0]).toMatchObject({
+      payload: {
+        response: {
+          answers: [
+            {
+              questionId: 'database',
+              selectedOptionIds: ['postgres'],
+              delegated: false,
+              usedRecommendation: true,
+            },
+            {
+              questionId: 'tenant',
+              selectedOptionIds: [],
+              delegated: true,
+              usedRecommendation: false,
+            },
+            {
+              questionId: 'targets',
+              selectedOptionIds: ['web'],
+              delegated: false,
+              usedRecommendation: true,
+            },
+          ],
+        },
+      },
+    });
   });
 });

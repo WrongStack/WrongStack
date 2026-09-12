@@ -224,8 +224,10 @@ export class DefaultSkillLoader implements SkillLoader {
             originTool,
           });
         }
-      } catch {
-        // directory may not exist
+      } catch (err) {
+        // Only ignore ENOENT: the directory was deleted between readdir() and now.
+        // All other errors (EACCES, EIO, corruption) must not be silently swallowed.
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
       }
     }
     this.cache = found;

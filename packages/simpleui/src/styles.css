@@ -6888,6 +6888,30 @@ input:focus-visible,
   min-height: 90px;
   resize: vertical;
 }
+.user-input-custom-row .user-input-custom {
+  min-width: 0;
+  flex: 1;
+  width: auto;
+}
+.user-input-delegate {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  text-align: left;
+}
+.user-input-delegate.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text);
+}
+.user-input-delegate small {
+  color: var(--muted);
+}
 .user-input-reason {
   display: flex;
   align-items: center;

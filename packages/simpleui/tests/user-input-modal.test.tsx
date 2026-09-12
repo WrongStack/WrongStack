@@ -47,6 +47,7 @@ describe('SimpleUI structured user input', () => {
                       ],
                       recommendedOptionIds: ['pg'],
                       recommendationReason: 'Best concurrency.',
+                      allowCustomResponse: true,
                     },
                   ],
                 },
@@ -74,8 +75,21 @@ describe('SimpleUI structured user input', () => {
       (host.querySelector('input[value="pg"]') as HTMLInputElement | null)?.checked ??
         (host.querySelector('input[type="radio"]') as HTMLInputElement).checked,
     ).toBe(true);
-    const brand = [...host.querySelectorAll('button')].find(
-      (button) => button.textContent?.startsWith('Brand'),
+    const custom = host.querySelector('input[aria-label="Custom answer"]') as HTMLInputElement;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
+        custom,
+        'CockroachDB',
+      );
+      custom.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(
+      (host.querySelector('input[aria-label="Select custom answer"]') as HTMLInputElement).checked,
+    ).toBe(true);
+    expect((host.querySelector('input[type="radio"]') as HTMLInputElement).checked).toBe(false);
+    act(() => (host.querySelector('input[type="radio"]') as HTMLInputElement).click());
+    const brand = [...host.querySelectorAll('button')].find((button) =>
+      button.textContent?.startsWith('Brand'),
     )!;
     act(() => brand.click());
     const textarea = host.querySelector('textarea')!;
@@ -100,5 +114,50 @@ describe('SimpleUI structured user input', () => {
       }),
       expect.objectContaining({ questionId: 'name', text: 'Acme', usedRecommendation: false }),
     ]);
+  });
+
+  it('submits an explicit per-question model delegation', () => {
+    const send = vi.fn();
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    act(() =>
+      root.render(
+        <UserInputModal
+          send={send}
+          queuedCount={1}
+          pending={{
+            request: {
+              id: 'delegated',
+              title: 'Decision',
+              tabs: [
+                {
+                  id: 'main',
+                  label: 'Main',
+                  questions: [{ id: 'name', prompt: 'Tenant name?', kind: 'text', required: true }],
+                },
+              ],
+            },
+          }}
+        />,
+      ),
+    );
+
+    const delegate = [...host.querySelectorAll('button')].find((button) =>
+      button.textContent?.startsWith('You decide'),
+    )!;
+    act(() => delegate.click());
+    const submit = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Submit answers',
+    )!;
+    act(() => submit.click());
+
+    expect(send.mock.calls[0]?.[1].response.answers[0]).toEqual({
+      questionId: 'name',
+      selectedOptionIds: [],
+      delegated: true,
+      usedRecommendation: false,
+    });
   });
 });

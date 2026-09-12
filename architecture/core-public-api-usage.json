@@ -176,7 +176,7 @@
     "@wrongstack/core/types": {
       "files": 1085,
       "typeOnly": 1005,
-      "runtimeOrMixed": 282
+      "runtimeOrMixed": 284
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -15338,7 +15338,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/tests/clarify-tool.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/types",

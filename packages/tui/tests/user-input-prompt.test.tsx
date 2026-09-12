@@ -110,6 +110,7 @@ describe('TUI structured user input prompt', () => {
     await new Promise((resolveTick) => setTimeout(resolveTick, 0));
     view.stdin.write('SCIM later');
     await new Promise((resolveTick) => setTimeout(resolveTick, 0));
+    expect(view.lastFrame()).toContain('[x] Other: SCIM later');
     view.stdin.write('\r');
     await new Promise((resolveTick) => setTimeout(resolveTick, 0));
     view.stdin.write('s');
@@ -121,6 +122,52 @@ describe('TUI structured user input prompt', () => {
         usedRecommendation: false,
       }),
     );
+  });
+
+  it('lets the user delegate a decision to the model', async () => {
+    const resolve = vi.fn();
+    const view = render(
+      <UserInputPrompt
+        pending={{
+          resolve,
+          request: {
+            id: 'delegated',
+            title: 'Decision',
+            tabs: [
+              {
+                id: 'main',
+                label: 'Main',
+                questions: [
+                  {
+                    id: 'db',
+                    prompt: 'Database?',
+                    kind: 'single_select',
+                    required: true,
+                    options: [
+                      { id: 'pg', label: 'PostgreSQL' },
+                      { id: 'sqlite', label: 'SQLite' },
+                    ],
+                    recommendedOptionIds: ['pg'],
+                  },
+                ],
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    view.stdin.write('d');
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0));
+    expect(view.lastFrame()).toContain('delegated to the model');
+    view.stdin.write('s');
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0));
+    expect(resolve.mock.calls[0]?.[0].answers[0]).toEqual({
+      questionId: 'db',
+      selectedOptionIds: [],
+      delegated: true,
+      usedRecommendation: false,
+    });
   });
 
   it('keeps navigation and submit controls visible in a short terminal', async () => {
@@ -159,6 +206,52 @@ describe('TUI structured user input prompt', () => {
     expect(view.lastFrame()).toContain('Tab category');
     expect(view.lastFrame()).toContain('s submit');
     expect(view.lastFrame()).toContain('required answer(s) missing');
+    view.unmount();
+  });
+
+  it('uses the full wide terminal as a question navigator and answer workspace', async () => {
+    const view = renderRealTty(
+      <UserInputPrompt
+        pending={{
+          resolve: vi.fn(),
+          request: {
+            id: 'wide',
+            title: 'Production architecture decisions',
+            description: 'Resolve the remaining implementation choices.',
+            tabs: [
+              {
+                id: 'architecture',
+                label: 'Architecture',
+                questions: [
+                  {
+                    id: 'database',
+                    prompt: 'Primary database?',
+                    kind: 'single_select',
+                    required: true,
+                    options: [
+                      { id: 'pg', label: 'PostgreSQL' },
+                      { id: 'sqlite', label: 'SQLite' },
+                    ],
+                    recommendedOptionIds: ['pg'],
+                  },
+                  { id: 'name', prompt: 'Tenant name?', kind: 'text', required: true },
+                ],
+              },
+            ],
+          },
+        }}
+      />,
+      { columns: 110, rows: 28 },
+    );
+
+    await settle();
+    expect(view.lines().length).toBeLessThanOrEqual(28);
+    expect(view.lastFrame()).toContain('CLARIFY');
+    expect(view.lastFrame()).toContain('[█████░░░░░]');
+    expect(
+      view.lines().some((line) => line.includes('QUESTIONS') && line.includes('QUESTION 1/2')),
+    ).toBe(true);
+    expect(view.lastFrame()).toContain('D delegate blanks');
     view.unmount();
   });
 });

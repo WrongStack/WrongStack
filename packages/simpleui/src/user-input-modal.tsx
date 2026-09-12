@@ -2,7 +2,19 @@ import { Check, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { UserInputQuestion, UserInputRequest } from './types.js';
 
-type Draft = Record<string, { selected: string[]; text: string }>;
+type DraftAnswer = {
+  selected: string[];
+  text: string;
+  customSelected: boolean;
+  delegated: boolean;
+};
+type Draft = Record<string, DraftAnswer>;
+const EMPTY_ANSWER: DraftAnswer = {
+  selected: [],
+  text: '',
+  customSelected: false,
+  delegated: false,
+};
 export function UserInputModal({
   pending,
   queuedCount,
@@ -52,16 +64,21 @@ export function UserInputModal({
         requestId: pending.request.id,
         status: 'submitted',
         answers: questions.map((q) => {
-          const value = draft[q.id] ?? { selected: [], text: '' };
+          const value = draft[q.id] ?? EMPTY_ANSWER;
           const rec = q.recommendedOptionIds ?? [];
           return {
             questionId: q.id,
-            selectedOptionIds: value.selected,
-            ...(value.text.trim() ? { text: value.text.trim() } : {}),
+            selectedOptionIds: value.delegated ? [] : value.selected,
+            ...(!value.delegated && (q.kind === 'text' || value.customSelected) && value.text.trim()
+              ? { text: value.text.trim() }
+              : {}),
+            delegated: value.delegated,
             usedRecommendation:
+              !value.delegated &&
               value.selected.length === rec.length &&
               value.selected.every((id) => rec.includes(id)) &&
-              (q.recommendedText ?? '') === value.text.trim() &&
+              (q.recommendedText ?? '') ===
+                (q.kind === 'text' || value.customSelected ? value.text.trim() : '') &&
               (rec.length > 0 || Boolean(q.recommendedText)),
           };
         }),
@@ -77,11 +94,31 @@ export function UserInputModal({
         next[question.id] = {
           selected: [...(question.recommendedOptionIds ?? [])],
           text: question.recommendedText ?? '',
+          customSelected: Boolean(question.recommendedText),
+          delegated: false,
         };
       }
       return next;
     });
     setValidationMessage('Recommended answers applied.');
+  };
+  const delegateUnanswered = () => {
+    setDraft((current) => {
+      const next = { ...current };
+      for (const question of questions) {
+        const value = current[question.id] ?? EMPTY_ANSWER;
+        if (!hasAnswer(value)) {
+          next[question.id] = {
+            ...value,
+            selected: [],
+            customSelected: false,
+            delegated: true,
+          };
+        }
+      }
+      return next;
+    });
+    setValidationMessage('Unanswered decisions delegated to the model.');
   };
   return (
     <div
@@ -118,6 +155,9 @@ export function UserInputModal({
             <span>
               {answeredCount(active.questions, draft)}/{active.questions.length} answered
             </span>
+            <button type="button" onClick={delegateUnanswered}>
+              Let model decide unanswered
+            </button>
             <button type="button" onClick={() => applyRecommendations('tab')}>
               Apply tab recommendations
             </button>
@@ -136,7 +176,7 @@ export function UserInputModal({
             >
               <Question
                 q={q}
-                value={draft[q.id] ?? { selected: [], text: '' }}
+                value={draft[q.id] ?? EMPTY_ANSWER}
                 onChange={(value) => {
                   setDraft((old) => ({ ...old, [q.id]: value }));
                   setValidationMessage('');
@@ -164,8 +204,8 @@ function Question({
   onChange,
 }: {
   q: UserInputQuestion;
-  value: Draft[string];
-  onChange: (v: Draft[string]) => void;
+  value: DraftAnswer;
+  onChange: (v: DraftAnswer) => void;
 }) {
   return (
     <fieldset className="user-input-question">
@@ -183,7 +223,14 @@ function Question({
         <textarea
           placeholder={q.placeholder}
           value={value.text}
-          onChange={(e) => onChange({ ...value, text: e.target.value })}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              text: e.target.value,
+              customSelected: true,
+              delegated: false,
+            })
+          }
         />
       ) : (
         <>
@@ -205,6 +252,8 @@ function Question({
                             ? value.selected.filter((id) => id !== option.id)
                             : [...value.selected, option.id]
                           : [option.id],
+                      customSelected: q.kind === 'single_select' ? false : value.customSelected,
+                      delegated: false,
                     })
                   }
                 />
@@ -221,15 +270,63 @@ function Question({
             );
           })}
           {q.allowCustomResponse && (
-            <input
-              className="user-input-custom"
-              placeholder={q.placeholder ?? 'Custom answer (optional)'}
-              value={value.text}
-              onChange={(e) => onChange({ ...value, text: e.target.value })}
-            />
+            <label
+              className={
+                value.customSelected ? 'selected user-input-custom-row' : 'user-input-custom-row'
+              }
+            >
+              <input
+                type={q.kind === 'multi_select' ? 'checkbox' : 'radio'}
+                name={q.id}
+                aria-label="Select custom answer"
+                checked={value.customSelected}
+                onChange={() =>
+                  onChange({
+                    ...value,
+                    selected: q.kind === 'single_select' ? [] : value.selected,
+                    customSelected: !value.customSelected,
+                    delegated: false,
+                  })
+                }
+              />
+              <input
+                className="user-input-custom"
+                aria-label="Custom answer"
+                placeholder={q.placeholder ?? 'Other / custom answer (optional)'}
+                value={value.text}
+                onFocus={() =>
+                  onChange({
+                    ...value,
+                    selected: q.kind === 'single_select' ? [] : value.selected,
+                    customSelected: true,
+                    delegated: false,
+                  })
+                }
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    selected: q.kind === 'single_select' ? [] : value.selected,
+                    text: e.target.value,
+                    customSelected: true,
+                    delegated: false,
+                  })
+                }
+              />
+            </label>
           )}
         </>
       )}
+      <button
+        type="button"
+        aria-pressed={value.delegated}
+        className={`user-input-delegate ${value.delegated ? 'selected' : ''}`}
+        onClick={() =>
+          onChange({ ...value, selected: [], customSelected: false, delegated: !value.delegated })
+        }
+      >
+        <b>You decide</b>
+        <small>I do not want to answer this question. Let the model choose.</small>
+      </button>
     </fieldset>
   );
 }
@@ -238,13 +335,21 @@ function initial(request: UserInputRequest): Draft {
     request.tabs.flatMap((tab) =>
       tab.questions.map((q) => [
         q.id,
-        { selected: [...(q.recommendedOptionIds ?? [])], text: q.recommendedText ?? '' },
+        {
+          selected: [...(q.recommendedOptionIds ?? [])],
+          text: q.recommendedText ?? '',
+          customSelected: Boolean(q.recommendedText),
+          delegated: false,
+        },
       ]),
     ),
   );
 }
-function hasAnswer(value?: Draft[string]): boolean {
-  return Boolean(value && (value.selected.length > 0 || value.text.trim()));
+function hasAnswer(value?: DraftAnswer): boolean {
+  return Boolean(
+    value &&
+      (value.delegated || value.selected.length > 0 || (value.customSelected && value.text.trim())),
+  );
 }
 function answeredCount(questions: UserInputQuestion[], draft: Draft): number {
   return questions.filter((question) => hasAnswer(draft[question.id])).length;

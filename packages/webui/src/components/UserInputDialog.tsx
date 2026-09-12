@@ -21,7 +21,19 @@ import {
   DialogTitle,
 } from './ui/dialog';
 
-type Draft = Record<string, { selected: string[]; text: string }>;
+type DraftAnswer = {
+  selected: string[];
+  text: string;
+  customSelected: boolean;
+  delegated: boolean;
+};
+type Draft = Record<string, DraftAnswer>;
+const EMPTY_ANSWER: DraftAnswer = {
+  selected: [],
+  text: '',
+  customSelected: false,
+  delegated: false,
+};
 
 export function UserInputDialog() {
   const wsUrl = useConfigStore((state) => state.wsUrl);
@@ -87,12 +99,17 @@ export function UserInputDialog() {
       return;
     }
     const answers: UserInputAnswer[] = questions.map((question) => {
-      const value = draft[question.id] ?? { selected: [], text: '' };
+      const value = draft[question.id] ?? EMPTY_ANSWER;
       return {
         questionId: question.id,
-        selectedOptionIds: value.selected,
-        ...(value.text.trim() ? { text: value.text.trim() } : {}),
-        usedRecommendation: isRecommendation(question, value),
+        selectedOptionIds: value.delegated ? [] : value.selected,
+        ...(!value.delegated &&
+        (question.kind === 'text' || value.customSelected) &&
+        value.text.trim()
+          ? { text: value.text.trim() }
+          : {}),
+        delegated: value.delegated,
+        usedRecommendation: !value.delegated && isRecommendation(question, value),
       };
     });
     setSubmitting(true);
@@ -118,11 +135,32 @@ export function UserInputDialog() {
         next[question.id] = {
           selected: [...(question.recommendedOptionIds ?? [])],
           text: question.recommendedText ?? '',
+          customSelected: Boolean(question.recommendedText),
+          delegated: false,
         };
       }
       return next;
     });
     setValidationMessage('Recommended answers applied.');
+  };
+
+  const delegateUnanswered = () => {
+    setDraft((current) => {
+      const next = { ...current };
+      for (const question of questions) {
+        const value = current[question.id] ?? EMPTY_ANSWER;
+        if (!hasAnswer(value)) {
+          next[question.id] = {
+            ...value,
+            selected: [],
+            customSelected: false,
+            delegated: true,
+          };
+        }
+      }
+      return next;
+    });
+    setValidationMessage('Unanswered decisions delegated to the model.');
   };
 
   const queuedForSession = queues[entry.sessionId]?.length ?? 1;
@@ -176,6 +214,9 @@ export function UserInputDialog() {
               {answeredCount(tab.questions, draft)}/{tab.questions.length} answered
             </span>
             <div className="flex gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={delegateUnanswered}>
+                Let model decide unanswered
+              </Button>
               <Button
                 type="button"
                 size="sm"
@@ -207,7 +248,7 @@ export function UserInputDialog() {
               >
                 <Question
                   question={question}
-                  value={draft[question.id] ?? { selected: [], text: '' }}
+                  value={draft[question.id] ?? EMPTY_ANSWER}
                   onChange={(value) => {
                     setDraft((current) => ({ ...current, [question.id]: value }));
                     setValidationMessage('');
@@ -240,8 +281,8 @@ function Question({
   onChange,
 }: {
   question: UserInputQuestion;
-  value: Draft[string];
-  onChange: (value: Draft[string]) => void;
+  value: DraftAnswer;
+  onChange: (value: DraftAnswer) => void;
 }) {
   const recommended = new Set(question.recommendedOptionIds ?? []);
   return (
@@ -266,7 +307,14 @@ function Question({
           className="min-h-24 w-full rounded-md border bg-background p-3 text-sm"
           placeholder={question.placeholder}
           value={value.text}
-          onChange={(event) => onChange({ ...value, text: event.target.value })}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              text: event.target.value,
+              customSelected: true,
+              delegated: false,
+            })
+          }
         />
       ) : (
         <div className="grid gap-2">
@@ -290,6 +338,9 @@ function Question({
                             ? value.selected.filter((id) => id !== option.id)
                             : [...value.selected, option.id]
                           : [option.id],
+                      customSelected:
+                        question.kind === 'single_select' ? false : value.customSelected,
+                      delegated: false,
                     })
                   }
                 />
@@ -313,15 +364,63 @@ function Question({
             );
           })}
           {question.allowCustomResponse && (
-            <input
-              className="rounded-md border bg-background px-3 py-2 text-sm"
-              placeholder={question.placeholder ?? 'Add a custom answer (optional)'}
-              value={value.text}
-              onChange={(event) => onChange({ ...value, text: event.target.value })}
-            />
+            <label
+              className={`flex items-center gap-3 rounded-md border p-3 ${value.customSelected ? 'border-primary bg-primary/5' : ''}`}
+            >
+              <input
+                type={question.kind === 'multi_select' ? 'checkbox' : 'radio'}
+                name={question.id}
+                aria-label="Select custom answer"
+                checked={value.customSelected}
+                onChange={() =>
+                  onChange({
+                    ...value,
+                    selected: question.kind === 'single_select' ? [] : value.selected,
+                    customSelected: !value.customSelected,
+                    delegated: false,
+                  })
+                }
+              />
+              <input
+                className="min-w-0 flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                aria-label="Custom answer"
+                placeholder={question.placeholder ?? 'Other / custom answer (optional)'}
+                value={value.text}
+                onFocus={() =>
+                  onChange({
+                    ...value,
+                    selected: question.kind === 'single_select' ? [] : value.selected,
+                    customSelected: true,
+                    delegated: false,
+                  })
+                }
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    selected: question.kind === 'single_select' ? [] : value.selected,
+                    text: event.target.value,
+                    customSelected: true,
+                    delegated: false,
+                  })
+                }
+              />
+            </label>
           )}
         </div>
       )}
+      <button
+        type="button"
+        aria-pressed={value.delegated}
+        onClick={() =>
+          onChange({ ...value, selected: [], customSelected: false, delegated: !value.delegated })
+        }
+        className={`w-full rounded-md border p-3 text-left text-sm ${value.delegated ? 'border-primary bg-primary/5 font-medium' : 'text-muted-foreground'}`}
+      >
+        You decide
+        <span className="mt-1 block text-xs font-normal text-muted-foreground">
+          I do not want to answer this question. Let the model choose.
+        </span>
+      </button>
     </fieldset>
   );
 }
@@ -334,13 +433,18 @@ function initialDraft(request: UserInputRequest): Draft {
         {
           selected: [...(question.recommendedOptionIds ?? [])],
           text: question.recommendedText ?? '',
+          customSelected: Boolean(question.recommendedText),
+          delegated: false,
         },
       ]),
     ),
   );
 }
-function hasAnswer(value?: Draft[string]): boolean {
-  return Boolean(value && (value.selected.length > 0 || value.text.trim()));
+function hasAnswer(value?: DraftAnswer): boolean {
+  return Boolean(
+    value &&
+      (value.delegated || value.selected.length > 0 || (value.customSelected && value.text.trim())),
+  );
 }
 function answeredCount(questions: UserInputQuestion[], draft: Draft): number {
   return questions.filter((question) => hasAnswer(draft[question.id])).length;
@@ -348,12 +452,13 @@ function answeredCount(questions: UserInputQuestion[], draft: Draft): number {
 function hasRecommendation(question: UserInputQuestion): boolean {
   return Boolean(question.recommendedOptionIds?.length || question.recommendedText);
 }
-function isRecommendation(question: UserInputQuestion, value: Draft[string]): boolean {
+function isRecommendation(question: UserInputQuestion, value: DraftAnswer): boolean {
   const recommended = question.recommendedOptionIds ?? [];
   const selectionMatches =
     value.selected.length === recommended.length &&
     value.selected.every((id) => recommended.includes(id));
-  const textMatches = (question.recommendedText ?? '') === value.text.trim();
+  const submittedText = question.kind === 'text' || value.customSelected ? value.text.trim() : '';
+  const textMatches = (question.recommendedText ?? '') === submittedText;
   return (
     selectionMatches && textMatches && (recommended.length > 0 || Boolean(question.recommendedText))
   );
