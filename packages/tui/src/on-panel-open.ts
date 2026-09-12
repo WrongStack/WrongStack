@@ -25,6 +25,7 @@ export type PanelAction =
   | 'brainOpen'
   | 'helpOpen'
   | 'shadowOpen'
+  | 'subagentModelsOpen'
   | 'projectPickerOpen'
   | 'statuslineOpen'
   | 'authOpen'
@@ -57,6 +58,8 @@ export interface PanelOpenDeps {
   dispatch: (action: Action) => void;
   /** Async opener for the project picker panel (F1). Fetches items first. */
   openProjectPicker: () => void | Promise<unknown>;
+  /** Opener for the `/subagent-models` lane panel; absent when unwired. */
+  openSubagentModelsPanel?: (() => void) | undefined;
   /** Opener for the statusline picker; computes the hiddenItems snapshot. */
   openStatuslinePicker: () => void;
   /**
@@ -143,6 +146,12 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
       case 'shadowOpen':
         if (deps.openShadowPanel) {
           void deps.openShadowPanel();
+          return true;
+        }
+        return false;
+      case 'subagentModelsOpen':
+        if (deps.openSubagentModelsPanel) {
+          deps.openSubagentModelsPanel();
           return true;
         }
         return false;

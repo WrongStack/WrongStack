@@ -11,11 +11,11 @@ import type { OutageKind } from './lib/server-health.js';
 import type { SimpleSocket } from './lib/ws.js';
 import { MemoryDrawer } from './memory-drawer.js';
 import { PromptLibrary } from './prompt-library.js';
-import { VectorMemoryPanel } from './vector-memory-panel.js';
 import { ServerOutageOverlay } from './server-outage-overlay.js';
 import { SessionHealthPanel } from './session-health-panel.js';
 import { SettingsPanel } from './settings-panel.js';
 import type { ChatMessage, ContextInfo, FileEditMeta, SessionInfo } from './types.js';
+import { VectorMemoryPanel } from './vector-memory-panel.js';
 
 export interface SessionModalsProps {
   socketRef: { current: SimpleSocket | null };
@@ -47,6 +47,8 @@ export interface SessionModalsProps {
   onPaletteChange: ComponentProps<typeof SettingsPanel>['onPaletteChange'];
   onPrefChange: ComponentProps<typeof SettingsPanel>['onPrefChange'];
   onResetPrefs: ComponentProps<typeof SettingsPanel>['onReset'];
+  /** Provider/model pairs offered by the subagent lane selects. */
+  modelOptions?: ComponentProps<typeof SettingsPanel>['modelOptions'];
   isAtDefaults: boolean;
   diffFiles: FileEditMeta[] | null;
   onCloseDiffFiles: () => void;
@@ -88,6 +90,7 @@ export function SessionModals(props: SessionModalsProps) {
     onPrefChange,
     onResetPrefs,
     isAtDefaults,
+    modelOptions,
     diffFiles,
     onCloseDiffFiles,
     outageDismissed,
@@ -159,6 +162,7 @@ export function SessionModals(props: SessionModalsProps) {
           onReset={onResetPrefs}
           isAtDefaults={isAtDefaults}
           subagentPolicyLocked={messages.some((message) => message.role === 'user')}
+          modelOptions={modelOptions}
         />
       </ErrorBoundary>
 

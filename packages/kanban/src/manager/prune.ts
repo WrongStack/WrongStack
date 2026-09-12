@@ -61,6 +61,27 @@ export async function compactSessionMirrorBoard(
     for (const task of board.tasks) {
       if (task.dependsOn?.length) {
         task.dependsOn = task.dependsOn.filter((id) => !dropped.has(id));
+        if (task.dependsOn.length === 0) delete task.dependsOn;
+      }
+      if (task.childTaskIds?.length) {
+        task.childTaskIds = task.childTaskIds.filter((id) => !dropped.has(id));
+        if (task.childTaskIds.length === 0) delete task.childTaskIds;
+      }
+      if (task.parentTaskId && dropped.has(task.parentTaskId)) {
+        delete task.parentTaskId;
+      }
+      if (task.mergedIntoTaskId && dropped.has(task.mergedIntoTaskId)) {
+        delete task.mergedIntoTaskId;
+      }
+      if (task.mergedFromTaskIds?.length) {
+        task.mergedFromTaskIds = task.mergedFromTaskIds.filter((id) => !dropped.has(id));
+        if (task.mergedFromTaskIds.length === 0) delete task.mergedFromTaskIds;
+      }
+      if (task.chain?.previousTaskId && dropped.has(task.chain.previousTaskId)) {
+        delete task.chain.previousTaskId;
+      }
+      if (task.chain?.nextTaskId && dropped.has(task.chain.nextTaskId)) {
+        delete task.chain.nextTaskId;
       }
     }
     removedTaskIds.push(...dropped);

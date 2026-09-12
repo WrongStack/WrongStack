@@ -243,6 +243,21 @@ export interface ShadowState {
   intervalMs: number;
 }
 
+/** One row of the `/subagent-models` lane list, pre-rendered for display. */
+export interface SubagentLaneView {
+  /** Rendered target, e.g. "anthropic/claude-opus-5" or "tier:budget". */
+  target: string;
+  /** How many live subagents currently hold this lane. */
+  busy: number;
+  label?: string | undefined;
+}
+
+/** One session-scoped role override row in the `/subagent-models` panel. */
+export interface SubagentRoleView {
+  role: string;
+  target: string;
+}
+
 export interface ProjectPickerItem {
   key: string;
   label: string;

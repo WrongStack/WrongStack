@@ -135,7 +135,7 @@ export interface DirectorOptions {
   /** Shared provider/model status tracker. */
   statusTracker?: ProviderModelStatusTracker | undefined;
   /** Session/leader's own provider id. */
-  sessionProvider?: string | undefined;
+  sessionProvider?: string | (() => string | undefined) | undefined;
   /** Session/leader's own model id. */
-  sessionModel?: string | undefined;
+  sessionModel?: string | (() => string | undefined) | undefined;
 }

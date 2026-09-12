@@ -4,6 +4,7 @@ import type { useFileReferenceStore } from '@/stores';
 import { FileReferenceChip } from '../FileReferenceChip.js';
 import type { ImageAttachment } from './image-attachments.js';
 import { SessionEffortSelect } from './session-effort-select.js';
+import { SubagentModelsButton } from './subagent-models-button.js';
 import type { PasteHintState } from './use-paste-drop.js';
 
 export function PasteHintBar({
@@ -207,6 +208,7 @@ export function ModelAndPromptBar({
         </span>
       </button>
       <SessionEffortSelect />
+      <SubagentModelsButton />
     </div>
   );
 }

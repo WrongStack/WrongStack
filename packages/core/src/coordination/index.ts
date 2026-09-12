@@ -211,22 +211,6 @@ export {
   createDelegateTool,
   type DelegateHost,
 } from './delegate-tool.js';
-// ── Explore Companion — state-triggered background codebase explorer ──────
-export {
-  buildProbeTaskText,
-  DEFAULT_EXPLORE_COMPANION_AGENT_ID,
-  DEFAULT_EXPLORE_EDIT_TOOLS,
-  DEFAULT_EXPLORE_SEARCH_TOOLS,
-  DEFAULT_MAILBOX_POLL_INTERVAL_MS,
-  DEFAULT_MAX_PENDING_PROBES,
-  DEFAULT_PROBE_COOLDOWN_MS,
-  ExploreCompanion,
-  type ExploreCompanionOptions,
-  type ExploreCompanionSignalToggles,
-  type ExploreCompanionTunables,
-  type ExploreProbe,
-  type ExploreProbeSource,
-} from './explore-companion.js';
 // ── Dependency watcher — file-change → mailbox bridge ────────────────────
 export {
   DEPENDENCY_FILE_PATTERNS,
@@ -239,6 +223,10 @@ export {
   attachDepWatcherBridge,
   type DepWatcherBridgeOptions,
 } from './dep-watcher-bridge.js';
+// The canonical orchestration toolset. `Director.tools()` returns exactly this;
+// exporting the builder lets a host assert the surface it is about to register
+// without standing up a live Director.
+export { buildDirectorToolset } from './director/director-toolset.js';
 export {
   Director,
   FleetCostCapError,
@@ -284,10 +272,6 @@ export {
   makeTerminateTool,
   makeWorkCompleteTool,
 } from './director-tools.js';
-// The canonical orchestration toolset. `Director.tools()` returns exactly this;
-// exporting the builder lets a host assert the surface it is about to register
-// without standing up a live Director.
-export { buildDirectorToolset } from './director/director-toolset.js';
 export {
   DEFAULT_DISPATCH_ROLE,
   type DispatchCandidate,
@@ -299,6 +283,22 @@ export {
   makeLLMClassifier,
   scoreAgents,
 } from './dispatcher.js';
+// ── Explore Companion — state-triggered background codebase explorer ──────
+export {
+  buildProbeTaskText,
+  DEFAULT_EXPLORE_COMPANION_AGENT_ID,
+  DEFAULT_EXPLORE_EDIT_TOOLS,
+  DEFAULT_EXPLORE_SEARCH_TOOLS,
+  DEFAULT_MAILBOX_POLL_INTERVAL_MS,
+  DEFAULT_MAX_PENDING_PROBES,
+  DEFAULT_PROBE_COOLDOWN_MS,
+  ExploreCompanion,
+  type ExploreCompanionOptions,
+  type ExploreCompanionSignalToggles,
+  type ExploreCompanionTunables,
+  type ExploreProbe,
+  type ExploreProbeSource,
+} from './explore-companion.js';
 export { type FileAuthorTrackerOptions, recordFileAction } from './file-author-tracker.js';
 export {
   ACP_AGENTS,
@@ -341,15 +341,6 @@ export type { ICoordinator } from './icoordinator.js';
 export type { IFleetManager } from './ifleet-manager.js';
 export { LargeAnswerStore } from './large-answer-store.js';
 export { type MailToolsOptions, makeMailInboxTool, makeMailSendTool } from './mail-tools.js';
-export {
-  postSessionNote,
-  SessionNoteHub,
-  sessionNoteHub,
-  type SessionNoteInbox,
-  type SessionNotePost,
-  type SessionNotePostResult,
-} from './session-note-hub.js';
-export { makeSessionNoteTool } from './session-note-tool.js';
 // Mailbox - inter-agent messaging
 export type {
   MailboxActionInput,
@@ -362,6 +353,13 @@ export {
   parseMailboxQueryInput,
   parseMailboxSendInput,
 } from './mailbox-codecs.js';
+// Request bounds every untrusted boundary must apply. Exported so the
+// out-of-package surfaces (mailbox-mcp) enforce the same ceiling as the
+// in-package ones rather than inventing their own.
+export {
+  MAILBOX_MAX_ACK_BATCH,
+  MAILBOX_MAX_QUERY_LIMIT,
+} from './mailbox-constants.js';
 export type {
   MailboxCredentialVerifier,
   RedactedMailboxCredential,
@@ -375,13 +373,6 @@ export {
   credentialVerifyThrottle,
 } from './mailbox-credential-throttle.js';
 export { MailboxEventEmitter } from './mailbox-events.js';
-// Endpoint derivation is pure and side-effect free. Exported so daemon
-// inventory surfaces (`wstack doctor --daemons`) can locate this daemon
-// without importing the daemon entry itself, which would start one.
-export {
-  mailboxProjectServerEndpoint,
-  mailboxProjectServerMetadataPath,
-} from './mailbox-project-server-endpoint.js';
 export {
   buildDownAlert,
   buildRecoveryAlert,
@@ -402,13 +393,6 @@ export {
   createMailboxHooks,
   type MailboxHooksOptions,
 } from './mailbox-hooks.js';
-// Request bounds every untrusted boundary must apply. Exported so the
-// out-of-package surfaces (mailbox-mcp) enforce the same ceiling as the
-// in-package ones rather than inventing their own.
-export {
-  MAILBOX_MAX_ACK_BATCH,
-  MAILBOX_MAX_QUERY_LIMIT,
-} from './mailbox-constants.js';
 export {
   authorizeMailboxBearerToken,
   authorizePersistedMailboxCredential,
@@ -428,6 +412,13 @@ export {
   MailboxProjectServerConnection,
   type MailboxProjectServerConnectionState,
 } from './mailbox-project-server-client.js';
+// Endpoint derivation is pure and side-effect free. Exported so daemon
+// inventory surfaces (`wstack doctor --daemons`) can locate this daemon
+// without importing the daemon entry itself, which would start one.
+export {
+  mailboxProjectServerEndpoint,
+  mailboxProjectServerMetadataPath,
+} from './mailbox-project-server-endpoint.js';
 export type {
   MailboxProjectServerInfo,
   MailboxProjectServerStatus,
@@ -561,6 +552,49 @@ export {
   RemoteMailbox,
 } from './remote-mailbox.js';
 export { RemoteMailboxCredentialStore } from './remote-mailbox-credential-store.js';
+export {
+  postSessionNote,
+  SessionNoteHub,
+  type SessionNoteInbox,
+  type SessionNotePost,
+  type SessionNotePostResult,
+  sessionNoteHub,
+} from './session-note-hub.js';
+export { makeSessionNoteTool } from './session-note-tool.js';
+export {
+  claimSubagentSlot,
+  DEFAULT_SUBAGENT_SLOT_COUNT,
+  emptySubagentModelPlan,
+  formatSubagentSlot,
+  getSessionSubagentModelPlan,
+  isSlotConfigured,
+  MAX_SUBAGENT_SLOTS,
+  normalizeSubagentModelPlan,
+  planHasAssignments,
+  releaseSubagentSlot,
+  resetSessionSubagentModelPlan,
+  restoreSessionSubagentModelPlan,
+  type SessionSubagentModelPlan,
+  SUBAGENT_MODEL_PLAN_META_KEY,
+  type SubagentSlot,
+  type SubagentSlotClaim,
+  setSessionSubagentModelPlan,
+  setSessionSubagentModelPlanForSession,
+  subagentSlotOccupancy,
+} from './session-subagent-models.js';
+export {
+  areSubagentsAllowed,
+  areSubagentsAllowedForSession,
+  isSubagentPolicyLocked,
+  lockSessionSubagentPolicy,
+  lockSessionSubagentPolicyForSession,
+  resetSessionSubagentPolicy,
+  restoreSessionSubagentPolicy,
+  SUBAGENTS_ALLOWED_META_KEY,
+  SUBAGENTS_POLICY_LOCKED_META_KEY,
+  seedSessionSubagentPolicy,
+  setSessionSubagentsAllowed,
+} from './session-subagent-policy.js';
 // ── Mailbox bridge lock — per-project single-instance contract ─────────
 // The HTTP bridge (`wstack mailbox serve`) writes a per-project lock +
 // token file at `<projectDir>/.mailbox-bridge.{lock,token}`. Core owns
@@ -612,19 +646,6 @@ export {
 } from './subagent-budget.js';
 export { assignNickname } from './subagent-nicknames.js';
 export {
-  areSubagentsAllowed,
-  areSubagentsAllowedForSession,
-  isSubagentPolicyLocked,
-  lockSessionSubagentPolicy,
-  lockSessionSubagentPolicyForSession,
-  restoreSessionSubagentPolicy,
-  resetSessionSubagentPolicy,
-  seedSessionSubagentPolicy,
-  setSessionSubagentsAllowed,
-  SUBAGENTS_ALLOWED_META_KEY,
-  SUBAGENTS_POLICY_LOCKED_META_KEY,
-} from './session-subagent-policy.js';
-export {
   formatSubagentStructuredReport,
   MAX_SUBAGENT_STRUCTURED_REPORT_CHARS,
   makeSubagentResultTool,
@@ -632,20 +653,20 @@ export {
   readSubagentStructuredReport,
   SUBAGENT_STRUCTURED_REPORT_META_KEY,
 } from './subagent-result-tool.js';
-export {
-  startTechStackConsumer,
-  type TechStackConsumerOptions,
-} from './techstack-mailbox-consumer.js';
 // Hard boundary contract enforced by `delegate` and `assign_task`: every
 // assignment must carry an explicit scope plus concrete out-of-scope
 // non-goals, composed into the canonical task brief.
 export {
   composeBoundedTaskDescription,
-  type TaskBoundary,
   parseTaskBoundary,
   renderTaskBoundaryBlock,
+  type TaskBoundary,
   taskBoundarySchemaProperties,
 } from './task-boundary.js';
+export {
+  startTechStackConsumer,
+  type TechStackConsumerOptions,
+} from './techstack-mailbox-consumer.js';
 export {
   type FleetWorktreePolicy,
   resolveSubagentWorktreeDecision,
@@ -659,20 +680,6 @@ export {
 
 // ── Autonomous coordination layer ──────────────────────────────────────────
 
-export {
-  collabInjectMiddleware,
-  collabPauseMiddleware,
-} from './collab-pause.js';
-export {
-  kanbanBoundaryOps,
-  type KanbanBoundaryOpsPort,
-  setKanbanBoundaryOps,
-} from './kanban-ops-port.js';
-export {
-  kanbanDispatch,
-  type KanbanDispatchPort,
-  setKanbanDispatch,
-} from './kanban-dispatch-port.js';
 // ── Adaptive Concurrency Controller ──────────────────────────────────────────
 export {
   AdaptiveConcurrencyController,
@@ -686,6 +693,10 @@ export {
   type AgentVirtualSession,
   createAgentMonitorService,
 } from './agent-monitor.js';
+export {
+  AgentStatusTracker,
+  type AgentStatusTrackerOptions,
+} from './agent-status-tracker.js';
 export type {
   ApprovalDecision,
   AutonomousBrainOptions,
@@ -723,6 +734,10 @@ export {
   CollaborationBus,
   type ConsumedInjectionInfo,
 } from './collab-bus.js';
+export {
+  collabInjectMiddleware,
+  collabPauseMiddleware,
+} from './collab-pause.js';
 export type {
   ConsensusOptions,
   ConsensusResult,
@@ -731,6 +746,17 @@ export type {
 } from './consensus-protocol.js';
 /** Consensus protocol — agent voting on proposed changes */
 export { ConsensusProtocol } from './consensus-protocol.js';
+export { FleetNotifier, type FleetNotifierOptions } from './fleet-notifier.js';
+export {
+  type KanbanDispatchPort,
+  kanbanDispatch,
+  setKanbanDispatch,
+} from './kanban-dispatch-port.js';
+export {
+  type KanbanBoundaryOpsPort,
+  kanbanBoundaryOps,
+  setKanbanBoundaryOps,
+} from './kanban-ops-port.js';
 export type {
   ChangeNode,
   ChangeStatus,
@@ -766,8 +792,3 @@ export type {
 } from './task-dag.js';
 /** Task DAG — dependency graph with fork/join semantics */
 export { TaskDAG } from './task-dag.js';
-export {
-  AgentStatusTracker,
-  type AgentStatusTrackerOptions,
-} from './agent-status-tracker.js';
-export { FleetNotifier, type FleetNotifierOptions } from './fleet-notifier.js';

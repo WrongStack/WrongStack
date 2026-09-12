@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import * as path from 'node:path';
 import { Context } from '@wrongstack/core/agent';
 import {
+  restoreSessionSubagentModelPlan,
   restoreSessionSubagentPolicy,
   seedSessionSubagentPolicy,
 } from '@wrongstack/core/coordination';
@@ -321,6 +322,7 @@ export async function setupSession(params: {
   }
   if (restoredEvents.length > 0 || restoredSubagentsAllowed !== undefined) {
     restoreSessionSubagentPolicy(context, restoredEvents, restoredSubagentsAllowed);
+    restoreSessionSubagentModelPlan(context, restoredEvents);
   } else seedSessionSubagentPolicy(context);
 
   const queueStore = new QueueStore({

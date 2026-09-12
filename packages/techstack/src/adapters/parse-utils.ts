@@ -14,7 +14,7 @@ export function stripInlineComment(line: string, marker = '#'): string {
       escaped = false;
       continue;
     }
-    if (character === '\\' && quote === '"') {
+    if (character === '\\' && quote !== undefined) {
       escaped = true;
       continue;
     }

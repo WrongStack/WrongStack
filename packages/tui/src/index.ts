@@ -40,6 +40,11 @@ export { parseInline } from './markdown.js';
 export type { RunTuiOptions } from './run-tui.js';
 export { runTui } from './run-tui.js';
 export type {
+  SubagentLaneTarget,
+  SubagentModelsPanelHost,
+  SubagentModelsSnapshot,
+} from './subagent-models-panel-model.js';
+export type {
   ResourceMenuAction,
   ResourceMenuDetail,
   ResourceMenuId,

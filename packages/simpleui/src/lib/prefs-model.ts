@@ -9,6 +9,31 @@
 
 export type AutonomyMode = 'off' | 'suggest' | 'auto';
 
+/** One subagent model lane (see `coordination/session-subagent-models`). */
+export interface SubagentLane {
+  provider?: string;
+  model?: string;
+  tier?: string;
+  fallbackProfile?: string;
+  label?: string;
+}
+
+/**
+ * Session-scoped subagent model plan. Each live subagent holds one lane, so a
+ * fan-out runs on as many different models as there are pinned lanes; `lock`
+ * decides whether a lane outranks the model the leader asked for.
+ */
+export interface SubagentModelPlan {
+  enabled: boolean;
+  lock: boolean;
+  /** Run every plain subagent on the session's own model; outranks the lanes. */
+  followSessionModel: boolean;
+  slots: SubagentLane[];
+}
+
+/** Hard ceiling mirrored from `MAX_SUBAGENT_SLOTS` in core. */
+export const MAX_SUBAGENT_LANES = 16;
+
 export interface SimplePrefs {
   subagentsAllowed: boolean;
   subagentsPolicyLocked: boolean;
@@ -25,6 +50,7 @@ export interface SimplePrefs {
   refinerModel: string;
   refinerFallbackProfile: string;
   fallbackProfiles: Record<string, string[]>;
+  subagentModelPlan: SubagentModelPlan;
 }
 
 export const DEFAULT_PREFS: SimplePrefs = {
@@ -42,6 +68,7 @@ export const DEFAULT_PREFS: SimplePrefs = {
   refinerModel: '',
   refinerFallbackProfile: '',
   fallbackProfiles: {},
+  subagentModelPlan: { enabled: true, lock: true, followSessionModel: false, slots: [] },
 };
 
 export const AUTONOMY_MODES: readonly AutonomyMode[] = ['off', 'suggest', 'auto'];
@@ -90,5 +117,35 @@ export function parsePrefs(payload: unknown, previous: SimplePrefs = DEFAULT_PRE
       raw['fallbackProfiles'] && typeof raw['fallbackProfiles'] === 'object'
         ? (raw['fallbackProfiles'] as Record<string, string[]>)
         : previous.fallbackProfiles,
+    subagentModelPlan: parseSubagentModelPlan(raw['subagentModelPlan'], previous.subagentModelPlan),
+  };
+}
+
+/**
+ * Project a plan from the snapshot. The server's
+ * `normalizeSubagentModelPlan` is the canonical coercion; this only has to
+ * refuse shapes the editor cannot render, and hold the previous value rather
+ * than blanking the panel on a partial snapshot.
+ */
+function parseSubagentModelPlan(value: unknown, previous: SubagentModelPlan): SubagentModelPlan {
+  if (!value || typeof value !== 'object') return previous;
+  const raw = value as Record<string, unknown>;
+  const slots = Array.isArray(raw['slots'])
+    ? raw['slots'].slice(0, MAX_SUBAGENT_LANES).map((slot): SubagentLane => {
+        if (!slot || typeof slot !== 'object') return {};
+        const entry = slot as Record<string, unknown>;
+        const lane: SubagentLane = {};
+        for (const key of ['provider', 'model', 'tier', 'fallbackProfile', 'label'] as const) {
+          const field = entry[key];
+          if (typeof field === 'string' && field.length > 0) lane[key] = field;
+        }
+        return lane;
+      })
+    : previous.slots;
+  return {
+    enabled: bool(raw['enabled'], previous.enabled),
+    lock: bool(raw['lock'], previous.lock),
+    followSessionModel: bool(raw['followSessionModel'], previous.followSessionModel),
+    slots,
   };
 }

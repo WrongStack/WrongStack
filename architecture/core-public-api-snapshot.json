@@ -683,7 +683,7 @@
         "export { actionToAckInput } from './mailbox-actions.js';",
         "export { activeTierConfig, applyTierToSubagentConfig, classifyTier, DEFAULT_TIER_ID, isConfiguredTier, listTierIds, type ModelTierBudget, type ModelTierDecision, type ModelTierSource, type ResolvedTierTarget, resolveTier, tierBudget, tierLevel, tierModelTarget, } from './model-tier.js';",
         "export { applyMailboxSendPolicy, type MailboxResolver, type MailboxToolOptions, mailboxSessionTag, makeMailboxTool, resolveMailboxIdentity, } from './mailbox-tool.js';",
-        "export { areSubagentsAllowed, areSubagentsAllowedForSession, isSubagentPolicyLocked, lockSessionSubagentPolicy, lockSessionSubagentPolicyForSession, restoreSessionSubagentPolicy, resetSessionSubagentPolicy, seedSessionSubagentPolicy, setSessionSubagentsAllowed, SUBAGENTS_ALLOWED_META_KEY, SUBAGENTS_POLICY_LOCKED_META_KEY, } from './session-subagent-policy.js';",
+        "export { areSubagentsAllowed, areSubagentsAllowedForSession, isSubagentPolicyLocked, lockSessionSubagentPolicy, lockSessionSubagentPolicyForSession, resetSessionSubagentPolicy, restoreSessionSubagentPolicy, SUBAGENTS_ALLOWED_META_KEY, SUBAGENTS_POLICY_LOCKED_META_KEY, seedSessionSubagentPolicy, setSessionSubagentsAllowed, } from './session-subagent-policy.js';",
         "export { assessCommitSafety, type CommitSafetyOptions, type CommitSafetyReport, } from './commit-safety.js';",
         "export { assignNickname } from './subagent-nicknames.js';",
         "export { attachDepWatcherBridge, type DepWatcherBridgeOptions, } from './dep-watcher-bridge.js';",
@@ -691,8 +691,9 @@
         "export { buildDirectorToolset } from './director/director-toolset.js';",
         "export { buildDownAlert, buildRecoveryAlert, type DownAlertInput, MAILBOX_HEALTH_DEFAULT_FAILURE_THRESHOLD, MAILBOX_HEALTH_DEFAULT_FROM, MAILBOX_HEALTH_DEFAULT_INTERVAL_MS, MAILBOX_HEALTH_DEFAULT_TIMEOUT_MS, type MailboxHealthEvent, MailboxHealthWatchdog, type MailboxHealthWatchdogOptions, type RecoveryAlertInput, validateWatchdogOptions, type WatchdogConfig, } from './mailbox-health.js';",
         "export { buildProbeTaskText, DEFAULT_EXPLORE_COMPANION_AGENT_ID, DEFAULT_EXPLORE_EDIT_TOOLS, DEFAULT_EXPLORE_SEARCH_TOOLS, DEFAULT_MAILBOX_POLL_INTERVAL_MS, DEFAULT_MAX_PENDING_PROBES, DEFAULT_PROBE_COOLDOWN_MS, ExploreCompanion, type ExploreCompanionOptions, type ExploreCompanionSignalToggles, type ExploreCompanionTunables, type ExploreProbe, type ExploreProbeSource, } from './explore-companion.js';",
+        "export { claimSubagentSlot, DEFAULT_SUBAGENT_SLOT_COUNT, emptySubagentModelPlan, formatSubagentSlot, getSessionSubagentModelPlan, isSlotConfigured, MAX_SUBAGENT_SLOTS, normalizeSubagentModelPlan, planHasAssignments, releaseSubagentSlot, resetSessionSubagentModelPlan, restoreSessionSubagentModelPlan, type SessionSubagentModelPlan, SUBAGENT_MODEL_PLAN_META_KEY, type SubagentSlot, type SubagentSlotClaim, setSessionSubagentModelPlan, setSessionSubagentModelPlanForSession, subagentSlotOccupancy, } from './session-subagent-models.js';",
         "export { collabInjectMiddleware, collabPauseMiddleware, } from './collab-pause.js';",
-        "export { composeBoundedTaskDescription, type TaskBoundary, parseTaskBoundary, renderTaskBoundaryBlock, taskBoundarySchemaProperties, } from './task-boundary.js';",
+        "export { composeBoundedTaskDescription, parseTaskBoundary, renderTaskBoundaryBlock, type TaskBoundary, taskBoundarySchemaProperties, } from './task-boundary.js';",
         "export { composeDirectorPrompt, composeSubagentPrompt, DEFAULT_DIRECTOR_PREAMBLE, DEFAULT_SUBAGENT_BASELINE, type DirectorPromptParts, rosterSummaryFromConfigs, type SubagentPromptParts, } from './director-prompts.js';",
         "export { createMailboxHooks, type MailboxHooksOptions, } from './mailbox-hooks.js';",
         "export { createMessage, InMemoryAgentBridge, InMemoryBridgeTransport, } from './agent-bridge.js';",
@@ -703,13 +704,11 @@
         "export { isMailboxLeader, isMailboxMessageVisibleTo, MAILBOX_TYPE_PROPERTIES, mailboxIdentityBase, normalizeRecipient, SESSION_RECIPIENT_PREFIX, sessionRecipient, } from './mailbox-types.js';",
         "export { isMailboxProjectServerAvailable, MailboxProjectServerConnection, type MailboxProjectServerConnectionState, } from './mailbox-project-server-client.js';",
         "export { isValidMatrixKey, MATRIX_PHASE_KEYS, type MatrixKeyKind, type ModelMatrixResolution, type ModelMatrixResolutionSource, type ModelReference, matrixKeyKind, phaseForRole, type ResolvedModelTarget, type ResolvedSubagentModelTarget, resolveImplementationModelTarget, resolveModelMatrix, resolveModelMatrixResolution, resolveModelTargetFromEntry, resolveSubagentModelTarget, roleNeedsIndependentReviewModel, sameModelReference, } from './model-matrix.js';",
-        "export { kanbanBoundaryOps, type KanbanBoundaryOpsPort, setKanbanBoundaryOps, } from './kanban-ops-port.js';",
-        "export { kanbanDispatch, type KanbanDispatchPort, setKanbanDispatch, } from './kanban-dispatch-port.js';",
         "export { mailboxProjectServerEndpoint, mailboxProjectServerMetadataPath, } from './mailbox-project-server-endpoint.js';",
         "export { makeAskResultTool, makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, // NOTE: `makeFleetStatusTool` is no longer an alias of makeFleetTool — it // is the standalone read-only peer-snapshot tool from fleet-status-tool.ts // (exported below). The old leader-side fleet_status was consolidated into // `fleet` (action: status). makeKanbanQueueTool, makeMutationTestTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateAllTool, makeTerminateTool, makeWorkCompleteTool, } from './director-tools.js';",
         "export { makeSessionNoteTool } from './session-note-tool.js';",
         "export { parseMailboxAckInput, parseMailboxQueryInput, parseMailboxSendInput, } from './mailbox-codecs.js';",
-        "export { postSessionNote, SessionNoteHub, sessionNoteHub, type SessionNoteInbox, type SessionNotePost, type SessionNotePostResult, } from './session-note-hub.js';",
+        "export { postSessionNote, SessionNoteHub, type SessionNoteInbox, type SessionNotePost, type SessionNotePostResult, sessionNoteHub, } from './session-note-hub.js';",
         "export { redactMailboxCredential } from './mailbox-credential-store.js';",
         "export { resolveProjectDir } from './global-mailbox-paths.js';",
         "export { startTechStackConsumer, type TechStackConsumerOptions, } from './techstack-mailbox-consumer.js';",
@@ -730,6 +729,8 @@
         "export { type FileAuthorTrackerOptions, recordFileAction } from './file-author-tracker.js';",
         "export { type FleetStatusToolOptions, makeFleetStatusTool } from './fleet-status-tool.js';",
         "export { type FleetWorktreePolicy, resolveSubagentWorktreeDecision, subagentNeedsWorktree, WorktreeIntegrationError, type WorktreeIsolationDecision, type WorktreeTaskRunnerOptions, type WorktreeTaskStateUpdate, wrapSubagentRunnerWithWorktrees, } from './worktree-task-runner.js';",
+        "export { type KanbanBoundaryOpsPort, kanbanBoundaryOps, setKanbanBoundaryOps, } from './kanban-ops-port.js';",
+        "export { type KanbanDispatchPort, kanbanDispatch, setKanbanDispatch, } from './kanban-dispatch-port.js';",
         "export { type MailToolsOptions, makeMailInboxTool, makeMailSendTool } from './mail-tools.js';",
         "export { type OutdatedNotifyMessage, type PackageOutdatedEntry, type PackageOutdatedResult, type PackageOutdatedWatcherOptions, startPackageOutdatedWatcher, } from './package-outdated-watcher.js';"
       ]
@@ -1439,8 +1440,8 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 187,
-      "sourceLines": 53277
+      "sourceFiles": 188,
+      "sourceLines": 53910
     },
     {
       "directory": "core",
@@ -1629,7 +1630,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 73,
-      "sourceLines": 13662
+      "sourceLines": 13681
     },
     {
       "directory": "utils",

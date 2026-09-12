@@ -19,11 +19,7 @@ import {
 import type { FleetBus, FleetUsageAggregator } from './fleet-bus.js';
 import type { FleetManager } from './fleet-manager.js';
 import type { InMemoryBridgeTransport } from './in-memory-transport.js';
-import {
-  type ModelMatrixSource,
-  resolveModelMatrixResolution,
-  roleNeedsIndependentReviewModel,
-} from './model-matrix.js';
+import type { ModelMatrixSource } from './model-matrix.js';
 import type { DefaultMultiAgentCoordinator } from './multi-agent-coordinator.js';
 import { resolveMaxSpawnDepth } from './spawn-budget.js';
 import { assignNickname } from './subagent-nicknames.js';
@@ -123,24 +119,13 @@ export async function spawn(
       'workComplete() has been called — director closed further spawning',
     );
   }
-  // Per-task model matrix: when the caller didn't pin a model, resolve one
-  // from the matrix by role (→ phase → `*`). Done here, before the spawned
-  // event + manifest + coordinator handoff, so the fleet UI and the agent
-  // itself all reflect the matched model. Explicit per-spawn models win.
-  if (!config.model && host.modelMatrix) {
-    const matrix = typeof host.modelMatrix === 'function' ? host.modelMatrix() : host.modelMatrix;
-    const resolution = resolveModelMatrixResolution(matrix, config.role);
-    const entry =
-      resolution?.source === 'default' && roleNeedsIndependentReviewModel(config.role)
-        ? undefined
-        : resolution?.entry;
-    if (entry) {
-      if (entry.model) config.model = entry.model;
-      if (entry.provider) config.provider = entry.provider;
-      if (entry.fallbackProfile) config.fallbackProfile = entry.fallbackProfile;
-      if (entry.modelRuntime) config.modelRuntime = entry.modelRuntime;
-    }
-  }
+  // Model resolution deliberately does NOT happen here. `Director.spawn` runs
+  // the full ladder (session plan -> caller pins -> matrix -> tier -> session
+  // fallback) in `resolveDirectorSpawnModel` before calling this function, and
+  // this file used to carry a partial copy of the matrix step. That copy was a
+  // bypass: it re-applied `entry.provider` unconditionally and so could clobber
+  // a provider a higher-precedence layer had already pinned. One resolver, one
+  // precedence order — see `director-spawn-model.ts`.
   // Enforce safety caps BEFORE touching the coordinator — a refused
   // spawn must not leak partial state into the manifest or fleet bus.
   // Delegate to FleetManager when available; use inline checks otherwise.

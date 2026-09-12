@@ -62,27 +62,19 @@ describe('fleet spawn admission and bookkeeping', () => {
     expect(host.coordinator.spawn).not.toHaveBeenCalled();
   });
 
-  it('resolves role-specific matrix fields without requiring a pair', async () => {
+  // Model resolution belongs to `resolveDirectorSpawnModel`, which
+  // `Director.spawn` runs before reaching this function. fleet-spawn used to
+  // carry a partial copy of the matrix step; that copy re-applied
+  // `entry.provider` unconditionally and could clobber a provider a
+  // higher-precedence layer (session model plan, caller pin) had already set.
+  // Matrix behaviour itself is covered in director-model-matrix.test.ts.
+  it('does not resolve models itself — the matrix never reaches the config here', async () => {
     const host = makeHost({
-      modelMatrix: { hunter: { provider: 'matrix-provider' } } as never,
+      modelMatrix: { hunter: { provider: 'matrix-provider', model: 'matrix-model' } } as never,
     });
-    const candidate = config({ provider: undefined, model: undefined });
+    const candidate = config({ provider: 'lane-provider', model: undefined });
     await spawn(host, candidate);
-    expect(candidate).toMatchObject({ provider: 'matrix-provider', model: undefined });
-  });
-
-  it('does not apply the wildcard route to an independent reviewer', async () => {
-    const host = makeHost({
-      modelMatrix: { '*': { provider: 'same', model: 'same' } } as never,
-    });
-    const candidate = config({
-      name: 'Reviewer',
-      role: 'reviewer',
-      provider: undefined,
-      model: undefined,
-    });
-    await spawn(host, candidate);
-    expect(candidate.provider).toBeUndefined();
+    expect(candidate.provider).toBe('lane-provider');
     expect(candidate.model).toBeUndefined();
   });
 

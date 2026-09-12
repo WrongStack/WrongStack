@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   useBrainRiskSync: vi.fn(),
   useShadowPanel: vi.fn(),
   useHelpPanel: vi.fn(),
+  useSubagentModelsPanel: vi.fn(),
   useStatuslineHiddenSync: vi.fn(),
   useStreamChipExpiration: vi.fn(),
   useAutonomousCoordinator: vi.fn(),
@@ -57,6 +58,9 @@ vi.mock('../src/hooks/use-brain-risk-sync.js', () => ({
 }));
 vi.mock('../src/hooks/use-shadow-panel.js', () => ({ useShadowPanel: mocks.useShadowPanel }));
 vi.mock('../src/hooks/use-help-panel.js', () => ({ useHelpPanel: mocks.useHelpPanel }));
+vi.mock('../src/hooks/use-subagent-models-panel.js', () => ({
+  useSubagentModelsPanel: mocks.useSubagentModelsPanel,
+}));
 vi.mock('../src/hooks/use-statusline-hidden-sync.js', () => ({
   useStatuslineHiddenSync: mocks.useStatuslineHiddenSync,
 }));
@@ -175,6 +179,13 @@ describe('useAppPanelsState composition', () => {
     mocks.useModePicker.mockReturnValue(controls);
     mocks.useModelPickRequest.mockReturnValue(controls);
     const brainCtl = { openBrainPanel: controls.openBrainPanel };
+    const subagentModelsCtl = {
+      openSubagentModelsPanel: vi.fn(),
+      onSubagentLaneEdit: vi.fn(),
+      onSubagentLaneClear: vi.fn(),
+      onSubagentPlanToggle: vi.fn(),
+    };
+    mocks.useSubagentModelsPanel.mockReturnValue(subagentModelsCtl);
     mocks.useBrainPanel.mockReturnValue(brainCtl);
     mocks.useBrainRiskSync.mockReturnValue(controls);
     mocks.useShadowPanel.mockReturnValue(controls);
@@ -221,6 +232,6 @@ describe('useAppPanelsState composition', () => {
       subscribeCoordinatorEvents,
       dispatch,
     );
-    expect(result.current).toEqual({ ...controls, brainCtl });
+    expect(result.current).toEqual({ ...controls, brainCtl, subagentModelsCtl });
   });
 });

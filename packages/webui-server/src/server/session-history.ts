@@ -103,6 +103,8 @@ function labelForEvent(e: SessionEvent): string {
       return 'Session started';
     case 'subagent_policy':
       return `Subagents ${e.allowed ? 'allowed' : 'blocked'}`;
+    case 'subagent_model_plan':
+      return 'Subagent model plan updated';
     case 'session_resumed':
       return 'Session resumed';
     case 'session_forked':
@@ -218,6 +220,12 @@ function detailForEvent(e: SessionEvent): string {
       return `${e.model} @ ${e.provider}`;
     case 'subagent_policy':
       return e.allowed ? 'allowed' : 'blocked';
+    case 'subagent_model_plan': {
+      const pinned = e.plan.slots.filter(
+        (slot) => slot.provider || slot.model || slot.tier || slot.fallbackProfile,
+      ).length;
+      return `${pinned} lane(s) pinned, lock ${e.plan.lock ? 'on' : 'off'}`;
+    }
     case 'session_resumed':
       return `${e.model} @ ${e.provider}`;
     case 'session_forked':

@@ -787,6 +787,16 @@ export function SimpleUiSession() {
     Boolean(updateInfo.latestVersion) &&
     updateInfo.latestVersion !== updateInfo.appVersion;
 
+  // Flat provider/model pairs for the subagent lane selects in Settings. The
+  // switcher's grouping is a display concern; a lane only needs the pair.
+  const subagentModelOptions = useMemo(
+    () =>
+      groupedModels.flatMap(([provider, descriptors]) =>
+        descriptors.map((descriptor) => ({ provider, model: descriptor.id })),
+      ),
+    [groupedModels],
+  );
+
   return (
     <div className="app-shell">
       <ErrorBoundary section="topbar">
@@ -992,6 +1002,7 @@ export function SimpleUiSession() {
         onPrefChange={updatePrefs}
         onResetPrefs={resetPrefs}
         isAtDefaults={isAtDefaults}
+        modelOptions={subagentModelOptions}
         diffFiles={diffFiles}
         onCloseDiffFiles={() => setDiffFiles(null)}
         outageDismissed={outageDismissed}

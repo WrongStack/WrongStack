@@ -44,6 +44,7 @@ import { SkillPicker } from './components/skill-picker.js';
 import { SlashConfirmPanel } from './components/slash-confirm-panel.js';
 import { SlashMenu } from './components/slash-menu.js';
 import { StatuslinePicker } from './components/statusline-picker.js';
+import { SubagentModelsPanel } from './components/subagent-models-panel.js';
 import { ThemePicker } from './components/theme-picker.js';
 import { ToolsPicker } from './components/tools-picker.js';
 import { TopicCheckPanel } from './components/topic-check-panel.js';
@@ -324,6 +325,19 @@ export function AppViewPickers({
           filter={state.helpPanel.filter}
           selected={state.helpPanel.selected}
           hint={state.helpPanel.hint}
+        />
+      ) : null}
+      {state.subagentModels.open ? (
+        <SubagentModelsPanel
+          lanes={state.subagentModels.lanes}
+          roles={state.subagentModels.roles}
+          selected={state.subagentModels.selected}
+          enabled={state.subagentModels.enabled}
+          lock={state.subagentModels.lock}
+          followSessionModel={state.subagentModels.followSessionModel}
+          sessionTarget={state.subagentModels.sessionTarget}
+          hint={state.subagentModels.hint}
+          maxRows={pickerMaxRows}
         />
       ) : null}
       {state.shadowPanel.open ? (

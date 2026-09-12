@@ -45,6 +45,10 @@ interface UseAppPickerKeysOptions {
   handleModelPicked: ModelPickRequestController['handleModelPicked'];
   handleShadowStart: () => Promise<void>;
   handleShadowStop: () => Promise<void>;
+  /** `/subagent-models` panel controller; absent when the host wires no plan. */
+  subagentModelsController?:
+    | import('./use-subagent-models-panel.js').SubagentModelsPanelController
+    | undefined;
   statuslineHiddenForPicker: () => StatuslineItem[];
   onPickerEnter: () => Promise<void>;
   onThemePickerEnter?: () => void;
@@ -70,6 +74,7 @@ export function useAppPickerKeys({
   handleModelPicked,
   handleShadowStart,
   handleShadowStop,
+  subagentModelsController,
   statuslineHiddenForPicker,
   onPickerEnter,
   onThemePickerEnter,
@@ -571,6 +576,9 @@ export function useAppPickerKeys({
     onModelPicked: handleModelPicked,
     onShadowStart: handleShadowStart,
     onShadowStop: handleShadowStop,
+    onSubagentLaneEdit: subagentModelsController?.onSubagentLaneEdit,
+    onSubagentLaneClear: subagentModelsController?.onSubagentLaneClear,
+    onSubagentPlanToggle: subagentModelsController?.onSubagentPlanToggle,
     onAuthEnter: authPanelController.onAuthEnter,
     onAuthBack: authPanelController.onAuthBack,
     onAuthShortcut: authPanelController.onAuthShortcut,

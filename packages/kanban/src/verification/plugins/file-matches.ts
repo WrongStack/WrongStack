@@ -70,20 +70,22 @@ export class FileMatchesPlugin implements VerifierPlugin {
     try {
       const content = await context.readFile(config.file);
       const regex = compiled.regex;
-      // Bound the subject too: guarding the pattern still leaves a linear-time
-      // regex scanning an arbitrarily large file.
-      const match = capSubject(content).match(regex);
+      const capped = capSubject(content);
+      const match = capped.match(regex);
       const lineNumbers: number[] = [];
       if (match) {
-        // Find line numbers for all matches
-        const lines = capSubject(content).split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          // `test` advances `lastIndex` on a /g/ regex, so consecutive calls
-          // would resume mid-line and skip matches. Reset per line.
-          regex.lastIndex = 0;
-          if (regex.test(lines[i]!)) {
-            lineNumbers.push(i + 1);
-          }
+        // Collect line numbers for matches. If the pattern is not global, compile
+        // a global variant using the same pattern and flags to find all match locations.
+        const flags = config.flags ?? '';
+        const globalFlags = flags.includes('g') ? flags : `${flags}g`;
+        const globalCompiled = compileSafeRegex(config.pattern, globalFlags);
+        const scanRegex = globalCompiled.ok ? globalCompiled.regex : regex;
+        let m: RegExpExecArray | null;
+        scanRegex.lastIndex = 0;
+        while ((m = scanRegex.exec(capped)) !== null) {
+          const lineNo = capped.slice(0, m.index).split('\n').length;
+          lineNumbers.push(lineNo);
+          if (!scanRegex.global) break;
         }
       }
 

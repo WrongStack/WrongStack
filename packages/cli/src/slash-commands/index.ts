@@ -70,6 +70,7 @@ import { buildRefinerCommand } from './refiner.js';
 import { buildSddCommand } from './sdd.js';
 import { buildExitCommand, buildLoadCommand, buildSaveCommand } from './session.js';
 import { buildSetModelCommand } from './setmodel.js';
+import { buildSubagentModelsCommand } from './subagent-models.js';
 import { buildSuggestCommand } from './suggest.js';
 import { buildDesktopCommand, buildWebuiCommand } from './surfaces.js';
 import { buildThemeCommand } from './theme.js';
@@ -174,6 +175,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildTelegramSetupCommand(opts),
     buildTelegramSettingsCommand(opts),
     buildSetModelCommand(opts),
+    buildSubagentModelsCommand(opts),
     buildEffortCommand(opts),
     buildRefinerCommand(opts),
     buildFallbackCommand(opts),

@@ -1,6 +1,3 @@
-import type { Action } from '../app-action-type.js';
-import type { State } from '../app-state.js';
-import { brainPanelRows } from '../brain-panel-model.js';
 import {
   clampLine,
   effectiveDensity,
@@ -8,6 +5,9 @@ import {
   LINE_TITLES,
   STATUSLINE_ITEMS,
 } from '@wrongstack/core/statusline';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
+import { brainPanelRows } from '../brain-panel-model.js';
 import {
   type ChipMeta,
   navigableFields,
@@ -71,6 +71,11 @@ const panelPickerActionTypes = [
   'shadowClose',
   'shadowUpdate',
   'shadowHint',
+  'subagentModelsOpen',
+  'subagentModelsClose',
+  'subagentModelsMove',
+  'subagentModelsUpdate',
+  'subagentModelsHint',
 ] as const satisfies readonly Action['type'][];
 
 type PanelPickerAction = Extract<Action, { type: (typeof panelPickerActionTypes)[number] }>;
@@ -532,6 +537,52 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
       return { ...state, shadowPanel: { ...state.shadowPanel, shadow: action.shadow } };
     case 'shadowHint':
       return { ...state, shadowPanel: { ...state.shadowPanel, hint: action.text } };
+    case 'subagentModelsOpen':
+      return {
+        ...state,
+        subagentModels: {
+          open: true,
+          lanes: action.lanes,
+          roles: action.roles,
+          selected: 0,
+          enabled: action.enabled,
+          lock: action.lock,
+          followSessionModel: action.followSessionModel,
+          sessionTarget: action.sessionTarget,
+          hint: undefined,
+        },
+      };
+    case 'subagentModelsClose':
+      return { ...state, subagentModels: { ...state.subagentModels, open: false } };
+    case 'subagentModelsMove': {
+      const count = state.subagentModels.lanes.length;
+      if (count === 0) return state;
+      // Wrap like every other picker: ↓ on the last row lands on the first.
+      const next = (state.subagentModels.selected + action.delta + count) % count;
+      return { ...state, subagentModels: { ...state.subagentModels, selected: next } };
+    }
+    case 'subagentModelsUpdate': {
+      // A lane-count change must not strand the cursor past the end.
+      const selected = Math.min(
+        state.subagentModels.selected,
+        Math.max(0, action.lanes.length - 1),
+      );
+      return {
+        ...state,
+        subagentModels: {
+          ...state.subagentModels,
+          lanes: action.lanes,
+          roles: action.roles,
+          enabled: action.enabled,
+          lock: action.lock,
+          followSessionModel: action.followSessionModel,
+          sessionTarget: action.sessionTarget,
+          selected,
+        },
+      };
+    }
+    case 'subagentModelsHint':
+      return { ...state, subagentModels: { ...state.subagentModels, hint: action.text } };
     default:
       void (action satisfies never);
       return state;

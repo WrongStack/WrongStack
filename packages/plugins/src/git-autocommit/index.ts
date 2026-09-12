@@ -218,7 +218,10 @@ async function getChangedFiles(cwd?: string): Promise<string[]> {
 
 async function getStagedFiles(cwd?: string): Promise<string[]> {
   const output = await runGit(['diff', '--cached', '--name-only'], cwd);
-  return output ? output.split('\n').filter(Boolean) : [];
+  // `git diff --name-only` applies the same C-quoting as `status --porcelain`
+  // for non-ASCII and control characters, so decode before the names are used
+  // as commit pathspecs or scope-warning keys.
+  return output ? output.split('\n').filter(Boolean).map(unquotePorcelainPath) : [];
 }
 
 /**
@@ -227,39 +230,59 @@ async function getStagedFiles(cwd?: string): Promise<string[]> {
  */
 async function getScopedStagedFiles(paths: string[], cwd?: string): Promise<string[]> {
   const output = await runGit(['diff', '--cached', '--name-only', '--', ...paths], cwd);
-  return output ? output.split('\n').filter(Boolean) : [];
+  // Decode git's C-quoting (see getStagedFiles): the result is used verbatim
+  // as the `git commit --only` path list, so a quoted path would fail commit.
+  return output ? output.split('\n').filter(Boolean).map(unquotePorcelainPath) : [];
 }
 
 /**
- * Stage explicit file paths (filtered to files that exist) or raw git
+ * Stage explicit file paths (filtered to paths git can stage) or raw git
  * pathspecs (any pattern containing `*`, `?` or `[` — matched by git itself,
  * e.g. all of `website/` recursively, or every package.json manifest at any
  * depth). The existence filter cannot apply to patterns, because which
  * files a pattern matches is git's to say.
+ *
+ * Returns the concrete path list handed to `git add`, so the caller can fence
+ * its commit to exactly what was staged.
  */
-async function stageFiles(files: string[] | undefined, cwd?: string): Promise<void> {
+async function stageFiles(files: string[] | undefined, cwd?: string): Promise<string[]> {
   /* v8 ignore next -- callers always pass a validated array; the guard is defensive. */
-  if (!files || !Array.isArray(files) || files.length === 0) return;
+  if (!files || !Array.isArray(files) || files.length === 0) return [];
   const hasPattern = files.some((f) => /[*?[\]]/.test(f));
   if (!hasPattern) {
-    // Filter to only files that exist (avoids "pathspec did not match any files" errors for typos)
-    // Resolves against cwd for correct multi-root staging.
-    const existing = (files as string[]).filter((f) => {
+    // Filter to only paths git can stage (avoids "pathspec did not match any
+    // files" errors for typos). Resolves against cwd for correct multi-root
+    // staging. A tracked file deleted from the worktree no longer exists on
+    // disk but is still stageable via `git add`; unioning `git ls-files`
+    // tracked-but-absent paths back in keeps deletions from being dropped.
+    const onDisk = (files as string[]).filter((f) => {
       try {
         return existsSync(cwd ? resolve(cwd, f) : f);
       } catch {
         return false;
       }
     });
+    let existing = onDisk;
+    if (onDisk.length < files.length) {
+      let tracked: string[] = [];
+      try {
+        const out = await runGit(['ls-files', '--', ...files], cwd);
+        tracked = out ? out.split('\n').filter(Boolean).map(unquotePorcelainPath) : [];
+      } catch {
+        tracked = [];
+      }
+      existing = [...new Set([...onDisk, ...tracked])];
+    }
     if (existing.length === 0) {
       throw new Error('Failed to stage files: none of the specified files exist on disk');
     }
     // `--` terminates option parsing: without it a file named `-f` or
     // `--force` would be read by git as a flag rather than a pathspec.
     await runGit(['add', '--', ...existing], cwd);
-    return;
+    return existing;
   }
   await runGit(['add', '--', ...files], cwd);
+  return files;
 }
 
 async function commitWithMessage(
@@ -403,6 +426,14 @@ async function externalChangesSinceStage(cwd?: string): Promise<string[] | null>
       .split('\n')
       .filter((l) => l.trim())
       .filter((l) => {
+        // `runGit` resolves with `stdout.trim()`, eating the leading space of
+        // the FIRST status line when the index column is blank (` M path` →
+        // `M path`). Detect that trimmed one-column shape (same logic as
+        // parsePorcelainLine) and treat it as unstaged; otherwise the first
+        // worktree-only change is classified as staged and never warns.
+        const twoColumn = /^[MADRCUTX?! ]{2} /.test(l);
+        const oneColumnTrimmed = !twoColumn && /^[MADRCUTX?!] /.test(l);
+        if (oneColumnTrimmed) return true;
         // index column = ' ' or '?' means the change is NOT staged
         /* v8 ignore next -- non-empty lines guarantee l[0] is defined; the ?? ' ' fallback is defensive. */
         const idx = l[0] ?? ' ';
@@ -733,10 +764,12 @@ const plugin: Plugin = {
               staged = commitScope;
             }
           } else if (files && files.length > 0) {
-            // Exact-files flow: stage them; the commit below is fenced to
-            // exactly these paths.
+            // Exact-files flow: stage them; the commit below is fenced to the
+            // concrete paths git actually staged, not the raw caller list — a
+            // non-existent path is filtered by stageFiles and must not reach
+            // `git commit --only` (which would abort the whole commit).
             try {
-              await stageFiles(files);
+              commitScope = await stageFiles(files);
             } catch (err: unknown) {
               /* v8 ignore next -- stageFiles only throws Error; the String(err) branch is defensive. */
               return {
@@ -744,7 +777,6 @@ const plugin: Plugin = {
                 error: `Failed to stage files: ${err instanceof Error ? err.message : String(err)}`,
               };
             }
-            commitScope = files;
             try {
               staged = await getStagedFiles();
             } catch {

@@ -43,4 +43,5 @@ export const SESSION_SCOPED_PREF_KEYS: ReadonlySet<string> = new Set([
   'nextStepsTool',
   'subagentsAllowed',
   'subagentsPolicyLocked',
+  'subagentModelPlan',
 ]);

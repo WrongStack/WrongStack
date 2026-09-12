@@ -334,6 +334,15 @@ export interface AppProps {
   onBrainRiskLevel?: ((level: BrainRiskLevel) => string | undefined) | undefined;
   /** Full Brain settings editor bridge (live apply + persist). */
   brainPanelHost?: import('./brain-panel-model.js').BrainPanelHost | undefined;
+  /**
+   * Session-scoped subagent model plan bridge for `/subagent-models`. The host
+   * owns the plan (it needs the session writer to journal it); the panel only
+   * reads snapshots and calls back. Absent = the panel stays unavailable and
+   * the slash command falls back to its text output.
+   */
+  subagentModelsHost?:
+    | import('./subagent-models-panel-model.js').SubagentModelsPanelHost
+    | undefined;
   /** Get current Shadow Agent state. */
   getShadowData?:
     | (() => { activeId: string | null; running: boolean; model: string; intervalMs: number })

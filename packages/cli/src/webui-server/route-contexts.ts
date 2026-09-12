@@ -7,7 +7,9 @@
 import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
 import {
+  normalizeSubagentModelPlan,
   seedSessionSubagentPolicy,
+  setSessionSubagentModelPlan,
   setSessionSubagentsAllowed,
 } from '@wrongstack/core/coordination';
 import { TOKENS } from '@wrongstack/core/kernel';
@@ -245,6 +247,11 @@ export function createWebuiRouteContexts({
       setSessionSubagentsAllowed(
         sessionId ? getSessionAgent(sessionId).ctx : opts.agent.ctx,
         allowed,
+      ),
+    setSubagentModelPlan: (plan, sessionId) =>
+      setSessionSubagentModelPlan(
+        sessionId ? getSessionAgent(sessionId).ctx : opts.agent.ctx,
+        normalizeSubagentModelPlan(plan),
       ),
     persist: persistPrefs,
     setYolo: opts.onYoloSwitch,

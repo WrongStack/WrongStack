@@ -53,6 +53,8 @@ import type {
   SendMode,
   ShadowState,
   StatuslineItem,
+  SubagentLaneView,
+  SubagentRoleView,
   ToolPickerItem,
   WorktreeRow,
 } from './ui-contracts.js';
@@ -552,6 +554,23 @@ export type State = {
   shadowPanel: {
     open: boolean;
     shadow: ShadowState;
+    hint?: string | undefined;
+  };
+  /**
+   * Per-session subagent model lanes — opened by `/subagent-models`. Rows are
+   * pre-rendered view strings: the hook owns the mapping from the core plan so
+   * the reducer never reaches into coordination types.
+   */
+  subagentModels: {
+    open: boolean;
+    lanes: SubagentLaneView[];
+    roles: SubagentRoleView[];
+    selected: number;
+    enabled: boolean;
+    lock: boolean;
+    followSessionModel: boolean;
+    /** The session's own provider/model, shown as that switch's target. */
+    sessionTarget: string;
     hint?: string | undefined;
   };
   /** Interactive API-key / OAuth manager — opened by `/auth`. */

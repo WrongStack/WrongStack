@@ -60,6 +60,7 @@ import {
 } from './ProviderSection';
 import { RoutingSection } from './RoutingSection';
 import { SecuritySection } from './SecuritySection';
+import { SubagentModelsSection } from './SubagentModelsSection';
 import { syncSettingsPreference } from './sync-settings-preference';
 
 interface TabDef {
@@ -523,6 +524,9 @@ export function SettingsPanel() {
                 <RoutingSection syncPref={syncPref} candidates={fallbackCandidates} />
                 <div className="mt-6 border-t border-border pt-6">
                   <ModelTiersSection syncPref={syncPref} />
+                </div>
+                <div className="mt-6 border-t border-border pt-6">
+                  <SubagentModelsSection syncPref={syncPref} candidates={fallbackCandidates} />
                 </div>
               </TabsContent>
 

@@ -69,6 +69,7 @@ WrongStack routes slash commands through `SlashCommandRegistry`. The command set
 | `/telegram-setup` | `/tg-setup` | [Telegram setup](telegram-setup.md) |
 | `/telegram-settings` | `/tg-settings` | [Telegram settings](telegram-settings.md) |
 | `/setmodel` | — | [model selection](setmodel.md) |
+| `/subagent-models` | — | [subagent model lanes](subagent-models.md) |
 | `/refiner` | — | [goal refiner](refiner.md) |
 | `/fallback` | — | [fallback models](fallback.md) |
 | `/git`, `/commit`, `/gitcheck`, `/push` | `/gc`, `/gcstatus` | [Git commands](git.md) |

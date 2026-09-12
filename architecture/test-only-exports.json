@@ -417,6 +417,9 @@
       "materializeMessages",
       "serializeReceiptRecordV2"
     ],
+    "packages/core/src/coordination/session-subagent-models.ts": [
+      "__resetAllSessionSubagentModelPlans"
+    ],
     "packages/core/src/coordination/subagent-nicknames.ts": [
       "getAllNicknameKeys"
     ],

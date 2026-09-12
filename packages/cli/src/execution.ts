@@ -47,6 +47,7 @@ import { finalizeExecutionCleanup } from './execution-cleanup.js';
 import { createKanbanDispatchHandler } from './execution-kanban-dispatch.js';
 import { createReplFleetCallbacks } from './execution-repl-fleet-callbacks.js';
 import { FleetStatusLine } from './fleet-statusline.js';
+import { createSubagentModelsPanelHost } from './subagent-models/panel-service.js';
 
 export type { LiveSettingsInput } from './live-settings-input.js';
 
@@ -543,6 +544,10 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           getBrainData,
           onBrainRiskLevel,
           brainPanelHost: brainRuntime ? createBrainPanelHost({ brainRuntime }) : undefined,
+          subagentModelsHost: createSubagentModelsPanelHost({
+            getContext: () => agent.ctx,
+            getSessionTarget: () => ({ provider: config.provider, model: config.model }),
+          }),
           getShadowData,
           onShadowStart,
           onShadowStop,

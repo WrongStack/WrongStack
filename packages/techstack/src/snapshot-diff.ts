@@ -62,15 +62,13 @@ export function diffSnapshots(oldSnapshot: Snapshot, newSnapshot: Snapshot): Sna
       if (rawOld === rawNew) continue;
       const oldVal = rawOld != null ? String(rawOld) : '';
       const newVal = rawNew != null ? String(rawNew) : '';
-      if (oldVal !== newVal) {
-        changed.push({
-          name: newDep.name,
-          ecosystem: newDep.ecosystem,
-          field: String(field),
-          from: oldVal,
-          to: newVal,
-        });
-      }
+      changed.push({
+        name: newDep.name,
+        ecosystem: newDep.ecosystem,
+        field: String(field),
+        from: oldVal,
+        to: newVal,
+      });
     }
   }
 

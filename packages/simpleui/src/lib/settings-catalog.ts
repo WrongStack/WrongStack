@@ -115,6 +115,14 @@ export const SETTINGS_CATALOG: readonly SettingsEntry[] = [
     kind: 'toggle',
   },
   {
+    id: 'session.subagentModels',
+    group: 'session',
+    label: 'Subagent models',
+    hint: 'Run parallel subagents on different providers/models — one lane each.',
+    keywords: ['subagent', 'model', 'lane', 'provider', 'parallel', 'fleet', 'routing'],
+    kind: 'select',
+  },
+  {
     id: 'session.showModelReasoning',
     group: 'session',
     label: 'Model reasoning',

@@ -34,6 +34,13 @@ export interface PrefsHandlerContext {
   setSubagentsAllowed?:
     | ((allowed: boolean, sessionId?: string | undefined) => Promise<void>)
     | undefined;
+  /**
+   * Apply one tab's subagent model plan (lanes + role overlay). Session-scoped
+   * and journaled by core, so it never reaches `persist` / config.json.
+   */
+  setSubagentModelPlan?:
+    | ((plan: Record<string, unknown>, sessionId?: string | undefined) => Promise<void>)
+    | undefined;
   pendingConfirms: Map<string, PendingConfirm>;
   configStore?: ConfigStore | undefined;
   /**
@@ -206,6 +213,20 @@ export async function handlePrefsUpdate(
       return;
     }
   }
+  const planPayload = payload['subagentModelPlan'];
+  if (planPayload && typeof planPayload === 'object' && !Array.isArray(planPayload)) {
+    if (!ctx.setSubagentModelPlan) {
+      sendResult(ctx, ws, false, 'Session subagent model plan is unavailable.');
+      return;
+    }
+    try {
+      await ctx.setSubagentModelPlan(planPayload as Record<string, unknown>, sessionId);
+    } catch (err) {
+      sendResult(ctx, ws, false, toErrorMessage(err));
+      handlePrefsGet(ctx, ws, sessionId);
+      return;
+    }
+  }
   // Session-scoped keys land on the CALLING tab's context; the rest stay
   // process-wide. Both still go to `persist`, which keeps the config file as
   // the default a newly opened tab starts from.
@@ -217,6 +238,9 @@ export async function handlePrefsUpdate(
   const {
     subagentsAllowed: _sessionPolicy,
     subagentsPolicyLocked: _locked,
+    // The plan belongs to one conversation and is journaled with its session;
+    // writing it to config.json would leak one tab's lanes into every new one.
+    subagentModelPlan: _plan,
     ...durablePayload
   } = payload;
   if (Object.keys(durablePayload).length > 0) void ctx.persist(durablePayload);

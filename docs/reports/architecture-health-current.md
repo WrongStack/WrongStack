@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-12T13:20:56.518Z
+**Generated:** 2026-09-12T15:28:04.386Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,20 +8,22 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3762 |
-| Production source lines | 910783 |
-| Test files | 3271 |
+| Production source files | 3770 |
+| Production source lines | 913344 |
+| Test files | 3280 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 11994 |
+| Relative module edges | 12018 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 8 |
+| Type-inclusive module cycles | 7 |
 | Tests without TypeScript test-project coverage | 0 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- 1 unexcepted module cycle(s)
+- ARCH-CYCLE-TYPE-09: exception no longer matches an active cycle
+- ARCH-CYCLE-TYPE-12: exception no longer matches an active cycle
 
 ## Workspace packages
 
@@ -29,9 +31,9 @@ PASS — no blocking architecture-health errors.
 |---|---:|---:|---|
 | @wrongstack/acp | 42 | 37 | @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/bench | 26 | 52 | @wrongstack/core |
-| @wrongstack/cli | 491 | 480 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
+| @wrongstack/cli | 493 | 482 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 853 | 742 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 854 | 745 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 40 | 26 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
@@ -41,7 +43,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/persistence | 6 | 9 | — |
 | @wrongstack/plug-lsp | 50 | 36 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 11 | 3 | @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 83 | 123 | @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/plugins | 83 | 124 | @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 6 | 5 | — |
 | @wrongstack/providers | 69 | 63 | @wrongstack/core |
 | @wrongstack/requirement-intake | 16 | 10 | @wrongstack/core |
@@ -55,12 +57,12 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 37 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 32 | @wrongstack/core |
 | @wrongstack/tools | 213 | 217 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 389 | 352 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 392 | 353 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 18 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 545 | 374 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 547 | 375 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 119 | 39 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
-| @wrongstack/webui-server | 226 | 211 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 226 | 212 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/wrongtrace | 11 | 6 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
 
@@ -74,12 +76,11 @@ None.
 
 - packages/cli/src/fleet/host.ts ↔ packages/cli/src/fleet/routing.ts
 - packages/cli/src/subcommands/handlers/audit.ts ↔ packages/cli/src/subcommands/index.ts
+- packages/core/src/chronicle/prompt-manifest.ts ↔ packages/core/src/coordination/brain-rules.ts ↔ packages/core/src/coordination/brain-telemetry.ts ↔ packages/core/src/coordination/brain.ts ↔ packages/core/src/coordination/session-subagent-models.ts ↔ packages/core/src/core/context-conversation-journal.ts ↔ packages/core/src/core/context-file-tracker.ts ↔ packages/core/src/core/context-session-id.ts ↔ packages/core/src/core/context.ts ↔ packages/core/src/core/conversation-state.ts ↔ packages/core/src/kernel/events.ts ↔ packages/core/src/kernel/events/agent-events.ts ↔ packages/core/src/kernel/events/brain-events.ts ↔ packages/core/src/kernel/events/provider-events.ts ↔ packages/core/src/kernel/events/session-events.ts ↔ packages/core/src/kernel/events/tool-events.ts ↔ packages/core/src/types/blocks.ts ↔ packages/core/src/types/compactor.ts ↔ packages/core/src/types/config.ts ↔ packages/core/src/types/config/mcp-features.ts ↔ packages/core/src/types/config/model-tiers.ts ↔ packages/core/src/types/config/providers.ts ↔ packages/core/src/types/config/root.ts ↔ packages/core/src/types/config/runtime.ts ↔ packages/core/src/types/config/skills-fleet-brain.ts ↔ packages/core/src/types/context.ts ↔ packages/core/src/types/conversation-state.ts ↔ packages/core/src/types/messages.ts ↔ packages/core/src/types/models-registry.ts ↔ packages/core/src/types/permission.ts ↔ packages/core/src/types/provider.ts ↔ packages/core/src/types/run-env.ts ↔ packages/core/src/types/session.ts ↔ packages/core/src/types/token-counter.ts ↔ packages/core/src/types/tool.ts ↔ packages/core/src/utils/context-evidence.ts ↔ packages/core/src/utils/token-estimate.ts ↔ packages/core/src/utils/tool-wire-compact.ts
 - packages/core/src/coordination/agents/agent-prompts.ts ↔ packages/core/src/coordination/agents/index.ts ↔ packages/core/src/coordination/agents/phase1-discovery.ts ↔ packages/core/src/coordination/agents/phase2-planning.ts ↔ packages/core/src/coordination/agents/phase3-build.ts ↔ packages/core/src/coordination/agents/phase3-wave1-platform.ts ↔ packages/core/src/coordination/agents/phase3-wave2-meta.ts ↔ packages/core/src/coordination/agents/phase4-verify.ts ↔ packages/core/src/coordination/agents/phase5-review.ts ↔ packages/core/src/coordination/agents/phase6-domain.ts ↔ packages/core/src/coordination/agents/phase7-knowledge.ts ↔ packages/core/src/coordination/agents/phase8-delivery.ts ↔ packages/core/src/coordination/agents/phase8-wave3-products.ts ↔ packages/core/src/coordination/agents/phase9-meta.ts ↔ packages/core/src/coordination/agents/phase9-wave4-platform-meta.ts ↔ packages/core/src/coordination/agents/project-agent-auto-optimize.ts ↔ packages/core/src/coordination/agents/project-agent-identity.ts ↔ packages/core/src/coordination/agents/project-agent-optimizer.ts ↔ packages/core/src/coordination/dispatcher.ts ↔ packages/core/src/coordination/fleet.ts ↔ packages/core/src/coordination/multi-agent-coordinator.ts ↔ packages/core/src/execution/parallel-eternal-engine.ts ↔ packages/core/src/types/autonomy.ts ↔ packages/core/src/types/index.ts
-- packages/core/src/coordination/brain-telemetry.ts ↔ packages/core/src/coordination/brain.ts ↔ packages/core/src/kernel/events.ts ↔ packages/core/src/kernel/events/brain-events.ts ↔ packages/core/src/kernel/events/session-events.ts
 - packages/core/src/core/agent-internals.ts ↔ packages/core/src/core/agent-loop-context.ts ↔ packages/core/src/core/agent-loop-detector.ts ↔ packages/core/src/core/agent-loop.ts ↔ packages/core/src/core/agent-response.ts ↔ packages/core/src/core/agent-tools.ts ↔ packages/core/src/core/agent-types.ts ↔ packages/core/src/core/agent.ts ↔ packages/core/src/extension/extension-points.ts ↔ packages/core/src/extension/registry.ts ↔ packages/core/src/mailbox-attach.ts ↔ packages/core/src/session-note-attach.ts ↔ packages/core/src/types/plugin.ts
 - packages/core/src/hq/protocol/client.ts ↔ packages/core/src/hq/protocol/core.ts ↔ packages/core/src/hq/protocol/fleet.ts ↔ packages/core/src/hq/protocol/session.ts
 - packages/core/src/index.ts ↔ packages/core/src/plugins/prompts-plugin.ts ↔ packages/core/src/plugins/skills-plugin.ts ↔ packages/core/src/plugins/sync-plugin.ts ↔ packages/core/src/tools/mcp-control.ts ↔ packages/core/src/tools/mcp-use.ts
-- packages/core/src/types/blocks.ts ↔ packages/core/src/types/context.ts ↔ packages/core/src/types/conversation-state.ts ↔ packages/core/src/types/messages.ts ↔ packages/core/src/types/provider.ts ↔ packages/core/src/types/run-env.ts ↔ packages/core/src/types/session.ts ↔ packages/core/src/types/token-counter.ts ↔ packages/core/src/types/tool.ts
 
 ## Largest production files
 
@@ -87,16 +88,18 @@ None.
 |---:|---|
 | 1581 | `packages/providers/src/openai-codex.ts` |
 | 1119 | `apps/desktop/src/main/runtime-manager.ts` |
-| 1067 | `packages/core/src/coordination/delegate-tool.ts` |
-| 1067 | `packages/simpleui/src/simple-ui-session.tsx` |
+| 1078 | `packages/simpleui/src/simple-ui-session.tsx` |
+| 1075 | `packages/core/src/coordination/delegate-tool.ts` |
+| 1069 | `packages/core/src/coordination/director.ts` |
 | 1064 | `packages/mcp/src/client.ts` |
+| 1062 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1057 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 1055 | `packages/cli/src/slash-commands/settings-mutations.ts` |
 | 1051 | `packages/core/src/index.ts` |
 | 1051 | `packages/webui/src/components/SkillDetailView.tsx` |
+| 1050 | `packages/webui-server/src/server/routes.ts` |
 | 1049 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
-| 1046 | `packages/webui-server/src/server/routes.ts` |
 | 1044 | `packages/webui/src/components/ContextDashboard.tsx` |
 | 1043 | `packages/cli/src/auth-menu/panel-service.ts` |
 | 1041 | `packages/tui/src/components/sidebar-content.tsx` |
@@ -106,9 +109,9 @@ None.
 | 1033 | `packages/cli/src/plugin-management.ts` |
 | 1033 | `packages/sage/src/sqlite-store.ts` |
 | 1031 | `packages/core/src/hq/protocol/core.ts` |
-| 1030 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1026 | `packages/sage/src/tools/memory-tools.ts` |
 | 1021 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
+| 1017 | `packages/tui/src/app-state.ts` |
 | 1015 | `packages/webui-server/src/server/git-handlers.ts` |
 | 1015 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1015 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
@@ -120,12 +123,11 @@ None.
 | 1007 | `packages/core/src/execution/brain-runtime.ts` |
 | 1007 | `packages/sage/src/types.ts` |
 | 1005 | `packages/tui/src/kanban-slash.ts` |
+| 1003 | `packages/core/src/types/session.ts` |
 | 1003 | `packages/kanban/src/types.ts` |
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 999 | `packages/kanban/src/manager/assignment.ts` |
-| 998 | `packages/tui/src/app-state.ts` |
 | 996 | `packages/webui/src/stores/fleet-store.ts` |
-| 994 | `packages/core/src/types/session.ts` |
 | 991 | `packages/tools/src/codebase-index/writer.ts` |
 | 984 | `packages/tui/src/components/agents-monitor.tsx` |
 | 982 | `packages/core/src/coordination/sqlite-mailbox.ts` |
@@ -134,11 +136,10 @@ None.
 | 978 | `packages/core/src/hq/auth-store.ts` |
 | 973 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 971 | `packages/core/src/coordination/fleet-supervisor.ts` |
-| 970 | `packages/core/src/coordination/director.ts` |
 
 ## Exports only tests reference
 
-- 915 runtime exports are referenced by tests and by no other production file.
+- 916 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

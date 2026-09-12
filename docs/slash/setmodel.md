@@ -77,6 +77,12 @@ The resolved model appears live in both fleet monitors:
 
 (F2/F3/F4 are terminal-safe aliases for the Ctrl+F/G/T chords — some terminals, e.g. Windows Terminal, intercept Ctrl+F for "Find" before it reaches the app.)
 
+## Related
+
+`/setmodel` is project-wide and routes by role. To pin models for ONE session —
+and to run parallel subagents on different providers, one lane each — use
+[`/subagent-models`](subagent-models.md). A session lane outranks this matrix.
+
 ## Code reference
 
 - `packages/cli/src/slash-commands/setmodel.ts` — the command + persistence

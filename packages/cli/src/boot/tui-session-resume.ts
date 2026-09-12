@@ -9,7 +9,10 @@
  */
 import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
-import { restoreSessionSubagentPolicy } from '@wrongstack/core/coordination';
+import {
+  restoreSessionSubagentModelPlan,
+  restoreSessionSubagentPolicy,
+} from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { attachTodosCheckpoint, loadTodosCheckpoint } from '@wrongstack/core/storage';
 import type {
@@ -394,6 +397,7 @@ export async function resumeSession(
       // tool-use adjacency is re-checked on the next request.
       agent.ctx.state.replaceMessages(resumed.data.messages);
       restoreSessionSubagentPolicy(agent.ctx, resumed.data.events, resumed.data.subagentsAllowed);
+      restoreSessionSubagentModelPlan(agent.ctx, resumed.data.events);
     } catch (err) {
       agent.ctx.session = oldWriter;
       agent.ctx.state.replaceMessages(oldMessages);

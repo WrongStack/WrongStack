@@ -280,8 +280,11 @@ export class MultiAgentHost {
       taskResultNotifier: (n) => this.reportTaskResultToLeader(n),
       subagentIdleTimeoutMs,
       ...(this.opts.statusTracker ? { statusTracker: this.opts.statusTracker } : {}),
-      sessionProvider: this.deps.configStore.get().provider,
-      sessionModel: this.deps.configStore.get().model,
+      // Live, like `modelMatrix` and `appConfig`: a `/model` switch has to
+      // reach the NEXT spawn. Snapshotting here pinned every later worker to
+      // the model the leader happened to run on when the fleet was built.
+      sessionProvider: () => this.deps.configStore.get().provider,
+      sessionModel: () => this.deps.configStore.get().model,
       retireSubagentOnTaskComplete:
         this.opts.retireSubagentOnTaskComplete ?? fleetLifecycle?.retireOnTaskComplete ?? true,
     });

@@ -11,6 +11,7 @@ import { usePromptPicker } from './use-prompt-picker.js';
 import { useShadowPanel } from './use-shadow-panel.js';
 import { useStatuslineHiddenSync } from './use-statusline-hidden-sync.js';
 import { useStreamChipExpiration } from './use-stream-chip-expiration.js';
+import { useSubagentModelsPanel } from './use-subagent-models-panel.js';
 
 /**
  * Every field below is forwarded verbatim to one of the panel hooks, so the
@@ -35,6 +36,7 @@ export function useAppPanelsState(params: {
    * guard, so an omitted registry threw the moment the help panel opened.
    * The previous `as any` at the call site hid exactly that.
    */
+  subagentModelsHost?: Parameters<typeof useSubagentModelsPanel>[0]['subagentModelsHost'];
   slashRegistry: AppProps['slashRegistry'];
   hiddenItems: Parameters<typeof useStatuslineHiddenSync>[0]['hiddenItems'];
   setHiddenItems: Parameters<typeof useStatuslineHiddenSync>[0]['setHiddenItems'];
@@ -52,6 +54,7 @@ export function useAppPanelsState(params: {
     getShadowData,
     onShadowStart,
     onShadowStop,
+    subagentModelsHost,
     slashRegistry,
     hiddenItems,
     setHiddenItems,
@@ -80,6 +83,12 @@ export function useAppPanelsState(params: {
     getShadowData,
     onShadowStart,
     onShadowStop,
+  });
+
+  const subagentModelsCtl = useSubagentModelsPanel({
+    dispatch,
+    subagentModelsHost,
+    requestModelPick,
   });
 
   const { openHelpPanel } = useHelpPanel(dispatch, slashRegistry);
@@ -112,6 +121,7 @@ export function useAppPanelsState(params: {
     openShadowPanel,
     handleShadowStart,
     handleShadowStop,
+    subagentModelsCtl,
     openHelpPanel,
   };
 }

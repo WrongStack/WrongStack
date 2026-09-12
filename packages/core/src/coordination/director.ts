@@ -52,9 +52,14 @@ import { type DirectorFleetHost, spawn as fleetSpawn, type ManifestEntry } from 
 import type { ICoordinator } from './icoordinator.js';
 import { InMemoryBridgeTransport } from './in-memory-transport.js';
 import { LargeAnswerStore } from './large-answer-store.js';
-import type { ModelMatrixSource } from './model-matrix.js';
+import { type ModelMatrixSource, resolveModelMatrixResolution } from './model-matrix.js';
 import { DefaultMultiAgentCoordinator } from './multi-agent-coordinator.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
+import {
+  claimSubagentSlot,
+  releaseSubagentSlot,
+  type SubagentSlotClaim,
+} from './session-subagent-models.js';
 import {
   areSubagentsAllowedForSession,
   lockSessionSubagentPolicyForSession,
@@ -82,6 +87,26 @@ export type { ModelMatrixSource } from './model-matrix.js';
  * while the subagent keeps working.
  */
 const BUSY_REARM_FLOOR_MS = 1_000;
+
+/**
+ * True when a PERSON pinned this spawn's model rather than the leader.
+ *
+ * `spawn_subagent` / `delegate` stamp `modelChosenByLeader`; everything else
+ * that carries a provider/model — `/spawn --model=…`, an ACP flag, a Kanban
+ * task route someone authored — came from a human. A one-off they typed is
+ * more specific than a standing lane, so the session plan steps aside
+ * entirely: it does not even claim a lane, which leaves that lane free for a
+ * spawn the plan actually routes.
+ *
+ * Stepping aside WHOLESALE (rather than filling the missing half) is
+ * deliberate: a human `model` beside a lane `provider` names a pair that
+ * exists in neither place. The layers below — matrix, tier, session — fill the
+ * gap the same way they did before the plan existed.
+ */
+function isHumanPinnedSpawn(config: SubagentConfig): boolean {
+  if (config.modelChosenByLeader === true) return false;
+  return Boolean(config.provider || config.model);
+}
 
 export class Director implements DirectorFleetHost, ICoordinator {
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars — just a cast helper */
@@ -210,8 +235,16 @@ export class Director implements DirectorFleetHost, ICoordinator {
   private readonly collab: DirectorCollabController;
   readonly largeAnswerStore: LargeAnswerStore;
   private readonly statusTracker: ProviderModelStatusTracker | undefined;
-  private readonly sessionProvider: string | undefined;
-  private readonly sessionModel: string | undefined;
+  /**
+   * The session's own provider/model. Held as the option gave them — a getter
+   * where the host can supply one — and resolved at SPAWN time, not at
+   * construction: `/model` mid-session must reach the next worker, both for the
+   * plan's "use my model" switch and for the final session fallback. A snapshot
+   * here pinned every later subagent to whatever the leader ran on when the
+   * fleet was first built.
+   */
+  private readonly sessionProvider: string | (() => string | undefined) | undefined;
+  private readonly sessionModel: string | (() => string | undefined) | undefined;
 
   constructor(opts: DirectorOptions) {
     this.id = opts.config.coordinatorId || randomUUID();
@@ -559,8 +592,29 @@ export class Director implements DirectorFleetHost, ICoordinator {
       );
     }
     const config: SubagentConfig = { ...callerConfig };
-    this.resolveSpawnModel(config);
-    const subagentId = await fleetSpawn(this, config, priceLookup);
+    // Session-scoped model plan: take a lane BEFORE resolution so the lane's
+    // target participates in it, and hand the lane to the spawned subagent so
+    // `remove()` can give it back. A spawn that never happens (budget caps,
+    // coordinator refusal) must not strand the lane as permanently busy.
+    const slotClaim = isHumanPinnedSpawn(config)
+      ? undefined
+      : claimSubagentSlot(policySessionId, {
+          role: config.role,
+          // `/setmodel` routing keeps its spawns: a role (or phase) the user
+          // deliberately routed is not a "plain" spawn, so lanes and the
+          // follow-session switch step aside for it. A session role override
+          // still wins — that one names this role AND this session.
+          routed: this.hasExplicitMatrixRoute(config.role),
+        });
+    this.resolveSpawnModel(config, slotClaim);
+    let subagentId: string;
+    try {
+      subagentId = await fleetSpawn(this, config, priceLookup);
+    } catch (err) {
+      slotClaim?.abandon();
+      throw err;
+    }
+    slotClaim?.bind(subagentId);
     // Per-subagent idle timeout override: if the caller supplied an
     // `idleTimeoutMs` in the SubagentConfig (e.g. via `spawn_subagent`'s
     // inputSchema), honor it. Otherwise fall back to the Director-wide
@@ -578,10 +632,49 @@ export class Director implements DirectorFleetHost, ICoordinator {
     return subagentId;
   }
 
-  private resolveSpawnModel(config: SubagentConfig): void {
+  /**
+   * True when `/setmodel` names this role or its phase explicitly. The `*`
+   * wildcard does NOT count: it is the fallback for everything, not a routing
+   * decision about this spawn, so a session lane may still take it.
+   */
+  private hasExplicitMatrixRoute(role: string | undefined): boolean {
+    const matrix = typeof this.modelMatrix === 'function' ? this.modelMatrix() : this.modelMatrix;
+    const source = resolveModelMatrixResolution(matrix, role)?.source;
+    return source === 'role' || source === 'phase';
+  }
+
+  /**
+   * The provider/model a spawned worker actually runs on. `spawn()` resolves
+   * into its own copy of the config, so this map — written at spawn time — is
+   * the only honest answer for a caller that wants to report the pair back.
+   */
+  resolvedModelFor(
+    subagentId: string,
+  ): { provider?: string | undefined; model?: string | undefined } | undefined {
+    // Two homes for the same fact: `fleet-spawn` records into the FleetManager
+    // when one is injected (the CLI/WebUI path) and into the Director's own map
+    // otherwise (embedded + tests). Read both so the answer does not depend on
+    // which host built the fleet.
+    return this.fleetManager?.getSubagentMeta(subagentId) ?? this.subagentMeta.get(subagentId);
+  }
+
+  private resolveSpawnModel(
+    config: SubagentConfig,
+    slotClaim?: SubagentSlotClaim | undefined,
+  ): void {
     const appConfig = typeof this.appConfig === 'function' ? this.appConfig() : this.appConfig;
     resolveDirectorSpawnModel(config, {
       modelMatrix: this.modelMatrix,
+      ...(slotClaim
+        ? {
+            sessionPlan: {
+              kind: slotClaim.kind,
+              target: slotClaim.target,
+              lock: slotClaim.lock,
+              slotIndex: slotClaim.slotIndex,
+            },
+          }
+        : {}),
       ...(appConfig ? { config: appConfig } : {}),
       ...(config.tier ? { tier: config.tier } : {}),
       onTierResolved: (resolved) => {
@@ -589,8 +682,10 @@ export class Director implements DirectorFleetHost, ICoordinator {
         // office map show the level a worker is running at, not just its model.
         config.tier = resolved.tier;
       },
-      sessionProvider: this.sessionProvider,
-      sessionModel: this.sessionModel,
+      sessionProvider:
+        typeof this.sessionProvider === 'function' ? this.sessionProvider() : this.sessionProvider,
+      sessionModel:
+        typeof this.sessionModel === 'function' ? this.sessionModel() : this.sessionModel,
       statusTracker: this.statusTracker,
       logger: this.logger,
     });
@@ -737,6 +832,10 @@ export class Director implements DirectorFleetHost, ICoordinator {
   }
 
   async remove(subagentId: string): Promise<void> {
+    // Single reclaim gate for every retirement path (idle reap,
+    // retire-on-complete, session terminate, shutdown), so the session's model
+    // lane is freed exactly once and the next spawn can reuse it.
+    releaseSubagentSlot(subagentId);
     this.clearSubagentIdleRetirement(subagentId);
     this.subagentIdleDelayMs.delete(subagentId);
     void this.appendSessionEvent({

@@ -122,28 +122,46 @@ export class SpecVersioning {
     const specDiff = this.diff(oldSpec, newSpec);
     const changes: string[] = [];
 
-    // Map requirement IDs to task nodes
-    const reqToTask = new Map<string, TaskNode>();
+    // Map requirement IDs to task nodes (supports 1-to-many decomposed tasks)
+    const reqToTasks = new Map<string, TaskNode[]>();
     for (const node of graph.nodes.values()) {
       if (node.specRequirementId) {
-        reqToTask.set(node.specRequirementId, node);
+        const list = reqToTasks.get(node.specRequirementId);
+        if (list) {
+          list.push(node);
+        } else {
+          reqToTasks.set(node.specRequirementId, [node]);
+        }
       }
     }
 
     // Remove tasks for removed requirements
+    const deletedTaskIds = new Set<string>();
     for (const req of specDiff.removed) {
-      const task = reqToTask.get(req.id);
-      if (task) {
+      const tasks = reqToTasks.get(req.id) ?? [];
+      for (const task of tasks) {
         graph.nodes.delete(task.id);
-        graph.edges = graph.edges.filter((e) => e.from !== task.id && e.to !== task.id);
+        deletedTaskIds.add(task.id);
         changes.push(`Removed task: ${task.title}`);
+      }
+    }
+    if (deletedTaskIds.size > 0) {
+      graph.edges = graph.edges.filter(
+        (e) => !deletedTaskIds.has(e.from) && !deletedTaskIds.has(e.to),
+      );
+      graph.rootNodes = graph.rootNodes.filter((id) => !deletedTaskIds.has(id));
+      if (graph.requiredRequirementIds) {
+        const removedIds = new Set(specDiff.removed.map((r) => r.id));
+        graph.requiredRequirementIds = graph.requiredRequirementIds.filter(
+          (id) => !removedIds.has(id),
+        );
       }
     }
 
     // Update tasks for modified requirements
     for (const mod of specDiff.modified) {
-      const task = reqToTask.get(mod.requirement.id);
-      if (task) {
+      const tasks = reqToTasks.get(mod.requirement.id) ?? [];
+      for (const task of tasks) {
         task.title = mod.requirement.description;
         task.description = this.buildTaskDescription(mod.requirement);
         task.priority = mod.requirement.priority;

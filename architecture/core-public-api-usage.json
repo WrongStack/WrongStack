@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 210,
+      "files": 214,
       "typeOnly": 84,
-      "runtimeOrMixed": 181
+      "runtimeOrMixed": 185
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 61,
+      "files": 62,
       "typeOnly": 18,
-      "runtimeOrMixed": 58
+      "runtimeOrMixed": 59
     },
     "@wrongstack/core/extension": {
       "files": 7,
@@ -74,14 +74,14 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/infrastructure": {
-      "files": 43,
+      "files": 44,
       "typeOnly": 6,
-      "runtimeOrMixed": 42
+      "runtimeOrMixed": 43
     },
     "@wrongstack/core/kernel": {
-      "files": 262,
+      "files": 263,
       "typeOnly": 140,
-      "runtimeOrMixed": 135
+      "runtimeOrMixed": 136
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/registry": {
-      "files": 127,
+      "files": 128,
       "typeOnly": 62,
-      "runtimeOrMixed": 67
+      "runtimeOrMixed": 68
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 154,
+      "files": 155,
       "typeOnly": 27,
-      "runtimeOrMixed": 131
+      "runtimeOrMixed": 132
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -174,8 +174,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1085,
-      "typeOnly": 1005,
+      "files": 1088,
+      "typeOnly": 1008,
       "runtimeOrMixed": 284
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 586,
+      "files": 587,
       "typeOnly": 55,
-      "runtimeOrMixed": 559
+      "runtimeOrMixed": 560
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -2694,7 +2694,19 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/slash-commands/subagent-models.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/slash-commands/tier.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/subagent-models/panel-service.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -3048,6 +3060,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/slash-subagent-models.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/slash-supervisor.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3055,6 +3073,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/sprint2-reliable-queue.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -3859,6 +3883,12 @@
     {
       "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/tests/slash-mcp.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5280,6 +5310,12 @@
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/tests/subcommand-mcp.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 4
@@ -6037,6 +6073,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/slash-supervisor.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7950,6 +7992,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/subcommands.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8845,6 +8893,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/providers-models.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11580,6 +11634,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/slash-commands/subagent-models.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/suggest.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12636,6 +12696,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/slash-subagent-models.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/slash-techstack.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12655,6 +12721,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/sprint2-reliable-queue.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/subagent-model-lanes-e2e.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -18199,6 +18271,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/spawn-agents.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/subagent-models.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

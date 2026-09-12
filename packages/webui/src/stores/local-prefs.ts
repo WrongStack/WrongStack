@@ -58,6 +58,30 @@ export interface LocalPrefs {
   disabledModels: string[];
   /** Restrict auto-derived fallback chains to favorite models. */
   favoriteModelsOnly: boolean;
+  /**
+   * Session-scoped subagent model lanes. Each live subagent holds one lane, so
+   * a fan-out runs on as many different provider/model pairs as there are
+   * pinned lanes. `lock` decides whether a lane outranks the provider/model the
+   * leader passed to `spawn_subagent` / `delegate`. Never written to
+   * config.json — the server journals it with the session.
+   */
+  subagentModelPlan: {
+    enabled: boolean;
+    lock: boolean;
+    /** Run every plain subagent on the session's own model; outranks the lanes. */
+    followSessionModel?: boolean;
+    slots: Array<{
+      provider?: string;
+      model?: string;
+      tier?: string;
+      fallbackProfile?: string;
+      label?: string;
+    }>;
+    roles?: Record<
+      string,
+      { provider?: string; model?: string; tier?: string; fallbackProfile?: string }
+    >;
+  };
   /** Per-role/phase/default model routing matrix. */
   modelMatrix: Record<
     string,
@@ -332,6 +356,7 @@ export interface LocalPrefs {
 export const SESSION_SCOPED_PREFS = [
   'subagentsAllowed',
   'subagentsPolicyLocked',
+  'subagentModelPlan',
   'autonomy',
   'autonomyDelayMs',
   'autoProceedMaxIterations',
@@ -429,6 +454,7 @@ const DEFAULTS: LocalPrefsData = {
   disabledModels: [],
   favoriteModelsOnly: false,
   modelMatrix: {},
+  subagentModelPlan: { enabled: true, lock: true, followSessionModel: false, slots: [] },
   modelTiers: {},
   fallbackAuto: true,
   modelAvailabilitySchedule: [],

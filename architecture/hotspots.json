@@ -11,7 +11,7 @@
       "relativeImports": 7
     },
     "packages/cli/src/boot/tui-session-resume.ts": {
-      "lines": 824,
+      "lines": 828,
       "relativeImports": 1
     },
     "packages/cli/src/boot.ts": {
@@ -23,11 +23,11 @@
       "relativeImports": 34
     },
     "packages/cli/src/execution.ts": {
-      "lines": 901,
-      "relativeImports": 42
+      "lines": 906,
+      "relativeImports": 43
     },
     "packages/cli/src/fleet/host.ts": {
-      "lines": 872,
+      "lines": 875,
       "relativeImports": 25
     },
     "packages/cli/src/goal-host.ts": {
@@ -87,16 +87,16 @@
       "relativeImports": 10
     },
     "packages/core/src/coordination/delegate-tool.ts": {
-      "lines": 1067,
+      "lines": 1075,
       "relativeImports": 10
     },
     "packages/core/src/coordination/director-tools.ts": {
-      "lines": 951,
+      "lines": 966,
       "relativeImports": 18
     },
     "packages/core/src/coordination/director.ts": {
-      "lines": 970,
-      "relativeImports": 42
+      "lines": 1069,
+      "relativeImports": 43
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
       "lines": 971,
@@ -163,8 +163,8 @@
       "relativeImports": 7
     },
     "packages/core/src/types/session.ts": {
-      "lines": 994,
-      "relativeImports": 4
+      "lines": 1003,
+      "relativeImports": 5
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
       "lines": 915,
@@ -215,7 +215,7 @@
       "relativeImports": 1
     },
     "packages/plugins/src/git-autocommit/index.ts": {
-      "lines": 1030,
+      "lines": 1062,
       "relativeImports": 0
     },
     "packages/plugins/src/path-guard/shell-targets.ts": {
@@ -287,7 +287,7 @@
       "relativeImports": 18
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1067,
+      "lines": 1078,
       "relativeImports": 52
     },
     "packages/tools/src/bash.ts": {
@@ -331,16 +331,16 @@
       "relativeImports": 4
     },
     "packages/tui/src/app-action-type.ts": {
-      "lines": 833,
+      "lines": 857,
       "relativeImports": 13
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 998,
+      "lines": 1017,
       "relativeImports": 14
     },
     "packages/tui/src/app.tsx": {
-      "lines": 955,
-      "relativeImports": 57
+      "lines": 967,
+      "relativeImports": 58
     },
     "packages/tui/src/components/agents-monitor.tsx": {
       "lines": 984,
@@ -375,7 +375,7 @@
       "relativeImports": 11
     },
     "packages/tui/src/hooks/use-picker-keys-tools-settings.ts": {
-      "lines": 827,
+      "lines": 869,
       "relativeImports": 6
     },
     "packages/tui/src/input-validation.ts": {
@@ -483,7 +483,7 @@
       "relativeImports": 2
     },
     "packages/webui/src/stores/local-prefs.ts": {
-      "lines": 929,
+      "lines": 955,
       "relativeImports": 0
     },
     "packages/webui/src/stores/session-tab-store.ts": {
@@ -519,7 +519,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 1046,
+      "lines": 1050,
       "relativeImports": 47
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

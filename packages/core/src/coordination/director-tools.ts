@@ -102,11 +102,12 @@ export function makeSpawnTool(
       provider: {
         type: 'string',
         description:
-          'Provider id (e.g. "anthropic", "openai"). Defaults to the leader provider when omitted.',
+          'Provider id (e.g. "anthropic", "openai"). Defaults to the leader provider when omitted. The user may have pinned per-session models for spawned workers, in which case that pin wins over this field — the returned `provider`/`model` report what the worker actually runs on.',
       },
       model: {
         type: 'string',
-        description: 'Model id within the provider. Defaults to the leader model when omitted.',
+        description:
+          'Model id within the provider. Defaults to the leader model when omitted, and may be overridden by per-session worker-model pins the user set; read the returned `model` for what actually runs.',
       },
       tier: {
         type: 'string',
@@ -239,8 +240,16 @@ export function makeSpawnTool(
       }
 
       if (typeof i.name === 'string') cfg.name = i.name;
-      if (typeof i.provider === 'string') cfg.provider = i.provider;
-      if (typeof i.model === 'string') cfg.model = i.model;
+      // A model the LEADER picked, not a human — the session plan's lock is
+      // allowed to override exactly this (see `modelChosenByLeader`).
+      if (typeof i.provider === 'string') {
+        cfg.provider = i.provider;
+        cfg.modelChosenByLeader = true;
+      }
+      if (typeof i.model === 'string') {
+        cfg.model = i.model;
+        cfg.modelChosenByLeader = true;
+      }
       if (typeof i.system_prompt === 'string') cfg.prompt = i.system_prompt;
       if (typeof i.systemPrompt === 'string') cfg.prompt = i.systemPrompt;
       if (typeof i.systemPromptOverride === 'string')
@@ -305,10 +314,16 @@ export function makeSpawnTool(
         if (routing && director.onSpawnRouted) {
           director.onSpawnRouted(origin ? { ...routing, sessionId: origin } : routing);
         }
+        // Report what the worker ACTUALLY got. The session model plan, the
+        // routing matrix and the tier layer all resolve inside `spawn()` on a
+        // copy of this config, so `cfg.provider` / `cfg.model` still hold the
+        // leader's own request — echoing that back would describe a worker
+        // that does not exist.
+        const resolved = director.resolvedModelFor?.(subagentId);
         return {
           subagentId,
-          provider: cfg.provider,
-          model: cfg.model,
+          provider: resolved?.provider ?? cfg.provider,
+          model: resolved?.model ?? cfg.model,
           name: cfg.name,
           role: cfg.role,
         };

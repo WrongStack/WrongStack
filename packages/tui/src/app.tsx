@@ -45,6 +45,7 @@ import { useSessionRewind } from './hooks/use-session-rewind.js';
 import { useShadowPanel } from './hooks/use-shadow-panel.js';
 import { useSlashPicker } from './hooks/use-slash-picker.js';
 import { useStatusbarViewModel } from './hooks/use-statusbar-view-model.js';
+import { useSubagentModelsPanel } from './hooks/use-subagent-models-panel.js';
 import { useThemePickerHandler } from './hooks/use-theme-picker-handler.js';
 import { useTokenCounterRefresh } from './hooks/use-token-counter-refresh.js';
 import { useTuiControllers } from './hooks/use-tui-controllers.js';
@@ -120,6 +121,7 @@ export function App(props: AppProps): React.ReactElement {
     getBrainData,
     onBrainRiskLevel,
     brainPanelHost,
+    subagentModelsHost,
     getShadowData,
     onShadowStart,
     onShadowStop,
@@ -279,6 +281,12 @@ export function App(props: AppProps): React.ReactElement {
     getShadowData,
     onShadowStart,
     onShadowStop,
+  });
+
+  const subagentModelsCtl = useSubagentModelsPanel({
+    dispatch,
+    subagentModelsHost,
+    requestModelPick,
   });
 
   const { openHelpPanel } = useHelpPanel(dispatch, slashRegistry);
@@ -531,6 +539,9 @@ export function App(props: AppProps): React.ReactElement {
     openModePicker,
     openBrainPanel,
     openShadowPanel,
+    openSubagentModelsPanel: subagentModelsHost
+      ? subagentModelsCtl.openSubagentModelsPanel
+      : undefined,
     openHelpPanel,
     getSettings,
     getPluginItems,
@@ -752,6 +763,7 @@ export function App(props: AppProps): React.ReactElement {
     handleModelPicked,
     handleShadowStart,
     handleShadowStop,
+    subagentModelsController: subagentModelsCtl,
     statuslineHiddenForPicker,
     onPickerEnter,
     onThemePickerEnter,

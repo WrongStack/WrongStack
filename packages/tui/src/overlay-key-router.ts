@@ -47,6 +47,10 @@ const POINTER_OVERLAY_ROUTES: readonly PointerOverlayRoute[] = [
   { isOpen: (s) => s.helpPanel.open, cancel: () => ({ type: 'helpClose' }) },
   { isOpen: (s) => s.brainPanel.open, cancel: () => ({ type: 'brainClose' }) },
   { isOpen: (s) => s.shadowPanel.open, cancel: () => ({ type: 'shadowClose' }) },
+  {
+    isOpen: (s) => s.subagentModels?.open === true,
+    cancel: () => ({ type: 'subagentModelsClose' }),
+  },
   { isOpen: (s) => s.statuslinePicker.open, cancel: () => ({ type: 'statuslineClose' }) },
   { isOpen: (s) => s.projectPicker.open, cancel: () => ({ type: 'projectPickerClose' }) },
   { isOpen: (s) => s.sessionsPanelOpen, cancel: () => ({ type: 'toggleSessionsPanel' }) },

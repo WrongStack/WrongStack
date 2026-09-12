@@ -378,6 +378,17 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       shadow: { activeId: null, running: false, model: '', intervalMs: 30000 },
       hint: undefined,
     },
+    subagentModels: {
+      open: false,
+      lanes: [],
+      roles: [],
+      selected: 0,
+      enabled: true,
+      lock: true,
+      followSessionModel: false,
+      sessionTarget: '',
+      hint: undefined,
+    },
     authPanel: AUTH_PANEL_INITIAL,
     projectPicker: {
       open: false,

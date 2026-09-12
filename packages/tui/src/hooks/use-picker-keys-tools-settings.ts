@@ -568,6 +568,48 @@ export function tryToolsSettingsPickerKeys(
     return true;
   }
 
+  // ── Subagent model lanes panel ────────────────────────────
+  if (state.subagentModels?.open) {
+    if (key.escape) {
+      dispatch({ type: 'subagentModelsClose' });
+      return true;
+    }
+    if (key.mouse?.kind === 'wheel') {
+      dispatch({ type: 'subagentModelsMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+      return true;
+    }
+    if (key.upArrow) {
+      dispatch({ type: 'subagentModelsMove', delta: -1 });
+      return true;
+    }
+    if (key.downArrow) {
+      dispatch({ type: 'subagentModelsMove', delta: 1 });
+      return true;
+    }
+    if (key.mouse) return true;
+    if (isEnter) {
+      host.onSubagentLaneEdit?.(state.subagentModels.selected);
+      return true;
+    }
+    if (input === 'c' || input === 'C' || key.delete || key.backspace) {
+      host.onSubagentLaneClear?.(state.subagentModels.selected);
+      return true;
+    }
+    if (input === 'l' || input === 'L') {
+      host.onSubagentPlanToggle?.('lock');
+      return true;
+    }
+    if (input === 's' || input === 'S') {
+      host.onSubagentPlanToggle?.('followSessionModel');
+      return true;
+    }
+    if (input === ' ') {
+      host.onSubagentPlanToggle?.('enabled');
+      return true;
+    }
+    return true;
+  }
+
   // ── Statusline picker ─────────────────────────────────────
   if (state.statuslinePicker.open) {
     const focused = STATUSLINE_ITEMS[state.statuslinePicker.field];

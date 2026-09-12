@@ -86,10 +86,12 @@ function requestOnce(options: HttpRequestOptions): Promise<HttpResponse> {
     const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
     const callback = (response: IncomingMessage): void => {
       let body = '';
+      let bodyBytes = 0;
       response.setEncoding?.('utf8');
       response.on('data', (chunk: string | Buffer) => {
         body += chunk.toString();
-        if (body.length > maxBodyBytes) {
+        bodyBytes += Buffer.byteLength(chunk);
+        if (bodyBytes > maxBodyBytes) {
           // Stop reading and fail loudly rather than growing the buffer without
           // bound (also defeats a slow-drip stream that never trips the idle
           // timeout). destroy() ends the socket; the retry loop treats it as a

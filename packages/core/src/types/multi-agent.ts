@@ -105,6 +105,16 @@ export interface SubagentConfig {
    * have always used.
    */
   originSessionId?: string | undefined;
+  /**
+   * True when the `provider`/`model` on this config came from the LEADER's own
+   * tool call (`spawn_subagent` / `delegate`) rather than from a human.
+   *
+   * The session model plan's `lock` exists to take that decision back, so it
+   * only overrides a pin carrying this marker. A model a person typed —
+   * `/spawn --model=…`, an ACP flag, a Kanban task route they authored — is a
+   * one-off statement more specific than a standing lane, and wins.
+   */
+  modelChosenByLeader?: boolean | undefined;
 
   /**
    * Working directory for this subagent's tools. Defaults to the factory's

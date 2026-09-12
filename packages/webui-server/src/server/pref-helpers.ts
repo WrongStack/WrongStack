@@ -142,6 +142,9 @@ export const PREF_KEYS = [
   'keyboardShortcuts',
   'subagentsAllowed',
   'subagentsPolicyLocked',
+  // Session-scoped subagent model lanes. Never persisted to config.json: the
+  // plan belongs to one conversation and is journaled with its session.
+  'subagentModelPlan',
 ] as const;
 
 export interface PrefHelperDeps {

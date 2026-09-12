@@ -20,6 +20,19 @@ import type { IFleetManager } from './ifleet-manager.js';
 
 interface DirectorSpawnPort {
   spawn(config: SubagentConfig): Promise<string>;
+  /**
+   * The provider/model a spawned worker actually got, after the full
+   * resolution ladder (session lane, routing matrix, tier, session fallback).
+   * `spawn()` copies its argument, so the caller's own config still holds
+   * whatever it asked for — reporting that back would tell the leader it got a
+   * model the worker is not running. Optional: hosts that do not track the
+   * resolved pair simply omit it.
+   */
+  readonly resolvedModelFor?:
+    | ((
+        subagentId: string,
+      ) => { provider?: string | undefined; model?: string | undefined } | undefined)
+    | undefined;
 }
 
 /** Admission includes optional smart-dispatch policy used before spawning. */

@@ -116,6 +116,13 @@ const ARRAY_PREF_VALIDATORS: Record<
 };
 const MODEL_MATRIX_PREF_KEYS = new Set(['modelMatrix']);
 /**
+ * Session-scoped subagent model plan (`coordination/session-subagent-models`).
+ * Shape-checked here only enough to reject junk; core's
+ * `normalizeSubagentModelPlan` is the canonical coercion and runs on the way
+ * into the registry, so unknown extra fields are tolerated on purpose.
+ */
+const SUBAGENT_MODEL_PLAN_PREF_KEYS = new Set(['subagentModelPlan']);
+/**
  * Deterministic cost tiers (`Config.modelTiers`).
  *
  * This key was in `pref-helpers.ts`'s PREF_KEYS — the persist half was written
@@ -525,6 +532,35 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
     }
     return null;
   }
+  if (SUBAGENT_MODEL_PLAN_PREF_KEYS.has(key)) {
+    if (!isRecord(value)) return `prefs.update payload.${key} must be an object`;
+    const slots = value['slots'];
+    if (slots !== undefined && !Array.isArray(slots)) {
+      return `prefs.update payload.${key}.slots must be an array when provided`;
+    }
+    if (Array.isArray(slots) && slots.some((slot) => slot !== null && !isRecord(slot))) {
+      return `prefs.update payload.${key}.slots entries must be objects`;
+    }
+    const roles = value['roles'];
+    if (roles !== undefined && !isRecord(roles)) {
+      return `prefs.update payload.${key}.roles must be an object when provided`;
+    }
+    if (isRecord(roles)) {
+      // Role names become property keys on the plan, so reject the pollution
+      // keys the matrix/record validators already guard against.
+      const badRoleKey = Object.keys(roles).find((k) => FORBIDDEN_PROTO_KEYS.has(k));
+      if (badRoleKey) {
+        return `prefs.update payload.${key} contains a forbidden key: ${badRoleKey}`;
+      }
+    }
+    for (const flag of ['enabled', 'lock'] as const) {
+      const flagValue = value[flag];
+      if (flagValue !== undefined && typeof flagValue !== 'boolean') {
+        return `prefs.update payload.${key}.${flag} must be a boolean when provided`;
+      }
+    }
+    return null;
+  }
   if (MODEL_MATRIX_PREF_KEYS.has(key)) {
     if (!isRecord(value)) return `prefs.update payload.${key} must be an object`;
     // Role-name keys become property keys on `config.modelMatrix`
@@ -607,6 +643,7 @@ export const VALIDATED_PREF_KEYS: ReadonlySet<string> = new Set<string>([
   ...BOOLEAN_RECORD_PREF_KEYS,
   ...MODEL_MATRIX_PREF_KEYS,
   ...MODEL_TIERS_PREF_KEYS,
+  ...SUBAGENT_MODEL_PLAN_PREF_KEYS,
   ...Object.keys(ENUM_PREF_KEYS),
 ]);
 

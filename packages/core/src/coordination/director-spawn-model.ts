@@ -6,6 +6,7 @@ import { resolveModelMatrixResolution, roleNeedsIndependentReviewModel } from '.
 import type { ResolvedTierTarget } from './model-tier.js';
 import { applyTierToSubagentConfig, classifyTier, listTierIds, resolveTier } from './model-tier.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
+import { isSlotConfigured, type SubagentSlot } from './session-subagent-models.js';
 
 export interface ResolveDirectorSpawnModelOptions {
   modelMatrix?: ModelMatrixSource | undefined;
@@ -28,6 +29,22 @@ export interface ResolveDirectorSpawnModelOptions {
   sessionModel?: string | undefined;
   statusTracker?: ProviderModelStatusTracker | undefined;
   logger?: Logger | undefined;
+  /**
+   * Session-scoped lane (or role overlay) claimed for this spawn. Unlike the
+   * matrix this is a statement the USER made about this session, so with
+   * `lock` set it outranks the provider/model the leader passed to
+   * `spawn_subagent` / `delegate`. See `session-subagent-models.ts`.
+   */
+  sessionPlan?:
+    | {
+        /** Which part of the plan matched (see `SubagentSlotClaim`). */
+        kind: 'role' | 'lane' | 'session-model';
+        target: SubagentSlot;
+        lock: boolean;
+        /** Lane index, for the log line. Undefined for role/session-model. */
+        slotIndex?: number | undefined;
+      }
+    | undefined;
 }
 
 export function resolveDirectorSpawnModel(
@@ -40,6 +57,69 @@ export function resolveDirectorSpawnModel(
   // producing a subagent with no valid credentials.
   if (config.provider?.trim() === '') config.provider = undefined;
   if (config.model?.trim() === '') config.model = undefined;
+
+  // Session-scoped plan. Runs FIRST because, unlike every other layer here, it
+  // is the user speaking about this session rather than the leader speaking
+  // about this spawn. With the lock on it discards the leader's pins WHOLESALE
+  // before applying its own: keeping a leader `model` next to a plan `provider`
+  // would wire a pair that exists in neither, so a lane owns the whole target
+  // and lets the layers below fill whatever it left unset.
+  let tier = opts.tier;
+  let planPinnedProvider = false;
+  const plan = opts.sessionPlan;
+  // "Use my model" carries no target of its own: it resolves to the session's
+  // provider/model, which is exactly what the final fallback below already
+  // does — so the plan step only has to clear whatever the leader pinned.
+  const planTarget =
+    plan?.kind === 'session-model'
+      ? { provider: opts.sessionProvider, model: opts.sessionModel }
+      : plan?.target;
+  if (plan && planTarget && isSlotConfigured(planTarget)) {
+    const lane =
+      plan.kind === 'session-model'
+        ? 'session model'
+        : plan.slotIndex === undefined
+          ? `role "${config.role ?? '?'}"`
+          : `lane #${plan.slotIndex + 1}`;
+    // Only the LEADER's pins are cleared here. A spawn a person pinned never
+    // reaches this branch: `Director.spawn` declines to claim a lane for it
+    // (see `isHumanPinnedSpawn`), so `opts.sessionPlan` is absent and the
+    // config travels untouched.
+    if (plan.lock) {
+      if (config.provider || config.model || config.tier || config.fallbackProfile) {
+        opts.logger?.info(
+          `spawn: session subagent-model plan (${lane}) overrode leader-supplied ` +
+            `"${config.provider ?? '?'}/${config.model ?? '?'}" for role "${config.role ?? '?'}"`,
+        );
+      }
+      config.provider = undefined;
+      config.model = undefined;
+      config.tier = undefined;
+      config.fallbackProfile = undefined;
+      config.modelRuntime = undefined;
+      // The ad-hoc chain goes too: its entries were chosen to back the model
+      // the leader picked, so leaving it would route this worker straight back
+      // to the leader's models on the first 429 — the exact decision the lock
+      // took away. The lane's own profile/tier supplies the replacement chain.
+      config.fallbackModels = undefined;
+      tier = undefined;
+    }
+    if (planTarget.provider && !config.provider) {
+      config.provider = planTarget.provider;
+      planPinnedProvider = true;
+    }
+    if (planTarget.model && !config.model) config.model = planTarget.model;
+    if (planTarget.fallbackProfile && !config.fallbackProfile) {
+      config.fallbackProfile = planTarget.fallbackProfile;
+    }
+    if (planTarget.modelRuntime && !config.modelRuntime) {
+      config.modelRuntime = planTarget.modelRuntime;
+    }
+    if (planTarget.tier && !tier) {
+      tier = planTarget.tier;
+      config.tier = planTarget.tier;
+    }
+  }
 
   // Per-task model matrix: when the caller didn't pin a model, resolve one
   // from the matrix by role (→ phase → `*`). Done here, before the spawned
@@ -57,7 +137,12 @@ export function resolveDirectorSpawnModel(
       // when the missing model is filled from the session below, just as a
       // model-only route keeps its model while inheriting the provider.
       if (entry.model) config.model = entry.model;
-      if (entry.provider) config.provider = entry.provider;
+      // A lane that pinned a provider keeps it: the matrix overwrite below
+      // exists to keep a matrix pair coherent, and the plan outranks the
+      // matrix. The model may still come from the matrix/tier/session — the
+      // same provider-from-one-layer split a provider-only matrix route
+      // already relies on.
+      if (entry.provider && !planPinnedProvider) config.provider = entry.provider;
       if (entry.fallbackProfile) config.fallbackProfile = entry.fallbackProfile;
       if (entry.modelRuntime) config.modelRuntime = entry.modelRuntime;
     }
@@ -75,12 +160,12 @@ export function resolveDirectorSpawnModel(
     // to say so. Warn loudly and name the levels that do exist. The spawn still
     // proceeds — refusing to run a task because a cost label was misspelled is
     // worse than running it on the normal model.
-    if (opts.tier) {
-      const decision = classifyTier(opts.config, { role: config.role, tier: opts.tier });
+    if (tier) {
+      const decision = classifyTier(opts.config, { role: config.role, tier });
       if (decision && !decision.configured) {
         const available = listTierIds(opts.config);
         opts.logger?.warn(
-          `spawn: tier "${opts.tier}" is not a configured level` +
+          `spawn: tier "${tier}" is not a configured level` +
             `${available.length ? ` (available: ${available.join(', ')})` : ' (modelTiers.levels is empty)'}` +
             ' — falling through to matrix/session resolution.',
         );
@@ -88,7 +173,7 @@ export function resolveDirectorSpawnModel(
     }
     const resolvedTier = resolveTier(opts.config, {
       role: config.role,
-      tier: opts.tier,
+      tier,
     });
     if (resolvedTier) {
       applyTierToSubagentConfig(config, resolvedTier);

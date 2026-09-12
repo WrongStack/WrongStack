@@ -21,6 +21,8 @@ interface PanelControllersOptions {
   openModePicker: () => void | Promise<void>;
   openBrainPanel: () => void | Promise<void>;
   openShadowPanel: () => void | Promise<void>;
+  /** Opens the `/subagent-models` lane panel; omitted when the host wires no plan. */
+  openSubagentModelsPanel?: (() => void) | undefined;
   openHelpPanel: () => void | Promise<void>;
   getSettings: AppProps['getSettings'];
   getPluginItems: AppProps['getPluginItems'];
@@ -49,6 +51,7 @@ export function usePanelControllers({
   openModePicker,
   openBrainPanel,
   openShadowPanel,
+  openSubagentModelsPanel,
   openHelpPanel,
   getSettings,
   getPluginItems,
@@ -124,6 +127,7 @@ export function usePanelControllers({
       openModePicker,
       openBrainPanel,
       openShadowPanel,
+      openSubagentModelsPanel,
       openHelpPanel,
     });
     onPanelOpen.current = dispatcher;
@@ -139,6 +143,7 @@ export function usePanelControllers({
     openModePicker,
     openBrainPanel,
     openShadowPanel,
+    openSubagentModelsPanel,
     openHelpPanel,
   ]);
   // Keep the F10 sessions panel live: refresh every 5s while open

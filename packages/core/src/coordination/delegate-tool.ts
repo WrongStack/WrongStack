@@ -357,8 +357,15 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           // the roster value, defeating the layering contract. The IIFE
           // already reads `i.systemPromptOverride` directly from the
           // outer input, so the explicit assignment here is unnecessary.
-          if (i.provider) cfg.provider = i.provider;
-          if (i.model) cfg.model = i.model;
+          // Leader-chosen, so the session plan's lock may override it.
+          if (i.provider) {
+            cfg.provider = i.provider;
+            cfg.modelChosenByLeader = true;
+          }
+          if (i.model) {
+            cfg.model = i.model;
+            cfg.modelChosenByLeader = true;
+          }
         } else {
           if (!i.name) {
             return {
@@ -371,6 +378,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
             provider: i.provider,
             model: i.model,
             systemPromptOverride: i.systemPromptOverride,
+            ...(i.provider || i.model ? { modelChosenByLeader: true } : {}),
           };
           // Apply generic budget so free-form subagents get the x10
           // budget even without a roster role.

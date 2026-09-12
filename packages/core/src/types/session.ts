@@ -96,6 +96,15 @@ type SessionEventVariant =
   | { type: 'session_start'; ts: string; id: string; model: string; provider: string }
   | { type: 'session_resumed'; ts: string; id: string; model: string; provider: string }
   | { type: 'subagent_policy'; ts: string; allowed: boolean }
+  /**
+   * Session-scoped subagent model plan (lanes + role overlay). Last event wins
+   * on resume; see `coordination/session-subagent-models.ts`.
+   */
+  | {
+      type: 'subagent_model_plan';
+      ts: string;
+      plan: import('../coordination/session-subagent-models.js').SessionSubagentModelPlan;
+    }
   | {
       type: 'session_forked';
       ts: string;

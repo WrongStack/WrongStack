@@ -23,8 +23,10 @@
 import path from 'node:path';
 import type { Agent, AgentPipelines, Context } from '@wrongstack/core/agent';
 import {
+  normalizeSubagentModelPlan,
   type ObservableBrainArbiter,
   seedSessionSubagentPolicy,
+  setSessionSubagentModelPlan,
   setSessionSubagentsAllowed,
 } from '@wrongstack/core/coordination';
 import type {
@@ -776,6 +778,8 @@ export function buildRoutes(
     },
     setSubagentsAllowed: (allowed, sessionId) =>
       setSessionSubagentsAllowed(sessionContext(sessionId), allowed),
+    setSubagentModelPlan: (plan, sessionId) =>
+      setSessionSubagentModelPlan(sessionContext(sessionId), normalizeSubagentModelPlan(plan)),
     persist: cb.persistPrefsToConfig,
     pendingConfirms: deps.pendingConfirms,
     configStore: deps.configStore,

@@ -2867,6 +2867,62 @@ input:focus-visible,
   cursor: pointer;
 }
 
+/* Subagent model lanes. Not a ToggleRow: the block carries its own header
+   copy plus a lane list, so it borrows the toggle's typography tokens rather
+   than its grid. */
+.settings-subagent-models {
+  margin-top: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-subagent-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: var(--subtle);
+  font-size: 9px;
+}
+
+.settings-subagent-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.settings-subagent-controls input[type="number"] {
+  width: 48px;
+  padding: 2px 4px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 9px;
+}
+
+.settings-subagent-lane {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-subagent-lane span {
+  color: var(--subtle);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-subagent-lane select {
+  min-width: 0;
+  padding: 3px 5px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 9px;
+}
+
 .settings-toggle.disabled {
   cursor: default;
   opacity: 0.55;

@@ -72,6 +72,34 @@ describe('requestWithRetry body cap', () => {
     expect(res.destroyed).toBe(true);
   });
 
+  it('measures UTF-8 body limits in bytes rather than JavaScript string length', async () => {
+    const res = fakeResponse();
+    vi.mocked(httpsGet).mockImplementation(((_opts: unknown, cb: (r: IncomingMessage) => void) => {
+      cb(res);
+      setTimeout(() => {
+        // Two emoji occupy four UTF-16 code units but eight UTF-8 bytes.
+        res._emit('data', '😀😀');
+        res._emit('end');
+      }, 0);
+      const req: Partial<ClientRequest> = {
+        on: vi.fn(() => req as ClientRequest),
+        end: vi.fn(),
+        write: vi.fn(),
+      };
+      return req as ClientRequest;
+    }) as typeof httpsGet);
+
+    await expect(
+      requestWithRetry({
+        hostname: 'registry.example',
+        path: '/utf8-over-cap',
+        maxAttempts: 1,
+        maxBodyBytes: 5,
+      }),
+    ).rejects.toThrow(/exceeded 5 bytes/);
+    expect(res.destroyed).toBe(true);
+  });
+
   it('returns the full body when under the cap', async () => {
     const res = fakeResponse();
     vi.mocked(httpsGet).mockImplementation(((_opts: unknown, cb: (r: IncomingMessage) => void) => {

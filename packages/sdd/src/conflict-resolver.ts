@@ -131,7 +131,7 @@ export interface LlmConflictResolverOptions {
 
 /** Strip a single surrounding ``` code fence (any/no language) if present. */
 function unfence(text: string): string {
-  const m = text.match(/^[\s\S]*?```[^\n]*\n([\s\S]*?)\n```[\s\S]*$/);
+  const m = text.match(/^[\s\S]*?```[^\n]*\n([\s\S]*)\n```[\s\S]*$/);
   return m?.[1] !== undefined ? m[1] : text.trim();
 }
 

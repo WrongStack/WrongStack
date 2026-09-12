@@ -61,6 +61,8 @@ import type {
   ResourceMenuAction,
   ResourceMenuSnapshot,
   ShadowState,
+  SubagentLaneView,
+  SubagentRoleView,
   ToolPickerItem,
   WorktreeRow,
 } from './ui-contracts.js';
@@ -141,6 +143,28 @@ export type Action =
   | { type: 'modelPickerSearch'; query: string }
   /** ←/→ on the focused model row: cycle its reasoning-effort choice. */
   | { type: 'modelPickerEffort'; delta: number }
+  /** Per-session subagent model lanes — opened by `/subagent-models`. */
+  | {
+      type: 'subagentModelsOpen';
+      lanes: SubagentLaneView[];
+      roles: SubagentRoleView[];
+      enabled: boolean;
+      lock: boolean;
+      followSessionModel: boolean;
+      sessionTarget: string;
+    }
+  | { type: 'subagentModelsClose' }
+  | { type: 'subagentModelsMove'; delta: number }
+  | {
+      type: 'subagentModelsUpdate';
+      lanes: SubagentLaneView[];
+      roles: SubagentRoleView[];
+      enabled: boolean;
+      lock: boolean;
+      followSessionModel: boolean;
+      sessionTarget: string;
+    }
+  | { type: 'subagentModelsHint'; text?: string | undefined }
   | { type: 'autonomyPickerOpen'; options: AutonomyOption[] }
   | { type: 'autonomyPickerClose' }
   | { type: 'autonomyPickerMove'; delta: number }

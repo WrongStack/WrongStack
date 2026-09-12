@@ -64,6 +64,12 @@ export interface PickerKeysHost {
   onModelPicked: ((providerId: string, modelId: string) => void) | undefined;
   onShadowStart: (() => Promise<void> | void) | undefined;
   onShadowStop: (() => Promise<void> | void) | undefined;
+  /** `/subagent-models` panel: edit the focused lane through the shared picker. */
+  onSubagentLaneEdit: ((index: number) => void) | undefined;
+  /** `/subagent-models` panel: clear the focused lane. */
+  onSubagentLaneClear: ((index: number) => void) | undefined;
+  /** `/subagent-models` panel: toggle `lock` (lanes vs leader) or `enabled`. */
+  onSubagentPlanToggle: ((field: 'lock' | 'enabled' | 'followSessionModel') => void) | undefined;
   onFKeyPickerEnter: (() => void) | undefined;
   onPickerEnter: (() => Promise<void>) | undefined;
   /**
