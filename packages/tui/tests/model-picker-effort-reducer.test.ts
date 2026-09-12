@@ -26,7 +26,7 @@ const PROVIDERS: ProviderOption[] = [
 
 function base(): State {
   return createInitialState({
-    banner: '',
+    banner: false,
     appVersion: '0.0.0',
     provider: 'openai',
     model: 'o3',

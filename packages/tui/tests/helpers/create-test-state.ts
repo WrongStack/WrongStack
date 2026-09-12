@@ -22,6 +22,7 @@
  */
 
 import type { State } from '../../src/app-state.js';
+import { EFFORT_KEEP } from '../../src/components/model-picker-effort.js';
 import { DEFAULT_PANEL_POSITIONS } from '../../src/ui-contracts.js';
 
 /**
@@ -90,6 +91,7 @@ export function createTestState(
       filteredOptions: [],
       selected: 0,
       searchQuery: '',
+      effort: EFFORT_KEEP,
       purpose: 'switch',
     },
     autonomyPicker: { open: false, options: [], selected: 0 },
