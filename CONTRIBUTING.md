@@ -7,7 +7,7 @@ Thank you for your interest in contributing to WrongStack! This guide covers the
 ## Prerequisites
 
 - **Node.js** ≥ 22.19.0
-- **pnpm** ≥ 11.5.3 (`corepack enable && corepack prepare pnpm@11.5.3 --activate`)
+- **pnpm** ≥ 12.3.4 — `corepack enable` is enough; the repo's `packageManager` field pins the exact version
 - **Git**
 - **Python 3** (only if you work on the security-scanner skills)
 

@@ -168,7 +168,7 @@ memory, tools, providers, permissions, and the multi-agent runtime actually work
 
 ## Requirements
 
-- **npm/pnpm install:** Node.js ≥ 22.19.0 and pnpm ≥ 11.5.3 (recommended) or npm
+- **npm/pnpm install:** Node.js ≥ 22.19.0 and pnpm ≥ 12.3.4 (recommended) or npm
 - **Bun runtime:** Bun ≥ 1.3.10
 
 ---
