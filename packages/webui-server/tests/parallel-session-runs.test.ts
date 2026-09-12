@@ -249,6 +249,7 @@ function makeConversationHarness(
       abort: (_ws, sessionId) => controllers.get(sessionId)?.abort(),
     },
     pendingConfirms: new Map(),
+    submitUserInput: vi.fn(),
     send: (_ws, message) => sent.push(message),
     notifyAbort: (_ws, message) => sent.push(message),
     ...(options.withSessionTransition

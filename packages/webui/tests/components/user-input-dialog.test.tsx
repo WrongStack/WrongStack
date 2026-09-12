@@ -11,7 +11,9 @@ const socket = vi.hoisted(() => {
         handlers.set(type, set);
         return () => set.delete(handler);
       }),
-      send: vi.fn(() => true),
+      // Typed with its parameter, not `() => true`: a zero-arg mock infers a
+      // `[]` call tuple, and the assertions below read `calls[0][0]`.
+      send: vi.fn((_message: unknown) => true),
     },
     emit(type: string, message: unknown) {
       for (const handler of handlers.get(type) ?? []) handler(message);

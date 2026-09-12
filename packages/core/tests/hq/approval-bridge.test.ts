@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { resetConfirmObserversForTest } from '../../src/core/confirm-observers.js';
 import {
   type ApprovalRegistry,
@@ -13,10 +13,15 @@ import type {
 import type { HqPublisher } from '../../src/hq/publisher.js';
 import { EventBus } from '../../src/kernel/events.js';
 
-function fakePublisher(
-  spy: ReturnType<typeof vi.fn>,
-  redactionPolicy?: Partial<HqRedactionPolicy>,
-): HqPublisher {
+/**
+ * `ReturnType<typeof vi.fn>` widens to `Mock<Constructable | Procedure>`,
+ * which the type system refuses to CALL (it might be a constructor). Naming
+ * the signature keeps the spy callable here and still accepts a bare
+ * `vi.fn()` at every call site.
+ */
+type PublishSpy = Mock<(o: { type: string; payload: unknown }) => void>;
+
+function fakePublisher(spy: PublishSpy, redactionPolicy?: Partial<HqRedactionPolicy>): HqPublisher {
   return {
     redactionPolicy,
     publishEvent: (o: { type: string; payload: unknown }) => {

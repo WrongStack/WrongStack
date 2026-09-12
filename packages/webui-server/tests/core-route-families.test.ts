@@ -19,6 +19,7 @@ describe('canonical core route families', () => {
     ['abort', 'abort'],
     ['ping', 'ping'],
     ['tool.confirm_result', 'confirmTool'],
+    ['user.input_submit', 'submitUserInput'],
   ] as const)('dispatches conversation message %s', async (type, handlerName) => {
     const handlers: ConversationRouteHandlers = {
       userMessage: vi.fn(),
@@ -26,6 +27,7 @@ describe('canonical core route families', () => {
       ping: vi.fn(),
       confirmTool: vi.fn(),
       topicAdvice: vi.fn(),
+      submitUserInput: vi.fn(),
     };
     const msg = { type, payload: {} };
 
@@ -63,6 +65,7 @@ describe('canonical core route families', () => {
       ping: vi.fn(),
       confirmTool: vi.fn(),
       topicAdvice: vi.fn(),
+      submitUserInput: vi.fn(),
     };
     await expect(handleConversationRoute(ws, { type: 'providers.list' }, handlers)).resolves.toBe(
       false,

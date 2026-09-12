@@ -27,6 +27,7 @@ function harness(options: { busy?: boolean } = {}) {
     getSessionId: () => 'session-live',
     runControl: { begin, end, abort },
     pendingConfirms: new Map(),
+    submitUserInput: vi.fn(),
     send: (_ws, message) => sent.push(message),
     notifyAbort: (_ws, message) => aborted.push(message),
     getMaxIterations: () => 7,
@@ -77,6 +78,7 @@ describe('createConversationOperations', () => {
       getSessionId: () => 'session-live',
       runControl: { begin, end, abort: vi.fn() },
       pendingConfirms: new Map(),
+      submitUserInput: vi.fn(),
       send: (_ws, message) => sent.push(message),
       notifyAbort: vi.fn(),
     });
@@ -138,6 +140,7 @@ describe('createConversationOperations', () => {
       getSessionId: () => 'session-live',
       runControl: { begin: () => controller, end: vi.fn(), abort: vi.fn() },
       pendingConfirms: new Map(),
+      submitUserInput: vi.fn(),
       send: (_ws, message) => sent.push(message),
       notifyAbort: vi.fn(),
     });
@@ -225,6 +228,7 @@ describe('createConversationOperations', () => {
       getSessionId: () => liveSessionId,
       runControl: { begin: () => controller, end: vi.fn(), abort: vi.fn() },
       pendingConfirms: new Map(),
+      submitUserInput: vi.fn(),
       send: (_ws, message) => sent.push(message),
       notifyAbort: vi.fn(),
     });
@@ -273,6 +277,7 @@ describe('topic advice session ownership', () => {
       hasSession: hasSession ?? (() => true),
       runControl: { begin: () => new AbortController(), end: vi.fn(), abort: vi.fn() },
       pendingConfirms: new Map(),
+      submitUserInput: vi.fn(),
       send: (_ws, message) => sent.push(message),
       notifyAbort: vi.fn(),
     });
