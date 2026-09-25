@@ -15,6 +15,7 @@
 | xai | xAI | openai-compatible | metered-api | https://api.x.ai/v1 | XAI_API_KEY | catalog/discovery |
 | ai-gateway | Vercel AI Gateway | openai-compatible | metered-api | https://ai-gateway.vercel.sh/v1 | AI_GATEWAY_API_KEY | catalog/discovery |
 | openrouter | OpenRouter (Metered) | openai-compatible | metered-api | https://openrouter.ai/api/v1 | OPENROUTER_API_KEY | openai/gpt-4o, openai/gpt-4o-mini, anthropic/claude-sonnet-4-20250514, google/gemini-2.0-flash-001, meta-llama/llama-4-scout, deepseek/deepseek-chat |
+| requesty | Requesty (Metered) | openai-compatible | metered-api | https://router.requesty.ai/v1 | REQUESTY_API_KEY | gpt-5.4, gpt-5.4-mini, claude-sonnet-4-5, claude-haiku-4-5, gemini-3.5-flash, deepseek-v4-flash |
 | kimi-for-coding | Kimi Code (Subscription) | openai-compatible | subscription-interactive | https://api.kimi.com/coding/v1 | KIMI_API_KEY | kimi-for-coding, kimi-for-coding-highspeed |
 | moonshotai | Moonshot Platform (Metered) | openai-compatible | metered-api | https://api.moonshot.ai/v1 | MOONSHOT_API_KEY | kimi-k2.7-code, kimi-k2.7-code-highspeed |
 | zai-coding-plan | Z.AI Coding Plan (Subscription) | openai-compatible | subscription-interactive | https://api.z.ai/api/coding/paas/v4 | ZHIPU_API_KEY | glm-5.3, glm-5.3-flash, glm-5.2, glm-5-turbo, glm-4.7 |

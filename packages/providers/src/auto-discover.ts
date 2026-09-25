@@ -83,6 +83,17 @@ interface CompatibleModelEntry {
    */
   type?: unknown;
   modelType?: unknown;
+  /** Requesty names the model class `api` (`chat`, `embedding`, ...). */
+  api?: unknown;
+  /** Requesty states capabilities as top-level booleans. */
+  supports_tool_calling?: unknown;
+  supports_vision?: unknown;
+  supports_reasoning?: unknown;
+  /** Requesty quotes per-token USD as top-level numbers. */
+  input_price?: unknown;
+  output_price?: unknown;
+  cached_price?: unknown;
+  caching_price?: unknown;
 }
 
 /** One provider that should have its model list fetched at boot. */
@@ -232,6 +243,22 @@ function mapXaiPricing(entry: CompatibleModelEntry): Record<string, number> | un
   return Object.keys(cost).length > 0 ? cost : undefined;
 }
 
+/** Requesty top-level prices are per-token USD numbers → USD per 1M tokens. */
+function mapRequestyPricing(entry: CompatibleModelEntry): Record<string, number> | undefined {
+  const cost: Record<string, number> = {};
+  const fields: Array<[string, unknown]> = [
+    ['input', entry.input_price],
+    ['output', entry.output_price],
+    ['cache_read', entry.cached_price],
+    ['cache_write', entry.caching_price],
+  ];
+  for (const [name, raw] of fields) {
+    const value = typeof raw === 'number' ? asPricePerMillion(raw) : undefined;
+    if (value !== undefined) cost[name] = value;
+  }
+  return Object.keys(cost).length > 0 ? cost : undefined;
+}
+
 function asPosInt(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : undefined;
 }
@@ -252,6 +279,7 @@ export function mapCompatibleModel(entry: CompatibleModelEntry): ModelsDevModel 
   // video. Offering `whisper-1` in a model picker is worse than omitting it.
   const modelClass = entry.type ?? entry.modelType;
   if (typeof modelClass === 'string' && modelClass !== 'language') return undefined;
+  if (typeof entry.api === 'string' && entry.api !== 'chat') return undefined;
 
   const caps = entry.capabilities ?? {};
   const inputModalities =
@@ -267,6 +295,7 @@ export function mapCompatibleModel(entry: CompatibleModelEntry): ModelsDevModel 
   const params = asStringArray(entry.supported_parameters);
   const vision = foldSignals(
     asTriBool(caps.vision),
+    asTriBool(entry.supports_vision),
     inputModalities ? inputModalities.includes('image') : undefined,
   );
   const context =
@@ -282,6 +311,7 @@ export function mapCompatibleModel(entry: CompatibleModelEntry): ModelsDevModel 
   const toolCall = foldSignals(
     asTriBool(caps.tool_calling),
     asTriBool(caps.tools),
+    asTriBool(entry.supports_tool_calling),
     params ? params.includes('tools') || params.includes('tool_choice') : undefined,
   );
   // omniroute splits these: `reasoning` (effort) and `thinking` (extended).
@@ -289,6 +319,7 @@ export function mapCompatibleModel(entry: CompatibleModelEntry): ModelsDevModel 
   const reasoning = foldSignals(
     asTriBool(caps.reasoning),
     asTriBool(caps.thinking),
+    asTriBool(entry.supports_reasoning),
     params ? params.includes('reasoning') || params.includes('include_reasoning') : undefined,
   );
   const temperature = foldSignals(
@@ -320,7 +351,7 @@ export function mapCompatibleModel(entry: CompatibleModelEntry): ModelsDevModel 
       ...(output !== undefined ? { output } : {}),
     };
   }
-  const cost = mapPricing(entry.pricing) ?? mapXaiPricing(entry);
+  const cost = mapPricing(entry.pricing) ?? mapXaiPricing(entry) ?? mapRequestyPricing(entry);
   if (cost) model.cost = cost;
   if (typeof entry.created === 'number' && entry.created > 0) {
     // ISO date helps the picker's newest-first sort.

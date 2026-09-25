@@ -33,6 +33,9 @@ wrongstack --provider google --model gemini-3-pro-preview "explain the agent loo
 
 # OpenRouter — access to any model through one endpoint
 wrongstack --provider openrouter --model anthropic/claude-opus-4-7 "explain the agent loop"
+
+# Requesty, a gateway to many models through one key
+wrongstack --provider requesty --model openai/gpt-4o-mini "explain the agent loop"
 ```
 
 ## Switch at runtime

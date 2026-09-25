@@ -39,6 +39,7 @@ describe('TRUSTED_PROVIDER_PRESETS', () => {
       'moonshotai',
       'openrouter',
       'perplexity',
+      'requesty',
       'zai',
       'zai-coding-plan',
     ]);
@@ -182,6 +183,7 @@ describe('resolvePresetForAlias', () => {
     expect(resolvePresetForAlias('moonshotai')?.id).toBe('moonshotai');
     expect(resolvePresetForAlias('openrouter')?.id).toBe('openrouter');
     expect(resolvePresetForAlias('perplexity')?.id).toBe('perplexity');
+    expect(resolvePresetForAlias('requesty')?.id).toBe('requesty');
     expect(resolvePresetForAlias('zai')?.id).toBe('zai');
   });
 

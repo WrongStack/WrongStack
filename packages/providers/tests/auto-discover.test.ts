@@ -127,6 +127,55 @@ describe('mapCompatibleModel', () => {
     expect(m?.cost).not.toHaveProperty('web_search');
   });
 
+  it('maps a REAL Requesty /v1/models/managed entry', () => {
+    // Captured from https://router.requesty.ai/v1/models/managed. Requesty
+    // states capabilities as top-level booleans, prices as per-token numbers,
+    // and sends tiered `pricing` bands as an array.
+    const m = mapCompatibleModel({
+      api: 'chat',
+      id: 'claude-sonnet-4-5',
+      object: 'model',
+      created: 1759161676,
+      owned_by: 'system',
+      input_price: 3e-6,
+      caching_price: 3.75e-6,
+      cached_price: 3e-7,
+      output_price: 1.5e-5,
+      pricing: [
+        {
+          prompt_tokens_threshold: 0,
+          input_price: 3e-6,
+          caching_price: 3.75e-6,
+          cached_price: 3e-7,
+          output_price: 1.5e-5,
+        },
+      ],
+      max_output_tokens: 64000,
+      context_window: 1000000,
+      supports_caching: true,
+      supports_vision: true,
+      supports_reasoning: true,
+      supports_tool_calling: true,
+      model_lab: 'anthropic',
+    } as never);
+
+    expect(m).toMatchObject({
+      id: 'claude-sonnet-4-5',
+      tool_call: true,
+      reasoning: true,
+      modalities: { input: ['text', 'image'], output: ['text'] },
+      limit: { context: 1000000, output: 64000 },
+      cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
+    });
+    expect(m).not.toHaveProperty('temperature');
+  });
+
+  it('drops Requesty entries whose api is not chat', () => {
+    expect(
+      mapCompatibleModel({ id: 'openai/text-embedding-3-small', api: 'embedding' } as never),
+    ).toBeUndefined();
+  });
+
   it('reads an enumerated parameter list as an explicit capability denial', () => {
     // The array's PRESENCE is the signal: a server that lists its parameters
     // and omits `tools` is saying "no tools", not "I don't know".
@@ -349,6 +398,16 @@ describe('resolveDiscoveryTargets', () => {
     const [target] = resolveDiscoveryTargets(cfg({ openrouter: { type: 'openrouter' } }));
     expect(target?.cacheKey).toContain('openrouter');
     expect(target?.cacheKey).toContain('https://openrouter.ai/api/v1');
+  });
+
+  it('opts Requesty into managed policy discovery', () => {
+    const [target] = resolveDiscoveryTargets(cfg({ requesty: { type: 'requesty' } }));
+    expect(target).toMatchObject({
+      id: 'requesty',
+      baseUrl: 'https://router.requesty.ai/v1',
+      modelDiscoveryPath: 'models/managed',
+    });
+    expect(target?.modelDiscoveryAuthoritative).toBeUndefined();
   });
 
   it('opts xAI into account-authoritative language model discovery', () => {

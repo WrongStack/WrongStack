@@ -1,6 +1,6 @@
 # @wrongstack/providers
 
-LLM provider adapters for WrongStack: Anthropic, OpenAI, Google, OpenAI-compatible (Mistral, DeepSeek, xAI/Grok, Groq, Together, Fireworks, OpenRouter, …), plus interactive sign-in for Claude Pro/Max, ChatGPT, GitHub Copilot, and OpenRouter PKCE.
+LLM provider adapters for WrongStack: Anthropic, OpenAI, Google, OpenAI-compatible (Mistral, DeepSeek, xAI/Grok, Groq, Together, Fireworks, OpenRouter, Requesty, …), plus interactive sign-in for Claude Pro/Max, ChatGPT, GitHub Copilot, and OpenRouter PKCE.
 
 All providers ride a single declarative `WireFormatConfig` adapter — even the majors (Anthropic / OpenAI / Google) are thin wrappers around their presets. Adding a new OpenAI-compatible provider is usually a 20-line preset, not a new file.
 

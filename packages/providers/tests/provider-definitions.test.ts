@@ -61,6 +61,11 @@ describe('canonical ProviderDefinition projections', () => {
       defaultBaseUrl: 'https://openrouter.ai/api/v1',
       autoDiscover: true,
     });
+    expect(presets.requesty).toEqual({
+      defaultBaseUrl: 'https://router.requesty.ai/v1',
+      autoDiscover: true,
+      modelDiscoveryPath: 'models/managed',
+    });
     expect(presets.xai).toEqual({
       defaultBaseUrl: 'https://api.x.ai/v1',
       autoDiscover: true,

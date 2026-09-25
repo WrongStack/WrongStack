@@ -65,6 +65,16 @@
     "docsUrl": "https://openrouter.ai/docs/quickstart"
   },
   {
+    "id": "requesty",
+    "name": "Requesty (Metered)",
+    "family": "openai-compatible",
+    "description": "Hundreds of models via one key, with EU routing",
+    "icon": "🧭",
+    "color": "from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50",
+    "keyPlaceholder": "rqsty-...",
+    "docsUrl": "https://docs.requesty.ai"
+  },
+  {
     "id": "kimi-for-coding",
     "name": "Kimi Code (Subscription)",
     "family": "openai-compatible",
