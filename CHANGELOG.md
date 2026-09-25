@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Requesty provider preset.** `requesty` joins the trusted presets next to OpenRouter: `https://router.requesty.ai/v1`, `REQUESTY_API_KEY`, and model discovery from `/v1/models/managed`. Discovery also reads Requesty's top-level `supports_*` flags and per-token prices, and skips entries whose `api` is not `chat`.
+
 - **`@wrongstack/client` reconnects and catches up.**
   - **A dropped socket no longer ends the run.** The client reopens the connection (500 ms, doubling, 10 attempts; `reconnect: false` turns it off). It sends the last frame number it applied for each session and gets back what it missed, in order and once. A run in flight streams on and settles with its result.
   - **The losses it cannot make up for are reported.** A server that restarted fails the run with `connection/server_restarted`. A run that ended while the connection was down, whose result has left the server's log, fails with `connection/result_lost`. `client.state` and `onStateChange` show `open` / `reconnecting` / `closed`.

@@ -112,6 +112,47 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<Record<string, TrustedProviderPr
   },
 
   /**
+   * Requesty: LLM gateway routing to 700+ models through a single
+   * OpenAI-compatible endpoint. Like OpenRouter there is no fixed model
+   * list: any `provider/model-name` id from the catalog works (e.g.
+   * `openai/gpt-4o-mini`, `anthropic/claude-sonnet-4-5`), as do the
+   * managed policy ids (e.g. `claude-sonnet-4-5`, `gpt-5.4-mini`) that
+   * Requesty maintains as multi-provider routing chains.
+   *
+   * Discovery reads `/v1/models/managed`, the curated managed policy list.
+   * EU-only routing is available at https://router.eu.requesty.ai/v1 (set
+   * `baseUrl`) or with the `@eu` model id suffix.
+   * https://docs.requesty.ai
+   */
+  requesty: {
+    id: 'requesty',
+    name: 'Requesty (Metered)',
+    family: 'openai-compatible',
+    baseUrl: 'https://router.requesty.ai/v1',
+    envVars: ['REQUESTY_API_KEY'],
+    // Recommended starter models from the managed policy list. Users can add
+    // any other Requesty model id.
+    models: [
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'claude-sonnet-4-5',
+      'claude-haiku-4-5',
+      'gemini-3.5-flash',
+      'deepseek-v4-flash',
+    ],
+    usage: 'metered-api',
+    docsUrl: 'https://docs.requesty.ai',
+    autoDiscover: true,
+    modelDiscoveryPath: 'models/managed',
+    catalog: {
+      description: 'Hundreds of models via one key, with EU routing',
+      icon: '🧭',
+      color: 'from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50',
+      keyPlaceholder: 'rqsty-...',
+    },
+  },
+
+  /**
    * Kimi Code subscription — personal interactive coding via the official
    * Kimi Code Console API key. Endpoint and aliases documented by Moonshot
    * for generic coding-agent integration.
