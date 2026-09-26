@@ -62,6 +62,9 @@ export function createWebuiClientRegistration(
       startCliHqConnection({
         ...options,
         capabilities: options.capabilities as HqClientCapability[],
+        // Embedded in the CLI host, whose own HQ connection already syncs
+        // this project's Kanban boards; a second sync is a second writer.
+        ownKanbanSync: false,
       }),
     ...(control
       ? {
@@ -74,6 +77,10 @@ export function createWebuiClientRegistration(
               // prompt HQ shows is one this handler can actually answer.
               resolveApproval: (toolUseId, decision, sessionId) =>
                 approvals.resolve(toolUseId, decision, sessionId),
+              // Same registry again: it publishes `user_input.requested`, so
+              // it has to be the one that answers `answer-input`.
+              resolveUserInput: (requestId, response, sessionId) =>
+                approvals.resolveUserInput?.(requestId, response, sessionId) ?? false,
               ...(deps.projectRoot
                 ? {
                     kanbanTransition: createProjectKanbanTransitionHandler(deps.projectRoot),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateModelCalendar } from '../../src/core/model-availability-calendar.js';
+import { configuredProviderIdentities } from '../../src/utils/provider-catalog-binding.js';
 
 const atUtc = (value: string) => new Date(`${value}Z`);
 
@@ -65,6 +66,21 @@ describe('model availability calendar', () => {
       'cc/claude-opus-4.8',
     );
     expect(result.allowed).toBe(false);
+  });
+
+  it('covers a second account with a rule naming its vendor, or the account itself', () => {
+    // `work` is built from the `anthropic` entry. A vendor rule used to cover
+    // it at run time only because its id collapsed to `anthropic` — and never
+    // in the fallback chain, which names it `work`.
+    const providers = { work: { type: 'anthropic' } };
+    const allDay = (provider: string) => [{ id: provider, provider, start: '00:00', end: '00:00' }];
+    const work = configuredProviderIdentities(providers, 'work');
+    expect(work).toEqual(['work', 'anthropic']);
+    expect(evaluateModelCalendar(allDay('anthropic'), work, 'claude').allowed).toBe(false);
+    expect(evaluateModelCalendar(allDay('work'), work, 'claude').allowed).toBe(false);
+    expect(evaluateModelCalendar(allDay('openai'), work, 'claude').allowed).toBe(true);
+    // The vendor's own account is not blocked by a rule for the second one.
+    expect(evaluateModelCalendar(allDay('work'), 'anthropic', 'claude').allowed).toBe(true);
   });
 
   it('ignores disabled, malformed-time, and unrelated rules', () => {

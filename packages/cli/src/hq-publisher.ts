@@ -16,7 +16,25 @@ export interface CliHqConnection {
 
 interface CliHqConnectionOptions extends CliHqPublisherOptions {
   onConnect?: ((publisher: HqPublisher) => void) | undefined;
+  /**
+   * Called when a publisher is retired without an immediate replacement —
+   * HQ was turned off (or its endpoint removed) in the live config. Hosts
+   * stop the bridges they bound in `onConnect`.
+   */
+  onDisconnect?: (() => void) | undefined;
   retryIntervalMs?: number | undefined;
+  /**
+   * The LIVE app config. `appConfig` is a snapshot taken at boot; with this
+   * set, `/hq set|token|on|off|clear` take effect on the running connection
+   * within one retry interval instead of at the next session start.
+   */
+  getAppConfig?: (() => CliHqPublisherOptions['appConfig']) | undefined;
+  /**
+   * `false` for an AUXILIARY connection in a process whose host connection
+   * already syncs the project's Kanban boards. Two syncs in one process are
+   * two writers applying the same remote snapshots to the same board files.
+   */
+  ownKanbanSync?: boolean | undefined;
 }
 
 /** Sentinel connection key for same-machine auto-discovery (see below). */
@@ -56,21 +74,24 @@ function hqExplicitlyDisabled(options: CliHqPublisherOptions): boolean {
  * outbound queue survives, a rebuild discards it).
  */
 function resolvedHqConnectionKey(options: CliHqPublisherOptions): string | undefined {
-  if (options.config !== undefined) {
-    if (options.config.enabled === false) return undefined;
-    return options.config.discover === true
-      ? HQ_DISCOVERY_CONNECTION_KEY
-      : `${options.config.url}\n${options.config.token ?? ''}`;
-  }
-  const config = resolveHqConfig({ config: options.appConfig?.hq });
+  const config =
+    options.config !== undefined
+      ? options.config.enabled === false
+        ? undefined
+        : options.config
+      : resolveHqConfig({ config: options.appConfig?.hq });
   if (config === undefined) return undefined;
-  return config.discover === true
-    ? HQ_DISCOVERY_CONNECTION_KEY
-    : `${config.url}\n${config.token ?? ''}`;
+  const endpoint =
+    config.discover === true ? HQ_DISCOVERY_CONNECTION_KEY : `${config.url}\n${config.token ?? ''}`;
+  // The redaction policy is fixed when a publisher is built, so a `/hq raw`
+  // toggle only takes effect through a rebuild. It comes from config/env, not
+  // from the discovery marker, so it cannot cause discovery churn.
+  return `${endpoint}\nraw=${String(config.rawContent)}`;
 }
 
 export function startCliHqConnection(options: CliHqConnectionOptions): CliHqConnection {
-  const shouldOwnKanbanSync = options.onKanbanSnapshot === undefined;
+  const shouldOwnKanbanSync =
+    options.ownKanbanSync !== false && options.onKanbanSnapshot === undefined;
   let kanbanSync: ReturnType<typeof createKanbanHqSync> | undefined;
   const publisherOptions: CliHqConnectionOptions = shouldOwnKanbanSync
     ? {
@@ -82,16 +103,38 @@ export function startCliHqConnection(options: CliHqConnectionOptions): CliHqConn
   let publisherKey: string | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
 
+  const liveOptions = (): CliHqConnectionOptions =>
+    options.getAppConfig === undefined
+      ? publisherOptions
+      : { ...publisherOptions, appConfig: options.getAppConfig() };
+
+  const retire = (): void => {
+    if (publisher === undefined) return;
+    kanbanSync?.stop();
+    kanbanSync = undefined;
+    publisher.close();
+    publisher = undefined;
+    publisherKey = undefined;
+    options.onDisconnect?.();
+  };
+
   const tryConnect = (): void => {
-    const nextKey = resolvedHqConnectionKey(options);
-    if (nextKey === undefined) return;
+    const current = liveOptions();
+    const nextKey = resolvedHqConnectionKey(current);
+    if (nextKey === undefined) {
+      // Disabled or unconfigured NOW. Returning early here used to leave a
+      // publisher built from an earlier config streaming on, so `/hq off`
+      // could not stop a running session.
+      retire();
+      return;
+    }
     if (publisher !== undefined && publisherKey === nextKey) {
       // Same endpoint identity — keep the publisher. In discovery mode the
       // marker underneath may still have repointed (HQ restarted on another
       // port), so let the publisher move itself: that keeps its clientId and
       // its queued telemetry, where a rebuild would mint a new client and drop
       // the queue.
-      if (nextKey === HQ_DISCOVERY_CONNECTION_KEY) publisher.refreshEndpoint();
+      if (nextKey.startsWith(`${HQ_DISCOVERY_CONNECTION_KEY}\n`)) publisher.refreshEndpoint();
       return;
     }
 
@@ -99,7 +142,7 @@ export function startCliHqConnection(options: CliHqConnectionOptions): CliHqConn
     publisher = undefined;
     publisherKey = undefined;
 
-    const next = createCliHqPublisher(publisherOptions);
+    const next = createCliHqPublisher(current);
     if (next === undefined) return;
     publisher = next;
     publisherKey = nextKey;
@@ -122,7 +165,9 @@ export function startCliHqConnection(options: CliHqConnectionOptions): CliHqConn
   };
 
   tryConnect();
-  if (!hqExplicitlyDisabled(options)) {
+  // With a live config the poll must run even when HQ starts disabled —
+  // otherwise `/hq on` has nothing to act on until the next session.
+  if (options.getAppConfig !== undefined || !hqExplicitlyDisabled(options)) {
     timer = setInterval(tryConnect, options.retryIntervalMs ?? 2_500);
     timer.unref?.();
   }

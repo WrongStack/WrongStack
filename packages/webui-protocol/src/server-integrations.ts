@@ -79,4 +79,5 @@ export const SERVER_EXTENSION_MESSAGE_TYPES = [
   'skills.list',
   'skills.uninstalled',
   'skills.updated',
+  'techstack.research.partial',
 ] as const;

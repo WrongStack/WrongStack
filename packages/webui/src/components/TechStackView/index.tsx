@@ -42,9 +42,11 @@ import {
   type TechStackSnapshot,
   useTechStackStore,
 } from '@/stores';
+import { AnalyzeControls } from './AnalyzeControls';
 import { DependencyDetail } from './DependencyDetail';
 import { DependencyTable } from './DependencyTable';
 import { FindingsPanel } from './FindingsPanel';
+import { RemediationTab } from './RemediationTab';
 import {
   COVERAGE_META,
   downloadReport,
@@ -57,6 +59,7 @@ import {
   versionDrift,
 } from './shared';
 import { type DependencySort, TechStackToolbar } from './TechStackToolbar';
+import { TrendsTab } from './TrendsTab';
 import { useAppTranslation } from '@/i18n';
 
 interface SnapshotResponse {
@@ -66,49 +69,6 @@ interface SnapshotResponse {
 
 type MainTab = 'dependencies' | 'findings' | 'workspaces' | 'trends' | 'remediation';
 
-interface TechStackTrend {
-  snapshots: number;
-  vulnerabilityHalfLifeMs?: number;
-  points: ReadonlyArray<{
-    snapshotId: string;
-    createdAt: string;
-    dependencies: number;
-    outdated: number;
-    vulnerable: number;
-  }>;
-  dependencies: ReadonlyArray<{
-    key: string;
-    name: string;
-    ecosystem: string;
-    currentVersion?: string;
-    lockedVersionAgeMs: number;
-    versionChanges: number;
-  }>;
-}
-
-interface RemediationPlan {
-  warning: string;
-  summary: {
-    total: number;
-    patch: number;
-    minor: number;
-    major: number;
-    replace: number;
-    remove: number;
-    investigate: number;
-  };
-  items: ReadonlyArray<{
-    workspaceId: string;
-    dependencyName: string;
-    ecosystem: string;
-    action: string;
-    severity: string;
-    currentVersion?: string;
-    targetVersion?: string;
-    rationale: string;
-  }>;
-}
-
 const TABS: ReadonlyArray<{ id: MainTab; labelKey: string }> = [
   { id: 'dependencies', labelKey: 'activity:techStack.tabDependencies' },
   { id: 'findings', labelKey: 'activity:techStack.tabFindings' },
@@ -116,15 +76,6 @@ const TABS: ReadonlyArray<{ id: MainTab; labelKey: string }> = [
   { id: 'trends', labelKey: 'activity:techStack.tabTrends' },
   { id: 'remediation', labelKey: 'activity:techStack.tabRemediation' },
 ];
-
-/**
- * Ecosystems the backend can auto-execute upgrades for.
- *
- * Mirrors `EXECUTABLE_ECOSYSTEMS` in `packages/techstack/src/remediation.ts`.
- * When adding a new ecosystem to that set, add it here too so the UI
- * unblocks its auto-apply checkbox in the Remediation tab.
- */
-const AUTOMATED_REMEDIATION_ECOSYSTEMS = new Set(['npm', 'python', 'rust', 'go', 'php', 'dotnet']);
 
 export function TechStackView() {
   const { t } = useAppTranslation();
@@ -146,10 +97,6 @@ export function TechStackView() {
     status: 'idle' | 'loading' | 'error';
     error: string | null;
   }>({ status: 'idle', error: null });
-  const [trend, setTrend] = useState<TechStackTrend | null>(null);
-  const [remediation, setRemediation] = useState<RemediationPlan | null>(null);
-  const [approvedDependencies, setApprovedDependencies] = useState<Set<string>>(new Set());
-  const [applying, setApplying] = useState(false);
 
   // ── Data ────────────────────────────────────────────────────────────────
 
@@ -187,12 +134,41 @@ export function TechStackView() {
     store.setLoading(true);
     store.setError(null);
     try {
-      const response = await fetch(`/api/techstack/${kind}`, { method: 'POST' });
-      const body = (await response.json()) as { jobId?: string; error?: string };
-      if (!response.ok || !body.jobId) {
-        throw new Error(body.error ?? `HTTP ${response.status}: ${response.statusText}`);
+      const headers: Record<string, string> = {};
+      let body: string | undefined;
+      if (kind === 'analyze') {
+        const { selectedDepth, selectedModel } = store;
+        if (selectedDepth || selectedModel) {
+          headers['Content-Type'] = 'application/json';
+          body = JSON.stringify({
+            ...(selectedDepth ? { depth: selectedDepth } : {}),
+            ...(selectedModel ? { model: selectedModel } : {}),
+          });
+        }
       }
-      store.jobStarted(body.jobId, kind);
+      const response = await fetch(`/api/techstack/${kind}`, {
+        method: 'POST',
+        ...(body ? { body } : {}),
+        ...(Object.keys(headers).length > 0 ? { headers } : {}),
+      });
+      const responseBody = (await response.json()) as {
+        jobId?: string;
+        error?: string;
+      };
+      if (!response.ok || !responseBody.jobId) {
+        throw new Error(responseBody.error ?? `HTTP ${response.status}: ${response.statusText}`);
+      }
+      const { selectedDepth, selectedModel } = store;
+      store.jobStarted(
+        responseBody.jobId,
+        kind,
+        kind === 'analyze' && (selectedDepth || selectedModel)
+          ? {
+              ...(selectedDepth ? { depth: selectedDepth } : {}),
+              ...(selectedModel ? { model: selectedModel } : {}),
+            }
+          : undefined,
+      );
     } catch (cause) {
       store.setError(cause instanceof Error ? cause.message : String(cause));
     }
@@ -237,47 +213,6 @@ export function TechStackView() {
   useEffect(() => {
     void fetchSnapshot();
   }, [fetchSnapshot]);
-
-  useEffect(() => {
-    if (tab !== 'trends' && tab !== 'remediation') return;
-    const endpoint = tab === 'trends' ? 'trends' : 'remediation';
-    void fetch(`/api/techstack/${endpoint}`)
-      .then(async (response) => {
-        const body = (await response.json()) as {
-          trend?: TechStackTrend;
-          plan?: RemediationPlan;
-          error?: string;
-        };
-        if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
-        if (body.trend) setTrend(body.trend);
-        if (body.plan) setRemediation(body.plan);
-      })
-      .catch((cause) =>
-        useTechStackStore
-          .getState()
-          .setError(cause instanceof Error ? cause.message : String(cause)),
-      );
-  }, [tab, snapshot?.id]);
-
-  const applyRemediation = useCallback(async () => {
-    if (approvedDependencies.size === 0) return;
-    setApplying(true);
-    try {
-      const response = await fetch('/api/techstack/remediation/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approvedItems: [...approvedDependencies] }),
-      });
-      const body = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
-      setApprovedDependencies(new Set());
-      await startJob('inventory');
-    } catch (cause) {
-      useTechStackStore.getState().setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setApplying(false);
-    }
-  }, [approvedDependencies, startJob]);
 
   // A new snapshot invalidates the ad-hoc deep-dive results — they were about
   // versions that may no longer be installed.
@@ -533,6 +468,11 @@ export function TechStackView() {
         <EmptyState onScan={() => void startJob('inventory')} disabled={jobRunning} />
       ) : (
         <>
+          <AnalyzeControls
+            busy={jobRunning}
+            onAnalyze={() => void startJob('analyze')}
+            onInventory={() => void startJob('inventory')}
+          />
           <nav className="flex shrink-0 gap-1 border-b border-border/70 px-2">
             {TABS.map((entry) => (
               <button
@@ -625,123 +565,10 @@ export function TechStackView() {
           )}
 
           {tab === 'workspaces' && <WorkspaceList snapshot={snapshot} />}
-          {tab === 'trends' && <TrendPanel trend={trend} />}
-          {tab === 'remediation' && (
-            <RemediationPanel
-              plan={remediation}
-              approved={approvedDependencies}
-              applying={applying}
-              onToggle={(key) =>
-                setApprovedDependencies((current) => {
-                  const next = new Set(current);
-                  if (next.has(key)) next.delete(key);
-                  else next.add(key);
-                  return next;
-                })
-              }
-              onApply={() => void applyRemediation()}
-            />
-          )}
+          {tab === 'trends' && <TrendsTab />}
+          {tab === 'remediation' && <RemediationTab />}
         </>
       )}
-    </div>
-  );
-}
-
-function TrendPanel({ trend }: { trend: TechStackTrend | null }) {
-  if (!trend) return <LoadingState />;
-  return (
-    <div className="min-h-0 flex-1 overflow-auto p-3">
-      <p className="mb-3 text-xs text-muted-foreground">
-        {trend.snapshots} snapshots
-        {trend.vulnerabilityHalfLifeMs !== undefined
-          ? ` · vulnerability half-life ${(trend.vulnerabilityHalfLifeMs / 86_400_000).toFixed(1)} days`
-          : ''}
-      </p>
-      <div className="flex flex-col gap-1.5">
-        {trend.points.map((point) => (
-          <div
-            key={point.snapshotId}
-            className="grid grid-cols-4 border border-border/70 bg-card/40 p-2 text-xs"
-          >
-            <span>{new Date(point.createdAt).toLocaleDateString()}</span>
-            <span>{point.dependencies} deps</span>
-            <span className="text-warning">{point.outdated} outdated</span>
-            <span className="text-destructive">{point.vulnerable} vulnerable</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function RemediationPanel({
-  plan,
-  approved,
-  applying,
-  onToggle,
-  onApply,
-}: {
-  plan: RemediationPlan | null;
-  approved: ReadonlySet<string>;
-  applying: boolean;
-  onToggle: (name: string) => void;
-  onApply: () => void;
-}) {
-  const { t } = useAppTranslation();
-  if (!plan) return <LoadingState />;
-  return (
-    <div className="min-h-0 flex-1 overflow-auto p-3">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{plan.warning}</p>
-        <Button size="sm" disabled={approved.size === 0 || applying} onClick={onApply}>
-          {applying && <Loader2 className="size-3.5 animate-spin" />}
-          Apply {approved.size > 0 ? approved.size : ''}
-        </Button>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        {plan.items.map((item) => {
-          const key = `${item.workspaceId}:${item.ecosystem}:${item.dependencyName}:${item.action}`;
-          const manual =
-            item.action === 'replace' ||
-            item.action === 'investigate' ||
-            !AUTOMATED_REMEDIATION_ECOSYSTEMS.has(item.ecosystem);
-          return (
-            <label
-              key={key}
-              className={cn(
-                'flex gap-3 border border-border/70 bg-card/40 p-2.5',
-                manual ? 'cursor-not-allowed opacity-65' : 'cursor-pointer',
-              )}
-            >
-              <input
-                type="checkbox"
-                disabled={manual}
-                checked={approved.has(key)}
-                onChange={() => onToggle(key)}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block font-mono text-xs">
-                  {item.dependencyName} · {item.action}
-                </span>
-                <span className="block text-[10px] text-muted-foreground">
-                  {item.currentVersion ?? '?'} → {item.targetVersion ?? 'latest'} · {item.rationale}
-                </span>
-                {manual && (
-                  <span className="block text-[10px] text-warning">
-                    {t('activity:techStack.requiresAManualPackageChoice')}
-                  </span>
-                )}
-              </span>
-            </label>
-          );
-        })}
-        {plan.items.length === 0 && (
-          <p className="p-8 text-center text-xs text-muted-foreground">
-            {t('activity:techStack.noRemediationNeeded')}
-          </p>
-        )}
-      </div>
     </div>
   );
 }

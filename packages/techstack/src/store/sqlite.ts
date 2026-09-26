@@ -211,8 +211,8 @@ export class TechStackStore {
   saveJob(job: TechStackJob): void {
     const stmt = this.stmt(`
       INSERT OR REPLACE INTO jobs
-        (id, project_id, target_root, kind, status, fingerprint, requested_by, session_id, created_at, completed_at, error, progress_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, project_id, target_root, kind, status, fingerprint, requested_by, session_id, created_at, completed_at, error, progress_json, depth, model)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       job.id,
@@ -227,6 +227,8 @@ export class TechStackStore {
       job.completedAt ?? null,
       job.error ?? null,
       job.progress ? JSON.stringify(job.progress) : null,
+      job.depth ?? null,
+      job.model ?? null,
     );
   }
 
@@ -383,6 +385,10 @@ export class TechStackStore {
         // ignore
       }
     }
+    const depth =
+      row.depth === 'inventory' || row.depth === 'enrich' || row.depth === 'full'
+        ? (row.depth as TechStackJob['depth'])
+        : undefined;
 
     return {
       id: String(row.id),
@@ -397,6 +403,8 @@ export class TechStackStore {
       completedAt: row.completed_at ? String(row.completed_at) : undefined,
       error: row.error ? String(row.error) : undefined,
       ...(progress ? { progress } : {}),
+      ...(depth ? { depth } : {}),
+      ...(row.model ? { model: String(row.model) } : {}),
     };
   }
 

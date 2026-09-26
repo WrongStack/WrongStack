@@ -6,7 +6,7 @@
 
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { type HqToken, hqTokenVerifier, isLoopbackHost } from '@wrongstack/core/hq';
+import { type HqToken, hqTokenVerifier, isLoopbackHost, isTokenExpired } from '@wrongstack/core/hq';
 import type { WebSocket, WebSocketServer } from 'ws';
 import * as HqServerAuth from './auth.js';
 import type { HqAuthState } from './auth-state.js';
@@ -125,13 +125,17 @@ export function handleHqUpgrade(
       }
     }
     const tokenValid = HqServerAuth.timingSafeTokenMatch(tokenSet, supplied) !== undefined;
+    // Captured before the cookie branch: `mutableAuth` is re-projected by
+    // every auth-file reload (`HqAuthState.apply`), so the guarded reference
+    // and the used reference must be the same narrowed local, not a re-read.
+    const cookieSecret = deps.mutableAuth.cookieSecret;
     const cookieValid =
       pathname === '/ws/browser' &&
-      deps.mutableAuth.cookieSecret !== undefined &&
+      cookieSecret !== undefined &&
       (() => {
         const raw = HqServerAuth.readHqSessionCookie(req.headers.cookie);
         if (!raw) return false;
-        const sessionId = parseHqSessionCookie(raw, deps.mutableAuth.cookieSecret!);
+        const sessionId = parseHqSessionCookie(raw, cookieSecret);
         if (sessionId === undefined) return false;
         const session = deps.sessions.get(sessionId);
         if (!session || Date.now() - session.createdAt >= HqServerAuth.HQ_SESSION_MAX_AGE_MS)
@@ -145,8 +149,10 @@ export function handleHqUpgrade(
         session.lastSeenAt = now2;
         if (session.pending2fa) return false;
         if (session.kind === 'token' && session.tokenId !== undefined) {
+          // Expiry is re-checked here, not only at projection time: the map
+          // keeps a token that aged out after the last auth.json apply.
           const stillAuthorized = [...deps.mutableAuth.browserTokenObjs.values()].some(
-            (obj) => obj.id === session.tokenId,
+            (obj) => obj.id === session.tokenId && !isTokenExpired(obj),
           );
           if (!stillAuthorized) return false;
         }

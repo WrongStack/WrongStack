@@ -18,6 +18,7 @@ import type * as http from 'node:http';
 import { sanitizeApiError } from '@wrongstack/core/security';
 import type { Provider } from '@wrongstack/core/types';
 import type {
+  AnalyzeDepth,
   PackageOperation,
   Snapshot,
   TechStackEngine,
@@ -28,6 +29,100 @@ import type {
 
 /** Upper bound on a single-package deep dive: one search fan-out + one LLM call. */
 const DEEP_DIVE_TIMEOUT_MS = 60_000;
+
+/** Upper bound on the JSON body for POST endpoints that accept options. */
+const ANALYZE_BODY_LIMIT_BYTES = 16 * 1024;
+
+/** Pipeline depth values accepted on the wire. */
+const DEPTH_VALUES: readonly AnalyzeDepth[] = ['inventory', 'enrich', 'full'];
+
+/**
+ * Narrow, additive options the WebUI sends with `POST /api/techstack/analyze`.
+ *
+ * Kept local to the handler module: the engine contract (`AnalyzeOptions`)
+ * already covers these, but the handler is the trust boundary that scrubs
+ * untrusted JSON before it reaches the engine — the shape is what crosses the
+ * wire, not the engine's internal `online` flag.
+ */
+export interface AnalyzeRequestOptions {
+  readonly model?: string;
+  readonly depth?: AnalyzeDepth;
+}
+
+function isAnalyzeDepth(value: unknown): value is AnalyzeDepth {
+  return typeof value === 'string' && (DEPTH_VALUES as readonly string[]).includes(value);
+}
+
+/**
+ * Read an optional JSON body carrying `AnalyzeRequestOptions`. Anything that
+ * is not parseable JSON, exceeds the body limit, or contains the wrong shape
+ * degrades to `{}` — the analyze endpoint is idempotent under partial options.
+ *
+ * Returns `{ ok: false, status?, detail? }` only for the unrecoverable cases
+ * (body too large, malformed JSON). The shape decision is reported separately
+ * via the helpers below so the caller can give the user a precise reason.
+ */
+async function readAnalyzeOptions(
+  req: http.IncomingMessage,
+): Promise<
+  | { ok: true; options: AnalyzeRequestOptions }
+  | { ok: false; status: number; error: string; detail?: string }
+> {
+  let raw = '';
+  let oversized = false;
+  for await (const chunk of req) {
+    raw += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
+    if (Buffer.byteLength(raw) > ANALYZE_BODY_LIMIT_BYTES) {
+      oversized = true;
+      break;
+    }
+  }
+  if (oversized) {
+    return { ok: false, status: 413, error: 'Request body is too large' };
+  }
+  if (raw.trim() === '') {
+    return { ok: true, options: {} };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    return { ok: false, status: 400, error: 'Invalid request body', detail: errorMessage(error) };
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { ok: false, status: 400, error: 'Request body must be a JSON object' };
+  }
+  const obj = parsed as Record<string, unknown>;
+  let model: string | undefined;
+  let depth: AnalyzeDepth | undefined;
+  if (obj.model !== undefined) {
+    if (typeof obj.model !== 'string' || obj.model.length > 200) {
+      return {
+        ok: false,
+        status: 400,
+        error: '`model` must be a non-empty string up to 200 characters',
+      };
+    }
+    model = obj.model;
+  }
+  if (obj.depth !== undefined) {
+    if (!isAnalyzeDepth(obj.depth)) {
+      return {
+        ok: false,
+        status: 400,
+        error: `\`depth\` must be one of ${DEPTH_VALUES.join(', ')}`,
+      };
+    }
+    depth = obj.depth;
+  }
+  return {
+    ok: true,
+    options: {
+      ...(model ? { model } : {}),
+      ...(depth ? { depth } : {}),
+    },
+  };
+}
 
 function sendJson(res: http.ServerResponse, status: number, data: unknown): void {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -84,14 +179,28 @@ async function buildResearcher(
 }
 
 export type TechStackEvent =
-  | { type: 'techstack.job.started'; payload: { jobId: string; kind: 'inventory' | 'analyze' } }
+  | {
+      type: 'techstack.job.started';
+      payload: {
+        jobId: string;
+        kind: 'inventory' | 'analyze';
+        /** Pipeline depth the job will run. Optional for legacy producers. */
+        depth?: 'inventory' | 'enrich' | 'full';
+        /** Model id the user picked for the LLM research stage. */
+        model?: string;
+      };
+    }
   | {
       type: 'techstack.job.progress';
       payload: { jobId: string; phase: string; completed: number; total: number };
     }
   | { type: 'techstack.snapshot.updated'; payload: { snapshot: Snapshot; stale: false } }
   | { type: 'techstack.job.failed'; payload: { jobId: string; error: string } }
-  | { type: 'techstack.job.cancelled'; payload: { jobId: string } };
+  | { type: 'techstack.job.cancelled'; payload: { jobId: string } }
+  | {
+      type: 'techstack.research.partial';
+      payload: { dependencyId: string; completed: number; total: number };
+    };
 
 /** GET /api/techstack/snapshot */
 export function handleTechStackSnapshot(
@@ -143,14 +252,30 @@ function startJob(
   res: http.ServerResponse,
   deps: TechStackHandlerDeps,
   kind: TechStackJobKind,
+  requestOptions: AnalyzeRequestOptions = {},
 ): void {
   if (!requireJobDeps(res, deps)) return;
 
   const jobId = randomUUID();
   const controller = new AbortController();
   deps.runningJobs?.set(jobId, controller);
-  deps.emit?.({ type: 'techstack.job.started', payload: { jobId, kind } });
-  sendJson(res, 202, { jobId, kind, status: 'queued' });
+  const resolvedDepth = requestOptions.depth ?? (kind === 'inventory' ? 'inventory' : 'full');
+  deps.emit?.({
+    type: 'techstack.job.started',
+    payload: {
+      jobId,
+      kind,
+      ...(requestOptions.model ? { model: requestOptions.model } : {}),
+      depth: resolvedDepth,
+    },
+  });
+  sendJson(res, 202, {
+    jobId,
+    kind,
+    status: 'queued',
+    ...(requestOptions.model ? { model: requestOptions.model } : {}),
+    depth: resolvedDepth,
+  });
 
   void buildResearcher(deps, kind)
     .catch(() => undefined)
@@ -158,7 +283,13 @@ function startJob(
       deps.engine.analyze(deps.projectId, {
         targetRoot: deps.projectRoot,
         requestedBy: 'webui',
-        online: kind === 'analyze',
+        // `depth` is the authoritative knob; `online` stays as a deprecated
+        // alias (true ≡ full, false ≡ inventory) so the WebUI's old "offline
+        // inventory" button keeps working.
+        ...(requestOptions.depth
+          ? { depth: requestOptions.depth }
+          : { online: kind === 'analyze' }),
+        ...(requestOptions.model ? { model: requestOptions.model } : {}),
         jobId,
         signal: controller.signal,
         researcher,
@@ -168,6 +299,26 @@ function startJob(
             payload: { jobId, phase, completed, total },
           });
         },
+        ...(deps.emit
+          ? {
+              // Per-dependency streaming partial: the engine fires once per
+              // cluster (no dependencyId) and once per dependency (with
+              // dependencyId) inside it. The WS layer only forwards
+              // dependency-scoped partials — the cluster-level "started"
+              // emit is engine-internal noise the UI does not need.
+              onResearchPartial: (partial) => {
+                if (!partial.dependencyId) return;
+                deps.emit?.({
+                  type: 'techstack.research.partial',
+                  payload: {
+                    dependencyId: partial.dependencyId,
+                    completed: partial.completed,
+                    total: partial.total,
+                  },
+                });
+              },
+            }
+          : {}),
       }),
     )
     .then(({ snapshot }) => {
@@ -201,8 +352,63 @@ export function handleTechStackInventory(
 }
 
 /** POST /api/techstack/analyze */
-export function handleTechStackAnalyze(res: http.ServerResponse, deps: TechStackHandlerDeps): void {
-  startJob(res, deps, 'analyze');
+export async function handleTechStackAnalyze(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  deps: TechStackHandlerDeps,
+): Promise<void> {
+  const parsed = await readAnalyzeOptions(req);
+  if (!parsed.ok) {
+    sendJson(res, parsed.status, {
+      error: parsed.error,
+      ...(parsed.detail ? { detail: parsed.detail } : {}),
+    });
+    return;
+  }
+  startJob(res, deps, 'analyze', parsed.options);
+}
+
+/**
+ * GET /api/techstack/models — return the providers/models that are currently
+ * available to the LLM research stage. The browser uses this to populate a
+ * model picker before the user clicks `Analyze`.
+ *
+ * `getLlm()` is a getter on purpose (r25 + r1): the user can rotate credentials
+ * mid-session, and a snapshot would silently go stale. When no provider is
+ * wired the endpoint still answers 200 with `{ available: false }` so the UI
+ * can disable the picker without falling back to a default.
+ */
+export function handleTechStackModels(
+  res: http.ServerResponse,
+  deps: TechStackHandlerDeps,
+): void {
+  const llm = deps.getLlm?.();
+  if (!llm) {
+    sendJson(res, 200, { available: false, provider: null, model: null, candidates: [] });
+    return;
+  }
+  const provider = llm.provider as Provider & {
+    readonly name?: string;
+    readonly models?: ReadonlyArray<{ readonly id: string }>;
+    readonly capabilities?: {
+      readonly structuredOutput?: boolean;
+      readonly jsonMode?: boolean;
+    };
+  };
+  const candidates =
+    provider.models
+      ?.map((m) => ({ id: m.id }))
+      .filter((m): m is { id: string } => typeof m.id === 'string') ?? [];
+  sendJson(res, 200, {
+    available: true,
+    provider: provider.name ?? 'unknown',
+    model: llm.model,
+    capabilities: {
+      structuredOutput: provider.capabilities?.structuredOutput ?? false,
+      jsonMode: provider.capabilities?.jsonMode ?? false,
+    },
+    candidates,
+  });
 }
 
 /** POST /api/techstack/jobs/:id/cancel — idempotent. */

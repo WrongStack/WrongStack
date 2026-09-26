@@ -420,7 +420,7 @@
         "export { applyToolDescriptionModes, applyToolDescriptionModeToTool, DEFAULT_TOOL_DESCRIPTION_MODE, getToolDescriptionMode, normalizeToolDescriptionMode, resolveToolDescriptionMode, setToolDescriptionMode, simplifyToolDescription, type ToolDescriptionRegistryLike, } from './tool-description-mode.js';",
         "export { applyToolResultRenderModes, DEFAULT_TOOL_RESULT_RENDER_MODE, getToolResultRenderMode, normalizeToolResultRenderMode, resolveToolResultRenderMode, setToolResultRenderMode, type ToolResultRenderModeRegistryLike, } from './tool-result-render-mode.js';",
         "export { assertNotPrivateHost, embeddedIPv4, expandIPv6, isPrivateIPv4, isPrivateIPv6, } from './ip-guard.js';",
-        "export { bindProviderCatalogId, providerIdentities } from './provider-catalog-binding.js';",
+        "export { bindProviderCatalogId, configuredProviderIdentities, providerIdentities, } from './provider-catalog-binding.js';",
         "export { buildCompletedWorkLedgerBlock, buildContextEvidenceDigest, COMPLETED_WORK_LEDGER_MARKER, createContextEvidenceState, formatCompletedWorkLedger, markAssistantReferencedEvidence, type RecordCompletedWorkInput, type RecordToolOutputEvidenceInput, recordCompletedWorkEvidence, recordToolOutputEvidence, recordUserIntentEvidence, repeatedReadPressure, syncCompletedWorkLedgerBlock, } from './context-evidence.js';",
         "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, isStdinTTY, type MouseProtocol, onResize, safeEmit, setOutputLineGuard, setRawMode, setTitle, type TerminalCapability, TerminalLifecycle, writeErr, writeOut, } from './term.js';",
         "export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';",
@@ -1503,14 +1503,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 208,
-      "sourceLines": 57764
+      "sourceLines": 57769
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 62,
-      "sourceLines": 14444
+      "sourceLines": 14490
     },
     {
       "directory": "design",
@@ -1551,8 +1551,8 @@
       "directory": "hq",
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
-      "sourceFiles": 57,
-      "sourceLines": 11829
+      "sourceFiles": 58,
+      "sourceLines": 11966
     },
     {
       "directory": "infrastructure",
@@ -1650,7 +1650,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 17,
-      "sourceLines": 5211
+      "sourceLines": 5222
     },
     {
       "directory": "skills",
@@ -1706,7 +1706,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 76,
-      "sourceLines": 13282
+      "sourceLines": 13298
     },
     {
       "directory": "vcs",

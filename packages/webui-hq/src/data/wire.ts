@@ -15,7 +15,11 @@ import {
   projectHqFleetMessage,
 } from '@wrongstack/webui-protocol';
 import { fetchJson } from './api.js';
-import { clearHqToken, upgradeStoredTokenToCookie } from './auth/index.js';
+import {
+  clearHqToken,
+  hasAuthenticatedHqBrowserSession,
+  upgradeStoredTokenToCookie,
+} from './auth/index.js';
 import { useHqStore } from './store/index.js';
 import {
   getHqSocket,
@@ -83,8 +87,13 @@ export function applySocketMessage(store: HqStoreApi, message: HqSocketMessage):
       // fails the upgrade, which clears the stored credential and raises
       // the auth gate before the reconnect loop starts churning on a
       // credential that can never succeed.
-      void upgradeStoredTokenToCookie().then((minted) => {
+      void upgradeStoredTokenToCookie().then(async (minted) => {
         if (minted) return;
+        // A failed re-mint only proves THIS tab's stored token is gone. A
+        // password or mobile login keeps no stored token at all (the re-mint
+        // returns false immediately), and its cookie session is untouched by
+        // a token revocation — so ask the server before signing out.
+        if (await hasAuthenticatedHqBrowserSession()) return;
         clearHqToken();
         // This browser is the one that lost its credential. The frame is
         // broadcast to EVERY socket, but only a failed re-mint proves the

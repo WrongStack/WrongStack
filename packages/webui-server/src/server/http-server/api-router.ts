@@ -32,6 +32,7 @@ import {
   handleTechStackRemediationPlan,
   handleTechStackReport,
   handleTechStackSnapshot,
+  handleTechStackModels,
   handleTechStackTrends,
   type TechStackEvent,
 } from '../techstack-handlers.js';
@@ -426,7 +427,11 @@ export async function handleApiRoutes(
         return true;
       }
       if (url.pathname === '/api/techstack/analyze' && req.method === 'POST') {
-        handleTechStackAnalyze(res, techDeps);
+        await handleTechStackAnalyze(req, res, techDeps);
+        return true;
+      }
+      if (url.pathname === '/api/techstack/models' && req.method === 'GET') {
+        handleTechStackModels(res, techDeps);
         return true;
       }
       if (url.pathname === '/api/techstack/trends' && req.method === 'GET') {

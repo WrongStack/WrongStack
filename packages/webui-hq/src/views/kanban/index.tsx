@@ -27,6 +27,7 @@ import {
 } from '../../domain/kanban-model.js';
 import { cn } from '../../lib/utils.js';
 import { KanbanQueueHealth } from './queue-health.js';
+import { KanbanTaskActions } from './task-actions.js';
 import { KanbanTaskInspector } from './task-inspector.js';
 import { taskPriorityTone, taskStatusTone } from './task-tone.js';
 
@@ -442,6 +443,9 @@ export function KanbanView(): React.ReactElement {
               task={selectedTask}
               board={board}
               dependencyTitles={dependencyTitles}
+              actions={
+                <KanbanTaskActions task={selectedTask} board={board} projectId={projectId} />
+              }
               onClose={() => setSelectedTaskId(null)}
             />
           )}

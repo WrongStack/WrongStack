@@ -61,6 +61,31 @@ export async function hasAuthenticatedHqBrowserSession(options?: {
 }
 
 /**
+ * The capability list the server attached to THIS browser's credential, or
+ * `undefined` when it is unrestricted (desktop password, token without a
+ * list, local open mode) or the status could not be read.
+ *
+ * Only a narrowing is ever reported — so `undefined` means "try it", and the
+ * server stays the authority either way.
+ */
+export async function fetchHqCredentialCapabilities(): Promise<readonly string[] | undefined> {
+  try {
+    const response = await fetch('/api/auth/status', {
+      headers: authHeaders(),
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout(EXCHANGE_TIMEOUT_MS),
+    });
+    if (!response.ok) return undefined;
+    const body = (await response.json()) as { capabilities?: unknown };
+    return Array.isArray(body.capabilities)
+      ? body.capabilities.filter((entry): entry is string => typeof entry === 'string')
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Authenticate a manually entered browser token.
  *
  * The old gate wrote the token to storage and immediately reloaded; when

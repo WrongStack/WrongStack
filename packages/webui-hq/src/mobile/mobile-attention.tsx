@@ -12,6 +12,10 @@ import { EmptyState } from '../components/hq/primitives.js';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
 import { useHqStore } from '../data/store/index.js';
+import {
+  credentialAllows,
+  useCredentialCapabilities,
+} from '../domain/use-credential-capabilities.js';
 import { useAnswerApproval, usePendingApprovals } from '../domain/use-pending-approvals.js';
 
 export interface MobileAttentionProps {
@@ -95,6 +99,13 @@ export function MobileAttention({
   // it — every other one waits indefinitely.
   const { approvals } = usePendingApprovals();
   const { answer, pendingFor } = useAnswerApproval();
+  // A narrowed credential may lack answer rights entirely (a steer-only
+  // token); then the buttons would only ever earn a 403.
+  const capabilities = useCredentialCapabilities();
+  // Allow/Refuse are the one-shot answers, so the narrower grant suffices.
+  const canApprove =
+    credentialAllows(capabilities, 'control.approve') ||
+    credentialAllows(capabilities, 'control.approve.once');
   const total =
     approvals.length +
     waitingAgents.length +
@@ -147,23 +158,29 @@ export function MobileAttention({
               // `deny` write persistent policy onto the machine, which is not
               // a thing to commit to with a thumb on a card this small — the
               // Approvals view carries the full set.
-              <div className="flex shrink-0 gap-1">
-                <Button
-                  size="sm"
-                  disabled={pendingFor(approval.toolUseId)}
-                  onClick={() => void answer(approval, 'yes')}
-                >
-                  Allow
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pendingFor(approval.toolUseId)}
-                  onClick={() => void answer(approval, 'no')}
-                >
-                  Refuse
-                </Button>
-              </div>
+              !canApprove ? (
+                <Badge tone="warn" title="This sign-in cannot approve tool calls">
+                  approve on desktop
+                </Badge>
+              ) : (
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    size="sm"
+                    disabled={pendingFor(approval.toolUseId)}
+                    onClick={() => void answer(approval, 'yes')}
+                  >
+                    Allow
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pendingFor(approval.toolUseId)}
+                    onClick={() => void answer(approval, 'no')}
+                  >
+                    Refuse
+                  </Button>
+                </div>
+              )
             }
           />
         ))}

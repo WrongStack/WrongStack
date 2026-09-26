@@ -28,7 +28,6 @@ import {
   type HqToken,
   type HqTranscriptEntry,
   hqTokenKey,
-  isTokenExpired,
   mintHqCookieSecret,
   mutateHqAuthFile,
   shouldCloseBrowserSocket,
@@ -38,7 +37,6 @@ import {
 import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
 import { WebSocket, WebSocketServer } from 'ws';
 import { HQ_HTML } from './hq-recovery-html.js';
-import * as HqServerAuth from './hq-server/auth.js';
 import { createHqAuthState } from './hq-server/auth-state.js';
 import { createHqIpAllowlist } from './hq-server/ip-allowlist.js';
 import { LoginAttemptStore } from './hq-server/login-attempt-store.js';
@@ -57,6 +55,7 @@ import {
   sanitizeApiError,
 } from './hq-server/routes.js';
 import { createHqServerShutdown } from './hq-server/server-lifecycle.js';
+import { createHqSocketCredentialEnforcer } from './hq-server/socket-credentials.js';
 import * as HqServerSnapshot from './hq-server/snapshot.js';
 import { writeHqRuntimeMarker, writeHqStartupInfo } from './hq-server/startup.js';
 import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './hq-server/types.js';
@@ -174,11 +173,13 @@ async function startHqServerWithAuth(
   // W4 #15: the revocation handler needs the browser socket set, which is
   // constructed further down — so it is late-bound here rather than
   // reordering the whole server start-up around one callback.
-  let revokeBrowserSessions: ((keys: readonly string[]) => void) | undefined;
+  let revokeBrowserSessions:
+    | ((keys: readonly string[], ids: readonly string[]) => void)
+    | undefined;
 
   const authState = createHqAuthState(authFile, dataDir, {
     onApplied: (live) => reassessExposureFloor(live),
-    onTokensRevoked: (keys) => revokeBrowserSessions?.(keys),
+    onTokensRevoked: (keys, ids) => revokeBrowserSessions?.(keys, ids),
     requireBrowserAuth: options.requireBrowserAuth,
   });
   const { mutableAuth } = authState;
@@ -242,21 +243,14 @@ async function startHqServerWithAuth(
     // W4 #15: a revoked browser token has to evacuate sockets that are ALREADY
     // open — failing the next handshake is not enough, because an open socket
     // never presents its credential again and would keep streaming telemetry.
-    //
-    // This ONLY announces; it deliberately does not close. The watcher below
-    // owns eviction and does it precisely (it deletes the sessions whose
-    // `tokenId` is no longer live, and distinguishes a password change from a
-    // token change). A second close here would race that one with a different
-    // close code — but because `onTokensRevoked` fires from `authState.apply`,
-    // which the watcher calls before its close loop, the browser still learns
-    // why it is about to be disconnected.
-    revokeBrowserSessions = (keys) => {
-      const frame = JSON.stringify({ type: 'hq.auth_revoked', revokedTokenKeys: keys });
-      for (const ws of browsers) {
-        if (ws.readyState !== WebSocket.OPEN) continue;
-        ws.send(frame);
-      }
-    };
+    const socketCredentials = createHqSocketCredentialEnforcer({
+      mutableAuth,
+      sessions,
+      browsers,
+      browserSocketSessions,
+      clientSocketTokens,
+    });
+    revokeBrowserSessions = (keys, ids) => socketCredentials.announceRevokedTokens(keys, ids);
     const eventLog: HqEventEnvelope[] = [];
     const transcripts = new Map<string, TranscriptRing>();
     const agentMessages = new Map<string, HqTranscriptEntry[]>();
@@ -280,6 +274,9 @@ async function startHqServerWithAuth(
       for (const [id, session] of sessions) {
         if (session.createdAt < maxAgeCutoff) {
           sessions.delete(id);
+          // Max age is absolute, unlike the idle cutoff below: a socket still
+          // streaming on a session that has outlived it must go too.
+          socketCredentials.closeSessionSockets(id, 'Browser session expired');
           continue;
         }
         if (session.pending2fa) {
@@ -389,6 +386,7 @@ async function startHqServerWithAuth(
     const clientTtlMs = options.clientTtlMs ?? CLIENT_TTL_MS;
     const sessionSnapshotTtlMs = options.sessionSnapshotTtlMs ?? SESSION_SNAPSHOT_TTL_MS;
     const cleanupTimer = setInterval(() => {
+      socketCredentials.sweepExpiredSocketCredentials();
       const cutoff = Date.now() - clientTtlMs;
       const sessionCutoff = Date.now() - sessionSnapshotTtlMs;
       let changed = false;
@@ -397,6 +395,7 @@ async function startHqServerWithAuth(
           const lostClient = client;
           ws.terminate();
           clients.delete(ws);
+          HqServerWs.failUndeliveredCommands(lostClient, browsers, auditLog);
           HqServerWs.detectLeaderLoss(lostClient, clients, browsers, 'heartbeat-timeout', {
             eventLog,
             persistence,
@@ -427,7 +426,16 @@ async function startHqServerWithAuth(
           const lostClient = client;
           ws.terminate();
           clients.delete(ws);
-          HqServerWs.detectLeaderLoss(lostClient, clients, browsers, 'heartbeat-timeout', {
+          HqServerWs.failUndeliveredCommands(lostClient, browsers, auditLog);
+          // This is a server-side session-summary TTL reap, NOT a missed
+          // heartbeat: the branch above already returned for a genuinely
+          // stale `lastSeenAt`, so this client is still heartbeating — it is
+          // dropped because it has held zero session snapshots past the TTL.
+          // Labeling it 'heartbeat-timeout' (the literal this branch used to
+          // pass) made every peer.rehydrate/peer.lost banner claim a heartbeat
+          // failure that never happened. 'crash' is the closest truthful
+          // existing reason for an abrupt, non-graceful server-side loss.
+          HqServerWs.detectLeaderLoss(lostClient, clients, browsers, 'crash', {
             eventLog,
             persistence,
           });
@@ -583,15 +591,7 @@ async function startHqServerWithAuth(
           }
         }
 
-        const clientAuthRequired = HqServerAuth.hqClientAuthRequired(mutableAuth);
-        for (const [clientSocket, authToken] of clientSocketTokens) {
-          const stillAuthorized =
-            authToken === undefined
-              ? !clientAuthRequired
-              : !isTokenExpired(authToken) &&
-                mutableAuth.clientTokenObjs.has(hqTokenKey(authToken));
-          if (!stillAuthorized) clientSocket.close(1008, 'Client authentication revoked');
-        }
+        socketCredentials.closeUnauthorizedClientSockets();
         if (
           (options.requireBrowserAuth || mutableAuth.requireAuthFloor) &&
           mutableAuth.browserTokens.size === 0 &&

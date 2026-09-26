@@ -630,11 +630,51 @@ export class HqCommandAuditLog {
     return true;
   }
 
-  /** Seed the ring from a durable store on boot (no persist callback fired). */
+  /**
+   * Seed the ring from a durable store on boot (no persist callback fired).
+   *
+   * The store is an append log: every transition (`queued` → `delivered` →
+   * `acked`) persists the whole entry again, so one command is several rows.
+   * Pushing them verbatim put each command in the ring up to three times, and
+   * `get()` — which returns the FIRST match — answered with the stale
+   * `queued` copy. Rows are folded by `commandId`, last write wins, keeping
+   * the position of the command's first appearance.
+   *
+   * A command that was still `queued` or `delivered` when the previous HQ
+   * process died can never settle: its queue lived on a socket of that
+   * process. Left as-is it shows as pending forever, so it is resolved as
+   * failed here, with a message that says what is actually known.
+   */
   seed(entries: readonly HqCommandAuditEntry[]): void {
+    const folded = new Map<string, HqCommandAuditEntry>();
     for (const entry of entries) {
-      this.entries.push(entry);
+      if (typeof entry?.commandId !== 'string') continue;
+      const previous = folded.get(entry.commandId);
+      folded.set(
+        entry.commandId,
+        previous === undefined ? { ...entry } : { ...previous, ...entry },
+      );
     }
+    for (const entry of this.entries) folded.delete(entry.commandId);
+    const seeded: HqCommandAuditEntry[] = [];
+    for (const entry of folded.values()) {
+      if (entry.status !== 'acked') {
+        seeded.push({
+          ...entry,
+          status: 'acked',
+          ackStatus: 'failed',
+          ackMessage:
+            entry.status === 'queued'
+              ? 'never delivered: HQ restarted before the client polled'
+              : 'HQ restarted before the client acknowledged; outcome unknown',
+        });
+      } else {
+        seeded.push(entry);
+      }
+    }
+    // Seeding happens after boot, so live entries recorded in the meantime are
+    // newer than anything on disk and stay at the tail.
+    this.entries.unshift(...seeded);
     if (this.entries.length > this.max) {
       this.entries.splice(0, this.entries.length - this.max);
     }

@@ -19,6 +19,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const upgradeStoredTokenToCookie = vi.fn();
 const clearHqToken = vi.fn();
+const hasAuthenticatedHqBrowserSession = vi.fn();
 
 // The HTTP client boots an auth-store side effect at module scope; stub it so
 // importing the wire module stays inert.
@@ -26,6 +27,7 @@ vi.mock('../src/data/api.js', () => ({ fetchJson: vi.fn() }));
 vi.mock('../src/data/auth/index.js', () => ({
   upgradeStoredTokenToCookie,
   clearHqToken,
+  hasAuthenticatedHqBrowserSession,
 }));
 
 const { applySocketMessage } = await import('../src/data/wire.js');
@@ -39,6 +41,8 @@ describe('applySocketMessage hq.auth_revoked (W4 #15)', () => {
     useHqStore.setState({ authRevoked: false });
     upgradeStoredTokenToCookie.mockReset();
     clearHqToken.mockReset();
+    hasAuthenticatedHqBrowserSession.mockReset();
+    hasAuthenticatedHqBrowserSession.mockResolvedValue(false);
   });
 
   it('says NOTHING when this browser re-mints — a different browser was revoked', async () => {
@@ -68,6 +72,24 @@ describe('applySocketMessage hq.auth_revoked (W4 #15)', () => {
 
     expect(clearHqToken).toHaveBeenCalled();
     expect(useHqStore.getState().authRevoked).toBe(true);
+  });
+
+  it('keeps a password/mobile session signed in: it has no stored token to re-mint', async () => {
+    // Password login deliberately clears the stored token, so the re-mint
+    // fails immediately — yet the cookie session a token revocation cannot
+    // touch is still valid. Signing this operator out was the false positive.
+    upgradeStoredTokenToCookie.mockResolvedValue(false);
+    hasAuthenticatedHqBrowserSession.mockResolvedValue(true);
+
+    applySocketMessage(useHqStore, {
+      type: 'hq.auth_revoked',
+      revokedTokenKeys: ['verifier-belonging-to-someone-else'],
+    });
+    await flush();
+
+    expect(hasAuthenticatedHqBrowserSession).toHaveBeenCalled();
+    expect(clearHqToken).not.toHaveBeenCalled();
+    expect(useHqStore.getState().authRevoked).toBe(false);
   });
 
   it('does not raise the gate before the re-mint resolves', () => {

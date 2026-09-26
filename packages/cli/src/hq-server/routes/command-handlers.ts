@@ -101,29 +101,15 @@ export async function handleApiCommand(
   // `control.enqueue`, so an operator can hand out a steer-only credential.
   if (
     (validated.type === 'approve' || validated.type === 'answer-input') &&
-    isCookieAuth(auth) &&
-    auth.capabilities !== undefined &&
-    !auth.capabilities.includes('control.approve')
+    (isCookieAuth(auth) || isTokenAuth(auth)) &&
+    !credentialMayAnswer(auth.capabilities, validated)
   ) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
-        error: 'forbidden: browser session lacks control.approve capability',
-      }),
-    );
-    return;
-  }
-
-  if (
-    (validated.type === 'approve' || validated.type === 'answer-input') &&
-    isTokenAuth(auth) &&
-    auth.capabilities !== undefined &&
-    !auth.capabilities.includes('control.approve')
-  ) {
-    res.writeHead(403, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        error: 'forbidden: token lacks control.approve capability',
+        error: isCookieAuth(auth)
+          ? 'forbidden: browser session lacks control.approve capability'
+          : 'forbidden: token lacks control.approve capability',
       }),
     );
     return;
@@ -195,9 +181,6 @@ export async function handleApiCommand(
   }
 
   target.commandQueue.push(queued);
-  if (target.commandQueue.length > 200)
-    target.commandQueue.splice(0, target.commandQueue.length - 200);
-
   const auditEntry: HqCommandAuditEntry = {
     commandId,
     type: validated.type,
@@ -208,7 +191,62 @@ export async function handleApiCommand(
   };
   auditLog.record(auditEntry);
   HqServerSnapshot.broadcastCommandStatus(auditEntry, browsers);
+  trimCommandQueue(target, browsers, auditLog);
 
   res.writeHead(202, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ commandId, queued: true, clientId: target.clientId }));
+}
+
+const MAX_QUEUED_COMMANDS_PER_CLIENT = 200;
+
+/**
+ * Cap the per-socket queue. The trimmed head is mostly delivered history (the
+ * queue is the poll cursor's index, so entries stay after delivery), but a
+ * client that stopped polling accumulates UNDELIVERED commands there too —
+ * dropping those silently left their audit rows `queued` forever. Resolve
+ * them as failed so the Control rail tells the operator the truth.
+ */
+function trimCommandQueue(
+  target: ConnectedClient,
+  browsers: Set<WebSocket>,
+  auditLog: HqCommandAuditLog,
+): void {
+  const overflow = target.commandQueue.length - MAX_QUEUED_COMMANDS_PER_CLIENT;
+  if (overflow <= 0) return;
+  const dropped = target.commandQueue.splice(0, overflow);
+  const droppedAt = new Date().toISOString();
+  for (const command of dropped) {
+    if (auditLog.get(command.commandId)?.status !== 'queued') continue;
+    const updated = auditLog.updateForClient(command.commandId, target.clientId, {
+      status: 'acked',
+      ackStatus: 'failed',
+      ackMessage: 'dropped from the queue: the client stopped polling for commands',
+      ackedAt: droppedAt,
+    });
+    const entry = updated ? auditLog.get(command.commandId) : undefined;
+    if (entry !== undefined) HqServerSnapshot.broadcastCommandStatus(entry, browsers);
+  }
+}
+
+/** One-shot answers: they settle a single pending prompt and persist nothing. */
+const ONE_SHOT_DECISIONS = new Set(['yes', 'no']);
+
+/**
+ * Whether a credential may answer a prompt.
+ *
+ * `control.approve` answers anything. `control.approve.once` — what the mobile
+ * login carries — may release or refuse THIS call, or answer an ask_user
+ * question, but never send `always`/`deny`, which write persistent policy onto
+ * the machine: that is not a decision to hand to a phone's cookie. Before this
+ * the mobile session had no answer rights at all while its Attention view
+ * offered Allow/Deny buttons, so every tap came back 403.
+ */
+export function credentialMayAnswer(
+  capabilities: readonly string[] | undefined,
+  command: HqCommand,
+): boolean {
+  if (capabilities === undefined || capabilities.includes('control.approve')) return true;
+  if (!capabilities.includes('control.approve.once')) return false;
+  if (command.type === 'answer-input') return true;
+  return command.type === 'approve' && ONE_SHOT_DECISIONS.has(command.decision);
 }

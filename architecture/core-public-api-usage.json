@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 349,
+      "files": 350,
       "typeOnly": 277,
-      "runtimeOrMixed": 93
+      "runtimeOrMixed": 94
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -19,9 +19,9 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/coordination": {
-      "files": 233,
+      "files": 234,
       "typeOnly": 89,
-      "runtimeOrMixed": 202
+      "runtimeOrMixed": 203
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -64,9 +64,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/hq": {
-      "files": 142,
-      "typeOnly": 88,
-      "runtimeOrMixed": 87
+      "files": 147,
+      "typeOnly": 89,
+      "runtimeOrMixed": 91
     },
     "@wrongstack/core/hq/protocol": {
       "files": 5,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 48
     },
     "@wrongstack/core/kernel": {
-      "files": 300,
+      "files": 301,
       "typeOnly": 148,
-      "runtimeOrMixed": 166
+      "runtimeOrMixed": 167
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/types": {
-      "files": 1210,
+      "files": 1211,
       "typeOnly": 1074,
-      "runtimeOrMixed": 354
+      "runtimeOrMixed": 355
     },
     "@wrongstack/core/types/limits": {
       "files": 1,
@@ -229,9 +229,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils/error": {
-      "files": 10,
+      "files": 12,
       "typeOnly": 0,
-      "runtimeOrMixed": 10
+      "runtimeOrMixed": 12
     },
     "@wrongstack/core/utils/expect-defined": {
       "files": 13,
@@ -1463,6 +1463,12 @@
       "file": "packages/tools/tests/builtin-executor-smoke.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/clarify-unattended.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -2795,6 +2801,12 @@
       "file": "packages/cli/src/hq-command-controller.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/hq-fleet-control.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -4886,6 +4898,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/socket-credentials.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/startup.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5060,7 +5078,19 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-command-credential-lifecycle.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-dashboard.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-events-query-filters.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5109,6 +5139,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-password-login.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-peer-reason.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5337,6 +5373,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/src/domain/fleet-topology.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/kanban-actions.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -7251,6 +7293,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/telegram/tests/integration/startup-selftest.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/tools/tests/clarify-unattended.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12299,6 +12347,12 @@
       "file": "packages/cli/src/hq-command-controller.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/hq-fleet-control.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -23331,6 +23385,18 @@
     {
       "specifier": "@wrongstack/core/utils/error",
       "file": "packages/webui/src/components/SessionsDashboard.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/webui/src/components/TechStackView/RemediationTab.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/webui/src/components/TechStackView/TrendsTab.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

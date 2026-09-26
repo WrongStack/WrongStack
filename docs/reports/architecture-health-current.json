@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-25T18:33:22.767Z",
+  "generatedAt": "2026-09-26T01:25:43.023Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 37,
-    "sourceFiles": 4210,
-    "testFiles": 3740,
-    "sourceLines": 992526,
+    "sourceFiles": 4223,
+    "testFiles": 3753,
+    "sourceLines": 995356,
     "workspaceEdges": 130,
-    "moduleEdges": 13740,
+    "moduleEdges": 13775,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 4,
-    "testOnlyExports": 943
+    "testOnlyExports": 940
   },
   "errors": [],
   "packageCycles": [],
@@ -149,8 +149,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 540,
-      "testFiles": 544,
+      "sourceFiles": 544,
+      "testFiles": 549,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -189,7 +189,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 544
+          "testFiles": 549
         }
       ]
     },
@@ -240,8 +240,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 962,
-      "testFiles": 843,
+      "sourceFiles": 963,
+      "testFiles": 844,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -256,7 +256,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 843
+          "testFiles": 844
         }
       ]
     },
@@ -309,7 +309,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 95,
-      "testFiles": 74,
+      "testFiles": 75,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -323,7 +323,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 74
+          "testFiles": 75
         }
       ]
     },
@@ -761,7 +761,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 237,
-      "testFiles": 280,
+      "testFiles": 281,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -777,7 +777,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 280
+          "testFiles": 281
         }
       ]
     },
@@ -838,8 +838,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 596,
-      "testFiles": 415,
+      "sourceFiles": 599,
+      "testFiles": 416,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -862,15 +862,15 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 415
+          "testFiles": 416
         }
       ]
     },
     {
       "name": "@wrongstack/webui-hq",
       "dir": "packages/webui-hq",
-      "sourceFiles": 121,
-      "testFiles": 46,
+      "sourceFiles": 126,
+      "testFiles": 49,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/tools",
@@ -886,7 +886,7 @@
         {
           "path": "packages/webui-hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 46
+          "testFiles": 49
         }
       ]
     },
@@ -915,7 +915,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 254,
-      "testFiles": 239,
+      "testFiles": 240,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -941,7 +941,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 239
+          "testFiles": 240
         }
       ]
     },
@@ -2136,6 +2136,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/boot-goal-tui-default.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/boot-home-guard.test.ts",
         "projects": [
           "root-node"
@@ -2838,6 +2844,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-command-credential-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-csp.test.ts",
         "projects": [
           "root-node"
@@ -2851,6 +2863,18 @@
       },
       {
         "file": "packages/cli/tests/hq-docker-deployment.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-events-query-filters.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-fleet-control.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2941,6 +2965,12 @@
       },
       {
         "file": "packages/cli/tests/hq-path-segment.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-peer-reason.test.ts",
         "projects": [
           "root-node"
         ]
@@ -8742,6 +8772,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/session-catalog-client-lost-election.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/session-catalog-client-nextid-wrap.test.ts",
         "projects": [
           "root-node"
@@ -10477,6 +10513,12 @@
       },
       {
         "file": "packages/kanban/tests/client-frame-drain.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/client-lost-election.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15378,6 +15420,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/clarify-unattended.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/codebase-adjacency-cache-visibility.test.ts",
         "projects": [
           "root-node"
@@ -19284,6 +19332,12 @@
         ]
       },
       {
+        "file": "packages/webui-hq/src/views/__tests__/kanban-task-actions.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-hq/tests/auth-revoked.test.ts",
         "projects": [
           "root-node"
@@ -19297,6 +19351,12 @@
       },
       {
         "file": "packages/webui-hq/tests/coalesce-streamed-text.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/cockpit-health-detail.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19501,6 +19561,12 @@
       },
       {
         "file": "packages/webui-hq/tests/mobile-route.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/settings-error-message.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20569,6 +20635,12 @@
       },
       {
         "file": "packages/webui-server/tests/server-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/server/client-presence-hq.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22105,6 +22177,12 @@
       },
       {
         "file": "packages/webui/tests/components/task-risk-panel.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/techstack-error-display.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -23758,13 +23836,13 @@
     },
     {
       "file": "packages/cli/src/cli-main.ts",
-      "lines": 899,
-      "relativeImports": 37
+      "lines": 904,
+      "relativeImports": 38
     },
     {
       "file": "packages/cli/src/execution.ts",
-      "lines": 1004,
-      "relativeImports": 46
+      "lines": 1008,
+      "relativeImports": 47
     },
     {
       "file": "packages/cli/src/fleet/host.ts",
@@ -23828,7 +23906,7 @@
     },
     {
       "file": "packages/core/src/coordination/director.ts",
-      "lines": 969,
+      "lines": 974,
       "relativeImports": 45
     },
     {
@@ -23843,8 +23921,8 @@
     },
     {
       "file": "packages/core/src/core/fallback-model.ts",
-      "lines": 879,
-      "relativeImports": 15
+      "lines": 899,
+      "relativeImports": 16
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
@@ -24152,11 +24230,6 @@
       "relativeImports": 0
     },
     {
-      "file": "packages/webui/src/components/TechStackView/index.tsx",
-      "lines": 881,
-      "relativeImports": 5
-    },
-    {
       "file": "packages/webui/src/hooks/ws-handlers.ts",
       "lines": 916,
       "relativeImports": 8
@@ -24230,8 +24303,8 @@
     },
     {
       "file": "packages/cli/src/execution.ts",
-      "lines": 1004,
-      "relativeImports": 46
+      "lines": 1008,
+      "relativeImports": 47
     },
     {
       "file": "packages/tools/src/_danger-detect.ts",
@@ -24244,14 +24317,14 @@
       "relativeImports": 42
     },
     {
+      "file": "packages/core/src/coordination/director.ts",
+      "lines": 974,
+      "relativeImports": 45
+    },
+    {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 974,
       "relativeImports": 18
-    },
-    {
-      "file": "packages/core/src/coordination/director.ts",
-      "lines": 969,
-      "relativeImports": 45
     },
     {
       "file": "packages/webui-server/src/server/embedded-message-router.ts",
@@ -24349,19 +24422,24 @@
       "relativeImports": 66
     },
     {
+      "file": "packages/cli/src/cli-main.ts",
+      "lines": 904,
+      "relativeImports": 38
+    },
+    {
       "file": "packages/core/src/security/secret-vault.ts",
       "lines": 902,
       "relativeImports": 9
     },
     {
-      "file": "packages/cli/src/cli-main.ts",
-      "lines": 899,
-      "relativeImports": 37
-    },
-    {
       "file": "packages/cli/src/webui-server.ts",
       "lines": 899,
       "relativeImports": 22
+    },
+    {
+      "file": "packages/core/src/core/fallback-model.ts",
+      "lines": 899,
+      "relativeImports": 16
     },
     {
       "file": "packages/sage/src/sqlite-store-hygiene.ts",
@@ -24424,11 +24502,6 @@
       "relativeImports": 10
     },
     {
-      "file": "packages/webui/src/components/TechStackView/index.tsx",
-      "lines": 881,
-      "relativeImports": 5
-    },
-    {
       "file": "packages/plugins/src/duplicate-code-detector/index.ts",
       "lines": 880,
       "relativeImports": 1
@@ -24437,11 +24510,6 @@
       "file": "packages/tui/src/reducers/settings-values.ts",
       "lines": 880,
       "relativeImports": 6
-    },
-    {
-      "file": "packages/core/src/core/fallback-model.ts",
-      "lines": 879,
-      "relativeImports": 15
     },
     {
       "file": "packages/plugins/src/test-runner-gate/index.ts",
@@ -24462,6 +24530,11 @@
       "file": "packages/cli/src/fleet/host.ts",
       "lines": 875,
       "relativeImports": 25
+    },
+    {
+      "file": "packages/sage/src/domain-term-extractor.ts",
+      "lines": 873,
+      "relativeImports": 1
     }
   ],
   "testOnlyExports": [
@@ -24792,6 +24865,10 @@
     {
       "file": "packages/cli/src/hq-server/client-address.ts",
       "name": "parseForwardedEntry"
+    },
+    {
+      "file": "packages/cli/src/hq-server/routes/command-handlers.ts",
+      "name": "credentialMayAnswer"
     },
     {
       "file": "packages/cli/src/hq-server/snapshot.ts",
@@ -27478,26 +27555,6 @@
       "name": "coalesceStreamedText"
     },
     {
-      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
-      "name": "canAssignKanbanTask"
-    },
-    {
-      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
-      "name": "canDispatchKanbanTask"
-    },
-    {
-      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
-      "name": "kanbanTransitionOptions"
-    },
-    {
-      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
-      "name": "mobileKanbanAssignmentTargets"
-    },
-    {
-      "file": "packages/webui-hq/src/mobile/mobile-kanban.tsx",
-      "name": "suggestedKanbanStage"
-    },
-    {
       "file": "packages/webui-hq/src/views/cockpit.tsx",
       "name": "CommandLatencyCard"
     },
@@ -28008,6 +28065,10 @@
     {
       "file": "packages/webui/src/hooks/ws-handlers/techstack-handlers.ts",
       "name": "handleTechStackReportReady"
+    },
+    {
+      "file": "packages/webui/src/hooks/ws-handlers/techstack-handlers.ts",
+      "name": "handleTechStackResearchPartial"
     },
     {
       "file": "packages/webui/src/hooks/ws-handlers/techstack-handlers.ts",

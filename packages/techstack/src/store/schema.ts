@@ -12,7 +12,7 @@
  * @see docs/specs/techstack-sdd.md §3.2, §4.1
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const DDL = `
 CREATE TABLE IF NOT EXISTS techstack_schema_version (
@@ -45,7 +45,10 @@ CREATE TABLE IF NOT EXISTS jobs (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   completed_at TEXT,
   error TEXT,
-  progress_json TEXT
+  progress_json TEXT,
+  depth TEXT
+    CHECK(depth IS NULL OR depth IN ('inventory','enrich','full')),
+  model TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_jobs_project_id ON jobs(project_id);
@@ -75,6 +78,26 @@ CREATE INDEX IF NOT EXISTS idx_research_cache_expires_at ON research_cache(expir
 `;
 
 /**
+ * Backfill a column introduced by a later schema version.
+ *
+ * `CREATE TABLE IF NOT EXISTS` is a no-op on an existing table, so adding
+ * columns to a persistent database must go through `ALTER TABLE`. The
+ * `PRAGMA table_info` guard keeps it idempotent even if the columns are
+ * somehow already present (same pattern as session-catalog's
+ * `ensureCatalogStorageColumns`).
+ */
+function addColumnIfMissing(
+  db: import('node:sqlite').DatabaseSync,
+  table: string,
+  column: string,
+  ddl: string,
+): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (columns.some((col) => col.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+
+/**
  * Run the schema DDL and check/migrate version.
  */
 export function applySchema(db: import('node:sqlite').DatabaseSync): void {
@@ -94,7 +117,19 @@ export function applySchema(db: import('node:sqlite').DatabaseSync): void {
   if (!row) {
     db.prepare('INSERT INTO techstack_schema_version (version) VALUES (?)').run(SCHEMA_VERSION);
   } else if (row.version < SCHEMA_VERSION) {
-    // Future: run migrations here
+    if (row.version < 2) {
+      // v1 → v2: `jobs` gained `depth` and `model`. The DDL above cannot add
+      // them to an existing v1 table, so backfill via ALTER TABLE — otherwise
+      // `saveJob` (which inserts both columns unconditionally) throws
+      // "no such column: depth" on every legacy database.
+      addColumnIfMissing(
+        db,
+        'jobs',
+        'depth',
+        "TEXT CHECK(depth IS NULL OR depth IN ('inventory','enrich','full'))",
+      );
+      addColumnIfMissing(db, 'jobs', 'model', 'TEXT');
+    }
     db.prepare('UPDATE techstack_schema_version SET version = ?').run(SCHEMA_VERSION);
   }
 }

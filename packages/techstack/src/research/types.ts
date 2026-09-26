@@ -72,9 +72,25 @@ export type ResearchLlm = (req: ResearchLlmRequest) => Promise<string>;
 
 // ── Researcher ────────────────────────────────────────────────────────────
 
+/**
+ * Per-dependency streaming partial surfaced from the research stage so the
+ * caller can update UI as each triage candidate is processed.
+ *
+ * `dependencyId` is absent for the cluster-level "starting / finished" emit
+ * (one per cluster) and present for every per-dependency partial inside the
+ * cluster (one per `TriageCandidate` the researcher processes).
+ */
+export interface ResearchPartial {
+  readonly dependencyId?: string | undefined;
+  readonly cluster: ResearchCluster;
+  readonly completed: number;
+  readonly total: number;
+}
+
 export interface ResearchOptions {
   readonly signal?: AbortSignal | undefined;
   readonly onProgress?: ((completed: number, total: number) => void) | undefined;
+  readonly onPartial?: ((partial: ResearchPartial) => void) | undefined;
 }
 
 /**

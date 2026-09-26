@@ -34,19 +34,17 @@ import type { HqTone } from '../domain/status-tone.js';
 import { shortenId } from '../lib/format.js';
 import { formatClock, formatPercent, formatUsd } from '../lib/format.js';
 import { cn } from '../lib/utils.js';
+import {
+  type MailboxGatewayHealth,
+  type SystemHealth,
+  SystemHealthTiles,
+} from './cockpit-health.js';
 
 const HEALTH_POLL_MS = 30_000;
 const ALERTS_POLL_MS = 15_000;
 /** Cockpit shows a digest, not the archive — the Attention view has the rest. */
 const ALERT_DIGEST_LIMIT = 12;
 const TOP_PROJECTS = 4;
-
-interface SystemHealth {
-  status: 'healthy' | 'degraded';
-  uptime: { serverTime: string; eventLogSize: number };
-  stores: { events: string; timeseries: string; kanban: string };
-  connections: { total: number; active: number; stale: number };
-}
 
 interface AlertsResponse {
   active: HqAlert[];
@@ -270,6 +268,7 @@ export function CockpitView(): React.ReactElement {
   const [alertsError, setAlertsError] = useState<string | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [gatewayHealth, setGatewayHealth] = useState<MailboxGatewayHealth | null>(null);
   const [busyAction, setBusyAction] = useState<QuickAction | null>(null);
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -285,6 +284,14 @@ export function CockpitView(): React.ReactElement {
         })
         .catch((cause: unknown) => {
           if (!cancelled) setHealthError(cause instanceof Error ? cause.message : String(cause));
+        });
+      // Optional detail: an older server without the route simply shows none.
+      fetchJson<MailboxGatewayHealth>('/api/health/mailbox')
+        .then((data) => {
+          if (!cancelled) setGatewayHealth(data);
+        })
+        .catch(() => {
+          if (!cancelled) setGatewayHealth(null);
         });
     };
     load();
@@ -547,8 +554,12 @@ export function CockpitView(): React.ReactElement {
             size="sm"
             disabled={quickActionClient === null || busyAction !== null}
             onClick={() => void dispatchQuickAction('pause-noisy')}
+            // A mailbox broadcast the agents read and may act on — nothing is
+            // halted. The label used to promise a pause the command never did;
+            // a hard stop is Control → abort.
+            title="Broadcasts a high-priority request to reduce activity. Agents are not stopped; use Control → abort for that."
           >
-            {busyAction === 'pause-noisy' ? 'Queuing…' : 'Pause noisy agents'}
+            {busyAction === 'pause-noisy' ? 'Queuing…' : 'Ask agents to quiet down'}
           </Button>
           <Button
             variant="outline"
@@ -583,25 +594,7 @@ export function CockpitView(): React.ReactElement {
             {healthError !== null ? (
               <EmptyState title={healthError} />
             ) : health !== null ? (
-              <div className="flex flex-wrap gap-x-6 gap-y-3">
-                <StatTile
-                  label="status"
-                  value={health.status}
-                  tone={health.status === 'healthy' ? 'active' : 'error'}
-                />
-                <StatTile label="event log" value={health.uptime?.eventLogSize ?? 0} />
-                <StatTile label="connections" value={health.connections?.total ?? 0} />
-                <StatTile
-                  label="active"
-                  value={health.connections?.active ?? 0}
-                  tone={(health.connections?.active ?? 0) > 0 ? 'active' : 'idle'}
-                />
-                <StatTile
-                  label="stale"
-                  value={health.connections?.stale ?? 0}
-                  tone={(health.connections?.stale ?? 0) > 3 ? 'warn' : 'idle'}
-                />
-              </div>
+              <SystemHealthTiles health={health} gatewayHealth={gatewayHealth} />
             ) : null}
           </CockpitCard>
         )}

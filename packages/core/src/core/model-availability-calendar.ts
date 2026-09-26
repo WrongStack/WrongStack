@@ -74,8 +74,12 @@ function clockAt(date: Date, timezone?: string): { day: number; minute: number }
   }
 }
 
-function targetMatches(rule: ModelBlackoutRule, providerId: string, model: string): boolean {
-  if (rule.provider && rule.provider !== providerId) return false;
+function targetMatches(
+  rule: ModelBlackoutRule,
+  providerIds: readonly string[],
+  model: string,
+): boolean {
+  if (rule.provider && !providerIds.includes(rule.provider)) return false;
   if (rule.model && rule.model !== model) return false;
   return Boolean(rule.provider || rule.model);
 }
@@ -93,17 +97,28 @@ function timeMatches(rule: ModelBlackoutRule, day: number, minute: number): bool
   return minute < end && (!days || days.has(previousDay));
 }
 
+/**
+ * `provider` may be one id or all of a provider's identities — its config key
+ * and the catalog entry it is built from — so a rule naming the vendor
+ * (`anthropic`) also covers a second account `work` built from it.
+ */
 export function evaluateModelCalendar(
   rules: readonly ModelBlackoutRule[] | undefined,
-  providerId: string,
-  model: string,
+  provider: string | readonly string[],
+  requestedModel: string,
   at = new Date(),
 ): ModelCalendarDecision {
-  ({ providerId, model } = logicalCalendarTarget(providerId, model));
+  let model = requestedModel;
+  const providerIds: string[] = [];
+  for (const id of typeof provider === 'string' ? [provider] : provider) {
+    const target = logicalCalendarTarget(id, requestedModel);
+    providerIds.push(target.providerId);
+    if (target.providerId !== id) model = target.model;
+  }
   const allowRules: ModelBlackoutRule[] = [];
   let allowMatched = false;
   for (const rule of rules ?? []) {
-    if (rule.enabled === false || !targetMatches(rule, providerId, model)) continue;
+    if (rule.enabled === false || !targetMatches(rule, providerIds, model)) continue;
     const clock = clockAt(at, rule.timezone);
     if (!clock || minuteOfDay(rule.start) === undefined || minuteOfDay(rule.end) === undefined)
       continue;

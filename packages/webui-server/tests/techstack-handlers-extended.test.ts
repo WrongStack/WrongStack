@@ -7,6 +7,7 @@ import {
   handleTechStackDependencyResearch,
   handleTechStackInventory,
   handleTechStackJobStatus,
+  handleTechStackModels,
   handleTechStackRemediationApply,
   handleTechStackRemediationPlan,
   handleTechStackReport,
@@ -228,13 +229,14 @@ describe('TechStack HTTP handlers extended coverage', () => {
   });
 
   describe('handleTechStackInventory and handleTechStackAnalyze', () => {
-    it('returns 503 if engine or projectRoot is missing', () => {
+    it('returns 503 if engine or projectRoot is missing', async () => {
       const res1 = mockResponse();
       handleTechStackInventory(res1.value, { projectId: 'p1', store: {} as never });
       expect(res1.result.status).toBe(503);
 
       const res2 = mockResponse();
-      handleTechStackAnalyze(res2.value, {
+      const req2 = Readable.from(['']) as never;
+      await handleTechStackAnalyze(req2, res2.value, {
         projectId: 'p1',
         projectRoot: '/root',
         store: {} as never,
@@ -268,7 +270,7 @@ describe('TechStack HTTP handlers extended coverage', () => {
 
       expect(emit).toHaveBeenCalledWith({
         type: 'techstack.job.started',
-        payload: { jobId, kind: 'inventory' },
+        payload: { jobId, kind: 'inventory', depth: 'inventory' },
       });
 
       // Allow background analyze promise to resolve
@@ -326,7 +328,8 @@ describe('TechStack HTTP handlers extended coverage', () => {
         }),
       } as never;
 
-      handleTechStackAnalyze(res.value, {
+      const req = Readable.from(['']) as never;
+      await handleTechStackAnalyze(req, res.value, {
         projectId: 'p1',
         projectRoot: '/root',
         store: {} as never,
@@ -454,6 +457,160 @@ describe('TechStack HTTP handlers extended coverage', () => {
       expect(JSON.parse(res.result.body)).toMatchObject({
         error: 'No TechStack snapshot is available',
       });
+    });
+  });
+
+  describe('handleTechStackModels', () => {
+    it('returns available=false when no provider is wired', () => {
+      const res = mockResponse();
+      handleTechStackModels(res.value, { projectId: 'p1', store: {} as never });
+
+      expect(res.result.status).toBe(200);
+      expect(JSON.parse(res.result.body)).toEqual({
+        available: false,
+        provider: null,
+        model: null,
+        candidates: [],
+      });
+    });
+
+    it('returns provider metadata when an LLM is wired', () => {
+      const res = mockResponse();
+      const provider = {
+        name: 'anthropic',
+        models: [{ id: 'claude-haiku-4-5' }, { id: 'claude-sonnet-4-5' }],
+        capabilities: { structuredOutput: true, jsonMode: true },
+      };
+      handleTechStackModels(res.value, {
+        projectId: 'p1',
+        store: {} as never,
+        getLlm: () => ({ provider: provider as never, model: 'claude-sonnet-4-5' }),
+      });
+
+      expect(res.result.status).toBe(200);
+      const body = JSON.parse(res.result.body);
+      expect(body.available).toBe(true);
+      expect(body.provider).toBe('anthropic');
+      expect(body.model).toBe('claude-sonnet-4-5');
+      expect(body.capabilities).toEqual({ structuredOutput: true, jsonMode: true });
+      expect(body.candidates.map((c: { id: string }) => c.id)).toEqual([
+        'claude-haiku-4-5',
+        'claude-sonnet-4-5',
+      ]);
+    });
+
+    it('falls back to "unknown" when the provider lacks a name', () => {
+      const res = mockResponse();
+      const provider = { models: [], capabilities: {} };
+      handleTechStackModels(res.value, {
+        projectId: 'p1',
+        store: {} as never,
+        getLlm: () => ({ provider: provider as never, model: 'gpt-x' }),
+      });
+
+      expect(res.result.status).toBe(200);
+      expect(JSON.parse(res.result.body).provider).toBe('unknown');
+    });
+  });
+
+  describe('handleTechStackAnalyze with options', () => {
+    function setupAnalyze() {
+      const res = mockResponse();
+      const engine = { analyze: vi.fn().mockResolvedValue({ snapshot: mockSnapshot }) };
+      const events: unknown[] = [];
+      const deps = {
+        projectId: 'p1',
+        projectRoot: '/fake/root',
+        store: {
+          getSnapshot: vi.fn(() => mockSnapshot),
+          updateJobStatus: vi.fn(),
+          saveSnapshot: vi.fn(),
+          saveJob: vi.fn(),
+        } as never,
+        engine: engine as never,
+        runningJobs: new Map<string, AbortController>(),
+        emit: (event: unknown) => events.push(event),
+        getLlm: undefined,
+      };
+      return { res, deps, events, engine };
+    }
+
+    it('returns 400 when body has invalid depth value', async () => {
+      const { res, deps, events } = setupAnalyze();
+      const req = Readable.from([JSON.stringify({ depth: 'wrong' })]) as never;
+
+      await handleTechStackAnalyze(req, res.value, deps);
+      expect(res.result.status).toBe(400);
+      expect(JSON.parse(res.result.body)).toMatchObject({ error: expect.stringContaining('depth') });
+      // No event emitted because the job never started.
+      expect(events).toHaveLength(0);
+    });
+
+    it('returns 400 when model is not a string', async () => {
+      const { res, deps } = setupAnalyze();
+      const req = Readable.from([JSON.stringify({ model: 42 })]) as never;
+
+      await handleTechStackAnalyze(req, res.value, deps);
+      expect(res.result.status).toBe(400);
+      expect(JSON.parse(res.result.body)).toMatchObject({ error: expect.stringContaining('model') });
+    });
+
+    it('returns 413 when body is too large', async () => {
+      const { res, deps } = setupAnalyze();
+      // Cap is 16 KB; pad above it with whitespace.
+      const huge = ' '.repeat(20 * 1024);
+      const req = Readable.from([huge]) as never;
+
+      await handleTechStackAnalyze(req, res.value, deps);
+      expect(res.result.status).toBe(413);
+    });
+
+    it('returns 400 on malformed JSON body', async () => {
+      const { res, deps } = setupAnalyze();
+      const req = Readable.from(['{not-json']) as never;
+
+      await handleTechStackAnalyze(req, res.value, deps);
+      expect(res.result.status).toBe(400);
+      expect(JSON.parse(res.result.body)).toMatchObject({ error: 'Invalid request body' });
+    });
+
+    it('accepts an empty body and defaults to the analyze path', async () => {
+      const { res, deps, engine, events } = setupAnalyze();
+      const req = Readable.from(['']) as never;
+
+      await handleTechStackAnalyze(req, res.value, deps);
+      // 202 is sent before the analyze promise resolves; that's what we get.
+      expect(res.result.status).toBe(202);
+      const body = JSON.parse(res.result.body);
+      expect(body.kind).toBe('analyze');
+      expect(body.depth).toBe('full');
+      expect(body.model).toBeUndefined();
+      // The started event announces the same shape.
+      expect((events[0] as { type: string; payload: { depth?: string; model?: string } }).type).toBe(
+        'techstack.job.started',
+      );
+      expect(
+        (events[0] as { type: string; payload: { depth?: string; model?: string } }).payload.depth,
+      ).toBe('full');
+      // engine.analyze is fire-and-forget here; give it a tick.
+      await new Promise((r) => setImmediate(r));
+      expect(engine.analyze).toHaveBeenCalled();
+    });
+
+    it('forwards depth and model into engine.analyze', async () => {
+      const { res, deps, engine } = setupAnalyze();
+      const req = Readable.from([JSON.stringify({ depth: 'enrich', model: 'claude-haiku-4-5' })]) as never;
+
+      await handleTechStackAnalyze(req, res.value, deps);
+      expect(res.result.status).toBe(202);
+      const body = JSON.parse(res.result.body);
+      expect(body.depth).toBe('enrich');
+      expect(body.model).toBe('claude-haiku-4-5');
+      await new Promise((r) => setImmediate(r));
+      expect(engine.analyze).toHaveBeenCalledWith(
+        'p1',
+        expect.objectContaining({ depth: 'enrich', model: 'claude-haiku-4-5' }),
+      );
     });
   });
 });

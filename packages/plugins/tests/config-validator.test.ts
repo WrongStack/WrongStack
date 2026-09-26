@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -50,7 +50,13 @@ beforeEach(() => {
   // suite used to place them in the OS temp dir — which meant every "reads a
   // file from disk" assertion was really asserting that the hook read a path
   // outside the sandbox, pinning the escape as intended behaviour.
-  tmp = mkdtempSync(join(process.cwd(), 'config-validator-'));
+  // Under the project's git-ignored scratch dir, not its root: a run cut short
+  // (or a Windows lock that defeats the cleanup below) used to leave
+  // `config-validator-*` dirs at the repo root, where lint then parsed the
+  // deliberately broken fixture and failed.
+  const scratch = join(process.cwd(), '.temp_files');
+  mkdirSync(scratch, { recursive: true });
+  tmp = mkdtempSync(join(scratch, 'config-validator-'));
   outsideTmp = mkdtempSync(join(tmpdir(), 'config-validator-outside-'));
 });
 

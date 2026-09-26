@@ -149,9 +149,10 @@ export type { AnalyzeOptions, EnrichOptions, ReportFormat } from './service.js';
 
 // ── Service engine (§3.2) ─────────────────────────────────────────────────
 export { TechStackEngine } from './service.js';
-export type { SnapshotDiff } from './snapshot-diff.js';
+export type { AnalyzeDepth } from './service.js';
 // ── Snapshot diff (§9) ───────────────────────────────────────────────────
 export { diffSnapshots } from './snapshot-diff.js';
+export type { SnapshotDiff } from './snapshot-diff.js';
 export { applySchema, DDL } from './store/schema.js';
 
 // ── SQLite store (§3.2) ──────────────────────────────────────────────────

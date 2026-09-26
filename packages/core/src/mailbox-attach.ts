@@ -137,10 +137,16 @@ function attachMailboxCheckerInner(
   // reconnected, closed it back, and the process sat in a permanent
   // reconnect ping-pong that churned HQ's client list. Shared and refcounted,
   // there is exactly one.
-  const hqPublisher = acquireMailboxHqPublisher(a.ctx.projectRoot, source ?? 'cli', a.logger);
+  // The refcount key is captured ONCE. An in-place project switch mutates
+  // `a.ctx.projectRoot`, so releasing by the live value decremented the NEW
+  // project's entry — leaking the old publisher and closing a socket other
+  // agents still held by value.
+  const acquiredRoot = a.ctx.projectRoot;
+  const acquiredSource = source ?? 'cli';
+  const hqPublisher = acquireMailboxHqPublisher(acquiredRoot, acquiredSource, a.logger);
   if (hqPublisher) {
     // Agent-level hook: the HQ publisher lives across runs, not per-run.
-    a.ctx.registerAgentHook(() => releaseMailboxHqPublisher(a.ctx.projectRoot, source ?? 'cli'));
+    a.ctx.registerAgentHook(() => releaseMailboxHqPublisher(acquiredRoot, acquiredSource));
   }
   const surface = source ?? (a.ctx.meta['source'] as 'cli' | 'webui' | undefined) ?? 'cli';
   if (!a.ctx.meta['source']) a.ctx.meta['source'] = surface;

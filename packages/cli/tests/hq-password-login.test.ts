@@ -152,6 +152,22 @@ describe('HQ server — optional browser password login', () => {
     await expect(admin.json()).resolves.toMatchObject({
       error: { code: 'AUTH_ADMIN_REQUIRED' },
     });
+
+    // The dashboard can only hide what it cannot do if the server says so:
+    // the mobile session reports its narrowed list, a desktop one reports none.
+    const mobileStatus = await fetch(httpUrl(handle, '/api/auth/status'), {
+      headers: { Cookie: cookie! },
+    });
+    await expect(mobileStatus.json()).resolves.toMatchObject({
+      loggedIn: true,
+      capabilities: ['control.enqueue', 'control.approve.once'],
+    });
+    const desktop = await login(handle, 'secret123');
+    const desktopStatus = (await (
+      await fetch(httpUrl(handle, '/api/auth/status'), { headers: { Cookie: desktop.cookie! } })
+    ).json()) as { loggedIn?: boolean; capabilities?: unknown };
+    expect(desktopStatus.loggedIn).toBe(true);
+    expect(desktopStatus.capabilities).toBeUndefined();
   });
 
   it('auth/status reports password mode without leaking the hash', async () => {

@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useTechStackStore } from '../../src/stores/techstack-store';
 import {
   handleTechStackJobCancelled,
   handleTechStackJobFailed,
   handleTechStackJobProgress,
   handleTechStackJobStarted,
   handleTechStackReportReady,
+  handleTechStackResearchPartial,
   handleTechStackSnapshotUpdated,
   handleTechStackWorkspaceCompleted,
   techStackHandlerMap,
 } from '../../src/hooks/ws-handlers/techstack-handlers';
+import { useTechStackStore } from '../../src/stores/techstack-store';
 
 function msg(type: string, payload: unknown) {
   return { type, payload } as never;
@@ -37,6 +38,7 @@ describe('techstack ws-handler map', () => {
         'techstack.job.progress',
         'techstack.job.started',
         'techstack.report.ready',
+        'techstack.research.partial',
         'techstack.snapshot.updated',
         'techstack.workspace.completed',
       ].sort(),
@@ -51,6 +53,7 @@ describe('techstack ws-handler map', () => {
     );
     expect(techStackHandlerMap['techstack.snapshot.updated']).toBe(handleTechStackSnapshotUpdated);
     expect(techStackHandlerMap['techstack.report.ready']).toBe(handleTechStackReportReady);
+    expect(techStackHandlerMap['techstack.research.partial']).toBe(handleTechStackResearchPartial);
     expect(techStackHandlerMap['techstack.job.failed']).toBe(handleTechStackJobFailed);
     expect(techStackHandlerMap['techstack.job.cancelled']).toBe(handleTechStackJobCancelled);
   });
@@ -62,7 +65,33 @@ describe('techstack ws-handler map', () => {
       const spy = vi.fn();
       useTechStackStore.setState({ jobStarted: spy } as never);
       handleTechStackJobStarted(msg('techstack.job.started', { jobId: 'j1', kind }));
-      expect(spy).toHaveBeenCalledWith('j1', kind);
+      expect(spy).toHaveBeenCalledWith('j1', kind, undefined);
+    });
+
+    it('forwards valid depth and model options from the wire', () => {
+      const spy = vi.fn();
+      useTechStackStore.setState({ jobStarted: spy } as never);
+      handleTechStackJobStarted(
+        msg('techstack.job.started', {
+          jobId: 'j1',
+          kind: 'analyze',
+          depth: 'enrich',
+          model: 'provider/model',
+        }),
+      );
+      expect(spy).toHaveBeenCalledWith('j1', 'analyze', {
+        depth: 'enrich',
+        model: 'provider/model',
+      });
+    });
+
+    it('does not forward invalid optional depth or model', () => {
+      const spy = vi.fn();
+      useTechStackStore.setState({ jobStarted: spy } as never);
+      handleTechStackJobStarted(
+        msg('techstack.job.started', { jobId: 'j1', kind: 'analyze', depth: 'unknown', model: '' }),
+      );
+      expect(spy).toHaveBeenCalledWith('j1', 'analyze', undefined);
     });
 
     it.each([
@@ -120,6 +149,29 @@ describe('techstack ws-handler map', () => {
       useTechStackStore.setState({ jobProgress: spy } as never);
       handleTechStackJobProgress(msg('techstack.job.progress', payload));
       expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('techstack.research.partial', () => {
+    it('forwards a dependency-scoped partial, including zero counters', () => {
+      handleTechStackResearchPartial(
+        msg('techstack.research.partial', { dependencyId: 'dep-1', completed: 0, total: 3 }),
+      );
+      expect(store().deepDivePartial).toEqual({
+        dependencyId: 'dep-1',
+        status: 'researching',
+        completed: 0,
+        total: 3,
+      });
+    });
+
+    it.each([
+      ['no dependency id', { completed: 1, total: 3 }],
+      ['non-numeric completed', { dependencyId: 'dep-1', completed: '1', total: 3 }],
+      ['non-finite total', { dependencyId: 'dep-1', completed: 1, total: Number.NaN }],
+    ])('ignores a partial with %s', (_label, payload) => {
+      handleTechStackResearchPartial(msg('techstack.research.partial', payload));
+      expect(store().deepDivePartial).toBeNull();
     });
   });
 

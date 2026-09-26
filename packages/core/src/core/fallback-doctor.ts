@@ -12,6 +12,7 @@
 import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
 import type { Config } from '../types/config.js';
 import { isFallbackWorthy, type ProviderErrorKind } from '../types/provider.js';
+import { configuredProviderIdentities } from '../utils/provider-catalog-binding.js';
 import { FallbackProfileManager } from './fallback-profile-manager.js';
 import { evaluateModelCalendar } from './model-availability-calendar.js';
 
@@ -90,7 +91,11 @@ export function diagnoseFallbackConfig(
   const runnableCandidates = effectiveCandidates.filter(
     (c) =>
       (!tracker || tracker.isAvailable(c.providerId, c.model)) &&
-      evaluateModelCalendar(config.modelAvailabilitySchedule, c.providerId, c.model).allowed,
+      evaluateModelCalendar(
+        config.modelAvailabilitySchedule,
+        configuredProviderIdentities(config.providers, c.providerId),
+        c.model,
+      ).allowed,
   );
   const autoEnabled = config.fallbackAuto !== false;
 
@@ -168,7 +173,7 @@ export function diagnoseFallbackConfig(
     // 5. Check model availability schedule
     const cal = evaluateModelCalendar(
       config.modelAvailabilitySchedule,
-      entry.providerId,
+      configuredProviderIdentities(config.providers, entry.providerId),
       entry.model,
     );
     if (!cal.allowed) {
@@ -275,7 +280,7 @@ export function simulateFallbackFailover(
     // Check calendar
     const cal = evaluateModelCalendar(
       config.modelAvailabilitySchedule,
-      entry.providerId,
+      configuredProviderIdentities(config.providers, entry.providerId),
       entry.model,
     );
     if (!cal.allowed) {

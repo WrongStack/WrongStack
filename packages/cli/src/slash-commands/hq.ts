@@ -3,6 +3,7 @@ import { readHqRuntimeFileSync, resolveHqConfig, resolveHqDataDir } from '@wrong
 import { noOpVault } from '@wrongstack/core/security';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
+import { readHqLiveStatus } from '../hq-live-status.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
 import type { SlashCommandContext } from './command-context.js';
@@ -34,6 +35,16 @@ async function probeHq(url: string): Promise<string> {
   }
 }
 
+/** This terminal's own connection — the config above says where, this says whether. */
+function describeLiveConnection(): string {
+  const live = readHqLiveStatus();
+  if (live === undefined) return color.dim('no HQ connection in this process');
+  const state = live.connected ? color.green('connected') : color.amber('reconnecting');
+  const queued = live.queuedFrames > 0 ? color.dim(` · ${live.queuedFrames} frames queued`) : '';
+  const session = live.sessionId ? color.dim(` · session ${live.sessionId.slice(-12)}`) : '';
+  return `${state} ${color.dim(`as ${live.clientId.slice(0, 12)}`)}${session}${queued}`;
+}
+
 export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
   return {
     name: 'hq',
@@ -54,8 +65,8 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
       '  /hq on | off            Enable / disable HQ publishing',
       '  /hq clear               Remove all HQ settings',
       '',
-      'Saved to the active profile config. Telemetry connects on the',
-      'NEXT session start (an already-running session keeps its connection).',
+      'Saved to the active profile config. The running terminal session',
+      'follows the change within a few seconds (set/token/on/off/clear).',
       'A locally running `wstack --hq` is auto-discovered with no config.',
       '',
       '/hq is the canonical HQ command. The /settings hq* entries write the same',
@@ -110,7 +121,7 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
           message:
             `${color.green('✓')} HQ set → ${color.cyan(url)}${tokLine}\n` +
             `  status: ${reach}\n` +
-            `  ${color.dim('Connects on the next session start.')}`,
+            `  ${color.dim('This session re-points within a few seconds.')}`,
         };
       }
 
@@ -191,7 +202,7 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
           if (runtime) {
             lines.push('');
             lines.push(
-              `  ${color.green('A local HQ is running')} at ${color.cyan(runtime.url)} ${color.dim('(start a new session to attach)')}`,
+              `  ${color.green('A local HQ is running')} at ${color.cyan(runtime.url)} ${color.dim('(/hq on to attach)')}`,
             );
           }
           const message = lines.join('\n');
@@ -233,6 +244,7 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
         );
         if (resolved.projectAlias) lines.push(`  alias:   ${color.cyan(resolved.projectAlias)}`);
         lines.push(`  status:  ${await probeHq(resolved.url)}`);
+        lines.push(`  this:    ${describeLiveConnection()}`);
         return { message: lines.join('\n') };
       }
 

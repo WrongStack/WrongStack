@@ -522,7 +522,13 @@ export function authenticateBrowserRequest(
             const liveToken = [...mutableAuth.browserTokenObjs.values()].find(
               (obj) => obj.id === session.tokenId,
             );
-            if (!liveToken) {
+            // WS-011 again, on the cookie leg: `browserTokenObjs` is filtered
+            // for expiry only when auth.json is (re)applied, so a token that
+            // aged out afterwards is still in the map. The bearer path above
+            // re-checks expiry at the boundary; without the same check here a
+            // bootstrap exchange turned an expiring token into a cookie that
+            // kept working for up to the full 7-day session max age.
+            if (!liveToken || isTokenExpired(liveToken)) {
               sessions.delete(sessionId);
               return undefined;
             }

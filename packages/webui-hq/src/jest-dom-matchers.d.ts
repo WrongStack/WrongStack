@@ -13,3 +13,13 @@
  * node types the rest of the package relies on. This file only adds.
  */
 import '@testing-library/jest-dom/vitest';
+import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers';
+
+// jest-dom's own augmentation targets `Assertion<T>`, but Vitest 5's `Assertion`
+// takes `<R, T>`: declarations with different type parameters do not merge, so
+// the matchers silently fell off the type (`toHaveTextContent` "does not exist").
+// `Matchers` is Vitest 5's extension point for custom matchers.
+declare module 'vitest' {
+  interface Matchers<R extends void | Promise<void> = void | Promise<void>, T = unknown>
+    extends TestingLibraryMatchers<unknown, R> {}
+}

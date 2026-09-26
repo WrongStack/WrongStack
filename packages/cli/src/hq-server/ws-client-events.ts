@@ -157,9 +157,12 @@ export function handleIncomingClientEvent(
             timestamp: new Date().toISOString(),
           }),
         );
-      });
+      })
+      // Browsers react to this event by re-fetching the project's board from
+      // the store. Announced before the merge landed, that fetch raced it and
+      // repainted the PRE-change board until the next 10 s poll.
+      .finally(() => broadcastEvent(event, browsers));
     persistEvent(event);
-    broadcastEvent(event, browsers);
     return;
   }
 

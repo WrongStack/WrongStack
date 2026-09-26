@@ -17,6 +17,7 @@ import type {
 } from '@wrongstack/core/hq';
 import {
   HQ_PROTOCOL_VERSION,
+  hqTokenKey,
   parseHqFrame,
   redactHqEvent,
   resolveHqRedactionPolicy,
@@ -111,6 +112,27 @@ export function handleBrowser(
 }
 
 /**
+ * The undelivered part of a superseded socket's queue, handed to the socket
+ * that replaced it.
+ *
+ * An exact `clientId` match is the same process re-dialling: the operator
+ * addressed that process, not that socket, and its publisher will poll the new
+ * socket within one interval. Failing those commands instead would turn every
+ * reconnect blip into lost operator input. Delivered commands stay behind —
+ * the publisher's own redelivery ledger owns them, and their ack is matched by
+ * `clientId`, so it still lands on the right audit row.
+ */
+function undeliveredCommands(
+  client: ConnectedClient,
+  auditLog: HqCommandAuditLog | undefined,
+): HqQueuedCommand[] {
+  if (auditLog === undefined) return [...client.commandQueue];
+  return client.commandQueue.filter(
+    (queued) => auditLog.get(queued.commandId)?.status === 'queued',
+  );
+}
+
+/**
  * Resolve every command the disconnecting client never picked up.
  *
  * The queue lives on the per-socket `ConnectedClient`, so it dies with the
@@ -125,8 +147,15 @@ export function handleBrowser(
  * anything still `queued` never reached the client. Delivered-but-unacked
  * commands are deliberately left alone — those DID run, and the ack may simply
  * have been in flight when the socket closed.
+ *
+ * EVERY path that removes a client from `clients` must call this. The socket's
+ * own `close` handler finds the client through `clients.get(ws)`, so a path
+ * that deletes the entry first — the heartbeat-timeout eviction, the
+ * sessionless-surface eviction, the supersede loop — leaves that handler with
+ * nothing to resolve, and the rows it owned stayed `queued` forever. Those are
+ * exactly the cases (a hung client, a zombie socket) where commands strand.
  */
-function failUndeliveredCommands(
+export function failUndeliveredCommands(
   lostClient: ConnectedClient,
   browsers: Set<WebSocket>,
   auditLog: HqCommandAuditLog | undefined,
@@ -230,6 +259,7 @@ export function handleClient(
       const declaredRedactionPolicy = resolveHqRedactionPolicy(payload.redactionPolicy);
 
       const supersededLeaders: ConnectedClient[] = [];
+      const inheritedCommands: HqQueuedCommand[] = [];
       let inheritedLeader = false;
       // One process legitimately holds SEVERAL publisher sockets: the session
       // telemetry one and the mailbox-attach one. They share pid, kind,
@@ -247,6 +277,25 @@ export function handleClient(
       // server's per-socket session state, which is what made terminals blink
       // off the fleet map.
       const isSessionSurface = acceptedCapabilities.includes('session.summary');
+      // A clientId is an address: commands (steer, abort, approve, run-command)
+      // are routed to whichever socket currently holds it. Superseding used to
+      // compare only the self-declared identity, so any holder of ANY client
+      // token could say `client.hello` with a victim's clientId, evict it, and
+      // receive the operator's commands meant for it. Only the credential that
+      // registered an identity may replace it; a different one is refused
+      // while the holder is still open (a dead holder is evicted by the TTL
+      // sweep, after which the id is free again — this is what lets a
+      // legitimately rotated token reconnect).
+      const helloTokenKey = auth.token === undefined ? undefined : hqTokenKey(auth.token);
+      for (const [otherWs, otherClient] of clients) {
+        if (otherWs === ws || otherClient.clientId !== payload.client.clientId) continue;
+        const otherTokenKey =
+          otherClient.authToken === undefined ? undefined : hqTokenKey(otherClient.authToken);
+        if (otherTokenKey !== helloTokenKey && otherWs.readyState === WebSocket.OPEN) {
+          ws.close(4003, 'clientId is held by another credential');
+          return;
+        }
+      }
       for (const [otherWs, otherClient] of clients) {
         const sameClientId = otherClient.clientId === payload.client.clientId;
         const samePublisher =
@@ -258,14 +307,20 @@ export function handleClient(
           (otherClient.machineId || otherClient.project.machineId) ===
             (payload.client.machineId || payload.project.machineId) &&
           isSessionSurface === otherClient.capabilities.includes('session.summary');
+        const sameCredential =
+          (otherClient.authToken === undefined ? undefined : hqTokenKey(otherClient.authToken)) ===
+          helloTokenKey;
         if (
           otherWs !== ws &&
+          sameCredential &&
           (sameClientId || (samePublisher && otherClient.sessions.size === 0))
         ) {
           if (otherClient.isLeader) {
             if (sameClientId) inheritedLeader = true;
             else supersededLeaders.push(otherClient);
           }
+          if (sameClientId) inheritedCommands.push(...undeliveredCommands(otherClient, auditLog));
+          else failUndeliveredCommands(otherClient, browsers, auditLog);
           clients.delete(otherWs);
           otherWs.close(4001, 'superseded by a newer HQ connection');
         }
@@ -291,7 +346,7 @@ export function handleClient(
         sessions: new Map(),
         fleets: new Map(),
         mcpSnapshots: new Map(),
-        commandQueue: [],
+        commandQueue: inheritedCommands,
         isLeader:
           inheritedLeader ||
           computeIsLeader(clients, payload.project.projectId, acceptedCapabilities),

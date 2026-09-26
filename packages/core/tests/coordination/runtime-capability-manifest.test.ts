@@ -31,13 +31,20 @@ async function skillFiles(root: string): Promise<string[]> {
   return found;
 }
 
+// Build output and test suites are not implementation declarations: after a
+// build `dist/` roughly doubles the sweep, and under CI coverage the full walk
+// ran past the 60s test timeout. Tests are excluded too so a fixture that
+// merely names a tool cannot stand in for a missing implementation.
+const NON_SOURCE_DIRS = new Set(['node_modules', 'dist', 'tests', 'test', 'coverage']);
+
 async function typescriptSourceFiles(root: string): Promise<string[]> {
   const found: string[] = [];
   const walk = async (dir: string): Promise<void> => {
     for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
       const abs = path.join(dir, entry.name);
-      if (entry.isDirectory()) await walk(abs);
-      else if (/\.tsx?$/.test(entry.name)) found.push(abs);
+      if (entry.isDirectory()) {
+        if (!NON_SOURCE_DIRS.has(entry.name) && !entry.name.startsWith('.')) await walk(abs);
+      } else if (/\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts')) found.push(abs);
     }
   };
   await walk(root);

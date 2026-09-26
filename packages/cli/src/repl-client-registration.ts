@@ -26,6 +26,8 @@ export function registerReplClient(opts: ReplOptions): ReplClientRegistration {
     projectName: path.basename(replProjectRoot),
     appConfig: opts.appConfig,
     capabilities: ['telemetry.publish', 'mailbox.summary'],
+    // The CLI host's own connection in this process syncs the boards.
+    ownKanbanSync: false,
   });
   const clientMailbox = getSharedProjectMailbox(projectDir, undefined, () =>
     hqConnection.getPublisher(),
@@ -52,6 +54,8 @@ export function registerReplClient(opts: ReplOptions): ReplClientRegistration {
             // best-effort — if the registry is gone, don't spam errors
           });
       }, 15_000);
+      // Presence upkeep must never be what keeps a finished REPL alive.
+      clientHeartbeat.unref?.();
     })
     .catch(() => {
       // best-effort — if another instance has the lock, skip registration

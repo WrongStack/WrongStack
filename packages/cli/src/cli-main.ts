@@ -7,6 +7,7 @@ import type { SystemPromptBuilder } from '@wrongstack/core/types';
 import { writeErr } from '@wrongstack/core/utils';
 import { setProxyTransitionLogger } from '@wrongstack/core/wiring/proxy-rewrite';
 import { wireEventWiring } from './boot/event-wiring.js';
+import { resolveExecutionMode } from './boot/execution-mode.js';
 import { isRestrictedMode, withRestrictedTools } from './boot/restricted-mode.js';
 import { isSafeMode } from './boot/safe-mode.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
@@ -551,6 +552,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     hqPublisherRef,
     approvalMirror,
     mcpRegistry,
+    liveSession: () => context.session ?? session,
+    liveProjectRoot: () => context.projectRoot ?? projectRoot,
+    getConfig: () => configStore.get(),
   });
 
   setupDepWatcherConsumers({
@@ -610,6 +614,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     },
     getDirector: () => director,
     hqCommandController,
+    hqMultiConversation: resolveExecutionMode(positional, flags) === 'webui',
     multiAgentHost,
     events,
     sessionRef,

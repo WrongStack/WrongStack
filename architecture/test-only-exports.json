@@ -173,6 +173,9 @@
     "packages/cli/src/hq-server/client-address.ts": [
       "parseForwardedEntry"
     ],
+    "packages/cli/src/hq-server/routes/command-handlers.ts": [
+      "credentialMayAnswer"
+    ],
     "packages/cli/src/hq-server/snapshot.ts": [
       "HQ_BROWSER_MAX_BUFFERED_BYTES",
       "HQ_STALE_SNAPSHOT_MS",
@@ -1600,13 +1603,6 @@
     "packages/webui-hq/src/domain/use-session-transcript.ts": [
       "coalesceStreamedText"
     ],
-    "packages/webui-hq/src/mobile/mobile-kanban.tsx": [
-      "canAssignKanbanTask",
-      "canDispatchKanbanTask",
-      "kanbanTransitionOptions",
-      "mobileKanbanAssignmentTargets",
-      "suggestedKanbanStage"
-    ],
     "packages/webui-hq/src/views/cockpit.tsx": [
       "CommandLatencyCard"
     ],
@@ -1836,6 +1832,7 @@
       "handleTechStackJobProgress",
       "handleTechStackJobStarted",
       "handleTechStackReportReady",
+      "handleTechStackResearchPartial",
       "handleTechStackSnapshotUpdated",
       "handleTechStackWorkspaceCompleted"
     ],

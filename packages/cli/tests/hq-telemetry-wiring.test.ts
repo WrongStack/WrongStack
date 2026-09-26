@@ -61,9 +61,9 @@ describe('setupHqTelemetry', () => {
         return type === 'agent.timeline.message' ? offMessage : offStatus;
       }),
     };
-    const initialPublisher = { publishEvent: vi.fn() };
-    const connectedPublisher = { publishEvent: vi.fn() };
-    const reconnectedPublisher = { publishEvent: vi.fn() };
+    const initialPublisher = { publishEvent: vi.fn(), onConnected: vi.fn(() => vi.fn()) };
+    const connectedPublisher = { publishEvent: vi.fn(), onConnected: vi.fn(() => vi.fn()) };
+    const reconnectedPublisher = { publishEvent: vi.fn(), onConnected: vi.fn(() => vi.fn()) };
     const connectionStop = vi.fn();
     const connection = {
       getPublisher: vi.fn(() => initialPublisher),
@@ -149,8 +149,11 @@ describe('setupHqTelemetry', () => {
     expect(result.hqOnCommand).toBe(hqOnCommand);
     expect(result.hqCommandController.sessionTag()).toBe('tag:session-1');
     expect(result.hqCommandController.allowRunCommand()).toBe(true);
-    expect(result.hqCommandController.kanbanTransition).toBe(kanbanTransition);
-    expect(result.hqCommandController.kanbanAssign).toBe(kanbanAssign);
+    // Kanban handlers are resolved against the LIVE project root per command.
+    void result.hqCommandController.kanbanTransition?.({ taskId: 't' } as never);
+    void result.hqCommandController.kanbanAssign?.({ taskId: 't' } as never);
+    expect(kanbanTransition).toHaveBeenCalledWith({ taskId: 't' });
+    expect(kanbanAssign).toHaveBeenCalledWith({ taskId: 't' });
     expect(mocks.createProjectKanbanAssignHandler).toHaveBeenCalledWith(path.join('/work', 'repo'));
     expect(mocks.createProjectKanbanTransitionHandler).toHaveBeenCalledWith(
       path.join('/work', 'repo'),
@@ -163,6 +166,8 @@ describe('setupHqTelemetry', () => {
     expect(connectedPublisher.publishEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'mcp.health.snapshot', sessionId: 'session-1' }),
     );
+    // HQ keeps MCP health per socket: it must be re-seeded on every reconnect.
+    expect(connectedPublisher.onConnected).toHaveBeenCalledOnce();
     operationHandler?.({ kind: 'call', serverId: 'filesystem' });
     expect(connectedPublisher.publishEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'mcp.operation', sessionId: 'session-1' }),
@@ -191,5 +196,101 @@ describe('setupHqTelemetry', () => {
     expect(offStatus).toHaveBeenCalledOnce();
     expect(connectionStop).toHaveBeenCalledOnce();
     expect(hqPublisherRef.getKanbanSyncStats).toBeUndefined();
+  });
+
+  it('re-binds session bridges when the live writer changes and reconnects on a project switch', () => {
+    vi.useFakeTimers();
+    try {
+      const events = { on: vi.fn(() => () => undefined) };
+      const publisherA = { publishEvent: vi.fn(), onConnected: vi.fn(() => vi.fn()) };
+      const publisherB = { publishEvent: vi.fn(), onConnected: vi.fn(() => vi.fn()) };
+      const connections: Array<{ stop: ReturnType<typeof vi.fn>; root: string }> = [];
+      mocks.startCliHqConnection.mockImplementation((options) => {
+        const publisher = connections.length === 0 ? publisherA : publisherB;
+        const connection = {
+          root: options.projectRoot as string,
+          stop: vi.fn(),
+          getPublisher: () => publisher,
+          getKanbanSyncStats: () => undefined,
+        };
+        connections.push(connection);
+        options.onConnect(publisher);
+        return connection;
+      });
+      mocks.createHqCommandDispatcher.mockReturnValue(vi.fn());
+      for (const bridge of [
+        mocks.startSessionTelemetryBridge,
+        mocks.startFleetTelemetryBridge,
+        mocks.startGovernanceHqTelemetry,
+        mocks.startBrainTelemetryBridge,
+        mocks.startWorktreeTelemetryBridge,
+        mocks.startToolTelemetryBridge,
+        mocks.startCostTelemetryBridge,
+        mocks.startApprovalTelemetryBridge,
+      ]) {
+        bridge.mockImplementation(() => vi.fn());
+      }
+      const live = { session: { id: 'boot' }, root: path.join('/work', 'repo') };
+      const teardownHandlers: Array<() => void> = [];
+      const result = setupHqTelemetry({
+        events: events as never,
+        session: { id: 'boot' } as never,
+        config: {} as never,
+        flags: {},
+        tuiOwnsScreen: true,
+        projectRoot: live.root,
+        globalRoot: path.join('/global'),
+        tracker: undefined,
+        agentMonitor: undefined,
+        brainMailbox: {} as never,
+        teardownHandlers,
+        mailboxSessionTag: (id) => `tag:${id}`,
+        hqPublisherRef: { current: undefined } as never,
+        mcpRegistry: {
+          operationalHealth: () => [],
+          onOperation: () => () => undefined,
+        } as never,
+        liveSession: () => live.session as never,
+        liveProjectRoot: () => live.root,
+        scopeCheckIntervalMs: 100,
+      });
+
+      const sessionIds = () =>
+        mocks.startSessionTelemetryBridge.mock.calls.map(
+          (call) => (call[0] as { sessionId: string }).sessionId,
+        );
+      expect(sessionIds()).toEqual(['boot']);
+
+      // `/resume` swaps the writer: bridges follow within one tick, and the
+      // old session bridge is stopped (which publishes session.ended).
+      const bootSessionStop = mocks.startSessionTelemetryBridge.mock.results[0]
+        ?.value as ReturnType<typeof vi.fn>;
+      live.session = { id: 'resumed' };
+      vi.advanceTimersByTime(150);
+      expect(sessionIds()).toEqual(['boot', 'resumed']);
+      expect(bootSessionStop).toHaveBeenCalledOnce();
+      expect(result.hqCommandController.sessionId?.()).toBe('resumed');
+      expect(result.hqCommandController.sessionTag()).toBe('tag:resumed');
+      expect(connections).toHaveLength(1);
+
+      // An in-place project switch changes the publisher identity: the old
+      // connection is stopped and a new one carries the new project.
+      live.root = path.join('/work', 'other');
+      live.session = { id: 'fresh' };
+      vi.advanceTimersByTime(150);
+      expect(connections).toHaveLength(2);
+      expect(connections[0]?.stop).toHaveBeenCalledOnce();
+      expect(connections[1]?.root).toBe(path.join('/work', 'other'));
+      expect(sessionIds().at(-1)).toBe('fresh');
+
+      for (const teardown of teardownHandlers) teardown();
+      expect(connections[1]?.stop).toHaveBeenCalledOnce();
+      // No further re-scoping after teardown.
+      live.session = { id: 'after-teardown' };
+      vi.advanceTimersByTime(500);
+      expect(sessionIds()).not.toContain('after-teardown');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

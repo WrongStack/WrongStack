@@ -8,7 +8,7 @@
  * @vitest-environment jsdom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { authorizedFetch } from '../../src/data/api.js';
+import { authorizedFetch, fetchJson } from '../../src/data/api.js';
 import {
   authHeaders,
   clearHqToken,
@@ -536,5 +536,34 @@ describe('hasAuthenticatedHqBrowserSession', () => {
       vi.fn(() => Promise.resolve(new Response('not-json'))),
     );
     await expect(hasAuthenticatedHqBrowserSession()).resolves.toBe(false);
+  });
+});
+
+describe('fetchJson error text', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('surfaces the server message from both error shapes', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Session not found' } }),
+            {
+              status: 404,
+              statusText: 'Not Found',
+            },
+          ),
+      ),
+    );
+    await expect(fetchJson('/api/sessions/x/events')).rejects.toThrow('404 Session not found');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ error: 'bad filter' }), { status: 400 })),
+    );
+    await expect(fetchJson('/api/events')).rejects.toThrow('400 bad filter');
   });
 });

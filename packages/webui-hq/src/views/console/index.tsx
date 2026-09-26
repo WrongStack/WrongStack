@@ -37,7 +37,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Checkbox } from '../../components/ui/checkbox.js';
 import { Input, Select, Textarea } from '../../components/ui/input.js';
-import { postCommand } from '../../data/api.js';
+import { postCommand, postMailboxSend } from '../../data/api.js';
 import { setHqConsolePrefs, useHqLocalPrefs } from '../../data/local-prefs.js';
 import { useHqStore } from '../../data/store/index.js';
 import { resolveConsoleControlTarget } from '../../domain/console-target.js';
@@ -184,6 +184,12 @@ export function LiveConsoleView(): React.ReactElement {
     selectedAgent?.name ??
     (isLeaderTarget ? 'Leader agent' : (controlTarget?.recipient ?? 'agent'));
   const controllable = controlTarget?.controllable === true;
+  // A read-only client (standalone WebUI, a plain REPL presence…) cannot take
+  // commands, but a `mailbox serve` owner for its project can still deliver a
+  // message to the session's leader. Mobile already fell back to it; the
+  // desktop Console simply disabled Send, so that path was unreachable here.
+  const mailboxFallback = !controllable && controlTarget?.mailboxServeActive === true;
+  const canMessage = controllable || mailboxFallback;
 
   // Changing conversation resets everything conversation-scoped; a receipt or
   // an error from the previous target would be actively misleading here.
@@ -202,19 +208,32 @@ export function LiveConsoleView(): React.ReactElement {
 
   const sendMessage = async (): Promise<void> => {
     const client = controlTarget?.client;
-    if (
-      controlTarget === null ||
-      client === null ||
-      client === undefined ||
-      !controllable ||
-      body.trim().length === 0
-    ) {
-      return;
-    }
+    if (controlTarget === null || !canMessage || body.trim().length === 0) return;
 
     setBusy(true);
     setStatus(null);
     const sent = body.trim();
+    if (mailboxFallback || client === null || client === undefined) {
+      try {
+        await postMailboxSend({
+          projectId: controlTarget.session.projectId,
+          sessionId: controlTarget.session.sessionId,
+          type: delivery,
+          to: controlTarget.recipient,
+          subject: subject.trim() || `HQ ${delivery}`,
+          body: sent,
+          priority: delivery === 'steer' ? 'high' : 'normal',
+        });
+        setBody('');
+        setHqConsolePrefs({ body: '' });
+        setStatus({ tone: 'ok', text: `${delivery} sent to ${targetLabel} through the mailbox` });
+      } catch (cause) {
+        setStatus({ tone: 'error', text: cause instanceof Error ? cause.message : String(cause) });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     try {
       const result = await postCommand(client.clientId, delivery, {
         // The command is addressed to a CLIENT, and one client process can
@@ -487,8 +506,15 @@ export function LiveConsoleView(): React.ReactElement {
                 <span className="text-muted-foreground">
                   Send to <strong className="text-foreground">{targetLabel}</strong>
                 </span>
-                <Badge tone={controllable ? 'active' : 'error'} className="ml-auto">
-                  {controllable ? 'control live' : 'read-only client'}
+                <Badge
+                  tone={controllable ? 'active' : mailboxFallback ? 'warn' : 'error'}
+                  className="ml-auto"
+                >
+                  {controllable
+                    ? 'control live'
+                    : mailboxFallback
+                      ? 'mailbox only'
+                      : 'read-only client'}
                 </Badge>
               </div>
 
@@ -549,7 +575,7 @@ export function LiveConsoleView(): React.ReactElement {
                   className="min-h-16"
                 />
                 <Button
-                  disabled={busy || body.trim().length === 0 || !controllable}
+                  disabled={busy || body.trim().length === 0 || !canMessage}
                   onClick={() => void sendMessage()}
                   className="shrink-0 self-stretch"
                 >

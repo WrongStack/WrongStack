@@ -1,5 +1,5 @@
 import { triageCandidates } from '../research/triage.js';
-import type { TechStackResearcher } from '../research/types.js';
+import type { ResearchPartial, TechStackResearcher } from '../research/types.js';
 import type { Finding, Snapshot } from '../types.js';
 
 export interface ResearchPhaseOptions {
@@ -9,6 +9,7 @@ export interface ResearchPhaseOptions {
   readonly onProgress?:
     | ((phase: 'researching' | 'synthesizing', completed: number, total: number) => void)
     | undefined;
+  readonly onPartial?: ((partial: ResearchPartial) => void) | undefined;
 }
 
 export async function runResearchPhase(
@@ -24,6 +25,7 @@ export async function runResearchPhase(
     findings = await options.researcher.research(candidates, {
       signal: options.signal,
       onProgress: (completed, total) => options.onProgress?.('researching', completed, total),
+      onPartial: options.onPartial,
     });
   } catch {
     return snapshot;

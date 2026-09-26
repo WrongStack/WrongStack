@@ -221,4 +221,88 @@ describe('CLI HQ publisher connection', () => {
 
     conn.stop();
   });
+
+  it('follows the LIVE app config: /hq set re-points, /hq off retires, /hq on revives', () => {
+    // `appConfig` is a boot snapshot; before `getAppConfig` every /hq change
+    // waited for the next session, and `/hq off` could not stop a running one.
+    vi.useFakeTimers();
+    delete process.env['WRONGSTACK_HQ_ENABLED'];
+    delete process.env['WRONGSTACK_HQ_URL'];
+    delete process.env['WRONGSTACK_HQ_TOKEN'];
+    const urls: string[] = [];
+    let live: { hq?: { enabled?: boolean; url?: string; token?: string } } = {
+      hq: { enabled: true, url: 'http://127.0.0.1:3499', token: 'tok-a' },
+    };
+    const onConnect = vi.fn();
+    const onDisconnect = vi.fn();
+    const connection = startCliHqConnection({
+      clientKind: 'cli',
+      projectRoot: '/repo',
+      appConfig: live as never,
+      getAppConfig: () => live as never,
+      onConnect,
+      onDisconnect,
+      retryIntervalMs: 100,
+      socketFactory: (url) => {
+        urls.push(url);
+        return new FakeSocket();
+      },
+    });
+    const first = connection.getPublisher();
+    expect(first).toBeDefined();
+    expect(onConnect).toHaveBeenCalledTimes(1);
+
+    live = { hq: { enabled: true, url: 'http://10.0.0.5:3499', token: 'tok-b' } };
+    vi.advanceTimersByTime(150);
+    const second = connection.getPublisher();
+    expect(second).toBeDefined();
+    expect(second).not.toBe(first);
+    expect(onConnect).toHaveBeenCalledTimes(2);
+    expect(urls.at(-1)).toContain('10.0.0.5');
+
+    live = { hq: { enabled: false } };
+    vi.advanceTimersByTime(150);
+    expect(connection.getPublisher()).toBeUndefined();
+    expect(onDisconnect).toHaveBeenCalledOnce();
+
+    live = { hq: { enabled: true, url: 'http://10.0.0.5:3499', token: 'tok-b' } };
+    vi.advanceTimersByTime(150);
+    expect(connection.getPublisher()).toBeDefined();
+    expect(onConnect).toHaveBeenCalledTimes(3);
+    connection.stop();
+  });
+
+  it('starts polling even when HQ is disabled at boot, so /hq on works live', () => {
+    vi.useFakeTimers();
+    delete process.env['WRONGSTACK_HQ_ENABLED'];
+    delete process.env['WRONGSTACK_HQ_URL'];
+    let live: { hq?: { enabled?: boolean; url?: string } } = { hq: { enabled: false } };
+    const connection = startCliHqConnection({
+      clientKind: 'cli',
+      projectRoot: '/repo',
+      appConfig: live as never,
+      getAppConfig: () => live as never,
+      retryIntervalMs: 100,
+      socketFactory: () => new FakeSocket(),
+    });
+    expect(connection.getPublisher()).toBeUndefined();
+    live = { hq: { enabled: true, url: 'http://127.0.0.1:3499' } };
+    vi.advanceTimersByTime(150);
+    expect(connection.getPublisher()).toBeDefined();
+    connection.stop();
+  });
+
+  it('an auxiliary connection does not start a second Kanban sync', () => {
+    const connection = startCliHqConnection({
+      clientKind: 'repl',
+      projectRoot: '/repo',
+      config: { enabled: true, url: 'http://127.0.0.1:3499' },
+      ownKanbanSync: false,
+      retryIntervalMs: 60_000,
+      socketFactory: () => new FakeSocket(),
+    });
+    expect(connection.getPublisher()).toBeDefined();
+    expect(connection.getKanbanSyncStats()).toBeUndefined();
+    connection.stop();
+  });
 });

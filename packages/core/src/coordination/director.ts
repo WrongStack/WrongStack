@@ -721,6 +721,11 @@ export class Director implements DirectorFleetHost, ICoordinator {
     }
   }
 
+  /** Every live subagent one session spawned (what `terminateSession` would stop). */
+  subagentIdsForSession(sessionId: string): string[] {
+    return this.coordinator.subagentIdsForSession(sessionId);
+  }
+
   /**
    * Terminate every subagent spawned by ONE session.
    *

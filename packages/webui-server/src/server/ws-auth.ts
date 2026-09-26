@@ -136,10 +136,24 @@ export function tokenMatches(provided: string | undefined, expected: string): bo
   return timingSafeTokenEqual(provided, expected);
 }
 
-/** Pull the `token` query param out of a request URL (`/?token=…`). */
+/** Pull the `token` query param out of a request URL (`/?token=…`). Parsed as a real query string (so `%XX` and `+` decode exactly as the client encoded them), mirroring `extractTokenFromCookie` below: comparing the raw `%XX` form against the stored token rejects a credential that authenticates fine via the cookie path. */
 export function extractToken(url: string): string | undefined {
-  const match = url.match(/[?&]token=([^&]+)/);
-  return match ? match[1] : undefined;
+  try {
+    const value = new URL(url, 'http://x').searchParams.get('token');
+    // A bare `?token=` carries no credential; the previous regex required
+    // `[^&]+`, so keep reporting it as absent rather than as an empty token.
+    return value === null || value === '' ? undefined : value;
+  } catch {
+    const match = url.match(/[?&]token=([^&]*)/);
+    if (!match) return undefined;
+    const raw = (match[1] as string).replace(/\+/g, ' ');
+    if (raw === '') return undefined;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
 }
 
 /**

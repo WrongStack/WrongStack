@@ -81,6 +81,14 @@ export interface CliWebUIOptions {
    */
   stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
   /**
+   * The host's interrupt seam. HQ addresses the root conversation through the
+   * CLI host's own publisher, whose "abort leader" calls `abortLeader()`; the
+   * embedded server binds it to that conversation's run controller.
+   */
+  interruptController?: { abortLeader: () => boolean } | undefined;
+  /** HQ fleet commands for a tab's session (abort fleet / agent, spawn). */
+  hqFleetControl?: import('./hq-fleet-control.js').HqFleetControl | undefined;
+  /**
    * A tab was closed: release the host-side helpers pinned to its
    * conversation (explore companion, shadow-review bookkeeping).
    *

@@ -44,6 +44,12 @@ interface SingleShotDispatchContext {
   renderer: TerminalRenderer;
   /** Host event bus; required for `--max-budget-usd` to see spend as it lands. */
   events?: Pick<EventBus, 'on'> | undefined;
+  /**
+   * The host's interrupt seam. HQ's "abort leader" and every other remote stop
+   * call `abortLeader()`; a one-shot turn has no TUI to rebind it, so this run
+   * binds it to its own controller for the duration of the turn.
+   */
+  interruptController?: { abortLeader: () => boolean } | undefined;
 }
 
 /** Exit code for a run status: 0 success, 130 aborted, 1 anything that stopped short. */
@@ -75,6 +81,15 @@ export async function runSingleShotDispatch(ctx: SingleShotDispatchContext): Pro
   const ctrl = new AbortController();
   const onSigint = () => ctrl.abort();
   process.on('SIGINT', onSigint);
+  const interrupt = ctx.interruptController;
+  const previousAbortLeader = interrupt?.abortLeader;
+  if (interrupt !== undefined) {
+    interrupt.abortLeader = () => {
+      if (ctrl.signal.aborted) return false;
+      ctrl.abort();
+      return true;
+    };
+  }
   let budget: SingleShotBudget | undefined;
   if (limitUsd !== undefined && ctx.events) {
     budget = watchSingleShotBudget({
@@ -131,6 +146,9 @@ export async function runSingleShotDispatch(ctx: SingleShotDispatchContext): Pro
     stopStream?.();
     budget?.dispose();
     process.off('SIGINT', onSigint);
+    if (interrupt !== undefined && previousAbortLeader !== undefined) {
+      interrupt.abortLeader = previousAbortLeader;
+    }
     // Clean up any lingering bash/exec processes.
     const { getProcessRegistry } = await import('@wrongstack/tools');
     getProcessRegistry().killAll({ preserveBackground: true });

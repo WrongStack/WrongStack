@@ -84,6 +84,14 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
   let sessionTelemetry: WebuiHqSessionTelemetry | undefined;
   let syncTimer: ReturnType<typeof setInterval> | null = null;
   let hqConnection: WebuiHqConnection | undefined;
+  /**
+   * The publisher the last `onConnect` handed over. `startHqConnection` calls
+   * `onConnect` synchronously, BEFORE its return value lands in
+   * `hqConnection` — so the first `sync()` below read no publisher through
+   * `hqConnection?.getPublisher()` and the host stayed invisible to HQ until
+   * the 2 s reconcile timer.
+   */
+  let activePublisher: ReturnType<WebuiHqConnection['getPublisher']>;
   let approvals: ApprovalRegistry | undefined;
   let stopApprovalBridge: (() => void) | undefined;
   let closed = false;
@@ -122,6 +130,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
         capabilities,
         ...(onCommand ? { onCommand } : {}),
         onConnect: (publisher) => {
+          activePublisher = publisher;
           stopApprovalBridge?.();
           stopApprovalBridge = undefined;
           if (approvals !== undefined) {
@@ -131,6 +140,10 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
                 publisher,
                 projectRoot,
                 sessionId: deps.hqSessionId,
+                // The host's own connection announces its root conversation,
+                // prompts included; announcing them here too duplicated them.
+                acceptSession: (sessionId) =>
+                  sessionId === undefined || deps.isSessionOwnedElsewhere?.(sessionId) !== true,
               });
             } catch {
               /* approval mirroring is optional telemetry */
@@ -145,7 +158,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
             projectRoot,
             projectName,
             globalRoot: wstackGlobalRoot(),
-            getPublisher: () => hqConnection?.getPublisher(),
+            getPublisher: () => hqConnection?.getPublisher() ?? activePublisher,
             listSessions: () => {
               const live = deps.listSessions?.() ?? [];
               // Nothing on screen yet (no browser attached, or a surface that
@@ -191,6 +204,10 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
       syncTimer.unref();
       return clientId;
     } catch {
+      // A half-registered host is worse than none: the HQ connection and its
+      // session telemetry were already up, so HQ listed a `session.summary`
+      // client whose reconcile timer never started. Tear it all down.
+      unregister();
       return null;
     }
   };
@@ -212,6 +229,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
     approvals = undefined;
     hqConnection?.stop();
     hqConnection = undefined;
+    activePublisher = undefined;
     const previousClientId = clientId;
     const previousMailbox = mailbox;
     clientId = null;

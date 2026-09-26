@@ -873,4 +873,49 @@ describe('HqPublisher connection re-seed hook', () => {
 
     publisher.close();
   });
+
+  it('re-announces the last mailbox snapshot on every reconnect', async () => {
+    // HQ keeps mailbox state per socket and mailbox snapshots are only
+    // published on a mutation, so after a blip the project's mailbox read
+    // empty until somebody sent a message.
+    const sockets: FakeSocket[] = [];
+    const publisher = new HqPublisher({
+      url: 'http://localhost:3499',
+      client,
+      project,
+      reconnectBaseMs: 1,
+      reconnectMaxMs: 1,
+      socketFactory: () => {
+        const socket = new FakeSocket();
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    publisher.connect();
+    sockets[0]!.open();
+    await publisher.publishMailboxSnapshot(
+      { query: async () => [], getAgentStatuses: async () => [] },
+      { mailboxId: 'project_1:mailbox', sessionId: 'session_1' },
+    );
+
+    sockets[0]!.close();
+    await vi.waitFor(() => {
+      expect(sockets).toHaveLength(2);
+    });
+    sockets[1]!.open();
+    const reseeded = parseSent(sockets[1]!) as Array<{
+      type: string;
+      event?: { type: string; sessionId?: string; payload?: { mailboxId?: string } };
+    }>;
+    expect(reseeded[0]?.type).toBe('client.hello');
+    expect(reseeded[1]).toMatchObject({
+      type: 'client.event',
+      event: {
+        type: 'mailbox.snapshot',
+        sessionId: 'session_1',
+        payload: { mailboxId: 'project_1:mailbox' },
+      },
+    });
+    publisher.close();
+  });
 });

@@ -32,6 +32,7 @@ import {
   type ProjectSwitchContext,
   switchProjectInPlace as switchProjectInPlaceExtracted,
 } from './boot/tui-project-switch.js';
+import { createHqFleetControl } from './hq-fleet-control.js';
 import type { TuiRuntimeState } from './boot/tui-runtime-state.js';
 import {
   getSDDContext as getSDDContextExtracted,
@@ -320,9 +321,6 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     }
     const goalFlag = typeof flags['goal'] === 'string' ? flags['goal'] : undefined;
     const askFlag = typeof flags['ask'] === 'string' ? flags['ask'] : undefined;
-    if ((goalFlag || askFlag) && positional.length === 0 && !promptFlag) {
-      flags.tui = true;
-    }
     const executionMode = resolveExecutionMode(positional, flags);
     if (projectRoot && executionMode !== 'webui') {
       backgroundKanbanSupervisor = (
@@ -372,6 +370,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         tokenCounter,
         renderer,
         events,
+        interruptController,
       });
     } else if (executionMode === 'tui') {
       agent.disableInteractiveConfirmation();
@@ -831,6 +830,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       try {
         code = await runWebUIDispatch({
           leaderAutoWake: webuiLeaderAutoWake,
+          interruptController,
           agent,
           events,
           session,
@@ -873,9 +873,13 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           // workers it is BLOCKED on; anything started with `spawn_subagent` +
           // `assign_task` keeps going unless asked to stop. Scoped to the
           // session so one tab's Stop never reaches another tab's fleet.
-          stopSessionFleet: async (sessionId: string) => {
-            await getDirector?.()?.terminateSession(sessionId);
-          },
+          stopSessionFleet: (sessionId: string) => getDirector?.()?.terminateSession(sessionId),
+          // HQ's per-tab abort fleet / abort agent / spawn, same scoping.
+          hqFleetControl: createHqFleetControl(
+            () => getDirector?.() ?? null,
+            () => '',
+            { multiConversation: true },
+          ),
           // Closing a tab is not stopping it. The run keeps going and keeps its
           // fleet; what goes is the background help pinned to that conversation
           // — the explore companion's poll timer and the shadow reviewer's

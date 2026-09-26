@@ -173,6 +173,13 @@ export type TechStackJobStatus =
   | 'failed'
   | 'cancelled';
 
+/**
+ * Pipeline depth the run actually executed. Mirrors `AnalyzeDepth` on
+ * `TechStackEngine.analyze()`. `inventory` is the offline dry run;
+ * `enrich` adds registry/OSV; `full` runs the LLM researcher too.
+ */
+export type TechStackJobDepth = 'inventory' | 'enrich' | 'full';
+
 export interface TechStackJobProgress {
   readonly phase: string;
   readonly completed: number;
@@ -192,6 +199,10 @@ export interface TechStackJob {
   readonly completedAt?: string | undefined;
   readonly error?: string | undefined;
   readonly progress?: TechStackJobProgress | undefined;
+  /** Pipeline depth the job ran. Defaults to `full` for legacy rows. */
+  readonly depth?: TechStackJobDepth | undefined;
+  /** Model id chosen by the user for the LLM researcher. Absent = no LLM. */
+  readonly model?: string | undefined;
 }
 
 // ── Delivery outbox ─────────────────────────────────────────────────────

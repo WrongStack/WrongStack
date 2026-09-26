@@ -215,6 +215,30 @@ describe('startApprovalTelemetryBridge', () => {
     stop();
   });
 
+  it('publishes only the sessions it speaks for, replay and resolution included', () => {
+    // Two registries on one bus (the WebUI host): the root conversation's
+    // prompts were announced by both publishers.
+    const events = new EventBus();
+    const registry = make(events);
+    emitConfirmNeeded(events, vi.fn(), { toolUseId: 'toolu_root_early', sessionId: 'root' });
+    const spy = vi.fn();
+    const stop = startApprovalTelemetryBridge({
+      registry,
+      publisher: fakePublisher(spy),
+      sessionId: 'tab-1',
+      acceptSession: (sessionId) => sessionId !== 'root',
+    });
+    emitConfirmNeeded(events, vi.fn(), { toolUseId: 'toolu_root', sessionId: 'root' });
+    emitConfirmNeeded(events, vi.fn(), { toolUseId: 'toolu_tab', sessionId: 'tab-1' });
+    registry.resolve('toolu_root', 'yes');
+
+    const published = spy.mock.calls.map(
+      (call) => `${call[0].type}:${(call[0].payload as { toolUseId: string }).toolUseId}`,
+    );
+    expect(published).toEqual(['approval.requested:toolu_tab']);
+    stop();
+  });
+
   it('redacts the argument summary under the publisher policy', () => {
     const events = new EventBus();
     const registry = make(events);

@@ -1,6 +1,7 @@
 /** HQ browser auth — the single import surface for credentials and sessions. */
 export {
   exchangeBootstrapIfNeeded,
+  fetchHqCredentialCapabilities,
   type HqTokenLoginResult,
   hasAuthenticatedHqBrowserSession,
   loginWithHqToken,

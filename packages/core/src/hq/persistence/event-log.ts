@@ -295,8 +295,17 @@ export class HqEventLog {
    * is set and matches are sparse, the scan walks the whole file in
    * bounded windows but is still guaranteed to reach every line.
    */
-  async recent(limit: number, typeFilter?: string): Promise<HqEventEnvelope[]> {
-    return readRecentEvents(this.filePath, limit, typeFilter);
+  /**
+   * Newest-first scan returning up to `limit` matches. `predicate` narrows
+   * DURING the scan, so a selective filter still yields `limit` results
+   * instead of filtering the newest `limit` events of the whole log.
+   */
+  async recent(
+    limit: number,
+    typeFilter?: string,
+    predicate?: (event: HqEventEnvelope) => boolean,
+  ): Promise<HqEventEnvelope[]> {
+    return readRecentEvents(this.filePath, limit, typeFilter, predicate);
   }
 
   /** Initialize the line count cache from disk (call once at boot). */
@@ -309,6 +318,7 @@ async function readRecentEvents(
   filePath: string,
   limit: number,
   typeFilter?: string,
+  predicate?: (event: HqEventEnvelope) => boolean,
 ): Promise<HqEventEnvelope[]> {
   if (!(limit > 0)) return [];
   let handle: fs.FileHandle;
@@ -324,7 +334,12 @@ async function readRecentEvents(
     if (!line) return false;
     try {
       const event = JSON.parse(line) as HqEventEnvelope;
-      if (typeFilter === undefined || event.type === typeFilter) out.push(event);
+      if (
+        (typeFilter === undefined || event.type === typeFilter) &&
+        (predicate === undefined || predicate(event))
+      ) {
+        out.push(event);
+      }
     } catch {
       /* skip malformed lines */
     }
@@ -341,7 +356,9 @@ async function readRecentEvents(
     let carry: Buffer[] = [];
     let tailBytesRead = 0;
     const tailScanLimit =
-      typeFilter === undefined ? RECENT_TAIL_SCAN_BYTES : FILTERED_RECENT_TAIL_SCAN_BYTES;
+      typeFilter === undefined && predicate === undefined
+        ? RECENT_TAIL_SCAN_BYTES
+        : FILTERED_RECENT_TAIL_SCAN_BYTES;
     while (position > 0) {
       const length = Math.min(RECENT_READ_CHUNK_BYTES, position);
       position -= length;

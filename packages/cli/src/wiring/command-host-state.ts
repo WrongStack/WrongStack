@@ -4,7 +4,6 @@ import {
   areSubagentsAllowedForSession,
   type BrainArbiter,
   type Director,
-  FLEET_ROSTER,
   mailboxSessionTag,
   makeKanbanQueueTool,
 } from '@wrongstack/core/coordination';
@@ -30,6 +29,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 import { SddRunRegistry } from '@wrongstack/sdd';
 import { createGoalHost } from '../goal-host.js';
 import type { HqCommandController } from '../hq-command-controller.js';
+import { killHqSessionFleet, spawnHqAgent, terminateHqAgent } from '../hq-fleet-control.js';
 import type { ReadlineInputReader } from '../input-reader.js';
 import type { MultiAgentHost } from '../multi-agent.js';
 import type { TerminalRenderer } from '../renderer.js';
@@ -57,6 +57,8 @@ interface CommandHostStateInput {
   setConfig: (config: Config) => void;
   getDirector: () => Director | null;
   hqCommandController: HqCommandController;
+  /** Several conversations share the Director (WebUI host): see `HqFleetScope`. */
+  hqMultiConversation?: boolean | undefined;
   multiAgentHost: MultiAgentHost;
   events: EventBus;
   sessionRef: { current: SessionWriter | undefined };
@@ -97,11 +99,16 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
   const liveSessionId = (): string => input.sessionRef.current?.id ?? input.session.id;
   input.hqCommandController.sessionId = liveSessionId;
   input.hqCommandController.sessionTag = () => mailboxSessionTag(liveSessionId());
-  input.hqCommandController.killFleet = () => killFleet(input.getDirector());
+  // Session-scoped: in the WebUI host a Stop aimed at one tab's fleet used to
+  // sweep every tab's workers, because the named session was ignored.
+  input.hqCommandController.killFleet = (sessionId) =>
+    killHqSessionFleet(input.getDirector(), sessionId ?? liveSessionId(), {
+      multiConversation: input.hqMultiConversation === true,
+    });
   input.hqCommandController.terminateAgent = (subagentId) =>
-    terminateAgent(input.getDirector(), subagentId);
-  input.hqCommandController.spawnAgent = (role, task, maxIterations) =>
-    spawnAgent(input.getDirector(), liveSessionId(), role, task, maxIterations);
+    terminateHqAgent(input.getDirector(), subagentId);
+  input.hqCommandController.spawnAgent = (role, task, maxIterations, sessionId) =>
+    spawnHqAgent(input.getDirector(), sessionId ?? liveSessionId(), role, task, maxIterations);
   input.hqCommandController.kanbanDispatch = async (request) => {
     const director = input.getDirector();
     const sessionId = request.sessionId ?? liveSessionId();
@@ -299,57 +306,4 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
     secretInputController,
     sddRunRegistry,
   };
-}
-
-async function killFleet(director: Director | null): Promise<number> {
-  if (!director) return 0;
-  let killed = 0;
-  for (const subagent of director.status().subagents) {
-    if (subagent.status === 'running' || subagent.status === 'idle') {
-      try {
-        await director.remove(subagent.id);
-        killed++;
-      } catch {
-        // Best effort.
-      }
-    }
-  }
-  return killed;
-}
-
-async function terminateAgent(director: Director | null, subagentId: string): Promise<boolean> {
-  if (!director) return false;
-  try {
-    await director.terminate(subagentId);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function spawnAgent(
-  director: Director | null,
-  sessionId: string,
-  role: string,
-  task?: string,
-  maxIterations?: number,
-): Promise<string> {
-  if (!director) {
-    throw new AgentError({
-      message: 'Director is not available.',
-      code: 'AGENT_RUN_FAILED',
-      context: { phase: 'hq-spawn', role },
-    });
-  }
-  if (!areSubagentsAllowedForSession(sessionId)) {
-    throw new Error('Subagents are disabled for this session.');
-  }
-  const base = FLEET_ROSTER[role] ?? {
-    id: `manual-${Date.now()}`,
-    name: role,
-    maxIterations: maxIterations ?? 0,
-    maxToolCalls: 200,
-  };
-  const config = task !== undefined ? { ...base, task } : base;
-  return director.spawn({ ...config, originSessionId: sessionId });
 }

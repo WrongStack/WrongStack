@@ -63,6 +63,11 @@ export async function handleApiAuthStatus(
           : localOpenMode
             ? 'open'
             : undefined,
+      // What this credential may do, when it is narrower than full access
+      // (absent = unrestricted). The mobile login is deliberately
+      // `control.enqueue`-only; without this the dashboard could not know,
+      // offered Allow/Deny buttons, and every tap came back 403.
+      ...(auth?.capabilities !== undefined ? { capabilities: auth.capabilities } : {}),
     }),
   );
 }

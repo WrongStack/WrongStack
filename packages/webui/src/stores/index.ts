@@ -138,6 +138,8 @@ export {
   useSpecsStore,
 } from './specs-store.js';
 export {
+  type TechStackAnalyzeDepth,
+  type TechStackApplyPlanResult,
   type TechStackCoverage,
   type TechStackDependency,
   type TechStackEvidence,
@@ -148,8 +150,13 @@ export {
   type TechStackJobKind,
   type TechStackJobStatus,
   type TechStackJobView,
+  type TechStackModelInfo,
   type TechStackProgress,
   type TechStackSnapshot,
+  type TechStackTrendPoint,
+  type TechStackTrendReport,
+  type TechStackUpgradePlan,
+  type TechStackUpgradePlanItem,
   type TechStackWorkspace,
   useTechStackStore,
 } from './techstack-store.js';

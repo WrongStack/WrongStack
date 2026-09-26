@@ -396,7 +396,12 @@ export function createHqRouter(
           secureCookies,
           trustedProxyHops,
           dataDir,
-          url.pathname === '/api/mobile/login' ? ['control.enqueue'] : undefined,
+          // Least privilege for the phone: send and steer, plus ONE-SHOT
+          // answers to pending prompts (see `credentialMayAnswer`) — never
+          // persistent approval policy, never account administration.
+          url.pathname === '/api/mobile/login'
+            ? ['control.enqueue', 'control.approve.once']
+            : undefined,
         );
         return;
       }
@@ -571,7 +576,15 @@ export function createHqRouter(
 
       // ── Events ────────────────────────────────────────────────────
       if (url.pathname === '/api/events' && req.method === 'GET') {
-        await handleApiEvents(req, res, persistence);
+        await handleApiEvents(req, res, persistence, (machineId) => {
+          const ids = new Set<string>();
+          for (const client of clients.values()) {
+            if ((client.machineId || client.project.machineId) === machineId) {
+              ids.add(client.clientId);
+            }
+          }
+          return ids;
+        });
         return;
       }
 

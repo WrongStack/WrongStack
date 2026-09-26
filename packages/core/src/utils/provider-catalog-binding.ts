@@ -19,3 +19,15 @@ export function providerIdentities(provider: { readonly id: string }): string[] 
   const catalogId = catalogIds.get(provider);
   return catalogId ? [provider.id, catalogId] : [provider.id];
 }
+
+/**
+ * The same identities for a provider known only by its config key: the key,
+ * then the saved `type` it is built from when that differs (`work` → `anthropic`).
+ */
+export function configuredProviderIdentities(
+  providers: Readonly<Record<string, { type?: string | undefined } | undefined>> | undefined,
+  providerId: string,
+): string[] {
+  const type = providers?.[providerId]?.type;
+  return type && type !== providerId ? [providerId, type] : [providerId];
+}

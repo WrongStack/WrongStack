@@ -119,6 +119,10 @@ describe('setupCommandHostState', () => {
 
   it('wires yolo mutation and fleet management callbacks', async () => {
     const director = {
+      // Single-conversation host: this session owns no subagents, so the
+      // scoped sweep finds none and the process-wide fallback sweep runs —
+      // the documented single-conversation path (see hq-fleet-control.ts).
+      subagentIdsForSession: vi.fn().mockReturnValue([]),
       status: vi.fn().mockReturnValue({
         subagents: [
           { id: 'running', status: 'running' },
@@ -176,6 +180,23 @@ describe('setupCommandHostState', () => {
       expect.objectContaining({ projectRoot: 'D:/repo', eventSessionId: expect.any(Function) }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+  });
+
+  it('scopes killFleet to the live session when that session owns subagents', async () => {
+    // Session-scoped branch of killHqSessionFleet: when the live session owns
+    // subagents, `abort fleet` must terminate exactly that session and report
+    // the owned count — never fall through to the process-wide roster sweep.
+    const terminateSession = vi.fn().mockResolvedValue(undefined);
+    const director = {
+      subagentIdsForSession: vi.fn().mockReturnValue(['worker-a', 'worker-b']),
+      terminateSession,
+    };
+    const { result, hqCommandController } = harness(director);
+    await setupCommandHostState(result as never);
+
+    await expect((hqCommandController.killFleet as () => Promise<number>)()).resolves.toBe(2);
+    expect(director.subagentIdsForSession).toHaveBeenCalledWith('resumed');
+    expect(terminateSession).toHaveBeenCalledWith('resumed');
   });
 
   it('returns safe fleet results when no director or director operations fail', async () => {

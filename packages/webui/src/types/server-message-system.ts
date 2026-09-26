@@ -68,7 +68,21 @@ export type WSSystemMiscServerMessage =
         issues: Array<{ severity: 'error' | 'warning'; line: number; message: string }>;
       };
     }
-  | { type: 'techstack.job.started'; payload: { jobId: string; kind: 'inventory' | 'analyze' } }
+  | {
+      type: 'techstack.job.started';
+      payload: {
+        jobId: string;
+        kind: 'inventory' | 'analyze';
+        /** Pipeline depth the job will run. Optional for legacy producers. */
+        depth?: 'inventory' | 'enrich' | 'full';
+        /** Model id the user picked for the LLM research stage. */
+        model?: string;
+      };
+    }
+  | {
+      type: 'techstack.research.partial';
+      payload: { dependencyId: string; completed: number; total: number };
+    }
   | {
       type: 'techstack.job.progress';
       payload: { jobId: string; phase: string; completed: number; total: number };

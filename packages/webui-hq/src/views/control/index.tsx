@@ -40,6 +40,7 @@ import {
   buildControlDraft,
   confirmWordFor,
   type ControlCommandType,
+  payloadForSession,
 } from '../../domain/control-draft.js';
 import { cn } from '../../lib/utils.js';
 import { CommandAuditRail } from './audit-rail.js';
@@ -134,10 +135,10 @@ export function ControlView(): React.ReactElement {
     ? selectedClientId
     : (clients[0]?.clientId ?? null);
   const targetClient = clients.find((client) => client.clientId === targetId) ?? null;
-  const targetSession =
+  const targetSessions =
     targetClient === null
-      ? undefined
-      : (snapshot?.liveSessions ?? []).find(
+      ? []
+      : (snapshot?.liveSessions ?? []).filter(
           (session) =>
             session.clientId === targetClient.clientId ||
             (session.machineId === targetClient.machineId &&
@@ -145,6 +146,9 @@ export function ControlView(): React.ReactElement {
               session.pid !== undefined &&
               session.pid === targetClient.pid),
         );
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const targetSession =
+    targetSessions.find((session) => session.sessionId === selectedSessionId) ?? targetSessions[0];
 
   const prefs = useHqLocalPrefs().control;
 
@@ -200,6 +204,12 @@ export function ControlView(): React.ReactElement {
       runCommand,
       runCwd,
     ],
+  );
+
+  // What is previewed is exactly what is sent, session included.
+  const dispatchPayload = useMemo(
+    () => payloadForSession(draft, targetSession?.sessionId),
+    [draft, targetSession?.sessionId],
   );
 
   const confirmWord = confirmWordFor(type);
@@ -261,7 +271,7 @@ export function ControlView(): React.ReactElement {
     setError(null);
     setStatus(null);
     try {
-      const result = await postCommand(targetId, draft.type, draft.payload);
+      const result = await postCommand(targetId, draft.type, dispatchPayload);
       setStatus(`queued ${draft.type} command ${result.commandId}`);
       setLastDispatchedId(result.commandId);
       setStage('compose');
@@ -272,7 +282,7 @@ export function ControlView(): React.ReactElement {
     } finally {
       setBusy(false);
     }
-  }, [canDispatch, draft, loadAudit, targetId]);
+  }, [canDispatch, dispatchPayload, draft.type, loadAudit, targetId]);
 
   // Ctrl+Enter advances one step of the staged flow: compose → preview →
   // dispatch. It never skips the preview.
@@ -355,6 +365,7 @@ export function ControlView(): React.ReactElement {
                   value={targetId ?? ''}
                   onChange={(event) => {
                     useHqStore.getState().selectClient(event.target.value);
+                    setSelectedSessionId(null);
                     resetToCompose();
                   }}
                 >
@@ -383,13 +394,34 @@ export function ControlView(): React.ReactElement {
                       <strong className="font-medium text-foreground">client</strong>{' '}
                       {shortId(targetClient.clientId)}
                     </span>
-                    {targetSession !== undefined && (
+                    {targetSession !== undefined && targetSessions.length === 1 && (
                       <span>
                         <strong className="font-medium text-foreground">session</strong>{' '}
                         {shortId(targetSession.sessionId)} · {targetSession.agentCount} agents
                       </span>
                     )}
                   </div>
+                )}
+
+                {targetSessions.length > 1 && (
+                  <>
+                    <Label htmlFor="hq-control-session">Session</Label>
+                    <Select
+                      id="hq-control-session"
+                      value={targetSession?.sessionId ?? ''}
+                      onChange={(event) => {
+                        setSelectedSessionId(event.target.value);
+                        resetToCompose();
+                      }}
+                    >
+                      {targetSessions.map((session) => (
+                        <option key={session.sessionId} value={session.sessionId}>
+                          {shortId(session.sessionId)} · {session.status} · {session.agentCount}{' '}
+                          agents
+                        </option>
+                      ))}
+                    </Select>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -607,7 +639,7 @@ export function ControlView(): React.ReactElement {
                     </div>
                     <pre className="overflow-x-auto border border-border bg-muted/30 p-2 font-mono text-[11px] leading-relaxed">
                       {JSON.stringify(
-                        { clientId: targetId, type: draft.type, payload: draft.payload },
+                        { clientId: targetId, type: draft.type, payload: dispatchPayload },
                         null,
                         2,
                       )}

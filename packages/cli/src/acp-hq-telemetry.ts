@@ -22,6 +22,7 @@
  * @module acp-hq-telemetry
  */
 
+import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
 import { AgentStatusTracker } from '@wrongstack/core/coordination';
 import {
@@ -102,6 +103,26 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
     return false;
   };
 
+  // The approval bridge publishes `user_input.requested` from the same
+  // registry, so the HQ card is shown; without a resolver every answer the
+  // operator gave was refused while the question kept waiting.
+  const resolveUserInput = (
+    requestId: string,
+    response: Parameters<NonNullable<ApprovalRegistry['resolveUserInput']>>[1],
+    sessionId?: string,
+  ): boolean => {
+    if (sessionId !== undefined) {
+      return (
+        entries.get(sessionId)?.approvals?.resolveUserInput?.(requestId, response, sessionId) ??
+        false
+      );
+    }
+    for (const entry of entries.values()) {
+      if (entry.approvals?.resolveUserInput?.(requestId, response) === true) return true;
+    }
+    return false;
+  };
+
   const connection = startCliHqConnection({
     clientKind: 'acp',
     projectRoot: options.projectRoot,
@@ -112,11 +133,11 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
       'mailbox.summary',
       'fleet.summary',
       'session.summary',
-      // Approvals are the ONLY control this host accepts. `control.receive` is
-      // the server's gate for any command at all, so it has to be declared;
-      // everything except `approve` falls through the dispatcher and is
-      // refused, because an ACP session has no mailbox to steer and no leader
-      // to abort.
+      // Approvals and answers to ask_user are the ONLY control this host
+      // accepts. `control.receive` is the server's gate for any command at
+      // all, so it has to be declared; everything except `approve` and
+      // `answer-input` falls through the dispatcher and is refused, because
+      // an ACP session has no mailbox to steer and no leader to abort.
       'control.receive',
       'control.approve',
     ],
@@ -126,6 +147,7 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
       ownsSession: (sessionId) => entries.has(sessionId),
       allowRunCommand: () => false,
       resolveApproval,
+      resolveUserInput,
     }),
   });
 
@@ -146,7 +168,9 @@ export function startAcpHqTelemetry(options: AcpHqTelemetryOptions): AcpHqTeleme
         // An ACP session works in the directory the client opened, which is
         // not necessarily where the server booted.
         projectRoot: cwd,
-        projectName: options.projectName ?? options.projectRoot,
+        // A NAME, not a path: the full root is an absolute path (it carries
+        // the OS account name) and `projectName` is not a redacted key.
+        projectName: options.projectName ?? path.basename(cwd),
         initialAgents: tracker.getAgents(),
         startedAt: new Date().toISOString(),
       });

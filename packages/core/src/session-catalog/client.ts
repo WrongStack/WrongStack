@@ -237,6 +237,7 @@ export class SessionCatalogProjectClient {
   private async connectWithElection(spawnIfMissing: boolean): Promise<void> {
     const deadline = Date.now() + (spawnIfMissing ? START_TIMEOUT_MS : CONNECT_TIMEOUT_MS);
     let spawned = false;
+    let spawnedPid: number | undefined;
     let lastError: unknown = new Error('Session Catalog project server unavailable');
     while (Date.now() < deadline) {
       try {
@@ -250,9 +251,17 @@ export class SessionCatalogProjectClient {
         catalogDiag(`CONNECT_FAIL: ${(error as Error).message} (spawnIfMissing=${spawnIfMissing})`);
       }
       if (spawnIfMissing) {
-        if (!spawned) {
+        // A daemon we started that has since exited, with no live owner left,
+        // lost the election to one that was on its way out: a daemon still
+        // holding the endpoint while it shut down. That owner is gone now, so
+        // start another — waiting on the first spawn ran out the deadline
+        // against an endpoint nobody would bind (hq-mailbox-mutation flake).
+        const spawnLost =
+          spawnedPid !== undefined && !isPidAlive(spawnedPid) && !this.ownerPidIsAlive();
+        if (spawnLost) catalogDiag(`RESPAWN: daemon pid=${spawnedPid} exited without an owner`);
+        if (!spawned || spawnLost) {
           try {
-            this.spawnDetached();
+            spawnedPid = this.spawnDetached();
             spawned = true;
             catalogDiag('SPAWN: detached daemon requested');
           } catch (error) {
@@ -497,7 +506,8 @@ export class SessionCatalogProjectClient {
     this.reconnectTimer.unref?.();
   }
 
-  private spawnDetached(): void {
+  /** Start the project daemon; returns its pid when the OS reported one. */
+  private spawnDetached(): number | undefined {
     const url = resolveSessionCatalogProjectServerUrl();
     if (!url) throw new Error('Built Session Catalog project server is unavailable');
     const args = daemonSpawnArgs(url, [
@@ -519,7 +529,7 @@ export class SessionCatalogProjectClient {
         env: process.env,
       });
       child.unref();
-      return;
+      return child.pid;
     }
     // A file descriptor, not a pipe: a piped stream would keep the test
     // worker's event loop alive waiting on a detached child.
@@ -547,5 +557,6 @@ export class SessionCatalogProjectClient {
       note(`[session-catalog] EXIT code=${code} signal=${signal}`),
     );
     child.unref();
+    return child.pid;
   }
 }

@@ -1,8 +1,10 @@
 /**
- * Task inspector — read-only detail, in a right-hand Sheet.
+ * Task inspector — task detail in a right-hand Sheet.
  *
- * HQ is a command center, not an editor: nothing here mutates a board. The
- * "Open in WebUI" link is the escape hatch to the surface that can.
+ * HQ is a command center, not an editor: nothing here writes a board
+ * directly. `actions` issues the same lifecycle-gated commands the phone does
+ * (move / assign / dispatch), applied by the project's own client; free-form
+ * editing stays in the WebUI behind the "Open in WebUI" link.
  */
 import {
   CircleCheck,
@@ -53,12 +55,14 @@ export function KanbanTaskInspector({
   board,
   dependencyTitles,
   webuiUrl,
+  actions,
   onClose,
 }: {
   task: HqKanbanTaskView;
   board: HqKanbanBoardView;
   dependencyTitles?: ReadonlyMap<string, string>;
   webuiUrl?: string;
+  actions?: React.ReactNode;
   onClose: () => void;
 }): React.ReactElement {
   const dependencies = task.dependsOn.map((id) => ({
@@ -163,6 +167,13 @@ export function KanbanTaskInspector({
                 ))}
               </ul>
             </div>
+          </>
+        )}
+
+        {actions !== undefined && (
+          <>
+            <Separator />
+            {actions}
           </>
         )}
 

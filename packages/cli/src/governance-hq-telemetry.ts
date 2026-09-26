@@ -96,12 +96,19 @@ export function startGovernanceHqTelemetry(options: GovernanceHqTelemetryOptions
         };
       }
       if (stopped) return;
-      const payload = projectGovernanceHqSnapshot(
-        options.publisher.project.projectId,
-        now(),
-        result,
-      );
-      options.publisher.publishEvent({ type: 'governance.snapshot', payload });
+      // Advisory telemetry: a throwing projection or publish must degrade to
+      // a missed snapshot, never to an unhandled rejection out of the
+      // `void publish()` calls below (Node exits on those).
+      try {
+        const payload = projectGovernanceHqSnapshot(
+          options.publisher.project.projectId,
+          now(),
+          result,
+        );
+        options.publisher.publishEvent({ type: 'governance.snapshot', payload });
+      } catch {
+        /* next tick retries */
+      }
     } finally {
       inFlight = false;
     }

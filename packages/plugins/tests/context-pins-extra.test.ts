@@ -24,7 +24,7 @@
  * and silently falls back to in-memory-only persistence (`persisted: true`,
  * no write, no error) — an os.tmpdir() path defeats the whole test.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -71,7 +71,11 @@ function getTool(
 
 describe('context-pins plugin - persist error', () => {
   it('handles write failure gracefully', async () => {
-    const tmp = mkdtempSync(path.join(process.cwd(), 'context-pins-persist-err-'));
+    // Inside the project (the plugin rejects paths outside it), under the
+    // git-ignored scratch dir so an interrupted run leaves nothing at the root.
+    const scratch = path.join(process.cwd(), '.temp_files');
+    mkdirSync(scratch, { recursive: true });
+    const tmp = mkdtempSync(path.join(scratch, 'context-pins-persist-err-'));
     try {
       // A non-empty filePath is required: with the default empty path the
       // plugin is in-memory-only and persistPins() short-circuits to `true`

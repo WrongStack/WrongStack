@@ -90,6 +90,25 @@ describe('createHqCommandDispatcher', () => {
     expect(result.message).toContain('3');
   });
 
+  it('abort fleet is rejected, not reported as done, when the host has no fleet', async () => {
+    // "fleet stopped (0 agents)" told the operator the workers were gone
+    // while they kept running.
+    const controller = makeController({});
+    delete (controller as { killFleet?: unknown }).killFleet;
+    const dispatch = createHqCommandDispatcher(controller);
+    const result = await dispatch({ commandId: 'c1', type: 'abort', payload: { target: 'fleet' } });
+    expect(result).toMatchObject({ status: 'rejected' });
+  });
+
+  it('abort subagent is rejected when the host cannot terminate agents', async () => {
+    const controller = makeController({});
+    delete (controller as { terminateAgent?: unknown }).terminateAgent;
+    const dispatch = createHqCommandDispatcher(controller);
+    const result = await dispatch({ commandId: 'c1', type: 'abort', payload: { target: 'sub-9' } });
+    expect(result).toMatchObject({ status: 'rejected' });
+    expect(result.message).toContain('does not manage subagents');
+  });
+
   it('abort subagent calls terminateAgent', async () => {
     const terminateAgent = vi.fn(async () => true);
     const controller = makeController({ terminateAgent });

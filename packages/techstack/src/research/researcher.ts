@@ -358,9 +358,28 @@ export function createResearcher(options: CreateResearcherOptions): TechStackRes
       for (const [cluster, members] of clusters) {
         if (opts.signal?.aborted) break;
 
+        // Cluster-level "started" emit (no dependencyId). The browser uses this
+        // to reset the per-cluster spinner before the per-dependency partials
+        // start streaming.
+        opts.onPartial?.({ cluster, completed: 0, total: members.length });
+
         try {
+          let perMember = 0;
           const sources = await mapLimit(members, SEARCH_CONCURRENCY, (candidate) =>
-            options.search(searchQuery(candidate), { signal: opts.signal }),
+            options.search(searchQuery(candidate), { signal: opts.signal }).then((hits) => {
+              if (opts.signal?.aborted) return hits;
+              perMember++;
+              // Per-dependency partial fires AFTER search completes for that
+              // candidate. The LLM step that follows may still fail, but the
+              // search-attempt is the observable unit the UI can show.
+              opts.onPartial?.({
+                dependencyId: candidate.dependency.id,
+                cluster,
+                completed: perMember,
+                total: members.length,
+              });
+              return hits;
+            }),
           );
           if (opts.signal?.aborted) break;
 

@@ -31,11 +31,21 @@ async function readJson<T>(response: Response, label: string): Promise<T> {
   }
 }
 
-/** Read an error message the HQ server may have supplied, else a status line. */
+/**
+ * Read an error message the HQ server may have supplied, else a status line.
+ *
+ * The server answers in two shapes — `{error: "text"}` and
+ * `{error: {code, message}}` — and only the first was read, so "Session not
+ * found" reached the operator as a bare "404 Not Found".
+ */
 async function errorMessage(response: Response): Promise<string> {
-  const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+  const fallback = response.statusText || `HTTP ${response.status}`;
+  const body = (await response.json().catch(() => null)) as {
+    error?: string | { message?: unknown };
+  } | null;
   if (typeof body?.error === 'string') return body.error;
-  return response.statusText || `HTTP ${response.status}`;
+  if (typeof body?.error?.message === 'string') return body.error.message;
+  return fallback;
 }
 
 export async function fetchJson<T>(path: string): Promise<T> {
@@ -49,7 +59,7 @@ export async function fetchJson<T>(path: string): Promise<T> {
     raiseAuthGate();
     throw new Error(`401 Unauthorized fetching ${path} — browser token required`);
   }
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  if (!response.ok) throw new Error(`${response.status} ${await errorMessage(response)}`);
   return readJson<T>(response, path);
 }
 

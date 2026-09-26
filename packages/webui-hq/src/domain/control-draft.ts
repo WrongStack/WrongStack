@@ -125,3 +125,19 @@ export function buildControlDraft(form: ControlFormState): ControlDraft {
     summary: 'Broadcast a normal-priority mailbox message to the selected client’s project.',
   };
 }
+
+/**
+ * The payload actually dispatched: the draft plus the session it targets.
+ *
+ * A client can host several sessions (one per WebUI tab). A command that names
+ * none goes to the client's DEFAULT session, which need not be the one the
+ * operator picked — so every session-scoped type carries the choice. Broadcast
+ * is project-wide by definition and never does.
+ */
+export function payloadForSession(
+  draft: Pick<ControlDraft, 'type' | 'payload'>,
+  sessionId: string | undefined,
+): Record<string, unknown> {
+  if (sessionId === undefined || draft.type === 'broadcast') return draft.payload;
+  return { ...draft.payload, sessionId };
+}

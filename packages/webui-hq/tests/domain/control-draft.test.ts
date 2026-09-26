@@ -9,8 +9,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildControlDraft,
-  confirmWordFor,
   type ControlFormState,
+  confirmWordFor,
+  payloadForSession,
 } from '../../src/domain/control-draft.js';
 
 function form(overrides: Partial<ControlFormState> = {}): ControlFormState {
@@ -151,5 +152,25 @@ describe('buildControlDraft — broadcast', () => {
       priority: 'normal',
     });
     expect(draft.risk).toBe('normal');
+  });
+});
+
+describe('payloadForSession', () => {
+  it('names the chosen session on every session-scoped command', () => {
+    for (const type of ['steer', 'btw', 'queue', 'abort', 'spawn', 'run-command'] as const) {
+      expect(payloadForSession({ type, payload: { a: 1 } }, 'sess-2')).toEqual({
+        a: 1,
+        sessionId: 'sess-2',
+      });
+    }
+  });
+
+  it('never scopes a broadcast, and leaves the payload alone without a session', () => {
+    expect(payloadForSession({ type: 'broadcast', payload: { body: 'x' } }, 'sess-2')).toEqual({
+      body: 'x',
+    });
+    expect(payloadForSession({ type: 'steer', payload: { body: 'x' } }, undefined)).toEqual({
+      body: 'x',
+    });
   });
 });

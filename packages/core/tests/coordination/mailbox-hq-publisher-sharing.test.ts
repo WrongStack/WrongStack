@@ -128,4 +128,26 @@ describe('mailbox HQ publisher sharing', () => {
     // is read once.
     expect(createHqPublisherFromEnv).toHaveBeenCalledTimes(1);
   });
+
+  it('releases under the project it acquired, even after an in-place project switch', () => {
+    // The switch mutates ctx.projectRoot. Releasing by the live value used to
+    // decrement the NEW project's entry (closing a socket other agents still
+    // held) and leak the old project's publisher forever.
+    const oldPublisher = fakePublisher();
+    const newPublisher = fakePublisher();
+    createHqPublisherFromEnv.mockReturnValueOnce(oldPublisher).mockReturnValueOnce(newPublisher);
+
+    const switched = makeAgent('/old', 'sess-1');
+    attachMailboxChecker(switched.internals);
+    const bystander = makeAgent('/new', 'sess-2');
+    attachMailboxChecker(bystander.internals);
+
+    (switched.internals.ctx as { projectRoot: string }).projectRoot = '/new';
+    switched.dispose();
+
+    expect(oldPublisher.close).toHaveBeenCalledOnce();
+    expect(newPublisher.close).not.toHaveBeenCalled();
+    bystander.dispose();
+    expect(newPublisher.close).toHaveBeenCalledOnce();
+  });
 });

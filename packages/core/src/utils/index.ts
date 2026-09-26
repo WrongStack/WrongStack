@@ -142,7 +142,11 @@ export {
   type ProjectWatchSubscription,
   watchProjectTree,
 } from './project-watch.js';
-export { bindProviderCatalogId, providerIdentities } from './provider-catalog-binding.js';
+export {
+  bindProviderCatalogId,
+  configuredProviderIdentities,
+  providerIdentities,
+} from './provider-catalog-binding.js';
 export {
   type CompileFail,
   type CompileResult,

@@ -31,6 +31,7 @@ import {
   type HqTranscriptAppendPayload,
 } from './protocol.js';
 import { CommandTracker, IN_FLIGHT_COMMAND } from './publisher-command-tracker.js';
+import { MailboxSnapshotMemory } from './publisher-mailbox-memory.js';
 import { PublisherQueue, queuedFrameCoalesceKey } from './publisher-queue.js';
 import { parseHqServerMessage } from './publisher-server-message.js';
 import {
@@ -127,6 +128,8 @@ export class HqPublisher {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   /** Listeners re-seeding per-connection server state on every (re)open. */
   private readonly connectedListeners = new Set<() => void>();
+  /** Mailbox state HQ keeps per socket; re-announced on every open. */
+  private readonly mailboxSnapshots = new MailboxSnapshotMemory();
   private lastCommandId: string | undefined;
   private readonly commandTracker = new CommandTracker(MAX_TRACKED_COMMANDS);
 
@@ -254,6 +257,13 @@ export class HqPublisher {
       this.flushQueue();
       // AFTER hello and the queue drain, so re-seeded state lands on a
       // registered client and behind anything that was already waiting.
+      this.mailboxSnapshots.replay((payload, sessionId) =>
+        this.publishEvent({
+          type: 'mailbox.snapshot',
+          payload,
+          ...(sessionId ? { sessionId } : {}),
+        }),
+      );
       this.notifyConnected();
       this.startHeartbeat();
       if (this.options.onCommand !== undefined) {
@@ -436,6 +446,7 @@ export class HqPublisher {
       ...options,
       redactionPolicy: this.resolvedRedactionPolicy,
     });
+    this.mailboxSnapshots.remember(payload, options.sessionId);
     return this.publishEvent({
       type: 'mailbox.snapshot',
       payload,
@@ -484,6 +495,11 @@ export class HqPublisher {
   /** Effective publisher-side policy applied before any event leaves this process. */
   get redactionPolicy(): HqRedactionPolicy {
     return this.resolvedRedactionPolicy;
+  }
+
+  /** Whether the socket to HQ is open right now (false while dormant or re-dialling). */
+  get connected(): boolean {
+    return this.socket?.readyState === OPEN_STATE;
   }
 
   /** Current outbound queue pressure — useful for flow control in telemetry bridges. */

@@ -30,10 +30,12 @@ at an HQ on **another machine**; disable entirely with `/hq off`.
 ## Notes
 
 - Settings persist to the active profile config (user scope) under `hq`.
-- `/hq set` changes attach on the **next session start** — an already-running
-  session keeps its current connection. (Auto-discovery is different: a running
-  session in discovery mode attaches live when a local HQ appears or repoints.)
-- `/hq raw on` / `/hq raw off` also applies from the **next session start**. Redaction is
+- `/hq set`, `token`, `on`, `off`, `clear` and `raw on|off` apply **live**: the
+  running terminal session re-points (or disconnects) within a few seconds. A
+  change of endpoint or raw policy rebuilds the publisher, so HQ sees a new
+  client id for this terminal. (Auto-discovery also attaches live when a local
+  HQ appears or repoints, keeping the same client id.)
+- Redaction is
   applied publisher-side (before events leave the client process), and the HQ
   operator can still force redaction server-side via the `redactionPolicy`
   override in `~/.wrongstack/hq/auth.json` — that clamp is one-way (it can

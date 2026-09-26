@@ -162,6 +162,8 @@ export interface WebUIDispatchContext {
   /** Live fleet budget for WebUI concurrency/spawn gauges (issue #323). */
   getFleetBudget?: CliWebUIOptions['getFleetBudget'];
   stopSessionFleet?: CliWebUIOptions['stopSessionFleet'];
+  interruptController?: CliWebUIOptions['interruptController'];
+  hqFleetControl?: CliWebUIOptions['hqFleetControl'];
   onSessionRetired?: CliWebUIOptions['onSessionRetired'];
   /** The process's single background-delegation auto-wake controller. */
   leaderAutoWake?: CliWebUIOptions['leaderAutoWake'];
@@ -213,6 +215,8 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     onKanbanDispatch,
     getFleetBudget,
     stopSessionFleet,
+    interruptController,
+    hqFleetControl,
     onSessionRetired,
     leaderAutoWake,
     webuiSessionChild,
@@ -364,6 +368,8 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     sessionStore,
     ...(getFleetBudget ? { getFleetBudget } : {}),
     ...(stopSessionFleet ? { stopSessionFleet } : {}),
+    ...(interruptController ? { interruptController } : {}),
+    ...(hqFleetControl ? { hqFleetControl } : {}),
     ...(onSessionRetired ? { onSessionRetired } : {}),
     ...(leaderAutoWake ? { leaderAutoWake } : {}),
     sessionsDir: projectSessionsDir,

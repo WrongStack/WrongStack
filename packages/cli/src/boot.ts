@@ -45,6 +45,7 @@ import { parseArgs } from './arg-parser.js';
 import { resolveAppendedSystemPrompt } from './boot/append-system-prompt.js';
 import { discoverAndMergeProviders } from './boot/auto-discover-providers.js';
 import { maybeRestoreDefaultProfileFromBackup } from './boot/config-backup-recovery.js';
+import { applyGoalTuiDefault } from './boot/goal-tui-default.js';
 import { resolveLaunchMcpServers } from './boot/mcp-config-flag.js';
 import { activateRestrictedMode } from './boot/restricted-mode.js';
 import { announceSafeMode } from './boot/safe-mode.js';
@@ -750,6 +751,8 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
     }
     flags['autonomy'] = effectiveChoices.autonomy;
   }
+
+  applyGoalTuiDefault(flags, positional);
 
   // Director Mode is permanently on.
   flags['director'] = true;

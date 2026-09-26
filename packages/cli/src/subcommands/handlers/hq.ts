@@ -336,8 +336,9 @@ type TokenScope = 'browser' | 'client';
 
 const TOKEN_CAPABILITIES: Record<TokenScope, readonly string[]> = {
   // `control.approve` is grantable but never default — see
-  // DEFAULT_TOKEN_CAPABILITIES below.
-  browser: ['control.enqueue', 'control.approve'],
+  // DEFAULT_TOKEN_CAPABILITIES below. `control.approve.once` is the narrower
+  // grant: yes/no on a single prompt, no persistent `always`/`deny` policy.
+  browser: ['control.enqueue', 'control.approve', 'control.approve.once'],
   client: ['telemetry.publish', 'control.execute'],
 };
 

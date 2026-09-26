@@ -120,6 +120,14 @@ class KanbanServerConnection {
     while (!this.socket && Date.now() < deadline) {
       await this.tryConnectExisting();
       if (this.socket) break;
+      // The daemon we started exits at once when another still holds the
+      // endpoint — one on its way out. Once that one is gone nobody binds, so
+      // a single spawn waited out the deadline against an empty endpoint.
+      // Start another whenever ours has exited.
+      const child = this.serverProcess;
+      if (child && (child.exitCode !== null || child.signalCode !== null)) {
+        await this.spawnServer();
+      }
       await new Promise((r) => setTimeout(r, SPAWN_CONNECT_RETRY_MS));
     }
     if (!this.socket)

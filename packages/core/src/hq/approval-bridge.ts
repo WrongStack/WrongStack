@@ -466,6 +466,13 @@ export interface ApprovalTelemetryBridgeOptions extends BridgeContextOptions {
   registry: ApprovalRegistry;
   /** Project root for path redaction in the argument summary. */
   projectRoot?: string | undefined;
+  /**
+   * Which sessions THIS publisher speaks for. Registries on a shared bus see
+   * every session's prompts; when another publisher in the process already
+   * announces a session (the WebUI host's root conversation), publishing it
+   * here too put the same prompt on HQ from two clients. Absent = all.
+   */
+  acceptSession?: ((sessionId: string | undefined) => boolean) | undefined;
 }
 
 /**
@@ -510,7 +517,11 @@ export function startApprovalTelemetryBridge(opts: ApprovalTelemetryBridgeOption
 
   // Replay first, so a dashboard that connects mid-prompt is not blind until
   // the next one.
-  for (const approval of registry.list()) publishRequested(approval);
+  const accepts = (sessionId: string | undefined): boolean =>
+    opts.acceptSession === undefined || opts.acceptSession(sessionId);
+  for (const approval of registry.list()) {
+    if (accepts(approval.sessionId)) publishRequested(approval);
+  }
   const publishInputRequested = (input: PendingHqUserInput): void => {
     ctx.safePublish({
       type: 'user_input.requested',
@@ -519,9 +530,18 @@ export function startApprovalTelemetryBridge(opts: ApprovalTelemetryBridgeOption
       timestamp: ctx.now(),
     });
   };
-  for (const input of registry.listUserInputs?.() ?? []) publishInputRequested(input);
+  for (const input of registry.listUserInputs?.() ?? []) {
+    if (accepts(input.sessionId)) publishInputRequested(input);
+  }
 
   const off = registry.onChange((change) => {
+    const changeSession =
+      change.kind === 'requested'
+        ? change.approval.sessionId
+        : change.kind === 'input_requested'
+          ? change.input.sessionId
+          : change.sessionId;
+    if (!accepts(changeSession)) return;
     if (change.kind === 'requested') {
       publishRequested(change.approval);
       return;

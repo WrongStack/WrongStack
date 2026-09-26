@@ -1,5 +1,5 @@
 import type * as http from 'node:http';
-import type { createHqPersistence, HqTimeseriesSample } from '@wrongstack/core/hq';
+import type { createHqPersistence, HqEventEnvelope, HqTimeseriesSample } from '@wrongstack/core/hq';
 import type { WebSocket } from 'ws';
 import * as HqServerSnapshot from '../snapshot.js';
 import type { ConnectedClient } from '../types.js';
@@ -40,6 +40,7 @@ export async function handleApiEvents(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   persistence: ReturnType<typeof createHqPersistence>,
+  resolveMachineClientIds?: (machineId: string) => ReadonlySet<string>,
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://localhost');
   const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '200', 10);
@@ -68,14 +69,25 @@ export async function handleApiEvents(
     untilMsRaw !== null && untilMsRaw.length > 0 && Number.isFinite(Number(untilMsRaw))
       ? Number(untilMsRaw)
       : undefined;
-  const events = await persistence.eventLog.recent(limit, typeFilter);
-  const filtered = events.filter((event) => {
-    const payload = event.payload as { clientId?: unknown; machineId?: unknown } | undefined;
-    if (clientIdFilter !== undefined && payload?.clientId !== clientIdFilter) {
-      return false;
-    }
-    if (machineIdFilter !== undefined && payload?.machineId !== machineIdFilter) {
-      return false;
+  // `clientId` lives on the ENVELOPE (the dashboard shows `event.clientId`);
+  // the payload has none. `machineId` is carried only by a few payloads
+  // (`client.hello`'s client, session snapshots), so an event from a machine
+  // is also matched through the clients currently connected from it.
+  const clientsOnMachine =
+    machineIdFilter !== undefined
+      ? (resolveMachineClientIds?.(machineIdFilter) ?? new Set())
+      : undefined;
+  const matches = (event: HqEventEnvelope): boolean => {
+    if (clientIdFilter !== undefined && event.clientId !== clientIdFilter) return false;
+    if (machineIdFilter !== undefined) {
+      const payload = event.payload as
+        | { machineId?: unknown; client?: { machineId?: unknown } }
+        | undefined;
+      const onMachine =
+        payload?.machineId === machineIdFilter ||
+        payload?.client?.machineId === machineIdFilter ||
+        (event.clientId !== undefined && clientsOnMachine?.has(event.clientId) === true);
+      if (!onMachine) return false;
     }
     if (sinceMs !== undefined || untilMs !== undefined) {
       const ts = event.timestamp !== undefined ? Date.parse(event.timestamp) : Number.NaN;
@@ -86,7 +98,20 @@ export async function handleApiEvents(
       if (untilMs !== undefined && ts > untilMs) return false;
     }
     return true;
-  });
+  };
+  const narrowed =
+    clientIdFilter !== undefined ||
+    machineIdFilter !== undefined ||
+    sinceMs !== undefined ||
+    untilMs !== undefined;
+  // Filters run INSIDE the scan: applying them to the newest `limit` events
+  // of the whole log answered "nothing" whenever the scoped source had been
+  // quiet for a while.
+  const filtered = await persistence.eventLog.recent(
+    limit,
+    typeFilter,
+    narrowed ? matches : undefined,
+  );
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ events: filtered, total: filtered.length }));
 }

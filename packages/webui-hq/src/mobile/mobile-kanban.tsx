@@ -1,4 +1,4 @@
-import type { HqKanbanSnapshotPayload, HqSnapshot } from '@wrongstack/core/hq';
+import type { HqKanbanSnapshotPayload } from '@wrongstack/core/hq';
 import { Clock3, Columns3, Play, RefreshCw, Send, TriangleAlert, UserRoundCog } from 'lucide-react';
 import type * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,84 +18,31 @@ import { Select, Textarea } from '../components/ui/input.js';
 import { fetchJson, postCommand } from '../data/api.js';
 import { useHqStore } from '../data/store/index.js';
 import {
+  canAssignKanbanTask,
+  canDispatchKanbanTask,
+  kanbanTransitionOptions,
+  type LifecycleStage,
+  mobileKanbanAssignmentTargets,
+  suggestedKanbanStage,
+} from '../domain/kanban-actions.js';
+import {
   type HqKanbanTaskView,
   projectKanbanBoards,
   projectKanbanUrl,
 } from '../domain/kanban-model.js';
 
-type LifecycleStage = 'backlog' | 'todo' | 'running' | 'review' | 'done';
-
-const STAGES: readonly LifecycleStage[] = ['backlog', 'todo', 'running', 'review', 'done'];
 const REFRESH_MS = 10_000;
 
-export interface MobileKanbanAssignmentTarget {
-  key: string;
-  agentId: string;
-  label: string;
-}
-
-export function mobileKanbanAssignmentTargets(
-  snapshot: HqSnapshot | null,
-  projectId: string,
-): MobileKanbanAssignmentTarget[] {
-  const targets = new Map<string, MobileKanbanAssignmentTarget>();
-  for (const session of snapshot?.liveSessions ?? []) {
-    if (session.projectId !== projectId) continue;
-    for (const agent of session.agents) {
-      const key = `${session.sessionId}:${agent.id}`;
-      targets.set(key, {
-        key,
-        agentId: agent.id,
-        label: `${agent.name} · ${session.hostname ?? session.machineId} · ${agent.status}`,
-      });
-    }
-  }
-  return [...targets.values()].sort((left, right) => left.label.localeCompare(right.label));
-}
-
-function stageFromTask(task: Pick<HqKanbanTaskView, 'status' | 'lifecycleStage'>): LifecycleStage {
-  if (task.lifecycleStage !== undefined) return task.lifecycleStage;
-  if (task.status === 'ready') return 'todo';
-  if (task.status === 'in_progress') return 'running';
-  if (task.status === 'review') return 'review';
-  if (task.status === 'completed') return 'done';
-  return 'backlog';
-}
-
-export function kanbanTransitionOptions(
-  task: Pick<HqKanbanTaskView, 'status' | 'lifecycleStage'>,
-): LifecycleStage[] {
-  const currentIndex = STAGES.indexOf(stageFromTask(task));
-  if (currentIndex < 0 || currentIndex === STAGES.length - 1) return [];
-  return STAGES.filter((_, index) => Math.abs(index - currentIndex) === 1);
-}
-
-export function suggestedKanbanStage(
-  task: Pick<HqKanbanTaskView, 'status' | 'lifecycleStage'>,
-): LifecycleStage {
-  return kanbanTransitionOptions(task).at(-1) ?? stageFromTask(task);
-}
-
-export function canAssignKanbanTask(
-  task: Pick<HqKanbanTaskView, 'status' | 'lifecycleStage' | 'assignmentStatus'>,
-): boolean {
-  return (
-    stageFromTask(task) !== 'done' &&
-    task.status !== 'archived' &&
-    task.assignmentStatus !== 'queued' &&
-    task.assignmentStatus !== 'running'
-  );
-}
-
-export function canDispatchKanbanTask(
-  task: Pick<HqKanbanTaskView, 'status' | 'lifecycleStage' | 'assignmentStatus'>,
-): boolean {
-  return (
-    stageFromTask(task) === 'todo' &&
-    task.assignmentStatus !== 'queued' &&
-    task.assignmentStatus !== 'running'
-  );
-}
+// Moved to `domain/kanban-actions.ts` so the desktop inspector issues the same
+// lifecycle-gated commands; re-exported for existing importers.
+export {
+  canAssignKanbanTask,
+  canDispatchKanbanTask,
+  kanbanTransitionOptions,
+  type MobileKanbanAssignmentTarget,
+  mobileKanbanAssignmentTargets,
+  suggestedKanbanStage,
+} from '../domain/kanban-actions.js';
 
 export function MobileKanban(): React.ReactElement {
   const snapshot = useHqStore((state) => state.snapshot);

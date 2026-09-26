@@ -115,6 +115,22 @@ describe('directory instructions', () => {
     expect(again).not.toContain('EGRET');
   });
 
+  it('delivers instructions under in-root ..-prefixed directories, but not parent escapes', async () => {
+    const outer = path.join(root, '..hidden');
+    const inner = path.join(outer, '..nested');
+    await fs.mkdir(inner, { recursive: true });
+    await fs.writeFile(path.join(outer, 'AGENTS.md'), 'Hidden rule: IBIS.\n');
+    await fs.writeFile(path.join(inner, 'CLAUDE.md'), 'Nested rule: WREN.\n');
+    await fs.writeFile(path.join(inner, 'index.ts'), 'export {};\n');
+
+    const ctx = makeCtx();
+    const delivered = await deliver(ctx, path.join(inner, 'index.ts'));
+    expect(delivered).toContain('source="..hidden/AGENTS.md"');
+    expect(delivered).toContain('source="..hidden/..nested/CLAUDE.md"');
+    expect(delivered!.indexOf('IBIS')).toBeLessThan(delivered!.indexOf('WREN'));
+    expect(await deliver(ctx, path.join(root, '..', 'outside.ts'))).toBeUndefined();
+  });
+
   it('ignores paths at or outside the project root', async () => {
     const ctx = makeCtx();
     expect(await deliver(ctx, root)).toBeUndefined();

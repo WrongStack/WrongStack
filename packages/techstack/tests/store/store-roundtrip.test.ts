@@ -15,6 +15,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION } from '../../src/store/schema.js';
 import { TechStackStore } from '../../src/store/sqlite.js';
@@ -306,6 +307,57 @@ describe('lifecycle', () => {
         expect(versions).toEqual([{ version: SCHEMA_VERSION }]);
       } finally {
         second.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('schema migration', () => {
+  it('upgrades a v1 database (jobs without depth/model) so saveJob no longer throws', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'techstack-migrate-'));
+    const dbPath = join(dir, 'techstack.db');
+    try {
+      // Build a legacy v1 database: the v1 `jobs` table has no depth/model.
+      const Database = loadRuntimeDatabaseSync();
+      const raw = new Database(dbPath);
+      raw.exec(`
+        CREATE TABLE techstack_schema_version (version INTEGER NOT NULL);
+        INSERT INTO techstack_schema_version (version) VALUES (1);
+        CREATE TABLE jobs (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          target_root TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'queued',
+          fingerprint TEXT NOT NULL DEFAULT '',
+          requested_by TEXT NOT NULL DEFAULT '',
+          session_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          completed_at TEXT,
+          error TEXT,
+          progress_json TEXT
+        );
+      `);
+      raw.close();
+
+      // Opening the store must backfill the missing columns. Before the
+      // migration this succeeded while saveJob threw "no such column: depth".
+      const upgraded = new TechStackStore({ projectSlug: 'migrate', dbPath });
+      try {
+        expect(() =>
+          upgraded.saveJob(job({ id: 'migrated', depth: 'full', model: 'claude-x' })),
+        ).not.toThrow();
+        const loaded = upgraded.getJob('migrated');
+        expect(loaded?.depth).toBe('full');
+        expect(loaded?.model).toBe('claude-x');
+        const versions = dbOf(upgraded)
+          .prepare('SELECT version FROM techstack_schema_version')
+          .all() as Array<{ version: number }>;
+        expect(versions).toEqual([{ version: SCHEMA_VERSION }]);
+      } finally {
+        upgraded.close();
       }
     } finally {
       rmSync(dir, { recursive: true, force: true });

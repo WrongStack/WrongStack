@@ -19,12 +19,12 @@
       "relativeImports": 1
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 899,
-      "relativeImports": 37
+      "lines": 904,
+      "relativeImports": 38
     },
     "packages/cli/src/execution.ts": {
-      "lines": 1004,
-      "relativeImports": 46
+      "lines": 1008,
+      "relativeImports": 47
     },
     "packages/cli/src/fleet/host.ts": {
       "lines": 875,
@@ -75,7 +75,7 @@
       "relativeImports": 11
     },
     "packages/core/src/coordination/director.ts": {
-      "lines": 969,
+      "lines": 974,
       "relativeImports": 45
     },
     "packages/core/src/coordination/index.ts": {
@@ -87,8 +87,8 @@
       "relativeImports": 3
     },
     "packages/core/src/core/fallback-model.ts": {
-      "lines": 879,
-      "relativeImports": 15
+      "lines": 899,
+      "relativeImports": 16
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
       "lines": 974,
@@ -333,10 +333,6 @@
     "packages/webui/src/components/SidePanel/SkillsList.tsx": {
       "lines": 803,
       "relativeImports": 0
-    },
-    "packages/webui/src/components/TechStackView/index.tsx": {
-      "lines": 881,
-      "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
       "lines": 916,

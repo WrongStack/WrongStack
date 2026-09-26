@@ -124,7 +124,13 @@ async function collectDirectoryInstructions(
   const root = path.resolve(projectRoot);
   const abs = path.resolve(root, target);
   const relToRoot = path.relative(root, abs);
-  if (!relToRoot || relToRoot.startsWith('..') || path.isAbsolute(relToRoot)) return undefined;
+  if (
+    !relToRoot ||
+    relToRoot === '..' ||
+    relToRoot.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relToRoot)
+  )
+    return undefined;
 
   const isDir = await fs.stat(abs).then(
     (s) => s.isDirectory(),
@@ -135,7 +141,7 @@ async function collectDirectoryInstructions(
   // directory can differ in drive-letter case.
   for (let dir = isDir ? abs : path.dirname(abs); ; dir = path.dirname(dir)) {
     const rel = path.relative(root, dir);
-    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) break;
+    if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) break;
     dirs.push(dir);
   }
 

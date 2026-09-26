@@ -169,6 +169,10 @@ export async function switchProjectInPlace(
   context.projectRoot = resolved;
   context.workingDir = resolved;
   context.session = nextWriter;
+  // Same repoint `/resume` does: provider `getSessionId`, the replay binding
+  // and HQ command addressing all read `sessionRef`, and without it they kept
+  // naming the session this process just closed.
+  if (state.sessionRef) state.sessionRef.current = nextWriter;
   context.state.replaceMessages([]);
   resetSessionSubagentPolicy(context);
   restoreSessionPermissionOverrides(context.meta, {});

@@ -25,11 +25,15 @@ import {
   ProviderError,
   type Response,
 } from '../types/provider.js';
+import {
+  configuredProviderIdentities,
+  providerIdentities,
+} from '../utils/provider-catalog-binding.js';
 import { resolveEventSessionId } from './context.js';
-import { isProviderFailureTracked } from './provider-runner.js';
 import type { FallbackChain } from './fallback-profile-manager.js';
 import { FallbackProfileManager } from './fallback-profile-manager.js';
 import { evaluateModelCalendar, logicalCalendarTarget } from './model-availability-calendar.js';
+import { isProviderFailureTracked } from './provider-runner.js';
 import { bindRequestProvider } from './request-provider-binding.js';
 
 export type { ModelRef } from './model-ref.js';
@@ -429,8 +433,11 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
 
       if (primaryInCooldown(cfg)) return;
       if (
-        !evaluateModelCalendar(cfg.modelAvailabilitySchedule, primary.providerId, primary.model)
-          .allowed ||
+        !evaluateModelCalendar(
+          cfg.modelAvailabilitySchedule,
+          configuredProviderIdentities(cfg.providers, primary.providerId),
+          primary.model,
+        ).allowed ||
         (deps.statusTracker && !deps.statusTracker.isAvailable(primary.providerId, primary.model))
       )
         return;
@@ -483,9 +490,15 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
     wrapProviderRunner: async (ctx, request, inner) => {
       // ── Before calling, check if the current provider/model is blocked ──
       const tracker = deps.statusTracker;
+      const liveConfig = deps.getConfig();
       const calendar = evaluateModelCalendar(
-        deps.getConfig().modelAvailabilitySchedule,
-        ctx.provider.id,
+        liveConfig.modelAvailabilitySchedule,
+        [
+          ...new Set([
+            ...providerIdentities(ctx.provider),
+            ...configuredProviderIdentities(liveConfig.providers, ctx.provider.id),
+          ]),
+        ],
         ctx.model,
       );
       const trackerBlocked = tracker ? !tracker.isAvailable(ctx.provider.id, ctx.model) : false;
@@ -608,7 +621,11 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         // re-order must not front-load one either.
         usableChain = usableChain.filter(
           (e) =>
-            evaluateModelCalendar(cfg.modelAvailabilitySchedule, e.providerId, e.model).allowed,
+            evaluateModelCalendar(
+              cfg.modelAvailabilitySchedule,
+              configuredProviderIdentities(cfg.providers, e.providerId),
+              e.model,
+            ).allowed,
         );
 
         // ── Last-working-fallback prioritization ──────────────────────
@@ -735,8 +752,11 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
           if (ctx_.signal?.aborted) throw lastErr;
 
           if (
-            !evaluateModelCalendar(cfg.modelAvailabilitySchedule, entry.providerId, entry.model)
-              .allowed
+            !evaluateModelCalendar(
+              cfg.modelAvailabilitySchedule,
+              configuredProviderIdentities(cfg.providers, entry.providerId),
+              entry.model,
+            ).allowed
           )
             continue;
 

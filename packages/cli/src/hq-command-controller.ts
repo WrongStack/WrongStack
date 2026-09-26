@@ -386,7 +386,17 @@ async function dispatch(
         };
       }
       if (target === 'fleet') {
-        const killed = (await controller.killFleet?.(sessionId)) ?? 0;
+        // A host without fleet control must say so. Reporting
+        // "fleet stopped (0 agents)" told the operator their workers were
+        // gone while they kept running.
+        if (controller.killFleet === undefined) {
+          return {
+            commandId,
+            status: 'rejected',
+            message: 'this client does not manage a fleet',
+          };
+        }
+        const killed = await controller.killFleet(sessionId);
         return {
           commandId,
           status: 'completed',
@@ -394,7 +404,14 @@ async function dispatch(
         };
       }
       // Specific subagent id.
-      const terminated = (await controller.terminateAgent?.(target, sessionId)) ?? false;
+      if (controller.terminateAgent === undefined) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'this client does not manage subagents',
+        };
+      }
+      const terminated = await controller.terminateAgent(target, sessionId);
       return {
         commandId,
         status: terminated ? 'completed' : 'rejected',
