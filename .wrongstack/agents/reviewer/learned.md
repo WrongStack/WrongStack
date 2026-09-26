@@ -2,79 +2,38 @@
 
 > Project-specific learning data for the `reviewer` agent. Each entry is a directive — read it as an instruction, not a journal entry. Entries are re-derived on every capture, so this file is always a current, structured snapshot of what this agent has learned.
 
-## What to avoid
+## What to do
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=1443; wins=1436; skipped=418; skippedWins=418 -->
-- **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `BOARD_SOFT_MAX_BYTES`
-  - *How:* `packages/tui`
-  - *How:* `packages/webui`
-  - *How:* `packages/kanban/src/storage.ts`
-  - *How:* `*.test.*`
-  - *How:* `X.test.ts`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T07:41:24.855Z; skill=chimera; applied=12; wins=12; skipped=685; skippedWins=685 -->
-- **Always verify a newly-threaded seam end-to-end before accepting it: for every option added to a handler's options type (e.g. `persistEvidence` in `packages/cli/src/execution-chimera-cascade.ts`), grep the whole repo for invocations AND for the production call site — an option that is declared, destructured, and threaded but never called, with no caller supplying it, is dead wiring that silently voids the documented contract (persistence, "report marked unverified").**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `persistEvidence`
-  - *How:* `packages/cli/src/execution-chimera-cascade.ts`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T07:15:21.369Z; skill=chimera; applied=6; wins=5; skipped=685; skippedWins=685 -->
-- **When a Chimera review diff adds a new local-collection array (`agentEvidence`) **and** a new property at a downstream call site (`claimedEvidence: accumulatedEvidence`) in the same hunk, always grep the *consumed* identifier independently of the collected one — a half-applied wiring names a phantom variable (the verified result) that was never declared because the step that would have produced it (e.g. a `verify...` runner call) was also never added.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `agentEvidence`
-  - *How:* `claimedEvidence: accumulatedEvidence`
-  - *How:* `verify...`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T10:38:35.669Z; skill=chimera; applied=233; wins=221; skipped=630; skippedWins=630 -->
-- **When a Chimera review diff's line annotations disagree with the live on-disk file (e.g., diff shows `string[]` but the file reads `KanbanLifecycleValidationIssue[]`), always trust the file on disk and flag the divergence — an in-session `file.external.edit` can land a half-applied refactor between the diff being captured and review running. Resolve every finding against `read`/`grep` of the actual file, never the diff hunk, and cite the live line number.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `string[]`
-  - *How:* `KanbanLifecycleValidationIssue[]`
-  - *How:* `file.external.edit`
-  - *How:* `read`
+<!-- learned-stamp: category=convention; capturedAt=2026-09-25T20:06:07.396Z; skill=code-review; skipped=2; skippedWins=2 -->
+- **- When a diff removes an `import * as X` / named import from a file, grep the whole file for every removed identifier (`grep 'X\.|removedName' <file>`) before accepting it — an unused-import cleanup is only safe when the file shows zero remaining uses; otherwise it is a `TS2304`/runtime break. In `packages/cli/src/hq-server.ts`, removing `isTokenExpired` and `import * as HqServerAuth` was safe only because a repo grep found no residual reference. - Verify newly-called WebUI store methods (`useXStore.getState().<method>`) against the store definition, not just the handler: `setDeepDivePartial` and the 3-arg `jobStarted` in `packages/webui/src/stores/techstack-store.ts` must actually exist with a matching parameter shape, or every dispatch throws a runtime `TypeError` while typecheck of the handler alone may still pass. - `codebase-search` returning 0 hits for a symbol does NOT prove absence when the symbol is a zustand store action inside `create((set) => ({...}))` — those object-literal members are often unindexed; confirm with `grep` against the store file before reporting a missing-method finding. - When a diff introduces a new helper module (`createHqSocketCredentialEnforcer`, `MailboxSnapshotMemory`), read the module itself to confirm every passed state field and callback signature matches, and confirm an identifier the diff newly *depends on but does not add* (e.g. `OPEN_STATE`) is already imported in the consuming file.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `import * as X`
+  - *How:* `grep 'X\.|removedName' <file>`
+  - *How:* `TS2304`
+  - *How:* `packages/cli/src/hq-server.ts`
+  - *How:* `isTokenExpired`
+  - *How:* `import * as HqServerAuth`
+  - *How:* `useXStore.getState().<method>`
+  - *How:* `setDeepDivePartial`
+  - *How:* `jobStarted`
+  - *How:* `packages/webui/src/stores/techstack-store.ts`
+  - *How:* `TypeError`
+  - *How:* `codebase-search`
+  - *How:* `create((set) => ({...}))`
   - *How:* `grep`
+  - *How:* `createHqSocketCredentialEnforcer`
+  - *How:* `MailboxSnapshotMemory`
+  - *How:* `OPEN_STATE`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=64; wins=63; skipped=673; skippedWins=673 -->
-- **When a refactor extracts a SQL CTE body into a `(seedSource: string) => string` template builder and delegates execution to a named helper (e.g. `runCteWithSeeds`), grep for the helper's *definition* — not just its call sites — before accepting the change. A diff can introduce a call to a helper that was planned but never written (whole-tree definition count = 0), which typecheck catches as "Cannot find name" and runtime catches as `ReferenceError`.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `(seedSource: string) => string`
-  - *How:* `runCteWithSeeds`
-  - *How:* `ReferenceError`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=199; wins=196; skipped=663; skippedWins=663 -->
-- **When a test-file diff adds a new import block but the test bodies it accompanies never reference those symbols, immediately grep the changed file for every imported name before trusting the diff — `noUnusedLocals: true` (set in `tsconfig.base.json`, inherited by every package's `tsconfig.json` and `tsconfig.test.json`) turns each unused import into `error TS6133` and fails the package's test typecheck. Unused `type`-qualified inline imports are flagged too; do not assume type-only imports are exempt.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `noUnusedLocals: true`
-  - *How:* `tsconfig.base.json`
-  - *How:* `tsconfig.json`
-  - *How:* `tsconfig.test.json`
-  - *How:* `error TS6133`
-  - *How:* `type`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T05:28:46.207Z; skill=chimera; applied=20; wins=20; skipped=685; skippedWins=685 -->
-- **When extracting a shared classification helper (e.g. `classifyChimeraReviewSource` in `packages/core/src/plugins/review-finding-integration.ts`) to guarantee two stores agree on a label, the function's parameter shape (`ReviewContextBundle` vs the full `ChimeraReviewCompletePayload`) is a wiring hazard. Grep every call site and confirm each passes the matching shape: finding/report integrations pass `payload.bundle`, while sibling consumers that already hold the bare bundle (e.g. `packages/cli/src/execution-chimera-review.ts`) pass it directly.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `classifyChimeraReviewSource`
-  - *How:* `packages/core/src/plugins/review-finding-integration.ts`
-  - *How:* `ReviewContextBundle`
-  - *How:* `ChimeraReviewCompletePayload`
-  - *How:* `payload.bundle`
-  - *How:* `packages/cli/src/execution-chimera-review.ts`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-11T15:48:37.933Z; skill=chimera; applied=118; wins=116; skipped=664; skippedWins=664 -->
-- **When reviewing a generated ratchet baseline such as `architecture/hotspots.json`, do not judge a metric field by a naive grep — read the generator first (`collectModuleSpecifiers` in `scripts/lib/architecture-health.mjs`) to learn every form it counts. `relativeImports` includes static `from './x'`, bare side-effect `import './x.css'`, dynamic `import('./x')`, `require()`, and `import x = require()`, so a file whose static imports number 6 can legitimately record 20.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `architecture/hotspots.json`
-  - *How:* `collectModuleSpecifiers`
-  - *How:* `scripts/lib/architecture-health.mjs`
-  - *How:* `relativeImports`
-  - *How:* `from './x'`
-  - *How:* `import './x.css'`
-  - *How:* `import('./x')`
-  - *How:* `require()`
-  - *How:* `import x = require()`
+<!-- learned-stamp: category=convention; capturedAt=2026-09-25T19:25:16.358Z; skill=chimera; skipped=10; skippedWins=10 -->
+- **When a diff adds an entry to a protocol message catalog such as `SERVER_EXTENSION_MESSAGE_TYPES` in `packages/webui-protocol/src/server-integrations.ts`, validate it by running the catalog's own parity test (`packages/webui-protocol/tests/message-catalogs.test.ts`) rather than inspecting the array alone — it pins the name regex, non-emptiness, and per-domain duplicate-freedom, which is exactly what a hand-appended string can break. When a new catalog entry appears without a producer, grep the type string repo-wide before flagging it as dead wiring; a type declared in the webui union (`packages/webui/src/types/server-message-system.ts`) and wired into a dispatch map (`packages/webui/src/hooks/ws-handlers/*.ts`) is a forward-declared contract, and the stale catalog list in `docs/architecture/simpleui-message-lifecycle.md` is documentation drift below the reporting threshold, not a finding.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `SERVER_EXTENSION_MESSAGE_TYPES`
+  - *How:* `packages/webui-protocol/src/server-integrations.ts`
+  - *How:* `packages/webui-protocol/tests/message-catalogs.test.ts`
+  - *How:* `packages/webui/src/types/server-message-system.ts`
+  - *How:* `packages/webui/src/hooks/ws-handlers/*.ts`
+  - *How:* `docs/architecture/simpleui-message-lifecycle.md`
 
 ---
-*Last capture: 2026-08-12T10:38:35.669Z · 8 entries*
+*Last capture: 2026-09-25T20:06:07.396Z · 2 entries*

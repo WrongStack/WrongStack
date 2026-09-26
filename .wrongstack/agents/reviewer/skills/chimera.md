@@ -1,18 +1,16 @@
 ## Chimera — project addendum (reviewer)
 
-### Scope
-Applies only when reviewing changes under `packages/tui/src/**`.
+### Trust the file on disk, not the diff
+- Resolve every finding against `read`/`grep` of the live file, never the diff hunk, and cite the live line number. An in-session `file.external.edit` can land a half-applied refactor between diff capture and review — when annotations disagree with the file (e.g. `string[]` vs `KanbanLifecycleValidationIssue[]`), trust the disk and flag the divergence.
 
-### Type-narrowing on array index lookups
-- Reject any `as SomeType` cast applied directly to an `array[index]` lookup. Force the reviewer (and the author) to verify the element type from the source array instead of papering over it with a cast.
-- Concrete failure mode to guard against: `THEME_OPTIONS` in `packages/tui/src/theme.ts` is typed as `ThemePickerOption[]`, so consumers must read fields like `?.id`. A cast on the index lookup lets a `ThemePickerOption` object slip into APIs expecting a primitive (e.g. `setActiveTheme`) — the cast typechecks but is semantically wrong.
-- When the diff only shows the cast, still trace back to the array's element type and the downstream consumer; reject until both ends match.
+### Generated artifacts
+- Before judging a ratchet-baseline field (`architecture/hotspots.json`), read the generator (`collectModuleSpecifiers` in `scripts/lib/architecture-health.mjs`) to learn every counted form. `relativeImports` covers `from './x'`, `import './x.css'`, `import('./x')`, `require()`, and `import x = require()`, so 6 static imports can legitimately record 20. Never infer the metric by grepping the artifact.
 
-### Reducer / consumer contract
-- Treat a reducer case that defines a `selected` (or similarly named) index into a module-level options array and its Enter/confirm consumer as a single contract. Review them in one pass, even when only the reducer case is in the diff.
-- For each such `selected` index: confirm the array's element type, confirm the consumer reads the same field shape (e.g. `?.id`), and confirm no `as SomeType` cast bridges the two. If any link is missing or forced via cast, request the fix in the consumer (or both files), not just the reducer.
+### Threaded wiring
+- Grep the whole repo for every newly-threaded identifier — and its production call site — before accepting it. Declared, destructured, and passed but never invoked, with no caller supplying it, is dead wiring that silently voids the documented contract (`persistEvidence` in `packages/cli/src/execution-chimera-cascade.ts`).
+- Grep the *consumed* identifier independently of the collected one. A hunk adding both `agentEvidence` and `claimedEvidence: accumulatedEvidence` may name a phantom verified result — never declared because the `verify...` runner step was never added.
+- When extracting a shared helper (`classifyChimeraReviewSource` in `packages/core/src/plugins/review-finding-integration.ts`), confirm each call site passes the declared parameter shape (`ReviewContextBundle` vs `ChimeraReviewCompletePayload`): finding/report integrations pass `payload.bundle`; sibling consumers already holding the bare bundle (`packages/cli/src/execution-chimera-review.ts`) pass it directly.
 
-### Review checklist
-- Every new/changed `array[index] as T` in `packages/tui/src/**` → reject and request a type guard or direct typed access.
-- Every new/changed `selected` (or equivalent) index in a reducer case → locate the confirm/Enter consumer in the same pass; flag mismatches in element type or field access.
-- Cross-check against the module's options array (e.g. `THEME_OPTIONS`) to confirm the consumer reads the right field (e.g. `?.id`) and passes it to the correct sink (e.g. `setActiveTheme`).
+### TUI type narrowing (`packages/tui/src/**`)
+- Reject any `array[index] as T`; trace the array element type and the downstream consumer, then require a guard or direct typed access. `THEME_OPTIONS` in `packages/tui/src/theme.ts` is `ThemePickerOption[]`, so consumers read `?.id`; a cast lets an object slip into primitive sinks like `setActiveTheme`.
+- Review a reducer's `selected` index and its Enter/confirm consumer as one contract, even when only the reducer is in the diff: element type, field shape, no bridging cast — request the fix in the consumer or both files, not just the reducer.

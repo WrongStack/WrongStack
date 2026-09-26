@@ -1,10 +1,15 @@
 {
-  "consolidatedAt": "2026-08-10T18:53:38.033Z",
+  "consolidatedAt": "2026-09-25T19:11:59.677Z",
   "sourceEntryCount": 0,
   "sourceBytes": 391,
-  "consolidatedBytes": 9771,
-  "trigger": "manual",
-  "model": "glm-5.2",
+  "consolidatedBytes": 11971,
+  "trigger": "automatic",
+  "model": "deepseek-v4.1-flash",
   "pruned": true,
-  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\bug-hunter\\archive\\learned-2026-08-10T18-53-38-033Z.md"
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\bug-hunter\\archive\\learned-2026-09-25T19-11-59-677Z.md",
+  "skills": [
+    "bug-hunter",
+    "typescript-strict",
+    "testing"
+  ]
 }

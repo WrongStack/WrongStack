@@ -1,0 +1,14 @@
+{
+  "consolidatedAt": "2026-09-25T19:07:35.982Z",
+  "sourceEntryCount": 0,
+  "sourceBytes": 385,
+  "consolidatedBytes": 4038,
+  "trigger": "automatic",
+  "model": "deepseek-v4.1-flash",
+  "pruned": true,
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\explore\\archive\\learned-2026-09-25T19-07-35-982Z.md",
+  "skills": [
+    "node-modern",
+    "codebase-navigation"
+  ]
+}

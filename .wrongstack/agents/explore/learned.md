@@ -2,85 +2,15 @@
 
 > Project-specific learning data for the `explore` agent. Each entry is a directive — read it as an instruction, not a journal entry. Entries are re-derived on every capture, so this file is always a current, structured snapshot of what this agent has learned.
 
-## What to avoid
+## Patterns to follow
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-29T12:07:54.956Z; applied=227; wins=227; skipped=165; skippedWins=164 -->
-- **- Always filter `slash-commands/index` importer greps to the owning package path (`packages/cli`, `packages/plug-lsp`, `packages/telegram`) — each package owns a same-named `slash-commands/index.ts`, so unscoped `grep slash-commands/index` caller sets include 4+ cross-package false positives in WrongStack. - Do not trust `codebase-skeleton` on import-dominated composition-root files (e.g. `packages/cli/src/slash-commands/index.ts` collapsed 215 lines to 1 at 99.6% "savings"); when the skeleton result looks degenerate, fall back to a full `read` before citing exports.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `slash-commands/index`
-  - *How:* `packages/cli`
-  - *How:* `packages/plug-lsp`
-  - *How:* `packages/telegram`
-  - *How:* `slash-commands/index.ts`
-  - *How:* `grep slash-commands/index`
-  - *How:* `codebase-skeleton`
-  - *How:* `packages/cli/src/slash-commands/index.ts`
-  - *How:* `read`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T09:38:36.469Z; applied=43; wins=43; skipped=251; skippedWins=250 -->
-- **Always check importers *before* mapping or editing any `project-server-*.ts` helper in `packages/tools/src/codebase-index/` — grep both the exported symbol names (`ServerQueryCaches`, `staleAwareRead`) **and** the module basename (`project-server-query-cache`), because some of these files are extraction drafts that were never wired into `project-server.ts`, which still carries the inline original. A symbol-only grep can miss the module-path import form and vice versa; run both before concluding a file is live or dead.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `project-server-*.ts`
-  - *How:* `packages/tools/src/codebase-index/`
-  - *How:* `ServerQueryCaches`
-  - *How:* `staleAwareRead`
-  - *How:* `project-server-query-cache`
-  - *How:* `project-server.ts`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:06:14.197Z; applied=185; wins=185; skipped=182; skippedWins=181 -->
-- **Always trace a `packages/core/src/storage/*` helper's consumers by grepping its module basename first (e.g. `grep session-write-buffer`) — storage helpers there typically have exactly one importer (e.g. `session-write-buffer.ts` ← `file-session-writer.ts`), so one hop plus one `new X` grep usually completes the dependency picture without broad exploration. Never treat `codebase-incoming-calls` import/type_ref entries as call sites alone — pair them with a targeted `read` of the constructor and producer methods to distinguish ownership (who creates the object) from usage (who feeds it).**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `packages/core/src/storage/*`
-  - *How:* `grep session-write-buffer`
-  - *How:* `session-write-buffer.ts`
-  - *How:* `file-session-writer.ts`
-  - *How:* `new X`
+<!-- learned-stamp: category=pattern; capturedAt=2026-09-25T19:10:34.188Z; skill=codebase-navigation; applied=3; wins=3; skipped=5; skippedWins=5 -->
+- **When finding importers of a WebUI component, grep the import-specifier pattern (`from ['"].*ComponentName['"]|import\(.*ComponentName`) rather than the bare basename — a bare-basename grep for `DependencyDetail` returned 21+ false hits from i18n locale keys like `missingDependencyDetail` and unrelated identifiers. Pair it with `codebase-incoming-calls` only to confirm the count, since its import rows can be attributed to the wrong symbol at that line.**
+  - *Why:* This project's chosen approach — alternatives were considered and either conflict with existing architecture or were rejected for known reasons.
+  - *How:* `from ['"].*ComponentName['"]|import\(.*ComponentName`
+  - *How:* `DependencyDetail`
+  - *How:* `missingDependencyDetail`
   - *How:* `codebase-incoming-calls`
-  - *How:* `read`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-26T07:31:22.592Z; skill=node-modern; applied=10; wins=10; skipped=252; skippedWins=251 -->
-- **Always treat `@wrongstack/simpleui` grep hits as suspect until checked against `packages/cli/src/simpleui-dist.ts` — that file resolves the package by **path string** (`resolvePackageJson('@wrongstack/simpleui/package.json')`) for static-asset serving, so it looks like a barrel consumer but never imports the module. The simpleui barrel (`packages/simpleui/src/index.ts`) has zero in-repo importers by design: the package is consumed only as a built Vite `dist/` asset.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `@wrongstack/simpleui`
-  - *How:* `packages/cli/src/simpleui-dist.ts`
-  - *How:* `resolvePackageJson('@wrongstack/simpleui/package.json')`
-  - *How:* `packages/simpleui/src/index.ts`
-  - *How:* `dist/`
-  - *How:* `wrongstack/simpleui/package.json`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T09:30:41.957Z; applied=5; wins=5; skipped=260; skippedWins=259 -->
-- **When tracing callers of `incomingCallsService`, `outgoingCallsService`, `packageGraphService`, `fileGraphService`, or `symbolGraphService` in the WrongStack repo, always disambiguate between the **sync** implementations in `packages/tools/src/codebase-index/index-service.ts` and the **async shadowing wrappers** with identical names exported from `packages/tools/src/codebase-index/background-indexer.ts` (and re-exported via the `./codebase-index/index` barrel) — the package barrel exports only the wrappers, so external consumers never touch the sync originals directly.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `incomingCallsService`
-  - *How:* `outgoingCallsService`
-  - *How:* `packageGraphService`
-  - *How:* `fileGraphService`
-  - *How:* `symbolGraphService`
-  - *How:* `packages/tools/src/codebase-index/index-service.ts`
-  - *How:* `packages/tools/src/codebase-index/background-indexer.ts`
-  - *How:* `./codebase-index/index`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:34:49.099Z; applied=189; wins=189; skipped=180; skippedWins=179 -->
-- **When tracing importers of a module in `packages/webui/src/stores/`, always run one extra grep of the bare basename scoped to `packages/webui/src/stores/` in addition to the `stores/<name>` specifier pattern — intra-store importers use relative specifiers (`./session-lanes`, `./session-lanes.js`) that the `stores/<name>` pattern never matches, and in this repo those relative importers (`session-store.ts`, `session-tab-store.ts`) are usually the heaviest dependents. Pair with `codebase-incoming-calls` import hints to catch what the specifier greps miss.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `packages/webui/src/stores/`
-  - *How:* `stores/<name>`
-  - *How:* `./session-lanes`
-  - *How:* `./session-lanes.js`
-  - *How:* `session-store.ts`
-  - *How:* `session-tab-store.ts`
-  - *How:* `codebase-incoming-calls`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=256; wins=256; skipped=149; skippedWins=148 -->
-- **When tracing importers of any module under `packages/webui/src/` (not just `stores/`), grep the bare basename repo-wide in addition to specifier patterns — sibling-directory consumers use relative specifiers (`./useChatViewState`) that `components/<name>` style patterns never match; in this repo the bare-basename grep plus `codebase-incoming-calls` together resolved the full consumer set in one pass (`useChatViewState` had exactly one: `ChatView/index.tsx`).**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `packages/webui/src/`
-  - *How:* `stores/`
-  - *How:* `./useChatViewState`
-  - *How:* `components/<name>`
-  - *How:* `codebase-incoming-calls`
-  - *How:* `useChatViewState`
-  - *How:* `ChatView/index.tsx`
 
 ---
-*Last capture: 2026-09-24T07:07:52.404Z · 7 entries*
+*Last capture: 2026-09-25T19:10:34.188Z · 1 entries*

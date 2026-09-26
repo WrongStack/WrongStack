@@ -1,11 +1,15 @@
 {
-  "consolidatedAt": "2026-08-21T12:29:30.301Z",
+  "consolidatedAt": "2026-09-25T19:13:05.945Z",
   "sourceEntryCount": 0,
   "sourceBytes": 405,
-  "consolidatedBytes": 4548,
-  "trigger": "manual",
-  "model": "stealth/ox-alpha",
+  "consolidatedBytes": 8481,
+  "trigger": "automatic",
+  "model": "deepseek-v4.1-flash",
   "pruned": true,
-  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\explore-companion\\archive\\learned-2026-08-21T12-29-30-301Z.md",
-  "skills": ["node-modern"]
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\explore-companion\\archive\\learned-2026-09-25T19-13-05-945Z.md",
+  "skills": [
+    "node-modern",
+    "typescript-strict",
+    "codebase-navigation"
+  ]
 }

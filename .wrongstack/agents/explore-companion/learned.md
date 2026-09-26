@@ -4,91 +4,55 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:46:01.647Z; applied=1219; wins=1213; skipped=617; skippedWins=612 -->
-- **- Treat role-memory i18n examples as perishable: re-grep `t('ns:key')` literals against `packages/webui/src/i18n/locales/*/` fresh each probe instead of repeating a prior "zero entries" flag. - In `packages/webui`, root-level `src/components/ChatView.tsx` is a 2-line re-export shim for `src/components/ChatView/index.tsx`; always edit the directory version, and don't confuse lookalikes `components/AgentTranscript.tsx` or `components/ui/tabs.tsx` with AgentTabs. - When no shell tool is registered, use mtime-ordered `glob packages/<pkg>/src/**/*.ts*` (single-pattern `ts*` suffix, no brace expans…**
+<!-- learned-stamp: category=warning; capturedAt=2026-09-25T19:33:52.560Z; skill=codebase-navigation; applied=8; wins=8; skipped=2; skippedWins=2 -->
+- **- When counting i18next consumers of a namespace, grep the key prefix as `['"]<ns>:` (quote before, colon after) — e.g. `rg "['\"]activity:" packages/webui/src`. A pattern like `activity:['"]` (quote after the colon) can only match when the first key segment is itself quoted and silently returns zero for `t('activity:nav.chat')`, producing a false "no consumers" conclusion. Never report zero callers from a single novel regex; re-test the pattern shape before stating a count. - Locale JSON files in `packages/webui/src/i18n/locales/<lng>/<ns>.json` have no static importers in src; the single load path is the `resourcesToBackend` dynamic import at `packages/webui/src/i18n/index.ts` (`import(\`./locales/${lng}/${ns}.json\`)`), with `activity` and `settings` as deferred chunks pre-fetched via `i18n.loadNamespaces`. Blast radius for editing any en locale file is: key parity across all `SUPPORTED_LNGS` siblings, enforced by `packages/webui/tests/i18n/catalog-integrity.test.ts`, plus direct JSON imports in tests.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `t('ns:key')`
-  - *How:* `packages/webui/src/i18n/locales/*/`
+  - *How:* `['"]<ns>:`
+  - *How:* `rg "['\"]activity:" packages/webui/src`
+  - *How:* `activity:['"]`
+  - *How:* `t('activity:nav.chat')`
+  - *How:* `packages/webui/src/i18n/locales/<lng>/<ns>.json`
+  - *How:* `resourcesToBackend`
+  - *How:* `packages/webui/src/i18n/index.ts`
+  - *How:* `import(\`
+  - *How:* `)`
+  - *How:* `activity`
+  - *How:* `settings`
+  - *How:* `i18n.loadNamespaces`
+  - *How:* `SUPPORTED_LNGS`
+  - *How:* `packages/webui/tests/i18n/catalog-integrity.test.ts`
+
+<!-- learned-stamp: category=warning; capturedAt=2026-09-25T20:07:49.059Z; skill=codebase-navigation; applied=1; wins=1 -->
+- **When counting consumers of the `activity` i18n namespace in `packages/webui`, count `t('activity:` literals (pattern `['"]activity:`), never `useTranslation('activity')` — it returns 0 because all components go through the `useAppTranslation()` wrapper exported from `@/i18n` (`packages/webui/src/i18n/index.ts`). Also verify every `activity\.json` grep hit is a real import/require: `packages/webui/src/components/TaskActivityTimeline.tsx` builds a `` `${...}-activity.json` `` filename that collides with the locale-file path.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `activity`
   - *How:* `packages/webui`
-  - *How:* `src/components/ChatView.tsx`
-  - *How:* `src/components/ChatView/index.tsx`
-  - *How:* `components/AgentTranscript.tsx`
-  - *How:* `components/ui/tabs.tsx`
-  - *How:* `glob packages/<pkg>/src/**/*.ts*`
-  - *How:* `ts*`
+  - *How:* `t('activity:`
+  - *How:* `['"]activity:`
+  - *How:* `useTranslation('activity')`
+  - *How:* `useAppTranslation()`
+  - *How:* `@/i18n`
+  - *How:* `packages/webui/src/i18n/index.ts`
+  - *How:* `activity\.json`
+  - *How:* `packages/webui/src/components/TaskActivityTimeline.tsx`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=3408; wins=3390; skipped=166; skippedWins=165 -->
-- **Always grep the full `CallType` union in `packages/tools/src/codebase-index/schema.ts` before treating a todo's "type" clause as a gap — `type_ref` is emitted only by `ts-parser.ts`, never by tree-sitter `refRules` tables in `packages/tools/src/codebase-index/tree-sitter/queries.ts`, so WASM-language test todos need only `call`/`import`/`inherit`/`implement` assertions.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `CallType`
-  - *How:* `packages/tools/src/codebase-index/schema.ts`
-  - *How:* `type_ref`
-  - *How:* `ts-parser.ts`
-  - *How:* `refRules`
-  - *How:* `packages/tools/src/codebase-index/tree-sitter/queries.ts`
-  - *How:* `call`
-  - *How:* `import`
-  - *How:* `inherit`
-  - *How:* `implement`
+## What to do
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=1283; wins=1276; skipped=607; skippedWins=602 -->
-- **Before reporting a webui component as having no callers, read its sibling directory barrel/parent (e.g. `packages/webui/src/components/ChatView/index.tsx`) in full - `lazy(() => import(...))` and renamed imports never match a bare-symbol grep or incoming-calls, so only a parent-file read rules out hidden wiring. Always check `t('ns:key')` literals against whole-package locale resources (`grep` with glob `*.json` over `packages/webui`, not just `src`) before trusting that an i18n key resolves - keys like `activity:agents.tabsLabel` can have zero resource entries package-wide.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `packages/webui/src/components/ChatView/index.tsx`
-  - *How:* `lazy(() => import(...))`
-  - *How:* `t('ns:key')`
-  - *How:* `grep`
-  - *How:* `*.json`
-  - *How:* `packages/webui`
-  - *How:* `src`
-  - *How:* `activity:agents.tabsLabel`
+<!-- learned-stamp: category=convention; capturedAt=2026-09-25T19:37:41.971Z; skill=codebase-navigation; applied=6; wins=6; skipped=3; skippedWins=3 -->
+- **Before reporting the blast radius of a webui locale edit, read the three guards in `packages/webui/tests/i18n/catalog-integrity.test.ts` rather than reciting "parity" generically: key-set parity vs en (line ~80), blank/whitespace-value rejection (line ~105), and `t() references resolve` incl. `_one`/`_other` plurals (line ~118). Verify with `cd packages/webui && npx vitest run tests/i18n` — root vitest excludes the package.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `packages/webui/tests/i18n/catalog-integrity.test.ts`
+  - *How:* `t() references resolve`
+  - *How:* `_one`
+  - *How:* `_other`
+  - *How:* `cd packages/webui && npx vitest run tests/i18n`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:34:09.873Z; applied=170; wins=170; skipped=868; skippedWins=862 -->
-- **Grep for kill-related test coverage with precise tokens (`SIGKILL`, `killed-session`, `never-closed`) or word boundaries — bare `kill` matches `skills` across config-store/cloud-sync suites and floods results. When pre-mapping a "Tests:" todo, grep `it\('` names across the package's test dir first; behavior tests often live under grab-bag files whose name mismatches the symbol under test (e.g. `DefaultSessionStore.list()` kill-visibility coverage sits inside `session-store-extra.test.ts`, not a list-named file), so absence of a matching filename proves nothing about coverage.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `SIGKILL`
-  - *How:* `killed-session`
-  - *How:* `never-closed`
-  - *How:* `kill`
-  - *How:* `skills`
-  - *How:* `it\('`
-  - *How:* `DefaultSessionStore.list()`
-  - *How:* `session-store-extra.test.ts`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:52:13.602Z; skill=node-modern; applied=280; wins=279; skipped=826; skippedWins=820 -->
-- **Inside `packages/webui/vitest.config.ts`, two vitest projects split the suite surface: `browser-jsdom` includes `tests/**/*.test.{ts,tsx}` (excluding `tests/server/**`) so even pure DOM-free unit tests like `tests/components/chat-view-auto-collapse.test.ts` run under jsdom, while `tests/server/**` runs in the node project. Verify component unit suites with `cd packages/webui && npx vitest run <file>`; they never execute under the root config, which excludes `packages/webui/**`.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `packages/webui/vitest.config.ts`
-  - *How:* `browser-jsdom`
-  - *How:* `tests/**/*.test.{ts,tsx}`
-  - *How:* `tests/server/**`
-  - *How:* `tests/components/chat-view-auto-collapse.test.ts`
-  - *How:* `cd packages/webui && npx vitest run <file>`
-  - *How:* `packages/webui/**`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:25:21.130Z; applied=497; wins=497; skipped=720; skippedWins=714 -->
-- **Never report "no callers" from a zero-hit `codebase-incoming-calls` result alone — the ref graph misses symbols even in ordinary CLI source (e.g. `runAsMain` in `packages/cli/src/cli-entry-point.ts` had 0 indexed hits while `packages/cli/src/index.ts:6,8` imports and calls it). Confirm with rg exact-text search over `packages/**/*.ts` before stating caller counts.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `codebase-incoming-calls`
-  - *How:* `runAsMain`
-  - *How:* `packages/cli/src/cli-entry-point.ts`
-  - *How:* `packages/cli/src/index.ts:6,8`
-  - *How:* `packages/**/*.ts`
-  - *How:* `packages/cli/src/index.ts`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=1166; wins=1160; skipped=601; skippedWins=597 -->
-- **Never use `codebase-incoming-calls` on generic overloaded symbol names like `create` in WrongStack - the ref graph returns cross-file noise (91 same-named symbols) and its `file` filter cannot disambiguate methods of one class. Fall back to a targeted grep such as `(sessionStore|store)\.create\(` over `packages/**/src` and filter test files by name instead.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `codebase-incoming-calls`
-  - *How:* `create`
-  - *How:* `file`
-  - *How:* `(sessionStore|store)\.create\(`
-  - *How:* `packages/**/src`
-
-<!-- learned-stamp: category=warning; capturedAt=2026-09-13T20:17:54.076Z; applied=86; wins=86; skipped=384; skippedWins=378 -->
-- **When `codebase-incoming-calls` fails with "Index build failed: Project files changed during indexing", do not retry or reindex — fall back to one exact-text grep over the symbol names for call sites and note the ref graph was unavailable in the report.**
-  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
-  - *How:* `codebase-incoming-calls`
+<!-- learned-stamp: category=convention; capturedAt=2026-09-25T19:40:05.363Z; skill=codebase-navigation; applied=5; wins=5; skipped=2; skippedWins=2 -->
+- **When mapping a webui locale-file edit, also name `packages/webui/tests/i18n/deferred-namespaces.test.ts` (describes "B-13 — deferred i18n namespaces are NOT inlined" and "loaded via the backend") as a guard alongside catalog-integrity: it pins `activity`/`settings` to the lazy-chunk path, so any change that inlines or re-routes those namespaces breaks it even when key parity is intact.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `packages/webui/tests/i18n/deferred-namespaces.test.ts`
+  - *How:* `activity`
+  - *How:* `settings`
 
 ---
-*Last capture: 2026-09-13T20:17:54.076Z · 8 entries*
+*Last capture: 2026-09-25T20:07:49.059Z · 4 entries*

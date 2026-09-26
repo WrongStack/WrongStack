@@ -1,21 +1,19 @@
 # Testing Addendum — Reviewer Agent
 
+## Import Resolution
+- When a test imports `X` from `@wrongstack/<pkg>`, verify the symbol resolves through the package root `packages/<pkg>/src/index.ts`, not just the defining module. `loadRuntimeDatabaseSync` lives in `packages/persistence/src/sqlite-runtime.ts` and is public only because `index.ts` does `export * from './sqlite-runtime.js'`.
+- Confirm both halves: the barrel re-export exists **and** the consuming package declares `@wrongstack/<pkg>` in its `package.json`. A path that resolves inside the repo is still a broken import if the dependency is undeclared.
+
+## Migration Test Fixtures
+- A test that hand-builds a "legacy schema" SQLite literal proves nothing unless its `CREATE TABLE` names and columns match what production's migration code reads. Check every fixture table and column — `techstack_schema_version`, `jobs` — against the migration source; a mismatch passes green while testing an unrelated schema.
+
 ## Diff Verification
+- Treat the review diff as untrusted; re-resolve each import, type, and call site against the live file with `read`/`grep` before reporting it as broken.
+- Names are stale repo-wide: `fuseRanked` → `reciprocalRankFusion`; `VectorResult` → the return type of `cosineSimilarity`/`reciprocalRankFusion`. If the diff cites a stale name, the diff is wrong, not the code — verify first.
+- Flag "missing export" or "wrong signature" **only** after live read/`grep` confirms it; an odd-looking diff is not evidence.
+- Anchor findings at `file:line` with the exact identifier rather than prose summaries.
 
-- Treat any review diff as untrusted input; re-resolve every import, type, and call site against the **live** file before reporting it as broken. Diff text and on-disk code drift independently.
-- After reading a diff, `read` or `grep` the actual import block and each cited call site in the current source. Confirm the symbol exists, has the expected signature, and the call argument shape matches.
-- Names that have already been renamed in this repo (and will keep changing): `fuseRanked` → `reciprocalRankFusion`; `VectorResult` → result type from `cosineSimilarity`/`reciprocalRankFusion` callers. If the diff mentions a stale name, the diff is wrong, not the code — verify first, then decide.
-
-## Concurrency in `packages/tools/src/codebase-index/indexer.ts`
-
-- Inside any `Promise.allSettled(batchFiles.map(async ...))`, do **not** accumulate into a buffer (array, map, string) that lives in the outer scope and is mutated per-callback. Concurrent callbacks interleave across every `await`, so:
-  - The same file is reparsed by racing writers.
-  - The shared array is mutated without serialization, producing duplicated or missing entries.
-- Correct shape for this codebase: run the parallel read/parse phase to completion, then issue **one** batched delegation call (e.g. to the embedding/index backend) with the merged set, then reconcile results keyed by file id.
-- When reviewing a diff that adds work inside the parallel map, check whether the new step is per-callback I/O that could be hoisted into a single post-`allSettled` call. If yes, request the hoist explicitly.
-
-## Reviewer-Specific Pitfalls
-
-- Flag a "missing export" or "wrong signature" finding **only** after `read`/`grep` on the live file confirms it. A diff naming `fuseRanked` or `VectorResult` is not evidence — those names are stale.
-- For `packages/tools/src/codebase-index/indexer.ts`, scan the entire `Promise.allSettled(batchFiles.map(...))` block for shared-scope mutation; one finding per such pattern, not per callback.
-- Prefer concrete anchors (`file:line`, exact identifier) over prose summaries in review comments.
+## Concurrency: `packages/tools/src/codebase-index/indexer.ts`
+- Inside `Promise.allSettled(batchFiles.map(async ...))`, never accumulate into outer-scope state (array, map, string) mutated per callback: interleaved awaits duplicate or drop entries and race writers over the same file.
+- Correct shape: finish the parallel read/parse phase, issue **one** batched delegation call (embedding/index backend) with the merged set, then reconcile keyed by file id.
+- Reviewing a diff that adds work inside the parallel map: if the new step is per-callback I/O, request the hoist into a single post-`allSettled` call explicitly. One finding per shared-mutation pattern, not per callback.

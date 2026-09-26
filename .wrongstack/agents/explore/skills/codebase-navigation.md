@@ -1,0 +1,5 @@
+## Call-graph blind spots
+
+- Treat `codebase-incoming-calls` as a starting point, never a verdict: it only resolves importers of the *queried* symbols, so dynamic wiring and sibling imports of unqueried exports are invisible. Before calling any module dead, pair every symbol query with a repo-wide grep of the module path.
+- Types-only modules (e.g. `packages/techstack/src/research/types.ts`): run all three greps — repo-wide `research/types(\.js)?['"]`, the relative form `from ['"]\./types(\.js)?['"]` scoped to the owning directory, and the barrel form `from '@wrongstack/techstack'`. Cross-package consumers resolve types through `@wrongstack/techstack`, which the deep-path grep never matches; only the greps surface `search.ts` and `search.test.ts`.
+- WebUI components loaded via `React.lazy(() => import('./Name'))` and wired through the registry object in `packages/webui/src/components/view-registry.ts` show **zero** results in `codebase-incoming-calls`. Grep the bare component basename across the repo and read `view-registry.ts` before concluding any `packages/webui/src` component is unused.

@@ -3,9 +3,10 @@
 ## Parallel Work and Chimera Reviews
 
 - After any parallel fix pass, re-read the current on-disk state of every file in the cascade before citing or reporting a finding. Concurrent Chimera workers (bug-hunter, security-scanner) frequently resolve the same findings mid-session; citing pre-fix content produces false positives.
+- Read the files a review lists under "Assumptions / unverified" as not-read **first**, before dispatching or applying any fix. Findings whose suggested fix lives in a module the reviewer never opened — e.g. a hook a refactor moved logic into — are high-probability false positives already resolved on disk. Never patch text that a fresh read shows absent.
+- Falsify claimed "hard type errors" with a zero-cost typecheck before tracing them manually: `node node_modules/typescript/bin/tsc --noEmit --pretty false -p packages/<pkg>/tsconfig.json` exiting 0 instantly disproves any `TS2339 Property does not exist` claim in `packages/cli` or `packages/core`. Pair the typecheck with the targeted vitest file when the false-positive classification depends on runtime behavior.
 - If an existing on-disk diff already addresses a finding, preserve that work rather than applying a duplicate patch.
 - Treat the `Resolved by the parallel worker` block in a Chimera review as authoritative for which findings remain open versus already fixed.
-- Before classifying a finding as a false positive, confirm with `node node_modules/typescript/bin/tsc --noEmit --pretty false -p packages/<pkg>/tsconfig.json` (exit 0 = no error) and the targeted vitest file.
 
 ## Verification and Testing Procedures
 
@@ -16,6 +17,13 @@
 - For Windows atomic-write tests, mock the `fs.rename` seam, select the Windows retry branch, and inject a transient error (e.g., `EBUSY`). Do not hold an open file handle as retry evidence — its behavior is platform-dependent.
 - For Kanban verification, resolve locally installed Vitest or Jest package bin entries and invoke them through `process.execPath` with `shell: false`. Do not add package-manager fallbacks to the generic verifier command allowlist.
 
+## SQLite Schema and Migrations
+
+- Pair every `SCHEMA_VERSION` bump on a file-backed SQLite store with a guarded migration in `applySchema` (`packages/techstack/src/store/schema.ts`); `CREATE TABLE IF NOT EXISTS` cannot evolve an existing table. Use the `PRAGMA table_info(<table>)` set-membership guard plus `ALTER TABLE ... ADD COLUMN` pattern from `ensureCatalogStorageColumns` in `packages/core/src/session-catalog/store-schema.ts`.
+- Place legacy-version regression tests in `packages/techstack/tests/store/store-roundtrip.test.ts`, never `sqlite.test.ts` — the latter mocks `node:sqlite` and executes no SQL, so migration bugs are invisible to it.
+- Fixture shape that actually exercises an upgrade: build the N-1 database with raw `loadRuntimeDatabaseSync()` DDL at a `mkdtempSync` path (version row = the old `SCHEMA_VERSION`), reopen it through the real store constructor, then assert the previously-throwing writer no longer throws and the version row advanced. Fresh `:memory:` fixtures only cover the fresh-install branch.
+- Verify store changes with `node node_modules/typescript/bin/tsc --noEmit --pretty false -p packages/techstack/tsconfig.json`, `pnpm exec biome check <touched files>`, and `pnpm exec vitest run packages/techstack/tests/store`.
+
 ## Data Integrity Invariants
 
 - **Session-memory merge queries** (`packages/sage/src/sqlite-store-remember.ts`): always require strict `owner_session_id = ?` matching. Never let owned writes merge with `owner_session_id IS NULL` legacy rows — session-filtered retrieval deliberately hides those rows, and adoption silently changes their ownership semantics.
@@ -25,6 +33,7 @@
 - **Auto-review concurrency** (`packages/core/src/plugins/auto-review-plugin.ts`): centralize bounded-expiry scheduling so both `iteration.completed` and `session.ended` paths apply identical cleanup.
 - **Review-claim bookkeeping:** register before Chimera's enabled-state early return. Chimera exclusively owns the shared `review_needed`/`review_complete` listener pair; auto-review must not duplicate the start listener.
 - **Process-group termination** (`verification-context.ts`): couple any POSIX `process.kill(-pid, ...)` to a child spawned with `detached: true` using one computed boolean that controls both spawning and termination.
+- **CLI wiring teardown** (`packages/cli/src/wiring/*`): when a wiring function registers cleanup on an external `teardownHandlers` array, fold the same cleanup into its own returned `dispose()` behind an idempotence flag. Callers may drain the array, call `dispose()`, or both, and early-return branches that omit `dispose()` leave tracer/exporter handles unowned.
 
 ## Security Patterns
 
