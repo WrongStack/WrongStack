@@ -16,8 +16,8 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type WebSocket, WebSocketServer } from 'ws';
 import { DesktopAgentBridge } from '../src/main/agent-bridge.js';
+import { type WebSocket, WebSocketServer } from './ws-runtime.js';
 
 describe('agent-bridge message listener cleanup', () => {
   let httpServer: Server;

@@ -37,7 +37,7 @@ import {
 } from '@wrongstack/core/hq';
 import { createBoard, getBoard, writeBoard } from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { createKanbanHqSync } from '../src/kanban-hq-sync.js';
 

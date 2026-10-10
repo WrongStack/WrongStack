@@ -3,10 +3,10 @@ import { EventBus } from '@wrongstack/core/kernel';
 import { AUTO_WAKE_PROMPT_MARKER } from '@wrongstack/webui-protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('ws/native', () => {
+vi.mock('ws/native', async (importOriginal) => {
   const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
-  return { WebSocket: MockWebSocket };
+  return { ...(await importOriginal<Record<string, unknown>>()), WebSocket: MockWebSocket };
 });
 
 vi.mock('@wrongstack/providers', async (importOriginal) => ({

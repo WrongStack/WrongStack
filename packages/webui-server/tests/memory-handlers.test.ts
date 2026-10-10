@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 
-vi.mock('ws/native', () => {
+vi.mock('ws/native', async (importOriginal) => {
   const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
-  return { WebSocket: MockWebSocket };
+  return { ...(await importOriginal<Record<string, unknown>>()), WebSocket: MockWebSocket };
 });
 
 const mockGetSageSurface = vi.hoisted(() => vi.fn((): any => null));

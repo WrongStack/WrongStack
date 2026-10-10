@@ -16,12 +16,13 @@ import {
   type SurfaceConnectionState,
   stopConnection,
 } from '@wrongstack/webui-protocol';
-import WebSocket from 'ws';
+import type { RawData } from 'ws';
 import type {
   DesktopConversationMessage,
   DesktopConversationSnapshot,
   DesktopConversationStatus,
 } from '../shared/types.js';
+import { WebSocket } from './ws-runtime.js';
 
 // ============================================================================
 // Types
@@ -47,7 +48,7 @@ interface ConversationInternal {
   // open sockets, fatal across reconnects, where each new connect() leaks
   // a stale message listener + closure onto the previous (now-orphaned)
   // WebSocket. RAM-leak audit 2026-08-11, HIGH.
-  onMessage: ((data: WebSocket.RawData) => void) | null;
+  onMessage: ((data: RawData) => void) | null;
   socketGeneration: number;
 }
 
@@ -600,4 +601,3 @@ function stringValue(value: unknown): string | undefined {
 // ============================================================================
 // Reconnect Event Type (for external consumers)
 // ============================================================================
-

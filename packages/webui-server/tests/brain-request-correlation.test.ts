@@ -2,7 +2,7 @@ import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import type { BrainDecision, BrainDecisionRequest } from '@wrongstack/core/coordination';
 import { expect, it, vi } from 'vitest';
-import { WebSocket, WebSocketServer } from 'ws/native';
+import { WebSocket, WebSocketServer } from '../src/ws-runtime.js';
 import type { BrainHandlerContext } from '../src/server/brain-handlers.js';
 import { createBrainRouteHandlers, handleBrainRoute } from '../src/server/brain-routes.js';
 

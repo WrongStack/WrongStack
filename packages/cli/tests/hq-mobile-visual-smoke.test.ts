@@ -8,7 +8,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_PROTOCOL_VERSION } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
+import type { RawData } from 'ws';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { resolveHqDistDir } from '../src/hq-static-serve.js';
 
@@ -25,7 +26,7 @@ function waitForOpen(socket: WebSocket): Promise<void> {
 function waitForCommand(socket: WebSocket): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('mobile command was not delivered')), 10_000);
-    const onMessage = (data: WebSocket.RawData): void => {
+    const onMessage = (data: RawData): void => {
       const parsed = JSON.parse(data.toString()) as {
         type?: string;
         commands?: Record<string, unknown>[];

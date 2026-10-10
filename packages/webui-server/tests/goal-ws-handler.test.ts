@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 
 // Mock ws module (matches ws-utils.test.ts style)
-vi.mock('ws/native', () => {
+vi.mock('ws/native', async (importOriginal) => {
   const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   MockWebSocket.CLOSING = 2;
   MockWebSocket.CLOSED = 3;
-  return { WebSocket: MockWebSocket };
+  return { ...(await importOriginal<Record<string, unknown>>()), WebSocket: MockWebSocket };
 });
 
 // Mock git-process so we never spawn a real git binary

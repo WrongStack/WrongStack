@@ -3,7 +3,7 @@ import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 import { createHttpServer } from '../src/server/http-server.js';
 import { listenWithRetry } from '../src/server/port-utils.js';
 import { createWsServers, type ResolvedPorts, resolvePorts } from '../src/server/server-runtime.js';

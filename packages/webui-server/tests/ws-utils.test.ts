@@ -1,14 +1,14 @@
 import { homedir } from 'node:os';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 
 // Mock ws module
-vi.mock('ws/native', () => {
+vi.mock('ws/native', async (importOriginal) => {
   const MockWebSocket = vi.fn();
   MockWebSocket.OPEN = 1;
   MockWebSocket.CLOSING = 2;
   MockWebSocket.CLOSED = 3;
-  return { WebSocket: MockWebSocket };
+  return { ...(await importOriginal<Record<string, unknown>>()), WebSocket: MockWebSocket };
 });
 
 import {

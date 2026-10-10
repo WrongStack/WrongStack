@@ -19,8 +19,8 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { describe, expect, it } from 'vitest';
-import { WebSocketServer } from 'ws';
 import { DesktopAgentBridge } from '../src/main/agent-bridge.js';
+import { WebSocketServer } from './ws-runtime.js';
 
 interface ProofServer {
   url: string;

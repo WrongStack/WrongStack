@@ -11,7 +11,7 @@
 import { ACPSession } from '@wrongstack/acp';
 import { ACPProtocolHandler, type RunTurn, WsBridgeTransport } from '@wrongstack/acp/agent';
 import { afterEach, describe, expect, it } from 'vitest';
-import { type WebSocket, WebSocketServer } from 'ws/native';
+import { type WebSocket, WebSocketServer } from '../src/ws-runtime.js';
 
 const cleanups: Array<() => void | Promise<void>> = [];
 afterEach(async () => {

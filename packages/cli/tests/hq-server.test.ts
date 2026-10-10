@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { createProjectMailbox } from '@wrongstack/core/coordination';
 import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 import { createCliHqPublisher } from '../src/hq-publisher.js';
 import { HQ_HTML, type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { removeMailboxTempRoot } from './helpers/mailbox-daemon.js';

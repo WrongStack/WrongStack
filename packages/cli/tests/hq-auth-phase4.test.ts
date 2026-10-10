@@ -18,7 +18,7 @@ import * as path from 'node:path';
 import type { HqAuthFile } from '@wrongstack/core/hq';
 import { HQ_AUTH_FILE_VERSION, readHqAuthFile, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { hqCmd } from '../src/subcommands/handlers/hq.js';
 import type { SubcommandDeps } from '../src/subcommands/index.js';

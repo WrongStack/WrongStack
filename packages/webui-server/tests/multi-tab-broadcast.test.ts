@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 
-vi.mock('ws/native', () => {
+vi.mock('ws/native', async (importOriginal) => {
   const MockWebSocket = vi.fn();
   (MockWebSocket as unknown as { OPEN: number; CLOSED: number }).OPEN = 1;
   (MockWebSocket as unknown as { OPEN: number; CLOSED: number }).CLOSED = 3;
-  return { WebSocket: MockWebSocket };
+  return { ...(await importOriginal<Record<string, unknown>>()), WebSocket: MockWebSocket };
 });
 
 import { cleanupOwnerlessEmptySessions } from '../src/server/session-cleanup-scheduler.js';

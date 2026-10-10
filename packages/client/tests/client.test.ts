@@ -5,7 +5,7 @@ import {
   type WebSocket as ServerSocket,
   WebSocketServer,
   WebSocket as WsWebSocket,
-} from 'ws/native';
+} from './ws-runtime.js';
 import {
   type ConnectOptions,
   createHttpClient,

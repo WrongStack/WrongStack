@@ -686,10 +686,16 @@ async function bundle(config, defaults) {
   // The patched ws/native entry must ship inside the bundle: registry consumers
   // install ordinary ws, whose public exports do not include that private entry.
   const bundledDependencies = new Set(
-    ['@wrongstack/cli', '@wrongstack/providers', '@wrongstack/webui-server'].includes(packageJson.name)
+    [
+      '@wrongstack/cli',
+      '@wrongstack/providers',
+      '@wrongstack/webui-server',
+      '@wrongstack/desktop',
+    ].includes(packageJson.name)
       ? ['ws']
       : [],
   );
+  const banner = config.banner ?? defaults.banner;
   await build({
     absWorkingDir: packageRoot,
     entryPoints: entries,
@@ -711,15 +717,15 @@ async function bundle(config, defaults) {
     // external and are resolved through the package manager. This also avoids
     // duplicating workspace singletons and embedding native/CJS dependencies.
     external: [
-      ...packageExternals.filter((name) => !bundledDependencies.has(name)),
+      ...packageExternals,
       ...(defaults.external ?? []),
       ...(config.external ?? []),
-    ],
+    ].filter((name) => !bundledDependencies.has(name)),
     plugins: [
       ...(config.workspaceExternal || defaults.workspaceExternal ? [workspaceExternalPlugin] : []),
       ...(config.plugins ?? defaults.plugins ?? []),
     ],
-    banner: config.banner || defaults.banner ? { js: config.banner ?? defaults.banner } : undefined,
+    banner: banner ? { js: banner } : undefined,
     outExtension: config.extension ? { '.js': config.extension } : undefined,
     conditions: config.conditions ?? defaults.conditions,
     mainFields: config.mainFields ?? defaults.mainFields,
@@ -728,8 +734,31 @@ async function bundle(config, defaults) {
     chunkNames: config.chunkNames ?? defaults.chunkNames,
     logLevel: 'info',
   });
-  await stripBannerFromChunks(config, defaults, outdir, entries);
+  await stripBannerFromChunks({ ...config, banner }, defaults, outdir, entries);
+  if (bundledDependencies.has('ws') && format === 'esm') initializeBundledCommonJs(outdir);
   return { entries, format, outdir };
+}
+
+function initializeBundledCommonJs(outdir) {
+  const initialization =
+    "import { createRequire as __wrongstackWsRequire } from 'node:module';\nconst require = __wrongstackWsRequire(import.meta.url);\n";
+  const walk = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        walk(absolute);
+        continue;
+      }
+      if (!entry.name.endsWith('.js')) continue;
+      const source = readFileSync(absolute, 'utf8');
+      // Only chunks defining esbuild's CJS loader need require. Browser-safe
+      // leaves such as provider-definitions must keep their dependency-free API.
+      if (!/\bvar __require\s*=/u.test(source)) continue;
+      const shebang = /^#![^\r\n]*(?:\r?\n|$)/u.exec(source)?.[0] ?? '';
+      writeFileSync(absolute, shebang + initialization + source.slice(shebang.length));
+    }
+  };
+  walk(join(packageRoot, outdir));
 }
 
 function assertEsmNodeBuiltinsStayImportable({ format, outdir }) {
@@ -745,6 +774,17 @@ function assertEsmNodeBuiltinsStayImportable({ format, outdir }) {
       }
       if (!entry.name.endsWith('.js')) continue;
       const source = readFileSync(absolute, 'utf8');
+      if (
+        [
+          '@wrongstack/cli',
+          '@wrongstack/providers',
+          '@wrongstack/webui-server',
+          '@wrongstack/desktop',
+        ].includes(packageJson.name) &&
+        /(?:\bfrom\s*|\bimport\s*\(\s*)["']ws\/native["']/u.test(source)
+      ) {
+        throw new Error(`Published runtime must bundle the private ws/native entry: ${absolute}`);
+      }
       if (/\b__require\(["']node:/u.test(source)) invalid.push(relative(packageRoot, absolute));
     }
   };
@@ -781,7 +821,9 @@ async function stripBannerFromChunks(config, defaults, outdir, entries) {
       if (entryBasenames.has(entry.name)) continue;
       const source = readFileSync(absolute, 'utf8');
       if (!source.startsWith(banner)) continue;
-      writeFileSync(absolute, source.slice(banner.length).replace(/^\r?\n/u, ''));
+      // Keep runtime initialization in shared chunks; only the executable
+      // entry needs the first shebang line.
+      writeFileSync(absolute, source.replace(/^#![^\r\n]*(?:\r?\n|$)/u, ''));
     }
   };
   walk(dir);
