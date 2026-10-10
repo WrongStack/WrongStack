@@ -8,8 +8,8 @@
  *                               the error model (error-model.ts)
  *   schema/openapi.json         OpenAPI 3.1 of the HTTP session API (http-api.ts)
  *
- *   node scripts/generate-protocol-schema.mjs           write both files
- *   node scripts/generate-protocol-schema.mjs --check   exit 1 when they are stale
+ *   bun scripts/generate-protocol-schema.mjs           write both files
+ *   bun scripts/generate-protocol-schema.mjs --check   exit 1 when they are stale
  *
  * The types are the source; these files are generated and committed so that
  * non-TypeScript clients can read them from the published package.
@@ -235,7 +235,7 @@ if (process.argv.includes('--check')) {
   });
   if (stale.length > 0) {
     console.error(
-      `Stale protocol schema: ${stale.map(([n]) => n).join(', ')}. Run node scripts/generate-protocol-schema.mjs`,
+      `Stale protocol schema: ${stale.map(([n]) => n).join(', ')}. Run bun scripts/generate-protocol-schema.mjs`,
     );
     process.exit(1);
   }

@@ -11,7 +11,7 @@
  * Capture, then read:
  *
  *   node --cpu-prof --cpu-prof-dir=.reports --cpu-prof-name=run.cpuprofile <entry>
- *   node scripts/analyze-cpuprofile.mjs .reports/run.cpuprofile
+ *   bun scripts/analyze-cpuprofile.mjs .reports/run.cpuprofile
  *
  * Reading the output: frames from `node:internal/*` and `(native)` are process
  * startup and runtime overhead. A short-lived harness is usually dominated by
@@ -20,7 +20,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const USAGE = `Usage: node scripts/analyze-cpuprofile.mjs <file.cpuprofile> [options]
+const USAGE = `Usage: bun scripts/analyze-cpuprofile.mjs <file.cpuprofile> [options]
 
 Options:
   --top <n>       Rows to print (default: 25)

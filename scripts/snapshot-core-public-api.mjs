@@ -296,7 +296,7 @@ function emit(name, value) {
   }
   if (!existsSync(target) || readNormalized(target, 'utf8') !== serialized) {
     throw new Error(
-      `${relative(target)} is stale; run node scripts/snapshot-core-public-api.mjs --write`,
+      `${relative(target)} is stale; run bun scripts/snapshot-core-public-api.mjs --write`,
     );
   }
 }

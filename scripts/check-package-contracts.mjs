@@ -7,7 +7,7 @@
  * catches manifest/build drift early — e.g. a package.json that declares
  * `dist/index.js` but the build produces `dist/index.html` only.
  *
- * Run: node scripts/check-package-contracts.mjs
+ * Run: bun scripts/check-package-contracts.mjs
  *
  * Exit 0 = all contracts satisfied, exit 1 = one or more broken.
  */
@@ -80,7 +80,7 @@ if (allErrors.length > 0) {
   for (const err of allErrors) {
     console.error(`   ${err}`);
   }
-  console.error('Run `pnpm build` to produce the missing dist files.');
+  console.error('Run `bun run build` to produce the missing dist files.');
   process.exit(1);
 } else {
   console.log(`✅ All ${publishable.length} publishable package contracts satisfied.`);

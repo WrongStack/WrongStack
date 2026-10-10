@@ -6,9 +6,9 @@
  * manager shim, so it also works in npm installations and release jobs where
  * `pnpm exec` is not available.
  *
- *   node scripts/check-browser-runtime.mjs
- *   node scripts/check-browser-runtime.mjs --install [--with-deps]
- *   node scripts/check-browser-runtime.mjs --smoke
+ *   bun scripts/check-browser-runtime.mjs
+ *   bun scripts/check-browser-runtime.mjs --install [--with-deps]
+ *   bun scripts/check-browser-runtime.mjs --smoke
  */
 import { spawn } from 'node:child_process';
 import { constants, existsSync } from 'node:fs';
@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 const require = createRequire(import.meta.url);
 
 function usage() {
-  return `Usage: node scripts/check-browser-runtime.mjs [options]
+  return `Usage: bun scripts/check-browser-runtime.mjs [options]
 
 Options:
   --install     Install the bundled Chromium revision when it is missing

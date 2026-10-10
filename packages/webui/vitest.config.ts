@@ -67,6 +67,7 @@ export default defineConfig({
   css: { postcss: {} },
   test: {
     maxWorkers: getVitestMaxWorkers(),
+    fsModuleCache: true,
     // Two projects split by environment. tests/server suites exercise the
     // webui-server backend (HTTP routes, WS handlers, stores) and need no
     // DOM — but their import graph reaches @wrongstack/governance, whose

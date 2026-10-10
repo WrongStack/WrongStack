@@ -236,7 +236,7 @@ The [CI workflow](.github/workflows/ci.yml) runs on every push and PR to `main`:
 | Job | What it does |
 |---|---|
 | **Lint** | Biome lint check |
-| **Typecheck** | `tsc --noEmit` across all project references |
+| **Typecheck** | `bun run typecheck:only` — the authoritative workspace checker |
 | **Build** | `bun run build` — esbuild all packages |
 | **Test** | `bun run test` — vitest + webui tests |
 
@@ -247,7 +247,7 @@ All jobs must pass before merge.
 ## Adding a New Package
 
 1. Create `packages/<name>/` with `package.json`, `tsconfig.json`, `src/`, `tests/`.
-2. Add to `pnpm-workspace.yaml` (covered by `packages/*` glob).
+2. Confirm the root `package.json` workspace glob includes it (`packages/*` already does).
 3. Add a project reference in root `tsconfig.json`.
 4. Create a `vitest.config.ts` if the package needs test-specific config.
 5. Run `bun install` to link.

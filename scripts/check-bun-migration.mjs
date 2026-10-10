@@ -44,6 +44,10 @@ for (const file of readdirSync(resolve(root, '.github/workflows')).filter((name)
     for (const step of job.steps ?? []) {
       for (const line of (step.run ?? '').split('\n')) {
         assert(
+          !/bun\s+(?:run\s+)?--filter\s+\S+\s+exec\s/.test(line),
+          `${file}:${jobName} uses pnpm exec syntax with Bun`,
+        );
+        assert(
           !oldCommand.test(line.trim()),
           `${file}:${jobName} still invokes a legacy executable`,
         );

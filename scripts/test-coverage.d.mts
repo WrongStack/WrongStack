@@ -16,9 +16,8 @@ export type RunCoverageSpawn = (
 export type RunCoverageLog = (...args: unknown[]) => void;
 
 export interface RunCoverageOptions {
-  pnpmCli?: string | undefined;
   runs?: CoverageRun[] | undefined;
-  spawnPnpm?: RunCoverageSpawn | undefined;
+  spawnCommand?: RunCoverageSpawn | undefined;
   execPath?: string | undefined;
   cwd?: string | undefined;
   env?: NodeJS.ProcessEnv | undefined;
@@ -27,8 +26,4 @@ export interface RunCoverageOptions {
 
 export const COVERAGE_RUNS: CoverageRun[];
 export function isDirectRun(metaUrl?: string, argvEntry?: string): boolean;
-export function resolvePnpmInvocation(
-  pnpmCli: string,
-  execPath?: string,
-): { command: string; args: string[] };
 export function runCoverage(options?: RunCoverageOptions): number;

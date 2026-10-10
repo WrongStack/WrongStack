@@ -20,6 +20,7 @@
     "desktop:start": "bun run --filter @wrongstack/desktop start",
     "test": "bun run --filter @wrongstack/core... build && bun --bun run vitest run && bun run --filter @wrongstack/webui test",
     "test:watch": "bun --bun run vitest",
+    "test:package": "bun scripts/test-package.mjs",
     "test:affected": "bun scripts/test-affected.mjs",
     "test:affected:all": "bun scripts/test-affected.mjs --all",
     "bench": "bun --bun run vitest run --config vitest.bench.config.ts",

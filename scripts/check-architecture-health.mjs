@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
  * makes the measurement a property of the script, not of the shell.
  */
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
 import {
   buildArchitectureHealth,
   committedEvidenceMatchesReport,
@@ -219,7 +220,7 @@ if (args.has('--strict-hotspots') && !args.has('--write-hotspot-baseline')) {
     if (!args.has('--json')) {
       console.error(`❌ Hotspot ratchet drift (${hotspotErrors.length}):`);
       for (const message of hotspotErrors) console.error(`   ${message}`);
-      console.error('Regenerate the ratchet in the same change: `pnpm check:architecture:sync`.');
+      console.error('Regenerate the ratchet in the same change: `bun check:architecture:sync`.');
     }
     process.exitCode = 1;
   } else if (!args.has('--json') && !args.has('--report-only')) {

@@ -13,7 +13,7 @@ const [mode, manifestArg] = process.argv.slice(2);
 const supported = new Set(['--assert-clean', '--write', '--verify']);
 if (!supported.has(mode) || ((mode === '--write' || mode === '--verify') && !manifestArg)) {
   console.error(
-    'Usage: node scripts/check-build-lineage.mjs --assert-clean | --write <manifest> | --verify <manifest>',
+    'Usage: bun scripts/check-build-lineage.mjs --assert-clean | --write <manifest> | --verify <manifest>',
   );
   process.exit(2);
 }

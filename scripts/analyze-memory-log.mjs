@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 
 function usage() {
-  return `Usage: pnpm analyze:memory [options]
+  return `Usage: bun analyze:memory [options]
 
 Options:
   --log <path>   heap.jsonl path (default: ~/.wrongstack/logs/heap.jsonl)

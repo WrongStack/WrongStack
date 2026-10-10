@@ -8,7 +8,7 @@ import { collectSkipDeclarations, validateSkipBudget } from './lib/test-skip-bud
 
 const args = new Set(process.argv.slice(2));
 if ([...args].some((arg) => arg !== '--print-baseline')) {
-  console.error('Usage: node scripts/check-test-skips.mjs [--print-baseline]');
+  console.error('Usage: bun scripts/check-test-skips.mjs [--print-baseline]');
   process.exit(2);
 }
 

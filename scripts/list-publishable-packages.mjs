@@ -12,8 +12,8 @@
  * with `scripts/publish-workspace.mjs` so the release and the trusted-publisher
  * checklist can never disagree about which packages ship.
  *
- *   node scripts/list-publishable-packages.mjs
- *   node scripts/list-publishable-packages.mjs --json
+ *   bun scripts/list-publishable-packages.mjs
+ *   bun scripts/list-publishable-packages.mjs --json
  */
 import { collectPublishablePackages, layerByDependencies } from './lib/publishable-packages.mjs';
 
@@ -31,7 +31,7 @@ if (process.argv.includes('--json')) {
   process.exit(0);
 }
 
-console.log(`${publishable.length} package(s) would be published by \`pnpm release:ci\`:\n`);
+console.log(`${publishable.length} package(s) would be published by \`bun release:ci\`:\n`);
 for (const p of publishable) {
   const notes = [];
   // `--access public` is passed on the command line, so a missing
@@ -53,5 +53,5 @@ console.log(
   '\nRegister a trusted publisher for EACH package above at' +
     '\n  https://www.npmjs.com/package/<name>/access' +
     '\nwith workflow `release.yml` and environment `npm-publish`.' +
-    '\n\nPublish order: `node scripts/publish-workspace.mjs --plan`',
+    '\n\nPublish order: `bun scripts/publish-workspace.mjs --plan`',
 );

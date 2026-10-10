@@ -20,7 +20,7 @@
  *     a time (the provider, tool and decision adapters). Once a burst is
  *     batched there is a single fsync either way, so FULL and NORMAL converge.
  *
- * Usage: pnpm perf:chronicle [--events <n>] [--help]
+ * Usage: bun perf:chronicle [--events <n>] [--help]
  */
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -28,7 +28,7 @@ import * as path from 'node:path';
 import { ChronicleSqliteJournal } from '../packages/core/src/chronicle/sqlite-journal.js';
 import type { ChronicleEventInput } from '../packages/core/src/chronicle/types.js';
 
-const USAGE = `Usage: pnpm perf:chronicle [options]
+const USAGE = `Usage: bun perf:chronicle [options]
 
 Options:
   --events <n>   Events per variant (default: 2000)

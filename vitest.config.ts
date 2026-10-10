@@ -88,6 +88,7 @@ export default defineConfig({
     // Four workers leave headroom for test-spawned shells and shared dev
     // servers; watch mode uses two workers to stay responsive while editing.
     maxWorkers: getVitestMaxWorkers(),
+    fsModuleCache: true,
     clearMocks: true,
     restoreMocks: true,
     // 5s (the default) flakes under full-suite load on this machine: with

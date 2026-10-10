@@ -3,11 +3,11 @@
  * Run vitest with the coverage/.tmp write guard preloaded.
  *
  * Usage (from repo root or package cwd):
- *   node path/to/run-vitest-coverage.mjs [vitest args...]
+ *   bun path/to/run-vitest-coverage.mjs [vitest args...]
  *
  * Example:
- *   node scripts/run-vitest-coverage.mjs run --coverage
- *   node ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts
+ *   bun scripts/run-vitest-coverage.mjs run --coverage
+ *   bun ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts
  */
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';

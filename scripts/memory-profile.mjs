@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, '..');
 const cliEntry = resolve(root, 'packages', 'cli', 'dist', 'index.js');
 
 function usage() {
-  return `Usage: pnpm profile:memory [options] [-- <wstack args>]
+  return `Usage: bun profile:memory [options] [-- <wstack args>]
 
 Options:
   --max-old-space-mb <n>  Reproduction heap ceiling (default: 1024)

@@ -22,7 +22,6 @@ import {
 import {
   COVERAGE_RUNS,
   isDirectRun as isTestCoverageDirectRun,
-  resolvePnpmInvocation,
   runCoverage,
 } from '../../../../scripts/test-coverage.mjs';
 import { getVitestMaxWorkers } from '../../../../vitest.workers.js';
@@ -407,7 +406,7 @@ describe('coverage runner script', () => {
 
   it('defines every coverage gate including script coverage', () => {
     expect(COVERAGE_RUNS).toEqual([
-      { label: 'Node packages', args: ['test:coverage:root'], vitest: true },
+      { label: 'Bun packages', args: ['test:coverage:root'], vitest: true },
       { label: 'Zero-statement file ratchet', args: ['check:coverage-zero'] },
       {
         label: 'LSP package per-file gate',
@@ -433,30 +432,45 @@ describe('coverage runner script', () => {
     ]);
   });
 
-  it('requires pnpm', () => {
-    expect(() => runCoverage({ pnpmCli: '' })).toThrow(
-      'test:coverage must be started through pnpm',
+  it('requires a runtime executable', () => {
+    expect(() => runCoverage({ execPath: '' })).toThrow('test:coverage requires a Bun executable');
+  });
+
+  it('uses the current Bun runtime without a package-manager launcher', () => {
+    const spawnCommand = vi.fn(() => spawnResult(0));
+    expect(
+      runCoverage({
+        runs: [{ label: 'root', args: ['test:coverage:root'] }],
+        spawnCommand,
+        log: vi.fn(),
+      }),
+    ).toBe(0);
+    expect(spawnCommand).toHaveBeenCalledWith(
+      process.execPath,
+      ['run', 'test:coverage:root'],
+      expect.any(Object),
     );
   });
 
-  it('executes a native Corepack pnpm launcher directly', () => {
-    expect(resolvePnpmInvocation('C:\\corepack\\pnpm-native.exe', 'node')).toEqual({
-      command: 'C:\\corepack\\pnpm-native.exe',
-      args: [],
-    });
-  });
-
-  it('executes a native Linux pnpm binary directly', () => {
-    expect(resolvePnpmInvocation('/home/runner/setup-pnpm/node_modules/pnpm/pnpm', 'node')).toEqual(
-      {
-        command: '/home/runner/setup-pnpm/node_modules/pnpm/pnpm',
-        args: [],
-      },
+  it('preserves Bun workspace filter arguments', () => {
+    const spawnCommand = vi.fn(() => spawnResult(0));
+    expect(
+      runCoverage({
+        runs: [{ label: 'webui', args: ['--filter', '@wrongstack/webui', 'test:coverage'] }],
+        spawnCommand,
+        execPath: 'bun',
+        log: vi.fn(),
+      }),
+    ).toBe(0);
+    expect(spawnCommand).toHaveBeenCalledWith(
+      'bun',
+      ['run', '--filter', '@wrongstack/webui', 'test:coverage'],
+      expect.any(Object),
     );
   });
 
   it('runs every gate and succeeds when all children pass', () => {
-    const spawnPnpm = vi.fn(() => spawnResult(0));
+    const spawnCommand = vi.fn(() => spawnResult(0));
     const log = vi.fn();
     const runs = [
       { label: 'one', args: ['first'] },
@@ -465,16 +479,15 @@ describe('coverage runner script', () => {
 
     expect(
       runCoverage({
-        pnpmCli: 'pnpm.cjs',
         runs,
-        spawnPnpm,
-        execPath: 'node',
+        spawnCommand,
+        execPath: 'bun',
         cwd: 'repo',
         env: { TEST: '1' },
         log,
       }),
     ).toBe(0);
-    expect(spawnPnpm).toHaveBeenNthCalledWith(2, 'node', ['pnpm.cjs', 'second', '--flag'], {
+    expect(spawnCommand).toHaveBeenNthCalledWith(2, 'bun', ['run', 'second', '--flag'], {
       cwd: 'repo',
       env: { TEST: '1' },
       stdio: 'inherit',
@@ -483,55 +496,53 @@ describe('coverage runner script', () => {
   });
 
   it('uses Vitest’s supported retry option in CI', () => {
-    const spawnPnpm = vi.fn(() => spawnResult(0));
+    const spawnCommand = vi.fn(() => spawnResult(0));
 
     expect(
       runCoverage({
-        pnpmCli: 'pnpm.cjs',
         runs: [
           { label: 'Vitest gate', args: ['test:coverage'], vitest: true },
           { label: 'Node-only gate', args: ['check:coverage-zero'] },
         ],
-        spawnPnpm,
-        execPath: 'node',
+        spawnCommand,
+        execPath: 'bun',
         cwd: 'repo',
         env: { CI: 'true' },
         log: vi.fn(),
       }),
     ).toBe(0);
 
-    expect(spawnPnpm).toHaveBeenNthCalledWith(
+    expect(spawnCommand).toHaveBeenNthCalledWith(
       1,
-      'node',
-      ['pnpm.cjs', 'test:coverage', '--', '--retry', '2'],
+      'bun',
+      ['run', 'test:coverage', '--retry', '2'],
       expect.objectContaining({ cwd: 'repo', env: { CI: 'true' }, stdio: 'inherit' }),
     );
-    expect(spawnPnpm).toHaveBeenNthCalledWith(
+    expect(spawnCommand).toHaveBeenNthCalledWith(
       2,
-      'node',
-      ['pnpm.cjs', 'check:coverage-zero'],
+      'bun',
+      ['run', 'check:coverage-zero'],
       expect.objectContaining({ cwd: 'repo', env: { CI: 'true' }, stdio: 'inherit' }),
     );
   });
 
   it('continues after failed gates and returns failure', () => {
-    const spawnPnpm = vi
+    const spawnCommand = vi
       .fn()
       .mockReturnValueOnce(spawnResult(1))
       .mockReturnValueOnce(spawnResult(null));
 
     expect(
       runCoverage({
-        pnpmCli: 'pnpm.cjs',
         runs: [
           { label: 'one', args: [] },
           { label: 'two', args: [] },
         ],
-        spawnPnpm,
+        spawnCommand,
         log: vi.fn(),
       }),
     ).toBe(1);
-    expect(spawnPnpm).toHaveBeenCalledTimes(2);
+    expect(spawnCommand).toHaveBeenCalledTimes(2);
   });
 
   it('propagates child process errors', () => {
@@ -539,9 +550,8 @@ describe('coverage runner script', () => {
 
     expect(() =>
       runCoverage({
-        pnpmCli: 'pnpm.cjs',
         runs: [{ label: 'one', args: [] }],
-        spawnPnpm: vi.fn(() => spawnResult(null, error)),
+        spawnCommand: vi.fn(() => spawnResult(null, error)),
         log: vi.fn(),
       }),
     ).toThrow(error);
@@ -721,7 +731,15 @@ describe('Vitest worker selection', () => {
   beforeEach(() => vi.stubEnv('WRONGSTACK_VITEST_MAX_WORKERS', undefined));
   afterEach(() => vi.unstubAllEnvs());
   it('uses process arguments when no explicit list is provided', () => {
-    expect(getVitestMaxWorkers()).toBe(2);
+    const originalArgv = process.argv;
+    try {
+      process.argv = [process.execPath, 'vitest', 'run'];
+      expect(getVitestMaxWorkers()).toBe(4);
+      process.argv = [process.execPath, 'vitest'];
+      expect(getVitestMaxWorkers()).toBe(2);
+    } finally {
+      process.argv = originalArgv;
+    }
   });
 
   it.each([['--watch'], ['-w'], ['--watch=true']])('uses two workers for %s', (...args) => {

@@ -114,7 +114,7 @@ function git(args) {
 }
 
 export function helpText() {
-  return 'Usage: node scripts/sync-core-public-api-snapshot.mjs';
+  return 'Usage: bun scripts/sync-core-public-api-snapshot.mjs';
 }
 
 export function main() {

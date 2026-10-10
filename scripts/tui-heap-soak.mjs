@@ -17,7 +17,7 @@ const packageRoot = join(root, 'packages', 'tui');
 const tempDir = join(root, '.temp_files', `tui-heap-soak-${process.pid}`);
 
 function usage() {
-  return `Usage: pnpm bench:tui-heap [options]
+  return `Usage: bun bench:tui-heap [options]
 
 Options:
   --quick                 Small smoke profile (still captures/analyzes snapshots)

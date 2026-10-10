@@ -489,7 +489,7 @@ jobs:
           path: .
 
       - name: Plugin guard regression
-        run: bun run --filter @wrongstack/plugins exec vitest run tests/process-guard.test.ts tests/lint-gate.test.ts tests/lint-gate-platform.test.ts tests/path-guard.test.ts tests/secret-scanner.test.ts tests/prompt-firewall.test.ts
+        run: bun --bun run vitest run packages/plugins/tests/process-guard.test.ts packages/plugins/tests/lint-gate.test.ts packages/plugins/tests/lint-gate-platform.test.ts packages/plugins/tests/path-guard.test.ts packages/plugins/tests/secret-scanner.test.ts packages/plugins/tests/prompt-firewall.test.ts
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 

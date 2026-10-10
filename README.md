@@ -187,8 +187,8 @@ memory, tools, providers, permissions, and the multi-agent runtime actually work
 
 - **Standalone binary:** nothing — the executable carries its own runtime
   (Windows x64/arm64, macOS x64/arm64, Linux x64/arm64 incl. musl)
-- **npm/bun install:** Node.js ≥ 22.19.0 and pnpm ≥ 12.3.4 (recommended) or npm
-- **Bun runtime:** Bun ≥ 1.3.10
+- **Bun install and development:** Bun ≥ 1.4.3; see the [Bun workflow](docs/bun.md)
+- **Node package consumers:** Node.js ≥ 22.19.0 remains supported
 
 ---
 

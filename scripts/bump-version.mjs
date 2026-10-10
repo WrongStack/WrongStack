@@ -182,12 +182,12 @@ if (type === 'patch') {
   newVersion = parts.join('.');
 } else if (type === 'set') {
   if (!arg || !/^\d+\.\d+\.\d+/.test(arg)) {
-    console.error('Usage: node bump-version.mjs set <version>');
+    console.error('Usage: bun bump-version.mjs set <version>');
     process.exit(1);
   }
   newVersion = arg;
 } else {
-  console.error('Usage: node bump-version.mjs [patch|minor|major|set <version>]');
+  console.error('Usage: bun bump-version.mjs [patch|minor|major|set <version>]');
   process.exit(1);
 }
 

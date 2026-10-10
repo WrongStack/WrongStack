@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 export const COVERAGE_RUNS = [
   {
-    label: 'Node packages',
+    label: 'Bun packages',
     args: ['test:coverage:root'],
     vitest: true,
   },
@@ -43,55 +43,25 @@ export function isDirectRun(metaUrl = import.meta.url, argvEntry = process.argv[
   return typeof argvEntry === 'string' && path.resolve(argvEntry) === fileURLToPath(metaUrl);
 }
 
-export function resolvePnpmInvocation(pnpmCli, execPath = process.execPath) {
-  // Corepack / pnpm 12 can set npm_execpath to a native executable (.exe on
-  // Windows, or ELF binary without extension on Linux). Unlike pnpm's JavaScript CLI
-  // (.js/.cjs/.mjs), a native executable must be spawned directly; passing it to
-  // Node makes Node try to parse it as JavaScript and fail (ERR_UNKNOWN_FILE_EXTENSION or ELF SyntaxError).
-  return !/\.[cm]?js$/i.test(pnpmCli)
-    ? { command: pnpmCli, args: [] }
-    : { command: execPath, args: [pnpmCli] };
-}
-
 export function runCoverage(options = {}) {
-  const pnpmCli = options.pnpmCli ?? process.execPath;
   const runs = options.runs ?? COVERAGE_RUNS;
-  const spawnPnpm = options.spawnPnpm ?? spawnSync;
+  const spawnCommand = options.spawnCommand ?? spawnSync;
   const execPath = options.execPath ?? process.execPath;
   const cwd = options.cwd ?? process.cwd();
   const env = options.env ?? process.env;
   const log = options.log ?? console.log;
 
-  if (!pnpmCli) {
-    throw new Error('test:coverage must be started through pnpm');
+  if (!execPath) {
+    throw new Error('test:coverage requires a Bun executable');
   }
 
-  const pnpm = options.pnpmCli
-    ? resolvePnpmInvocation(pnpmCli, execPath)
-    : { command: process.execPath, args: ['run'] };
-
   let failed = false;
-  const transientRetryArgs =
-    env.CI === 'true'
-      ? [
-          '--',
-          // Vitest supports --retry, but not nested retry config flags. Keep
-          // this as an argv value so pnpm never hands a shell a `|` expression.
-          '--retry',
-          '2',
-        ]
-      : [];
+  const transientRetryArgs = env.CI === 'true' ? ['--retry', '2'] : [];
 
   for (const run of runs) {
     log(`\n=== Coverage: ${run.label} ===\n`);
-    const runArgs =
-      !options.pnpmCli && run.args[0] === '--filter'
-        ? ['--filter', run.args[1], ...run.args.slice(2)]
-        : run.args;
-    const args = run.vitest
-      ? [...runArgs, ...transientRetryArgs.filter((arg) => options.pnpmCli || arg !== '--')]
-      : runArgs;
-    const result = spawnPnpm(pnpm.command, [...pnpm.args, ...args], {
+    const args = run.vitest ? [...run.args, ...transientRetryArgs] : run.args;
+    const result = spawnCommand(execPath, ['run', ...args], {
       cwd,
       env,
       stdio: 'inherit',
