@@ -14,6 +14,7 @@
  */
 import type { EmbeddingProvider } from '@wrongstack/sage';
 import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
 
 import { VectorMemoryProviderUnavailableError } from './errors.js';
 
@@ -142,9 +143,8 @@ export class TransformersEmbeddingProvider implements EmbeddingProvider {
     // Indirect specifier for the same reason as `loadModule()`.
     const packageName = '@huggingface/transformers';
     try {
-      if (typeof import.meta.resolve === 'function') import.meta.resolve(packageName);
-      else createRequire(import.meta.url).resolve(packageName);
-      return true;
+      const resolved = createRequire(import.meta.url).resolve(packageName);
+      return existsSync(resolved);
     } catch {
       return false;
     }
@@ -278,7 +278,7 @@ export class TransformersEmbeddingProvider implements EmbeddingProvider {
       return (await import(packageName)) as unknown as TransformersModule;
     } catch (err) {
       throw new VectorMemoryProviderUnavailableError(
-        '@huggingface/transformers is not installed. Install it (pnpm add @huggingface/transformers) or wire a fallback EmbeddingProvider.',
+        '@huggingface/transformers is not installed. Install it (bun add @huggingface/transformers) or wire a fallback EmbeddingProvider.',
         err,
       );
     }
