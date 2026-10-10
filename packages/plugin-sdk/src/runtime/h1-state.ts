@@ -74,7 +74,7 @@ export function createH1State<T>(initial: T): H1State<T> {
     }
   };
 
-  return {
+  const h1: H1State<T> = {
     state: initial,
 
     register(key, unregister) {
@@ -113,10 +113,10 @@ export function createH1State<T>(initial: T): H1State<T> {
     },
 
     releaseAll() {
-      for (const unregister of handles.values()) {
-        safeRelease(unregister);
+      // Reuse the bounded reentrant sweep instead of invoking live handles.
+      for (const key of handles.keys()) {
+        h1.register(key, null);
       }
-      handles.clear();
     },
 
     size() {
@@ -127,4 +127,5 @@ export function createH1State<T>(initial: T): H1State<T> {
       return [...handles.keys()];
     },
   };
+  return h1;
 }

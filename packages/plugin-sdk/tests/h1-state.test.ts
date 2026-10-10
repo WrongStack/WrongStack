@@ -41,3 +41,56 @@ describe('createH1State register reentrancy', () => {
     expect(h1.size()).toBe(1);
   });
 });
+
+describe('H1 releaseAll reentrancy', () => {
+  it('releases ordinary handles once and preserves user state', () => {
+    const h1 = createH1State({ count: 7 });
+    const calls: string[] = [];
+    h1.register('first', () => calls.push('first'));
+    h1.register('second', () => calls.push('second'));
+    const { releaseAll } = h1;
+    releaseAll();
+    releaseAll();
+    expect(calls).toEqual(['first', 'second']);
+    expect(h1.size()).toBe(0);
+    expect(h1.state.count).toBe(7);
+  });
+
+  it('does not release the active callback twice when it releases its own key', () => {
+    const h1 = createH1State({ calls: 0 });
+    h1.register('hook', () => {
+      h1.state.calls += 1;
+      h1.release('hook');
+    });
+    h1.releaseAll();
+    expect(h1.state.calls, 'FAIL: releaseAll must remove a handle before invoking it').toBe(1);
+    expect(h1.size()).toBe(0);
+  });
+
+  it('does not invoke an already-released callback again after it re-arms once', () => {
+    const h1 = createH1State({ calls: 0 });
+    const rearm = () => {
+      h1.state.calls += 1;
+      if (h1.state.calls === 1) h1.register('hook', rearm);
+    };
+    h1.register('hook', rearm);
+    h1.releaseAll();
+    expect(h1.state.calls, 'FAIL: releaseAll must drop an already-released re-arm').toBe(1);
+    expect(h1.size()).toBe(0);
+  });
+
+  it('releases a distinct replacement registered during cleanup', () => {
+    const h1 = createH1State<{ calls: string[] }>({ calls: [] });
+    const next = () => h1.state.calls.push('next');
+    h1.register('hook', () => {
+      h1.state.calls.push('prior');
+      if (h1.state.calls.length === 1) h1.register('hook', next);
+    });
+    h1.releaseAll();
+    expect(h1.state.calls, 'FAIL: each distinct unregister must run exactly once').toEqual([
+      'prior',
+      'next',
+    ]);
+    expect(h1.size()).toBe(0);
+  });
+});
