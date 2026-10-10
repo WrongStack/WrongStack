@@ -6,33 +6,33 @@ Step-by-step guide for publishing a WrongStack release.
 
 ## Pre-release
 
-- [ ] If source changes made committed projections stale, refresh them first with `pnpm release:prepare` and review the diff before committing. It regenerates, in order:
+- [ ] If source changes made committed projections stale, refresh them first with `bun run release:prepare` and review the diff before committing. It regenerates, in order:
   - the provider catalog (`providers:catalog:write`)
   - the plugin manifest projections (`plugins:manifest:write`)
   - Core API snapshots, hotspot and test-only-export baselines, and `docs/reports` architecture evidence (`check:architecture:sync` + `report:architecture`)
   - the test-skip budget (`test-skips:sync` — review required; every skip declaration change is a policy decision)
-- [ ] Run the repository release gate: `pnpm release:check`
-  - `pnpm audit --audit-level=moderate`
-  - dependency-ordered `pnpm build`, tools-package WASM smoke, then `pnpm check:dist-hidden`
-  - `pnpm providers:catalog:check`, `pnpm website:tools:check` and `pnpm plugins:manifest:check`
-  - `node scripts/check-package-contracts.mjs`
-  - `node scripts/check-npm-package-install.mjs`
-  - `pnpm write:build-manifest` → `pnpm check:build-manifest`
-  - `pnpm check:architecture`, `pnpm check:test-inventory`, `pnpm check:test-skips`
-  - `pnpm check:node-pty`, `pnpm check:rulebook`, `pnpm lint:i18n`
-  - `pnpm typecheck:only` (the workspace build from the top of the gate is reused; no rebuild) and `pnpm check:test-types`
-  - `pnpm test:coverage`
-- [ ] Run the exact publish dry-run script: `pnpm release:dry`
-- [ ] Run `pnpm lint` separately if the release policy requires the full Biome lint; it is not currently part of `release:check`.
+- [ ] Run the repository release gate: `bun run release:check`
+  - `bun scripts/audit-dependencies.mjs --audit-level=moderate`
+  - dependency-ordered `bun run build`, tools-package WASM smoke, then `bun run check:dist-hidden`
+  - `bun run providers:catalog:check`, `bun run website:tools:check` and `bun run plugins:manifest:check`
+  - `bun scripts/check-package-contracts.mjs`
+  - `bun scripts/check-npm-package-install.mjs`
+  - `bun run write:build-manifest` → `bun run check:build-manifest`
+  - `bun run check:architecture`, `bun run check:test-inventory`, `bun run check:test-skips`
+  - `bun run check:node-pty`, `bun run check:rulebook`, `bun run lint:i18n`
+  - `bun run typecheck:only` (the workspace build from the top of the gate is reused; no rebuild) and `bun run check:test-types`
+  - `bun run test:coverage`
+- [ ] Run the exact publish dry-run script: `bun run release:dry`
+- [ ] Run `bun run lint` separately if the release policy requires the full Biome lint; it is not currently part of `release:check`.
 - [ ] Manually dispatch the CI and dependency-audit workflows for the reviewed ref and inspect their results. `ci.yml` and `audit.yml` are `workflow_dispatch` only; a push or pull request does not run them.
-- [ ] Run `pnpm docs:check`, `pnpm website:tools:check`, and `pnpm --dir website run build` for the release documentation and website. Update README highlights, website changelog/homepage and HTML metadata together.
+- [ ] Run `bun run docs:check`, `bun run website:tools:check`, and `bun run --filter wrongstack-website build` for the release documentation and website. Update README highlights, website changelog/homepage and HTML metadata together.
 - [ ] Deploy website content with a separate manual `pages.yml` dispatch after the reviewed ref is published. A successful local website build does not deploy it.
 
 ## Version bump
 
 ```bash
 # Pick the right bump (patch / minor / major)
-node scripts/bump-version.mjs minor
+bun scripts/bump-version.mjs minor
 
 # Verify
 git diff --stat
@@ -42,7 +42,7 @@ git diff --stat
       were updated by the bump script; use its reported manifest count rather
       than a hard-coded package total
 - [ ] The bump script regenerated WebUI protocol schemas with the official writer;
-      `node scripts/generate-protocol-schema.mjs --check` passes
+      `bun scripts/generate-protocol-schema.mjs --check` passes
 - [ ] `website/package-lock.json`, `website/src/lib/utils.ts`, and `website/index.html` contain the intended website version
 - [ ] CHANGELOG.md has a new dated release section; do not rewrite older release entries
 
@@ -84,8 +84,8 @@ required reviewer must approve it before the OIDC credential is minted.
 - [ ] If npm publication is intended, approve `npm-publish` and verify every
       intended public package after the workflow finishes
 
-`pnpm release` remains an emergency local npm fallback. It reruns
-`release:check` and keeps pnpm's git checks, so use it only from a clean,
+`bun run release` remains an emergency local npm fallback. It reruns
+`release:check` and enforces a clean main checkout, so use it only from a clean,
 up-to-date `main` checkout with the intended registry and authentication
 verified. It does not replace the GitHub binary/Desktop release path.
 
@@ -119,7 +119,7 @@ If a critical bug is found after release:
 git checkout v<version>
 git checkout -b hotfix/0.5.1
 # fix the bug
-node scripts/bump-version.mjs patch
+bun scripts/bump-version.mjs patch
 git commit -am 'release: 0.5.1'
 # Push and merge the hotfix through the repository's normal review path.
 git push -u origin hotfix/0.5.1
@@ -151,5 +151,5 @@ git push origin v0.5.1
 To see exactly what would be published without actually publishing:
 
 ```bash
-pnpm release:dry
+bun run release:dry
 ```

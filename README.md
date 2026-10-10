@@ -69,7 +69,7 @@ home to.
   tree cleanup, watcher storms and tool-output parsing are also fixed.
 - **WebUI polish:** unified semantic colors and chips, modal keyboard
   ownership, recoverable panel states and complete translations.
-- **Pinned Bun typechecking** for contributors: `pnpm setup:bun` provisions the
+- **Pinned Bun typechecking** for contributors: `bun run setup:bun` provisions the
   checker, and there is no `tsc` fallback.
 
 1.0.35 hardened command guards, secret redaction and dependency audits, and
@@ -187,7 +187,7 @@ memory, tools, providers, permissions, and the multi-agent runtime actually work
 
 - **Standalone binary:** nothing — the executable carries its own runtime
   (Windows x64/arm64, macOS x64/arm64, Linux x64/arm64 incl. musl)
-- **npm/pnpm install:** Node.js ≥ 22.19.0 and pnpm ≥ 12.3.4 (recommended) or npm
+- **npm/bun install:** Node.js ≥ 22.19.0 and pnpm ≥ 12.3.4 (recommended) or npm
 - **Bun runtime:** Bun ≥ 1.3.10
 
 ---
@@ -254,11 +254,11 @@ wrongstack        # or the short alias: wstack
 From a source checkout, the same built CLI can run directly on Bun:
 
 ```bash
-pnpm build
+bun run build
 bun run start:bun
 ```
 
-`pnpm smoke:bun` verifies Bun's SQLite-backed SAGE path, heap watchdog,
+`bun run smoke:bun` verifies Bun's SQLite-backed SAGE path, heap watchdog,
 WebUI server module graph, and CLI entry point. Node continues to use
 `node:sqlite`; Bun selects `bun:sqlite` automatically.
 
@@ -738,7 +738,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 ## Status
 
 - **v1.0.36** — current repository version; semver from 1.0.0 onward
-- Full release verification: `pnpm release:check` before publishing
+- Full release verification: `bun run release:check` before publishing
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
 - Packages and apps use TypeScript strict + `noUncheckedIndexedAccess`
 - CI, dependency audit and Pages deployment are manually dispatched; pushes do not run them
@@ -777,3 +777,5 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 ## License
 
 [MIT](LICENSE) © WrongStack contributors.
+
+Contributor setup and migration dry-runs: [Bun workflow](docs/bun.md).

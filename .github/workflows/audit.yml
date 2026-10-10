@@ -2,10 +2,10 @@
 # reports/06-dependency-audit.md: default-coverage for known CVEs belongs
 # in CI, not in the opt-in in-session dependency-vulnerability-gate plugin.
 #
-# Runs `pnpm audit --audit-level high` (fails non-zero on high/critical)
+# Runs `bun scripts/audit-dependencies.mjs --audit-level high` (fails non-zero on high/critical)
 # whenever a lockfile or manifest changes, plus a weekly pass so advisories
 # published against already-locked versions are caught without a lockfile
-# change. No `pnpm install`: pnpm audit reads the lockfile directly.
+# change. No `bun install`: bun scripts/audit-dependencies.mjs reads the lockfile directly.
 
 name: Dependency Audit
 
@@ -18,9 +18,12 @@ permissions:
 
 jobs:
   audit:
-    name: pnpm audit (high+)
+    name: bun scripts/audit-dependencies.mjs (high+)
     runs-on: ubuntu-latest
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       # v4 — SHA-pinned per WS-041 so the upstream owner cannot move the ref
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
@@ -29,18 +32,7 @@ jobs:
           # list against on a pull request.
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        # Version comes from the `packageManager` field in package.json.
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          # No install here, so there is no pnpm store to save. v5 enables the
-          # package-manager cache by default and its post step then fails the
-          # job on the missing path whenever the restore misses.
-          package-manager-cache: false
-
-      # A pull request must not be able to waive its own gate. `pnpm audit`
+      # A pull request must not be able to waive its own gate. `bun scripts/audit-dependencies.mjs`
       # reads `auditConfig.ignoreGhsas` from the branch under test, and
       # `pnpm-workspace.yaml` is one of this workflow's trigger paths — so a PR
       # that introduces a vulnerable dependency could add the matching GHSA id
@@ -57,10 +49,10 @@ jobs:
         run: |
           set -euo pipefail
           git show "$BASE_SHA:pnpm-workspace.yaml" > /tmp/base-workspace.yaml 2>/dev/null || : > /tmp/base-workspace.yaml
-          node scripts/check-audit-suppressions.mjs /tmp/base-workspace.yaml pnpm-workspace.yaml
+          bun scripts/check-audit-suppressions.mjs /tmp/base-workspace.yaml pnpm-workspace.yaml
 
       - name: Audit dependencies (high and above fail the build)
-        run: pnpm audit --audit-level high
+        run: bun scripts/audit-dependencies.mjs --audit-level high
 
       # Visibility pass: report what the suppression list is currently hiding.
       # Non-blocking by design — the gate above is the decision, this exists so
@@ -69,13 +61,13 @@ jobs:
         if: always()
         run: |
           echo "Advisories currently suppressed by auditConfig.ignoreGhsas:"
-          node scripts/check-audit-suppressions.mjs pnpm-workspace.yaml pnpm-workspace.yaml || true
+          bun scripts/check-audit-suppressions.mjs pnpm-workspace.yaml pnpm-workspace.yaml || true
 
       # VF-35 (security report Phase 4): website/ is dual-lockfile — it is a
-      # pnpm workspace member yet the tree that actually deploys resolves from
-      # its own npm package-lock.json, which the pnpm audit above never reads.
+      # bun run workspace member yet the tree that actually deploys resolves from
+      # its own npm package-lock.json, which the bun scripts/audit-dependencies.mjs above never reads.
       # Audit that lockfile too, at the same severity floor, so the tree that
       # actually deploys the website is covered by the same gate (npm audit
       # reads the lockfile directly; no install step).
       - name: Audit website lockfile (npm, high and above fail the build)
-        run: npm audit --prefix website --audit-level high
+        run: bun scripts/audit-dependencies.mjs --audit-level high

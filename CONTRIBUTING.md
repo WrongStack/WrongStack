@@ -6,8 +6,7 @@ Thank you for your interest in contributing to WrongStack! This guide covers the
 
 ## Prerequisites
 
-- **Node.js** ≥ 22.19.0
-- **pnpm** ≥ 12.3.4 — `corepack enable` is enough; the repo's `packageManager` field pins the exact version
+- **Bun** >= 1.4.3 — the repository and GitHub Actions pin `.bun-version`.
 - **Git**
 - **Python 3** (only if you work on the security-scanner skills)
 
@@ -16,14 +15,14 @@ Thank you for your interest in contributing to WrongStack! This guide covers the
 ```bash
 git clone https://github.com/WrongStack/WrongStack.git
 cd WrongStack
-pnpm install
-pnpm setup:bun
-pnpm build
+bun install
+bun run setup:bun
+bun run build
 ```
 
-The `postinstall` script configures git hooks (`.githooks/pre-commit`) automatically.
+Run `bun run setup:hooks` to configure git hooks (`.githooks/pre-commit`).
 
-Type checks require Bun's TypeScript 7.0.2 checker. `pnpm setup:bun` verifies an
+Type checks require Bun's TypeScript 7.0.2 checker. `bun run setup:bun` verifies an
 installed Bun or provisions the pinned npm build `1.4.2-canary.20261007.1` in
 `.bun/typecheck`; typecheck commands also provision it automatically. The runtime
 archive is integrity-checked and no npm lifecycle scripts run. There is no `tsc`
@@ -37,22 +36,22 @@ compiler-version and type-error checks.
 ### Building
 
 ```bash
-pnpm build                    # Build all packages
-pnpm --filter @wrongstack/core build   # Build a single package
+bun run build                    # Build all packages
+bun run --filter @wrongstack/core build   # Build a single package
 ```
 
 ### Testing
 
 ```bash
-pnpm test                     # Run vitest + webui tests
-pnpm test:affected            # Run only what your changes can have broken
-pnpm test:watch               # Watch mode
-pnpm test:coverage            # Coverage report
-pnpm test:e2e                 # Playwright E2E suite
-node node_modules/vitest/vitest.mjs run packages/telegram/  # Tests for one package
+bun run test                     # Run vitest + webui tests
+bun run test:affected            # Run only what your changes can have broken
+bun run test:watch               # Watch mode
+bun run test:coverage            # Coverage report
+bun run test:e2e                 # Playwright E2E suite
+bun node_modules/vitest/vitest.mjs run packages/telegram/  # Tests for one package
 ```
 
-#### `pnpm test:affected`
+#### `bun run test:affected`
 
 A full root run is ~13 minutes and 39,827 tests, and while you iterate almost
 all of it re-proves what it proved an hour ago. A test can only start failing if
@@ -64,9 +63,9 @@ handful of suites in ten.
 The first run has no cache and does the full suite to build one. After that:
 
 ```bash
-pnpm test:affected --list     # show the plan, run nothing
-pnpm test:affected --all      # force a full run and re-seed the cache
-pnpm test:affected -- -t foo  # anything after -- goes to vitest
+bun run test:affected --list     # show the plan, run nothing
+bun run test:affected --all      # force a full run and re-seed the cache
+bun run test:affected -- -t foo  # anything after -- goes to vitest
 ```
 
 It decides only what is safe to SKIP, never what to run — Vitest still
@@ -78,7 +77,7 @@ test back in the run.
 
 Do not treat it as a gate. It follows *import* edges, so a test that reads a
 fixture at runtime without importing it will not notice that fixture changing.
-CI and `pnpm release:check` always run everything; this is for the loop in
+CI and `bun run release:check` always run everything; this is for the loop in
 between. `vitest --changed` and `vitest --related` are not usable here — both
 were measured against this repo and selected *zero* test files for an edit to
 `packages/core/src/types/session.ts`.
@@ -86,17 +85,17 @@ were measured against this repo and selected *zero* test files for an edit to
 ### Linting & Formatting
 
 ```bash
-pnpm lint                     # Lint with Biome
-pnpm exec biome check --write .  # Auto-fix lint issues
-pnpm format                   # Format with Biome
-pnpm typecheck                # TypeScript type-check all packages
+bun run lint                     # Lint with Biome
+bun --bun run biome check --write .  # Auto-fix lint issues
+bun run format                   # Format with Biome
+bun run typecheck                # TypeScript type-check all packages
 ```
 
 ### Benchmarks
 
 ```bash
-pnpm bench                    # Run vitest bench
-pnpm bench:perf               # Run performance benchmarks
+bun run bench                    # Run vitest bench
+bun run bench:perf               # Run performance benchmarks
 ```
 
 ---
@@ -111,15 +110,15 @@ The `.githooks/pre-commit` hook runs:
 
 These are advisory-only without `set -e`. The hook enables it. **Do not bypass with `--no-verify`** unless you understand the guards.
 
-### Local CI (`pnpm ci:local`)
+### Local CI (`bun run ci:local`)
 
-There is no pre-push hook: `git push` is not gated. Run `pnpm ci:local` yourself before pushing — it is the laptop equivalent of [`.github/workflows/ci.yml`](.github/workflows/ci.yml): lint, build, typecheck, Vitest + WebUI tests, HQ dashboard / TUI status-bar suites, and the snapshot/architecture gates.
+There is no pre-push hook: `git push` is not gated. Run `bun run ci:local` yourself before pushing — it is the laptop equivalent of [`.github/workflows/ci.yml`](.github/workflows/ci.yml): lint, build, typecheck, Vitest + WebUI tests, HQ dashboard / TUI status-bar suites, and the snapshot/architecture gates.
 
-Coverage ratchets (~45 min) and Playwright e2e stay in GitHub CI. The full maintainer matrix remains available as `pnpm release:check`.
+Coverage ratchets (~45 min) and Playwright e2e stay in GitHub CI. The full maintainer matrix remains available as `bun run release:check`.
 
 ```bash
-pnpm ci:local          # laptop subset of GitHub CI
-pnpm release:check     # full matrix, including coverage
+bun run ci:local          # laptop subset of GitHub CI
+bun run release:check     # full matrix, including coverage
 ```
 
 ---
@@ -169,8 +168,8 @@ The tooling that enforces this:
 |---|---|
 | `/perf` | One measure-change-measure round (also `audit`, `triage`, `memory`, `io`, `cpu`, `guard`) |
 | `/perf log` | Print the `PERF_LOG.md` ledger — deterministic, no model call |
-| `pnpm perf:guard` | Re-measure the probes in `architecture/perf-baseline.json` and gate on regressions |
-| `pnpm perf:guard:write` | …and ratchet the baseline down for improvements |
+| `bun run perf:guard` | Re-measure the probes in `architecture/perf-baseline.json` and gate on regressions |
+| `bun run perf:guard:write` | …and ratchet the baseline down for improvements |
 
 Rule 3 is not advisory: `decide()` in `@wrongstack/core/performance` requires a
 delta to clear **both** the run-to-run spread and the 5% floor before a change
@@ -204,7 +203,7 @@ git checkout -b feat/your-feature
 ### 2. Make your changes
 
 - Keep commits focused — one logical change per commit.
-- Run `pnpm ci:local` before pushing — pushes are not gated by any hook. Fix failures locally instead of pushing a red tree.
+- Run `bun run ci:local` before pushing — pushes are not gated by any hook. Fix failures locally instead of pushing a red tree.
 - Write tests for new functionality.
 
 ### 3. Commit message convention
@@ -238,8 +237,8 @@ The [CI workflow](.github/workflows/ci.yml) runs on every push and PR to `main`:
 |---|---|
 | **Lint** | Biome lint check |
 | **Typecheck** | `tsc --noEmit` across all project references |
-| **Build** | `pnpm build` — esbuild all packages |
-| **Test** | `pnpm test` — vitest + webui tests |
+| **Build** | `bun run build` — esbuild all packages |
+| **Test** | `bun run test` — vitest + webui tests |
 
 All jobs must pass before merge.
 
@@ -251,7 +250,7 @@ All jobs must pass before merge.
 2. Add to `pnpm-workspace.yaml` (covered by `packages/*` glob).
 3. Add a project reference in root `tsconfig.json`.
 4. Create a `vitest.config.ts` if the package needs test-specific config.
-5. Run `pnpm install` to link.
+5. Run `bun install` to link.
 
 ---
 
@@ -260,22 +259,22 @@ All jobs must pass before merge.
 Releases are manual (no automated publishing yet):
 
 ```bash
-pnpm release:check    # Full gate: audit + build + contracts + lint + typecheck + test
-pnpm release          # release:check + portable build + ordered publish
-pnpm release:plan     # print the dependency-layer publish order (publishes nothing)
-pnpm release:verify   # confirm every working-tree version is live on npm
+bun run release:check    # Full gate: audit + build + contracts + lint + typecheck + test
+bun run release          # release:check + portable build + ordered publish
+bun run release:plan     # print the dependency-layer publish order (publishes nothing)
+bun run release:verify   # confirm every working-tree version is live on npm
 ```
 
-Versioning uses `pnpm version:patch` (or `version:minor` / `version:major`) and conventional-commit-based semver bumps.
+Versioning uses `bun run version:patch` (or `version:minor` / `version:major`) and conventional-commit-based semver bumps.
 
 The lockstep bump also runs the official WebUI protocol schema generator after
 updating manifests, keeping generated schema version metadata aligned. A generator
 failure exits nonzero even though the manifest versions have already changed;
-repair the failure and rerun `node scripts/generate-protocol-schema.mjs` before release.
+repair the failure and rerun `bun scripts/generate-protocol-schema.mjs` before release.
 
 ### Why the publish is ordered
 
-`pnpm publish -r` sorts topologically but publishes concurrently, so the
+`bun run publish -r` sorts topologically but publishes concurrently, so the
 registry can observe a package before its dependencies. That shipped a real
 outage in 0.317.2: `wrongstack` landed on npm 25 seconds ahead of its
 transitive dependency `@wrongstack/webui-hq`, and every `npm i -g wrongstack`
@@ -283,7 +282,7 @@ in that window failed with `ETARGET`. `scripts/publish-workspace.mjs` publishes
 in dependency layers, one layer at a time, so the install target always reaches
 npm last. Locally it does not wait for the CDN between layers: once every layer
 is published it confirms all packages on the npm origin in one pass and reports
-which ones the CDN already serves (`pnpm release:verify` waits for the rest).
+which ones the CDN already serves (`bun run release:verify` waits for the rest).
 CI passes `--gate-layers`, which polls the CDN after each layer instead.
 
 ---

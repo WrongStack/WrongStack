@@ -35,12 +35,15 @@ jobs:
       tui-smoke: ${{ steps.reuse.outputs.tui-smoke }}
       tui-heap-soak: ${{ steps.reuse.outputs.tui-heap-soak }}
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           persist-credentials: false
       - id: reuse
         name: Find completed checks for this SHA
-        run: node scripts/ci-reuse-success.mjs
+        run: bun scripts/ci-reuse-success.mjs
 
   lint:
     name: Lint (Biome)
@@ -49,31 +52,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
 
-      # pnpm/action-setup — resolves the correct pnpm version from
-      # packageManager in root package.json. Pinned to a commit SHA like every
-      # other third-party action: a mutable tag lets the upstream owner change
-      # what runs in CI after review (WS-041).
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
       # Dependency specs must not contain Windows path separators. A
       # backslashed `link:`/`file:` path installs fine on NTFS and then
-      # breaks every POSIX `pnpm install --frozen-lockfile` (specifier
+      # breaks every POSIX `bun install --frozen-lockfile` (specifier
       # mismatch vs the forward-slashed lockfile). Pure Node, no deps —
       # deliberately BEFORE install so the signal arrives without paying
       # the install cost first.
       - name: Lint (dep path separators)
-        run: node scripts/check-dep-path-separators.mjs
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
+        run: bun scripts/check-dep-path-separators.mjs
 
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
@@ -84,15 +79,15 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Lint
-        run: pnpm biome lint .
+        run: bun run biome lint .
 
       # F-03: fail when a file imports '../<self-area>/...' — the
       # signature of a leftover relative path after a file was moved
@@ -100,12 +95,12 @@ jobs:
       # checker (type-only erased) would otherwise miss. Cheap (~50ms);
       # no third-party action required.
       - name: Lint (relative imports)
-        run: pnpm lint:imports
+        run: bun run lint:imports
 
       # Maintained docs keep valid local links and source-derived catalogs.
       # The feature matrix also checks hand-written plugin-to-tool mappings.
       - name: Check (documentation links, catalog and plugin feature matrix)
-        run: pnpm docs:check
+        run: bun run docs:check
 
       # Biome warnings exit 0, so the Lint step above cannot see them.
       # check:lint-warnings ratchets production-scope warnings against
@@ -113,13 +108,13 @@ jobs:
       # fails, and a fixed count must lower the baseline in the same change
       # (ratchet-down invariant, mirroring check:test-types).
       - name: Check (lint warning ratchet)
-        run: pnpm check:lint-warnings
+        run: bun run check:lint-warnings
 
       # Every `uses:` is pinned to a commit SHA (WS-041): a tag or a branch
       # can be moved to other code after review, and a workflow with write
       # access runs whatever it points at. The policy was a habit until this.
       - name: Check (GitHub Actions pinned to commit SHAs)
-        run: pnpm check:action-pins
+        run: bun run check:action-pins
 
   typecheck:
     name: TypeCheck (Bun)
@@ -128,18 +123,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
 
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
@@ -150,15 +141,15 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: TypeCheck (website tests)
-        run: pnpm --filter wrongstack-website typecheck:tests
+        run: bun run --filter wrongstack-website typecheck:tests
 
       # Build first so cross-package type declarations exist. Several packages
       # (e.g. @wrongstack/kanban) import workspace deps like
@@ -166,7 +157,7 @@ jobs:
       # not exist until the producing package is built. Without this, tsc in a
       # clean CI checkout fails with TS2307 "Cannot find module".
       - name: Build workspace declarations
-        run: pnpm build
+        run: bun run build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
@@ -177,12 +168,12 @@ jobs:
       # through scripts/bun-typecheck.mjs), so test-fixture/type-contract
       # drift fails this gate instead of silently accumulating.
       - name: TypeCheck
-        run: pnpm typecheck
+        run: bun run typecheck
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Test-inclusive Bun typecheck ratchet
-        run: pnpm check:test-types
+        run: bun run check:test-types
 
   build:
     name: Build (esbuild + tsc declarations)
@@ -191,18 +182,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
 
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
@@ -213,20 +200,20 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Assert clean artifact lineage
-        run: pnpm check:clean-dist
+        run: bun run check:clean-dist
 
       # Topological build via the centralized driver.
       # ESBuild for JS bundles, native tsc --emitDeclarationOnly for types.
       - name: Build
-        run: pnpm build
+        run: bun run build
 
       # Security report Phase 4 item 20 / VF-30: pin the vendored tree-sitter
       # grammar set to wasm/checksums.json — a tampered or accidentally
@@ -234,13 +221,13 @@ jobs:
       # index time (the runtime check in tree-sitter-parser.ts is the
       # second layer).
       - name: Verify vendored tree-sitter grammars
-        run: node scripts/check-tree-sitter-wasm.mjs
+        run: bun scripts/check-tree-sitter-wasm.mjs
 
       - name: Verify package contracts
-        run: node scripts/check-package-contracts.mjs
+        run: bun scripts/check-package-contracts.mjs
 
       - name: Write artifact lineage manifest
-        run: pnpm write:build-manifest
+        run: bun run write:build-manifest
 
       # WS-070: the upload below sets `include-hidden-files: true` so the
       # lineage manifest under `.reports/` is included — but that flag applies
@@ -250,7 +237,7 @@ jobs:
       # patterns, which would change how upload-artifact computes the artifact
       # root and silently break the two jobs that download it into `.`.
       - name: Assert no hidden files in build output
-        run: pnpm check:dist-hidden
+        run: bun run check:dist-hidden
 
       - name: Upload verified build lineage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -266,7 +253,7 @@ jobs:
 
   # -----------------------------------------------------------------
   # Manifest & projection drift gate. These four checks exist in
-  # `pnpm release:check` but were release-only: a PR could merge
+  # `bun run release:check` but were release-only: a PR could merge
   # CI-green and surface provider-catalog / plugin-projection / i18n /
   # rulebook drift weeks later at release time. All four are fast
   # snapshot-or-schema comparisons, so they run here at PR time.
@@ -280,18 +267,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
 
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
@@ -302,12 +285,12 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -316,26 +299,26 @@ jobs:
           path: .
 
       - name: Verify artifact lineage
-        run: pnpm check:build-manifest
+        run: bun run check:build-manifest
 
       # The catalog/projection scripts rebuild the package they project
-      # from (`pnpm --filter ... build` is part of the pnpm script), so
+      # from (`bun run --filter ... build` is part of the bun run script), so
       # no separate build step is needed — the downloaded lineage only
       # has to satisfy cross-package type resolution for that rebuild.
       - name: Provider catalog snapshot check
-        run: pnpm providers:catalog:check
+        run: bun run providers:catalog:check
 
       - name: Plugin projection snapshot check
-        run: pnpm plugins:manifest:check
+        run: bun run plugins:manifest:check
 
       - name: i18n completeness check
-        run: pnpm lint:i18n
+        run: bun run lint:i18n
 
       # The rulebook is optional and untracked by default; when absent
       # this validates the checker itself runs, and it hard-fails
       # (exit 5) for any PR that adds an invalid one.
       - name: TechStack rulebook schema check
-        run: pnpm check:rulebook
+        run: bun run check:rulebook
 
   test:
     name: Test (Vitest + coverage ratchets)
@@ -344,9 +327,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
-          # Full history: this job runs `pnpm check:architecture`, whose
+          # Full history: this job runs `bun run check:architecture`, whose
           # evidence-freshness gate compares commit timestamps between watched
           # roots (architecture/, packages/, apps/) and the committed report
           # pair. In the default depth-1 checkout the gate cannot decide
@@ -357,13 +343,6 @@ jobs:
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
-
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
         # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
@@ -373,15 +352,15 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Test (website)
-        run: pnpm --filter wrongstack-website test
+        run: bun run --filter wrongstack-website test
 
       # Download verified build artifacts so workspace dist/ folders exist
       # before the coverage run. Without this, 257+ test files that import
@@ -395,34 +374,34 @@ jobs:
           path: .
 
       - name: Verify artifact lineage
-        run: pnpm check:build-manifest
+        run: bun run check:build-manifest
 
       - name: Architecture and runtime-test inventory
-        run: pnpm check:architecture && pnpm check:test-inventory && pnpm check:test-skips
+        run: bun run check:architecture && bun run check:test-inventory && bun run check:test-skips
 
       - name: Install Playwright browser for live plugin journeys
         # The plugin subprocess uses buildChildEnv(), which intentionally drops
         # PLAYWRIGHT_BROWSERS_PATH. Install to Playwright's default HOME cache so
         # the subprocess resolves the same Chromium binary.
-        run: npx playwright install --with-deps chromium
+        run: bun x --bun playwright install --with-deps chromium
 
       # Runs aggregate Node/WebUI ratchets plus focused per-file gates.
       - name: Test with coverage ratchets
-        run: pnpm test:coverage
+        run: bun run test:coverage
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
       # hq-dashboard needs jsdom which the root forks pool can't resolve.
       # Run it from its package context so its own vitest config applies.
       - name: Test (hq-dashboard)
-        run: pnpm --filter @wrongstack/cli test:hqdash
+        run: bun run --filter @wrongstack/cli test:hqdash
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
       # The dedicated config supplies FORCE_COLOR=3 and COLORTERM=truecolor
       # so status-bar-overflow can assert Chalk's truecolor output.
       - name: Test (TUI status-bar overflow)
-        run: pnpm --filter @wrongstack/tui test:status-bar
+        run: bun run --filter @wrongstack/tui test:status-bar
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
@@ -442,7 +421,7 @@ jobs:
       # workspace cooldown applies — `minimumReleaseAge: 1440` in
       # pnpm-workspace.yaml is a resolution policy, and `--lockfile=false`
       # only controls whether a lockfile is read or written, so it does not
-      # opt out of it. Verified: `pnpm config get minimumReleaseAge` -> 1440.
+      # opt out of it. Verified: `bun run config get minimumReleaseAge` -> 1440.
       # That covers the compromised-maintainer case this defends against, where
       # a malicious version is published and yanked within hours.
       #
@@ -455,13 +434,13 @@ jobs:
       #
       # Pinning it properly conflicts with why it is opt-in: putting the
       # package in the lockfile means every contributor downloads the ONNX
-      # runtime on a plain `pnpm install`. Resolving that tension is an owner
+      # runtime on a plain `bun install`. Resolving that tension is an owner
       # decision, recorded in security-report/.
       - name: Install opt-in vector backend
-        run: pnpm --filter @wrongstack/vector-memory add @huggingface/transformers@4.2.0 --lockfile=false --ignore-scripts
+        run: bun run --filter @wrongstack/vector-memory add @huggingface/transformers@4.2.0 --lockfile=false --ignore-scripts
 
       - name: Test (vector-memory ONNX integration)
-        run: npx vitest run packages/vector-memory/tests/integration.test.ts
+        run: bun x --bun vitest run packages/vector-memory/tests/integration.test.ts
         env:
           WRONGSTACK_VECTOR_INTEGRATION: '1'
           NODE_OPTIONS: --max-old-space-size=4096
@@ -480,16 +459,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           persist-credentials: false
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
 
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
@@ -500,12 +475,12 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -514,7 +489,7 @@ jobs:
           path: .
 
       - name: Plugin guard regression
-        run: pnpm --filter @wrongstack/plugins exec vitest run tests/process-guard.test.ts tests/lint-gate.test.ts tests/lint-gate-platform.test.ts tests/path-guard.test.ts tests/secret-scanner.test.ts tests/prompt-firewall.test.ts
+        run: bun run --filter @wrongstack/plugins exec vitest run tests/process-guard.test.ts tests/lint-gate.test.ts tests/lint-gate-platform.test.ts tests/path-guard.test.ts tests/secret-scanner.test.ts tests/prompt-firewall.test.ts
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
@@ -523,7 +498,7 @@ jobs:
       # composer frame before sending a command. This catches the exact class
       # of regressions where launch prompts finish but the TUI is invisible.
       - name: Interactive TUI PTY smoke
-        run: pnpm exec vitest run packages/cli/tests/subagent-models-tui-e2e.test.ts
+        run: bun --bun run vitest run packages/cli/tests/subagent-models-tui-e2e.test.ts
         env:
           WSTACK_E2E: '1'
           NODE_OPTIONS: --max-old-space-size=4096
@@ -552,18 +527,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
 
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
@@ -574,12 +545,12 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -588,7 +559,7 @@ jobs:
           path: .
 
       - name: Verify artifact lineage
-        run: pnpm check:build-manifest
+        run: bun run check:build-manifest
 
       - name: Run TUI smoke test
         run: |
@@ -601,7 +572,7 @@ jobs:
           # Run with a bogus project dir so the TUI bails at the TTY check,
           # not at some other path (missing config, missing API key, etc.).
           EXIT_CODE=0
-          node packages/cli/dist/index.js --tui --project . 2>"$STDERR_FILE" >"$STDOUT_FILE" || EXIT_CODE=$?
+          bun packages/cli/dist/index.js --tui --project . 2>"$STDERR_FILE" >"$STDOUT_FILE" || EXIT_CODE=$?
 
           echo "Exit code: $EXIT_CODE"
 
@@ -678,7 +649,7 @@ jobs:
 
           OUT=$(mktemp)
           HOME="$SMOKE_HOME" USERPROFILE="$SMOKE_HOME" \
-            timeout 180 node packages/cli/dist/index.js \
+            timeout 180 bun packages/cli/dist/index.js \
               --no-tui --no-menu --skip-index "boot smoke" > "$OUT" 2>&1 || true
 
           # A duplicate registration throws out of the composition root. This is
@@ -722,18 +693,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
 
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
@@ -744,12 +711,12 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       # Warm up workspace dist artifacts before the heap-soak benchmark
       # runs esbuild. The benchmark script imports entry points like
@@ -759,16 +726,16 @@ jobs:
       # measurement can be taken. Building locally guarantees the
       # dist tree matches what production TUI users load.
       - name: Build workspace dist for heap-soak esbuild resolve
-        run: pnpm -r build
+        run: bun run build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Run heap-soak benchmark (quick profile)
-        run: pnpm bench:tui-heap --quick
+        run: bun run bench:tui-heap --quick
 
       - name: Assert plateau slope and heap ceiling
         run: |
-          node -e "
+          bun -e "
             const fs = require('node:fs');
             const report = JSON.parse(fs.readFileSync('.reports/tui-heap-soak/report.json', 'utf8'));
             const MAX_SLOPE = 512 * 1024;   // 512 KiB/sample — real leaks show several MiB
@@ -825,26 +792,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
-
       - name: Install dependencies
         # Same rationale as every other job: lifecycle scripts stay off and
         # only the reviewed native set is rebuilt (VF-31).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -852,7 +815,7 @@ jobs:
           name: wrongstack-build-${{ github.sha }}
 
       - name: Verify artifact lineage
-        run: pnpm check:build-manifest
+        run: bun run check:build-manifest
 
       - name: Install Playwright browser
         # Chromium only — playwright.config.ts defines a single chromium project.
@@ -860,7 +823,7 @@ jobs:
         # live in the default $HOME/.cache: pin one path for install and run.
         env:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ms-playwright
-        run: npx playwright install --with-deps chromium
+        run: bun x --bun playwright install --with-deps chromium
 
       - name: Rendered theme contrast audit (light + dark)
         # Decodes the rendered PNGs and measures real painted pixels against
@@ -871,7 +834,7 @@ jobs:
         # job rather than printing a table nobody reads.
         env:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ms-playwright
-        run: pnpm --filter @wrongstack/webui test:story-theme-browser
+        run: bun run --filter @wrongstack/webui test:story-theme-browser
 
       - name: Upload theme audit screenshots on failure
         if: failure()
@@ -915,7 +878,7 @@ jobs:
           HOME="$E2E_HOME" \
           E2E_PROVIDER=ci-e2e \
           E2E_MODEL=ci-e2e-model \
-            npx playwright test e2e/smoke.spec.ts e2e/focus-ring.spec.ts --reporter=list
+            bun x --bun playwright test e2e/smoke.spec.ts e2e/focus-ring.spec.ts --reporter=list
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -939,22 +902,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
-
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Download verified build lineage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
@@ -963,10 +922,10 @@ jobs:
           path: .
 
       - name: Scan repo source (secrets + SAST)
-        run: node scripts/ci-security-scan.mjs
+        run: bun scripts/ci-security-scan.mjs
 
   # -----------------------------------------------------------------
-  # Security audit (pnpm audit)
+  # Security audit (bun scripts/audit-dependencies.mjs)
   # Fails on moderate-or-higher advisories in production deps.
   # -----------------------------------------------------------------
   audit:
@@ -977,18 +936,14 @@ jobs:
     # zero advisories ever evaluated, not on a real finding.
     timeout-minutes: 10
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
 
       - name: Install dependencies
         # VF-31 (security report Phase 4): lifecycle scripts must not run from
@@ -999,20 +954,20 @@ jobs:
         # the local-development source of truth; keeping the two in sync is a
         # review-time responsibility (build-allowlist-freshness.test.ts pins
         # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Rebuild reviewed native dependencies
         # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
         # require the same review bar documented at the top of that file.
-        run: pnpm rebuild electron-winstaller esbuild node-pty
+        run: bun run setup:native
 
       - name: Audit dependencies
-        run: pnpm audit --audit-level=moderate
+        run: bun scripts/audit-dependencies.mjs --audit-level=moderate
 
       # VF-35: website/ resolves from its own npm package-lock.json — audit
       # it here too so PR-time coverage matches the weekly audit workflow.
       - name: Audit website lockfile (npm)
-        run: npm audit --prefix website --audit-level=moderate
+        run: bun scripts/audit-dependencies.mjs --audit-level=moderate
 
   # Composite gate so branch-protection rules can require a single
   # status check rather than listing every job individually.
@@ -1036,6 +991,9 @@ jobs:
     timeout-minutes: 1
     if: always()
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - name: All required jobs passed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |

@@ -32,24 +32,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild electron-winstaller esbuild node-pty
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run setup:native
       - name: Package (no publishing credentials)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: node scripts/package-desktop.mjs ${{ matrix.target }} --publish never
+        run: bun scripts/package-desktop.mjs ${{ matrix.target }} --publish never
       - name: Check packaged dependencies and assets with Electron
         if: runner.os != 'Linux'
-        run: node scripts/smoke-desktop.mjs --window
+        run: bun scripts/smoke-desktop.mjs --window
       - name: Give the unpacked Chromium sandbox its setuid bits
         if: runner.os == 'Linux'
         # linux-unpacked carries chrome-sandbox with the packer's ownership, and
@@ -64,11 +62,11 @@ jobs:
           sudo chmod 4755 "$sandbox"
       - name: Check Linux Desktop with a virtual display
         if: runner.os == 'Linux'
-        run: xvfb-run -a node scripts/smoke-desktop.mjs --window
+        run: xvfb-run -a bun scripts/smoke-desktop.mjs --window
       - name: Namespace package-owned checksum manifest
         env:
           DESKTOP_MATRIX_OS: ${{ matrix.os }}
-        run: node -e "const fs=require('node:fs');const dir='.temp_files/package-desktop-stage/release';fs.renameSync(dir+'/SHA256SUMS.txt',dir+'/DESKTOP-SHA256SUMS-'+process.env.DESKTOP_MATRIX_OS)"
+        run: bun -e "const fs=require('node:fs');const dir='.temp_files/package-desktop-stage/release';fs.renameSync(dir+'/SHA256SUMS.txt',dir+'/DESKTOP-SHA256SUMS-'+process.env.DESKTOP_MATRIX_OS)"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.artifact-name || format('desktop-{0}', github.run_id) }}-${{ matrix.os }}

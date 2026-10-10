@@ -6,20 +6,20 @@
 # every guard below is advisory-only — failures print but never block
 # the commit, which is how broken commits kept reaching main/CI.
 set -e
-node scripts/guard-against-corruption.mjs --verbose
-node scripts/lint-console-logging.mjs --verbose
+bun scripts/guard-against-corruption.mjs --verbose
+bun scripts/lint-console-logging.mjs --verbose
 
 # Block commits whose staged TS files import a module that exists on
 # disk but is not tracked/staged ("import committed, file forgotten").
 # Local builds pass, CI's Build step fails with esbuild "Could not
 # resolve" — this exact class broke every CI run after 9290b3b14.
-node scripts/guard-unresolved-imports.mjs --verbose
+bun scripts/guard-unresolved-imports.mjs --verbose
 
 # Core API snapshots are committed architecture evidence. Refresh and stage
 # them whenever a staged source change can affect them. The helper refuses to
 # run if the shared worktree has unstaged/untracked snapshot inputs, avoiding a
 # generated file that accidentally includes a teammate's WIP.
-node scripts/sync-core-public-api-snapshot.mjs
+bun scripts/sync-core-public-api-snapshot.mjs
 
 # Architecture measurements are committed evidence, not a manual release
 # chore. When staged production/architecture inputs move, refresh the hotspot
@@ -27,8 +27,8 @@ node scripts/sync-core-public-api-snapshot.mjs
 # fail merely because generated evidence lagged the source change.
 architecture_staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(packages/|apps/|architecture/|scripts/(check-architecture-health|snapshot-core-public-api|sync-core-public-api-snapshot)\.mjs$)' || true)
 if [ -n "$architecture_staged" ]; then
-  node scripts/check-architecture-health.mjs --write-hotspot-baseline
-  pnpm report:architecture
+  bun scripts/check-architecture-health.mjs --write-hotspot-baseline
+  bun run report:architecture
   git add architecture/hotspots.json architecture/test-only-exports.json \
     docs/reports/architecture-health-current.json docs/reports/architecture-health-current.md
 fi
@@ -41,7 +41,7 @@ fi
 # existing bridge / types / subcommand-index files.
 mb_staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^packages/(cli/src/subcommands/(handlers/mailbox-serve\.ts|index\.ts)|core/src/(coordination/(mailbox-(types|http-router)|index)|hq/protocol))\.ts$' || true)
 if [ -n "$mb_staged" ]; then
-  node scripts/guard-mailbox-bridge.mjs --verbose
+  bun scripts/guard-mailbox-bridge.mjs --verbose
 fi
 
 # ── Mailbox-bridge install-helper script guard ──────────────────
@@ -52,7 +52,7 @@ fi
 # drifting out of sync.
 mb_script_staged=$(git diff --cached --name-only --diff-filter=ADM | grep -E '^scripts/install-mailbox-bridge-skills\.sh$' || true)
 if [ -n "$mb_script_staged" ]; then
-  node scripts/guard-mailbox-bridge-scripts.mjs --verbose
+  bun scripts/guard-mailbox-bridge-scripts.mjs --verbose
 fi
 
 # ── Typecheck gate ───────────────────────────────────────────────────
@@ -68,7 +68,7 @@ fi
 #
 # Instead, the typecheck gate lives in CI (.github/workflows/ci.yml
 # step "Typecheck") where there's a clean checkout with no
-# unrelated local edits. The new `pnpm check:node-pty` smoke
+# unrelated local edits. The new `bun run check:node-pty` smoke
 # check (added in 2c9f2a9c) is a separate fast gate that runs
 # locally to catch the install-time regressions — but it's a
 # single-purpose script, not a full tsc.

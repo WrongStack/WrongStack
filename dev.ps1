@@ -6,7 +6,7 @@ param([switch]$Background)
 
 $ErrorActionPreference = "Continue"
 # PS 7.3+: don't let native-command stderr lines escalate into terminating errors.
-# pnpm prints the script body (e.g. "$ vite build && node build-package.mjs") to stderr, which would
+# bun prints the script body (e.g. "$ vite build && node build-package.mjs") to stderr, which would
 # otherwise throw under ErrorActionPreference = "Stop".
 $PSNativeCommandUseErrorActionPreference = $false
 
@@ -19,10 +19,10 @@ Write-Host "     WrongStack Dev Environment" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check if pnpm is available
-if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-    Write-Host "Error: pnpm not found" -ForegroundColor Red
-    Write-Host "Install: npm install -g pnpm"
+# Check if bun is available
+if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
+    Write-Host "Error: bun not found" -ForegroundColor Red
+    Write-Host "Install: https://bun.sh/docs/installation"
     exit 1
 }
 
@@ -55,28 +55,28 @@ Write-Host "[1/3] Installing dependencies..." -ForegroundColor Green
 # --ignore-scripts, then rebuild an explicit list. Every one of CI's installs
 # does this; the dev entrypoint was the one path that let an arbitrary
 # dependency's install lifecycle run, which is the machine where a compromised
-# postinstall would find real credentials. The list matches `pnpm rebuild` in
-# .github/workflows/ci.yml and `allowBuilds` in pnpm-workspace.yaml — keep the
+# postinstall would find real credentials. The list matches `bun rebuild` in
+# .github/workflows/ci.yml and `allowBuilds` in package.json trustedDependencies — keep the
 # three in step.
-pnpm install --ignore-scripts --silent 2>&1 | Out-Null
+bun install --ignore-scripts --silent 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    pnpm install --ignore-scripts
+    bun install --ignore-scripts
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "pnpm install failed (exit $LASTEXITCODE)" -ForegroundColor Red
+        Write-Host "bun install failed (exit $LASTEXITCODE)" -ForegroundColor Red
         exit 1
     }
 }
-pnpm rebuild electron-winstaller esbuild node-pty
+bun run setup:native
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Native dependency rebuild failed (exit $LASTEXITCODE)" -ForegroundColor Red
     exit 1
 }
 
 Write-Host "[2/3] Building WebUI package (frontend + backend)..." -ForegroundColor Green
-pnpm --filter=@wrongstack/webui run build 2>&1 | Out-Null
+bun run --filter @wrongstack/webui build 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "WebUI build failed (exit $LASTEXITCODE). Re-running with output:" -ForegroundColor Red
-    pnpm --filter=@wrongstack/webui run build
+    bun run --filter @wrongstack/webui build
     exit 1
 }
 
@@ -98,13 +98,13 @@ if ($Background) {
         param($dir, $port)
         Set-Location $dir
         $env:WS_PORT = $port
-        node packages/webui-server/dist/server/entry.js
+        bun packages/webui-server/dist/server/entry.js
     } -ArgumentList $ScriptDir, $WEBSOCKET_PORT
 
     $webuiJob = Start-Job -Name "WebUI" -ScriptBlock {
         param($dir, $port)
         Set-Location "$dir\packages\webui"
-        pnpm run dev
+        bun run dev
     } -ArgumentList $ScriptDir, $WEBUI_PORT
 
     Write-Host ""
@@ -123,7 +123,7 @@ if ($Background) {
     try {
         # Start WebUI backend (Agent + WebSocket server)
         $env:WS_PORT = $WEBSOCKET_PORT
-        $wsProc = Start-Process -FilePath "node" -ArgumentList "packages/webui-server/dist/server/entry.js" -PassThru -NoNewWindow -WorkingDirectory $ScriptDir
+        $wsProc = Start-Process -FilePath "bun" -ArgumentList "packages/webui-server/dist/server/entry.js" -PassThru -NoNewWindow -WorkingDirectory $ScriptDir
         $pids += $wsProc.Id
         Write-Host "  Backend started (PID: $($wsProc.Id))" -ForegroundColor Cyan
 
@@ -134,7 +134,7 @@ if ($Background) {
         }
 
         # Start WebUI frontend (Vite dev server)
-        $webuiProc = Start-Process -FilePath "cmd" -ArgumentList "/c","pnpm run dev" -PassThru -NoNewWindow -WorkingDirectory "$ScriptDir\packages\webui"
+        $webuiProc = Start-Process -FilePath "cmd" -ArgumentList "/c","bun run dev" -PassThru -NoNewWindow -WorkingDirectory "$ScriptDir\packages\webui"
         $pids += $webuiProc.Id
         Write-Host "  WebUI started (PID: $($webuiProc.Id))" -ForegroundColor Cyan
 
@@ -153,7 +153,7 @@ if ($Background) {
         Write-Host ""
         Write-Host "Shutting down..." -ForegroundColor Yellow
         foreach ($procId in $pids) {
-            # Kill the whole tree - Start-Process with cmd /c pnpm leaves node/vite as grandchildren.
+            # Kill the whole tree - Start-Process with cmd /c bun leaves node/vite as grandchildren.
             Stop-ProcessTree -RootPid $procId
         }
         # Belt-and-suspenders: anything still holding the dev ports gets cleaned too.
