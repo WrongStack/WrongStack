@@ -42,6 +42,7 @@ import {
 import { makeFleetWorktreeConflictResolver } from './host-helpers.js';
 import type { HostLearningScheduler } from './host-learning-scheduler.js';
 import { HostMemoryCompanion } from './host-memory-companion.js';
+import { HostSkillCompanion } from './host-skill-companion.js';
 import type { HostShadowManager } from './host-shadow-manager.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 export interface HostDirectorSetupHost {
@@ -61,6 +62,7 @@ export interface HostDirectorSetupHost {
   buildFleetSupervisor(config: Config): void;
   exploreCompanions: ExploreCompanionRegistry | null;
   memoryCompanion: HostMemoryCompanion | null;
+  skillCompanion: HostSkillCompanion | null;
   exploreCompanionOff: (() => void) | null;
   directorOffHandles: Array<() => void>;
   sessionForSubagent(subagentId: string): string;
@@ -227,6 +229,37 @@ export async function buildDirector(host: HostDirectorSetupHost): Promise<void> 
       }),
   });
   host.memoryCompanion.ensure(host.deps.session.id);
+  // Picks skills the leader did not load; opens its own slot on each
+  // conversation's first run, so only the boot session is ensured here.
+  host.skillCompanion =
+    config.fleet?.skillCompanion?.enabled === false
+      ? null
+      : new HostSkillCompanion({
+          director: host.director,
+          events: host.deps.events,
+          skillLoader: () => host.deps.skillLoader,
+          config: config.fleet?.skillCompanion,
+          enabled: (sessionId) => {
+            const current = host.deps.configStore.get();
+            return (
+              current.features.skills !== false &&
+              current.fleet?.skillCompanion?.enabled !== false &&
+              areSubagentCompanionsAllowedForSession(sessionId)
+            );
+          },
+          scrub: (text) => host.deps.secretScrubber.scrub(text),
+          note: (sessionId, subject, body) =>
+            postSessionNote({
+              sessionId,
+              from: 'skill-companion',
+              to: 'leader',
+              kind: 'note',
+              subject,
+              body,
+              events: host.deps.events,
+            }),
+        });
+  host.skillCompanion?.ensure(host.deps.session.id);
   host.exploreCompanionOff = host.deps.events.on('agent.run.started', (e) => {
     // Unstamped runs exist (thin embedders); `ensure` ignores an empty id,
     // but keep the narrowing explicit rather than relying on that.

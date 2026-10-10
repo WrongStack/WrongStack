@@ -238,6 +238,13 @@ export interface FleetConfig {
    * subagent; findings return via same-session notes. Default enabled.
    */
   exploreCompanion?: ExploreCompanionConfig | undefined;
+  /**
+   * Skill Companion — background skill picker behind the leader. On a new
+   * turn, a todo starting, or the first edit in a new file family, a resident
+   * `skill-companion` judges the skill catalog against the work and
+   * recommends at most two skills the leader has not loaded. Default enabled.
+   */
+  skillCompanion?: SkillCompanionConfig | undefined;
   /** Roster-agent self-learning: capture → optimize → per-skill addenda. */
   learning?: AgentLearningConfig | undefined;
 }
@@ -340,6 +347,26 @@ export interface ExploreCompanionConfig {
   maxToolCallsPerProbe?: number | undefined;
   /** Maximum characters forwarded to the leader per result. Default 4000. */
   maxFindingsChars?: number | undefined;
+}
+
+/** Config surface for the Skill Companion host wiring. */
+export interface SkillCompanionConfig {
+  /** Kill switch. Default true. */
+  enabled?: boolean | undefined;
+  /**
+   * What a recommendation does beyond the note. `speed-bump` (default) holds
+   * the leader's next file change once until it loads the skill or retries;
+   * `off` keeps the note only.
+   */
+  enforce?: 'speed-bump' | 'off' | undefined;
+  /** Judged probes per conversation. Default 8. */
+  maxProbesPerSession?: number | undefined;
+  /** Minimum self-reported confidence (0..1) a pick needs. Default 0.6. */
+  minConfidence?: number | undefined;
+  /** Hard host deadline per probe, including spawn and assignment. Default 45000. */
+  probeTimeoutMs?: number | undefined;
+  /** Skills offered to the judge per probe, after eligibility filtering. Default 80. */
+  maxCandidates?: number | undefined;
 }
 
 /**

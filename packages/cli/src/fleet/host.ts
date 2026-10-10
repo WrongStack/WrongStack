@@ -51,6 +51,7 @@ import { HostLearningScheduler } from './host-learning-scheduler.js';
 import { HostLearningRoleTracker } from './host-learning-tracker.js';
 import { emitHostLifecycleCompleted } from './host-lifecycle-events.js';
 import type { HostMemoryCompanion } from './host-memory-companion.js';
+import type { HostSkillCompanion } from './host-skill-companion.js';
 import { applyFleetRootDefaults } from './host-paths.js';
 import { HostShadowManager } from './host-shadow-manager.js';
 import type { HostSpawnAndWaitOptions, HostSpawnOptions } from './host-spawn-types.js';
@@ -119,6 +120,7 @@ export class MultiAgentHost {
    *  lazily-spawned resident `explore-companion` subagent per session. */
   private exploreCompanions: ExploreCompanionRegistry | null = null;
   private memoryCompanion: HostMemoryCompanion | null = null;
+  private skillCompanion: HostSkillCompanion | null = null;
   /** `agent.run.started` subscription that opens a companion for a new tab. */
   private exploreCompanionOff: (() => void) | null = null;
   /** Built-ins plus lazily-resolved project-created roles. */
@@ -344,9 +346,7 @@ export class MultiAgentHost {
       fallbackModels: opts?.fallbackModels,
       tools: opts?.tools,
       allowedCapabilities: opts?.allowedCapabilities,
-      ...(opts?.gracefulFinish !== undefined
-        ? { gracefulFinish: opts.gracefulFinish }
-        : {}),
+      ...(opts?.gracefulFinish !== undefined ? { gracefulFinish: opts.gracefulFinish } : {}),
       ...(opts?.originSessionId ? { originSessionId: opts.originSessionId } : {}),
     };
     const { subagentId, taskId } = await this._spawnAndAssign(subagentConfig, description, {
@@ -473,6 +473,8 @@ export class MultiAgentHost {
     // A verifier's provisional judgment must not train the role as a new fact
     // before the source/revision gate has accepted its report.
     if (result.subagentId.startsWith('memory-companion-')) return;
+    // A skill pick is a per-turn judgment, not a lesson about the role.
+    if (result.subagentId.startsWith('skill-companion-')) return;
     this.learningRoles.capture(result, this.deps, (role) =>
       this.learningScheduler.notifyCaptured(role),
     );
@@ -558,6 +560,7 @@ export class MultiAgentHost {
     if (!sessionId) return;
     this.exploreCompanions?.release(sessionId);
     this.memoryCompanion?.release(sessionId);
+    this.skillCompanion?.release(sessionId);
     this.shadowManager.releaseSession(sessionId);
   }
 
@@ -581,6 +584,8 @@ export class MultiAgentHost {
     this.exploreCompanions = null;
     this.memoryCompanion?.stop();
     this.memoryCompanion = null;
+    this.skillCompanion?.stop();
+    this.skillCompanion = null;
     this.adaptiveConcurrencyController?.dispose();
     this.adaptiveConcurrencyController = undefined;
     if (this.director) {
@@ -638,6 +643,7 @@ export class MultiAgentHost {
       buildFleetSupervisor: this.buildFleetSupervisor,
       exploreCompanions: this.exploreCompanions,
       memoryCompanion: this.memoryCompanion,
+      skillCompanion: this.skillCompanion,
       exploreCompanionOff: this.exploreCompanionOff,
       directorOffHandles: this.directorOffHandles,
       sessionForSubagent: this.sessionForSubagent,

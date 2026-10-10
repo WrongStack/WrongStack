@@ -153,6 +153,7 @@
         "export { diagnoseFallbackConfig, type FallbackDiagnosticReport, type FallbackDiagnosticWarning, type FallbackSimulationResult, type FallbackSimulationStep, simulateFallbackFailover, } from './fallback-doctor.js';",
         "export { fenceIfUntrusted, isSkillHiddenFromPrompt } from './system-prompt-skill-bodies.js';",
         "export { formatModelRef, type ModelRef, normalizeModelRef, parseModelRef, } from './model-ref.js';",
+        "export { isSealedAgent, SEALED_AGENT_META_KEY, sealedSubagentRefusal } from './sealed-agent.js';",
         "export { markUserInputObserver, userInputObserverCount } from './user-input-observers.js';",
         "export { providerToolsForVariant, SCOUT_DIRECT_TOOL_NAMES } from './scout-tool-surface.js';",
         "export { readUserInstructions, type UserInstructionsDocument, userInstructionsFile, writeUserInstructions, } from './project-instructions.js';",
@@ -1308,7 +1309,9 @@
         "export { createLocalSkillSuggestionSetup, type LocalSkillRecommendation, recommendLocalSkills, } from './suggest/local.js';",
         "export { createSkillMentionMiddleware } from './mention-middleware.js';",
         "export { createSkillsShAdapter, DEFAULT_SKILLS_SH_URL } from './registry/skills-sh-adapter.js';",
+        "export { extractSkillMentions } from './mentions.js';",
         "export { githubDirectAdapter } from './registry/github-direct-adapter.js';",
+        "export { isSkillRecommendable, markRecommendedSkillLoaded, markRecommendedSkillUnavailable, readSkillCompanionState, recommendSkills, SKILL_BUMP_TOOLS, SKILL_COMPANION_META_KEY, type SkillCompanionState, type SkillRecommendation, skillDeliveredInTranscript, skillSpeedBump, skillSpeedBumpMessage, } from './skill-speed-bump.js';",
         "export { isValidSkillNameFormat, type ParsedSkillFrontmatter, parseSkillFrontmatter, serializeSkillDocument, stripFrontmatter, validateSkillDocument, validateSkillName, } from './frontmatter.js';",
         "export { skillPromptExclusionReasons } from './prompt-discovery.js';",
         "export { type DownloadResult, downloadGitHubTarball, type ParsedRef, parseSkillRef, } from './github-fetcher.js';",
@@ -1568,21 +1571,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 50,
-      "sourceLines": 12626
+      "sourceLines": 12623
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 237,
-      "sourceLines": 61318
+      "sourceLines": 61353
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 74,
-      "sourceLines": 15953
+      "sourceFiles": 75,
+      "sourceLines": 15997
     },
     {
       "directory": "design",
@@ -1596,7 +1599,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 93,
-      "sourceLines": 22718
+      "sourceLines": 22729
     },
     {
       "directory": "extension",
@@ -1638,7 +1641,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 23,
-      "sourceLines": 4506
+      "sourceLines": 4505
     },
     {
       "directory": "models",
@@ -1659,7 +1662,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 14,
-      "sourceLines": 2192
+      "sourceLines": 2202
     },
     {
       "directory": "performance",
@@ -1735,8 +1738,8 @@
       "directory": "skills",
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
-      "sourceFiles": 23,
-      "sourceLines": 4854
+      "sourceFiles": 24,
+      "sourceLines": 5281
     },
     {
       "directory": "statusline",
@@ -1771,7 +1774,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 85,
-      "sourceLines": 16426
+      "sourceLines": 16465
     },
     {
       "directory": "typesafe",
@@ -1785,7 +1788,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 84,
-      "sourceLines": 14209
+      "sourceLines": 14231
     },
     {
       "directory": "vcs",

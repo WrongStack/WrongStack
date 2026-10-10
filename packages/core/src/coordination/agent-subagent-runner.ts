@@ -1,5 +1,6 @@
 import type { Agent, AgentInput, RunResult } from '../core/agent.js';
 import { setBtwNote } from '../core/btw.js';
+import { isSealedAgent } from '../core/sealed-agent.js';
 import type { EventBus } from '../kernel/events.js';
 import { AgentError, ERROR_CODES } from '../types/errors.js';
 import type {
@@ -195,7 +196,11 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
     // FleetBus listener (director.ts) auto-grants +50% up to a per-kind
     // ceiling and per-subagent extension count — wiring this is the
     // missing link that activates that flow.
-    ctx.budget.onThreshold = ({ requestDecision }) => requestDecision();
+    // A sealed companion's caps are its contract: no handler, so a soft limit
+    // is a hard stop and no extension is ever negotiated.
+    if (!isSealedAgent(agentContext)) {
+      ctx.budget.onThreshold = ({ requestDecision }) => requestDecision();
+    }
     let budgetError: Error | null = null;
 
     /**

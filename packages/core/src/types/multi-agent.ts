@@ -91,6 +91,14 @@ export interface SubagentConfig {
   spawnBudgetExempt?: boolean | undefined;
 
   /**
+   * Host-owned single-purpose companion. The coordinator runs only host-internal
+   * tasks pinned to it (never unpinned work, retargets or delegated messages),
+   * its agent loop folds in no notes/mailbox/deliveries, and its budget is never
+   * extended. Only narrows reach; see core/sealed-agent.ts.
+   */
+  sealed?: boolean | undefined;
+
+  /**
    * Director-authored recursion/budget inheritance. Director.spawn overwrites
    * caller input so a model cannot forge a shallower depth or larger budget.
    */
@@ -541,7 +549,11 @@ export interface MultiAgentCoordinator {
   readonly config: MultiAgentConfig;
 
   spawn(subagent: SubagentConfig): Promise<SpawnResult>;
-  assign(task: TaskSpec): Promise<void>;
+  /**
+   * Queue a task. `hostOwned` marks host-internal work (Director.assignInternal);
+   * only such a task may be pinned to a `sealed` subagent.
+   */
+  assign(task: TaskSpec, opts?: { hostOwned?: boolean | undefined }): Promise<void>;
   delegate(to: string, msg: BridgeMessage): Promise<void>;
   stop(subagentId: string): Promise<void>;
   stopAll(): Promise<void>;

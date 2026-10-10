@@ -191,7 +191,8 @@ export class DirectorTaskRegistry {
     const taskWithId: TaskSpec = task.id ? task : { ...task, id: randomUUID() };
     this.internalTaskIds.add(taskWithId.id);
     try {
-      await this.deps.coordinator.assign(taskWithId);
+      // Host-internal work is the only kind a sealed companion accepts.
+      await this.deps.coordinator.assign(taskWithId, { hostOwned: true });
     } catch (error) {
       this.internalTaskIds.delete(taskWithId.id);
       throw error;

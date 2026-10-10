@@ -101,6 +101,7 @@ export {
 export { runProviderWithRetry } from './provider-runner.js';
 export { setQueuedMessagesSnapshot } from './queued-messages.js';
 export { providerToolsForVariant, SCOUT_DIRECT_TOOL_NAMES } from './scout-tool-surface.js';
+export { isSealedAgent, SEALED_AGENT_META_KEY, sealedSubagentRefusal } from './sealed-agent.js';
 export {
   buildSessionNoteBlock,
   consumeSessionNotes,

@@ -374,6 +374,11 @@
     {
       "file": "packages/plugins/tests/process-guard.test.ts",
       "kind": "runIf",
+      "fingerprint": "13553b25590667dc"
+    },
+    {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
       "fingerprint": "6372fdcdd20e4a1b"
     },
     {
@@ -385,11 +390,6 @@
       "file": "packages/plugins/tests/process-guard.test.ts",
       "kind": "runIf",
       "fingerprint": "6f414424311cc3a8"
-    },
-    {
-      "file": "packages/plugins/tests/process-guard.test.ts",
-      "kind": "runIf",
-      "fingerprint": "d7463963b9764391"
     },
     {
       "file": "packages/plugins/tests/runtime-local-bin.test.ts",

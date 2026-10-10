@@ -35,6 +35,7 @@ import { injectPendingMailboxMessages, removeInjectedMailboxBlocks } from './mai
 import { clearPendingNextSteps } from './next-steps-slot.js';
 import { runProviderWithRetry } from './provider-runner.js';
 import { providerBoundToRequest } from './request-provider-binding.js';
+import { isSealedAgent } from './sealed-agent.js';
 import { createToolCoach, isToolCoachEnabled } from './tool-coach.js';
 import { createTurnToolGuidance } from './turn-tool-guidance.js';
 
@@ -58,8 +59,10 @@ export function createAgentLoopHandler(
   a: AgentInternals,
   handlers: LoopHandlers,
 ): AgentLoopHandler {
-  const checkMailbox = attachMailboxChecker(a);
-  attachSessionNotes(a);
+  // A sealed companion takes input only from its host's task (sealed-agent.ts).
+  const sealed = isSealedAgent(a.ctx);
+  const checkMailbox = sealed ? async () => [] : attachMailboxChecker(a);
+  if (!sealed) attachSessionNotes(a);
 
   const fleetPulseCfg = (() => {
     try {
@@ -280,10 +283,12 @@ export function createAgentLoopHandler(
           index: i,
         });
 
-        injectPendingBtwNotes((block) => pendingMailboxBlocks.push(block));
-        injectPendingSessionNotes();
-        await injectPendingDeliveries();
-        injectQueueAwareness();
+        if (!sealed) {
+          injectPendingBtwNotes((block) => pendingMailboxBlocks.push(block));
+          injectPendingSessionNotes();
+          await injectPendingDeliveries();
+          injectQueueAwareness();
+        }
         if (i === 0 && initialToolAdvice) {
           foldBlockIntoConversation({ type: 'text', text: initialToolAdvice });
         }
@@ -296,7 +301,7 @@ export function createAgentLoopHandler(
           pendingLoopSteer = null;
         }
 
-        if (!backgroundCoordination() && (i % pulseEveryN === 1 || pulseEveryN === 1)) {
+        if (!sealed && !backgroundCoordination() && (i % pulseEveryN === 1 || pulseEveryN === 1)) {
           try {
             const pulse = await getFleetPulse();
             if (pulse) foldBlockIntoConversation(pulse);

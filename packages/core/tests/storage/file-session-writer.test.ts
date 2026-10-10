@@ -2,7 +2,12 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SecretScrubber, SessionEvent, SessionMetadata } from '../../src/index.js';
+import type {
+  SecretScrubber,
+  SessionEvent,
+  SessionMetadata,
+  SessionSummary,
+} from '../../src/index.js';
 import type { EventBus } from '../../src/kernel/events.js';
 import { FileSessionWriter } from '../../src/storage/file-session-writer.js';
 
@@ -30,6 +35,17 @@ function makeMeta(): Omit<SessionMetadata, 'startedAt'> {
 
 const TEST_ID = '2026-01-01/sess_test';
 const STARTED_AT = '2026-01-01T00:00:00.000Z';
+
+function nextMetadataCheckpoint(
+  callback: ReturnType<typeof vi.fn>,
+  accepts: (summary: SessionSummary) => boolean = () => true,
+): Promise<void> {
+  return new Promise((resolve) => {
+    callback.mockImplementation((summary: SessionSummary) => {
+      if (accepts(summary)) resolve();
+    });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -292,17 +308,19 @@ describe('FileSessionWriter', () => {
       },
     );
     try {
+      const firstCheckpoint = nextMetadataCheckpoint(onCheckpoint);
       await w.append({ type: 'user_input', ts: now(), content: 'checkpoint me' } as SessionEvent);
-      await vi.waitFor(() => expect(onCheckpoint).toHaveBeenCalled(), {
-        timeout: 2000,
-        interval: 20,
-      });
+      await firstCheckpoint;
       const first = onCheckpoint.mock.calls[0]?.[0];
       expect(first.title).toContain('checkpoint me');
       // Sidecar materialized under the manifest lock BEFORE close().
       const raw = JSON.parse(await fsp.readFile(manifestFile, 'utf8')) as Record<string, unknown>;
       expect(String(raw['title'])).toContain('checkpoint me');
 
+      const tokenCheckpoint = nextMetadataCheckpoint(
+        onCheckpoint,
+        (summary) => summary.tokenTotal === 10 && summary.messageCount === 2,
+      );
       await w.append({
         type: 'llm_response',
         ts: now(),
@@ -310,14 +328,7 @@ describe('FileSessionWriter', () => {
         stopReason: 'end_turn',
         usage: { input: 7, output: 3 },
       } as SessionEvent);
-      await vi.waitFor(
-        () => {
-          const latest = onCheckpoint.mock.calls.at(-1)?.[0];
-          expect(latest?.tokenTotal).toBe(10);
-          expect(latest?.messageCount).toBe(2);
-        },
-        { timeout: 2000, interval: 20 },
-      );
+      await tokenCheckpoint;
       // Mid-session snapshots must not pretend the session ended.
       expect(onCheckpoint.mock.calls.at(-1)?.[0].endedAt).toBeUndefined();
     } finally {
@@ -352,8 +363,9 @@ describe('FileSessionWriter', () => {
       },
     );
     try {
+      const firstCheckpoint = nextMetadataCheckpoint(onCheckpoint);
       await w.append({ type: 'user_input', ts: now(), content: 'first' } as SessionEvent);
-      await vi.waitFor(() => expect(onCheckpoint).toHaveBeenCalled(), { timeout: 2000 });
+      await firstCheckpoint;
       // A rename writes straight into the manifest, never through the writer.
       await fsp.writeFile(
         manifestFile,
@@ -361,10 +373,10 @@ describe('FileSessionWriter', () => {
       );
       const before = onCheckpoint.mock.calls.length;
 
+      const renamedCheckpoint = nextMetadataCheckpoint(onCheckpoint);
       await w.append({ type: 'user_input', ts: now(), content: 'second' } as SessionEvent);
-      await vi.waitFor(() => expect(onCheckpoint.mock.calls.length).toBeGreaterThan(before), {
-        timeout: 2000,
-      });
+      await renamedCheckpoint;
+      expect(onCheckpoint.mock.calls.length).toBeGreaterThan(before);
       expect(onCheckpoint.mock.calls.at(-1)?.[0].name).toBe('Named');
       expect((await readManifest())['name']).toBe('Named');
 

@@ -4,10 +4,7 @@
     {
       "id": "ARCH-CYCLE-TYPE-05",
       "kind": "type-module-cycle",
-      "members": [
-        "packages/cli/src/fleet/host.ts",
-        "packages/cli/src/fleet/routing.ts"
-      ],
+      "members": ["packages/cli/src/fleet/host.ts", "packages/cli/src/fleet/routing.ts"],
       "owner": "architecture-refactor",
       "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01. Reviewed 2026-10-03 against the current computed graph: exact membership unchanged, zero runtime cycles, no expansion accepted. Retained as existing contract/implementation type debt; next review 2026-11-01. Three independent barrel/helper cycles were removed in this review instead of renewed.",
       "introduced": "2026-07-21",

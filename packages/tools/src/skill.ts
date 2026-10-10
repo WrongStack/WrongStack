@@ -7,6 +7,8 @@ import {
   runtimeToolReferencesFromText,
 } from '@wrongstack/core/agent-catalog';
 import {
+  markRecommendedSkillLoaded,
+  markRecommendedSkillUnavailable,
   markRequiredSkillLoaded,
   markRequiredSkillUnavailable,
   SKILL_LIMITS,
@@ -143,6 +145,7 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
         // A required skill that cannot be provided must not hold the run's
         // edits hostage; the failed load releases it and the run reports it.
         markRequiredSkillUnavailable(ctx, name);
+        markRecommendedSkillUnavailable(ctx, name);
         throw new ToolValidationError({
           message: `skill "${name}" not found — use /skill to list available skills`,
           field: 'name',
@@ -156,6 +159,7 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
       const missingTools = missingRequiredRuntimeTools(manifest.requiredTools, availableToolNames);
       if (missingCapabilities.length > 0 || missingTools.length > 0) {
         markRequiredSkillUnavailable(ctx, manifest.name);
+        markRecommendedSkillUnavailable(ctx, manifest.name);
         throw new ToolValidationError({
           message:
             `skill "${name}" is unavailable in this runtime; ` +
@@ -199,6 +203,7 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
       // Only the page that finishes the body counts toward a required-skill gate.
       if (!loadedResource && nextOffset === undefined) {
         markRequiredSkillLoaded(ctx, manifest.name, opts?.toolUseId);
+        markRecommendedSkillLoaded(ctx, manifest.name);
         try {
           await ctx?.session?.append({
             type: 'skill_activated',

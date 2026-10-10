@@ -7,6 +7,7 @@ import {
   createDefaultPipelines,
   createFallbackModelExtension,
   renderInstructionLayer,
+  SEALED_AGENT_META_KEY,
 } from '@wrongstack/core/agent';
 import {
   applyProjectAgentConfig,
@@ -66,6 +67,11 @@ import {
   isMemoryCompanion,
   memoryCompanionTools,
 } from './memory-companion-policy.js';
+import {
+  constrainSkillCompanion,
+  isSkillCompanion,
+  skillCompanionTools,
+} from './skill-companion-policy.js';
 
 interface HostSubagentFactoryContext {
   deps: MultiAgentDeps;
@@ -89,13 +95,19 @@ export function createHostSubagentFactory(
     const projectRoot = host.deps.projectRoot;
     const projectCfg = subCfg.role ? loadProjectAgentConfig(subCfg.role, projectRoot) : undefined;
     const isSystemRole = Boolean(subCfg.role && Object.hasOwn(FLEET_ROSTER, subCfg.role));
-    const companion = isMemoryCompanion(subCfg);
+    const memoryCompanion = isMemoryCompanion(subCfg);
+    const skillCompanion = !memoryCompanion && isSkillCompanion(subCfg);
+    const companion = memoryCompanion || skillCompanion;
     const mergedCfg: SubagentConfig = projectCfg
       ? applyProjectAgentConfig(subCfg, projectCfg, {
           protectSystemRole: isSystemRole,
         })
       : subCfg;
-    const effectiveCfg = companion ? constrainMemoryCompanion(mergedCfg) : mergedCfg;
+    const effectiveCfg = memoryCompanion
+      ? constrainMemoryCompanion(mergedCfg)
+      : skillCompanion
+        ? constrainSkillCompanion(mergedCfg)
+        : mergedCfg;
 
     // Fixed for this worker's lifetime. `originSessionId` is the spawning
     // tool's stamp — the run-pinned session of the agent that asked — and the
@@ -195,9 +207,11 @@ export function createHostSubagentFactory(
       // Non-fatal: mailbox errors should not block subagent creation.
     }
 
-    const subagentTools = companion
+    const subagentTools = memoryCompanion
       ? memoryCompanionTools(host.deps.toolRegistry.list())
-      : host.filterTools(effectiveCfg.tools);
+      : skillCompanion
+        ? skillCompanionTools()
+        : host.filterTools(effectiveCfg.tools);
     const providerTools = provider.selectToolsForRequest?.(subagentTools) ?? subagentTools;
     const baseSystem: TextBlock[] = await host.deps.systemPromptBuilder.build({
       cwd: subCwd,
@@ -364,6 +378,9 @@ export function createHostSubagentFactory(
     ctx.meta['sessionId'] = owningSessionId;
     if (task?.context?.['kanban']) ctx.meta['kanban'] = task.context['kanban'];
     if (effectiveCfg.role) ctx.meta['agentRole'] = effectiveCfg.role;
+    // Before `new Agent`: the loop reads it at construction to skip every
+    // note/mailbox inbox (core/sealed-agent.ts).
+    if (effectiveCfg.sealed) ctx.meta[SEALED_AGENT_META_KEY] = true;
     const normalizedAgentName = (effectiveCfg.name ?? subagentName).trim().toLowerCase();
     if (normalizedAgentName === 'chimera' || normalizedAgentName.startsWith('chimera-')) {
       ctx.meta['mailboxSendPolicy'] = 'leaders-only';

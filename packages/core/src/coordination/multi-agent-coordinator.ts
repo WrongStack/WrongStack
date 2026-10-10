@@ -28,6 +28,8 @@ import {
   notifyRunningSubagentsToFinish,
 } from './multi-agent-lifecycle-helpers.js';
 import {
+  assertSealedAdmission,
+  canRetargetAroundSealed,
   createPendingAbortedResult,
   hasLiveSubagentInMap,
   type SubagentEntry,
@@ -293,7 +295,8 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     return { subagentId: id, agentId: id };
   }
 
-  async assign(task: TaskSpec): Promise<void> {
+  async assign(task: TaskSpec, opts?: { hostOwned?: boolean | undefined }): Promise<void> {
+    assertSealedAdmission(this.subagents, task.subagentId, opts?.hostOwned);
     this.pendingTasks.push(task);
     this.tryDispatchNext();
   }
@@ -301,6 +304,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
   async delegate(to: string, msg: BridgeMessage): Promise<void> {
     const subagent = this.subagents.get(to);
     if (!subagent) throw new Error(`Subagent "${to}" not found`);
+    assertSealedAdmission(this.subagents, to, false);
     if (!subagent.context.parentBridge) {
       throw new Error(`Subagent "${to}" has no parentBridge — call setSubagentBridge() first`);
     }
@@ -402,6 +406,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     const task = this.pendingTasks.find((t) => t.id === taskId);
     if (!task) return false;
     if (subagentId !== undefined && !this.subagents.has(subagentId)) return false;
+    if (!canRetargetAroundSealed(this.subagents, task.subagentId, subagentId)) return false;
     task.subagentId = subagentId;
     this.tryDispatchNext();
     return true;

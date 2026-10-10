@@ -16,6 +16,7 @@ import {
   REQUIRED_SKILLS_LOADER_TOOL,
   requiredSkillsDeniedMessage,
 } from '../skills/required-skill-gate.js';
+import { skillSpeedBump } from '../skills/skill-speed-bump.js';
 import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
 import { isWrongStackError } from '../types/errors.js';
 import type { Tool } from '../types/tool.js';
@@ -145,6 +146,14 @@ export class ToolExecutor extends ToolExecutorCore {
         const pendingSkills = pendingRequiredSkills(ctx);
         if (pendingSkills.length > 0) {
           const result = deniedResult(use, requiredSkillsDeniedMessage(pendingSkills));
+          budget = this.budgetForString(result.content, budget);
+          return { result, tool, durationMs: Date.now() - start, settlement: 'denied_by_policy' };
+        }
+        // A Skill Companion recommendation holds the first file change once;
+        // a deliberate retry passes and drops it (see skill-speed-bump.ts).
+        const bump = skillSpeedBump(ctx, use);
+        if (bump) {
+          const result = deniedResult(use, bump);
           budget = this.budgetForString(result.content, budget);
           return { result, tool, durationMs: Date.now() - start, settlement: 'denied_by_policy' };
         }

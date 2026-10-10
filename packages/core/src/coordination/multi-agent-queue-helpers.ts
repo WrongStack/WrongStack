@@ -1,3 +1,4 @@
+import { sealedSubagentRefusal } from '../core/sealed-agent.js';
 import type {
   SubagentConfig,
   SubagentContext,
@@ -23,9 +24,30 @@ export function findIdleSubagentInMap(
   terminating: Set<string>,
 ): string | null {
   for (const [id, s] of subagents) {
-    if (s.status === 'idle' && !terminating.has(id)) return id;
+    // A sealed companion is idle between its host's probes; it is never
+    // a free worker for someone else's unpinned task.
+    if (s.status === 'idle' && !terminating.has(id) && !s.config.sealed) return id;
   }
   return null;
+}
+
+/** Throws when a task would reach a sealed subagent without its host's admission. */
+export function assertSealedAdmission(
+  subagents: Map<string, SubagentEntry>,
+  subagentId: string | undefined,
+  hostOwned: boolean | undefined,
+): void {
+  if (!subagentId || hostOwned) return;
+  if (subagents.get(subagentId)?.config.sealed) throw new Error(sealedSubagentRefusal(subagentId));
+}
+
+/** A pending task may be moved only when neither its current nor its new pin is sealed. */
+export function canRetargetAroundSealed(
+  subagents: Map<string, SubagentEntry>,
+  from: string | undefined,
+  to: string | undefined,
+): boolean {
+  return !(from && subagents.get(from)?.config.sealed) && !(to && subagents.get(to)?.config.sealed);
 }
 
 export function isIdleSubagentInMap(

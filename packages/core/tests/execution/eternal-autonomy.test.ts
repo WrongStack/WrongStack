@@ -760,6 +760,7 @@ describe('EternalAutonomyEngine', () => {
   });
 
   it('does NOT back off on permanent (non-recoverable) failures', async () => {
+    const onStage = vi.fn();
     const agent = makeMockAgent({
       todos: [{ id: 't1', content: 'work', status: 'pending' }],
       runImpl: async () =>
@@ -780,14 +781,12 @@ describe('EternalAutonomyEngine', () => {
       gitStatusReader: async () => '',
       transientBackoffBaseMs: 5_000, // huge — would dominate if applied
       failureBudget: 99,
+      onStage,
     });
 
-    const t0 = Date.now();
-    await engine.runOneIteration();
-    const elapsed = Date.now() - t0;
-    // No backoff for permanent → must stay clearly under the 5s
-    // transientBackoffBaseMs; slack for event-loop stalls under suite load.
-    expect(elapsed).toBeLessThan(4_000);
+    expect(await engine.runOneIteration()).toBe(false);
+    expect(agent.run).toHaveBeenCalledOnce();
+    expect(onStage).not.toHaveBeenCalledWith(expect.objectContaining({ phase: 'sleep' }));
   });
 
   it('resets the transient backoff streak on a successful iteration', async () => {

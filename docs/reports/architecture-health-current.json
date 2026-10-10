@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-10T12:55:47.189Z",
+  "generatedAt": "2026-10-10T17:42:24.012Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 37,
-    "sourceFiles": 4916,
-    "testFiles": 4269,
-    "sourceLines": 1090721,
+    "sourceFiles": 4921,
+    "testFiles": 4278,
+    "sourceLines": 1092007,
     "workspaceEdges": 133,
-    "moduleEdges": 16187,
+    "moduleEdges": 16204,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 5,
@@ -151,8 +151,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 617,
-      "testFiles": 613,
+      "sourceFiles": 619,
+      "testFiles": 614,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -192,7 +192,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 613
+          "testFiles": 614
         }
       ]
     },
@@ -243,8 +243,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 1111,
-      "testFiles": 948,
+      "sourceFiles": 1113,
+      "testFiles": 955,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -259,14 +259,14 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 948
+          "testFiles": 955
         }
       ]
     },
     {
       "name": "@wrongstack/desktop",
       "dir": "apps/desktop",
-      "sourceFiles": 45,
+      "sourceFiles": 46,
       "testFiles": 30,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -844,7 +844,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 718,
-      "testFiles": 478,
+      "testFiles": 479,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -867,7 +867,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 478
+          "testFiles": 479
         }
       ]
     },
@@ -2851,6 +2851,12 @@
       },
       {
         "file": "packages/cli/tests/fleet/shadow-per-session.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/fleet/skill-companion.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5748,6 +5754,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/architecture/bun-ws-bundle-boundaries.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/architecture/cache-semantics-patch.test.ts",
         "projects": [
           "root-node"
@@ -5940,6 +5952,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/architecture/test-package-command.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/architecture/test-skip-budget-script.test.ts",
         "projects": [
           "root-node"
@@ -6091,6 +6109,12 @@
       },
       {
         "file": "packages/core/tests/chronicle/metrics-token-attribution.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/chronicle/network-telemetry-stop-inflight.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7116,6 +7140,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/coordination/sealed-subagent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/coordination/session-note-hub.test.ts",
         "projects": [
           "root-node"
@@ -7339,6 +7369,18 @@
       },
       {
         "file": "packages/core/tests/core/agent-response-nextsteps-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/agent-sealed-inbox.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/agent-skill-speed-bump.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9883,6 +9925,12 @@
       },
       {
         "file": "packages/core/tests/skills/skill-mentions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/skills/skill-speed-bump.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25752,6 +25800,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/lib/clear-chat-context.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/lib/color-edge.test.ts",
         "projects": [
           "webui-jsdom"
@@ -26918,12 +26972,12 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/plugin-sdk/src/runtime/index.ts",
-      "lines": 767,
+      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "lines": 768,
       "relativeImports": 10
     },
     {
-      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "file": "packages/plugin-sdk/src/runtime/index.ts",
       "lines": 767,
       "relativeImports": 10
     },
@@ -27088,6 +27142,11 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/core/src/types/config/skills-fleet-brain.ts",
+      "lines": 748,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/tools/src/process-registry-persistent.ts",
       "lines": 748,
       "relativeImports": 1
@@ -27151,11 +27210,6 @@
       "file": "packages/tui/src/hooks/use-picker-keys-tools-settings.ts",
       "lines": 740,
       "relativeImports": 6
-    },
-    {
-      "file": "packages/webui/src/hooks/ws-handlers/session-replay-handlers.ts",
-      "lines": 740,
-      "relativeImports": 0
     }
   ],
   "testOnlyExports": [

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 382,
-      "typeOnly": 299,
+      "files": 384,
+      "typeOnly": 301,
       "runtimeOrMixed": 103
     },
     "@wrongstack/core/agent-catalog": {
@@ -24,9 +24,9 @@
       "runtimeOrMixed": 12
     },
     "@wrongstack/core/coordination": {
-      "files": 267,
-      "typeOnly": 103,
-      "runtimeOrMixed": 229
+      "files": 270,
+      "typeOnly": 105,
+      "runtimeOrMixed": 230
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 55
     },
     "@wrongstack/core/kernel": {
-      "files": 355,
-      "typeOnly": 156,
-      "runtimeOrMixed": 220
+      "files": 357,
+      "typeOnly": 157,
+      "runtimeOrMixed": 221
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -154,9 +154,9 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/security": {
-      "files": 195,
+      "files": 196,
       "typeOnly": 29,
-      "runtimeOrMixed": 168
+      "runtimeOrMixed": 169
     },
     "@wrongstack/core/session-catalog": {
       "files": 13,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/skills": {
-      "files": 26,
+      "files": 29,
       "typeOnly": 3,
-      "runtimeOrMixed": 24
+      "runtimeOrMixed": 27
     },
     "@wrongstack/core/statusline": {
       "files": 27,
@@ -194,8 +194,8 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/types": {
-      "files": 1384,
-      "typeOnly": 1216,
+      "files": 1387,
+      "typeOnly": 1219,
       "runtimeOrMixed": 422
     },
     "@wrongstack/core/types/limits": {
@@ -457,6 +457,12 @@
       "file": "packages/cli/src/fleet/host-context.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/fleet/host-skill-companion.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -895,6 +901,12 @@
       "file": "packages/cli/tests/fleet/memory-companion.live.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/fleet/skill-companion.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3094,6 +3106,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/fleet/host-skill-companion.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/fleet/host-subagent-factory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3131,6 +3149,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/fleet/routing.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/fleet/skill-companion-policy.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -3605,6 +3629,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/fleet/memory-companion.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/fleet/skill-companion.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -7072,6 +7102,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/fleet/host-skill-companion.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/fleet/host-subagent-factory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7529,6 +7565,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/fleet/shadow-per-session.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/fleet/skill-companion.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11068,6 +11110,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/fleet/skill-companion-policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/hq-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12220,6 +12268,18 @@
     },
     {
       "specifier": "@wrongstack/core/skills",
+      "file": "packages/cli/src/fleet/host-skill-companion.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/skills",
+      "file": "packages/cli/src/fleet/skill-companion-policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/skills",
       "file": "packages/cli/src/slash-commands/clear.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12245,6 +12305,12 @@
     {
       "specifier": "@wrongstack/core/skills",
       "file": "packages/cli/src/wiring/session.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/skills",
+      "file": "packages/cli/tests/fleet/skill-companion.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14230,6 +14296,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/fleet/host-skill-companion.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/fleet/host-status.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14273,6 +14345,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/fleet/routing.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/fleet/skill-companion-policy.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15899,6 +15977,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/fleet/shadow-per-session.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/fleet/skill-companion.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

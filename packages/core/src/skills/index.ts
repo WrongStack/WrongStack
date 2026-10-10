@@ -29,6 +29,7 @@ export {
   SkillManifestStore,
 } from './manifest-store.js';
 export { createSkillMentionMiddleware } from './mention-middleware.js';
+export { extractSkillMentions } from './mentions.js';
 export { skillPromptExclusionReasons } from './prompt-discovery.js';
 export { githubDirectAdapter } from './registry/github-direct-adapter.js';
 export type {
@@ -52,6 +53,20 @@ export {
   restoreRequiredSkillsFromEvents,
 } from './required-skill-gate.js';
 export { collectSkillFiles } from './skill-files.js';
+export {
+  isSkillRecommendable,
+  markRecommendedSkillLoaded,
+  markRecommendedSkillUnavailable,
+  readSkillCompanionState,
+  recommendSkills,
+  SKILL_BUMP_TOOLS,
+  SKILL_COMPANION_META_KEY,
+  type SkillCompanionState,
+  type SkillRecommendation,
+  skillDeliveredInTranscript,
+  skillSpeedBump,
+  skillSpeedBumpMessage,
+} from './skill-speed-bump.js';
 export {
   bodyLineAdvisory,
   type ExtractedSkillDraft,
