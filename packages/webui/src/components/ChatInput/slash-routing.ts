@@ -20,6 +20,7 @@ import type {
 
 export interface RunChatSlashCommandOptions {
   raw: string;
+  sessionId?: string | null | undefined;
   addMessage: (message: ChatAssistantMessage) => void;
   clearMessages: () => void;
   /**
