@@ -241,11 +241,13 @@ export class HistoryArchive {
       // with the file until garbage collection runs.
       if (chunk.length !== want) chunk = Buffer.allocUnsafe(want);
       const { bytesRead } = await handle.read(chunk, 0, want, read);
-      if (bytesRead <= 0) break; // short read: treat as EOF, retry rebuilds
+      if (bytesRead <= 0) break; // zero bytes is EOF; a short non-zero read is not
       let cursor = 0;
       for (;;) {
         const newline = chunk.indexOf(0x0a, cursor);
-        if (newline === -1) break;
+        // allocUnsafe leaves bytes past bytesRead uninitialized, and a reused
+        // chunk keeps the previous iteration there. Never treat those as data.
+        if (newline === -1 || newline >= bytesRead) break;
         const line = pending
           ? Buffer.concat([pending, chunk.subarray(cursor, newline)])
           : chunk.subarray(cursor, newline);
@@ -261,7 +263,6 @@ export class HistoryArchive {
         pending = pending ? Buffer.concat([pending, tail]) : tail;
       }
       read += bytesRead;
-      if (bytesRead < want) break;
     }
     if (pending !== null && pending.length > 0) {
       // Unterminated trailing line (append always terminates; hand-edited
