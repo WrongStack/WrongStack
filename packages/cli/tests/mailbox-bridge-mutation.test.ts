@@ -1,3 +1,4 @@
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
 /**
  * Focused mutation matrix for the standalone mailbox HTTP bridge.
  *
@@ -20,7 +21,9 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import { fileURLToPath } from 'node:url';
 import { type MailboxMessage, resolveProjectDir } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';

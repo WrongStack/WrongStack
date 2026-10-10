@@ -1,9 +1,9 @@
 import { homedir } from 'node:os';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 
 // Mock ws module
-vi.mock('ws', () => {
+vi.mock('ws/native', () => {
   const MockWebSocket = vi.fn();
   MockWebSocket.OPEN = 1;
   MockWebSocket.CLOSING = 2;

@@ -1,6 +1,8 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
+import { initializeSqliteTextIndex } from '@wrongstack/persistence';
 import type { SessionRegistryEntry } from './session-registry-types.js';
+import { catalogTitleIndex } from './store-text-index.js';
 
 /**
  * Bumped ONLY for breaking changes — a mismatch throws and takes the catalog
@@ -255,6 +257,7 @@ export function initializeCatalogSchema(db: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS idx_maintenance_expiry ON maintenance_leases(expires_at);
   `);
   ensureCatalogStorageColumns(db);
+  initializeSqliteTextIndex(db, catalogTitleIndex);
   ensureSessionAgentIndexColumns(db);
   db.prepare('INSERT INTO catalog_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING').run(
     'schema_version',

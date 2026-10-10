@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('ws', () => {
+vi.mock('ws/native', () => {
   const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   return { WebSocket: MockWebSocket };

@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import type { Config, ModelsRegistry } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { protocolAdvertisement } from '@wrongstack/webui-protocol';
-import { type WebSocket, WebSocketServer } from 'ws';
+import { type WebSocket, WebSocketServer } from '../ws-runtime.js';
 import { resolveDistDir, warnFrontendUnavailable } from './frontend-static-serve.js';
 import { createHttpServer, resolveCreateHttpServerOptions } from './http-server.js';
 import { createProjectIntakeService } from './intake-service.js';

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 381,
-      "typeOnly": 298,
+      "files": 382,
+      "typeOnly": 299,
       "runtimeOrMixed": 103
     },
     "@wrongstack/core/agent-catalog": {
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 55
     },
     "@wrongstack/core/kernel": {
-      "files": 354,
+      "files": 355,
       "typeOnly": 156,
-      "runtimeOrMixed": 219
+      "runtimeOrMixed": 220
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -239,9 +239,9 @@
       "runtimeOrMixed": 20
     },
     "@wrongstack/core/utils": {
-      "files": 773,
+      "files": 772,
       "typeOnly": 69,
-      "runtimeOrMixed": 732
+      "runtimeOrMixed": 731
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1307,6 +1307,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/sage/tests/tool-call-memory-helpers-coverage.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/tests/tool-call-memory-store-fault-breaker.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -8285,6 +8291,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/sage/tests/sage-context-carry.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sage/tests/tool-call-memory-store-fault-breaker.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -27029,12 +27041,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "scripts/check-npm-package-install.mjs",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "scripts/package-desktop.mjs",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

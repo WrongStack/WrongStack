@@ -14,7 +14,7 @@ import { OpenAICodexProvider, parseOpenAIResponsesStream } from '../src/openai-c
 const wsConstructCalls = vi.hoisted(
   () => [] as Array<{ url: string; options: Record<string, unknown> }>,
 );
-vi.mock('ws', () => ({
+vi.mock('ws/native', () => ({
   default: class {
     readyState = 0;
     constructor(url: string, options: Record<string, unknown>) {

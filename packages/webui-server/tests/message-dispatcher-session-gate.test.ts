@@ -17,9 +17,9 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 
-vi.mock('ws', () => {
+vi.mock('ws/native', () => {
   const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   return { WebSocket: MockWebSocket };
@@ -31,6 +31,7 @@ vi.mock('../src/server/connections-health-route.js', () => ({
 vi.mock('../src/server/codebase-index-server-control.js', () => ({
   handleCodebaseIndexServerControl: vi.fn(async () => false),
 }));
+
 // NOTE: route-family-dispatcher is deliberately NOT mocked here.
 
 import { createMessageDispatcher } from '../src/server/message-dispatcher.js';

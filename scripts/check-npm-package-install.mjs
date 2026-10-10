@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Prove that the publishable providers tarball has a finite, valid npm 10
  * dependency graph. This specifically guards the 1.0.8 regression where
@@ -12,9 +12,8 @@ import { join, resolve } from 'node:path';
 import { buildWin32CmdShimInvocation } from '@wrongstack/core/utils';
 
 const repoRoot = resolve(import.meta.dirname, '..');
-const npmCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const npmArgs = ['--yes', 'npm@10.9.8'];
+const npmCommand = process.execPath;
+const npmArgs = ['x', '--bun', 'npm@10.9.8'];
 const tempRoot = mkdtempSync(join(tmpdir(), 'wrongstack-npm-install-'));
 
 try {
@@ -89,7 +88,7 @@ function createWorkspaceStub(relativeDir) {
 
 function pack(relativeDir) {
   const packageDir = join(repoRoot, relativeDir);
-  run(pnpmCommand, ['pack', '--pack-destination', tempRoot], packageDir);
+  run(process.execPath, ['pm', 'pack', '--destination', tempRoot], packageDir);
   const packageName = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')).name;
   const expectedPrefix = packageName.replace(/^@/, '').replace('/', '-').replaceAll('@', '-');
   const matches = readdirSync(tempRoot).filter(

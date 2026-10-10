@@ -11,8 +11,8 @@ import {
   type SessionAgentRegistry,
 } from '@wrongstack/webui-server';
 import { verifyClient as verifyWsClient } from '@wrongstack/webui-server/server/ws-auth';
-import { WebSocketServer } from 'ws';
 import type { CliWebUIOptions } from '../webui-server-options.js';
+import { WebSocketServer } from '../ws-runtime.js';
 import { announceWebuiReady } from './lifecycle.js';
 import { startDeferredHttpListen, startIpv6LoopbackProxy } from './listen-helpers.js';
 import { consoleLogger } from './logger-shim.js';

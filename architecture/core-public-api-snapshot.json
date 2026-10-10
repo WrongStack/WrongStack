@@ -1659,7 +1659,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 14,
-      "sourceLines": 2146
+      "sourceLines": 2192
     },
     {
       "directory": "performance",
@@ -1728,7 +1728,7 @@
       "directory": "session-catalog",
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
-      "sourceFiles": 18,
+      "sourceFiles": 19,
       "sourceLines": 5504
     },
     {

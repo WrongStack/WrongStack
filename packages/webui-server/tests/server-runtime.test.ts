@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-vi.mock('ws', () => {
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('ws/native', () => {
   const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   return { WebSocket: MockWebSocket, WebSocketServer: vi.fn() };
@@ -31,9 +32,9 @@ vi.mock('../src/server/setup-events.js', () => ({
 
 import { registerShutdownHandlers } from '../src/server/lifecycle.js';
 import {
-  resolvePorts,
   createSessionStartPayload,
   registerShutdown,
+  resolvePorts,
 } from '../src/server/server-runtime.js';
 
 describe('server-runtime', () => {

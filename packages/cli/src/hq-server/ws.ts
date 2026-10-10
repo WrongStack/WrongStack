@@ -25,7 +25,7 @@ import {
   tokenHasCapability,
 } from '@wrongstack/core/hq';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import { WebSocket } from 'ws';
+import { WebSocket } from '../ws-runtime.js';
 import { sendSageSnapshot } from './sage-sync-send.js';
 import { broadcastCommandStatus, broadcastEvent, sendGuarded } from './snapshot.js';
 import type { ConnectedClient, HqSnapshotBroadcaster, TranscriptRing } from './types.js';

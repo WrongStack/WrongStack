@@ -1,7 +1,11 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
-import { type WebSocket as ServerSocket, WebSocketServer, WebSocket as WsWebSocket } from 'ws';
+import {
+  type WebSocket as ServerSocket,
+  WebSocketServer,
+  WebSocket as WsWebSocket,
+} from 'ws/native';
 import {
   type ConnectOptions,
   createHttpClient,

@@ -99,7 +99,7 @@ describe('wstack plugin add --install', () => {
     ) as { private: boolean };
     expect(bootstrap.private).toBe(true);
     // The registered path exists on disk (the faked install target).
-    await expect(fs.access(String(plugins[0]!.path))).resolves.toBeUndefined();
+    await expect(fs.access(String(plugins[0]!.path)).then(() => true)).resolves.toBe(true);
   });
 
   it('honours --pm=pnpm and --run-scripts', async () => {

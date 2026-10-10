@@ -119,7 +119,8 @@ let undiciModule: typeof import('undici') | undefined;
 let undiciLoad: Promise<typeof import('undici')> | undefined;
 async function ensureUndici(): Promise<typeof import('undici')> {
   if (undiciModule) return undiciModule;
-  undiciLoad ??= import('undici');
+  // Use the installed package, not Bun's dispatcher-incompatible bare-name shim.
+  undiciLoad ??= import('undici/index.js');
   undiciModule = await undiciLoad;
   return undiciModule;
 }

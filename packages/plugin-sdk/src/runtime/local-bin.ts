@@ -238,7 +238,18 @@ export function resolveNodeBin(
   let resolved: ResolvedNodeBin | null = null;
   try {
     const requireFromProject = createRequire(resolve(cwd, 'package.json'));
-    const packagePath = requireFromProject.resolve(`${packageName}/package.json`);
+    let packagePath: string;
+    try {
+      packagePath = requireFromProject.resolve(`${packageName}/package.json`);
+    } catch {
+      // Bun keeps negative module-resolution results after a package is installed.
+      // Re-probe real search paths when our own bounded negative cache expires.
+      if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(packageName) || packageName === '..') throw new Error('Invalid package name');
+      const candidates = requireFromProject.resolve.paths(packageName) ?? [];
+      const found = candidates.map((directory) => join(directory, packageName, 'package.json')).find(isExistingFile);
+      if (!found) throw new Error('Package is not installed');
+      packagePath = found;
+    }
     const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
       bin?: string | Record<string, string>;
     };

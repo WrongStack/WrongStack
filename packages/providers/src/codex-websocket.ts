@@ -1,13 +1,13 @@
 import { isDeepStrictEqual } from 'node:util';
 import type { StreamEvent } from '@wrongstack/core/types';
 import { ProviderError } from '@wrongstack/core/types';
-import WebSocket from 'ws';
 import {
   CodexWebSocketFallbackError,
   CodexWebSocketRecoveryError,
   type WebSocketRecoveryCode,
   webSocketRecoveryCode,
 } from './codex-websocket-recovery.js';
+import WebSocket from './ws-runtime.js';
 
 export { CodexWebSocketFallbackError } from './codex-websocket-recovery.js';
 

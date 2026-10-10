@@ -42,6 +42,7 @@
 
 import { readFileSync, statSync } from 'node:fs';
 import type { Plugin } from '@wrongstack/core/types';
+import { parse as parseJsonSyntax, type ParseError, printParseErrorCode } from 'jsonc-parser';
 import { LineCounter, parseAllDocuments, type YAMLError } from 'yaml';
 import { withinProject } from '../runtime/index.js';
 
@@ -226,6 +227,13 @@ export function validateJson(text: string, isJsonc: boolean, fileName: string): 
     }
     return [];
   } catch (err) {
+    const syntaxErrors: ParseError[] = [];
+    parseJsonSyntax(source, syntaxErrors, { disallowComments: true, allowTrailingComma: false });
+    const firstError = syntaxErrors[0];
+    if (firstError) {
+      const { line, col } = positionToLineCol(source, firstError.offset);
+      return [`JSON parse error at line ${line}, column ${col}: ${printParseErrorCode(firstError.error)}`];
+    }
     const message = err instanceof Error ? err.message : String(err);
     // Older V8 format: "... in JSON at position 123"
     const posMatch = /position (\d+)/.exec(message);

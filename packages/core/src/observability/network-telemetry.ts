@@ -132,10 +132,56 @@ function subscribe(): () => void {
   create.subscribe(onCreate);
   headers.subscribe(onHeaders);
   error.subscribe(onError);
+  const stopBunFetch = observeBunFetch(onCreate, onHeaders, onError);
   return () => {
+    stopBunFetch();
     create.unsubscribe(onCreate);
     headers.unsubscribe(onHeaders);
     error.unsubscribe(onError);
+  };
+}
+
+/** Bun's native fetch does not publish Undici's diagnostics channels. */
+function observeBunFetch(
+  started: (message: unknown) => void,
+  completed: (message: unknown) => void,
+  failed: (message: unknown) => void,
+): () => void {
+  const original = globalThis.fetch;
+  if (!process.versions.bun || original.name !== 'fetch' || !original.toString().includes('[native code]')) {
+    return () => {};
+  }
+  let active = true;
+  const observed = (async (input, init) => {
+    if (!active || !storage.getStore()) return original(input, init);
+    let url: URL;
+    try {
+      url = new URL(input instanceof Request ? input.url : String(input));
+    } catch {
+      return original(input, init);
+    }
+    const request = {
+      origin: url.origin,
+      path: url.pathname + url.search,
+      method: init?.method ?? (input instanceof Request ? input.method : 'GET'),
+    };
+    started({ request });
+    try {
+      const response = await original(input, init);
+      const rawHeaders: string[] = [];
+      response.headers.forEach((value, name) => rawHeaders.push(name, value));
+      completed({ request, response: { statusCode: response.status, headers: rawHeaders } });
+      return response;
+    } catch (error) {
+      failed({ request, error });
+      throw error;
+    }
+  }) as typeof fetch;
+  Object.defineProperties(observed, Object.getOwnPropertyDescriptors(original));
+  globalThis.fetch = observed;
+  return () => {
+    active = false;
+    if (globalThis.fetch === observed) globalThis.fetch = original;
   };
 }
 

@@ -261,12 +261,12 @@
   ],
   "wrongstackApiVersion": "0.1.10",
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "build:prompts": "node scripts/build-prompts.mjs",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit",
-    "typecheck:tests": "node ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
-    "test": "vitest run --root ../.. packages/core/tests",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "build": "bun ../../scripts/build-package.mjs",
+    "build:prompts": "bun scripts/build-prompts.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "typecheck:tests": "bun ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
+    "test": "bun --bun run vitest run --root ../.. packages/core/tests",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/kanban": "workspace:*",

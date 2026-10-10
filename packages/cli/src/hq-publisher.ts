@@ -1,10 +1,10 @@
 import type { CreateHqPublisherOptions, HqPublisher, HqSocketLike } from '@wrongstack/core/hq';
 import { createHqPublisherFromEnv, resolveHqConfig } from '@wrongstack/core/hq';
 import type { Config } from '@wrongstack/core/types';
-import { WebSocket } from 'ws';
 import { createKanbanHqSync, type KanbanHqSyncStats } from './kanban-hq-sync.js';
 import { createSageHqSync } from './sage-hq-sync.js';
 import { CLI_VERSION } from './version.js';
+import { WebSocket } from './ws-runtime.js';
 
 type CliHqPublisherOptions = Omit<CreateHqPublisherOptions, 'socketFactory' | 'appConfig'> & {
   appConfig?: Pick<Config, 'hq' | 'Sage'> | undefined;

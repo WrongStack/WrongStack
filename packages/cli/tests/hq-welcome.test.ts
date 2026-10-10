@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 
 let handle: HqServerHandle | null = null;

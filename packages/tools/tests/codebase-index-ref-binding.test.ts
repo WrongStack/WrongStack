@@ -1,3 +1,4 @@
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
 /**
  * Import-aware binding of JS/TS refs (ref-binding-pass.ts).
  *
@@ -11,7 +12,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runIndexer } from '../src/codebase-index/indexer.js';

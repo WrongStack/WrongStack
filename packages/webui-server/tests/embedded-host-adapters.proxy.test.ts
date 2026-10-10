@@ -23,7 +23,7 @@ vi.mock('@wrongstack/core/wiring/proxy-rewrite', async (importOriginal) => {
   };
 });
 
-vi.mock('ws', () => {
+vi.mock('ws/native', () => {
   const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   return { WebSocket: MockWebSocket };

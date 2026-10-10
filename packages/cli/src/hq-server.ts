@@ -36,7 +36,6 @@ import {
 } from '@wrongstack/core/hq';
 import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
 import { isPidAlive } from '@wrongstack/core/utils';
-import { WebSocket, WebSocketServer } from 'ws';
 import { HQ_HTML } from './hq-recovery-html.js';
 import { createHqAuthState } from './hq-server/auth-state.js';
 import { createHqIpAllowlist } from './hq-server/ip-allowlist.js';
@@ -62,6 +61,7 @@ import { writeHqRuntimeMarker, writeHqStartupInfo } from './hq-server/startup.js
 import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './hq-server/types.js';
 import { handleHqConnection, handleHqUpgrade } from './hq-server/upgrade-handler.js';
 import * as HqServerWs from './hq-server/ws.js';
+import { WebSocket, WebSocketServer } from './ws-runtime.js';
 
 export { HqInsecureExposureError } from '@wrongstack/core/hq';
 export type { ConnectedClient, TranscriptRing };

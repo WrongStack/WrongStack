@@ -21,7 +21,7 @@ import {
   writeHqAuthFile,
 } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { createCliHqPublisher } from '../src/hq-publisher.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 

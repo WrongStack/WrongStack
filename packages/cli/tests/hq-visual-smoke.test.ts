@@ -15,7 +15,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_PROTOCOL_VERSION } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { resolveHqDistDir } from '../src/hq-static-serve.js';
 

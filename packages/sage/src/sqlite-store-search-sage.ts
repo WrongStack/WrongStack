@@ -9,6 +9,7 @@ import {
   ftsPrefixTerms,
   sqliteRowsToMemories,
 } from './sqlite-store-search-helpers.js';
+import { withSageTextIndex } from './sqlite-store-text-index.js';
 import type { Sage, SageSearchOptions } from './types.js';
 
 interface SqliteSearchSageContext {
@@ -159,17 +160,21 @@ export function searchSqliteSage(
   // stored `Ş` and non-English memories were unsearchable on this path.
   const likePattern = `%${escapeLikePattern(query.normalize('NFKC').toLowerCase())}%`;
   const placeholders = statusFilter.map(() => '?').join(',');
-  const rows = ctx
-    .stmt(
-      `SELECT data FROM memories
+  const rows = withSageTextIndex(
+    ctx.stmt,
+    () =>
+      ctx
+        .stmt(
+          `SELECT data FROM memories
          WHERE status IN (${placeholders})${scopeClause}${session.clause}${audienceSqlClause}${neverInjectClause}
-         AND sage_unicode_lower(json_extract(data, '$.text')) LIKE ? ESCAPE '\\'
+         AND unicode_text LIKE ? ESCAPE '\\'
          ORDER BY importance DESC
          LIMIT ?`,
-    )
-    .all(...statusFilter, ...scopeParams, ...session.params, likePattern, limit) as Array<{
-    data: string;
-  }>;
+        )
+        .all(...statusFilter, ...scopeParams, ...session.params, likePattern, limit) as Array<{
+        data: string;
+      }>,
+  );
   return maybeRerank(query, sqliteRowsToMemories(rows).filter(audienceFilter), opts);
 }
 

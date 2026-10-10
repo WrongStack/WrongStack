@@ -124,7 +124,7 @@ describe('computeConfigPrefUpdates', () => {
     expect(() => {
       // Verbatim shape of the old code, against the same frozen object.
       (config as unknown as Record<string, unknown>)['features'] = { mcp: true };
-    }).toThrow(/read only property 'features'/);
+    }).toThrow(TypeError);
   });
 
   it('injection: the shallow freeze means a nested write would NOT have thrown', () => {

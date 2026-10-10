@@ -13,7 +13,7 @@
 import { ObservableBrainArbiter } from '@wrongstack/core/coordination';
 import { EventBus } from '@wrongstack/core/kernel';
 import { describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { registerSetupEventsPatternHandlers } from '../src/server/setup-events-pattern-handlers.js';
 import { createSetupEventSessionHelpers } from '../src/server/setup-events-session-helpers.js';
 import { broadcast } from '../src/server/ws-utils.js';

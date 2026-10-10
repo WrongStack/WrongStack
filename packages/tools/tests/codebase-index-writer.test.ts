@@ -1,7 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type {
   Symbol as IndexSymbol,
@@ -626,9 +629,7 @@ describe('FTS backfill drift detection', () => {
     a.close();
 
     // Phase 2: simulate drift by deleting FTS rows directly
-    const { DatabaseSync } = require('node:sqlite') as {
-      DatabaseSync: new (path: string) => { exec(sql: string): void; close(): void };
-    };
+    const DatabaseSync = loadTestDatabaseSync();
     const raw = new DatabaseSync(storePath);
     try {
       raw.exec('DELETE FROM symbols_fts');

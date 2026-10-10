@@ -14,7 +14,6 @@ import {
   WsBridgeTransport,
 } from '@wrongstack/acp/agent';
 import { leaderDeliveryHub } from '@wrongstack/core/coordination';
-import { WebSocketServer } from 'ws';
 import { type AcpHqTelemetry, startAcpHqTelemetry } from '../../acp-hq-telemetry.js';
 import {
   type AcpServerAgentFactory,
@@ -22,6 +21,7 @@ import {
   buildAcpServerAgentFactory,
 } from '../../acp-server-agent.js';
 import { createGracefulShutdown } from '../../shutdown-cleanup.js';
+import { WebSocketServer } from '../../ws-runtime.js';
 import type { SubcommandDeps } from '../contracts.js';
 import { createAcpConnectionGate } from './acp-connection-gate.js';
 

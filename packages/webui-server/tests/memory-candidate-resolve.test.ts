@@ -5,7 +5,7 @@
  * every deletion/archive proposal impossible to apply from the WebUI.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { handleSageCandidateResolve } from '../src/server/memory-handlers.js';
 
 function fakeWs() {

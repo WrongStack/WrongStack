@@ -17,7 +17,7 @@ import * as path from 'node:path';
 import type { HqAuthFile } from '@wrongstack/core/hq';
 import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { hqAuthRequired, hqClientAuthRequired } from '../src/hq-server/auth.js';
 import type { HqRouterMutableAuth } from '../src/hq-server/types.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';

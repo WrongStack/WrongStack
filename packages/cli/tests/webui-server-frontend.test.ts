@@ -2,7 +2,7 @@ import * as http from 'node:http';
 import * as net from 'node:net';
 import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { runWebUI } from '../src/webui-server.js';
 
 function waitForOpen(socket: WebSocket): Promise<void> {

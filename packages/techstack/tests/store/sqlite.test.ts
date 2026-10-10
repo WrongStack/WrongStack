@@ -69,20 +69,14 @@ function createMockDb(): MockDb {
   };
 }
 
-vi.mock('node:module', () => ({
-  createRequire: () => (id: string) => {
-    if (id === 'node:sqlite') {
-      return {
-        DatabaseSync: class FakeDatabaseSync {
-          constructor(_path: string) {
-            const db = createMockDb();
-            Object.assign(this, db);
-          }
-        },
-      };
-    }
-    throw new Error(`Mock require not implemented: ${id}`);
-  },
+vi.mock('@wrongstack/persistence', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/persistence')>()),
+  loadRuntimeDatabaseSync: () =>
+    class FakeDatabaseSync {
+      constructor(_path: string) {
+        Object.assign(this, createMockDb());
+      }
+    },
 }));
 
 vi.mock('../../src/store/schema.js', () => ({

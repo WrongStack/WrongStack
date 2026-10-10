@@ -3,7 +3,7 @@ import { AgentStatusTracker, FleetNotifier } from '@wrongstack/core/coordination
 import type { EventBus } from '@wrongstack/core/kernel';
 import { getSessionRegistry, type SessionResumeClaim } from '@wrongstack/core/storage';
 import type { Config, Logger } from '@wrongstack/core/types';
-import { WebSocket } from 'ws';
+import { WebSocket } from '../ws-runtime.js';
 import { errMessage } from './ws-utils.js';
 
 interface StandaloneSessionIdentityPaths {

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Exercise the packaged dependency closure using Electron's own Node runtime.
 // --window additionally checks application startup. All checks use a scratch
 // profile, so they do not access the user's WrongStack settings or sessions.

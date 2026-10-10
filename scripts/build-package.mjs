@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * WrongStack package builder.
  *
@@ -229,7 +229,7 @@ const profiles = {
   '@wrongstack/cli': {
     ...standard(['ws']),
     workspaceExternal: true,
-    banner: '#!/usr/bin/env node',
+    banner: '#!/usr/bin/env bun',
     // The CLI is the one bundle where deferring a workspace package actually
     // pays: it is loaded by every `wstack` invocation, including ones that only
     // print a version string. Single entry point, so chunking stays simple.
@@ -604,13 +604,13 @@ function assertTuiBundlesReactRuntime() {
 function prependServerShebang() {
   const path = join(packageRoot, 'dist/server/entry.js');
   const source = readFileSync(path, 'utf8');
-  if (!source.startsWith('#!')) writeFileSync(path, `#!/usr/bin/env node\n${source}`);
+  if (!source.startsWith('#!')) writeFileSync(path, `#!/usr/bin/env bun\n${source}`);
 }
 
 function prependMcpCliShebang() {
   const path = join(packageRoot, 'dist/cli.js');
   const source = readFileSync(path, 'utf8');
-  if (!source.startsWith('#!')) writeFileSync(path, `#!/usr/bin/env node\n${source}`);
+  if (!source.startsWith('#!')) writeFileSync(path, `#!/usr/bin/env bun\n${source}`);
 }
 
 function writeWebUiServerShim() {
@@ -683,6 +683,13 @@ async function bundle(config, defaults) {
   const entries = typeof config.entries === 'function' ? config.entries() : config.entries;
   const outdir = config.outdir ?? defaults.outdir ?? 'dist';
   const format = config.format ?? defaults.format ?? 'esm';
+  // The patched ws/native entry must ship inside the bundle: registry consumers
+  // install ordinary ws, whose public exports do not include that private entry.
+  const bundledDependencies = new Set(
+    ['@wrongstack/cli', '@wrongstack/providers', '@wrongstack/webui-server'].includes(packageJson.name)
+      ? ['ws']
+      : [],
+  );
   await build({
     absWorkingDir: packageRoot,
     entryPoints: entries,
@@ -703,7 +710,11 @@ async function bundle(config, defaults) {
     // Match package-builder semantics: published runtime dependencies stay
     // external and are resolved through the package manager. This also avoids
     // duplicating workspace singletons and embedding native/CJS dependencies.
-    external: [...packageExternals, ...(defaults.external ?? []), ...(config.external ?? [])],
+    external: [
+      ...packageExternals.filter((name) => !bundledDependencies.has(name)),
+      ...(defaults.external ?? []),
+      ...(config.external ?? []),
+    ],
     plugins: [
       ...(config.workspaceExternal || defaults.workspaceExternal ? [workspaceExternalPlugin] : []),
       ...(config.plugins ?? defaults.plugins ?? []),
@@ -747,7 +758,7 @@ function assertEsmNodeBuiltinsStayImportable({ format, outdir }) {
 
 /**
  * esbuild applies `banner` to EVERY output file, so with code splitting the
- * `#!/usr/bin/env node` shebang lands on each shared chunk too. Node tolerates
+ * `#!/usr/bin/env bun` shebang lands on each shared chunk too. Node tolerates
  * it, but a shebang is only meaningful on an executable entry point and it
  * confuses tools that re-read the chunks. Strip it from everything that is not
  * one of the declared entry outputs.

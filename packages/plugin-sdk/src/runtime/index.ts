@@ -390,6 +390,17 @@ export function runRunnerCommand(argv: readonly string[], options: RunOptions): 
     // shims on Windows — fail ENOENT, and callers misread that as "the tool
     // is not installed". Every runtime-helper consumer was silently
     // no-opping on Windows.
+    // Cancellation must prevent launch, not just kill a child after it starts.
+    if (options.signal?.aborted) {
+      resolvePromise({
+        code: null,
+        stdout: '',
+        stderr: '',
+        timedOut: true,
+        spawnError: false,
+      });
+      return;
+    }
     let invocation: ExecInvocation;
     try {
       invocation = resolveExecInvocation(argv[0]!, argv.slice(1) as string[]);
@@ -662,7 +673,7 @@ export function collectSourceFiles(root: string, opts: CollectOptions): string[]
       return;
     }
     // Sort entries for deterministic traversal order across platforms.
-    entries.sort();
+    entries.sort((a, b) => a.localeCompare(b));
     for (const entry of entries) {
       if (excludeSet.has(entry)) continue;
       const full = resolve(dir, entry);

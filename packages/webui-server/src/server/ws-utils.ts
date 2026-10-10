@@ -10,7 +10,7 @@ import { randomBytes } from 'node:crypto';
 import { scrubErrorDetail } from '@wrongstack/core/security';
 // Value import (not `import type`): we reference `WebSocket.OPEN` below, which
 // is a runtime value, not just a type.
-import { WebSocket } from 'ws';
+import { WebSocket } from '../ws-runtime.js';
 import { webuiSessionFrameLog } from './session-frame-log.js';
 import type { ConnectedClient } from './types.js';
 

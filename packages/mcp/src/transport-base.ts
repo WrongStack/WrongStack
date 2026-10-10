@@ -58,7 +58,9 @@ let undiciModule: typeof import('undici') | undefined;
 let undiciLoad: Promise<typeof import('undici')> | undefined;
 async function ensureUndici(): Promise<typeof import('undici')> {
   if (undiciModule) return undiciModule;
-  undiciLoad ??= import('undici');
+  // Bun intercepts the bare `undici` name with an incomplete built-in shim.
+  // The explicit package entry preserves Agent lifecycle and pinned DNS/TLS.
+  undiciLoad ??= import('undici/index.js');
   undiciModule = await undiciLoad;
   return undiciModule;
 }

@@ -120,6 +120,9 @@ export async function runOptionalPluginCouncil<T>(
         ...(request.profile ? { profile: request.profile } : {}),
         ...(request.councilOptions ? { options: request.councilOptions } : {}),
         ...(request.options?.signal ? { signal: request.options.signal } : {}),
+        ...(request.options?.timeoutMs !== undefined
+          ? { timeoutMs: request.options.timeoutMs }
+          : {}),
       });
       if (request.options?.signal?.aborted || result.status === 'cancelled') {
         return { used: false, value: null, fallbackReason: 'cancelled' };

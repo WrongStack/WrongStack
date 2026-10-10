@@ -96,7 +96,10 @@ export function buildClearCommand(opts: SlashCommandContext): SlashCommand {
           if (oldSession) {
             await oldSession.close().catch(() => {});
           }
-          ctx.session = nextSession;
+          // `AgentContext.session` is a read-only RunEnv view, but the concrete
+          // Context behind it owns the single live writer and is mutable (same
+          // swap `/resume` and project-switch perform). Narrow the cast to that.
+          (ctx as { session: SessionWriter }).session = nextSession;
           if (opts.sessionRef) {
             opts.sessionRef.current = nextSession;
           }

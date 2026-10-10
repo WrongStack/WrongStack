@@ -1,4 +1,4 @@
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 
 /**
  * Wraps a WebSocket with a buffered message queue. The `'message'` listener is

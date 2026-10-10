@@ -131,7 +131,10 @@ describe('required Bun typechecker', () => {
   });
 
   it('fails an unsupported explicit executable without downloading or falling back', async () => {
-    vi.stubEnv('WRONGSTACK_BUN_TYPECHECK', process.execPath);
+    const root = await fixture('const value = 1;');
+    const unsupported = path.join(root, 'unsupported.exe');
+    await writeFile(unsupported, 'not an executable');
+    vi.stubEnv('WRONGSTACK_BUN_TYPECHECK', unsupported);
     const network = vi.spyOn(globalThis, 'fetch');
     await expect(ensureBunTypechecker({ cacheRoot })).rejects.toThrow('does not provide a working');
     expect(network).not.toHaveBeenCalled();

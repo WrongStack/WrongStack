@@ -23,7 +23,7 @@ import type {
   HqSnapshot,
 } from '@wrongstack/core/hq';
 import { summarizeCommandLatency } from '@wrongstack/core/hq';
-import { WebSocket } from 'ws';
+import { WebSocket } from '../ws-runtime.js';
 import type { ConnectedClient, HqSnapshotBroadcaster, ProjectDetail } from './types.js';
 import { hqMachineKey } from './utils.js';
 

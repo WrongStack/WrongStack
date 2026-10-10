@@ -22,7 +22,7 @@ import {
   writeHqAuthFile,
 } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { credentialMayAnswer } from '../src/hq-server/routes/command-handlers.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 

@@ -1,3 +1,5 @@
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
 /**
  * Session-search locale parity — durable regression for the U+0130 divergence.
  *
@@ -26,10 +28,14 @@
  *      `İstanbul` needle masks the B-vs-C disagreement, because each side
  *      folds both of its operands.
  */
-import { DatabaseSync } from 'node:sqlite';
+const DatabaseSync = loadTestDatabaseSync();
+type DatabaseSync = InstanceType<typeof DatabaseSync>;
+
+import { initializeSqliteTextIndex } from '@wrongstack/persistence';
 import { describe, expect, it } from 'vitest';
 import type { CatalogSessionRecord } from '../src/session-catalog/protocol.js';
 import { listCatalogRecords } from '../src/session-catalog/store-maintenance.js';
+import { catalogTitleIndex } from '../src/session-catalog/store-text-index.js';
 import { DefaultSessionReader } from '../src/storage/session-reader.js';
 import { matchesSessionFilter } from '../src/storage/session-summary.js';
 import type { SessionStore, SessionSummary } from '../src/types/session.js';
@@ -55,6 +61,7 @@ function summary(title: string = TITLE): SessionSummary {
 function catalogDb(title: string = TITLE): DatabaseSync {
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE sessions(session_id TEXT, summary_json TEXT)');
+  initializeSqliteTextIndex(db, catalogTitleIndex);
   db.prepare('INSERT INTO sessions(session_id, summary_json) VALUES (?, ?)').run(
     SESSION_ID,
     JSON.stringify({ title }),
@@ -72,12 +79,16 @@ function readerStore(title: string = TITLE): SessionStore {
 
 function catalogIds(needle: string): string[] {
   const db = catalogDb();
-  const rows = listCatalogRecords(
-    db,
-    { titleContains: needle },
-    () => ({}) as CatalogSessionRecord,
-  );
-  return rows.map((row) => row.id);
+  try {
+    const rows = listCatalogRecords(
+      db,
+      { titleContains: needle },
+      () => ({}) as CatalogSessionRecord,
+    );
+    return rows.map((row) => row.id);
+  } finally {
+    db.close();
+  }
 }
 
 /** What the canonical fold answers on this host — the answer every path must give. */

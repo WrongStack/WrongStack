@@ -1,3 +1,4 @@
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
 /**
  * Cross-language dependency edges.
  *
@@ -13,7 +14,9 @@ import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import type { Context } from '@wrongstack/core/agent';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { extractImports } from '../src/codebase-index/import-extractor.js';

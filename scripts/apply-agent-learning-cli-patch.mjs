@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Idempotent re-application of the CLI-side agent-learning changes.
  *

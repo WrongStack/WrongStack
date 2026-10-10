@@ -3,10 +3,10 @@ import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { createHttpServer } from '../src/server/http-server.js';
 import { listenWithRetry } from '../src/server/port-utils.js';
-import { createWsServers, resolvePorts, type ResolvedPorts } from '../src/server/server-runtime.js';
+import { createWsServers, type ResolvedPorts, resolvePorts } from '../src/server/server-runtime.js';
 
 const HOST = '127.0.0.1';
 const TOKEN = 'shared-port-integration-token';

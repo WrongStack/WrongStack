@@ -1,3 +1,4 @@
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
 /**
  * Per-file Git trust (`files.git_blob`).
  *
@@ -12,7 +13,9 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runIndexer } from '../src/codebase-index/indexer.js';

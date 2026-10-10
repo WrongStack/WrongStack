@@ -519,6 +519,25 @@ describe('workflow plugins: live local services and subprocesses', () => {
       report: { passed: false, retained: [{ Timeout: 1 }, { Timeout: 2 }] },
     });
   });
+  it('does not report disposed, numerically cleared or unreferenced timers as active leaks', async () => {
+    await file(
+      'timer-handles.mjs',
+      `export function start(){
+        const closed=setInterval(()=>{},5000);closed.close();
+        const disposed=setInterval(()=>{},5000);disposed[Symbol.dispose]();
+        const numeric=setInterval(()=>{},5000);clearInterval(Number(numeric));
+        setInterval(()=>{},5000).unref();
+        return setTimeout(()=>{},5000);
+      }
+      export function stop(handle){clearTimeout(handle)}`,
+    );
+    expect(
+      await harness(plugins.resourceLifecycleInspectorPlugin).call('resource_lifecycle_inspect', {
+        fixture: 'timer-handles.mjs',
+        cycles: 2,
+      }),
+    ).toMatchObject({ execution: { passed: true }, report: { passed: true, retained: [{}, {}] } });
+  });
   it('executes marked documentation examples and reports failed assertions', async () => {
     await file(
       'README.md',

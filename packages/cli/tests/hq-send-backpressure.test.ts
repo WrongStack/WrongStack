@@ -9,7 +9,7 @@
  * re-reads the current snapshot.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { HQ_BROWSER_MAX_BUFFERED_BYTES, sendGuarded } from '../src/hq-server/snapshot.js';
 
 interface FakeSocket {

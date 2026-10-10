@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -134,27 +134,13 @@ function renderExports() {
 }
 
 function formatTypeScript(path, content) {
-  const packageManagerCli = process.env.npm_execpath;
-  if (!packageManagerCli) {
-    throw new Error('npm_execpath is required to format generated plugin projections');
-  }
-  const packageManagerIsExecutable = !/\.[cm]?js$/i.test(packageManagerCli);
-  const isWindowsBatch = process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(packageManagerCli);
   const result = spawnSync(
-    packageManagerIsExecutable ? packageManagerCli : process.execPath,
-    [
-      ...(packageManagerIsExecutable ? [] : [packageManagerCli]),
-      'exec',
-      'biome',
-      'format',
-      '--stdin-file-path',
-      path,
-    ],
+    process.execPath,
+    ['run', 'biome', 'format', '--stdin-file-path', path],
     {
       cwd: ROOT,
       encoding: 'utf8',
       input: content,
-      ...(isWindowsBatch ? { shell: true } : {}),
     },
   );
   if (result.status !== 0) {

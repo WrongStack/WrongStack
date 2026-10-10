@@ -10,7 +10,7 @@ import {
   writeHqAuthFile,
 } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'ws/native';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 
 let handle: HqServerHandle | null = null;

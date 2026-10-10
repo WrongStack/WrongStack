@@ -9,6 +9,7 @@ import {
   type SqliteCountRow,
   type SqlitePageRow,
 } from './sqlite-store-search-helpers.js';
+import { withSageTextIndex } from './sqlite-store-text-index.js';
 import type { ListSagePageOptions, ListSagePageResult } from './types.js';
 
 interface SqliteListSagePageContext {
@@ -18,6 +19,15 @@ interface SqliteListSagePageContext {
 export function listSqliteSagePage(
   ctx: SqliteListSagePageContext,
   options: ListSagePageOptions = {},
+): ListSagePageResult {
+  return options.query?.trim()
+    ? withSageTextIndex(ctx.stmt, () => readSqliteSagePage(ctx, options))
+    : readSqliteSagePage(ctx, options);
+}
+
+function readSqliteSagePage(
+  ctx: SqliteListSagePageContext,
+  options: ListSagePageOptions,
 ): ListSagePageResult {
   const session = buildSessionClause(options);
   const sessionPredicate = session.clause.replace(/^\s*AND\s+/i, '');
@@ -50,7 +60,7 @@ export function listSqliteSagePage(
     params.push(kind);
   }
   if (query) {
-    where.push("sage_unicode_lower(json_extract(data, '$.text')) LIKE ? ESCAPE '\\'");
+    where.push("unicode_text LIKE ? ESCAPE '\\'");
     params.push(`%${escapeLikePattern(query)}%`);
   }
   // Session isolation, the same rule every other retrieval surface applies.

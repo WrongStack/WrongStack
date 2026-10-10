@@ -5,6 +5,7 @@ import { formatMemoryHintsDetailed } from '../retrieval/format.js';
 import { checkInjectionValidity } from '../retrieval/validity-checks.js';
 import type { InjectionTracker } from './injection-tracker.js';
 import { MemoryInjectorAgent } from './memory-injector-agent.js';
+import { StoreFaultBreaker } from './tool-call-memory-breaker.js';
 import {
   dedupeRetrievedByText,
   retrieveTriggeredMemories,
@@ -157,6 +158,7 @@ export function createSageToolCallMiddleware(
   // instead of every call looking like "the memory left context".
   const placedInEvidence = new WeakMap<object, Map<string, Set<string>>>();
   const injector = new MemoryInjectorAgent();
+  const storeBreaker = new StoreFaultBreaker();
   const minScore = opts.minScore ?? DEFAULT_MIN_SCORE;
   const minImportance = opts.minImportance ?? DEFAULT_MIN_IMPORTANCE;
   const relationFloor = opts.relationFloor ?? MIN_RELATION_STRENGTH;
@@ -198,6 +200,8 @@ export function createSageToolCallMiddleware(
         const trigger = extractTrigger(nextPayload.toolUse.name, nextPayload.toolUse.input);
         if (!trigger) return nextPayload;
         if (opts.triggers?.[trigger.trigger] === false) return nextPayload;
+        // Store known unreadable: skip quietly instead of re-failing every call.
+        if (storeBreaker.isOpen(Date.now())) return nextPayload;
         attemptedTrigger = trigger;
         trigger.paths = resolveTriggerPaths(
           [...trigger.paths, ...extractResultPaths(nextPayload.result.content, trigger.trigger)],
@@ -238,6 +242,7 @@ export function createSageToolCallMiddleware(
           ),
           opts.retrievalTimeoutMs ?? DEFAULT_RETRIEVAL_TIMEOUT_MS,
         );
+        storeBreaker.recordSuccess();
         const alreadyVisible = visibleContextText(nextPayload);
         const rejectedDetail: RejectedDetailEntry[] = [];
         const rejectedDetailRaw: RejectedDetailEntry[] = [];
@@ -528,6 +533,7 @@ export function createSageToolCallMiddleware(
         });
         return nextPayload;
       } catch (error) {
+        const fault = storeBreaker.recordFailure(error, Date.now());
         if (attemptedTrigger) {
           const fallbackPlan =
             attemptedPlan ??
@@ -555,7 +561,7 @@ export function createSageToolCallMiddleware(
             injected: [],
             injectedChars: 0,
             thresholds,
-            error: error instanceof Error ? error.message : String(error),
+            error: fault.message ?? (error instanceof Error ? error.message : String(error)),
           });
         }
         return nextPayload;

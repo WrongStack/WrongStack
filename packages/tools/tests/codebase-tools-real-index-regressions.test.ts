@@ -5,7 +5,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import { ToolValidationError } from '@wrongstack/core/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { codebaseAstReplaceTool } from '../src/codebase-index/codebase-ast-replace-tool.js';

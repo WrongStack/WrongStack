@@ -13,6 +13,7 @@
  * under `cacheDir` (default: `.wrongstack/vector-memory/models`).
  */
 import type { EmbeddingProvider } from '@wrongstack/sage';
+import { createRequire } from 'node:module';
 
 import { VectorMemoryProviderUnavailableError } from './errors.js';
 
@@ -138,11 +139,11 @@ export class TransformersEmbeddingProvider implements EmbeddingProvider {
    * never bundles the package, so it is false there unless installed beside it.
    */
   isInstalled(): boolean {
-    if (typeof import.meta.resolve !== 'function') return true;
     // Indirect specifier for the same reason as `loadModule()`.
     const packageName = '@huggingface/transformers';
     try {
-      import.meta.resolve(packageName);
+      if (typeof import.meta.resolve === 'function') import.meta.resolve(packageName);
+      else createRequire(import.meta.url).resolve(packageName);
       return true;
     } catch {
       return false;

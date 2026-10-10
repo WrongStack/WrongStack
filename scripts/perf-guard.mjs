@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * perf-guard.mjs — the pawl on the performance ratchet.
  *

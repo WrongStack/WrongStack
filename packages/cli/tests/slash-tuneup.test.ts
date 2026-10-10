@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
+import * as testNodeFsPromises from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { stripAnsi } from '@wrongstack/core/utils';
@@ -446,23 +446,24 @@ describe('/tuneup slash command', () => {
     const profile = { model: 'claude-x', providers: { anthropic: { apiKey: 'sk-keep-me' } } };
     const { ctx, globalConfig } = makeCtx(profile);
     const before = readFileSync(globalConfig, 'utf8');
-    const fsp = createRequire(import.meta.url)(
-      'node:fs/promises',
-    ) as typeof import('node:fs/promises');
+    const fsp = testNodeFsPromises as typeof import('node:fs/promises');
+    let fsp_readFile_spy: { mockRestore(): void } | undefined;
     const realReadFile = fsp.readFile;
-    fsp.readFile = (async (p: Parameters<typeof realReadFile>[0], ...rest: unknown[]) => {
+    fsp_readFile_spy = vi.spyOn(fsp, 'readFile').mockImplementation((async (
+      p: Parameters<typeof realReadFile>[0],
+      ...rest: unknown[]
+    ) => {
       if (String(p) === globalConfig) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFile as (...a: unknown[]) => Promise<unknown>)(p, ...rest);
-    }) as typeof realReadFile;
-    syncBuiltinESMExports();
+    }) as typeof realReadFile);
+
     try {
       const res = await buildTuneupCommand(ctx).run!('fix --power');
       expect(stripAnsi(res!.message!)).toContain('nothing was changed');
     } finally {
-      fsp.readFile = realReadFile;
-      syncBuiltinESMExports();
+      fsp_readFile_spy?.mockRestore();
     }
     // A transient lock must not turn into "start from {}" and overwrite the profile.
     expect(readFileSync(globalConfig, 'utf8')).toBe(before);
@@ -481,3 +482,7 @@ describe('/tuneup slash command', () => {
     expect(written.adaptiveConcurrency.enabled).toBe(true);
   });
 });
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));

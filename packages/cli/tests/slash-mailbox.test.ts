@@ -272,7 +272,9 @@ describe('touchProjectInManifest', () => {
     expect(manifest.projects).toHaveLength(1);
     expect(path.resolve(manifest.projects[0]!.root)).toBe(path.resolve(root));
     // Per-project data dir created alongside.
-    await expect(fs.access(path.join(home, 'projects', entry.slug))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(home, 'projects', entry.slug)).then(() => true)).resolves.toBe(
+      true,
+    );
   });
 
   it('refreshes lastSeen/lastWorkingDir without duplicating an existing entry', async () => {

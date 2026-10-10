@@ -1,5 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { SageCachePragmas } from '@wrongstack/core/utils';
+import { initializeSqliteTextIndex } from '@wrongstack/persistence';
+import { sageTextIndex } from './sqlite-store-text-index.js';
 
 export const SQLITE_SCHEMA_VERSION = 5;
 export const LEGACY_JSONL_MIGRATION_KEY = 'legacy_jsonl_migrated';
@@ -57,6 +59,7 @@ export function initSchema(db: DatabaseSync): void {
     );
   `);
 
+  initializeSqliteTextIndex(db, sageTextIndex);
   db.exec('CREATE INDEX IF NOT EXISTS idx_status ON memories(status)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_kind ON memories(kind)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_scope ON memories(scope)');
