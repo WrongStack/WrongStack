@@ -11,19 +11,23 @@ import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+type DatabaseSync = InstanceType<typeof DatabaseSync>;
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GENESIS_HASH } from '../../src/chronicle/event-hash.js';
-import {
-  CHRONICLE_SQLITE_FILE,
-  ChronicleSqliteJournal,
-  ChronicleStorageQuotaError,
-} from '../../src/chronicle/sqlite-journal.js';
 import {
   decodeChroniclePayload,
   encodeChroniclePayload,
   type StoredChroniclePayload,
 } from '../../src/chronicle/payload-codec.js';
+import {
+  CHRONICLE_SQLITE_FILE,
+  ChronicleSqliteJournal,
+  ChronicleStorageQuotaError,
+} from '../../src/chronicle/sqlite-journal.js';
 import { ensureChronicleSchema } from '../../src/chronicle/sqlite-journal-schema.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 

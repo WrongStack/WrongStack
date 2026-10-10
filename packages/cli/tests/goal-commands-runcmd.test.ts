@@ -21,6 +21,8 @@ import {
   runCmd,
 } from '../src/goal-commands.js';
 
+const runtimeName = process.versions.bun ? 'bun' : 'node';
+
 describe('createTailBuffer', () => {
   it('retains at most ~2x the cap while returning the exact tail', () => {
     const cap = 1_000;
@@ -66,9 +68,9 @@ describe('runCmd output', () => {
         'process.stdout.write("END-OF-OUTPUT\\n");',
       ].join('\n'),
     );
-    configureGoalPolicy({ allow: ['node'] });
+    configureGoalPolicy({ allow: [runtimeName] });
     try {
-      const res = await runCmd('node', [script], dir);
+      const res = await runCmd(runtimeName, [script], dir);
       expect(res.code).toBe(0);
       expect(res.out.endsWith('END-OF-OUTPUT')).toBe(true);
     } finally {
@@ -87,9 +89,9 @@ describe('runCmd output', () => {
       script,
       'process.stdout.write(("a" + "ş".repeat(50) + "\\n").repeat(1500));\n',
     );
-    configureGoalPolicy({ allow: ['node'] });
+    configureGoalPolicy({ allow: [runtimeName] });
     try {
-      const res = await runCmd('node', [script], dir);
+      const res = await runCmd(runtimeName, [script], dir);
       expect(res.code).toBe(0);
       expect(res.out).not.toContain('\uFFFD');
       expect(res.out).toBe(`a${'ş'.repeat(50)}\n`.repeat(1500).trim());
@@ -102,12 +104,12 @@ describe('runCmd output', () => {
 
 describe('runCmd command-line gate', () => {
   it('runs an allowlisted executable with arguments (plain or quoted)', async () => {
-    configureGoalPolicy({ allow: ['node'] });
+    configureGoalPolicy({ allow: [runtimeName] });
     try {
-      for (const line of ['node --version', '  "node" --version']) {
+      for (const line of [`${runtimeName} --version`, `  "${runtimeName}" --version`]) {
         const res = await runCmd(line, [], process.cwd(), true);
         expect(res.code).toBe(0);
-        expect(res.out).toMatch(/^v\d+\./);
+        expect(res.out).toBe(process.versions.bun ?? process.version);
       }
     } finally {
       resetGoalPolicy();
@@ -115,12 +117,12 @@ describe('runCmd command-line gate', () => {
   }, 60_000);
 
   it('still refuses other executables and line-break chaining', async () => {
-    configureGoalPolicy({ allow: ['node'] });
+    configureGoalPolicy({ allow: [runtimeName] });
     try {
       expect((await runCmd('curl --version', [], process.cwd(), true)).out).toMatch(
         /not in autonomous safe-commands allowlist/,
       );
-      expect((await runCmd('node --version\ncurl x', [], process.cwd(), true)).out).toMatch(
+      expect((await runCmd(`${runtimeName} --version\ncurl x`, [], process.cwd(), true)).out).toMatch(
         /rejected destructive command pattern/,
       );
     } finally {

@@ -1,8 +1,8 @@
+import * as testNodeFsPromises from 'node:fs/promises';
 import * as fs from 'node:fs/promises';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   applyNamespacePayload,
   assertInboundDenyListResolves,
@@ -416,21 +416,24 @@ describe('CloudConfigSync engine', () => {
 
     // A transient lock on the state file: treating it as a first sync made every
     // local value win the merge and get pushed over the other machine's change.
-    const fsp = createRequire(import.meta.url)('node:fs/promises') as typeof fs;
+    const fsp = testNodeFsPromises as typeof fs;
+    let fsp_readFile_spy: { mockRestore(): void } | undefined;
     const realReadFile = fsp.readFile;
-    fsp.readFile = (async (p: Parameters<typeof realReadFile>[0], ...rest: unknown[]) => {
+    fsp_readFile_spy = vi.spyOn(fsp, 'readFile').mockImplementation((async (
+      p: Parameters<typeof realReadFile>[0],
+      ...rest: unknown[]
+    ) => {
       if (String(p) === statePath) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFile as (...a: unknown[]) => Promise<unknown>)(p, ...rest);
-    }) as typeof realReadFile;
-    syncBuiltinESMExports();
+    }) as typeof realReadFile);
+
     let result: Awaited<ReturnType<CloudConfigSync['syncOnce']>>;
     try {
       result = await (await harness.makeEngine(statePath)).syncOnce();
     } finally {
-      fsp.readFile = realReadFile;
-      syncBuiltinESMExports();
+      fsp_readFile_spy?.mockRestore();
     }
     expect(result.ok).toBe(false);
     expect(result.message).toContain('pass skipped');
@@ -561,3 +564,7 @@ describe('CloudConfigSync engine', () => {
     });
   });
 });
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));

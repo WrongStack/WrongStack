@@ -97,6 +97,8 @@ describe('createGracefulShutdown', () => {
     const handle = createGracefulShutdown({ run: cleanup });
     handle.install();
 
+    const initialExitCode = process.exitCode;
+
     process.emit('beforeExit');
     await new Promise((r) => setImmediate(r));
 
@@ -104,7 +106,7 @@ describe('createGracefulShutdown', () => {
     // beforeExit means Node is already draining — we should not schedule a
     // 500ms force-exit timer, and we should not call process.exit ourselves.
     expect(exitSpy).not.toHaveBeenCalled();
-    expect(process.exitCode).not.toBe(0);
+    expect(process.exitCode).toBe(initialExitCode);
   });
 
   it('swallows cleanup errors so a stuck cleanup cannot wedge the exit', async () => {

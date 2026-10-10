@@ -1,16 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as testNodeFsPromises from 'node:fs/promises';
 import * as fs from 'node:fs/promises';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  MAILBOX_BRIDGE_LOCK_FILENAME,
-  MAILBOX_BRIDGE_TOKEN_FILENAME,
   acquireOrJoin,
   finalize,
+  MAILBOX_BRIDGE_LOCK_FILENAME,
+  MAILBOX_BRIDGE_TOKEN_FILENAME,
+  type MailboxBridgeLock,
   readLiveLock,
   release,
-  type MailboxBridgeLock,
 } from '../../src/coordination/single-instance-mailbox.js';
 
 // ── Mocks ────────────────────────────────────────────────────────────────
@@ -228,15 +228,19 @@ describe('acquireOrJoin', () => {
     // wrote its own lock and token over a live bridge's.
     await writeLock(tmp, { pid: 4242, port: 8000, url: 'http://127.0.0.1:8000', token: 'live' });
     const lockPath = path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME);
-    const fsp = createRequire(import.meta.url)('node:fs/promises') as typeof fs;
+    const fsp = testNodeFsPromises as typeof fs;
+    let fsp_readFile_spy: { mockRestore(): void } | undefined;
     const realReadFile = fsp.readFile;
-    fsp.readFile = (async (file: Parameters<typeof realReadFile>[0], ...rest: unknown[]) => {
+    fsp_readFile_spy = vi.spyOn(fsp, 'readFile').mockImplementation((async (
+      file: Parameters<typeof realReadFile>[0],
+      ...rest: unknown[]
+    ) => {
       if (String(file) === lockPath) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFile as (...a: unknown[]) => Promise<unknown>)(file, ...rest);
-    }) as typeof realReadFile;
-    syncBuiltinESMExports();
+    }) as typeof realReadFile);
+
     try {
       await expect(
         acquireOrJoin({
@@ -247,8 +251,7 @@ describe('acquireOrJoin', () => {
         }),
       ).rejects.toMatchObject({ code: 'EBUSY' });
     } finally {
-      fsp.readFile = realReadFile;
-      syncBuiltinESMExports();
+      fsp_readFile_spy?.mockRestore();
     }
     const onDisk = JSON.parse(await fs.readFile(lockPath, 'utf8')) as MailboxBridgeLock;
     expect(onDisk).toMatchObject({ pid: 4242, token: 'live' });
@@ -452,3 +455,7 @@ describe('isProcessAlive (POSIX process.kill branch)', () => {
     expect(res.kind).toBe('probe-failed');
   });
 });
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));

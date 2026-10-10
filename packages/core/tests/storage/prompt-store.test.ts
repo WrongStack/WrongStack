@@ -1,7 +1,7 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DefaultPromptStore, migratePromptEntry } from '../../src/storage/prompt-store.js';
 import { isUlid } from '../../src/utils/ulid.js';
 import { resolveWstackPaths } from '../../src/utils/wstack-paths.js';
@@ -101,8 +101,8 @@ describe('DefaultPromptStore', () => {
       await store.save(entry);
       // Should not throw — file exists
       await expect(
-        fs.access(path.join(paths.globalPrompts, `${entry.id}.json`)),
-      ).resolves.toBeUndefined();
+        fs.access(path.join(paths.globalPrompts, `${entry.id}.json`)).then(() => true),
+      ).resolves.toBe(true);
     });
   });
 
@@ -364,7 +364,7 @@ describe('DefaultPromptStore', () => {
       const traversalId = `../${path.basename(outside).replace(/\.txt$/, '')}`;
       const result = await store.delete(traversalId);
       expect(result).toBe(false);
-      await expect(fs.access(outside)).resolves.toBeUndefined();
+      await expect(fs.access(outside).then(() => true)).resolves.toBe(true);
     });
   });
 });

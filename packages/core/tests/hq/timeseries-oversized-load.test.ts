@@ -75,11 +75,19 @@ describe('HqTimeseriesStore oversized load', () => {
 
     const size = (await fs.stat(filePath())).size;
     expect(size).toBeGreaterThan(536_870_888); // Node's MAX_STRING_LENGTH
-    // Proof the old implementation could not have worked here.
-    await expect(fs.readFile(filePath(), 'utf8')).rejects.toThrow(/invalid string length/i);
-
+    // Require streaming on every runtime, independently of its string ceiling.
+    const readWholeFile = fs.readFile;
+    const readSpy = vi.spyOn(fs, 'readFile').mockImplementation((async (target, ...options) => {
+      if (String(target) === filePath()) throw new Error('whole-file timeseries read is forbidden');
+      return Reflect.apply(readWholeFile, fs, [target, ...options]);
+    }) as typeof fs.readFile);
     const store = new HqTimeseriesStore({ dataDir, bucketMs: 1000, maxBuckets: 10 });
-    await store.load();
+    try {
+      await store.load();
+      expect(readSpy.mock.calls.filter(([target]) => String(target) === filePath())).toEqual([]);
+    } finally {
+      readSpy.mockRestore();
+    }
     const samples = await store.read();
 
     // Retention keeps the newest maxBuckets — the point is that they arrived

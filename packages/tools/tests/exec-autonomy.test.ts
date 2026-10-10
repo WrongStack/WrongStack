@@ -153,7 +153,7 @@ describe('exec under host-authorized autonomy', () => {
             autonomy,
           }),
         ).rejects.toThrow('explicitly denied');
-        configureExecPolicy({ deny: ['node'] });
+        configureExecPolicy({ deny: [process.versions.bun ? 'bun' : 'node'] });
         await expect(
           execTool.execute({ command: process.execPath, args }, sandbox.ctx, {
             signal: new AbortController().signal,

@@ -1,8 +1,9 @@
+import * as testNodeFs from 'node:fs';
+import * as testNodeFsPromises from 'node:fs/promises';
 import * as fs from 'node:fs/promises';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   activateProjectStateGuard,
   startProjectStateGuard,
@@ -96,13 +97,16 @@ describe('project state guard', () => {
       // Windows reports a deleted watched root as an endless storm of its own
       // absolute path and never emits error/close.
       const root = await temporaryProject();
-      const nodeFs = createRequire(import.meta.url)('node:fs') as typeof import('node:fs');
+      const nodeFs = testNodeFs as typeof import('node:fs');
+      let nodeFs_watch_spy: { mockRestore(): void } | undefined;
       const realWatch = nodeFs.watch;
       let watcherClosed!: () => void;
       const closed = new Promise<void>((resolve) => {
         watcherClosed = resolve;
       });
-      nodeFs.watch = ((...args: Parameters<typeof realWatch>) => {
+      nodeFs_watch_spy = vi.spyOn(nodeFs, 'watch').mockImplementation(((
+        ...args: Parameters<typeof realWatch>
+      ) => {
         const watcher = realWatch(...args);
         const close = watcher.close.bind(watcher);
         watcher.close = () => {
@@ -110,16 +114,15 @@ describe('project state guard', () => {
           close();
         };
         return watcher;
-      }) as typeof realWatch;
-      syncBuiltinESMExports();
+      }) as typeof realWatch);
+
       try {
         const guard = await startProjectStateGuard(root, { pollIntervalMs: 60_000 });
         await fs.rm(root, { recursive: true, force: true });
         await closed;
         guard.close();
       } finally {
-        nodeFs.watch = realWatch;
-        syncBuiltinESMExports();
+        nodeFs_watch_spy?.mockRestore();
       }
     },
     10_000,
@@ -129,17 +132,21 @@ describe('project state guard', () => {
     // Gated order: A's setup is held until B is fully active, then released.
     const first = await temporaryProject();
     const second = await temporaryProject();
-    const promises = createRequire(import.meta.url)('node:fs/promises') as typeof fs;
+    const promises = testNodeFsPromises as typeof fs;
+    let promises_mkdir_spy: { mockRestore(): void } | undefined;
     const realMkdir = promises.mkdir;
     let releaseFirst!: () => void;
     const firstHeld = new Promise<void>((resolve) => {
       releaseFirst = resolve;
     });
-    promises.mkdir = (async (target: Parameters<typeof fs.mkdir>[0], options?: object) => {
+    promises_mkdir_spy = vi.spyOn(promises, 'mkdir').mockImplementation((async (
+      target: Parameters<typeof fs.mkdir>[0],
+      options?: object,
+    ) => {
       if (String(target).startsWith(first)) await firstHeld;
       return realMkdir(target, options);
-    }) as typeof fs.mkdir;
-    syncBuiltinESMExports();
+    }) as typeof fs.mkdir);
+
     try {
       const pendingFirst = activateProjectStateGuard(first);
       const secondGuard = await activateProjectStateGuard(second);
@@ -150,8 +157,7 @@ describe('project state guard', () => {
       expect(await activateProjectStateGuard(second)).toBe(secondGuard);
       secondGuard.close();
     } finally {
-      promises.mkdir = realMkdir;
-      syncBuiltinESMExports();
+      promises_mkdir_spy?.mockRestore();
     }
   });
 });
@@ -164,3 +170,10 @@ async function waitForContent(file: string, expected: string, timeoutMs = 2_000)
   }
   throw new Error(`Content was not restored in ${file}: ${expected}`);
 }
+
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
+}));
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));

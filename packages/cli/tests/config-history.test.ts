@@ -1,8 +1,7 @@
 import * as fs from 'node:fs/promises';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   appendHistory,
   getHistoryEntry,
@@ -10,6 +9,10 @@ import {
   restoreFromHistory,
   restoreLast,
 } from '../src/config-history.js';
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));
 
 describe('config-history', () => {
   let tmp: string;
@@ -82,20 +85,20 @@ describe('config-history', () => {
       const cfg = path.join(tmp, 'config.json');
       for (const d of ['first', 'second']) await appendHistory({}, { d }, d, home, cfg);
       const indexPath = path.join(tmp, 'config.history', 'index.json');
-      const fsp = createRequire(import.meta.url)('node:fs/promises') as typeof fs;
-      const realReadFile = fsp.readFile;
-      fsp.readFile = (async (p: Parameters<typeof realReadFile>[0], ...rest: unknown[]) => {
+      const realReadFile = fs.readFile;
+      const readSpy = vi.spyOn(fs, 'readFile').mockImplementation((async (
+        p: Parameters<typeof realReadFile>[0],
+        ...rest: unknown[]
+      ) => {
         if (String(p) === indexPath) {
           throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
         }
         return (realReadFile as (...a: unknown[]) => Promise<unknown>)(p, ...rest);
-      }) as typeof realReadFile;
-      syncBuiltinESMExports();
+      }) as typeof realReadFile);
       try {
         await expect(appendHistory({}, { d: 'third' }, 'third', home, cfg)).rejects.toThrow();
       } finally {
-        fsp.readFile = realReadFile;
-        syncBuiltinESMExports();
+        readSpy.mockRestore();
       }
       const entries = await listHistory(home, cfg);
       expect(entries.map((e) => e.description)).toEqual(['second', 'first']);

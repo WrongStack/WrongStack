@@ -32,7 +32,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import { afterAll, describe, expect, it } from 'vitest';
 import { SqliteMemoryPort } from '../src/memory-port.js';
 

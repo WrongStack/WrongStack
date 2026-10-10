@@ -207,7 +207,7 @@ describe('defaultProbe timeout', () => {
       id: 'no-output',
       displayName: 'No Output',
       vendor: 'community',
-      probe: { command: 'node', args: ['-e', ''] }, // runs but produces no output
+      probe: { command: process.execPath, args: ['-e', 'void 0'] }, // runs but produces no output
       acp: { command: 'node', args: [] },
       supports: { loadSession: true, promptImages: false, terminal: false, fs: false },
       integration: 'experimental',
@@ -308,7 +308,7 @@ describe('defaultProbe integration (real subprocess)', () => {
       id: 'node-test',
       displayName: 'Node Test',
       vendor: 'community',
-      probe: { command: 'node', args: ['--version'] },
+      probe: { command: process.execPath, args: ['--version'] },
       acp: { command: 'node', args: [] },
       supports: { loadSession: true, promptImages: false, terminal: false, fs: false },
       integration: 'community',
@@ -317,7 +317,7 @@ describe('defaultProbe integration (real subprocess)', () => {
     const reg = new EnsembleRegistry({ catalog: [nodeEntry], probeTimeoutMs: 5_000 });
     const result = await reg.detect(nodeEntry);
     expect(result.installed).toBe(true);
-    expect(result.version).toMatch(/^v\d/);
+    expect(result.version).toBe(process.versions.bun ?? process.version);
   });
 
   it('reports a missing binary as not-installed', async () => {

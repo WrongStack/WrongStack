@@ -1,7 +1,10 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { deriveSessionAgents } from '../src/session-catalog/session-agents.js';

@@ -21,16 +21,20 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+type DatabaseSync = InstanceType<typeof DatabaseSync>;
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ChronicleJournal } from '../../src/chronicle/journal.js';
 import { importLegacyChronicleJournal } from '../../src/chronicle/legacy-journal-import.js';
-import { ChronicleQueryEngine, type ChronicleQuery } from '../../src/chronicle/query.js';
-import { ChronicleSqliteQueryEngine } from '../../src/chronicle/sqlite-query.js';
+import { type ChronicleQuery, ChronicleQueryEngine } from '../../src/chronicle/query.js';
 import {
   CHRONICLE_SQLITE_FILE,
   ChronicleSqliteJournal,
 } from '../../src/chronicle/sqlite-journal.js';
+import { ChronicleSqliteQueryEngine } from '../../src/chronicle/sqlite-query.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
 let dir: string;

@@ -19,8 +19,8 @@ describe('createSmokeSuite', () => {
     ]);
     expect(suite.subsetId(tasks)).toMatch(/^smoke:[0-9a-f]{12}$/);
     await expect(
-      fs.access(path.join(resolveSmokeSuiteDir(), 'bench.local.json')),
-    ).resolves.toBeUndefined();
+      fs.access(path.join(resolveSmokeSuiteDir(), 'bench.local.json')).then(() => true),
+    ).resolves.toBe(true);
 
     const inner = createLocalManifestSuite({ suiteDir: resolveSmokeSuiteDir() });
     const localTasks = await inner.loadTasks({});

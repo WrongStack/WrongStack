@@ -1,8 +1,8 @@
+import * as testNodeFsPromises from 'node:fs/promises';
 import * as fs from 'node:fs/promises';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   ensureGitignore,
   getPromptJournalEntries,
@@ -84,21 +84,24 @@ describe('Hierarchical Prompt Journal & Trace Logger', () => {
   it('leaves .gitignore untouched when reading it fails with anything but ENOENT', async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-git-busy-'));
     const gitignorePath = path.join(tempDir, '.gitignore');
-    const fsp = createRequire(import.meta.url)('node:fs/promises') as typeof fs;
+    const fsp = testNodeFsPromises as typeof fs;
+    let fsp_readFile_spy: { mockRestore(): void } | undefined;
     const realReadFile = fsp.readFile;
     try {
       await fs.writeFile(gitignorePath, 'node_modules/\n.env\n', 'utf8');
-      fsp.readFile = (async (p: Parameters<typeof realReadFile>[0], ...rest: unknown[]) => {
+      fsp_readFile_spy = vi.spyOn(fsp, 'readFile').mockImplementation((async (
+        p: Parameters<typeof realReadFile>[0],
+        ...rest: unknown[]
+      ) => {
         if (String(p) === gitignorePath) {
           throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
         }
         return (realReadFile as (...a: unknown[]) => Promise<unknown>)(p, ...rest);
-      }) as typeof realReadFile;
-      syncBuiltinESMExports();
+      }) as typeof realReadFile);
+
       await ensureGitignore(tempDir);
     } finally {
-      fsp.readFile = realReadFile;
-      syncBuiltinESMExports();
+      fsp_readFile_spy?.mockRestore();
     }
     try {
       // A transient lock must not turn into "start from empty" and replace the rules.
@@ -289,3 +292,7 @@ describe('Hierarchical Prompt Journal & Trace Logger', () => {
     }
   });
 });
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));

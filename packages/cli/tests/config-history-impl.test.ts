@@ -161,7 +161,7 @@ describe('backupCurrent', () => {
     await backupCurrent(homeFn);
     // safeDelete sees ".evil" suffix, which fails the "endsWith('.bak')" guard,
     // so the file is never offered for deletion.
-    await expect(fs.access(fake)).resolves.toBeUndefined();
+    await expect(fs.access(fake).then(() => true)).resolves.toBe(true);
   });
 });
 

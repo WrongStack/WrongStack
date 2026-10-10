@@ -124,6 +124,22 @@ export function waitForMetadataRemoval(
   });
 }
 
+/** On Windows an exiting daemon still locks its working directory until exit. */
+export async function waitForProcessExit(pid: number, timeoutMs = 15_000): Promise<void> {
+  if (pid === process.pid) return; // In-process coverage harness.
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ESRCH') return;
+      throw error;
+    }
+    await sleep(25);
+  }
+  throw new Error(`daemon process ${pid} did not exit within ${timeoutMs}ms`);
+}
+
 /** Poll until the endpoint refuses new connections (listener closed). */
 export async function waitForEndpointClosed(endpoint: string, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;

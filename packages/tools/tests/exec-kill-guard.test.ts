@@ -1,5 +1,6 @@
 import * as os from 'node:os';
-import { describe, expect, it, vi } from 'vitest';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the persistent process registry to isolate kill guard tests.
 // Returns empty protections so that none of the PID/name checks trip unless
@@ -15,8 +16,18 @@ vi.mock('../src/process-registry-persistent.js', () => ({
 import { checkExecKillCommand } from '../src/exec-kill-guard.js';
 
 const isWin = os.platform() === 'win32';
+const actualExecPath = process.execPath;
+beforeEach(() => { process.execPath = path.join(path.dirname(actualExecPath), isWin ? 'node.exe' : 'node'); });
+afterEach(() => { process.execPath = actualExecPath; });
 
 describe('exec-kill-guard', () => {
+  it('protects a Bun host even before the process registry has been populated', async () => {
+    process.execPath = path.join(path.dirname(actualExecPath), isWin ? 'bun.exe' : 'bun');
+    const result = await checkExecKillCommand(isWin ? 'taskkill' : 'pkill', isWin ? ['/IM', 'bun.exe'] : ['bun']);
+    expect(result.blocked).toBe(true);
+    if (isWin) expect((await checkExecKillCommand('bun', ['-e', `process.kill(${process.pid})`])).blocked).toBe(true);
+    expect((await checkExecKillCommand(isWin ? 'taskkill' : 'pkill', isWin ? ['/IM', 'unrelated.exe'] : ['unrelated'])).blocked).toBe(false);
+  });
   describe('empty / edge inputs', () => {
     it('returns not blocked for empty command', async () => {
       const result = await checkExecKillCommand('', []);

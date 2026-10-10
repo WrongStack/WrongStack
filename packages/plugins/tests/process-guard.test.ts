@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { basename } from 'node:path';
 import processGuardPlugin from '../src/process-guard/index.js';
 
 interface MockApi {
@@ -76,7 +77,7 @@ describe('issue #360 kill-defense regression matrix', () => {
 
   it.runIf(isWin)('exec-kill-guard blocks taskkill /IM and node -e process.kill', async () => {
     const { checkExecKillCommand } = await import('../../tools/src/exec-kill-guard.js');
-    const image = await checkExecKillCommand('taskkill', ['/F', '/IM', 'node.exe']);
+    const image = await checkExecKillCommand('taskkill', ['/F', '/IM', basename(process.execPath)]);
     expect(image.blocked).toBe(true);
     const evalKill = await checkExecKillCommand('node', ['-e', `process.kill(${process.pid})`]);
     expect(evalKill.blocked).toBe(true);

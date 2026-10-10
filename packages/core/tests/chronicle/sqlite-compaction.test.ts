@@ -1,7 +1,10 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ChronicleCompactionBusyError,

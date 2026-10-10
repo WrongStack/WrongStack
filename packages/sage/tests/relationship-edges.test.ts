@@ -1,7 +1,10 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqliteSageStore } from '../src/sqlite-store.js';
 import { syncSqliteRelationshipEdges } from '../src/sqlite-store-relationship-sync.js';

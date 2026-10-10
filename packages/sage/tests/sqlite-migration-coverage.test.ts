@@ -1,15 +1,14 @@
 import * as fs from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqliteSageStore } from '../src/sqlite-store.js';
 import { initSchema } from '../src/sqlite-store-schema.js';
 import type { Sage } from '../src/types.js';
 
-const require = createRequire(import.meta.url);
-const DatabaseSync = require('node:sqlite').DatabaseSync as typeof DatabaseSyncType;
+const DatabaseSync = loadRuntimeDatabaseSync();
 
 let directory: string;
 let stores: SqliteSageStore[];

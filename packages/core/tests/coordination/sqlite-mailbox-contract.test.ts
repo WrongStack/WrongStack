@@ -395,9 +395,13 @@ describe('SqliteMailbox', () => {
 
     // Create a new mailbox instance pointing to the same directory
     const mailbox2 = new SqliteMailbox(dir);
-    const results = await mailbox2.query({ to: 'b' });
-    expect(results.length).toBe(1);
-    expect(results[0]!.subject).toBe('persistent');
+    try {
+      const results = await mailbox2.query({ to: 'b' });
+      expect(results.length).toBe(1);
+      expect(results[0]!.subject).toBe('persistent');
+    } finally {
+      await mailbox2.close();
+    }
   });
 });
 

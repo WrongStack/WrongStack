@@ -467,8 +467,10 @@ describe('SkillInstaller.importFromDir', () => {
     const dest = path.join(projectSkillsDir, 'valid-skill', 'SKILL.md');
     expect(await fs.readFile(dest, 'utf8')).toContain('imported body');
     await expect(
-      fs.access(path.join(projectSkillsDir, 'valid-skill', 'references', 'REF.md')),
-    ).resolves.toBeUndefined();
+      fs
+        .access(path.join(projectSkillsDir, 'valid-skill', 'references', 'REF.md'))
+        .then(() => true),
+    ).resolves.toBe(true);
     const installed = await inst.listInstalled();
     expect(installed.find((e) => e.name === 'valid-skill')?.scope).toBe('project');
   });
@@ -484,8 +486,8 @@ describe('SkillInstaller.importFromDir', () => {
     const inst = mkInstaller();
     await inst.importFromDir(src, { global: true });
     await expect(
-      fs.access(path.join(globalSkillsDir, 'g-skill', 'SKILL.md')),
-    ).resolves.toBeUndefined();
+      fs.access(path.join(globalSkillsDir, 'g-skill', 'SKILL.md')).then(() => true),
+    ).resolves.toBe(true);
     expect((await inst.listInstalled()).find((e) => e.name === 'g-skill')?.scope).toBe('user');
   });
 

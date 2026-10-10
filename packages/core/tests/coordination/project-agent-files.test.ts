@@ -1,13 +1,13 @@
+import * as testNodeFs from 'node:fs';
 /**
  * Tests for coordination/agents/project-agent-files.ts — project-level
  * agent customization file management (learned, identity, config, knowledge,
  * reset, refresh, list).
  */
 import * as fs from 'node:fs';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { captureLearnedFromAgentOutputDetailed } from '../../src/coordination/agents/project-agent-capture.js';
 import {
   readRawLearnedEntries,
@@ -89,15 +89,19 @@ describe('updateProjectAgentLearned', () => {
       proj,
     );
     const before = fs.readFileSync(filePath, 'utf8');
-    const nodeFs = createRequire(import.meta.url)('node:fs') as typeof import('node:fs');
+    const nodeFs = testNodeFs as typeof import('node:fs');
+    let nodeFs_readFileSync_spy: { mockRestore(): void } | undefined;
     const realReadFileSync = nodeFs.readFileSync;
-    nodeFs.readFileSync = ((p: unknown, ...rest: unknown[]) => {
+    nodeFs_readFileSync_spy = vi.spyOn(nodeFs, 'readFileSync').mockImplementation(((
+      p: unknown,
+      ...rest: unknown[]
+    ) => {
       if (String(p) === filePath) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFileSync as (...a: unknown[]) => unknown)(p, ...rest);
-    }) as typeof nodeFs.readFileSync;
-    syncBuiltinESMExports();
+    }) as typeof nodeFs.readFileSync);
+
     try {
       const lesson = 'Never pass a possibly empty file list to vitest because it runs everything.';
       expect(() => updateProjectAgentLearned('bug-hunter', lesson, proj)).toThrow(/EBUSY/);
@@ -110,8 +114,7 @@ describe('updateProjectAgentLearned', () => {
         ),
       ).toThrow(/EBUSY/);
     } finally {
-      nodeFs.readFileSync = realReadFileSync;
-      syncBuiltinESMExports();
+      nodeFs_readFileSync_spy?.mockRestore();
     }
     expect(fs.readFileSync(filePath, 'utf8')).toBe(before);
   });
@@ -124,20 +127,23 @@ describe('updateProjectAgentLearned', () => {
     fs.mkdirSync(dir, { recursive: true });
     const filePath = path.join(dir, 'learning.json');
     fs.writeFileSync(filePath, JSON.stringify({ enabled: false, lifetimeCaptureCount: 7 }));
-    const nodeFs = createRequire(import.meta.url)('node:fs') as typeof import('node:fs');
+    const nodeFs = testNodeFs as typeof import('node:fs');
+    let nodeFs_readFileSync_spy: { mockRestore(): void } | undefined;
     const realReadFileSync = nodeFs.readFileSync;
-    nodeFs.readFileSync = ((p: unknown, ...rest: unknown[]) => {
+    nodeFs_readFileSync_spy = vi.spyOn(nodeFs, 'readFileSync').mockImplementation(((
+      p: unknown,
+      ...rest: unknown[]
+    ) => {
       if (String(p) === filePath) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFileSync as (...a: unknown[]) => unknown)(p, ...rest);
-    }) as typeof nodeFs.readFileSync;
-    syncBuiltinESMExports();
+    }) as typeof nodeFs.readFileSync);
+
     try {
       recordProjectAgentOptimizePass('bug-hunter', proj);
     } finally {
-      nodeFs.readFileSync = realReadFileSync;
-      syncBuiltinESMExports();
+      nodeFs_readFileSync_spy?.mockRestore();
     }
     expect(JSON.parse(fs.readFileSync(filePath, 'utf8'))).toEqual({
       enabled: false,
@@ -156,23 +162,26 @@ describe('updateProjectAgentLearned', () => {
     const affinityPath = projectSkillAffinityPath('bug-hunter', proj);
     const logPath = quarantinePath('bug-hunter', proj);
     const before = [fs.readFileSync(affinityPath, 'utf8'), fs.readFileSync(logPath, 'utf8')];
-    const nodeFs = createRequire(import.meta.url)('node:fs') as typeof import('node:fs');
+    const nodeFs = testNodeFs as typeof import('node:fs');
+    let nodeFs_readFileSync_spy: { mockRestore(): void } | undefined;
     const realReadFileSync = nodeFs.readFileSync;
-    nodeFs.readFileSync = ((p: unknown, ...rest: unknown[]) => {
+    nodeFs_readFileSync_spy = vi.spyOn(nodeFs, 'readFileSync').mockImplementation(((
+      p: unknown,
+      ...rest: unknown[]
+    ) => {
       if (String(p) === affinityPath || String(p) === logPath) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFileSync as (...a: unknown[]) => unknown)(p, ...rest);
-    }) as typeof nodeFs.readFileSync;
-    syncBuiltinESMExports();
+    }) as typeof nodeFs.readFileSync);
+
     try {
       recordSkillLearned('bug-hunter', 'git-workflow', proj);
       expect(() =>
         appendQuarantine('bug-hunter', retired('newer retired directive'), 'now', proj),
       ).toThrow(/EBUSY/);
     } finally {
-      nodeFs.readFileSync = realReadFileSync;
-      syncBuiltinESMExports();
+      nodeFs_readFileSync_spy?.mockRestore();
     }
     expect([fs.readFileSync(affinityPath, 'utf8'), fs.readFileSync(logPath, 'utf8')]).toEqual(
       before,
@@ -191,15 +200,19 @@ describe('updateProjectAgentLearned', () => {
       proj,
     );
     const before = fs.readFileSync(filePath, 'utf8');
-    const nodeFs = createRequire(import.meta.url)('node:fs') as typeof import('node:fs');
+    const nodeFs = testNodeFs as typeof import('node:fs');
+    let nodeFs_readFileSync_spy: { mockRestore(): void } | undefined;
     const realReadFileSync = nodeFs.readFileSync;
-    nodeFs.readFileSync = ((p: unknown, ...rest: unknown[]) => {
+    nodeFs_readFileSync_spy = vi.spyOn(nodeFs, 'readFileSync').mockImplementation(((
+      p: unknown,
+      ...rest: unknown[]
+    ) => {
       if (String(p) === filePath) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFileSync as (...a: unknown[]) => unknown)(p, ...rest);
-    }) as typeof nodeFs.readFileSync;
-    syncBuiltinESMExports();
+    }) as typeof nodeFs.readFileSync);
+
     try {
       expect(() =>
         saveProjectAgentConsolidated('bug-hunter', '- synthesized rule', proj, {
@@ -208,8 +221,7 @@ describe('updateProjectAgentLearned', () => {
         }),
       ).toThrow(/EBUSY/);
     } finally {
-      nodeFs.readFileSync = realReadFileSync;
-      syncBuiltinESMExports();
+      nodeFs_readFileSync_spy?.mockRestore();
     }
     expect(fs.readFileSync(filePath, 'utf8')).toBe(before);
   });
@@ -322,3 +334,7 @@ describe('listProjectAgentRoles', () => {
     expect(roles).not.toContain('empty-role');
   });
 });
+
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
+}));

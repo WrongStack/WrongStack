@@ -609,10 +609,14 @@ describe.skipIf(!distReady)('index host (project-server mode, built dist)', () =
       await second;
       expect(preservedStaleHit).toBe(true);
     } finally {
-      await staleApi
+      const stopped = await staleApi
         .shutdownCodebaseIndexServer(tmpDir, indexDir, 'stale-test-teardown')
         .catch(() => {});
       await staleApi.shutdownCodebaseIndexHost();
+      if (stopped?.pid !== undefined) {
+        const pid = stopped.pid;
+        expect(await until(() => !processExists(pid))).toBe(true);
+      }
       await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
     }
   }, 120_000);

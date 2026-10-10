@@ -54,7 +54,7 @@ it('starts the idle countdown only after metadata permissions are ready', async 
     });
     // Multiple lease sweeps and a whole idle window pass during ACL work.
     await sleep(400);
-    await expect(fs.access(metadataPath)).resolves.toBeUndefined();
+    await expect(fs.access(metadataPath).then(() => true)).resolves.toBe(true);
   } finally {
     permissions.cleaningUp = true;
     permissions.release?.();

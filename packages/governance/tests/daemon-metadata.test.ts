@@ -1,10 +1,10 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import type * as fsp from 'node:fs/promises';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
+import * as testNodeFsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   acquireGovernanceDaemonStartupLease,
   connectGovernanceProjectClient,
@@ -297,15 +297,19 @@ describe('governance daemon startup lease', () => {
     const record = readFileSync(leasePath, 'utf8');
     writeFileSync(leasePath, '');
 
-    const fs = createRequire(import.meta.url)('node:fs/promises') as typeof fsp;
+    const fs = testNodeFsPromises as typeof fsp;
+    let fs_readFile_spy: { mockRestore(): void } | undefined;
     const realReadFile = fs.readFile;
     let leaseReads = 0;
-    fs.readFile = (async (file: Parameters<typeof realReadFile>[0], ...rest: unknown[]) => {
+    fs_readFile_spy = vi.spyOn(fs, 'readFile').mockImplementation((async (
+      file: Parameters<typeof realReadFile>[0],
+      ...rest: unknown[]
+    ) => {
       // Second look: the holder has finished writing its record.
       if (String(file) === leasePath && ++leaseReads === 2) writeFileSync(leasePath, record);
       return (realReadFile as (...a: unknown[]) => Promise<unknown>)(file, ...rest);
-    }) as typeof realReadFile;
-    syncBuiltinESMExports();
+    }) as typeof realReadFile);
+
     try {
       const attempt = acquireGovernanceDaemonStartupLease({
         projectRoot: root,
@@ -319,8 +323,7 @@ describe('governance daemon startup lease', () => {
       });
       await expect(attempt).rejects.toMatchObject({ code: 'busy' });
     } finally {
-      fs.readFile = realReadFile;
-      syncBuiltinESMExports();
+      fs_readFile_spy?.mockRestore();
     }
     expect(leaseReads).toBe(2);
     await expect(holder.release()).resolves.toBe(true);
@@ -340,3 +343,7 @@ describe('governance daemon startup lease', () => {
     expect(shouldRecoverGovernanceEndpoint('linux', invalid)).toBe(false);
   });
 });
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));

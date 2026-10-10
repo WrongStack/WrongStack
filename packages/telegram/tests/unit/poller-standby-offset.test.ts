@@ -1,3 +1,4 @@
+import * as testNodeFs from 'node:fs';
 /**
  * Regression: a standby Poller loaded the shared OffsetStore only in its
  * constructor. When it took over the poll lock it polled with that stale
@@ -7,7 +8,6 @@
  * ever moves forward.
  */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -145,15 +145,19 @@ describe('Poller standby takeover offset', () => {
     const seen: number[] = [];
     // A transient lock (e.g. AV scanning the freshly renamed file) used to read
     // as "no offset", so polling restarted at 0 and re-ran both commands.
-    const nodeFs = createRequire(import.meta.url)('node:fs') as typeof import('node:fs');
+    const nodeFs = testNodeFs as typeof import('node:fs');
+    let nodeFs_readFileSync_spy: { mockRestore(): void } | undefined;
     const realReadFileSync = nodeFs.readFileSync;
-    nodeFs.readFileSync = ((p: Parameters<typeof realReadFileSync>[0], ...rest: unknown[]) => {
+    nodeFs_readFileSync_spy = vi.spyOn(nodeFs, 'readFileSync').mockImplementation(((
+      p: Parameters<typeof realReadFileSync>[0],
+      ...rest: unknown[]
+    ) => {
       if (String(p) === offsetPath) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFileSync as (...a: unknown[]) => unknown)(p, ...rest);
-    }) as typeof realReadFileSync;
-    syncBuiltinESMExports();
+    }) as typeof realReadFileSync);
+
     let poller: Poller;
     try {
       poller = makePoller({
@@ -163,8 +167,7 @@ describe('Poller standby takeover offset', () => {
       });
       await poller.poll();
     } finally {
-      nodeFs.readFileSync = realReadFileSync;
-      syncBuiltinESMExports();
+      nodeFs_readFileSync_spy?.mockRestore();
     }
     expect(offsets).toEqual([]);
 
@@ -173,3 +176,7 @@ describe('Poller standby takeover offset', () => {
     expect(seen).toEqual([]);
   });
 });
+
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
+}));

@@ -1824,7 +1824,7 @@ describe('DefaultSessionStore.rename', () => {
     await fs.rm(path.join(tmp, '_index.jsonl'), { force: true });
     await new DefaultSessionStore({ dir: tmp }).list();
     const shardManifest = path.join(tmp, '2026-07-04', '_manifest.json');
-    await expect(fs.access(shardManifest)).resolves.toBeUndefined();
+    await expect(fs.access(shardManifest).then(() => true)).resolves.toBe(true);
 
     await store.rename(id, 'Fresh manifest name');
     await expect(fs.access(shardManifest)).rejects.toThrow();
@@ -1906,7 +1906,9 @@ describe('DefaultSessionStore.delete — in-use protection', () => {
     // Simulate a concurrent holder appearing after creation.
     reportInUse = true;
     await expect(guardedStore.delete('2026-07-04/regn1')).rejects.toThrow(/in use/);
-    await expect(fs.access(path.join(tmp, '2026-07-04', 'regn1.jsonl'))).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(tmp, '2026-07-04', 'regn1.jsonl')).then(() => true),
+    ).resolves.toBe(true);
     // A different session is deletable through the same guarded store.
     const w2 = await guardedStore.create({ id: '2026-07-04/regn2', model: 'm', provider: 'p' });
     await w2.close();
@@ -1981,11 +1983,11 @@ describe('DefaultSessionStore — leaf id mutations', () => {
 
     await expect(store.delete('shared-leaf')).rejects.toThrow(/Ambiguous session id/);
     await expect(
-      fs.access(path.join(tmp, '2026-07-05', 'shared-leaf.jsonl')),
-    ).resolves.toBeUndefined();
+      fs.access(path.join(tmp, '2026-07-05', 'shared-leaf.jsonl')).then(() => true),
+    ).resolves.toBe(true);
     await expect(
-      fs.access(path.join(tmp, '2026-07-06', 'shared-leaf.jsonl')),
-    ).resolves.toBeUndefined();
+      fs.access(path.join(tmp, '2026-07-06', 'shared-leaf.jsonl')).then(() => true),
+    ).resolves.toBe(true);
   });
 
   it('still treats delete of an unknown id as a no-op', async () => {
@@ -2016,8 +2018,8 @@ describe('DefaultSessionStore — leaf id mutations', () => {
       reportInUse = true;
       await expect(guarded.delete('live_leaf')).rejects.toThrow(/in use/);
       await expect(
-        fs.access(path.join(tmp, '2026-07-04', 'live_leaf.jsonl')),
-      ).resolves.toBeUndefined();
+        fs.access(path.join(tmp, '2026-07-04', 'live_leaf.jsonl')).then(() => true),
+      ).resolves.toBe(true);
     } finally {
       await guarded.dispose();
     }

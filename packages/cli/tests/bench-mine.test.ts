@@ -54,8 +54,8 @@ describe('wstack bench mine', () => {
       expect.stringContaining('Mined 1 edit attempt'),
     );
     await expect(
-      fs.access(path.join(dir, 'evals', 'trace-eval-drafts.json')),
-    ).resolves.toBeUndefined();
+      fs.access(path.join(dir, 'evals', 'trace-eval-drafts.json')).then(() => true),
+    ).resolves.toBe(true);
   });
 
   it('requires a source transcript', async () => {

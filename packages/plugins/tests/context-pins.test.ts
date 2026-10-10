@@ -1,5 +1,5 @@
+import * as testNodeFs from 'node:fs';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -172,21 +172,24 @@ describe('context-pins plugin', () => {
     const filePath = join(tmp, 'pins.json');
     writeFileSync(filePath, JSON.stringify({ pins: [{ id: 'pin-1', text: 'stored' }], nextId: 2 }));
     const before = readFileSync(filePath, 'utf-8');
-    const nodeFs = createRequire(import.meta.url)('node:fs') as typeof import('node:fs');
+    const nodeFs = testNodeFs as typeof import('node:fs');
+    let nodeFs_readFileSync_spy: { mockRestore(): void } | undefined;
     const realReadFileSync = nodeFs.readFileSync;
-    nodeFs.readFileSync = ((p: unknown, ...rest: unknown[]) => {
+    nodeFs_readFileSync_spy = vi.spyOn(nodeFs, 'readFileSync').mockImplementation(((
+      p: unknown,
+      ...rest: unknown[]
+    ) => {
       if (String(p) === filePath) {
         throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' });
       }
       return (realReadFileSync as (...a: unknown[]) => unknown)(p, ...rest);
-    }) as typeof nodeFs.readFileSync;
-    syncBuiltinESMExports();
+    }) as typeof nodeFs.readFileSync);
+
     const api = makeApi({ extensions: { 'context-pins': { filePath } } });
     try {
       contextPinsPlugin.setup(api as never);
     } finally {
-      nodeFs.readFileSync = realReadFileSync;
-      syncBuiltinESMExports();
+      nodeFs_readFileSync_spy?.mockRestore();
     }
     const result = await getTool(api, 'pin_add').execute({ text: 'new' });
     expect(result['persisted']).toBe(false);
@@ -267,3 +270,7 @@ describe('context-pins plugin', () => {
     );
   });
 });
+
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
+}));

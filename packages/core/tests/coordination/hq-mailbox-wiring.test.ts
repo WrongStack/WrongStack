@@ -24,6 +24,7 @@ import { EventBus } from '../../src/kernel/events.js';
 import {
   waitForEndpointClosed,
   waitForMetadataRemoval,
+  waitForProcessExit,
 } from '../helpers/project-server-harness.js';
 
 let dir: string;
@@ -69,6 +70,7 @@ afterEach(async () => {
     if (result.stopped) {
       await waitForMetadataRemoval(mailboxProjectServerMetadataPath(dir));
       await waitForEndpointClosed(mailboxProjectServerEndpoint(dir));
+      if (result.pid !== undefined) await waitForProcessExit(result.pid);
     }
   } catch {
     // No owner running, or it exited on its own.

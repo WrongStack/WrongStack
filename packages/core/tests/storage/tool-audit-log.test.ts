@@ -1,8 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { ToolAuditLog } from '../../src/storage/tool-audit-log.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EventBus } from '../../src/kernel/events.js';
+import { ToolAuditLog } from '../../src/storage/tool-audit-log.js';
 
 // vi.mock is hoisted above imports.  The factory uses vi.importActual to lazily
 // get the real module, avoiding TDZ issues.  The returned plain object replaces
@@ -287,8 +287,10 @@ describe('ToolAuditLog', () => {
     });
     expect(await log.verify(shardedId)).toEqual({ ok: true, entries: 1 });
     await expect(
-      fsp.access(path.join(dir, '2026-06-11', 'sess_01JX2S9V7T5M6N7P8Q9R0STXVW.audit.jsonl')),
-    ).resolves.toBeUndefined();
+      fsp
+        .access(path.join(dir, '2026-06-11', 'sess_01JX2S9V7T5M6N7P8Q9R0STXVW.audit.jsonl'))
+        .then(() => true),
+    ).resolves.toBe(true);
   });
 
   // ── storage.* event emissions ───────────────────────────────────────────

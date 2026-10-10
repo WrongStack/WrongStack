@@ -1,4 +1,7 @@
-import { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
+const DatabaseSync = loadTestDatabaseSync();
+
 import { initializeSchema } from '../src/verification-ledger-schema.js';
 
 const cases = [

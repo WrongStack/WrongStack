@@ -1,3 +1,4 @@
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
 /**
  * Phase 3: hybrid search engine — vector embedding + RRF fusion tests.
  *
@@ -166,14 +167,7 @@ function makeStore(): { store: IndexStore; dbPath: () => string } {
 
 /** Raw connection for schema assertions — never reach into IndexStore privates. */
 function listTables(dbPath: string): string[] {
-  const { DatabaseSync } = require('node:sqlite') as {
-    DatabaseSync: new (
-      p: string,
-    ) => {
-      prepare: (sql: string) => { all: () => unknown[] };
-      close: () => void;
-    };
-  };
+  const DatabaseSync = loadTestDatabaseSync();
   const db = new DatabaseSync(dbPath);
   try {
     return (
@@ -264,14 +258,7 @@ describe('P4.11 vector gate (WRONGSTACK_INDEX_VECTORS)', () => {
       const { store, dbPath } = makeStore();
       store.insertSymbols([symbolRow({ name: 'alphaOne' }), symbolRow({ name: 'betaTwo' })]);
       expect(listTables(dbPath())).toContain('symbol_vectors');
-      const { DatabaseSync } = require('node:sqlite') as {
-        DatabaseSync: new (
-          p: string,
-        ) => {
-          prepare: (sql: string) => { all: () => unknown[] };
-          close: () => void;
-        };
-      };
+      const DatabaseSync = loadTestDatabaseSync();
       const raw = new DatabaseSync(dbPath());
       try {
         const rows = raw.prepare('SELECT symbol_id, vector FROM symbol_vectors').all() as Array<{
@@ -309,14 +296,7 @@ describe('P4.11 vector gate (WRONGSTACK_INDEX_VECTORS)', () => {
       // Now enable vectors and corrupt FTS (delete rows without touching
       // symbols) so the drift-repair branch fires on reopen.
       process.env['WRONGSTACK_INDEX_VECTORS'] = '1';
-      const { DatabaseSync } = require('node:sqlite') as {
-        DatabaseSync: new (
-          p: string,
-        ) => {
-          exec: (sql: string) => void;
-          close: () => void;
-        };
-      };
+      const DatabaseSync = loadTestDatabaseSync();
       const corruptor = new DatabaseSync(dbPath);
       try {
         corruptor.exec('DELETE FROM symbols_fts');

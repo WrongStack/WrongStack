@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
+import * as testNodeFsPromises from 'node:fs/promises';
 import * as fs from 'node:fs/promises';
-import { createRequire, syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   collectReachableManifestHashes,
   sweepCheckpointCas,
@@ -250,15 +250,19 @@ describe('checkpoint CAS garbage collection', () => {
     const reachable = await collectReachableManifestHashes(store);
 
     const manifestsDir = path.join(cas, 'manifests');
-    const fsp = createRequire(import.meta.url)('node:fs/promises') as typeof fs;
+    const fsp = testNodeFsPromises as typeof fs;
+    let fsp_readdir_spy: { mockRestore(): void } | undefined;
     const realReaddir = fsp.readdir;
-    fsp.readdir = (async (p: Parameters<typeof realReaddir>[0], ...rest: unknown[]) => {
+    fsp_readdir_spy = vi.spyOn(fsp, 'readdir').mockImplementation((async (
+      p: Parameters<typeof realReaddir>[0],
+      ...rest: unknown[]
+    ) => {
       if (String(p) === manifestsDir) {
         throw Object.assign(new Error('EMFILE: too many open files'), { code: 'EMFILE' });
       }
       return (realReaddir as (...a: unknown[]) => Promise<unknown>)(p, ...rest);
-    }) as typeof realReaddir;
-    syncBuiltinESMExports();
+    }) as typeof realReaddir);
+
     let result: Awaited<ReturnType<typeof sweepCheckpointCas>>;
     try {
       result = await sweepCheckpointCas({
@@ -267,8 +271,7 @@ describe('checkpoint CAS garbage collection', () => {
         keepNewerThanMs: floorNow(),
       });
     } finally {
-      fsp.readdir = realReaddir;
-      syncBuiltinESMExports();
+      fsp_readdir_spy?.mockRestore();
     }
 
     expect(result.objectsDeleted).toBe(0);
@@ -295,3 +298,7 @@ describe('checkpoint CAS garbage collection', () => {
     expect(result.errors).toEqual([]);
   });
 });
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));

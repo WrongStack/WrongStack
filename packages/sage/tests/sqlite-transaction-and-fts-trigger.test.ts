@@ -1,3 +1,5 @@
+import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/persistence';
+
 /**
  * Regression tests for two SQLite storage invariants that were previously
  * unenforced:
@@ -10,13 +12,15 @@
  *     `data` on every injected memory every tool turn; without the WHEN guard
  *     each of those paid a full FTS delete+insert.
  */
-import { DatabaseSync } from 'node:sqlite';
+const DatabaseSync = loadTestDatabaseSync();
+type DatabaseSync = InstanceType<typeof DatabaseSync>;
+
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { SqliteMutationQueue } from '../src/sqlite-store-mutation-queue.js';
 import { SqliteSageStore } from '../src/sqlite-store.js';
+import { SqliteMutationQueue } from '../src/sqlite-store-mutation-queue.js';
 
 let tempDir: string;
 let activeStores: SqliteSageStore[] = [];
