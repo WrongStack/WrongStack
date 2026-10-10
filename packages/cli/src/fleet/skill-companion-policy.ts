@@ -14,10 +14,14 @@ Call no tool except submit_result. Return submit_result with summary containing 
 {"skills":[{"name":"exact candidate name","reason":"one line, at most 120 characters"}],"confidence":0.0}
 At most two skills, exact names from CANDIDATES, most important first. confidence is how sure you are the picks fit (0..1). Stop after this one answer.`;
 
+// Sealed: every cap is a hard stop, never extended. maxTokens counts input
+// too, so it must hold one call's floor — subagent baseline (~3.5k tokens),
+// the prompt, a full candidate payload (~7k at maxCandidates 80) and the
+// answer — plus a second iteration's re-send.
 const CAPS = {
   maxIterations: 2,
   maxToolCalls: 2,
-  maxTokens: 6000,
+  maxTokens: 32_000,
   maxCostUsd: 0.05,
   timeoutMs: 45000,
 };

@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { access, mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +9,10 @@ import {
   MailboxProjectServerConnection,
 } from '@wrongstack/core/coordination';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { waitForProcessExit } from '../../core/tests/helpers/project-server-harness.js';
+import {
+  removeProjectFixtureDirectory,
+  waitForProcessExit,
+} from '../../core/tests/helpers/project-server-harness.js';
 import { createMailboxMcpToolHost } from '../src/adapter.js';
 
 function objectContent(result: { content: unknown; isError: boolean }): Record<string, unknown> {
@@ -68,13 +71,21 @@ describe('Mailbox MCP full-access IPC integration', () => {
   afterAll(async () => {
     await mailbox?.close().catch(() => {});
     emitter?.clear();
-    if (serverProcess && serverProcess.exitCode === null) {
+    let stoppedPid: number | undefined;
+    if (projectDir) {
       const connection = new MailboxProjectServerConnection(projectDir);
       try {
-        await connection.shutdown('Mailbox MCP integration test complete');
+        const stopped = await connection.shutdown('Mailbox MCP integration test complete');
+        stoppedPid = stopped.pid;
       } finally {
         connection.close();
       }
+    }
+    // The client may have elected a replacement after the launcher exited.
+    // Shut down and reap the current owner, not only the original child.
+    if (stoppedPid !== undefined) await waitForProcessExit(stoppedPid);
+    if (serverProcess?.exitCode === null && serverProcess.pid !== stoppedPid) {
+      serverProcess.kill('SIGTERM');
     }
     if (serverClosed) {
       let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -94,7 +105,7 @@ describe('Mailbox MCP full-access IPC integration', () => {
     }
     if (serverProcess?.pid !== undefined) await waitForProcessExit(serverProcess.pid);
     if (projectDir) {
-      await rm(projectDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+      await removeProjectFixtureDirectory(projectDir, { maxRetries: 20, retryDelay: 100 });
     }
   });
 
@@ -353,5 +364,25 @@ describe('Mailbox MCP full-access IPC integration', () => {
     );
     expect(emptyResult['messages']).toEqual([]);
     objectContent(await host.callTool('mailbox_manage', { action: 'deregister_self' }));
+  });
+
+  it('reconnects to a replacement owner and tears it down after the launcher exits', async () => {
+    if (!mailbox) throw new Error('Mailbox test backend was not initialized');
+    const connection = new MailboxProjectServerConnection(projectDir);
+    let previousPid: number | undefined;
+    try {
+      const stopped = await connection.shutdown('Exercise replacement-owner teardown');
+      expect(stopped.stopped).toBe(true);
+      previousPid = stopped.pid;
+    } finally {
+      connection.close();
+    }
+    expect(previousPid).toBeTypeOf('number');
+    await waitForProcessExit(previousPid!);
+    await expect(mailbox.status()).resolves.toMatchObject({ storageKind: 'sqlite' });
+    const replacement = JSON.parse(
+      await readFile(join(projectDir, '.mailbox-server.json'), 'utf8'),
+    ) as { pid: number };
+    expect(replacement.pid).not.toBe(previousPid);
   });
 });

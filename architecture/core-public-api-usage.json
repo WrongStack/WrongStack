@@ -6,7 +6,7 @@
     "@wrongstack/core/agent": {
       "files": 384,
       "typeOnly": 301,
-      "runtimeOrMixed": 103
+      "runtimeOrMixed": 104
     },
     "@wrongstack/core/agent-catalog": {
       "files": 21,
@@ -26,7 +26,7 @@
     "@wrongstack/core/coordination": {
       "files": 270,
       "typeOnly": 105,
-      "runtimeOrMixed": 230
+      "runtimeOrMixed": 231
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -195,8 +195,8 @@
     },
     "@wrongstack/core/types": {
       "files": 1387,
-      "typeOnly": 1219,
-      "runtimeOrMixed": 422
+      "typeOnly": 1218,
+      "runtimeOrMixed": 423
     },
     "@wrongstack/core/types/limits": {
       "files": 1,
@@ -239,9 +239,9 @@
       "runtimeOrMixed": 20
     },
     "@wrongstack/core/utils": {
-      "files": 772,
+      "files": 773,
       "typeOnly": 69,
-      "runtimeOrMixed": 731
+      "runtimeOrMixed": 732
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -906,7 +906,7 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/fleet/skill-companion.test.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3636,7 +3636,7 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/fleet/skill-companion.test.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -15857,8 +15857,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/codex-prompt-prefix-stability.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -24463,6 +24463,12 @@
       "file": "packages/cli/tests/event-wiring.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/fleet/skill-companion.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

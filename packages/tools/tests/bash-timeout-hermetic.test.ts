@@ -23,7 +23,7 @@ const isWin = os.platform() === 'win32';
 async function slowCommand(dir: string, ms = 1200): Promise<string> {
   await fs.writeFile(
     path.join(dir, 'slow.js'),
-    `setTimeout(() => console.log('slow-done'), ${ms});\n`,
+    `require('node:fs').writeFileSync('slow-ready', 'ready');\nsetTimeout(() => console.log('slow-done'), ${ms});\n`,
   );
   return 'node slow.js';
 }
@@ -53,17 +53,29 @@ describe('bash timeout_ms: 0', () => {
 
   it('is still stopped by the caller abort signal', async () => {
     const sb = await mkSandbox();
+    const ac = new AbortController();
+    let running: Promise<unknown> | undefined;
     try {
-      const ac = new AbortController();
       const cmd = await slowCommand(sb.dir, 20_000);
-      const started = Date.now();
-      setTimeout(() => ac.abort(), 300);
-      const out = await bashTool
+      running = bashTool
         .execute({ command: cmd, timeout_ms: 0 }, sb.ctx, { signal: ac.signal })
         .catch((err: unknown) => ({ aborted: err }));
+      // Measure cancellation after the real command starts, independently of
+      // shell/child startup under full-suite load.
+      await vi.waitFor(
+        async () => {
+          expect(await fs.readFile(path.join(sb.dir, 'slow-ready'), 'utf8')).toBe('ready');
+        },
+        { timeout: 10_000 },
+      );
+      const started = Date.now();
+      ac.abort();
+      const out = await running;
       expect(Date.now() - started).toBeLessThan(10_000);
       expect(out).not.toMatchObject({ exit_code: 0 });
     } finally {
+      ac.abort();
+      await running;
       await sb.cleanup();
     }
   });

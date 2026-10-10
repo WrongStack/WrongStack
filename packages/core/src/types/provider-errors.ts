@@ -194,8 +194,13 @@ export function parseResetHintMs(message: string, now: number = Date.now()): num
     const window = message.slice(lead.index + lead[0].length, lead.index + lead[0].length + 80);
     let total = 0;
     let matched = false;
+    let end = 0;
     DURATION_TOKEN_RE.lastIndex = 0;
     for (let m = DURATION_TOKEN_RE.exec(window); m; m = DURATION_TOKEN_RE.exec(window)) {
+      // Only adjacent duration terms belong to the hint, not later prose.
+      const separator = window.slice(end, m.index);
+      if (!(end === 0 ? /^\s*$/ : /^[\s,]*(?:and\s+)?$/i).test(separator)) break;
+      end = DURATION_TOKEN_RE.lastIndex;
       const value = Number.parseFloat(m[1]!);
       if (Number.isFinite(value) && value > 0) {
         total += value * unitMs(m[2]!);

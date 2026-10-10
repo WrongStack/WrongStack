@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-10T17:42:24.012Z",
+  "generatedAt": "2026-10-10T21:48:51.771Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 37,
     "sourceFiles": 4921,
-    "testFiles": 4278,
-    "sourceLines": 1092007,
+    "testFiles": 4282,
+    "sourceLines": 1092094,
     "workspaceEdges": 133,
     "moduleEdges": 16204,
     "nonCommandSlashImports": 0,
@@ -244,7 +244,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 1113,
-      "testFiles": 955,
+      "testFiles": 958,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -259,7 +259,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 955
+          "testFiles": 958
         }
       ]
     },
@@ -721,7 +721,7 @@
       "name": "@wrongstack/techstack",
       "dir": "packages/techstack",
       "sourceFiles": 53,
-      "testFiles": 51,
+      "testFiles": 52,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -736,7 +736,7 @@
         {
           "path": "packages/techstack/tsconfig.test.json",
           "error": null,
-          "testFiles": 51
+          "testFiles": 52
         }
       ]
     },
@@ -5736,6 +5736,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/architecture/bun-build-catalog-regressions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/architecture/bun-deploy-workspace.test.ts",
         "projects": [
           "root-node"
@@ -5965,6 +5971,12 @@
       },
       {
         "file": "packages/core/tests/architecture/vitest-daemon-reaper.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/architecture/vitest-test-order.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7369,6 +7381,12 @@
       },
       {
         "file": "packages/core/tests/core/agent-response-nextsteps-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/agent-response-volatile-relocation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16747,6 +16765,12 @@
       },
       {
         "file": "packages/techstack/tests/http-fetch-body-cap.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/techstack/tests/http-fetch-response-error.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26967,6 +26991,11 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/core/src/core/agent-response.ts",
+      "lines": 792,
+      "relativeImports": 23
+    },
+    {
       "file": "packages/core/src/session-catalog/session-registry.ts",
       "lines": 774,
       "relativeImports": 4
@@ -27165,11 +27194,6 @@
       "file": "packages/webui/src/components/SddWizard.tsx",
       "lines": 747,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/core/src/core/agent-response.ts",
-      "lines": 746,
-      "relativeImports": 23
     },
     {
       "file": "packages/core/src/core/fallback-profile-manager.ts",

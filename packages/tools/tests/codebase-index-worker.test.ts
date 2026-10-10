@@ -15,10 +15,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 
 const distDir = fileURLToPath(new URL('../dist', import.meta.url));
-const distEntry = path.join(distDir, 'codebase-index', 'index.js');
+let distEntry = path.join(distDir, 'codebase-index', 'index.js');
 const distServer = path.join(distDir, 'codebase-index', 'project-server.js');
 // The worker resolves @wrongstack/core from ITS dist at runtime, so a missing
 // core build (fresh checkout, or a concurrent package build wiping dist
@@ -27,6 +28,12 @@ const coreDist = fileURLToPath(new URL('../../core/dist/index.js', import.meta.u
 const distReady =
   fsSync.existsSync(distEntry) && fsSync.existsSync(distServer) && fsSync.existsSync(coreDist);
 const execFileAsync = promisify(execFile);
+
+// Bun currently returns EBUSY immediately even with fs.rm's maxRetries.
+// Preserve the existing 20-retry, 50ms linear backoff explicitly.
+async function removeFixture(directory: string): Promise<void> {
+  await removeProjectFixtureDirectory(directory, { maxRetries: 20, retryDelay: 50 });
+}
 
 /**
  * Run a read query that may land while the server is publishing a generation.
@@ -179,6 +186,18 @@ interface DistIndexApi {
 describe.skipIf(!distReady)('index host (project-server mode, built dist)', () => {
   let api: DistIndexApi | undefined;
   let activeProject: { projectRoot: string; indexDir: string } | undefined;
+  let artifactDirectory: string | undefined;
+
+  beforeAll(async () => {
+    // Test one built artifact throughout both cases, even if another terminal
+    // rebuilds the workspace's dist. This is a fixture, not a checkout.
+    const reports = fileURLToPath(new URL('../node_modules/.cache/', import.meta.url));
+    await fs.mkdir(reports, { recursive: true });
+    artifactDirectory = await fs.mkdtemp(path.join(reports, 'index-worker-artifact-'));
+    const snapshot = path.join(artifactDirectory, 'dist');
+    await fs.cp(distDir, snapshot, { recursive: true });
+    distEntry = path.join(snapshot, 'codebase-index', 'index.js');
+  });
 
   afterAll(async () => {
     if (api && activeProject) {
@@ -189,6 +208,7 @@ describe.skipIf(!distReady)('index host (project-server mode, built dist)', () =
       );
     }
     await api?.shutdownCodebaseIndexHost();
+    if (artifactDirectory) await removeFixture(artifactDirectory);
   });
 
   it('indexes, searches, graphs, and shuts down through one project server', async () => {
@@ -496,7 +516,7 @@ describe.skipIf(!distReady)('index host (project-server mode, built dist)', () =
       // OS and throws EBUSY roughly half the time even though every assertion
       // above already proved the process is gone. Node's rm retries on
       // EBUSY/EPERM/ENOTEMPTY when `maxRetries` is set.
-      await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
+      await removeFixture(tmpDir);
     }
   }, 90_000);
 
@@ -617,7 +637,7 @@ describe.skipIf(!distReady)('index host (project-server mode, built dist)', () =
         const pid = stopped.pid;
         expect(await until(() => !processExists(pid))).toBe(true);
       }
-      await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
+      await removeFixture(tmpDir);
     }
   }, 120_000);
 });

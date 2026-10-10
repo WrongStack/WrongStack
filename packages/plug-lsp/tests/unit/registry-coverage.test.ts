@@ -148,6 +148,14 @@ describe('registry completion coverage', () => {
     };
 
     expect(registryCoverage.configuredLanguageIdFor(file, servers)).toBe('vue');
+    expect(
+      registryCoverage.configuredLanguageIdFor(path.join(root, 'unknown.custom'), servers),
+    ).toBeNull();
+    expect(
+      registryCoverage.configuredLanguageIdFor(file, {
+        vue: { ...servers.vue, languages: ['typescript'] },
+      }),
+    ).toBeNull();
     expect(await registryCoverage.detectProjectLanguages(root, servers)).toEqual(new Set(['vue']));
   });
 

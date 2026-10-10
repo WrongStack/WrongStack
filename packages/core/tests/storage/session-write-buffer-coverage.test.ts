@@ -183,15 +183,25 @@ describe('SessionWriteBuffer — coverage', () => {
       datasync: vi.fn().mockResolvedValue(undefined),
       close: vi.fn().mockResolvedValue(undefined),
     };
+    let activeHandle = handle as unknown as fs.FileHandle;
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ ...handle }) as unknown as fs.FileHandle,
-      setHandle: () => undefined,
+      getHandle: () => activeHandle,
+      setHandle: (replacement) => {
+        activeHandle = replacement;
+      },
     });
-    await buffer.enqueueWrite('data\n');
-    const content = await fs.readFile(filePath, 'utf8');
-    expect(content).toBe('data\n');
+    try {
+      await buffer.enqueueWrite('data\n');
+      await buffer.enqueueWrite('next\n');
+      const content = await fs.readFile(filePath, 'utf8');
+      expect(content).toBe('data\nnext\n');
+      expect(handle.appendFile).toHaveBeenCalledOnce();
+    } finally {
+      await activeHandle.close();
+    }
+    expect(activeHandle.fd).toBe(-1);
   });
 
   it('enqueueWrite rethrows non-closed-handle append errors', async () => {

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-10T17:42:24.012Z
+**Generated:** 2026-10-10T21:48:51.771Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 37 |
 | Production source files | 4921 |
-| Production source lines | 1092007 |
-| Test files | 4278 |
+| Production source lines | 1092094 |
+| Test files | 4282 |
 | Workspace dependency edges | 133 |
 | Relative module edges | 16204 |
 | Non-command slash imports | 0 |
@@ -32,7 +32,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/cli | 619 | 614 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/client | 6 | 1 | @wrongstack/webui-protocol |
 | @wrongstack/codebase-index-mcp | 5 | 5 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 1113 | 955 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 1113 | 958 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 46 | 30 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 45 | 33 | @wrongstack/persistence |
 | @wrongstack/kanban | 105 | 82 | @wrongstack/persistence, @wrongstack/primitives |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/sdd | 45 | 41 | @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake |
 | @wrongstack/security-scanner | 21 | 31 | @wrongstack/core |
 | @wrongstack/simpleui | 127 | 93 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
-| @wrongstack/techstack | 53 | 51 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
+| @wrongstack/techstack | 53 | 52 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 41 | @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/tools | 321 | 311 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 479 | 421 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
@@ -84,6 +84,7 @@ None.
 | Lines | File |
 |---:|---|
 | 796 | `packages/webui/src/components/ProviderTestView.tsx` |
+| 792 | `packages/core/src/core/agent-response.ts` |
 | 774 | `packages/core/src/session-catalog/session-registry.ts` |
 | 768 | `packages/webui-server/src/server/session-handlers.ts` |
 | 767 | `packages/plugin-sdk/src/runtime/index.ts` |
@@ -124,7 +125,6 @@ None.
 | 747 | `packages/core/src/core/fallback-model.ts` |
 | 747 | `packages/tools/src/bash-stream.ts` |
 | 747 | `packages/webui/src/components/SddWizard.tsx` |
-| 746 | `packages/core/src/core/agent-response.ts` |
 | 746 | `packages/core/src/core/fallback-profile-manager.ts` |
 | 746 | `packages/webui-server/src/server/backend-services.ts` |
 | 744 | `packages/core/src/utils/tool-output-renderers.ts` |

@@ -1585,7 +1585,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 75,
-      "sourceLines": 15997
+      "sourceLines": 16043
     },
     {
       "directory": "design",
@@ -1753,7 +1753,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 116,
-      "sourceLines": 25927
+      "sourceLines": 25933
     },
     {
       "directory": "tasking",
@@ -1774,7 +1774,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 85,
-      "sourceLines": 16465
+      "sourceLines": 16470
     },
     {
       "directory": "typesafe",

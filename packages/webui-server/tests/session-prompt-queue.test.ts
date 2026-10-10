@@ -17,10 +17,25 @@ import {
   type QueuedPrompt,
 } from '../src/server/session-prompt-queue.js';
 
+const commitFailure = vi.hoisted(() => ({ target: undefined as string | undefined }));
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  const rename: typeof actual.rename = (from, to) => {
+    if (String(to) === commitFailure.target) {
+      return Promise.reject(
+        Object.assign(new Error('Injected filesystem commit failure'), { code: 'EIO' }),
+      );
+    }
+    return actual.rename(from, to);
+  };
+  return { ...actual, default: { ...actual, rename }, rename };
+});
+
 type Outbound = { type: string; payload: unknown };
 
 const dirs: string[] = [];
 afterEach(async () => {
+  commitFailure.target = undefined;
   for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true });
 });
 
@@ -285,6 +300,35 @@ describe('createSessionPromptQueue', () => {
       ]),
     );
   });
+
+  it.each(['parent', 'rename'])(
+    'retains the legacy source across a blocked %s, then migrates once',
+    async (blocked) => {
+      const dir = await tempDir();
+      const legacyDir = await tempDir();
+      const legacyFile = path.join(legacyDir, '2026-09-23%2fsess_01ABC.json');
+      const original = [{ text: 'recoverable prompt' }];
+      await writeFile(legacyFile, JSON.stringify(original), 'utf8');
+      const blockingFile = path.join(dir, '2026-09-23');
+      if (blocked === 'parent') await writeFile(blockingFile, 'not a directory', 'utf8');
+      else commitFailure.target = path.join(dir, SESSION, 'queue.json');
+      const h = queueHarness({ dir, legacyDir, busy: true });
+      expect((await h.queue.list(SESSION)).map((item) => item.text)).toEqual([
+        'recoverable prompt',
+      ]);
+      expect(JSON.parse(await readFile(legacyFile, 'utf8'))).toEqual(original);
+
+      commitFailure.target = undefined;
+      if (blocked === 'parent') await rm(blockingFile);
+      await h.queue.add(SESSION, { text: 'new prompt' });
+      await expect(readFile(legacyFile, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+      const restarted = queueHarness({ dir, legacyDir, busy: true });
+      expect((await restarted.queue.list(SESSION)).map((item) => item.text)).toEqual([
+        'recoverable prompt',
+        'new prompt',
+      ]);
+    },
+  );
 
   it('shows a drained prompt with its images', async () => {
     const h = queueHarness();

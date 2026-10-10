@@ -109,13 +109,29 @@ describe('plugin entry', () => {
     expect(promptContributors).toHaveLength(1);
     expect((await promptContributors[0]!())[0]?.text).toContain('lsp_diagnostics');
 
+    let startupStarted = false;
     const ready = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('background LSP startup timed out')), 5000);
-      events.on('lsp.server.ready', () => {
-        clearTimeout(timer);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const stopStarting = events.on('lsp.server.starting', () => {
+        startupStarted = true;
+        // The same 5s startup budget begins at server startup, excluding the
+        // preceding edit, permission checks, and post-tool hook preparation.
+        timer = setTimeout(() => {
+          stopStarting();
+          stopReady();
+          reject(new Error('background LSP startup timed out'));
+        }, 5000);
+      });
+      const stopReady = events.on('lsp.server.ready', () => {
+        if (timer !== undefined) clearTimeout(timer);
+        stopStarting();
+        stopReady();
         resolve();
       });
     });
+    // Preserve rejection for the assertion without an early unhandled promise
+    // while the real tool/hook call is still completing.
+    void ready.catch(() => {});
     const edit: Tool = {
       name: 'edit',
       description: 'fixture edit',
@@ -153,6 +169,7 @@ describe('plugin entry', () => {
       } as never,
       'sequential',
     );
+    expect(startupStarted).toBe(true);
     await ready;
     expect(executed.outputs[0]?.result).toMatchObject({
       type: 'tool_result',

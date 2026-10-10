@@ -426,6 +426,40 @@ function composeRequestMessages(
   return { messages: out, boundary };
 }
 
+/**
+ * Append blocks to the live-context tail of an already composed request.
+ *
+ * The tail rides the trailing user message after the cache boundary
+ * ({@link composeRequestMessages}); when it has no header yet (no tail blocks
+ * this request) one is added. Blocks are copied marker-free: a `cache_control`
+ * on a churning tail block would become the request's deepest breakpoint and
+ * recreate exactly the per-request cache-write churn this avoids.
+ */
+function appendLiveContextTail(
+  messages: readonly Message[],
+  blocks: readonly TextBlock[],
+): Message[] {
+  const fresh = blocks.map((block): TextBlock => ({ type: 'text', text: block.text }));
+  const out = messages.slice();
+  const last = out[out.length - 1];
+  if (last?.role !== 'user') {
+    out.push({ role: 'user', content: [LIVE_CONTEXT_HEADER, ...fresh] });
+    return out;
+  }
+  const content: ContentBlock[] =
+    typeof last.content === 'string'
+      ? [{ type: 'text', text: last.content }]
+      : last.content.slice();
+  const hasHeader = content.some(
+    (block) => block.type === 'text' && block.text === LIVE_CONTEXT_HEADER.text,
+  );
+  out[out.length - 1] = {
+    ...last,
+    content: hasHeader ? [...content, ...fresh] : [...content, LIVE_CONTEXT_HEADER, ...fresh],
+  };
+  return out;
+}
+
 export function createAgentResponseHandler(
   a: AgentInternals,
   refreshSystemPrompt = false,
@@ -572,11 +606,23 @@ export function createAgentResponseHandler(
     });
     bindRequestProvider(baseReq, provider);
     let request = await a.pipelines.request.run(baseReq);
+    const volatile = request.system?.filter(isVolatileSystemBlock) ?? [];
+    if (!appendOnlyContext && composedMessages && volatile.length > 0) {
+      // Explicit-breakpoint wires cache tools → system → messages, so a block a
+      // middleware appended to `system` (it arrives after the base request was
+      // composed) would sit before the whole conversation and invalidate it on
+      // every change. Re-home it behind the deepest boundary with the rest of
+      // the live-context tail instead; it still reaches the model.
+      request = {
+        ...request,
+        system: request.system?.filter((block) => !isVolatileSystemBlock(block)),
+        messages: appendLiveContextTail(request.messages, volatile),
+      };
+    }
     if (appendOnlyContext) {
       // Include middleware's volatile system blocks in the same replay. They
       // arrive after base request composition, so adapter-only relocation
       // would still remove the previous request's final cache endpoint.
-      const volatile = request.system?.filter(isVolatileSystemBlock) ?? [];
       request = {
         ...request,
         system: request.system?.filter((block) => !isVolatileSystemBlock(block)),

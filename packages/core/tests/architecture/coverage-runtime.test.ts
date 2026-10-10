@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -25,9 +26,39 @@ import {
   runCoverage,
 } from '../../../../scripts/test-coverage.mjs';
 import { getVitestMaxWorkers } from '../../../../vitest.workers.js';
+import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../../..');
 const temporaryDirectories: string[] = [];
+
+describe('Bun fixture cleanup', () => {
+  it('removes an owned directory after its child releases the working directory', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'wrongstack-rm-retry-'));
+    temporaryDirectories.push(directory);
+    const child = spawn(
+      process.execPath,
+      [
+        '-e',
+        'console.log("ready"); process.stdin.once("data", () => setTimeout(() => process.exit(0), 100));',
+      ],
+      { cwd: directory, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true },
+    );
+    const closed = new Promise<void>((resolve) => child.once('close', () => resolve()));
+    try {
+      await new Promise<void>((resolve, reject) => {
+        child.once('error', reject);
+        child.stdout!.once('data', () => resolve());
+      });
+      const removal = removeProjectFixtureDirectory(directory);
+      child.stdin!.write('release');
+      await removal;
+      expect(existsSync(directory)).toBe(false);
+    } finally {
+      child.stdin!.end('release');
+      await closed;
+    }
+  });
+});
 
 afterEach(() => {
   vi.restoreAllMocks();

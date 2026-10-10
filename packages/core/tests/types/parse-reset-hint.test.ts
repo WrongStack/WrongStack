@@ -24,6 +24,24 @@ describe('parseResetHintMs', () => {
     strictEqual(parseResetHintMs('Please try again in a minute'), 60_000);
   });
 
+  it.each([
+    ['Please retry after 30 seconds. The quota covers 24 hours.', 30_000],
+    ['retry after 30s; quota window is 24h', 30_000],
+    ['retry after 30s with a 24h quota window', 30_000],
+    ['retry after a minute. Quota window is 24 hours.', 60_000],
+    ['retry after maintenance lasting 24 hours', undefined],
+    ['retry after 0s. Quota window is 24 hours.', undefined],
+  ])('keeps unrelated prose out of the reset hint: %s', (message, expected) => {
+    strictEqual(parseResetHintMs(message), expected);
+  });
+
+  it.each(['1h 30m', '1 hour and 30 minutes', '1 hour, 30 minutes', '1 hour, and 30 minutes'])(
+    'preserves compound durations: %s',
+    (duration) => {
+      strictEqual(parseResetHintMs(`retry after ${duration}`), 5_400_000);
+    },
+  );
+
   it('parses absolute ISO timestamps against an injected now', () => {
     const now = Date.parse('2026-07-31T22:00:00Z');
     strictEqual(

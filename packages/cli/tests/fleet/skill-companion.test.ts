@@ -1,5 +1,7 @@
 import type { Context } from '@wrongstack/core/agent';
+import { renderInstructionLayer } from '@wrongstack/core/agent';
 import type { Director } from '@wrongstack/core/coordination';
+import { DEFAULT_SUBAGENT_BASELINE, makeSubagentResultTool } from '@wrongstack/core/coordination';
 import { EventBus } from '@wrongstack/core/kernel';
 import { readSkillCompanionState } from '@wrongstack/core/skills';
 import type {
@@ -8,12 +10,14 @@ import type {
   SubagentConfig,
   TaskResult,
 } from '@wrongstack/core/types';
+import { estimateTextTokens } from '@wrongstack/core/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HostSkillCompanion } from '../../src/fleet/host-skill-companion.js';
 import {
   constrainSkillCompanion,
   isSkillCompanion,
   parseSkillCompanionPick,
+  SKILL_COMPANION_PROMPT,
 } from '../../src/fleet/skill-companion-policy.js';
 
 function manifest(name: string, description: string): SkillManifest {
@@ -255,6 +259,41 @@ describe('Skill Companion policy', () => {
     expect(limited.maxToolCalls).toBe(2);
     expect(limited.maxCostUsd).toBe(0.05);
     expect(isSkillCompanion({ id: 'skill-companion-x', name: 'x', role: 'reviewer' })).toBe(false);
+  });
+
+  it('token cap holds one full-payload judge call (sealed caps are hard stops)', () => {
+    // Regression: a 6000-token cap with a ~23k-token first call killed every
+    // probe after the judge had already answered.
+    const tool = makeSubagentResultTool();
+    const system = [
+      renderInstructionLayer(DEFAULT_SUBAGENT_BASELINE, {
+        toolNames: new Set([tool.name]),
+        tier: 'off',
+        subagent: true,
+        strictToolReferences: true,
+      }),
+      SKILL_COMPANION_PROMPT,
+      JSON.stringify({ description: tool.description, schema: tool.inputSchema }),
+    ].join('\n');
+    const payload = `${SKILL_COMPANION_PROMPT}\nPayload:\n${JSON.stringify({
+      trigger: 'turn',
+      detail: 'The user sent a new request.',
+      request: 'r'.repeat(2000),
+      todos: Array.from({ length: 6 }, () => ({ status: 'pending', content: 't'.repeat(160) })),
+      recentFiles: Array.from({ length: 8 }, (_, i) => `packages/some/deep/path/file-${i}.ts`),
+      CANDIDATES: Array.from({ length: 80 }, (_, i) => ({
+        name: `candidate-skill-name-${i}`,
+        description: 'word '.repeat(44),
+      })),
+    })}`;
+    const answerAllowance = 2000;
+    const call = estimateTextTokens(system) + estimateTextTokens(payload) + answerAllowance;
+    const limited = constrainSkillCompanion({
+      id: 'skill-companion-x',
+      name: 'Skill Companion',
+      role: 'skill-companion',
+    });
+    expect(call).toBeLessThan(limited.maxTokens!);
   });
 
   it('parses fenced answers and keeps only offered names', () => {

@@ -206,7 +206,8 @@ export function createSessionPromptQueue(deps: SessionPromptQueueDeps): SessionP
   /** Sessions with a drain in progress — one turn start at a time per session. */
   const draining = new Set<string>();
   /** Serialises file writes per session so an older snapshot never lands last. */
-  const writes = new Map<string, Promise<void>>();
+  const writes = new Map<string, Promise<boolean>>();
+  const legacyUpdates = new Map<string, () => Promise<boolean>>();
 
   const sessionDirFor = (sessionId: string): string | undefined => {
     if (!deps.sessionsDir || !sessionId || sessionId.length > MAX_SESSION_ID_CHARS) {
@@ -226,13 +227,19 @@ export function createSessionPromptQueue(deps: SessionPromptQueueDeps): SessionP
   };
 
   /** Prompts a previous host kept in the old per-project directory. */
-  const readLegacy = async (sessionId: string, capacity: number): Promise<QueuedPrompt[]> => {
+  const readLegacy = async (
+    sessionId: string,
+    capacity: number,
+  ): Promise<{
+    items: QueuedPrompt[];
+    commit?: () => Promise<boolean>;
+  }> => {
     const name = legacyFileName(sessionId);
-    if (!deps.legacyDir || !name) return [];
+    if (!deps.legacyDir || !name) return { items: [] };
     const file = path.join(deps.legacyDir, name);
     try {
       const stat = await fsp.stat(file);
-      if (stat.size > QUEUE_MAX_BYTES) return [];
+      if (stat.size > QUEUE_MAX_BYTES) return { items: [] };
       const parsed: unknown = JSON.parse(await fsp.readFile(file, 'utf8'));
       const legacy = Array.isArray(parsed) ? parsed.filter(isLegacyPrompt) : [];
       const items: QueuedPrompt[] = [];
@@ -250,29 +257,33 @@ export function createSessionPromptQueue(deps: SessionPromptQueueDeps): SessionP
         }
       }
       const remaining = legacy.slice(selected.length);
-      try {
-        if (remaining.length > 0) {
-          await fsp.writeFile(file, JSON.stringify(remaining), 'utf8');
-        } else {
-          await fsp.rm(file, { force: true });
+      const commit = async (): Promise<boolean> => {
+        try {
+          if (remaining.length > 0) {
+            await fsp.writeFile(file, JSON.stringify(remaining), 'utf8');
+          } else {
+            await fsp.rm(file, { force: true });
+          }
+          return true;
+        } catch (err) {
+          deps.warn?.(`old prompt queue for ${sessionId} not updated: ${toErrorMessage(err)}`);
+          return false;
         }
-      } catch (err) {
-        deps.warn?.(`old prompt queue for ${sessionId} not updated: ${toErrorMessage(err)}`);
-      }
-      return items;
+      };
+      return { items, commit };
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
         deps.warn?.(`old prompt queue for ${sessionId} unreadable: ${toErrorMessage(err)}`);
       }
-      return [];
+      return { items: [] };
     }
   };
 
   const load = (sessionId: string): Promise<QueuedPrompt[]> => {
-    const known = queues.get(sessionId);
-    if (known) return Promise.resolve(known);
     const pending = loading.get(sessionId);
     if (pending) return pending;
+    const known = queues.get(sessionId);
+    if (known) return Promise.resolve(known);
     const read = (async (): Promise<QueuedPrompt[]> => {
       const stored = (await storeFor(sessionId)?.read()) ?? [];
       const legacy = await readLegacy(sessionId, QUEUE_MAX_ITEMS - stored.length);
@@ -284,7 +295,7 @@ export function createSessionPromptQueue(deps: SessionPromptQueueDeps): SessionP
       );
       const items: QueuedPrompt[] = [];
       const seenIds = new Set<string>();
-      for (const item of [...hydrated, ...legacy].slice(0, QUEUE_MAX_ITEMS)) {
+      for (const item of [...hydrated, ...legacy.items].slice(0, QUEUE_MAX_ITEMS)) {
         let unique = item;
         if (seenIds.has(unique.id)) {
           let id = nextId();
@@ -299,27 +310,34 @@ export function createSessionPromptQueue(deps: SessionPromptQueueDeps): SessionP
       const live = queues.get(sessionId);
       if (live) return live;
       queues.set(sessionId, items);
-      if (legacy.length > 0 || repaired) void persist(sessionId);
+      if (legacy.commit) legacyUpdates.set(sessionId, legacy.commit);
+      if (legacy.commit || repaired) await persist(sessionId);
       return items;
     })().finally(() => loading.delete(sessionId));
     loading.set(sessionId, read);
     return read;
   };
 
-  const persist = (sessionId: string): Promise<void> => {
+  const persist = (sessionId: string): Promise<boolean> => {
     const dir = sessionDirFor(sessionId);
     const store = storeFor(sessionId);
-    if (!dir || !store) return Promise.resolve();
-    const previous = writes.get(sessionId) ?? Promise.resolve();
+    if (!dir || !store) return Promise.resolve(false);
+    const previous = writes.get(sessionId) ?? Promise.resolve(true);
     const next = previous
       .then(async () => {
         const items = queues.get(sessionId) ?? [];
         if (items.length > 0) await fsp.mkdir(dir, { recursive: true });
-        await store.write(items.map(toPersisted));
+        await store.write(items.map(toPersisted), { throwOnError: true });
+        const commit = legacyUpdates.get(sessionId);
+        if (commit && (await commit()) && legacyUpdates.get(sessionId) === commit) {
+          legacyUpdates.delete(sessionId);
+        }
+        return true;
       })
-      .catch((err) =>
-        deps.warn?.(`prompt queue for ${sessionId} not saved: ${toErrorMessage(err)}`),
-      );
+      .catch((err) => {
+        deps.warn?.(`prompt queue for ${sessionId} not saved: ${toErrorMessage(err)}`);
+        return false;
+      });
     writes.set(sessionId, next);
     void next.finally(() => {
       if (writes.get(sessionId) === next) writes.delete(sessionId);

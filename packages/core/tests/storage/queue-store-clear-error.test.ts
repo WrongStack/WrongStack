@@ -20,6 +20,28 @@ afterEach(async () => {
 const ITEM = { displayText: 'hi', blocks: [{ type: 'text', text: 'hi' }] } as never;
 
 describe('QueueStore — clear + read coverage', () => {
+  it('reports clear failures to callers that require a durable commit', async () => {
+    const store = new QueueStore({ dir });
+    await fs.mkdir(path.join(dir, 'queue.json'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(store.write([], { throwOnError: true })).rejects.toMatchObject({
+      code: expect.any(String),
+    });
+  });
+
+  it('rejects an over-budget strict snapshot while preserving the existing file', async () => {
+    const store = new QueueStore({ dir });
+    await store.write([ITEM]);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(
+      store.write(
+        Array.from({ length: 101 }, () => ITEM),
+        { throwOnError: true },
+      ),
+    ).rejects.toThrow('persistence budget');
+    expect(await store.read()).toEqual([ITEM]);
+  });
+
   it('emits storage.error and warns but does not throw on a non-ENOENT failure', async () => {
     const events = { emit: vi.fn() };
     const store = new QueueStore({ dir, events: events as never, traceId: 'tr-q' });

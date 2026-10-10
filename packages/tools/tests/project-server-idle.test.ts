@@ -7,7 +7,6 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { projectIndexServerEndpoint } from '../src/codebase-index/project-server-endpoint.js';
-import { encodeProjectServerMessage } from '../src/codebase-index/project-server-protocol.js';
 
 const distServer = fileURLToPath(
   new URL('../dist/codebase-index/project-server.js', import.meta.url),
@@ -164,42 +163,62 @@ describe.skipIf(!distReady)('project index server idle lifecycle', () => {
     // discriminate a teardown crash from a swallowed rmSync failure.
     const stderrLogPath = path.join(projectRoot, 'daemon-stderr.log');
     const stderrFd = fsSync.openSync(stderrLogPath, 'w');
-    const child = spawn(
+    const heartbeatClient = spawn(
       process.execPath,
-      [distServer, '--project-root', projectRoot, '--index-dir', indexDir],
-      {
-        env: {
-          ...process.env,
-          WRONGSTACK_INDEX_SERVER_IDLE_MS: '150',
-          WRONGSTACK_INDEX_SERVER_CLIENT_LEASE_MS: '200',
-        },
-        stdio: ['ignore', 'ignore', stderrFd],
-        windowsHide: true,
-      },
+      [
+        fileURLToPath(new URL('./fixtures/project-server-heartbeat.mjs', import.meta.url)),
+        endpoint,
+        metadataPath,
+        path.join(projectRoot, 'stop-heartbeat'),
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
     );
-    let socket: net.Socket | undefined;
-    let heartbeat: ReturnType<typeof setInterval> | undefined;
-
+    let clientOutput = '';
+    let clientErrors = '';
+    heartbeatClient.stdout.on('data', (chunk) => {
+      clientOutput += chunk.toString();
+    });
+    heartbeatClient.stderr.on('data', (chunk) => {
+      clientErrors += chunk.toString();
+    });
+    let child: ChildProcess | undefined;
     try {
+      await waitUntil(() => clientOutput.includes('WAITING'));
+      child = spawn(
+        process.execPath,
+        [distServer, '--project-root', projectRoot, '--index-dir', indexDir],
+        {
+          env: {
+            ...process.env,
+            WRONGSTACK_INDEX_SERVER_IDLE_MS: '150',
+            WRONGSTACK_INDEX_SERVER_CLIENT_LEASE_MS: '200',
+          },
+          stdio: ['ignore', 'ignore', stderrFd],
+          windowsHide: true,
+        },
+      );
+
       await waitUntil(() => fsSync.existsSync(metadataPath));
-      socket = await connect(endpoint);
-      socket.on('error', () => {});
-      socket.resume();
-      const socketClosed = new Promise<void>((resolve) => socket?.once('close', () => resolve()));
-      let requestId = 1;
-      heartbeat = setInterval(() => {
-        socket?.write(encodeProjectServerMessage({ type: 'ping', id: requestId++ }));
-      }, 40);
+      await waitUntil(() => clientOutput.includes('READY')).catch((error) => {
+        throw new Error(
+          `${String(error)}; client exit=${heartbeatClient.exitCode}; output=${clientOutput}; stderr=${clientErrors}; daemon stderr=${fsSync.readFileSync(stderrLogPath, 'utf8')}`,
+        );
+      });
+      // Reproduce the worker stall that used to starve its local heartbeat.
+      const blockedUntil = Date.now() + 350;
+      while (Date.now() < blockedUntil) {
+        /* real client keeps sending */
+      }
       await new Promise((resolve) => setTimeout(resolve, 700));
       expect(child.exitCode).toBeNull();
       expect(fsSync.existsSync(metadataPath)).toBe(true);
 
-      clearInterval(heartbeat);
-      heartbeat = undefined;
-      await Promise.all([socketClosed, waitForExit(child)]);
+      await fs.writeFile(path.join(projectRoot, 'stop-heartbeat'), 'stop');
+      await Promise.all([waitForExit(heartbeatClient), waitForExit(child)]);
       fsSync.closeSync(stderrFd);
       const stderrText = fsSync.readFileSync(stderrLogPath, 'utf8');
-      expect(socket.destroyed).toBe(true);
+      expect(clientOutput).toContain('CLOSED');
+      expect(heartbeatClient.exitCode).toBe(0);
       expect(child.exitCode, `daemon exit ${child.exitCode}; stderr: ${stderrText}`).toBe(0);
       expect(fsSync.existsSync(metadataPath), `metadata survived exit; stderr: ${stderrText}`).toBe(
         false,
@@ -210,9 +229,14 @@ describe.skipIf(!distReady)('project index server idle lifecycle', () => {
       } catch {
         /* closed after a successful waitForExit */
       }
-      if (heartbeat) clearInterval(heartbeat);
-      socket?.destroy();
-      if (child.exitCode === null && child.signalCode === null) child.kill();
+      if (heartbeatClient.exitCode === null && heartbeatClient.signalCode === null) {
+        heartbeatClient.kill();
+        await waitForExit(heartbeatClient);
+      }
+      if (child && child.exitCode === null && child.signalCode === null) {
+        child.kill();
+        await waitForExit(child);
+      }
       await fs.rm(projectRoot, { recursive: true, force: true });
     }
   });

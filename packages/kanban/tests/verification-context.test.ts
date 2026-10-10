@@ -212,6 +212,8 @@ describe('VerificationContext git helpers', () => {
 
   describe('dirty worktree snapshot', () => {
     let root: string;
+    let ctx: VerificationContext;
+    let snapshot: Awaited<ReturnType<VerificationContext['captureSnapshot']>>;
     beforeEach(async () => {
       root = await mkdtemp(join(tmpdir(), 'verification-context-snapshot-'));
       roots.push(root);
@@ -223,13 +225,12 @@ describe('VerificationContext git helpers', () => {
       await execFileAsync('git', ['commit', '-m', 'fixture'], { cwd: root });
       await writeFile(join(root, 'tracked.txt'), 'pre-existing dirty state\n');
       await writeFile(join(root, 'before.txt'), 'pre-existing untracked state\n');
+      ctx = await context(root);
+      snapshot = await ctx.captureSnapshot();
+      expect(await ctx.diffSince(snapshot)).toEqual([]);
     });
 
     it('isolates changes made after a dirty worktree snapshot', { timeout: 15_000 }, async () => {
-      const ctx = await context(root);
-      const snapshot = await ctx.captureSnapshot();
-      expect(await ctx.diffSince(snapshot)).toEqual([]);
-
       await writeFile(join(root, 'tracked.txt'), 'changed after snapshot\n');
       await writeFile(join(root, 'after.txt'), 'created after snapshot\n');
 

@@ -144,24 +144,34 @@ describe('auto-review change detection', () => {
     });
   });
 
-  it('waits for a trailing quiet window and reviews the latest content in the background', {
-    timeout: 20000,
-  }, async () => {
-    vi.useFakeTimers();
-    const { api, events, emitCustom } = makeApi({ debounceMs: 200 });
-    const reviewed = new Promise<void>((resolve) => {
-      emitCustom.mockImplementation((event: string) => {
-        if (event === 'chimera.review_needed') resolve();
+  describe('trailing quiet window', () => {
+    let fixture: ReturnType<typeof makeApi>;
+    let reviewed: Promise<void>;
+
+    beforeEach(async () => {
+      vi.useFakeTimers();
+      fixture = makeApi({ debounceMs: 200 });
+      reviewed = new Promise<void>((resolve) => {
+        fixture.emitCustom.mockImplementation((event: string) => {
+          if (event === 'chimera.review_needed') resolve();
+        });
       });
-    });
-    createAutoReviewPlugin().setup!(api);
-    try {
-      await events['agent.run.started']!();
-
+      createAutoReviewPlugin().setup!(fixture.api);
+      // Seed the real Git state and first pending edit as fixture setup.
+      // The test's unchanged 20s budget measures the quiet-window behavior.
+      await fixture.events['agent.run.started']!();
       await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;\n');
-      await events['iteration.completed']!();
-      expect(reviewPayloads(emitCustom)).toHaveLength(0);
+      await fixture.events['iteration.completed']!();
+      expect(reviewPayloads(fixture.emitCustom)).toHaveLength(0);
+    });
 
+    afterEach(async () => {
+      await fixture.events['session.ended']!();
+      expect(reviewPayloads(fixture.emitCustom)).toHaveLength(1);
+    });
+
+    it('reviews the latest content after the last edit settles', { timeout: 20000 }, async () => {
+      const { events, emitCustom } = fixture;
       await vi.advanceTimersByTimeAsync(100);
       await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 3;\n');
       await events['iteration.completed']!();
@@ -177,11 +187,8 @@ describe('auto-review change detection', () => {
       expect(payloads).toHaveLength(1);
       expect(payloads[0]!.files[0]?.content).toBe('export const value = 3;\n');
 
-      // Join any timer-started snapshot/context work before test teardown.
-    } finally {
-      await events['session.ended']!();
-    }
-    expect(reviewPayloads(emitCustom)).toHaveLength(1);
+      expect(reviewPayloads(emitCustom)).toHaveLength(1);
+    });
   });
 
   it('registers delayed final-review production with waitUntil', async () => {

@@ -164,6 +164,7 @@ describe('LSPServer direct API', () => {
     const internal = server as unknown as {
       child: NodeJS.EventEmitter;
       connection: { handleMessage(message: unknown): void };
+      state: string;
     };
     internal.connection.handleMessage({
       jsonrpc: '2.0',
@@ -173,7 +174,21 @@ describe('LSPServer direct API', () => {
     const child = internal.child;
     child.emit('error', new Error('late transport failure'));
     expect(onCrash).toHaveBeenCalledWith(server);
+    internal.connection.handleMessage({
+      jsonrpc: '2.0',
+      method: 'textDocument/publishDiagnostics',
+      params: { uri, diagnostics: [{ message: 'late diagnostic' }] },
+    });
+    expect(server.getDiagnostics(uri)).toEqual([]);
+    // The OS may deliver exit while shutdown is in progress, before the
+    // shutdown continuation clears the child. Assert that it is expected.
+    const fixtureClosed = new Promise<void>((resolve) => child.once('close', () => resolve()));
+    internal.state = 'shutting_down';
     child.emit('exit', null, 'SIGTERM');
+    expect(onCrash).toHaveBeenCalledTimes(1);
+    // The injected exit exercises the callback, so reap the real fixture too.
+    (child as unknown as { kill(): void }).kill();
+    await fixtureClosed;
     await server.shutdown();
     await server.shutdown();
   });

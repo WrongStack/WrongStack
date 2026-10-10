@@ -213,16 +213,21 @@ export function createHostSubagentFactory(
         ? skillCompanionTools()
         : host.filterTools(effectiveCfg.tools);
     const providerTools = provider.selectToolsForRequest?.(subagentTools) ?? subagentTools;
-    const baseSystem: TextBlock[] = await host.deps.systemPromptBuilder.build({
-      cwd: subCwd,
-      projectRoot: host.deps.projectRoot,
-      tools: providerTools,
-      catalogTools: subagentTools,
-      model: effModel,
-      provider: effProvider,
-      subagent: true,
-      onlineAgents,
-    });
+    // The skill judge answers one JSON pick over its task payload. The general
+    // subagent prompt (project instructions, tool guides, environment) was
+    // ~13k tokens it never used, and its sealed token cap is a hard stop.
+    const baseSystem: TextBlock[] = skillCompanion
+      ? []
+      : await host.deps.systemPromptBuilder.build({
+          cwd: subCwd,
+          projectRoot: host.deps.projectRoot,
+          tools: providerTools,
+          catalogTools: subagentTools,
+          model: effModel,
+          provider: effProvider,
+          subagent: true,
+          onlineAgents,
+        });
 
     baseSystem.unshift({
       type: 'text',

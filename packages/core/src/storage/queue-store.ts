@@ -1,10 +1,10 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from './event-bus-port.js';
 import type { ContentBlock } from '../types/blocks.js';
 import type { Logger } from '../types/logger.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
+import type { EventBus } from './event-bus-port.js';
 
 /**
  * The persisted form of a single queued user message. The TUI's
@@ -113,12 +113,15 @@ export class QueueStore {
     }
   }
 
-  async write(items: PersistedQueueItem[]): Promise<void> {
+  async write(
+    items: PersistedQueueItem[],
+    options: { throwOnError?: boolean } = {},
+  ): Promise<void> {
     const t0 = Date.now();
     if (items.length === 0) {
       // Empty queue → remove the file rather than write `[]`. Keeps
       // a clean idle state on disk and makes `read()` cheaper.
-      await this.clear();
+      await this.clear(options);
       return;
     }
     try {
@@ -135,6 +138,7 @@ export class QueueStore {
             maxBytes: QUEUE_MAX_BYTES,
           },
         );
+        if (options.throwOnError) throw new Error('Queue snapshot exceeded its persistence budget');
       }
       if (retained.length === 0) {
         await this.clear();
@@ -166,6 +170,7 @@ export class QueueStore {
         path: this.file,
         message: toErrorMessage(err),
       });
+      if (options.throwOnError) throw err;
     }
   }
 
@@ -280,7 +285,7 @@ export class QueueStore {
     return out;
   }
 
-  async clear(): Promise<void> {
+  async clear(options: { throwOnError?: boolean } = {}): Promise<void> {
     const t0 = Date.now();
     try {
       await fsp.unlink(this.file);
@@ -314,6 +319,7 @@ export class QueueStore {
         path: this.file,
         message: (err as Error).message,
       });
+      if (options.throwOnError) throw err;
     }
   }
 }

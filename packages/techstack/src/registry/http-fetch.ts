@@ -101,6 +101,9 @@ function requestOnce(options: HttpRequestOptions): Promise<HttpResponse> {
       let body = '';
       let bodyBytes = 0;
       response.setEncoding?.('utf8');
+      // After headers arrive, socket failures belong to the response stream.
+      // Reject the attempt so the retry loop owns them instead of EventEmitter.
+      response.on('error', reject);
       response.on('data', (chunk: string | Buffer) => {
         body += chunk.toString();
         bodyBytes += Buffer.byteLength(chunk);

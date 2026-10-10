@@ -40,6 +40,29 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Honor rm's retry contract explicitly: Bun currently ignores maxRetries on EBUSY. */
+export async function removeProjectFixtureDirectory(
+  directory: string,
+  options: { maxRetries?: number; retryDelay?: number } = {},
+): Promise<void> {
+  const maxRetries = options.maxRetries ?? 20;
+  const retryDelay = options.retryDelay ?? 50;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (
+        attempt >= maxRetries ||
+        !['EBUSY', 'EMFILE', 'ENFILE', 'ENOTEMPTY', 'EPERM'].includes(code ?? '')
+      )
+        throw error;
+      await sleep(retryDelay * (attempt + 1));
+    }
+  }
+}
+
 /** Poll for the daemon's owner-only metadata file and parse it. */
 export async function waitForMetadataFile<T extends Record<string, unknown>>(
   metadataPath: string,

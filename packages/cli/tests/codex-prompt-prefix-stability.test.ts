@@ -32,7 +32,13 @@ import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import type { Capabilities, Provider, Request, Response } from '@wrongstack/core/types';
+import {
+  type Capabilities,
+  markVolatileSystemBlock,
+  type Provider,
+  type Request,
+  type Response,
+} from '@wrongstack/core/types';
 import { diffCacheProbe, fingerprintCacheProbe, OpenAICodexProvider } from '@wrongstack/providers';
 import { afterEach, describe, expect, it } from 'vitest';
 import { OpenAIResponsesProvider } from '../../providers/src/openai-responses.js';
@@ -109,10 +115,43 @@ function fakeTool(name: string, output: string) {
   };
 }
 
+/** Text of the per-request block {@link churningMemoryMiddleware} injects. */
+const CHURN_MARKER = 'churning-recall';
+
+/**
+ * Stand-in for every request middleware that appends a per-turn block to
+ * `request.system` (SAGE turn-context, `@file` mentions, skill suggestions).
+ * It changes on EVERY request — worse than any real one — and is marked
+ * volatile exactly as they are, so it can only stay out of the cached prefix
+ * if the request path relocates it.
+ */
+function churningMemoryMiddleware() {
+  let n = 0;
+  return {
+    name: 'test.churning-memory',
+    owner: 'test',
+    async handler(request: Request, next: (r: Request) => Promise<Request>) {
+      n++;
+      return next({
+        ...request,
+        system: [
+          ...(request.system ?? []),
+          markVolatileSystemBlock({
+            type: 'text',
+            text: `<memory_evidence>${CHURN_MARKER} #${n} ${'x'.repeat(n * 7)}</memory_evidence>`,
+            cache_control: { type: 'ephemeral' },
+          }),
+        ],
+      });
+    },
+  };
+}
+
 async function runSession(
   tmp: string,
   owningSessionId?: string,
   providerId = 'openai-codex',
+  withChurningMiddleware = false,
 ): Promise<Request[]> {
   const container = new Container();
   container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
@@ -162,12 +201,15 @@ async function runSession(
   } as never);
   if (owningSessionId) ctx.meta['sessionId'] = owningSessionId;
 
+  const pipelines = createDefaultPipelines();
+  if (withChurningMiddleware) pipelines.request.use(churningMemoryMiddleware() as never);
+
   const agent = new Agent({
     container,
     tools,
     providers: new ProviderRegistry(),
     events,
-    pipelines: createDefaultPipelines(),
+    pipelines,
     context: ctx,
     maxIterations: 10,
     refreshSystemPrompt: true,
@@ -319,6 +361,35 @@ describe('openai-codex prompt prefix stability', () => {
         expect(diff.firstDivergentItem).toBeNull();
         const previousInput = bodies[i - 1]!['input'] as unknown[];
         const currentInput = bodies[i]!['input'] as unknown[];
+        expect(currentInput.slice(0, previousInput.length)).toEqual(previousInput);
+      }
+    },
+  );
+
+  it.each(['openai-codex', 'openai-chatgpt'])(
+    '%s keeps a per-request volatile middleware block out of the cached prefix',
+    async (providerId) => {
+      tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-codex-prefix-'));
+      const bodies = await wireBodies(
+        await runSession(tmp, undefined, providerId, true),
+        providerId,
+      );
+      expect(bodies.length).toBe(TURNS * 3);
+
+      // The block must still REACH the model on every request ...
+      for (const body of bodies) {
+        expect(JSON.stringify(body['input'])).toContain(CHURN_MARKER);
+        // ... but never inside `instructions`, which precedes the whole conversation.
+        expect(String(body['instructions'] ?? '')).not.toContain(CHURN_MARKER);
+      }
+      expect(new Set(bodies.map((b) => String(b['instructions'] ?? ''))).size).toBe(1);
+      expect(new Set(bodies.map((b) => JSON.stringify(b['tools'] ?? []))).size).toBe(1);
+      expect(new Set(bodies.map((b) => String(b['prompt_cache_key'] ?? ''))).size).toBe(1);
+
+      // Every earlier input item survives untouched: the churn only ever appends.
+      for (let i = 1; i < bodies.length; i++) {
+        const previousInput = bodies[i - 1]?.['input'] as unknown[];
+        const currentInput = bodies[i]?.['input'] as unknown[];
         expect(currentInput.slice(0, previousInput.length)).toEqual(previousInput);
       }
     },

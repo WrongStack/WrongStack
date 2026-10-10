@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import { bashTool } from '../src/bash.js';
 
 const isWin = process.platform === 'win32';
@@ -17,13 +18,13 @@ function mkCtx() {
   };
 }
 
-function findNodeProcessesWithMarker(marker: string): string[] {
+function findRuntimeProcessesWithMarker(marker: string): string[] {
   const ps = spawnSync(
     'powershell',
     [
       '-NoProfile',
       '-Command',
-      `Get-CimInstance Win32_Process -Filter "name='node.exe'" | Select-Object -ExpandProperty CommandLine`,
+      `Get-CimInstance Win32_Process -Filter "name='node.exe' OR name='bun.exe'" | Select-Object -ExpandProperty CommandLine`,
     ],
     { encoding: 'utf8', windowsHide: true },
   );
@@ -36,7 +37,7 @@ function killMarkedProcesses(marker: string): void {
     [
       '-NoProfile',
       '-Command',
-      `Get-CimInstance Win32_Process -Filter "name='node.exe'" | Where-Object { $_.CommandLine -like '*${marker}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`,
+      `Get-CimInstance Win32_Process -Filter "name='node.exe' OR name='bun.exe'" | Where-Object { $_.CommandLine -like '*${marker}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`,
     ],
     { encoding: 'utf8', windowsHide: true },
   );
@@ -53,26 +54,31 @@ function killMarkedProcesses(marker: string): void {
  * process ran out of heap. The fix tree-kills via `taskkill /T /F`.
  */
 describe.runIf(isWin)('bash win32 tree kill', () => {
-  it('kills the grandchild node process when a command times out', async () => {
-    const marker = `wstack_orphan_${Date.now()}`;
+  it('kills the grandchild Bun process when a command times out', async () => {
+    const marker = `wstack_orphan_${process.pid}_${Date.now()}`;
     const ctx = mkCtx();
     const script = path.join(ctx.projectRoot, 'spin.js');
     fs.writeFileSync(script, `setInterval(() => console.log('tick'), 200);\n`);
-    const out = await bashTool.execute(
-      { command: `node ${script} ${marker}`, timeout_ms: 1500 },
-      ctx as never,
-      { signal: new AbortController().signal },
-    );
-    expect(out.timed_out).toBe(true);
+    try {
+      const out = await bashTool.execute(
+        { command: `"${process.execPath}" "${script}" ${marker}`, timeout_ms: 1500 },
+        ctx as never,
+        { signal: new AbortController().signal },
+      );
+      expect(out.timed_out).toBe(true);
 
-    // Give taskkill a moment to finish reaping the tree.
-    await new Promise((r) => setTimeout(r, 2500));
+      // Give taskkill a moment to finish reaping the tree.
+      await new Promise((r) => setTimeout(r, 2500));
 
-    const orphans = findNodeProcessesWithMarker(marker);
-    if (orphans.length > 0) {
-      // Clean up so a failed assertion doesn't leave the orphan running.
+      const orphans = findRuntimeProcessesWithMarker(marker);
+      if (orphans.length > 0) {
+        // Clean up so a failed assertion doesn't leave the orphan running.
+        killMarkedProcesses(marker);
+      }
+      expect(orphans).toEqual([]);
+    } finally {
       killMarkedProcesses(marker);
+      await removeProjectFixtureDirectory(ctx.projectRoot);
     }
-    expect(orphans).toEqual([]);
   }, 20_000);
 });

@@ -664,7 +664,7 @@
     {
       "file": "packages/tools/tests/bash-treekill-win32.test.ts",
       "kind": "runIf",
-      "fingerprint": "c0819fc3befcf009"
+      "fingerprint": "beea18604eb93a4f"
     },
     {
       "file": "packages/tools/tests/bash.test.ts",

@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { ensureDir, ensureProjectIdentity, resolveWstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
 import { buildIntakeCommand } from '../src/slash-commands/intake.js';
@@ -12,18 +12,26 @@ const REQUEST_TEXT = 'Add email-based password reset so users can recover access
 describe('/intake command', () => {
   let root: string;
   let globalRoot: string;
+  let globalDirectory: string;
   let intakeDir: string;
 
   beforeEach(async () => {
     root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-intake-slash-'));
-    globalRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-intake-global-'));
+    globalDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-intake-global-'));
+    // Use the production private-state layout so Windows applies an inherited
+    // owner-only directory ACL once rather than spawning icacls for every write.
+    globalRoot = path.join(globalDirectory, '.wrongstack');
     const paths = resolveWstackPaths({ projectRoot: root, globalRoot });
     intakeDir = paths.projectRequirementIntakes;
+    // Project identity and storage directories are fixture prerequisites;
+    // keep the unchanged 5s command budget for creating/submitting a record.
+    await ensureProjectIdentity(root);
+    await ensureDir(intakeDir);
   });
 
   afterEach(async () => {
     await fs.rm(root, { recursive: true, force: true }).catch(() => undefined);
-    await fs.rm(globalRoot, { recursive: true, force: true }).catch(() => undefined);
+    await fs.rm(globalDirectory, { recursive: true, force: true }).catch(() => undefined);
   });
 
   function command(context?: SlashCommandContext['context']) {
