@@ -42,7 +42,7 @@
 
 import { readFileSync, statSync } from 'node:fs';
 import type { Plugin } from '@wrongstack/core/types';
-import { parse as parseJsonSyntax, type ParseError, printParseErrorCode } from 'jsonc-parser';
+import { type ParseError, parse as parseJsonSyntax, printParseErrorCode } from 'jsonc-parser';
 import { LineCounter, parseAllDocuments, type YAMLError } from 'yaml';
 import { withinProject } from '../runtime/index.js';
 
@@ -108,11 +108,12 @@ function readConfig(raw: unknown): ConfigValidatorConfig {
 // ---------------------------------------------------------------------------
 
 /** Strip // and /* *&#47; comments plus trailing commas for JSONC parsing. */
-function stripJsonc(text: string): string {
+function stripJsonc(text: string): { text: string; unclosedBlockLine: number | null } {
   let out = '';
   let inString = false;
   let inLine = false;
   let inBlock = false;
+  let blockAt = 0;
   for (let i = 0; i < text.length; i++) {
     const ch = text[i] as string;
     const next = text[i + 1];
@@ -124,6 +125,9 @@ function stripJsonc(text: string): string {
       continue;
     }
     if (inBlock) {
+      // Keep the newline. Dropping it made a later syntax error report the
+      // line number in the shortened text, not the line in the file.
+      if (ch === '\n') out += ch;
       if (ch === '*' && next === '/') {
         inBlock = false;
         i += 1;
@@ -152,6 +156,7 @@ function stripJsonc(text: string): string {
     }
     if (ch === '/' && next === '*') {
       inBlock = true;
+      blockAt = text.slice(0, i).split('\n').length;
       i += 1;
       continue;
     }
@@ -183,7 +188,7 @@ function stripJsonc(text: string): string {
     }
     out += ch;
   }
-  return out;
+  return { text: out, unclosedBlockLine: inBlock ? blockAt : null };
 }
 
 function positionToLineCol(text: string, pos: number): { line: number; col: number } {
@@ -205,7 +210,14 @@ function redactParseSnippet(message: string): string {
 }
 
 export function validateJson(text: string, isJsonc: boolean, fileName: string): string[] {
-  const source = isJsonc ? stripJsonc(text) : text;
+  let source = text;
+  if (isJsonc) {
+    const stripped = stripJsonc(text);
+    if (stripped.unclosedBlockLine !== null) {
+      return [`JSONC: block comment opened at line ${stripped.unclosedBlockLine} is never closed`];
+    }
+    source = stripped.text;
+  }
   try {
     const parsed = JSON.parse(source) as unknown;
     // package.json shape checks — cheap and catches real mistakes.
@@ -232,7 +244,9 @@ export function validateJson(text: string, isJsonc: boolean, fileName: string): 
     const firstError = syntaxErrors[0];
     if (firstError) {
       const { line, col } = positionToLineCol(source, firstError.offset);
-      return [`JSON parse error at line ${line}, column ${col}: ${printParseErrorCode(firstError.error)}`];
+      return [
+        `JSON parse error at line ${line}, column ${col}: ${printParseErrorCode(firstError.error)}`,
+      ];
     }
     const message = err instanceof Error ? err.message : String(err);
     // Older V8 format: "... in JSON at position 123"
