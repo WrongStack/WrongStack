@@ -1137,7 +1137,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Runs a Node lifecycle fixture repeatedly in a child process and compares active resource counts after each cleanup against its baseline. Opt in through config.plugins; tools run only when invoked. Import a local .mjs fixture exporting async start() and stop(handle). Runs cycles and reports retained Node active resources after settling; fixture code executes with your user permissions.',
+      'Runs a JavaScript lifecycle fixture repeatedly in a child process and compares observable active resource counts after each cleanup against its baseline. Opt in through config.plugins; tools run only when invoked. Import a local .mjs fixture exporting async start() and stop(handle). Runs cycles and reports retained observable resources after settling; fixture code executes with your user permissions.',
     tools: [
       {
         name: 'resource_lifecycle_inspect',
@@ -1145,7 +1145,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'confirm',
         mutating: true,
         summary:
-          'Import a local .mjs fixture exporting async start() and stop(handle). Runs cycles and reports retained Node active resources after settling; fixture code executes with your user permissions.',
+          'Import a local .mjs fixture exporting async start() and stop(handle). Runs cycles and reports retained observable resources after settling; fixture code executes with your user permissions.',
         params: [
           {
             name: 'fixture',

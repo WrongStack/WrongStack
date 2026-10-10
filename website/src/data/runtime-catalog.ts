@@ -1307,7 +1307,7 @@ export const pluginCatalog = [
     name: 'resource-lifecycle-inspector',
     risk: 'high',
     summary:
-      'Runs a Node lifecycle fixture repeatedly in a child process and compares active resource counts after each cleanup against its baseline',
+      'Runs a JavaScript lifecycle fixture repeatedly in a child process and compares observable active resource counts after each cleanup against its baseline',
     defaultState: 'inactive',
     source: 'Suite',
   },
