@@ -20,13 +20,15 @@
  * set locally by a launcher whose round never reached a run has nothing behind
  * it to answer at all.
  */
-import { activeSessionLaneId } from '@/stores/session-lanes.js';
+import { activeSessionLaneId, SESSION_DEFAULT_LANE_ID } from '@/stores/session-lanes.js';
 import { streamCoalescer } from './stream-coalescer.js';
 
 interface ClearChatContextClient {
   clearContext?: (() => void) | undefined;
   sendAbort?: (() => void) | undefined;
-  newSession?: ((payload?: { replaceSessionId?: string; systemPromptVariant?: string }) => void) | undefined;
+  newSession?:
+    | ((payload?: { replaceSessionId?: string; systemPromptVariant?: string }) => void)
+    | undefined;
 }
 
 interface ClearChatContextOptions {
@@ -52,7 +54,7 @@ export function clearChatContext(options: ClearChatContextOptions): void {
   setLoading(false);
 
   const targetSessionId = sessionId ?? activeSessionLaneId();
-  if (targetSessionId && client?.newSession) {
+  if (targetSessionId && targetSessionId !== SESSION_DEFAULT_LANE_ID && client?.newSession) {
     client.newSession({ replaceSessionId: targetSessionId });
   } else {
     client?.clearContext?.();
