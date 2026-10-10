@@ -196,13 +196,15 @@ describe('CodeMap component', () => {
       ok: true,
       statusText: 'OK',
       json: async () => {
-        throw new Error("Unexpected token '<', \"<!doctype html\" is not valid JSON");
+        throw new Error('Unexpected token \'<\', "<!doctype html" is not valid JSON');
       },
     } as unknown as Response);
     render(<CodeMap />);
 
     await waitFor(() =>
-      expect(screen.getByText(/(CodeMap graph unavailable|codeMap\.snapshotUnavailable)/)).toBeDefined(),
+      expect(
+        screen.getByText(/(CodeMap graph unavailable|codeMap\.snapshotUnavailable)/),
+      ).toBeDefined(),
     );
     expect(screen.queryByText(/Unexpected token/)).toBeNull();
   });

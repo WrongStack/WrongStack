@@ -64,9 +64,7 @@ function mockWindow() {
   // anchor navigation with "Not implemented: navigation to another
   // Document" on stderr. Stub the prototype click so the flow runs
   // without the noise (vi.restoreAllMocks in afterEach restores it).
-  const clickSpy = vi
-    .spyOn(HTMLElement.prototype, 'click')
-    .mockImplementation(() => undefined);
+  const clickSpy = vi.spyOn(HTMLElement.prototype, 'click').mockImplementation(() => undefined);
 
   return {
     createElement: originalCreateElement,

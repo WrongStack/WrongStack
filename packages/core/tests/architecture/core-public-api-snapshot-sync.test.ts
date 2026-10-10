@@ -19,7 +19,8 @@ const FIXTURES: Record<string, string> = {
   'packages/core/src/coordination/director.ts': "export { x } from '@wrongstack/core/kernel';",
   'packages/cli/src/cli-main.ts': "import { y } from '@wrongstack/core/kernel';",
   'apps/desktop/src/main.ts': "import '@wrongstack/core/observability';",
-  'scripts/snapshot-core-public-api.mjs': "import { loadPolicy } from './lib/architecture-health.mjs';",
+  'scripts/snapshot-core-public-api.mjs':
+    "import { loadPolicy } from './lib/architecture-health.mjs';",
   // Snapshot-neutral: a real source file that never references @wrongstack/core.
   'packages/tools/src/unrelated.ts': "import path from 'node:path';",
 };
@@ -62,9 +63,7 @@ describe('Core API snapshot pre-commit synchronization', () => {
 
   it('keeps deleted source paths in the synchronization scope', () => {
     // A DELETED packages/core/src path cannot be read; fail-closed keeps it in.
-    expect(() =>
-      readSource('packages/core/src/legacy.ts'),
-    ).toThrow();
+    expect(() => readSource('packages/core/src/legacy.ts')).toThrow();
     expect(changedSnapshotInputs(['packages/core/src/legacy.ts'], readSource)).toEqual([
       'packages/core/src/legacy.ts',
     ]);

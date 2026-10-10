@@ -71,7 +71,8 @@ export function SimpleUiSession() {
   // a fresh { id, name } literal per render would defeat the memo on every
   // parent render. Cached per agentTabs identity.
   const agentIdentities = useMemo(
-    () => new Map(agentView.agentTabs.map((agent) => [agent.id, { id: agent.id, name: agent.name }])),
+    () =>
+      new Map(agentView.agentTabs.map((agent) => [agent.id, { id: agent.id, name: agent.name }])),
     [agentView.agentTabs],
   );
 

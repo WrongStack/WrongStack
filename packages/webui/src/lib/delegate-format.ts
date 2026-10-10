@@ -40,4 +40,3 @@ export function delegateCompletedText(input: {
     `${input.iterations} iteration(s), ${input.toolCalls} tool call(s), ${seconds}s${cost}`,
   ].join('\n');
 }
-

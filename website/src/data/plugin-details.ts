@@ -12,9 +12,7 @@ import { pluginDetailsPart5 } from './plugin-details-part-5';
 import { pluginDetailsPart6 } from './plugin-details-part-6';
 import { workflowPluginDetails } from './plugin-details-workflows';
 
-export type {
-  PluginDetail,
-} from './plugin-detail-types';
+export type { PluginDetail } from './plugin-detail-types';
 
 export const pluginDetails: Record<string, PluginDetail> = {
   ...pluginDetailsPart1,

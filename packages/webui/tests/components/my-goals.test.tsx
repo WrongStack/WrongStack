@@ -61,17 +61,15 @@ it('lists project goals, filters by session/id and selects without stopping anot
 });
 
 it('does not invent progress or reachability for an unplanned goal', () => {
-  useGoalCatalogStore
-    .getState()
-    .setGoals([
-      {
-        ...goal('unplanned', 'session'),
-        percentComplete: null,
-        totalTasks: 0,
-        completedTasks: 0,
-        phases: [],
-      },
-    ]);
+  useGoalCatalogStore.getState().setGoals([
+    {
+      ...goal('unplanned', 'session'),
+      percentComplete: null,
+      totalTasks: 0,
+      completedTasks: 0,
+      phases: [],
+    },
+  ]);
   render(<MyGoals onSelect={() => {}} onNew={() => {}} />);
   expect(screen.getByRole('button', { name: /Goal unplanned.*—/ })).toBeTruthy();
   expect(screen.getByText(/Reachability: Unknown/)).toBeTruthy();

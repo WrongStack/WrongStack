@@ -45,4 +45,3 @@ export function layoutWebuiViews(
     entry.view.setBounds({ x: sidebarWidth, y: 0, width: 0, height });
   }
 }
-

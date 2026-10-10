@@ -127,7 +127,8 @@ describe('dashboard evidence', () => {
             toolName: 'edit',
             input: { path: 'D:/repo/a.ts' },
             outputPreview: {
-              preview: 'edit (path=D:/repo/a.ts replacements=1)\n--- a.ts\n+++ a.ts\n@@ -1,3 +1,3 @@\n keep\n-gone\n+fres',
+              preview:
+                'edit (path=D:/repo/a.ts replacements=1)\n--- a.ts\n+++ a.ts\n@@ -1,3 +1,3 @@\n keep\n-gone\n+fres',
               truncated: true,
               totalBytes: 4096,
             },

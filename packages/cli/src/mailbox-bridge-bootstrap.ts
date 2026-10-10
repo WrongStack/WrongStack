@@ -249,4 +249,3 @@ function defaultSpawn(args: string[], cwd: string): SpawnedChild {
     unref: () => child.unref(),
   };
 }
-

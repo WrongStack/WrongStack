@@ -134,8 +134,7 @@ export function storyStats(story: ReturnType<typeof buildSessionStory>, projectR
     // ~400-char cap, so on post-fix events it can be a mere prefix — prefer
     // the exact number and fall back to the prefix.
     const read =
-      (call.name === 'read' ? number(attributes.outputLines) : undefined) ??
-      number(data.readLines);
+      (call.name === 'read' ? number(attributes.outputLines) : undefined) ?? number(data.readLines);
     if (read !== undefined) {
       file.readLines += read;
       file.readMeasured++;
@@ -277,7 +276,8 @@ function previewDiffStats(
     // preview that kept the mutating header but lost the diff still proves
     // the call changed the file, so credit it as a zero-count partial
     // instead: a silent "—" would read as "never measured".
-    if (truncated && mutatingCall(name, text)) return { addedLines: 0, removedLines: 0, partial: true };
+    if (truncated && mutatingCall(name, text))
+      return { addedLines: 0, removedLines: 0, partial: true };
     return undefined;
   }
   if (!counted.addedLines && !counted.removedLines && !truncated) return undefined;

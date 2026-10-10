@@ -200,7 +200,10 @@ export async function resolveModeAndCapabilities(
     ).catch(() => undefined),
     deps.modelsRegistry
       .getModel(
-        catalogProviderIdFor(deps.config.provider, deps.config.providers?.[deps.config.provider]?.type),
+        catalogProviderIdFor(
+          deps.config.provider,
+          deps.config.providers?.[deps.config.provider]?.type,
+        ),
         deps.config.model,
       )
       .catch(() => undefined),

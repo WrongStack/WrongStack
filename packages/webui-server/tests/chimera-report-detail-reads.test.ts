@@ -95,10 +95,13 @@ describe('chimera.report.get reads the findings file once', () => {
       send: (_ws, msg) => sent.push(msg as { type: string; payload: Record<string, unknown> }),
     });
 
-    await handlers.getReport!({} as never, {
-      type: 'chimera.report.get',
-      payload: { reportId: REPORT_ID },
-    } as never);
+    await handlers.getReport!(
+      {} as never,
+      {
+        type: 'chimera.report.get',
+        payload: { reportId: REPORT_ID },
+      } as never,
+    );
 
     // Control: the detail payload itself must be complete and error-free.
     const payload = sent[0]!.payload;

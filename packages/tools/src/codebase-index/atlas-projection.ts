@@ -535,4 +535,3 @@ export function exportProjectAtlasHtml(
     }),
   );
 }
-

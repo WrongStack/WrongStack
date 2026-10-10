@@ -18,7 +18,10 @@ import { describe, expect, it } from 'vitest';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const repoRoot = resolve(__dirname, '../../../..');
-const source = readFileSync(resolve(repoRoot, 'packages/cli/src/webui-server/http-bridge.ts'), 'utf8');
+const source = readFileSync(
+  resolve(repoRoot, 'packages/cli/src/webui-server/http-bridge.ts'),
+  'utf8',
+);
 
 describe('E5 / CLI webui WS verifyClient is wired', () => {
   it('the CLI WebSocketServer construction passes a verifyClient', () => {

@@ -1,8 +1,5 @@
 import type { Usage } from '@wrongstack/core/types';
-import type {
-  SessionScopedPayload,
-  WSCodeMapFileTarget,
-} from '@wrongstack/webui-protocol';
+import type { SessionScopedPayload, WSCodeMapFileTarget } from '@wrongstack/webui-protocol';
 
 /** Moved to webui-protocol (conversation-core.ts), the single source the SDK shares. */
 export type {
@@ -196,4 +193,3 @@ export interface WSSessionResumeProgress {
     totalBytes: number;
   };
 }
-

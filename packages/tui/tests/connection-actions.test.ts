@@ -189,13 +189,11 @@ describe('connection-actions', () => {
 
   it('does not report a restart when the old Kanban owner never stops', async () => {
     vi.useFakeTimers();
-    const request = vi
-      .fn()
-      .mockResolvedValue({
-        stopping: true,
-        pong: true,
-        runtimeVersion: WRONGSTACK_RUNTIME_VERSION,
-      });
+    const request = vi.fn().mockResolvedValue({
+      stopping: true,
+      pong: true,
+      runtimeVersion: WRONGSTACK_RUNTIME_VERSION,
+    });
     mocks.getKanbanServerConnection.mockResolvedValue({ request });
     mocks.isKanbanServerAvailable.mockResolvedValue(true);
     const pending = executeConnectionAction('kanban', 'restart', 'C:/repo');
@@ -285,13 +283,11 @@ describe('connection-actions', () => {
     mocks.sessionCatalogClose.mockResolvedValue(undefined);
 
     const conn = {
-      request: vi
-        .fn()
-        .mockResolvedValue({
-          stopping: true,
-          pong: true,
-          runtimeVersion: WRONGSTACK_RUNTIME_VERSION,
-        }),
+      request: vi.fn().mockResolvedValue({
+        stopping: true,
+        pong: true,
+        runtimeVersion: WRONGSTACK_RUNTIME_VERSION,
+      }),
     };
     mocks.getKanbanServerConnection.mockResolvedValue(conn);
     mocks.isKanbanServerAvailable.mockResolvedValue(false);

@@ -210,9 +210,7 @@ describe('in-flight audits are registered as session-end producers', () => {
     // Refusal is a sentinel, never a fabricated id.
     expect(result).toEqual({ subagentId: '', taskId: '' });
     // And it is NOT a silent drop — a lost audit must be visible.
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('refusing to spawn audit'),
-    );
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('refusing to spawn audit'));
   });
 
   it('still spawns normally while the session is alive', async () => {

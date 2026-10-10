@@ -115,18 +115,17 @@ export function createCodeAssistRouteHandlers(deps: {
    */
   const inflight = new Map<string, AbortController>();
 
-  const fail = (
-    ws: WebSocket,
-    requestId: string,
-    error: string,
-  ): void => {
+  const fail = (ws: WebSocket, requestId: string, error: string): void => {
     const payload: CodeAssistResult = { requestId, status: 'error', error };
     deps.send(ws, { type: 'code.assist.result', payload });
   };
 
   return {
     abort: async (_ws, msg) => {
-      const requestId = str((msg.payload as Record<string, unknown> | undefined)?.['requestId'], 200);
+      const requestId = str(
+        (msg.payload as Record<string, unknown> | undefined)?.['requestId'],
+        200,
+      );
       if (!requestId) return;
       // Aborting an unknown id is a no-op, not an error: the panel may fire
       // abort on unmount after the run already settled.
@@ -208,7 +207,8 @@ export function createCodeAssistRouteHandlers(deps: {
               requestId,
               status: 'error',
               error:
-                result.error?.message ?? `Code Assist run ended with status "${result.status ?? 'unknown'}".`,
+                result.error?.message ??
+                `Code Assist run ended with status "${result.status ?? 'unknown'}".`,
             };
             deps.send(ws, { type: 'code.assist.result', payload });
             return;

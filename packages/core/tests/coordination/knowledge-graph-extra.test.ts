@@ -163,15 +163,12 @@ describe('knowledge-graph — extra coverage', () => {
     expect(kg.getAll({ type: 'fact', severity: 'critical' })).toHaveLength(2);
 
     // Fast path (type-indexed) and full scan must agree node-for-node.
-    expect(subjects(kg.getAll({ type: 'fact', category: 'security', severity: 'critical' }))).toEqual(
-      subjects(kg.getAll({ category: 'security', severity: 'critical' })),
-    );
+    expect(
+      subjects(kg.getAll({ type: 'fact', category: 'security', severity: 'critical' })),
+    ).toEqual(subjects(kg.getAll({ category: 'security', severity: 'critical' })));
 
     // A severity-only filter must not reach goals, which carry no severity.
-    expect(subjects(kg.getAll({ severity: 'critical' }))).toEqual([
-      'bug-critical',
-      'sec-critical',
-    ]);
+    expect(subjects(kg.getAll({ severity: 'critical' }))).toEqual(['bug-critical', 'sec-critical']);
 
     // Same agreement on the goal side, and for status + priority together.
     expect(titles(kg.getAll({ priority: 'high' }))).toEqual(['g-high']);

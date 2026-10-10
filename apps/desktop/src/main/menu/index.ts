@@ -79,4 +79,3 @@ export function configureApplicationMenu(ctx: MenuBuilderContext): void {
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
-

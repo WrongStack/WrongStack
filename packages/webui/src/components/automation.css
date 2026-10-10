@@ -1,22 +1,112 @@
-.automation-workspace { padding: 1.25rem; overflow: auto; min-height: 0; height: 100%; color: inherit; }
-.automation-workspace * { box-sizing: border-box; }
-.automation-workspace header, .automation-fields { display: flex; gap: .75rem; align-items: start; flex-wrap: wrap; }
-.automation-workspace header > div { flex: 1; }
-.automation-workspace h1 { font-size: 1.4rem; font-weight: 650; }
-.automation-workspace h2 { font-size: 1.05rem; font-weight: 600; margin: .5rem 0; }
-.automation-workspace p { margin: .5rem 0; opacity: .85; }
-.automation-workspace button { color: inherit; background: transparent; font: inherit; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); border-radius: .4rem; padding: .35rem .65rem; margin: .2rem .3rem .2rem 0; }
-.automation-workspace button:disabled { opacity: .45; }
-.automation-columns { display: grid; grid-template-columns: minmax(14rem, 1fr) minmax(20rem, 2fr); gap: 1.25rem; margin: 1rem 0; }
-.automation-workspace article, .automation-workspace form { border: 1px solid color-mix(in srgb, currentColor 20%, transparent); border-radius: .6rem; padding: .85rem; margin-bottom: .7rem; }
-.automation-workspace label { display: flex; flex-direction: column; gap: .25rem; margin: .6rem 0; flex: 1; }
-.automation-fields > label { min-width: 0; }
-.automation-workspace input, .automation-workspace textarea, .automation-workspace select { color: inherit; background: transparent; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: .35rem; padding: .45rem; min-width: 0; width: 100%; }
-.automation-workspace select option { color: CanvasText; background: Canvas; }
-.automation-workspace .automation-check { flex-direction: row; align-items: center; }
-.automation-workspace .automation-check input { width: auto; }
-.automation-workspace details { margin: .75rem 0; }
-.automation-workspace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; max-height: 32rem; overflow: auto; }
-.automation-workspace [role=alert] { border-left: 3px solid hsl(var(--destructive)); padding-left: .75rem; }
-.automation-workspace li { margin-left: 1.25rem; }
-@media (max-width: 760px) { .automation-columns { grid-template-columns: 1fr; } }
+.automation-workspace {
+  padding: 1.25rem;
+  overflow: auto;
+  min-height: 0;
+  height: 100%;
+  color: inherit;
+}
+.automation-workspace * {
+  box-sizing: border-box;
+}
+.automation-workspace header,
+.automation-fields {
+  display: flex;
+  gap: 0.75rem;
+  align-items: start;
+  flex-wrap: wrap;
+}
+.automation-workspace header > div {
+  flex: 1;
+}
+.automation-workspace h1 {
+  font-size: 1.4rem;
+  font-weight: 650;
+}
+.automation-workspace h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+}
+.automation-workspace p {
+  margin: 0.5rem 0;
+  opacity: 0.85;
+}
+.automation-workspace button {
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  margin: 0.2rem 0.3rem 0.2rem 0;
+}
+.automation-workspace button:disabled {
+  opacity: 0.45;
+}
+.automation-columns {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) minmax(20rem, 2fr);
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+.automation-workspace article,
+.automation-workspace form {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 0.6rem;
+  padding: 0.85rem;
+  margin-bottom: 0.7rem;
+}
+.automation-workspace label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.6rem 0;
+  flex: 1;
+}
+.automation-fields > label {
+  min-width: 0;
+}
+.automation-workspace input,
+.automation-workspace textarea,
+.automation-workspace select {
+  color: inherit;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 0.35rem;
+  padding: 0.45rem;
+  min-width: 0;
+  width: 100%;
+}
+.automation-workspace select option {
+  color: CanvasText;
+  background: Canvas;
+}
+.automation-workspace .automation-check {
+  flex-direction: row;
+  align-items: center;
+}
+.automation-workspace .automation-check input {
+  width: auto;
+}
+.automation-workspace details {
+  margin: 0.75rem 0;
+}
+.automation-workspace pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  max-height: 32rem;
+  overflow: auto;
+}
+.automation-workspace [role="alert"] {
+  border-left: 3px solid hsl(var(--destructive));
+  padding-left: 0.75rem;
+}
+.automation-workspace li {
+  margin-left: 1.25rem;
+}
+@media (max-width: 760px) {
+  .automation-columns {
+    grid-template-columns: 1fr;
+  }
+}

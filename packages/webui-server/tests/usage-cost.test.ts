@@ -43,7 +43,12 @@ describe('getCostRates', () => {
       cost: { input: 3.0, output: 15.0, cache_read: 1.5 },
       extra: true,
     };
-    expect(getCostRates(model)).toEqual({ input: 3.0, output: 15.0, cacheRead: 1.5, cacheWrite: 3.0 });
+    expect(getCostRates(model)).toEqual({
+      input: 3.0,
+      output: 15.0,
+      cacheRead: 1.5,
+      cacheWrite: 3.0,
+    });
   });
 });
 
@@ -113,7 +118,10 @@ describe('computeUsageCost', () => {
     const rates = getCostRates({ cost: { input: 2, output: 8 } });
     // (100k fresh + 800k read + 100k written) × $2 per 1M = $2
     expect(
-      computeUsageCost({ input: 100_000, output: 0, cacheRead: 800_000, cacheWrite: 100_000 }, rates),
+      computeUsageCost(
+        { input: 100_000, output: 0, cacheRead: 800_000, cacheWrite: 100_000 },
+        rates,
+      ),
     ).toBeCloseTo(2);
   });
 });

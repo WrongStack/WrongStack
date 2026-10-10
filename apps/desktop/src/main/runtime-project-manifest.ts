@@ -123,4 +123,3 @@ export function samePath(left: string, right: string): boolean {
   const b = path.resolve(right);
   return os.platform() === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
-

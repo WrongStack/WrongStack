@@ -1,8 +1,5 @@
 import { useTechStackStore } from '@/stores/techstack-store';
-import type {
-  TechStackAnalyzeDepth,
-  TechStackSnapshot,
-} from '@/stores/techstack-store';
+import type { TechStackAnalyzeDepth, TechStackSnapshot } from '@/stores/techstack-store';
 import type { WSServerMessage } from '@/types';
 
 export function handleTechStackJobStarted(msg: WSServerMessage): void {

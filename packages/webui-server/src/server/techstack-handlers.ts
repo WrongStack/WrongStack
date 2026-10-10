@@ -378,10 +378,7 @@ export async function handleTechStackAnalyze(
  * wired the endpoint still answers 200 with `{ available: false }` so the UI
  * can disable the picker without falling back to a default.
  */
-export function handleTechStackModels(
-  res: http.ServerResponse,
-  deps: TechStackHandlerDeps,
-): void {
+export function handleTechStackModels(res: http.ServerResponse, deps: TechStackHandlerDeps): void {
   const llm = deps.getLlm?.();
   if (!llm) {
     sendJson(res, 200, { available: false, provider: null, model: null, candidates: [] });

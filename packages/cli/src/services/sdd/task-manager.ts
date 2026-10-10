@@ -3,7 +3,6 @@ import { expectDefined } from '@wrongstack/core/utils';
 import { DefaultTaskStore, renderProgress, TaskTracker } from '@wrongstack/sdd';
 import { sddState } from './state.js';
 
-
 /**
  * Format elapsed milliseconds as a human-readable string.
  */

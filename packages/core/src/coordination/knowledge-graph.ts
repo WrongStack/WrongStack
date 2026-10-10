@@ -374,7 +374,9 @@ export class KnowledgeGraph {
     return this.getAll({ type: 'goal', ...filter } as NodeFilter) as GoalNode[];
   }
 
-  getFacts(filter?: Partial<{ category: FactCategory; severity: FactNode['severity'] }>): FactNode[] {
+  getFacts(
+    filter?: Partial<{ category: FactCategory; severity: FactNode['severity'] }>,
+  ): FactNode[] {
     return this.getAll({ type: 'fact', ...filter } as NodeFilter) as FactNode[];
   }
 

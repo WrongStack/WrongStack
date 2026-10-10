@@ -54,7 +54,10 @@ describe('/design capture', () => {
 
     const persisted = JSON.parse(
       await fs.readFile(path.join(tmp, '.design', 'captured-tokens.json'), 'utf8'),
-    ) as { files: string[]; tokens: { light: Record<string, string>; dark: Record<string, string> } };
+    ) as {
+      files: string[];
+      tokens: { light: Record<string, string>; dark: Record<string, string> };
+    };
     expect(persisted.files).toEqual(['src/index.css']);
     expect(persisted.tokens.light['primary']).toMatch(/^#/);
     expect(persisted.tokens.dark['primary']).not.toBe(persisted.tokens.light['primary']);

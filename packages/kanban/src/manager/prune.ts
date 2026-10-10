@@ -1,9 +1,6 @@
 import type { KanbanTask } from '../types.js';
 import { deleteBoard, listBoardSummaries, mutateBoard, readBoard, writeBoard } from '../storage.js';
-import {
-  nowIso,
-  stampAtomicityAssessment,
-} from './_internal.js';
+import { nowIso, stampAtomicityAssessment } from './_internal.js';
 
 /**
  * Cards kept on a live session mirror once they reach a terminal state.

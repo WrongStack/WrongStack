@@ -1,3 +1,1 @@
-export {
-  createGovernanceEvidenceCandidate,
-} from '@wrongstack/runtime/governance-bootstrap';
+export { createGovernanceEvidenceCandidate } from '@wrongstack/runtime/governance-bootstrap';

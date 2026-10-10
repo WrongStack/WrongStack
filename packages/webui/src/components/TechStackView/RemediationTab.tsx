@@ -27,13 +27,7 @@ import {
   useTechStackStore,
 } from '@/stores';
 import { Button } from '@/components/ui/button';
-import {
-  ACTION_LABELS,
-  Badge,
-  ecosystemLabel,
-  SEVERITY_META,
-  SEVERITY_ORDER,
-} from './shared';
+import { ACTION_LABELS, Badge, ecosystemLabel, SEVERITY_META, SEVERITY_ORDER } from './shared';
 import { useAppTranslation } from '@/i18n';
 
 const SEVERITY_BAR: Record<string, string> = {
@@ -188,7 +182,9 @@ export function RemediationTab() {
           <p className="text-xs font-medium text-success">
             {t('activity:techStack.remediationAllClear')}
           </p>
-          <p className="text-xs text-muted-foreground">{t('activity:techStack.remediationHealthy')}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('activity:techStack.remediationHealthy')}
+          </p>
         </div>
       </div>
     );
@@ -225,14 +221,11 @@ export function RemediationTab() {
             </Badge>
           )}
         </div>
-        <p className="mt-2 max-w-3xl text-[10px] leading-relaxed text-muted-foreground">{plan.warning}</p>
+        <p className="mt-2 max-w-3xl text-[10px] leading-relaxed text-muted-foreground">
+          {plan.warning}
+        </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void reload()}
-            disabled={loading}
-          >
+          <Button variant="outline" size="sm" onClick={() => void reload()} disabled={loading}>
             <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
             {t('activity:techStack.refreshPlan')}
           </Button>
@@ -315,7 +308,10 @@ function PlanItemCard({
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           aria-hidden="true"
-          className={cn('inline-block size-1.5 shrink-0 rounded-full', SEVERITY_BAR[item.severity] ?? 'bg-muted-foreground')}
+          className={cn(
+            'inline-block size-1.5 shrink-0 rounded-full',
+            SEVERITY_BAR[item.severity] ?? 'bg-muted-foreground',
+          )}
         />
         <span className="min-w-0 truncate font-mono text-xs text-foreground">
           {item.dependencyName}
@@ -365,12 +361,10 @@ function PlanItemFooter({
           aria-pressed={selected}
           className="h-7 text-[10px]"
         >
-          {selected ? (
-            <Check className="size-3" />
-          ) : (
-            <Download className="size-3" />
-          )}
-          {selected ? t('activity:techStack.selectedForApply') : t('activity:techStack.selectForApply')}
+          {selected ? <Check className="size-3" /> : <Download className="size-3" />}
+          {selected
+            ? t('activity:techStack.selectedForApply')
+            : t('activity:techStack.selectForApply')}
         </Button>
       </div>
     );

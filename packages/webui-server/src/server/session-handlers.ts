@@ -190,7 +190,8 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           resetSessionSubagentPolicy(ctx.context);
           if (clearedSessionId) unlockSessionSubagentPolicyForSession(clearedSessionId);
           unlockSessionSubagentPolicyForSession(currentSessionId());
-          if (ctx.context.session?.id) unlockSessionSubagentPolicyForSession(ctx.context.session.id);
+          if (ctx.context.session?.id)
+            unlockSessionSubagentPolicyForSession(ctx.context.session.id);
           ctx.context.clearMemoryEvidence?.();
           ctx.context.readFiles.clear();
           ctx.context.fileMtimes.clear();

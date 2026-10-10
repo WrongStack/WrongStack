@@ -163,9 +163,8 @@ describe('ACPProtocolHandler', () => {
       await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: CWD_TEST } });
       await handler.handleMessage({ id: 3, method: 'session/list', params: { cwd: CWD_TEST } });
 
-      const result = (
-        transport.sent.at(-1) as { result?: { sessions: Array<{ cwd: string }> } }
-      ).result;
+      const result = (transport.sent.at(-1) as { result?: { sessions: Array<{ cwd: string }> } })
+        .result;
       expect(result?.sessions).toHaveLength(1);
       expect(result?.sessions[0]?.cwd).toBe(CWD_TEST);
     });
@@ -1559,8 +1558,11 @@ describe('ACPProtocolHandler', () => {
 
       const updates = transport.sent
         .filter((m) => (m as { method?: string }).method === 'session/update')
-        .map((m) => (m as { params?: { update?: { content?: { text?: string } } } }).params?.update
-          ?.content?.text);
+        .map(
+          (m) =>
+            (m as { params?: { update?: { content?: { text?: string } } } }).params?.update?.content
+              ?.text,
+        );
       expect(updates, 'no session/update may be emitted after session/close').not.toContain(
         'STALE-AFTER-CLOSE',
       );
@@ -1612,8 +1614,11 @@ describe('ACPProtocolHandler', () => {
 
       const updates = transport.sent
         .filter((m) => (m as { method?: string }).method === 'session/update')
-        .map((m) => (m as { params?: { update?: { content?: { text?: string } } } }).params?.update
-          ?.content?.text);
+        .map(
+          (m) =>
+            (m as { params?: { update?: { content?: { text?: string } } } }).params?.update?.content
+              ?.text,
+        );
       expect(updates, 'a dead session must not stream into its replacement').not.toContain(
         'STALE-FROM-DEAD-SESSION',
       );
@@ -1645,8 +1650,11 @@ describe('ACPProtocolHandler', () => {
 
       const updates = transport.sent
         .filter((m) => (m as { method?: string }).method === 'session/update')
-        .map((m) => (m as { params?: { update?: { content?: { text?: string } } } }).params?.update
-          ?.content?.text);
+        .map(
+          (m) =>
+            (m as { params?: { update?: { content?: { text?: string } } } }).params?.update?.content
+              ?.text,
+        );
       expect(updates).toContain('LIVE-CHUNK');
     });
 
@@ -1789,7 +1797,9 @@ describe('ACPProtocolHandler', () => {
       });
       await new Promise((r) => setImmediate(r));
       expect(
-        transport.sent.some((m) => (m as { method?: string }).method === 'session/request_permission'),
+        transport.sent.some(
+          (m) => (m as { method?: string }).method === 'session/request_permission',
+        ),
         'the turn should have issued a client request',
       ).toBe(true);
 
@@ -1875,7 +1885,11 @@ describe('ACPProtocolHandler', () => {
       await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
 
       transport.sent.length = 0;
-      await handler.handleMessage({ id: 2, method: 'session/list', params: { cwd: 'relative/dir' } });
+      await handler.handleMessage({
+        id: 2,
+        method: 'session/list',
+        params: { cwd: 'relative/dir' },
+      });
       expect(transport.sent.at(-1)).toMatchObject({
         id: 2,
         error: { code: -32602, message: 'invalid cwd or cursor' },

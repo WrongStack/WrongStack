@@ -122,4 +122,3 @@ export class GrantControlFeature implements CollabFeature {
     ctx.broadcastState(payload.sessionId);
   }
 }
-

@@ -67,8 +67,7 @@ const githubLightAa: typeof githubLight = {
   name: 'github-light-aa',
   tokenColors: (githubLight.tokenColors ?? []).map((token) => {
     const foreground = token.settings?.foreground?.toLowerCase();
-    const replacement =
-      foreground !== undefined ? AA_LIGHT_TOKEN_COLORS[foreground] : undefined;
+    const replacement = foreground !== undefined ? AA_LIGHT_TOKEN_COLORS[foreground] : undefined;
     return replacement
       ? { ...token, settings: { ...token.settings, foreground: replacement } }
       : token;

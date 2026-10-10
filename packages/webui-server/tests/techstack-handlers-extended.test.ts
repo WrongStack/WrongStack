@@ -541,7 +541,9 @@ describe('TechStack HTTP handlers extended coverage', () => {
 
       await handleTechStackAnalyze(req, res.value, deps);
       expect(res.result.status).toBe(400);
-      expect(JSON.parse(res.result.body)).toMatchObject({ error: expect.stringContaining('depth') });
+      expect(JSON.parse(res.result.body)).toMatchObject({
+        error: expect.stringContaining('depth'),
+      });
       // No event emitted because the job never started.
       expect(events).toHaveLength(0);
     });
@@ -552,7 +554,9 @@ describe('TechStack HTTP handlers extended coverage', () => {
 
       await handleTechStackAnalyze(req, res.value, deps);
       expect(res.result.status).toBe(400);
-      expect(JSON.parse(res.result.body)).toMatchObject({ error: expect.stringContaining('model') });
+      expect(JSON.parse(res.result.body)).toMatchObject({
+        error: expect.stringContaining('model'),
+      });
     });
 
     it('returns 413 when body is too large', async () => {
@@ -586,9 +590,9 @@ describe('TechStack HTTP handlers extended coverage', () => {
       expect(body.depth).toBe('full');
       expect(body.model).toBeUndefined();
       // The started event announces the same shape.
-      expect((events[0] as { type: string; payload: { depth?: string; model?: string } }).type).toBe(
-        'techstack.job.started',
-      );
+      expect(
+        (events[0] as { type: string; payload: { depth?: string; model?: string } }).type,
+      ).toBe('techstack.job.started');
       expect(
         (events[0] as { type: string; payload: { depth?: string; model?: string } }).payload.depth,
       ).toBe('full');
@@ -599,7 +603,9 @@ describe('TechStack HTTP handlers extended coverage', () => {
 
     it('forwards depth and model into engine.analyze', async () => {
       const { res, deps, engine } = setupAnalyze();
-      const req = Readable.from([JSON.stringify({ depth: 'enrich', model: 'claude-haiku-4-5' })]) as never;
+      const req = Readable.from([
+        JSON.stringify({ depth: 'enrich', model: 'claude-haiku-4-5' }),
+      ]) as never;
 
       await handleTechStackAnalyze(req, res.value, deps);
       expect(res.result.status).toBe(202);

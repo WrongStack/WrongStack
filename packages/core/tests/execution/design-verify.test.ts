@@ -150,9 +150,7 @@ describe('stock-elevation remap suppression', () => {
       },
       [file],
     );
-    expect(
-      remapped.violations.some((v) => /stock Tailwind elevation/.test(v.reason)),
-    ).toBe(false);
+    expect(remapped.violations.some((v) => /stock Tailwind elevation/.test(v.reason))).toBe(false);
     // Everything else still scans — only the elevation finding is suppressed.
     expect(remapped.violations).toHaveLength(stock.violations.length - 1);
   });

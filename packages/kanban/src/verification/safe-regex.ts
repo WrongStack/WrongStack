@@ -11,11 +11,7 @@
  * entry points to identical verdicts.
  */
 
-import {
-  capSubject,
-  compileUserRegex,
-  MAX_SUBJECT_LEN,
-} from '@wrongstack/primitives';
+import { capSubject, compileUserRegex, MAX_SUBJECT_LEN } from '@wrongstack/primitives';
 
 export { capSubject, MAX_SUBJECT_LEN };
 

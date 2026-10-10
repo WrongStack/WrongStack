@@ -27,7 +27,11 @@ export function presentArtifactResult(
     browserTarget = { sessionId, id: artifact.browserSessionId! };
     useUIStore.getState().showDockChip('browser');
     useUIStore.getState().setDockSection('browser');
-    window.dispatchEvent(new CustomEvent('wrongstack:present-browser', { detail: { sessionId, id: artifact.browserSessionId } }));
+    window.dispatchEvent(
+      new CustomEvent('wrongstack:present-browser', {
+        detail: { sessionId, id: artifact.browserSessionId },
+      }),
+    );
     return;
   }
   if (artifact.kind === 'image' || artifact.kind === 'diff') {

@@ -60,4 +60,3 @@ export function createRequestTool(deps: ToolDeps): Tool<Input, string> {
     },
   };
 }
-

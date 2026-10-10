@@ -358,4 +358,3 @@ function parseFlags(args: string[]): Record<string, string | true> {
       }),
   );
 }
-

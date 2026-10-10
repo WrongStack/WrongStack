@@ -46,12 +46,29 @@ function completed(options: DockerWorkspaceOptions) {
 describe('persistent automation', () => {
   it('persists structured execution metadata without promoting final-text claims to test evidence', async () => {
     const { store, spec } = await fixture();
-    const job = await store.add(spec); const queued = await store.enqueue(job.id);
-    const service = new AutomationService(store, async options => ({ ...completed(options), output: JSON.stringify({ status: 'done', finalText: 'Tests passed', usage: { input: 123, output: 10, iterations: 2, cost: 0.1, costSource: 'catalog-estimate' } }), patch: '--- a/a.ts\n+++ b/a.ts\n' }));
-    await service.tick(); await service.idle();
-    const run = (await store.snapshot()).runs.find(item => item.id === queued.id)!;
-    expect(run.result).toMatchObject({ finalText: 'Tests passed', usage: { inputTokens: 123, costUsd: 0.1 }, changedFiles: ['a.ts'], validation: { status: 'not-verified' } });
-    expect(JSON.parse(await readFile(path.join(run.artifactDirectory!, 'run.json'), 'utf8')).result).toEqual(run.result);
+    const job = await store.add(spec);
+    const queued = await store.enqueue(job.id);
+    const service = new AutomationService(store, async (options) => ({
+      ...completed(options),
+      output: JSON.stringify({
+        status: 'done',
+        finalText: 'Tests passed',
+        usage: { input: 123, output: 10, iterations: 2, cost: 0.1, costSource: 'catalog-estimate' },
+      }),
+      patch: '--- a/a.ts\n+++ b/a.ts\n',
+    }));
+    await service.tick();
+    await service.idle();
+    const run = (await store.snapshot()).runs.find((item) => item.id === queued.id)!;
+    expect(run.result).toMatchObject({
+      finalText: 'Tests passed',
+      usage: { inputTokens: 123, costUsd: 0.1 },
+      changedFiles: ['a.ts'],
+      validation: { status: 'not-verified' },
+    });
+    expect(
+      JSON.parse(await readFile(path.join(run.artifactDirectory!, 'run.json'), 'utf8')).result,
+    ).toEqual(run.result);
   });
   it('refuses an idempotency key reused for a different subject or payload', async () => {
     const { store, spec } = await fixture();

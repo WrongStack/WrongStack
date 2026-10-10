@@ -145,18 +145,14 @@ describe('permission gates the scoped suite did not pin', () => {
     Date.now = () => fixed;
     try {
       const policy = new DefaultPermissionPolicy({ trustFile });
-      const decision = await policy.evaluate(
-        tool('expired'),
-        { path: 'src/a.ts' },
-        ctx(dir),
-      );
+      const decision = await policy.evaluate(tool('expired'), { path: 'src/a.ts' }, ctx(dir));
       expect(decision.permission).toBe('confirm');
       expect(decision.source).not.toBe('trust');
 
       const rules = await policy.listRules();
-      expect(
-        rules.some((rule) => rule.step === 'trust allow' && rule.action === 'expired'),
-      ).toBe(false);
+      expect(rules.some((rule) => rule.step === 'trust allow' && rule.action === 'expired')).toBe(
+        false,
+      );
       expect(rules.some((rule) => rule.step === 'trust allow' && rule.action === 'live')).toBe(
         true,
       );

@@ -68,7 +68,6 @@ function batchTimeoutMs(fileCount: number): number {
   return Math.min(120_000, 15_000 + fileCount * 1_500);
 }
 
-
 function batchPayload(files: readonly BatchFile[]): string {
   return JSON.stringify(files.map((f) => ({ file: f.file, content: f.content })));
 }

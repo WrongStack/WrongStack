@@ -131,9 +131,9 @@ describe('MCP operational health primitives', () => {
       { connectionLatencyP95Ms: Number.NaN },
       { connectionLatencyP95Ms: Number.POSITIVE_INFINITY },
     ]) {
-      expect(applyHealthThresholds('healthy', evaluateHealthThresholds(operations, unusable as never))).toBe(
-        'healthy',
-      );
+      expect(
+        applyHealthThresholds('healthy', evaluateHealthThresholds(operations, unusable as never)),
+      ).toBe('healthy');
     }
 
     // A malformed in-flight threshold fires with no latency samples at all.

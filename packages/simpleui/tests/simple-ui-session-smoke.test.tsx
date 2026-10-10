@@ -80,7 +80,9 @@ function emitServerFrame(message: unknown): Promise<void> {
 
 function pressGlobal(keys: KeyboardEventInit): void {
   act(() => {
-    document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...keys }));
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...keys }),
+    );
   });
 }
 
@@ -117,7 +119,9 @@ describe('SimpleUiSession composition', () => {
 
     // Escape must close from anywhere inside the dialog, not just the input.
     act(() => {
-      dialog!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      dialog!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      );
     });
     expect(container!.querySelector('.command-palette')).toBeNull();
   });

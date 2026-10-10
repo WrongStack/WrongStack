@@ -3,7 +3,9 @@ import { buildAutomationResult } from '../src/automation/result.js';
 
 describe('automation result evidence', () => {
   it('decodes Git quoted UTF-8 paths used by international projects', () => {
-    expect(buildAutomationResult('', '+++ "b/src/\\303\\247.ts"\n', 0).changedFiles).toEqual(['src/ç.ts']);
+    expect(buildAutomationResult('', '+++ "b/src/\\303\\247.ts"\n', 0).changedFiles).toEqual([
+      'src/ç.ts',
+    ]);
     expect(buildAutomationResult('', null, 0).validation.evidence).not.toContain('changes.patch');
   });
   it('retains unknown pricing instead of treating a legacy zero as free', () => {

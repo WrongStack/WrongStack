@@ -18,7 +18,9 @@ function messagesState() {
   let current: ChatMessage[] = [];
   const setMessages = vi.fn((update: unknown) => {
     current =
-      typeof update === 'function' ? (update as (prev: ChatMessage[]) => ChatMessage[])(current) : (update as ChatMessage[]);
+      typeof update === 'function'
+        ? (update as (prev: ChatMessage[]) => ChatMessage[])(current)
+        : (update as ChatMessage[]);
   });
   return { setMessages, read: () => current };
 }

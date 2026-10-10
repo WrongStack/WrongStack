@@ -33,4 +33,3 @@ export interface PhasePanelProps {
   onToggleAutonomous?: (() => void) | undefined;
   className?: string | undefined;
 }
-

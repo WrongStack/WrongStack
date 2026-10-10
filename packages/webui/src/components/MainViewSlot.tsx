@@ -82,4 +82,3 @@ export function MainViewSlot({
 export function defaultOnCloseToChat(): void {
   showPanel('chat');
 }
-

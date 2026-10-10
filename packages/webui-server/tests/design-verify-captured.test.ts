@@ -4,7 +4,11 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type WebSocket from 'ws';
 import { saveCapturedTokens } from '@wrongstack/core/design';
-import { handleDesignUse, handleDesignVerify, type DesignContext } from '../src/server/design-handlers.js';
+import {
+  handleDesignUse,
+  handleDesignVerify,
+  type DesignContext,
+} from '../src/server/design-handlers.js';
 
 /**
  * handleDesignVerify is capture-aware: it resolves the token basis with the

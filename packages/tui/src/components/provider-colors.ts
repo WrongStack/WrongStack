@@ -111,4 +111,3 @@ export const UI_COLORS = Object.assign(
     dimmed: undefined as string | undefined, // Ink dimColor prop
   },
 );
-

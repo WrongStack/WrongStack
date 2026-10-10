@@ -370,9 +370,7 @@ describe('F5 resilience — full round-trip via RefreshDebugView', () => {
     // simulateF5 must NOT throw even though the blobs are deliberately
     // unparseable.
     await expect(simulateF5()).resolves.not.toThrow();
-    expect(error).toHaveBeenCalledWith(
-      expect.stringContaining("couldn't be migrated"),
-    );
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("couldn't be migrated"));
     error.mockRestore();
 
     render(<RefreshDebugView />);

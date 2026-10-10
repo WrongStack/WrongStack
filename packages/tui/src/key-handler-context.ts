@@ -141,8 +141,4 @@ export interface KeyRouteContext extends AppKeyHandlerOptions {
 }
 
 /** Re-exported for route modules that need the ref/callback shapes. */
-export type {
-  Dispatch,
-  MutableRefObject,
-  SetStateAction,
-};
+export type { Dispatch, MutableRefObject, SetStateAction };

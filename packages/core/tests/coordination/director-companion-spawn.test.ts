@@ -19,7 +19,9 @@ function directorFor(sessionId: string) {
       doneCondition: { type: 'all_tasks_done' },
       maxConcurrent: 2,
     },
-    runner: vi.fn(async (): Promise<SubagentRunOutcome> => ({ result: 'ok', iterations: 1, toolCalls: 0 })),
+    runner: vi.fn(
+      async (): Promise<SubagentRunOutcome> => ({ result: 'ok', iterations: 1, toolCalls: 0 }),
+    ),
   });
 }
 

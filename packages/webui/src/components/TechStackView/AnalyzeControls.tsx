@@ -15,11 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Brain, Loader2, Sparkles, Zap } from 'lucide-react';
-import {
-  type TechStackAnalyzeDepth,
-  type TechStackModelInfo,
-  useTechStackStore,
-} from '@/stores';
+import { type TechStackAnalyzeDepth, type TechStackModelInfo, useTechStackStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
@@ -109,7 +105,10 @@ export function AnalyzeControls({ busy, onAnalyze, onInventory }: AnalyzeControl
       </div>
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <fieldset className="flex flex-wrap items-center gap-1.5" aria-label={t('activity:techStack.depthPicker')}>
+        <fieldset
+          className="flex flex-wrap items-center gap-1.5"
+          aria-label={t('activity:techStack.depthPicker')}
+        >
           {DEPTH_OPTIONS.map((option) => {
             const selected = selectedDepth === option.value;
             return (
@@ -139,7 +138,7 @@ export function AnalyzeControls({ busy, onAnalyze, onInventory }: AnalyzeControl
           </label>
           <select
             id="techstack-model-picker"
-            value={selectedModel ?? (availableModels?.model ?? '')}
+            value={selectedModel ?? availableModels?.model ?? ''}
             onChange={(event) => setSelectedModel(event.target.value || null)}
             disabled={aiDisabled || modelsLoading}
             className="h-7 w-full min-w-0 border border-border/70 bg-background px-2 text-[10px]"
@@ -150,7 +149,9 @@ export function AnalyzeControls({ busy, onAnalyze, onInventory }: AnalyzeControl
               <option value="">{t('activity:techStack.noModelConfigured')}</option>
             ) : (
               <>
-                <option value="">{t('activity:techStack.useActiveModel', { model: availableModels.model ?? '?' })}</option>
+                <option value="">
+                  {t('activity:techStack.useActiveModel', { model: availableModels.model ?? '?' })}
+                </option>
                 {availableModels.candidates.map((candidate) => (
                   <option key={candidate.id} value={candidate.id}>
                     {candidate.id}

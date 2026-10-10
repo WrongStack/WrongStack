@@ -28,7 +28,9 @@
  */
 import { type ComponentType, lazy } from 'react';
 import type { View } from '@/stores/ui-store';
-const AutomationView = lazy(() => import('./AutomationView').then((module) => ({ default: module.AutomationView })));
+const AutomationView = lazy(() =>
+  import('./AutomationView').then((module) => ({ default: module.AutomationView })),
+);
 
 // Lazy at module scope: one chunk per view, identical to the previous
 // `ViewRouter` behaviour. Eager entries (chat, settings, context) are not

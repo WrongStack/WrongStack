@@ -92,28 +92,33 @@ export function applySlotTools(
       slot.cfg.sandboxTrust === true,
       {
         onStart: (caller) => {
-        if (caller) slot.activeCallers = [...(slot.activeCallers ?? []), caller];
-        slot.operations.inFlightCalls++;
-        slot.operations.peakInFlightCalls = Math.max(
-          slot.operations.peakInFlightCalls,
-          slot.operations.inFlightCalls,
-        );
-        ctx.recordOperation(slot, 'call', 'started', undefined, undefined, false);
+          if (caller) slot.activeCallers = [...(slot.activeCallers ?? []), caller];
+          slot.operations.inFlightCalls++;
+          slot.operations.peakInFlightCalls = Math.max(
+            slot.operations.peakInFlightCalls,
+            slot.operations.inFlightCalls,
+          );
+          ctx.recordOperation(slot, 'call', 'started', undefined, undefined, false);
+        },
+        onFinish: ({ durationMs, ok }, caller) => {
+          const at = caller ? (slot.activeCallers?.lastIndexOf(caller) ?? -1) : -1;
+          if (at >= 0) slot.activeCallers?.splice(at, 1);
+          slot.operations.inFlightCalls = Math.max(0, slot.operations.inFlightCalls - 1);
+          slot.lastUsed = Date.now();
+          pushBounded(
+            slot.operations.callSamples,
+            durationMs,
+            MCP_OPERATION_LIMITS.LATENCY_SAMPLES,
+          );
+          if (ok) {
+            ctx.recordSuccess(slot);
+            ctx.recordOperation(slot, 'call', 'ok', undefined, durationMs, false);
+          } else {
+            ctx.recordFailure(slot, 'tool', 'tool-call-failed', durationMs);
+          }
+        },
       },
-      onFinish: ({ durationMs, ok }, caller) => {
-        const at = caller ? (slot.activeCallers?.lastIndexOf(caller) ?? -1) : -1;
-        if (at >= 0) slot.activeCallers?.splice(at, 1);
-        slot.operations.inFlightCalls = Math.max(0, slot.operations.inFlightCalls - 1);
-        slot.lastUsed = Date.now();
-        pushBounded(slot.operations.callSamples, durationMs, MCP_OPERATION_LIMITS.LATENCY_SAMPLES);
-        if (ok) {
-          ctx.recordSuccess(slot);
-          ctx.recordOperation(slot, 'call', 'ok', undefined, durationMs, false);
-        } else {
-          ctx.recordFailure(slot, 'tool', 'tool-call-failed', durationMs);
-        }
-      },
-    }),
+    ),
   );
   slot.lazyTools = wrapped;
   slot.toolSignature = signature;

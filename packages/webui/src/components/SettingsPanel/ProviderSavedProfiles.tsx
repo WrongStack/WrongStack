@@ -352,7 +352,13 @@ export function ProviderSavedProfiles({
             </div>
 
             <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.85fr)]">
-              <ProviderCloudSettings key={sp.id} id={sp.id} type={sp.type ?? sp.id} cloud={sp.cloud} ws={ws} />
+              <ProviderCloudSettings
+                key={sp.id}
+                id={sp.id}
+                type={sp.type ?? sp.id}
+                cloud={sp.cloud}
+                ws={ws}
+              />
               <ProviderModelsPanel
                 providerId={sp.id}
                 savedPickedModelId={sp.pickedModelId}

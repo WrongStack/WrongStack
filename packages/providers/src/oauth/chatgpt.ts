@@ -35,7 +35,6 @@ import {
 } from './shared.js';
 import type { BeginOAuthDeps, OAuthLoginOutcome, OAuthSession } from './types.js';
 
-
 // ── Outcome assembly ──────────────────────────────────────────────────────────
 
 async function buildOutcome(

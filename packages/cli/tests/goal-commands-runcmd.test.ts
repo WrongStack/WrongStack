@@ -122,9 +122,9 @@ describe('runCmd command-line gate', () => {
       expect((await runCmd('curl --version', [], process.cwd(), true)).out).toMatch(
         /not in autonomous safe-commands allowlist/,
       );
-      expect((await runCmd(`${runtimeName} --version\ncurl x`, [], process.cwd(), true)).out).toMatch(
-        /rejected destructive command pattern/,
-      );
+      expect(
+        (await runCmd(`${runtimeName} --version\ncurl x`, [], process.cwd(), true)).out,
+      ).toMatch(/rejected destructive command pattern/);
     } finally {
       resetGoalPolicy();
     }

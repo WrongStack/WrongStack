@@ -83,7 +83,8 @@ export function normalizeCssValue(raw: string): string | null {
   }
   const rgb = RGB_RE.exec(v);
   if (rgb) {
-    const a = rgb[4] === undefined ? 1 : Number.parseFloat(rgb[4]) / (rgb[4].endsWith('%') ? 100 : 255);
+    const a =
+      rgb[4] === undefined ? 1 : Number.parseFloat(rgb[4]) / (rgb[4].endsWith('%') ? 100 : 255);
     return `#${toHex2(Number.parseFloat(rgb[1]!) / 255)}${toHex2(Number.parseFloat(rgb[2]!) / 255)}${toHex2(
       Number.parseFloat(rgb[3]!) / 255,
     )}${a < 1 ? toHex2(a) : ''}`;
@@ -149,8 +150,7 @@ export function parseCssTokens(text: string): {
       const name = decl[1]!.replace(/^color-/, '');
       const raw = (decl[2] ?? '').trim();
       const value = normalizeCssValue(raw);
-      const target =
-        ctx === 'dark' ? dark : ctx === 'variant' ? palettes[variantName]! : light;
+      const target = ctx === 'dark' ? dark : ctx === 'variant' ? palettes[variantName]! : light;
       if (value) {
         target[name] = value;
       } else if (STOCK_SHADOW_NAME_RE.test(name)) {
@@ -244,7 +244,9 @@ export function parseDartTokens(text: string): {
     }
     // Class fields: `static const Color primary = Color(0xFF…)` — the shape
     // `design materialize` itself generates.
-    for (const m of line.matchAll(/\bColor\s+(\w+)\s*=\s*(?:const\s+)?Color\((0x[0-9A-Fa-f]{8})\)/g)) {
+    for (const m of line.matchAll(
+      /\bColor\s+(\w+)\s*=\s*(?:const\s+)?Color\((0x[0-9A-Fa-f]{8})\)/g,
+    )) {
       record(m[1]!, m[2]!);
     }
   }

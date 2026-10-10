@@ -31,4 +31,3 @@ export function createDefaultRegistry(): VerifierRegistry {
       .register(new SystemOneVerifierPlugin())
   );
 }
-

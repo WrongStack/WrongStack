@@ -16,7 +16,9 @@ vi.mock('@/stores', () => ({
   useChatStore: { getState: () => ({ addMessage, setLoading: vi.fn() }) },
   useUIStore: { getState: () => ({ setCurrentView: vi.fn() }) },
 }));
-vi.mock('@/components/Toaster', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+vi.mock('@/components/Toaster', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 
 const SCAN = {
   projectRoot: '/p',
@@ -57,7 +59,12 @@ const SCAN = {
 
 const PLAN = {
   changes: [
-    { file: 'src/lib.ts', action: 'edit', diff: '-export function unusedFn() {}', findingIds: ['aaa'] },
+    {
+      file: 'src/lib.ts',
+      action: 'edit',
+      diff: '-export function unusedFn() {}',
+      findingIds: ['aaa'],
+    },
   ],
   planned: ['aaa'],
   skipped: [],

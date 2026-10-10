@@ -32,4 +32,3 @@ export function parseSuggestionsFromOutput(
   }
   return texts.length > 0 ? texts : null;
 }
-

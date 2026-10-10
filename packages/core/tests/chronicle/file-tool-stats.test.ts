@@ -204,7 +204,9 @@ describe('file tool numeric evidence', () => {
       ),
     ).toEqual({ addedLines: 1, removedLines: 1, partial: false });
     // No-op edits serialize no diff at all.
-    expect(fileToolStats('edit', 'edit (path=src/a.ts replacements=0 note=(no-op: no match))')).toBeUndefined();
+    expect(
+      fileToolStats('edit', 'edit (path=src/a.ts replacements=0 note=(no-op: no match))'),
+    ).toBeUndefined();
   });
   it('prefers the exact totals in a clipped diff_summary header', () => {
     // compactDiff emits `diff_summary (… added=N removed=N …)` with EXACT

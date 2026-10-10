@@ -85,4 +85,3 @@ export function unavailable(
 export function packageNames(ctx: ProfileContext): readonly string[] {
   return ctx.options.packages ?? [];
 }
-

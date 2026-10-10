@@ -6,6 +6,4 @@
  * left metacharacter-bearing arguments unquoted under `shell: true`. Keeping one
  * implementation in core removes the divergence risk (WS-004 / CMDI-005).
  */
-export {
-  buildWin32CmdShimInvocation,
-} from '@wrongstack/core/utils';
+export { buildWin32CmdShimInvocation } from '@wrongstack/core/utils';

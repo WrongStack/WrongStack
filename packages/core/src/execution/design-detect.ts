@@ -303,7 +303,7 @@ export function makeDesignVerifyToolCallMiddleware(): Middleware<ToolCallPipelin
               out.result.content +=
                 '\n\n⚠️ Design Studio: no kit is pinned, so frontend writes are NOT being ' +
                 'design-checked — this is "unverified", not "clean". Pin one with the `design` ' +
-                "tool for a new design system, run `design {action:\"capture\"}` to check drift " +
+                'tool for a new design system, run `design {action:"capture"}` to check drift ' +
                 'against the project\u2019s own tokens, or review manually. Do not replace an ' +
                 'established system merely to obtain a scanner score.';
             }

@@ -152,7 +152,10 @@ export function useQueueManager({
   useEffect(() => {
     if (!queueStore) return;
     storeRef.current = queueStore;
-    hydrateFrom(queueStore, (n) => `Restored ${n} queued message${n === 1 ? '' : 's'} from a previous run.`);
+    hydrateFrom(
+      queueStore,
+      (n) => `Restored ${n} queued message${n === 1 ? '' : 's'} from a previous run.`,
+    );
     return () => {
       hydration.current += 1;
     };

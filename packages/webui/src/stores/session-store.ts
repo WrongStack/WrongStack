@@ -41,9 +41,7 @@ import {
 import type { SessionInfo } from './types.js';
 import { useUIStore } from './ui-store.js';
 
-export {
-  useSessionLanes,
-} from './session-lanes.js';
+export { useSessionLanes } from './session-lanes.js';
 
 export interface SessionState extends SessionGlobals, SessionLaneData {
   setSession: (session: SessionInfo | null) => void;
@@ -440,4 +438,3 @@ export const memorySessionSnapshots = {
     useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   },
 };
-

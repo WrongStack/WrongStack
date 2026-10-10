@@ -324,11 +324,7 @@ describe('designTool', () => {
         ctx,
         opts,
       );
-      const mat = await designTool.execute(
-        { action: 'materialize', out: 'tokens.css' },
-        ctx,
-        opts,
-      );
+      const mat = await designTool.execute({ action: 'materialize', out: 'tokens.css' }, ctx, opts);
       // Warn, never block: the file is written AND the warning is appended.
       expect(mat.output).toMatch(/Wrote/);
       expect(mat.output).toMatch(/WCAG AA contrast/);

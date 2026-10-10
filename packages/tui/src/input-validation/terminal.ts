@@ -1,9 +1,6 @@
 import type { ValidationResult } from './result.js';
 import { MAX_PASTE_CHARS, MAX_PASTE_FRAGMENT_CHARS } from './limits.js';
-import {
-  ALLOWED_MOUSE_BUTTONS,
-  ALLOWED_MOUSE_KINDS,
-} from './allow-lists.js';
+import { ALLOWED_MOUSE_BUTTONS, ALLOWED_MOUSE_KINDS } from './allow-lists.js';
 
 /**
  * Validate a keyboard input fragment from stdin.
@@ -198,4 +195,3 @@ export function validateMouseEvent(event: {
     },
   };
 }
-

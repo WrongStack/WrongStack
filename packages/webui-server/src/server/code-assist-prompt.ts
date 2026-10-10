@@ -222,10 +222,7 @@ function closingInstruction(ctx: PromptContext): string {
   ].join('\n');
 }
 
-export function buildCodeAssistPrompt(
-  request: CodeAssistRunRequest,
-  ctx: PromptContext,
-): string {
+export function buildCodeAssistPrompt(request: CodeAssistRunRequest, ctx: PromptContext): string {
   return [
     preamble(ctx),
     '',

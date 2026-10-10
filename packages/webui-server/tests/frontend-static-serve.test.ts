@@ -256,7 +256,9 @@ describe('frontend-static-serve', () => {
           { host: '127.0.0.1', httpPort: 3000, globalRoot: '/global' },
           { resolveDist: () => null },
         );
-        const line = warn.mock.calls.map(([l]) => String(l)).find((l) => l.includes('frontend_unavailable'));
+        const line = warn.mock.calls
+          .map(([l]) => String(l))
+          .find((l) => l.includes('frontend_unavailable'));
         expect(line).toBeDefined();
         const parsed = JSON.parse(String(line));
         expect(parsed).toMatchObject({ level: 'warn', event: 'webui.frontend_unavailable' });

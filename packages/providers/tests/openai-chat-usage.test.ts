@@ -135,7 +135,9 @@ describe('OpenAI-compatible stream', () => {
         // drain
       }
       res.writeHead(200, { 'content-type': 'text/event-stream' });
-      res.write(`data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: 'ok' } }] })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: 'ok' } }] })}\n\n`,
+      );
       res.write(
         `data: ${JSON.stringify({
           choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],

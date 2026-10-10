@@ -44,7 +44,11 @@ async function main() {
   mkdirSync(installedTools, { recursive: true });
 
   try {
-    run(process.execPath, ['pm', 'pack', '--destination', packDir], path.join(repoRoot, 'packages', 'tools'));
+    run(
+      process.execPath,
+      ['pm', 'pack', '--destination', packDir],
+      path.join(repoRoot, 'packages', 'tools'),
+    );
     const tarball = readdirSync(packDir).find((entry) => entry.endsWith('.tgz'));
     if (!tarball) throw new Error('Tools package packing produced no .tgz artifact.');
 

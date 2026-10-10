@@ -341,16 +341,18 @@ export function hasCamelBoundary(identifier: string): boolean {
  * Strip non-noun context from a bolded run (e.g. "the Foo" → "Foo").
  */
 export function cleanBoldedCandidate(raw: string): string {
-  return raw
-    // Bolded runs routinely wrap backticked identifiers (`**`git rebase`**`);
-    // those backticks are emphasis markup, not part of the term. Strip them
-    // so the bold channel never emits a term carrying literal backticks —
-    // which additionally could never match the definition-hint `stream`,
-    // where backticks are already removed.
-    .replace(/`/g, '')
-    .replace(/^(?:the|a|an)\s+/i, '')
-    .replace(/[.,;:!?]+$/g, '')
-    .trim();
+  return (
+    raw
+      // Bolded runs routinely wrap backticked identifiers (`**`git rebase`**`);
+      // those backticks are emphasis markup, not part of the term. Strip them
+      // so the bold channel never emits a term carrying literal backticks —
+      // which additionally could never match the definition-hint `stream`,
+      // where backticks are already removed.
+      .replace(/`/g, '')
+      .replace(/^(?:the|a|an)\s+/i, '')
+      .replace(/[.,;:!?]+$/g, '')
+      .trim()
+  );
 }
 
 /**

@@ -120,7 +120,9 @@ async function assertProjectRelative(
 ): Promise<void> {
   const root = await resolveReal(projectRoot);
   for (const f of files) {
-    const absResolved = path.isAbsolute(f) ? path.resolve(f) : path.resolve(path.join(projectRoot, f));
+    const absResolved = path.isAbsolute(f)
+      ? path.resolve(f)
+      : path.resolve(path.join(projectRoot, f));
     const absParent = await resolveReal(path.dirname(absResolved));
     const abs = path.join(absParent, path.basename(absResolved));
     const rel = path.relative(root, abs);
@@ -456,7 +458,8 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
         path: result.path,
         output:
           `Wrote ${result.format} to ${result.path}. Import these tokens in your UI so the kit ` +
-          `palette is the source of truth. ${exists ? '(overwrote existing file)' : ''}` + contrastWarn,
+          `palette is the source of truth. ${exists ? '(overwrote existing file)' : ''}` +
+          contrastWarn,
       };
     }
 
@@ -468,7 +471,8 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
             .map((f) => f.trim().replace(/\\/g, '/'))
             .filter(Boolean)
         : undefined;
-      if (normalizedFiles) await assertProjectRelative(normalizedFiles, ctx.projectRoot, 'capture file');
+      if (normalizedFiles)
+        await assertProjectRelative(normalizedFiles, ctx.projectRoot, 'capture file');
       const result = await captureProjectTokens(ctx.projectRoot, { files: normalizedFiles });
       const lightN = Object.keys(result.tokens.light ?? {}).length;
       const darkN = Object.keys(result.tokens.dark ?? {}).length;

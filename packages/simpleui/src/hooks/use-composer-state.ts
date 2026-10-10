@@ -88,9 +88,7 @@ export function useComposerState({
    *  change). Reset at the start of every countdown round by startSend. */
   const refineStartFiredRef = useRef(false);
   const queueRef = useRef<QueuedItem[]>([]);
-  const attachedImagesRef = useRef<
-    { data: string; mime: string; name: string; id: string }[]
-  >([]);
+  const attachedImagesRef = useRef<{ data: string; mime: string; name: string; id: string }[]>([]);
   const pendingConfirmRef = useRef<PendingConfirm | null>(null);
   pendingConfirmRef.current = pendingConfirm;
   draftRef.current = draft;

@@ -248,7 +248,12 @@ interface TechStackState {
   trendLoading: boolean;
   trendError: string | null;
   /** Streaming deep-dive partials, keyed by dependency id. */
-  deepDivePartial: { dependencyId: string; status: 'researching'; completed: number; total: number } | null;
+  deepDivePartial: {
+    dependencyId: string;
+    status: 'researching';
+    completed: number;
+    total: number;
+  } | null;
   setSnapshot: (snapshot: TechStackSnapshot | null, stale?: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -272,9 +277,12 @@ interface TechStackState {
   setTrendLoading: (loading: boolean) => void;
   setTrendError: (error: string | null) => void;
   setDeepDivePartial: (
-    partial:
-      | { dependencyId: string; status: 'researching'; completed: number; total: number }
-      | null,
+    partial: {
+      dependencyId: string;
+      status: 'researching';
+      completed: number;
+      total: number;
+    } | null,
   ) => void;
   clear: () => void;
 }
@@ -397,7 +405,12 @@ export const useTechStackStore = create<TechStackState>()((set) => ({
   setSelectedModel: (model) => set({ selectedModel: model }),
   setAvailableModels: (models) => set({ availableModels: models }),
   setRemediation: (plan, preview) =>
-    set({ remediationPlan: plan, remediationPreview: preview, remediationLoading: false, remediationError: null }),
+    set({
+      remediationPlan: plan,
+      remediationPreview: preview,
+      remediationLoading: false,
+      remediationError: null,
+    }),
   setRemediationLoading: (loading) =>
     set({ remediationLoading: loading, ...(loading ? { remediationError: null } : {}) }),
   setRemediationError: (error) => set({ remediationError: error, remediationLoading: false }),

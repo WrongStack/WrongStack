@@ -40,4 +40,3 @@ export const MAILBOX_TYPE_LABEL: Record<HqMailboxMessageType, MailboxTypeMeta> =
   review: { icon: Search, tone: 'info' },
   control: { icon: Settings, tone: 'error' },
 };
-

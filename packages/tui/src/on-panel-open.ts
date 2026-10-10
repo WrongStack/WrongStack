@@ -155,4 +155,3 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
     }
   };
 }
-

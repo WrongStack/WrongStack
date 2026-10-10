@@ -19,23 +19,14 @@ import { useWorklists } from './hooks/use-worklists.js';
 import { resetAgentNameCache } from './lib/agent-model.js';
 import { playChime } from './lib/chime.js';
 import { copyText } from './lib/clipboard.js';
-import {
-  clearComposerDraft,
-  readComposerDraft,
-  writeComposerDraft,
-} from './lib/composer-draft.js';
+import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
 import { onPersistedWriteFailure } from './lib/persisted.js';
 import { messageId } from './lib/session-helpers.js';
 import type { PendingUserInputRequest } from './lib/user-input-queue.js';
 import type { SimpleSocket } from './lib/ws.js';
-import type {
-  AgentMode,
-  ChatMessage,
-  ResumeProgressInfo,
-  ToolCallInfo,
-} from './types.js';
+import type { AgentMode, ChatMessage, ResumeProgressInfo, ToolCallInfo } from './types.js';
 import { useSessionCommandPalette } from './use-session-command-palette.js';
 
 export function useSimpleUiSession() {

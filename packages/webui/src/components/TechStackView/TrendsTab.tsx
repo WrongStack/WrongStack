@@ -176,9 +176,27 @@ function TrendChart({ trend }: { trend: TechStackTrendReport }) {
       </p>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-2 w-full">
         <title>Dependencies, outdated and vulnerable over time</title>
-        <path d={toPath('dependencies')} stroke="currentColor" strokeWidth={1.5} fill="none" className="text-muted-foreground" />
-        <path d={toPath('outdated')} stroke="currentColor" strokeWidth={1.5} fill="none" className="text-info" />
-        <path d={toPath('vulnerable')} stroke="currentColor" strokeWidth={1.5} fill="none" className="text-destructive" />
+        <path
+          d={toPath('dependencies')}
+          stroke="currentColor"
+          strokeWidth={1.5}
+          fill="none"
+          className="text-muted-foreground"
+        />
+        <path
+          d={toPath('outdated')}
+          stroke="currentColor"
+          strokeWidth={1.5}
+          fill="none"
+          className="text-info"
+        />
+        <path
+          d={toPath('vulnerable')}
+          stroke="currentColor"
+          strokeWidth={1.5}
+          fill="none"
+          className="text-destructive"
+        />
         {points.map((point, index) => {
           const x = padding + xStep * index;
           return (
@@ -198,7 +216,10 @@ function TrendChart({ trend }: { trend: TechStackTrendReport }) {
       </svg>
       <ul className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
         <li className="flex items-center gap-1.5">
-          <span className="inline-block size-1.5 rounded-full bg-muted-foreground" aria-hidden="true" />
+          <span
+            className="inline-block size-1.5 rounded-full bg-muted-foreground"
+            aria-hidden="true"
+          />
           total
         </li>
         <li className="flex items-center gap-1.5">
@@ -214,13 +235,7 @@ function TrendChart({ trend }: { trend: TechStackTrendReport }) {
   );
 }
 
-function TopFlickering({
-  trend,
-  t,
-}: {
-  trend: TechStackTrendReport;
-  t: (key: string) => string;
-}) {
+function TopFlickering({ trend, t }: { trend: TechStackTrendReport; t: (key: string) => string }) {
   const items = useMemo(
     () => [...trend.dependencies].sort((a, b) => b.versionChanges - a.versionChanges).slice(0, 10),
     [trend.dependencies],

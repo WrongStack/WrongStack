@@ -15,9 +15,7 @@
  * the same canonical module — see `verify-sage-all-tools.test.ts` and
  * `tests/lib/sage-block.test.ts` for the behavioral lock.
  */
-import {
-  splitSageOutputBlock,
-} from '@wrongstack/core/utils/sage-output-block';
+import { splitSageOutputBlock } from '@wrongstack/core/utils/sage-output-block';
 
 export interface SageSplit {
   /** Tool result text with the SAGE block removed (trailing whitespace trimmed). */
@@ -39,4 +37,3 @@ export function extractSageBlock(output: string): SageSplit {
   const { body, sageLines } = splitSageOutputBlock(output);
   return { cleanOutput: body, sageLines };
 }
-

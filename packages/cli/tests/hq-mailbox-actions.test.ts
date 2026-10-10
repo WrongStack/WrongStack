@@ -163,7 +163,9 @@ describe('HQ mailbox message actions (POST /api/mailbox/messages/:id/action)', (
       });
       expect(
         res.status,
-        res.status === 200 ? undefined : `postAction returned ${res.status}: ${await res.clone().text()}`,
+        res.status === 200
+          ? undefined
+          : `postAction returned ${res.status}: ${await res.clone().text()}`,
       ).toBe(200);
       const body = (await res.json()) as {
         action: string;

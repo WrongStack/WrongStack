@@ -396,8 +396,8 @@ export async function handleDesignVerify(ws: WebSocket, ctx: DesignContext): Pro
       payload: {
         ok: true,
         source: source.source,
-        kit: source.source === 'kit' ? source.kit ?? null : null,
-        capturedFrom: source.source === 'captured' ? source.files ?? [] : null,
+        kit: source.source === 'kit' ? (source.kit ?? null) : null,
+        capturedFrom: source.source === 'captured' ? (source.files ?? []) : null,
         filesScanned: report.filesScanned,
         score: report.score,
         violations: report.violations.slice(0, 50),

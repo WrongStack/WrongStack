@@ -114,33 +114,33 @@ export function setupDepWatcherConsumers(deps: SetupDepWatcherConsumersDeps): vo
       };
 
       // ROOT CAUSE (confirmed 2026-10-05 by live run) — read before changing this.
-//
-// The audit is not reaped mid-flight by the gracefulFinish/drain mechanics. The
-// assign arrives AFTER the leader's turn has already ended:
-//
-//   18:09:37  leader turn ENDS; finalizeExecutionCleanup emits session.ended
-//   18:09:39  EDIT2 adds zod -> dep-watcher posts the assign
-//   18:10:20  the spawned audit makes its first provider call
-//   18:10:21  exit.forced after 507ms grace, 13 handles still active
-//              (FSEventWrap = this file's own fs.watch handles)
-//
-// So `session.ended` fired while `inFlightAudits` was still EMPTY (the consumer
-// had not yet posted the assign), the drain had nothing to join, teardown
-// finished, and the audit then spawned into a session that was already closing.
-// `gracefulFinish` and the `waitUntil` registration below cannot help: they only
-// cover audits that exist BEFORE session.ended.
-//
-// The consumer is a background poll loop that keeps running past session end,
-// which is why the assign lands in that dead window.
-//
-// CONSEQUENCE FOR TESTING: `--prompt` single-shot can never exercise this path —
-// the session is over before any audit completes. Verifying the report leg
-// requires a LONG-LIVED session (REPL / headless server), not a one-shot prompt.
-// Single-shot runs will always show routed=0; that is a harness limitation, not
-// necessarily a product defect.
-//
-// In-flight audits are still registered below so that an audit spawned DURING a
-// long-lived session's teardown is joined rather than reaped.
+      //
+      // The audit is not reaped mid-flight by the gracefulFinish/drain mechanics. The
+      // assign arrives AFTER the leader's turn has already ended:
+      //
+      //   18:09:37  leader turn ENDS; finalizeExecutionCleanup emits session.ended
+      //   18:09:39  EDIT2 adds zod -> dep-watcher posts the assign
+      //   18:10:20  the spawned audit makes its first provider call
+      //   18:10:21  exit.forced after 507ms grace, 13 handles still active
+      //              (FSEventWrap = this file's own fs.watch handles)
+      //
+      // So `session.ended` fired while `inFlightAudits` was still EMPTY (the consumer
+      // had not yet posted the assign), the drain had nothing to join, teardown
+      // finished, and the audit then spawned into a session that was already closing.
+      // `gracefulFinish` and the `waitUntil` registration below cannot help: they only
+      // cover audits that exist BEFORE session.ended.
+      //
+      // The consumer is a background poll loop that keeps running past session end,
+      // which is why the assign lands in that dead window.
+      //
+      // CONSEQUENCE FOR TESTING: `--prompt` single-shot can never exercise this path —
+      // the session is over before any audit completes. Verifying the report leg
+      // requires a LONG-LIVED session (REPL / headless server), not a one-shot prompt.
+      // Single-shot runs will always show routed=0; that is a harness limitation, not
+      // necessarily a product defect.
+      //
+      // In-flight audits are still registered below so that an audit spawned DURING a
+      // long-lived session's teardown is joined rather than reaped.
       //
       // `gracefulFinish` alone does not save the audit: it widens the agent's
       // own budget, but `coordinator.requestFinish()` is notify-only and grants

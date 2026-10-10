@@ -61,7 +61,8 @@ describe('ws-auth', () => {
       expect(extractToken('/?token=tok%20en%2Bplus%2Fslash')).toBe('tok en+plus/slash'));
     it('decodes plus as space in query values', () =>
       expect(extractToken('/?token=a+b')).toBe('a b'));
-    it('treats a bare token param as absent', () => expect(extractToken('/?token=')).toBeUndefined());
+    it('treats a bare token param as absent', () =>
+      expect(extractToken('/?token=')).toBeUndefined());
   });
 
   describe('extractTokenFromCookie', () => {

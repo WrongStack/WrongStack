@@ -843,7 +843,9 @@ describe('PhaseOrchestrator — interactive board mutations', () => {
     expect(alpha.taskGraph.nodes.has(a2.id)).toBe(false);
     expect(beta.taskGraph.nodes.has(a2.id)).toBe(true);
     expect(beta.taskGraph.rootNodes).toContain(a2.id);
-    expect(moved).toEqual([{ taskId: a2.id, fromPhaseId: alpha.id, toPhaseId: beta.id, goalId: graph.id }]);
+    expect(moved).toEqual([
+      { taskId: a2.id, fromPhaseId: alpha.id, toPhaseId: beta.id, goalId: graph.id },
+    ]);
   });
 
   it('moveTask is a no-op for unknown task or same phase', async () => {

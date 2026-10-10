@@ -141,7 +141,11 @@ async function wireProposalDependencies(
         child.dependsOn = [...new Set([...(child.dependsOn ?? []), dependencyId])];
       }
       stampAtomicityAssessment(board, child);
-      if (!isManaged && (child.status === 'ready' || child.status === 'pending') && !areDependenciesMet(board, child.id)) {
+      if (
+        !isManaged &&
+        (child.status === 'ready' || child.status === 'pending') &&
+        !areDependenciesMet(board, child.id)
+      ) {
         child.status = 'blocked';
         const previousColumnId = child.columnId;
         syncTaskColumnForStatus(board, child, previousColumnId);

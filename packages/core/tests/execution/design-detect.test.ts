@@ -192,7 +192,12 @@ describe('toolCall middleware', () => {
       const mw = makeDesignDetectToolCallMiddleware();
       await mw.handler(
         {
-          toolUse: { type: 'tool_use', id: 'x', name: 'write', input: { path: 'screens/Home.tsx' } },
+          toolUse: {
+            type: 'tool_use',
+            id: 'x',
+            name: 'write',
+            input: { path: 'screens/Home.tsx' },
+          },
           result: { type: 'tool_result', tool_use_id: 'x', content: [] },
           ctx,
         } as never,

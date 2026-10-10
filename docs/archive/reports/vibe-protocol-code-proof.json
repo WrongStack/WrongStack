@@ -16,13 +16,8 @@
         "Given user interaction, should correctly handle step 1: butona basınca sepet artsın"
       ],
       "scopeBoundaries": {
-        "included": [
-          "butona basınca sepet artsın"
-        ],
-        "excluded": [
-          "Unrelated UI refactors",
-          "Unrequested third-party dependency additions"
-        ]
+        "included": ["butona basınca sepet artsın"],
+        "excluded": ["Unrelated UI refactors", "Unrequested third-party dependency additions"]
       },
       "formattedSpecMarkdown": "## 🌊 VIBE Synthesized Specification\n**Core Intent:** butona basınca sepet artsın\n\n### 🧩 Sensible Defaults & Assumptions\n- Apply sensible defaults for unstated edge cases without breaking existing API contracts\n- Follow project conventions and strict type safety\n- Ensure idempotency and optimistic UI updates for cart/counter operations\n\n### 📋 Acceptance Criteria\n- [ ] Given user interaction, should correctly handle step 1: butona basınca sepet artsın\n\n### 🚧 Scope Boundaries\n**Included:**\n  - butona basınca sepet artsın\n**Excluded:**\n  - Unrelated UI refactors\n  - Unrequested third-party dependency additions"
     },

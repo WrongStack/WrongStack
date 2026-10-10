@@ -246,4 +246,3 @@ export const LANG_FAMILY_ENTRIES: ReadonlyArray<readonly [SymbolLang, LangFamily
 export function languageFamily(lang: SymbolLang): LangFamily {
   return LANG_FAMILY[lang] ?? 'other';
 }
-

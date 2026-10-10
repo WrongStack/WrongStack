@@ -81,9 +81,7 @@ const SNAPSHOT: HqSnapshot = {
   ],
 };
 
-function terminalSessionIds(topology: {
-  nodes: { kind: string; sessionId?: string }[];
-}): string[] {
+function terminalSessionIds(topology: { nodes: { kind: string; sessionId?: string }[] }): string[] {
   return topology.nodes
     .filter((node) => node.kind === 'terminal')
     .map((node) => node.sessionId)

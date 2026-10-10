@@ -39,14 +39,25 @@ describe('handleToolExecuted', () => {
     handleToolExecuted(executedFrame('t-1', 'read'), new Map(), vi.fn(), vi.fn(), setToolCalls);
 
     expect(read()).toHaveLength(1);
-    expect(read()[0]).toMatchObject({ id: 't-1', name: 'read', status: 'done', output: 'result text' });
+    expect(read()[0]).toMatchObject({
+      id: 't-1',
+      name: 'read',
+      status: 'done',
+      output: 'result text',
+    });
   });
 
   it('appends a terminal entry when executed arrives without a started frame', () => {
     const { setToolCalls, read } = toolState();
     // Connect gap / resumed mid-run: the started frame never arrived, but
     // the executed result must not be silently dropped.
-    handleToolExecuted(executedFrame('t-orphan', 'grep'), new Map(), vi.fn(), vi.fn(), setToolCalls);
+    handleToolExecuted(
+      executedFrame('t-orphan', 'grep'),
+      new Map(),
+      vi.fn(),
+      vi.fn(),
+      setToolCalls,
+    );
 
     expect(read()).toHaveLength(1);
     expect(read()[0]).toMatchObject({
@@ -59,7 +70,13 @@ describe('handleToolExecuted', () => {
 
   it('appends an error entry for a failed orphan execution', () => {
     const { setToolCalls, read } = toolState();
-    handleToolExecuted(executedFrame('t-bad', 'bash', false), new Map(), vi.fn(), vi.fn(), setToolCalls);
+    handleToolExecuted(
+      executedFrame('t-bad', 'bash', false),
+      new Map(),
+      vi.fn(),
+      vi.fn(),
+      setToolCalls,
+    );
 
     expect(read()[0]).toMatchObject({ id: 't-bad', status: 'error' });
   });

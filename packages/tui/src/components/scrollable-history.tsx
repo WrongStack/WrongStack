@@ -659,4 +659,3 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     </Box>
   );
 });
-

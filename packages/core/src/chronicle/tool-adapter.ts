@@ -148,10 +148,7 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
           outputLines: event.outputLines,
           metadata: event.metadata,
           fileStats: event.ok
-            ? scrubFileStatsPaths(
-                options.scrubber,
-                fileToolStats(event.name, output, event.input),
-              )
+            ? scrubFileStatsPaths(options.scrubber, fileToolStats(event.name, output, event.input))
             : undefined,
         },
       });

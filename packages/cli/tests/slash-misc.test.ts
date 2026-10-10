@@ -1,5 +1,9 @@
 import type { Context } from '@wrongstack/core/agent';
-import { areSubagentsAllowed, isSubagentPolicyLocked, lockSessionSubagentPolicyForSession } from '@wrongstack/core/coordination';
+import {
+  areSubagentsAllowed,
+  isSubagentPolicyLocked,
+  lockSessionSubagentPolicyForSession,
+} from '@wrongstack/core/coordination';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it, vi } from 'vitest';
 import { buildClearCommand } from '../src/slash-commands/clear.js';
@@ -114,7 +118,11 @@ describe('buildClearCommand', () => {
       sessionStore,
       sessionRef,
     } as never);
-    const oldSession = { id: 'old-session-id', close: vi.fn().mockResolvedValue(undefined), clearSession: vi.fn() };
+    const oldSession = {
+      id: 'old-session-id',
+      close: vi.fn().mockResolvedValue(undefined),
+      clearSession: vi.fn(),
+    };
     const ctx = fakeCtx();
     ctx.session = oldSession as never;
     sessionRef.current = oldSession;

@@ -115,7 +115,8 @@ export function PluginPicker({
   // list column of the split layout) the long form loses its tail — including
   // the only `Esc` affordance. Step down through shorter forms and pick the
   // first that fits the pane's content width; the shortest still names Esc.
-  const subheaderWidth = (split ? listColumnWidth : (columns ?? size.columns)) - PANE_CHROME_COLUMNS;
+  const subheaderWidth =
+    (split ? listColumnWidth : (columns ?? size.columns)) - PANE_CHROME_COLUMNS;
   const subheaderCandidates = [
     ...(hasRoomForFullHint && hasLockedRows
       ? ['↑/↓ select · Enter/←/→ toggle · 🔒 = locked · Esc close']
@@ -241,13 +242,7 @@ function PluginDetail({
   const summaryWrapped = wrapText(item.summary || '(no summary)', contentColumns, summaryLines);
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor="cyan"
-      paddingX={1}
-      flexGrow={1}
-    >
+    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1} flexGrow={1}>
       <Text bold color="cyan" wrap="truncate-end">
         {item.name}
       </Text>
@@ -324,8 +319,7 @@ function wrapText(text: string, columns: number, maxLines: number): string[] {
     const consumed = lines.join(' ').length;
     if (consumed < joined.length) {
       const last = lines[maxLines - 1] ?? '';
-      const truncated =
-        last.length > columns - 1 ? last.slice(0, columns - 1) + '…' : `${last}…`;
+      const truncated = last.length > columns - 1 ? last.slice(0, columns - 1) + '…' : `${last}…`;
       lines[maxLines - 1] = truncated;
     }
   }

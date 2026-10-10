@@ -48,7 +48,11 @@ describe('WS design handlers — WCAG AA contrast gate', () => {
   it('design.use reports failing pairs in contrastIssues', async () => {
     const { ws, sent } = capturingWs();
     await handleDesignUse(ws, ctx(), {
-      payload: { kit: 'minimal-clarity', stack: 'web', overrides: { 'light.primary': BAD_OVERRIDE } },
+      payload: {
+        kit: 'minimal-clarity',
+        stack: 'web',
+        overrides: { 'light.primary': BAD_OVERRIDE },
+      },
     });
 
     const reply = sent.find((m) => m.type === 'design.use');
@@ -98,10 +102,7 @@ describe('WS design handlers — WCAG AA contrast gate', () => {
     }>;
     expect(issues?.[0]).toMatchObject({ theme: 'light', pair: 'primary/bg' });
     expect(issues[0]?.ratio).toBeLessThan(4.5);
-    const written = await fs.readFile(
-      path.join(tmp, 'src', 'styles', 'design-tokens.css'),
-      'utf8',
-    );
+    const written = await fs.readFile(path.join(tmp, 'src', 'styles', 'design-tokens.css'), 'utf8');
     expect(written).toContain('--primary');
   });
 });
