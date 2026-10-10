@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.37] — 2026-10-11
+
+A Bun-first tooling and skills release. Browser setup, focused symbol reading
+and a Skill Companion improve daily workflows; protocol, storage and provider
+fixes make long-running sessions more reliable.
+
+### Added
+
+- **Browser setup.** `/browser` reports Chromium readiness, installs the runtime and manages exact project origin allowances.
+- **Focused symbol reading.** `codebase-read-symbol` reads named declarations using AST parsing with source-line bounds.
+- **Skill Companion.** Local intent rules suggest skills without an API call; the companion watches active work and its sealed judge accepts only host-owned tasks.
+- **Broader skill catalog.** Fifteen document, media and workflow playbooks join the bundled catalog.
+
+### Changed
+
+- **Bun-first development.** Workspace scripts, tests, CI, WebSocket helpers and SQLite adapters support the pinned Bun toolchain. Runtime diagnostics include JavaScriptCore heap statistics.
+- **Lossless tool output.** Focused serializers remove generated duplication while preserving actionable results and runner logs.
+
+### Fixed
+
+- **Session reliability.** Provider cache prefixes remain stable, queues retain durable state, and SAGE memory cooldowns and store circuit-breaker state stay consistent.
+- **Protocols and parsing.** Browser WebSocket upgrades accept origin-form requests; JSONC errors preserve source-line positions; scoped plugin names reject dot segments; history reads ignore stale bytes after short reads.
+- **Diagnostics and tests.** The real TypeScript server E2E waits for semantic diagnostics instead of treating an earlier empty syntax publication as final. Subprocess suites run after other tests, and runtime-sensitive tests use deterministic fixtures.
+- **Security and lifecycle.** Browser output redacts AWS secret keys, POSIX command guards block eval-based process termination, and fetch telemetry stops reporting after shutdown.
+
 ## [1.0.36] — 2026-10-09
 
 A delegation and hardening release. The leader now tunes its own reasoning
