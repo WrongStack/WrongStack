@@ -729,7 +729,7 @@
         "export { LargeAnswerStore } from './large-answer-store.js';",
         "export { NULL_FLEET_BUS } from './null-fleet-bus.js';",
         "export { activeTierConfig, applyTierToSubagentConfig, classifyTier, DEFAULT_TIER_ID, isConfiguredTier, listTierIds, type ModelTierBudget, type ModelTierDecision, type ModelTierSource, type ResolvedTierTarget, resolveTier, tierBudget, tierLevel, tierModelTarget, } from './model-tier.js';",
-        "export { areSubagentCompanionsAllowed, areSubagentCompanionsAllowedForSession, areSubagentsAllowed, areSubagentsAllowedForSession, isSubagentPolicyLocked, lockSessionSubagentPolicy, lockSessionSubagentPolicyForSession, resetSessionSubagentPolicy, restoreSessionSubagentPolicy, SUBAGENT_COMPANIONS_ALLOWED_META_KEY, SUBAGENTS_ALLOWED_META_KEY, SUBAGENTS_POLICY_LOCKED_META_KEY, type SubagentPolicyMode, seedSessionSubagentPolicy, setSessionSubagentPolicy, setSessionSubagentsAllowed, subagentPolicyMode, subagentPolicyModeFrom, } from './session-subagent-policy.js';",
+        "export { areSubagentCompanionsAllowed, areSubagentCompanionsAllowedForSession, areSubagentsAllowed, areSubagentsAllowedForSession, isSubagentPolicyLocked, lockSessionSubagentPolicy, lockSessionSubagentPolicyForSession, resetSessionSubagentPolicy, restoreSessionSubagentPolicy, unlockSessionSubagentPolicyForSession, SUBAGENT_COMPANIONS_ALLOWED_META_KEY, SUBAGENTS_ALLOWED_META_KEY, SUBAGENTS_POLICY_LOCKED_META_KEY, type SubagentPolicyMode, seedSessionSubagentPolicy, setSessionSubagentPolicy, setSessionSubagentsAllowed, subagentPolicyMode, subagentPolicyModeFrom, } from './session-subagent-policy.js';",
         "export { assessCommitSafety, type CommitSafetyOptions, type CommitSafetyReport, } from './commit-safety.js';",
         "export { assignNickname } from './subagent-nicknames.js';",
         "export { attachDepWatcherBridge, type DepWatcherBridgeOptions, } from './dep-watcher-bridge.js';",
@@ -1575,7 +1575,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 237,
-      "sourceLines": 61299
+      "sourceLines": 61318
     },
     {
       "directory": "core",
@@ -1722,14 +1722,14 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 38,
-      "sourceLines": 10792
+      "sourceLines": 10850
     },
     {
       "directory": "session-catalog",
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 18,
-      "sourceLines": 5499
+      "sourceLines": 5504
     },
     {
       "directory": "skills",

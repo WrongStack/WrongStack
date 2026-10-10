@@ -72,7 +72,12 @@ export function sanitizeApiError(err: unknown): string {
  */
 export function scrubErrorDetail(err: unknown): string {
   const out = scrubErrorText(messageOf(err));
-  return out.length > ERROR_DETAIL_MAX ? `${out.slice(0, ERROR_DETAIL_MAX - 1)}…` : out;
+  if (out.length <= ERROR_DETAIL_MAX) return out;
+  let cut = ERROR_DETAIL_MAX - 1;
+  // Do not strand the high half of a surrogate pair in front of the ellipsis.
+  const last = out.charCodeAt(cut - 1);
+  if (last >= 0xd800 && last <= 0xdbff) cut--;
+  return `${out.slice(0, cut)}…`;
 }
 
 /**

@@ -2,6 +2,10 @@
  * Session context route handlers: clear, debug, compact, repair, and context editor.
  */
 
+import {
+  resetSessionSubagentPolicy,
+  unlockSessionSubagentPolicyForSession,
+} from '@wrongstack/core/coordination';
 import { compactionReportStillCurrent } from '@wrongstack/core/execution';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
 import { repairToolUseAdjacency } from '@wrongstack/core/utils';
@@ -51,6 +55,14 @@ export function createSessionContextHandlers(
         sendContextUnavailable(ws, msg, 'context.clear');
         return;
       }
+      const targetId = actingSessionId(msg);
+      if (targetId) {
+        try {
+          ctx.abortActiveRun?.(targetId);
+        } catch {
+          // best-effort
+        }
+      }
       target.state.replaceMessages([]);
       target.state.replaceTodos([]);
       // This session's own counter. Falling back to the shared one is only
@@ -61,6 +73,9 @@ export function createSessionContextHandlers(
       counter?.reset?.();
       // The meta keys `resetContextAccounting` clears live on the root context.
       if (target === ctx.context) resetContextAccounting();
+      resetSessionSubagentPolicy(target);
+      if (targetId) unlockSessionSubagentPolicyForSession(targetId);
+      if (target.session?.id) unlockSessionSubagentPolicyForSession(target.session.id);
       target.clearMemoryEvidence?.();
       target.readFiles.clear();
       target.fileMtimes.clear();

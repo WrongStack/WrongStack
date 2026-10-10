@@ -42,6 +42,12 @@ const URL_CREDENTIALS_REGEX = PATTERNS.find((p) => p.type === 'url_credentials')
 const COMBINED_REPLACEMENTS = SIMPLE_PATTERNS.map((p) => `[REDACTED:${p.type}]`);
 
 /**
+ * Private copies of every pattern, used only to find a match that straddles a
+ * chunk boundary. Separate instances because a `g` regex carries `lastIndex`.
+ */
+const BOUNDARY_PROBES = PATTERNS.map((p) => new RegExp(p.regex.source, p.regex.flags));
+
+/**
  * Per-chunk cap. Splits long inputs into 64 KB chunks to keep scrub() memory
  * bounded. Real scrub() inputs (LLM responses, tool outputs) are typically
  * much smaller; this cap handles edge cases without impacting normal usage.
@@ -124,6 +130,42 @@ function findWhitespace(text: string, from: number, until: number): number {
     if (ch === 32 || ch === 9 || ch === 10 || ch === 13) return j;
   }
   return -1;
+}
+
+/**
+ * Move a proposed chunk boundary past any credential match that straddles it.
+ *
+ * The whitespace snap assumes a credential contains no whitespace, which holds
+ * for the prefix-keyed tokens but not for `Bearer <token>`, `KEY = value` or a
+ * pretty-printed `"key": "value"`: a cut inside the key word snaps to the
+ * separator *inside* the match, neither chunk matches, and a prefix-less secret
+ * is emitted verbatim. Probing a window around the boundary with the real
+ * patterns finds those matches wherever the whitespace sits. The window is the
+ * overlap size, which exceeds every bounded pattern; a longer match is the
+ * hostile case the hard cut already accepts.
+ */
+function extendChunkBoundaryPastSpanningMatch(
+  text: string,
+  chunkStart: number,
+  proposedEnd: number,
+): number {
+  const from = Math.max(chunkStart, proposedEnd - SCRUB_OVERLAP_BYTES);
+  const to = Math.min(text.length, proposedEnd + SCRUB_OVERLAP_BYTES);
+  const window = text.slice(from, to);
+  const boundary = proposedEnd - from;
+  let end = proposedEnd;
+  for (const probe of BOUNDARY_PROBES) {
+    probe.lastIndex = 0;
+    for (let m = probe.exec(window); m !== null; m = probe.exec(window)) {
+      if (m[0].length === 0) {
+        probe.lastIndex++;
+        continue;
+      }
+      const matchEnd = m.index + m[0].length;
+      if (m.index < boundary && matchEnd > boundary) end = Math.max(end, from + matchEnd);
+    }
+  }
+  return end;
 }
 
 function extendChunkBoundaryPastPem(text: string, chunkStart: number, proposedEnd: number): number {
@@ -278,6 +320,9 @@ export class DefaultSecretScrubber implements SecretScrubber {
         // Snap onto the whitespace if found within the token span; otherwise
         // fall back to the hard cut.
         end = safe === -1 ? end : safe + 1;
+        // ...and it assumes credentials hold no whitespace, which `Bearer x`,
+        // `KEY = x` and `"key": "x"` do: keep such a match in one chunk.
+        end = extendChunkBoundaryPastSpanningMatch(text, i, end);
         // The whitespace snap assumes whitespace-free secrets. A PEM private
         // key is multi-line: when the cut lands inside one, the snap above
         // splits it and both halves leak (SEC-003). Move the boundary past

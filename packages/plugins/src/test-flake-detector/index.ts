@@ -486,7 +486,7 @@ const plugin: Plugin = {
         const requestedRuns =
           typeof rawRuns === 'number' && rawRuns >= 1
             ? Math.min(Math.floor(rawRuns), cfg.maxRuns)
-            : 5;
+            : Math.min(5, cfg.maxRuns);
         const command = resolveTestCommand(commandString, testPattern);
         if (!command) {
           throw new ToolValidationError({

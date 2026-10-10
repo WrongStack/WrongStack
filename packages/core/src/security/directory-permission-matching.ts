@@ -23,6 +23,7 @@ const PATH_KEYS = new Set([
   'directory',
   'dir',
   'cwd',
+  'workdir',
   'root',
   'baseDir',
   'out',
@@ -205,6 +206,10 @@ function ruleCoversPath(pattern: string, targetPath: string): boolean {
   const foldedPattern = foldFsPath(pattern);
   const foldedTarget = foldFsPath(targetPath);
   if (matchGlob(foldedPattern, foldedTarget)) return true;
+  // A call rooted AT the directory (a shell cwd, a recursive grep/glob path)
+  // reaches everything below it, but the canonical `dir/**` shape does not
+  // match the bare `dir`; its directory form `dir/` does.
+  if (foldedTarget.length > 0 && matchGlob(foldedPattern, `${foldedTarget}/`)) return true;
   for (
     let cut = foldedTarget.lastIndexOf('/');
     cut > 0;

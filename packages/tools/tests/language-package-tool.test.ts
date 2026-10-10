@@ -90,6 +90,17 @@ describe('languagePackageTool', () => {
     ]);
     expect(result.mutations).toEqual([]);
     expect(result.lockfilesChanged).toEqual([]);
+    const text = languagePackageTool.serialize?.(result, { operation: 'audit' }) ?? '';
+    expect(text.match(/! lodash \(high\)/g)).toHaveLength(1);
+    expect(text).toContain(NPM_AUDIT);
+    // Similar-looking runner lines are data, not our generated summary prefix.
+    const raw = `${NPM_AUDIT}\n! lodash (high) runner-specific-detail\nmanifestsChanged: runner-specific-file`;
+    const withRaw = {
+      ...result,
+      output: result.output.replace(NPM_AUDIT, raw),
+      outcome: { ...result.outcome!, run: { ...result.outcome!.run!, output: raw } },
+    };
+    expect(languagePackageTool.serialize?.(withRaw, { operation: 'audit' })).toContain(raw);
     expect(ctx.recordSideEffect).toHaveBeenCalledWith(
       expect.objectContaining({ toolName: 'language_package', risk: 'package' }),
     );

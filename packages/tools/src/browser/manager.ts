@@ -54,6 +54,8 @@ export class BrowserSessionManager {
   private readonly maxNetworkEntries: number;
   private browser?: Browser | undefined;
   private launching?: Promise<Browser> | undefined;
+  /** open() calls that may hold the shared browser without a registered session yet. */
+  private openers = 0;
 
   constructor(
     options: BrowserManagerOptions,
@@ -77,6 +79,23 @@ export class BrowserSessionManager {
   }
 
   async open(
+    ownerId: string,
+    input: BrowserOpenOptions,
+    signal: AbortSignal,
+  ): Promise<BrowserSessionSummary> {
+    // Concurrent openers share one browser. Until an opener has registered its
+    // session it holds the browser without being counted in `sessions`, so any
+    // other opener's failure or abort must not reclaim it from under them.
+    this.openers++;
+    try {
+      return await this.openSession(ownerId, input, signal);
+    } finally {
+      this.openers--;
+      await this.closeBrowserIfIdle();
+    }
+  }
+
+  private async openSession(
     ownerId: string,
     input: BrowserOpenOptions,
     signal: AbortSignal,
@@ -516,8 +535,10 @@ export class BrowserSessionManager {
         signal,
         () => this.launching!,
         async () => {
-          const browser = await this.launching?.catch(() => undefined);
-          await browser?.close().catch(() => undefined);
+          // Wait for the launch to land so a late browser is not orphaned, but
+          // do not close it here: other openers may share it. open() reclaims
+          // an idle browser once the last opener has finished.
+          await this.launching?.catch(() => undefined);
         },
       );
     } finally {
@@ -596,7 +617,7 @@ export class BrowserSessionManager {
   }
 
   private async closeBrowserIfIdle(): Promise<void> {
-    if (this.sessions.size > 0 || !this.browser) return;
+    if (this.sessions.size > 0 || this.openers > 0 || !this.browser) return;
     const browser = this.browser;
     this.browser = undefined;
     await browser.close().catch(() => undefined);

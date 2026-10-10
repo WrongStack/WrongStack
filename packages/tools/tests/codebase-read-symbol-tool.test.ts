@@ -285,7 +285,8 @@ export class Bar {
       expect(out.endLine).toBe(3);
       expect(out.totalLines).toBe(3);
       expect(out.text).toBe('1→export function runJob(): boolean {\n2→  return true;\n3→}');
-      expect(out.rawText).toBe('export function runJob(): boolean {\n  return true;\n}');
+      expect(out).not.toHaveProperty('rawText');
+      expect(JSON.stringify(out).match(/return true;/g)).toHaveLength(1);
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }

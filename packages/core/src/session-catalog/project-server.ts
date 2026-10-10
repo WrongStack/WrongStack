@@ -136,6 +136,7 @@ const clients = new Set<ClientState>();
 const MAX_CLIENTS = 256;
 let eventSequence = 0;
 let metadataReadyResolve: (() => void) | undefined;
+let startupReady = false;
 const metadataReady = new Promise<void>((resolve) => {
   metadataReadyResolve = resolve;
 });
@@ -448,7 +449,10 @@ function onData(state: ClientState, chunk: string): void {
 }
 
 function scheduleIdleStop(emptyIdleMs = idleMs): void {
-  if (stopping || clients.size > 0 || activeRequests > 0 || idleTimer) return;
+  // Handshake probes can disconnect while Windows metadata ACLs are still
+  // being prepared. Their short disconnect grace must not stop the elected
+  // owner before it can greet a retry; startup arms idle once it is ready.
+  if (!startupReady || stopping || clients.size > 0 || activeRequests > 0 || idleTimer) return;
   const hasLiveLease = requiredStore().listLive().length > 0;
   idleTimer = setTimeout(
     () => {
@@ -658,6 +662,7 @@ void (async () => {
   // A stop that raced the write awaited it before removing the file.
   if (stopping) return;
   metadataGuard.enable();
+  startupReady = true;
   metadataReadyResolve?.();
   scheduleIdleStop();
 })();

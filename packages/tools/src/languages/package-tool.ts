@@ -278,19 +278,19 @@ export const languagePackageTool: Tool<LanguagePackageInput, LanguagePackageTool
   serialize(output) {
     const lines = [
       `status=${output.status} operation=${output.operation ?? 'unknown'} mutations=${output.mutations.length} vulnerabilities=${output.vulnerabilities.length} outdated=${output.outdated.length}`,
-      `manifestsChanged: ${output.manifestsChanged.join(', ') || '∅'}`,
-      `lockfilesChanged: ${output.lockfilesChanged.join(', ') || '∅'}`,
+      ...(output.workspace ? [`workspace: ${output.workspace}`] : []),
+      ...packageDetailLines(output),
     ];
-    for (const mutation of output.mutations) {
-      lines.push(`+ ${mutation.name}${mutation.resolved ? `@${mutation.resolved}` : ''}`);
+    let remaining = output.output;
+    if (output.outcome) {
+      const prefix = packageSummaryPrefix(output.outcome);
+      // Remove only our generated prefix, never matching lines in runner logs.
+      // If callers provide a different summary, preserve it verbatim.
+      if (remaining === prefix || remaining.startsWith(`${prefix}\n`)) {
+        remaining = remaining === prefix ? '' : remaining.slice(prefix.length + 1);
+      }
     }
-    for (const outdated of output.outdated) {
-      lines.push(`= ${outdated.name}: ${outdated.previous ?? '?'} → ${outdated.resolved ?? '?'}`);
-    }
-    for (const vuln of output.vulnerabilities) {
-      lines.push(`! ${vuln.package} (${vuln.severity}) ${vuln.advisory ?? ''}`);
-    }
-    if (output.output) lines.push(output.output);
+    if (remaining) lines.push(remaining);
     return lines.join('\n');
   },
 };
@@ -312,21 +312,36 @@ function aggregateOutcome(outcome: LanguagePackageOutcome): LanguagePackageToolO
   };
 }
 
-function outputSummary(outcome: LanguagePackageOutcome): string {
+function packageDetailLines(
+  output: Pick<
+    LanguagePackageOutcome,
+    'manifestsChanged' | 'lockfilesChanged' | 'mutations' | 'vulnerabilities' | 'outdated'
+  >,
+): string[] {
   const lines = [
-    `${outcome.operation} on ${outcome.workspace.root}: ${outcome.status}`,
-    `manifestsChanged: ${outcome.manifestsChanged.join(', ') || '∅'}`,
-    `lockfilesChanged: ${outcome.lockfilesChanged.join(', ') || '∅'}`,
+    `manifestsChanged: ${output.manifestsChanged.join(', ') || '∅'}`,
+    `lockfilesChanged: ${output.lockfilesChanged.join(', ') || '∅'}`,
   ];
-  for (const mutation of outcome.mutations) {
+  for (const mutation of output.mutations) {
     lines.push(`+ ${mutation.name}${mutation.resolved ? `@${mutation.resolved}` : ''}`);
   }
-  for (const vuln of outcome.vulnerabilities) {
+  for (const vuln of output.vulnerabilities) {
     lines.push(`! ${vuln.package} (${vuln.severity})${vuln.advisory ? ` ${vuln.advisory}` : ''}`);
   }
-  for (const outdated of outcome.outdated) {
+  for (const outdated of output.outdated) {
     lines.push(`= ${outdated.name}: ${outdated.previous ?? '?'} → ${outdated.resolved ?? '?'}`);
   }
-  if (outcome.run?.output) lines.push(outcome.run.output);
-  return lines.join('\n');
+  return lines;
+}
+
+function packageSummaryPrefix(outcome: LanguagePackageOutcome): string {
+  return [
+    `${outcome.operation} on ${outcome.workspace.root}: ${outcome.status}`,
+    ...packageDetailLines(outcome),
+  ].join('\n');
+}
+
+function outputSummary(outcome: LanguagePackageOutcome): string {
+  const prefix = packageSummaryPrefix(outcome);
+  return outcome.run?.output ? `${prefix}\n${outcome.run.output}` : prefix;
 }

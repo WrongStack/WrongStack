@@ -36,8 +36,6 @@ export interface CodebaseReadSymbolOutput {
   totalLines: number;
   /** Numbered source code in standard `N→content` display format. */
   text: string;
-  /** Unnumbered raw code if needed programmatically. */
-  rawText: string;
 }
 
 export const codebaseReadSymbolTool: Tool<CodebaseReadSymbolInput, CodebaseReadSymbolOutput> = {
@@ -96,9 +94,8 @@ export const codebaseReadSymbolTool: Tool<CodebaseReadSymbolInput, CodebaseReadS
       endLine: { type: 'integer', minimum: 1 },
       totalLines: { type: 'integer', minimum: 0 },
       text: { type: 'string', description: 'Numbered lines in standard N→content format.' },
-      rawText: { type: 'string', description: 'Unnumbered raw code content.' },
     },
-    required: ['file', 'symbol', 'kind', 'startLine', 'endLine', 'totalLines', 'text', 'rawText'],
+    required: ['file', 'symbol', 'kind', 'startLine', 'endLine', 'totalLines', 'text'],
   },
   async execute(input, ctx, execOpts) {
     if (!input?.file || typeof input.file !== 'string' || !input.file.trim()) {
@@ -136,6 +133,15 @@ export const codebaseReadSymbolTool: Tool<CodebaseReadSymbolInput, CodebaseReadS
       projectRoot,
     );
 
-    return result;
+    // Keep the programmatic reader's raw source out of model-visible output.
+    return {
+      file: result.file,
+      symbol: result.symbol,
+      kind: result.kind,
+      startLine: result.startLine,
+      endLine: result.endLine,
+      totalLines: result.totalLines,
+      text: result.text,
+    };
   },
 };

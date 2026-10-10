@@ -20,11 +20,13 @@
  * set locally by a launcher whose round never reached a run has nothing behind
  * it to answer at all.
  */
+import { activeSessionLaneId } from '@/stores/session-lanes.js';
 import { streamCoalescer } from './stream-coalescer.js';
 
 interface ClearChatContextClient {
   clearContext?: (() => void) | undefined;
   sendAbort?: (() => void) | undefined;
+  newSession?: ((payload?: { replaceSessionId?: string; systemPromptVariant?: string }) => void) | undefined;
 }
 
 interface ClearChatContextOptions {
@@ -36,15 +38,23 @@ interface ClearChatContextOptions {
   setLoading: (loading: boolean) => void;
   /** Abort override — the chat composer passes its own bound sender. */
   sendAbort?: (() => void) | undefined;
+  /** Explicit session ID to clear/replace — defaults to active session lane. */
+  sessionId?: string | null | undefined;
 }
 
 export function clearChatContext(options: ClearChatContextOptions): void {
-  const { client, isLoading, clearMessages, setLoading, sendAbort } = options;
+  const { client, isLoading, clearMessages, setLoading, sendAbort, sessionId } = options;
   streamCoalescer.dropAll();
   // A run that is still streaming has to be stopped, not orphaned: its deltas
   // would otherwise land in the transcript we are about to wipe.
   if (isLoading) (sendAbort ?? client?.sendAbort)?.();
   clearMessages();
   setLoading(false);
-  client?.clearContext?.();
+
+  const targetSessionId = sessionId ?? activeSessionLaneId();
+  if (targetSessionId && client?.newSession) {
+    client.newSession({ replaceSessionId: targetSessionId });
+  } else {
+    client?.clearContext?.();
+  }
 }

@@ -286,7 +286,7 @@ private:
     }
   });
 
-  it('serializes the complete result without clipping nested file skeletons', () => {
+  it('serializes complete skeletons once while retaining every file metadata field', () => {
     const nestedSkeleton = `${'export interface Complete {}\n'.repeat(100)}tail-marker`;
     const output = {
       path: 'src',
@@ -316,10 +316,19 @@ private:
 
     expect(codebaseSkeletonTool.description).toMatch(/^Extract an AST-based skeleton/);
     expect(codebaseSkeletonTool.preserveFullOutput).toBe(true);
-    expect(codebaseSkeletonTool.serialize?.(output, { path: 'src' })).toBe(
-      JSON.stringify(output, null, 2),
+    const text = codebaseSkeletonTool.serialize?.(output, { path: 'src' }) ?? '';
+    expect(text.match(/tail-marker/g)).toHaveLength(1);
+    const serialized = JSON.parse(text);
+    expect(serialized.skeleton).toBe(nestedSkeleton);
+    expect(serialized.stats).toEqual(output.stats);
+    expect(serialized.files).toEqual(
+      output.files.map(({ skeleton: _skeleton, ...metadata }) => metadata),
     );
-    expect(codebaseSkeletonTool.serialize?.(output, { path: 'src' })).toContain('tail-marker');
+    const withUnmergedSource = { ...output, skeleton: 'Different combined source' };
+    const preserved = JSON.parse(
+      codebaseSkeletonTool.serialize?.(withUnmergedSource, { path: 'src' }) ?? '',
+    );
+    expect(preserved.files[0].skeleton).toBe(nestedSkeleton);
   });
 
   it('throws error for non-existent file or directory', async () => {

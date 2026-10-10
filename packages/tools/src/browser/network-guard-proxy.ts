@@ -102,11 +102,19 @@ export class BrowserNetworkGuardProxy {
         upstream.destroy(new Error('browser: upstream connection timed out'));
       });
       upstream.on('response', (upstreamResponse) => {
+        // The timeout above bounds the wait for the response head; a body may
+        // legitimately stay idle for longer (SSE, long polls).
+        upstream.setTimeout(0);
         response.writeHead(
           upstreamResponse.statusCode ?? 502,
           sanitizeHeaders(upstreamResponse.headers),
         );
         upstreamResponse.pipe(response);
+        // pipe() only ends `response` on a clean `end`. An upstream that drops
+        // mid-body would otherwise leave the browser waiting on it forever.
+        upstreamResponse.once('close', () => {
+          if (!upstreamResponse.complete) response.destroy();
+        });
       });
       upstream.on('error', () => writeProxyError(response, 502, 'Bad Gateway'));
       request.on('aborted', () => upstream.destroy());
@@ -136,6 +144,9 @@ export class BrowserNetworkGuardProxy {
       upstream.once('error', onConnectError);
       upstream.once('connect', () => {
         upstream.off('error', onConnectError);
+        // The timeout bounds connecting only; an established tunnel (https,
+        // wss) is allowed to sit idle.
+        upstream.setTimeout(0);
         client.write('HTTP/1.1 200 Connection Established\r\n\r\n');
         if (head.length > 0) upstream.write(head);
         pipeDuplexPair(upstream, client);

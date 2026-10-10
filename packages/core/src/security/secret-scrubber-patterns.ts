@@ -230,7 +230,10 @@ export const PATTERNS: Pattern[] = [
       // `.` is in the value class: dotted tokens (Discord `a.b.c`) leaked whole.
       // Digits are in the key class (not as its first character): `R2_SECRET_ACCESS_KEY`,
       // `B2_APPLICATION_KEY`, `S3_SECRET_KEY` (object-store credentials) leaked.
-      /(^|\s)([A-Z_][A-Z0-9_]{3,}(?:KEY|TOKEN|SECRET|PASSWORD|PWD|PASSPHRASE))\s*[:=]\s*['"]?([A-Za-z0-9_/+=.-]{20,512})['"]?(?=\s|$)/g,
+      // The prefix is optional and any length: `DB_PASSWORD`, `GH_TOKEN`, `X_KEY` and a
+      // bare `PASSWORD=` are as much credentials as `APP_PASSWORD`; a 4-character
+      // minimum before the credential word masked some of them and not others.
+      /(^|\s)((?:[A-Z_][A-Z0-9_]*)?(?:KEY|TOKEN|SECRET|PASSWORD|PWD|PASSPHRASE))\s*[:=]\s*['"]?([A-Za-z0-9_/+=.-]{20,512})['"]?(?=\s|$)/g,
     anchor: ['KEY', 'TOKEN', 'SECRET', 'PASSWORD', 'PWD', 'PASSPHRASE'],
   },
   {

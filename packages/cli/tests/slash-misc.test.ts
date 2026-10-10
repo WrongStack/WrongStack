@@ -1,4 +1,5 @@
 import type { Context } from '@wrongstack/core/agent';
+import { areSubagentsAllowed, isSubagentPolicyLocked, lockSessionSubagentPolicyForSession } from '@wrongstack/core/coordination';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it, vi } from 'vitest';
 import { buildClearCommand } from '../src/slash-commands/clear.js';
@@ -97,6 +98,35 @@ describe('buildClearCommand', () => {
     const renderer = { write: vi.fn(), writeInfo: vi.fn(), clear: vi.fn() };
     const cmd = buildClearCommand({ renderer } as never);
     const res = await cmd.run('', undefined);
+    expect(res?.message ?? '').toContain('Session cleared');
+  });
+
+  it('creates a fresh session record via sessionStore.create and resets subagent policy', async () => {
+    const renderer = { write: vi.fn(), writeInfo: vi.fn(), clear: vi.fn() };
+    const nextSession = { id: 'fresh-session-id', clearSession: vi.fn(), close: vi.fn() };
+    const sessionStore = {
+      create: vi.fn().mockResolvedValue(nextSession),
+      clearHistory: vi.fn().mockResolvedValue(undefined),
+    };
+    const sessionRef = { current: undefined as any };
+    const cmd = buildClearCommand({
+      renderer,
+      sessionStore,
+      sessionRef,
+    } as never);
+    const oldSession = { id: 'old-session-id', close: vi.fn().mockResolvedValue(undefined), clearSession: vi.fn() };
+    const ctx = fakeCtx();
+    ctx.session = oldSession as never;
+    sessionRef.current = oldSession;
+
+    lockSessionSubagentPolicyForSession('old-session-id');
+    const res = await cmd.run('', ctx);
+    expect(sessionStore.create).toHaveBeenCalled();
+    expect(oldSession.close).toHaveBeenCalled();
+    expect(ctx.session.id).toBe('fresh-session-id');
+    expect(sessionRef.current.id).toBe('fresh-session-id');
+    expect(areSubagentsAllowed(ctx)).toBe(true);
+    expect(isSubagentPolicyLocked(ctx)).toBe(false);
     expect(res?.message ?? '').toContain('Session cleared');
   });
 });

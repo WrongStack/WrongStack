@@ -249,6 +249,7 @@ export function ChatInput({
         onOpenBreakdown,
         handleNextList,
         handleNextSelect: (subInput: string) => handleNextSelect(subInput, sendMsg),
+        sessionId,
       }),
     [
       addMessage,
@@ -265,6 +266,7 @@ export function ChatInput({
       setQueuePanelOpen,
       ws,
       onOpenBreakdown,
+      sessionId,
     ],
   );
   runSlashCommandRef.current = runSlashCommand;

@@ -1,6 +1,16 @@
 import { resetCaptureWindows } from '@wrongstack/core/agent-catalog';
-import type { SlashCommand } from '@wrongstack/core/types';
-import { createContextEvidenceState } from '@wrongstack/core/utils';
+import {
+  resetSessionSubagentPolicy,
+  unlockSessionSubagentPolicyForSession,
+} from '@wrongstack/core/coordination';
+import { restoreSessionPermissionOverrides } from '@wrongstack/core/security';
+import { restoreRequiredSkillsFromEvents } from '@wrongstack/core/skills';
+import type { SessionWriter, SlashCommand } from '@wrongstack/core/types';
+import {
+  clearLeaderEffortOverride,
+  createContextEvidenceState,
+  sessionScopedPath,
+} from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 import { interruptAll } from './interrupt.js';
 
@@ -71,7 +81,44 @@ export function buildClearCommand(opts: SlashCommandContext): SlashCommand {
       // here writes them to disk and releases the references.
       await ctx?.flushConversationJournal?.();
 
+      let nextSession: SessionWriter | undefined;
+      const oldSession = ctx?.session;
+      const oldSessionId = oldSession?.id;
+
+      if (opts.sessionStore && typeof opts.sessionStore.create === 'function' && ctx) {
+        try {
+          nextSession = await opts.sessionStore.create({
+            id: '',
+            title: '',
+            model: ctx.model ?? '',
+            provider: ctx.provider?.id ?? '',
+          });
+          if (oldSession) {
+            await oldSession.close().catch(() => {});
+          }
+          ctx.session = nextSession;
+          if (opts.sessionRef) {
+            opts.sessionRef.current = nextSession;
+          }
+        } catch {
+          // If creation fails, fallback to clearing existing session on disk
+        }
+      }
+
+      // Clear on-disk chat history via the session writer if no new session was created
+      if (!nextSession && oldSession) {
+        await oldSession.clearSession();
+      }
+      // Clear on-disk history via session store (e.g. pre-existing entries)
+      if (opts.sessionStore && oldSessionId && !nextSession) {
+        await opts.sessionStore.clearHistory(oldSessionId);
+      }
+
       if (ctx) {
+        resetSessionSubagentPolicy(ctx);
+        restoreSessionPermissionOverrides(ctx.meta, {});
+        clearLeaderEffortOverride(ctx.meta);
+        restoreRequiredSkillsFromEvents(ctx, []);
         ctx.state.replaceMessages([]);
         ctx.state.replaceTodos([]);
         // Prefer the complete Context reset when available: it also clears
@@ -87,16 +134,28 @@ export function buildClearCommand(opts: SlashCommandContext): SlashCommand {
         ctx.clearMemoryEvidence?.();
         ctx.lastRequestTokens = undefined;
         ctx.lastRealInputTokens = undefined;
+        ctx.tokenCounter?.reset?.();
         for (const key of Object.keys(ctx.meta)) ctx.state.deleteMeta(key);
+
+        if (opts.paths && ctx.session?.id) {
+          ctx.state.setMeta(
+            'plan.path',
+            sessionScopedPath(opts.paths.projectSessions, ctx.session.id, '.plan.json'),
+          );
+          ctx.state.setMeta(
+            'task.path',
+            sessionScopedPath(opts.paths.projectSessions, ctx.session.id, '.tasks.json'),
+          );
+        }
       }
-      // Clear on-disk chat history via the session writer
-      if (ctx?.session) {
-        await ctx.session.clearSession();
+
+      if (oldSessionId) {
+        unlockSessionSubagentPolicyForSession(oldSessionId);
       }
-      // Clear on-disk history via session store (e.g. pre-existing entries)
-      if (opts.sessionStore) {
-        await opts.sessionStore.clearHistory(ctx?.session.id ?? '');
+      if (ctx?.session?.id) {
+        unlockSessionSubagentPolicyForSession(ctx.session.id);
       }
+
       // A real session boundary. The learning capture budget is documented as
       // "per session", and the time-boxed window already prevents a daemon from
       // starving; resetting here makes the boundary exact so a fresh session

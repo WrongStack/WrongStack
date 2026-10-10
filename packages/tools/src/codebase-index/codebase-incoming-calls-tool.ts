@@ -18,11 +18,13 @@ import type { Tool } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { codebaseIndexStats, getIndexState, incomingCallsService } from './background-indexer.js';
+import { serializeCallSites } from './call-site-serializer.js';
 import type { CallSite } from './schema.js';
 import { codebaseIndexDirOverride } from './writer.js';
 
 export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOutput> = {
   name: 'codebase-incoming-calls',
+  serialize: serializeCallSites,
   category: 'Project',
   icon: 'index',
   description:

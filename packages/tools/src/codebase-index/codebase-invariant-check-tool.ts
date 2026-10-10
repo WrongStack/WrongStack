@@ -72,6 +72,16 @@ export const codebaseInvariantCheckTool: Tool<
     required: ['modifiedCode'],
     additionalProperties: false,
   },
+  serialize(output) {
+    // Failed checks already carry every violation in structured form. Keep
+    // unsupported-language guidance, which contains information absent there.
+    const { summary, ...details } = output;
+    return JSON.stringify(
+      output.verified && !output.valid && output.violations.length > 0
+        ? details
+        : { ...details, summary },
+    );
+  },
   // Failures THROW. The old catch returned `valid: false` — a successful call
   // (is_error:false) whose payload was indistinguishable from "this change
   // breaks compatibility", so an unreadable file read as a real violation.

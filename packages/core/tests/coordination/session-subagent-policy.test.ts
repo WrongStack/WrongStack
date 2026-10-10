@@ -11,6 +11,7 @@ import {
   setSessionSubagentPolicy,
   setSessionSubagentsAllowed,
   subagentPolicyMode,
+  unlockSessionSubagentPolicyForSession,
 } from '../../src/coordination/session-subagent-policy.js';
 
 function policyContext(id: string) {
@@ -129,6 +130,25 @@ describe('session subagent policy', () => {
     ]);
     expect(subagentPolicyMode(legacy as never)).toBe('none');
     expect(areSubagentCompanionsAllowedForSession('policy-restore-legacy')).toBe(false);
+  });
+
+  it('unlockSessionSubagentPolicyForSession unlocks session and resets mode to all', () => {
+    lockSessionSubagentPolicyForSession('policy-unlock-test');
+    unlockSessionSubagentPolicyForSession('policy-unlock-test');
+    expect(areSubagentsAllowedForSession('policy-unlock-test')).toBe(true);
+  });
+
+  it('allows forced policy change even when locked', async () => {
+    const ctx = policyContext('policy-force-test');
+    ctx.messages.push({ role: 'user', content: 'hello' });
+    lockSessionSubagentPolicyForSession('policy-force-test');
+
+    expect(isSubagentPolicyLocked(ctx as never)).toBe(true);
+    await setSessionSubagentPolicy(ctx as never, 'companions', { force: true });
+
+    expect(subagentPolicyMode(ctx as never)).toBe('companions');
+    expect(areSubagentsAllowed(ctx as never)).toBe(false);
+    expect(areSubagentCompanionsAllowed(ctx as never)).toBe(true);
   });
 
   it('unknown sessions default to allowing both', () => {

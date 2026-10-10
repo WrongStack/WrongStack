@@ -24,9 +24,9 @@
       "runtimeOrMixed": 12
     },
     "@wrongstack/core/coordination": {
-      "files": 264,
+      "files": 267,
       "typeOnly": 103,
-      "runtimeOrMixed": 226
+      "runtimeOrMixed": 229
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -154,9 +154,9 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/security": {
-      "files": 194,
+      "files": 195,
       "typeOnly": 29,
-      "runtimeOrMixed": 167
+      "runtimeOrMixed": 168
     },
     "@wrongstack/core/session-catalog": {
       "files": 13,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/skills": {
-      "files": 25,
+      "files": 26,
       "typeOnly": 3,
-      "runtimeOrMixed": 23
+      "runtimeOrMixed": 24
     },
     "@wrongstack/core/statusline": {
       "files": 27,
@@ -196,7 +196,7 @@
     "@wrongstack/core/types": {
       "files": 1384,
       "typeOnly": 1216,
-      "runtimeOrMixed": 420
+      "runtimeOrMixed": 422
     },
     "@wrongstack/core/types/limits": {
       "files": 1,
@@ -3238,6 +3238,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/slash-commands/clear.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/slash-commands/command-context.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 7
@@ -3713,6 +3719,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/slash-mailbox.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/slash-misc.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4327,6 +4339,12 @@
       "file": "packages/webui-server/src/server/sdd-wizard-wiring.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/session-context-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -11128,6 +11146,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/slash-commands/clear.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/slash-commands/command-context.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12179,6 +12203,12 @@
     {
       "specifier": "@wrongstack/core/skills",
       "file": "packages/cli/src/execution-kanban-dispatch.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/skills",
+      "file": "packages/cli/src/slash-commands/clear.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14556,7 +14586,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/command-context.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 13
+      "runtimeOrMixed": 14
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -15540,7 +15570,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/slash-commands.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/types",

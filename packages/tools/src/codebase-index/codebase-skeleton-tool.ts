@@ -96,7 +96,15 @@ export const codebaseSkeletonTool: Tool<CodebaseSkeletonInput, CodebaseSkeletonO
     additionalProperties: false,
   },
   serialize(output) {
-    return JSON.stringify(output, null, 2) ?? '';
+    // The combined skeleton already includes each file's complete source.
+    // Keep all file metadata, and retain any source not present in that block.
+    return JSON.stringify({
+      ...output,
+      files: output.files?.map(({ skeleton, ...metadata }) => ({
+        ...metadata,
+        ...(output.skeleton.includes(skeleton) ? {} : { skeleton }),
+      })),
+    });
   },
   async execute(input, ctx, execOpts) {
     const signal = execOpts?.signal ?? ctx?.signal;

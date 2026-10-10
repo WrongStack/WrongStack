@@ -42,6 +42,7 @@ export interface SlashCommandContext {
     compact(ctx: Context, opts?: CompactOptions): Promise<CompactReport>;
   };
   sessionStore?: SessionStore | undefined;
+  sessionRef?: { current?: import('@wrongstack/core/types').SessionWriter | undefined } | undefined;
   skillLoader?: SkillLoader | undefined;
   tokenCounter: TokenCounter;
   renderer: Renderer;

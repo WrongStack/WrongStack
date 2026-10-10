@@ -7,6 +7,7 @@ import {
   mailboxSessionTag,
   resetSessionSubagentPolicy,
   restoreSessionSubagentPolicy,
+  unlockSessionSubagentPolicyForSession,
 } from '@wrongstack/core/coordination';
 import { restoreSessionPermissionOverrides } from '@wrongstack/core/security';
 import { restoreRequiredSkillsFromEvents } from '@wrongstack/core/skills';
@@ -186,6 +187,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           ctx.context.state.replaceMessages([]);
           ctx.context.state.replaceTodos([]);
           resetContextAccounting();
+          resetSessionSubagentPolicy(ctx.context);
+          if (clearedSessionId) unlockSessionSubagentPolicyForSession(clearedSessionId);
+          unlockSessionSubagentPolicyForSession(currentSessionId());
+          if (ctx.context.session?.id) unlockSessionSubagentPolicyForSession(ctx.context.session.id);
           ctx.context.clearMemoryEvidence?.();
           ctx.context.readFiles.clear();
           ctx.context.fileMtimes.clear();

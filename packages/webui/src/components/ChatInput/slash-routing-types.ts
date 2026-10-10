@@ -54,7 +54,7 @@ export interface SlashRoutingClient {
    */
   withSession?: <T extends Record<string, unknown>>(payload: T) => T;
   clearContext?: () => void;
-  newSession?: () => void;
+  newSession?: (payload?: { replaceSessionId?: string; systemPromptVariant?: string }) => void;
   compactContext?: (aggressive?: boolean) => void;
   repairContext?: () => void;
   clearTodos?: () => void;
@@ -99,4 +99,5 @@ export interface RunChatSlashCommandOptions {
   onOpenBreakdown?: (() => void) | undefined;
   handleNextList: () => boolean;
   handleNextSelect: (args: string) => boolean;
+  sessionId?: string | null | undefined;
 }

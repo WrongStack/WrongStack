@@ -242,6 +242,7 @@ export function setupCliSlashCommands(params: {
     compactor: container.resolve(TOKENS.Compactor),
     permissionPolicy: container.resolve(TOKENS.PermissionPolicy),
     sessionStore,
+    sessionRef,
     skillLoader,
     tokenCounter,
     renderer,

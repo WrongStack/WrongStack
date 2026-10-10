@@ -42,6 +42,7 @@ interface SlashCommandsDeps {
   toolRegistry: ToolRegistry;
   paths: WstackPaths;
   sessionStore: SessionStore;
+  sessionRef?: { current?: import('@wrongstack/core/types').SessionWriter | undefined } | undefined;
   skillLoader: SkillLoader | undefined;
   tokenCounter: TokenCounter;
   renderer: Renderer;
@@ -158,6 +159,7 @@ export async function setupSlashCommands(params: SlashCommandsDeps): Promise<voi
     paths,
     compactor,
     sessionStore,
+    sessionRef: params.sessionRef,
     skillLoader,
     tokenCounter,
     renderer,

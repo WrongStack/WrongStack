@@ -62,6 +62,7 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
     onOpenBreakdown,
     handleNextList,
     handleNextSelect,
+    sessionId,
   } = options;
 
   const trimmed = raw.trim();
@@ -96,7 +97,7 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
     case '/clear':
       // Single sequence, shared with Ctrl+L and the desktop menu — see
       // `clear-chat-context.ts` for why the run flag has to be settled here.
-      clearChatContext({ client, isLoading, clearMessages, setLoading, sendAbort });
+      clearChatContext({ client, isLoading, clearMessages, setLoading, sendAbort, sessionId });
       return true;
     case '/new':
       // Same hand-off as the New Session button: the picker sends `session.new`

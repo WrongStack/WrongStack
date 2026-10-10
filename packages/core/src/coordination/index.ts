@@ -398,6 +398,7 @@ export {
   lockSessionSubagentPolicyForSession,
   resetSessionSubagentPolicy,
   restoreSessionSubagentPolicy,
+  unlockSessionSubagentPolicyForSession,
   SUBAGENT_COMPANIONS_ALLOWED_META_KEY,
   SUBAGENTS_ALLOWED_META_KEY,
   SUBAGENTS_POLICY_LOCKED_META_KEY,

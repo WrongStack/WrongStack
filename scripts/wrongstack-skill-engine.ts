@@ -10,8 +10,8 @@
  *   bun run scripts/wrongstack-skill-engine.ts --list
  */
 
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 interface SkillMetadata {
   name: string;
@@ -38,67 +38,219 @@ const FALLBACK_SKILLS_DIR = 'C:\\Users\\ersin\\.agents\\skills';
 // Domain classifier rules
 const DOMAIN_MAP: Record<string, string[]> = {
   'Creative & Media': [
-    'media-production', 'ai-media-production',
-    'threejs-3d', 'threejs-webgpu-3d',
-    'motion-design', 'modern-motion',
-    'audio-studio', 'suno-audio-studio',
-    'design-craft'
+    'media-production',
+    'ai-media-production',
+    'threejs-3d',
+    'threejs-webgpu-3d',
+    'motion-design',
+    'modern-motion',
+    'audio-studio',
+    'suno-audio-studio',
+    'design-craft',
   ],
   'Frontier AI & Codex': [
-    'codex-runtime', 'codex-adversarial-review',
-    'frontier-prompt-engineer', 'agents-sdk',
-    'orchestration', 'orca-cli', 'multi-agent',
-    'prompt-engineering', 'chimera', 'mnemosyne'
+    'codex-runtime',
+    'codex-adversarial-review',
+    'frontier-prompt-engineer',
+    'agents-sdk',
+    'orchestration',
+    'orca-cli',
+    'multi-agent',
+    'prompt-engineering',
+    'chimera',
+    'mnemosyne',
   ],
   'Architecture & Fullstack': [
-    'nextjs-modern', 'nextjs-fullstack-architect',
-    'react-modern', 'node-modern', 'typescript-strict',
-    'design-system', 'design-system-foundry',
-    'code-quality-auditor', 'nextjs-on-cloudflare',
-    'api-design', 'docker-deploy', 'tech-stack', 'sdd'
+    'nextjs-modern',
+    'nextjs-fullstack-architect',
+    'react-modern',
+    'node-modern',
+    'typescript-strict',
+    'design-system',
+    'design-system-foundry',
+    'code-quality-auditor',
+    'nextjs-on-cloudflare',
+    'api-design',
+    'docker-deploy',
+    'tech-stack',
+    'sdd',
   ],
-  'Documents & Office': [
-    'office-documents', 'docx', 'xlsx', 'pptx', 'pdf', 'google-workspace'
-  ],
+  'Documents & Office': ['office-documents', 'docx', 'xlsx', 'pptx', 'pdf', 'google-workspace'],
   'Security & Auditing': [
-    'security-scanner', 'security-audit', 'security-check',
-    'ghost-scan-secrets', 'evidence-audit',
-    'insecure-deserialization-checker', 'cors-cross-origin-misconfiguration',
-    'data-governance', 'audit-log'
+    'security-scanner',
+    'security-audit',
+    'security-check',
+    'ghost-scan-secrets',
+    'evidence-audit',
+    'insecure-deserialization-checker',
+    'cors-cross-origin-misconfiguration',
+    'data-governance',
+    'audit-log',
   ],
   'Testing & Quality Gate': [
-    'testing', 'verify-before-done', 'auto-review',
-    'code-review', 'bug-hunter', 'debugging'
+    'testing',
+    'verify-before-done',
+    'auto-review',
+    'code-review',
+    'bug-hunter',
+    'debugging',
   ],
   'Cloudflare & Edge': [
-    'cloudflare', 'cloudflare-one', 'cloudflare-email-service',
-    'cloudflare-one-migrations', 'durable-objects',
-    'turnstile-spin', 'workers-best-practices', 'wrangler'
+    'cloudflare',
+    'cloudflare-one',
+    'cloudflare-email-service',
+    'cloudflare-one-migrations',
+    'durable-objects',
+    'turnstile-spin',
+    'workers-best-practices',
+    'wrangler',
   ],
   'Tooling & Meta': [
-    'mcp-builder', 'skill-creator', 'npm-package-planner',
-    'x-persona-brand', 'wrongstack-orchestrator',
-    'mailbox-bridge', 'wrongstack-mailbox', 'wrongstack-kanban',
-    'web-platform-baseline', 'web-perf', 'git-flow', 'refactor-planner'
+    'mcp-builder',
+    'skill-creator',
+    'npm-package-planner',
+    'x-persona-brand',
+    'wrongstack-orchestrator',
+    'mailbox-bridge',
+    'wrongstack-mailbox',
+    'wrongstack-kanban',
+    'web-platform-baseline',
+    'web-perf',
+    'git-flow',
+    'refactor-planner',
   ],
 };
 
 // Turkish & English synonym dictionary
 const SYNONYMS: Record<string, string[]> = {
-  video: ['video', 'klip', 'clip', 'film', 'sinematik', 'cinematic', 'remotion', 'kling', 'luma', 'runway', 'sora', 'animasyon'],
-  audio: ['ses', 'audio', 'müzik', 'music', 'sound', 'seslendirme', 'voice', 'voiceover', 'suno', 'udio', 'elevenlabs', 'beat'],
-  '3d': ['3d', 'threejs', 'three.js', 'webgl', 'webgpu', 'canvas 3d', 'spline', 'shader', 'mesh', 'gltf', 'glb', 'tsl'],
-  animation: ['motion', 'hareket', 'animasyon', 'gsap', 'framer', 'spring', 'transition', 'micro-interaction'],
-  review: ['review', 'incele', 'denetle', 'audit', 'zafiyet', 'vulnerability', 'race condition', 'adversarial', 'açık'],
-  document: ['word', 'docx', 'excel', 'xlsx', 'tablo', 'spreadsheet', 'sunum', 'pptx', 'slide', 'slayt', 'pdf', 'fatura', 'rapor'],
-  nextjs: ['nextjs', 'next.js', 'react', 'fullstack', 'server actions', 'drizzle', 'prisma', 'app router'],
+  video: [
+    'video',
+    'klip',
+    'clip',
+    'film',
+    'sinematik',
+    'cinematic',
+    'remotion',
+    'kling',
+    'luma',
+    'runway',
+    'sora',
+    'animasyon',
+  ],
+  audio: [
+    'ses',
+    'audio',
+    'müzik',
+    'music',
+    'sound',
+    'seslendirme',
+    'voice',
+    'voiceover',
+    'suno',
+    'udio',
+    'elevenlabs',
+    'beat',
+  ],
+  '3d': [
+    '3d',
+    'threejs',
+    'three.js',
+    'webgl',
+    'webgpu',
+    'canvas 3d',
+    'spline',
+    'shader',
+    'mesh',
+    'gltf',
+    'glb',
+    'tsl',
+  ],
+  animation: [
+    'motion',
+    'hareket',
+    'animasyon',
+    'gsap',
+    'framer',
+    'spring',
+    'transition',
+    'micro-interaction',
+  ],
+  review: [
+    'review',
+    'incele',
+    'denetle',
+    'audit',
+    'zafiyet',
+    'vulnerability',
+    'race condition',
+    'adversarial',
+    'açık',
+  ],
+  document: [
+    'word',
+    'docx',
+    'excel',
+    'xlsx',
+    'tablo',
+    'spreadsheet',
+    'sunum',
+    'pptx',
+    'slide',
+    'slayt',
+    'pdf',
+    'fatura',
+    'rapor',
+  ],
+  nextjs: [
+    'nextjs',
+    'next.js',
+    'react',
+    'fullstack',
+    'server actions',
+    'drizzle',
+    'prisma',
+    'app router',
+  ],
   codex: ['codex', 'gpt-5', 'rescue', 'kurtar', 'companion', 'operator prompt'],
   mcp: ['mcp', 'model context protocol', 'mcp server', 'mcp sunucusu', 'tools'],
-  clean: ['dead code', 'ölü kod', 'unused', 'kullanılmayan', 'knip', 'temizle', 'refactor', 'bloat'],
-  testing: ['test', 'vitest', 'unit test', 'integration test', 'regression test', 'e2e', 'coverage'],
+  clean: [
+    'dead code',
+    'ölü kod',
+    'unused',
+    'kullanılmayan',
+    'knip',
+    'temizle',
+    'refactor',
+    'bloat',
+  ],
+  testing: [
+    'test',
+    'vitest',
+    'unit test',
+    'integration test',
+    'regression test',
+    'e2e',
+    'coverage',
+  ],
+  bug: ['bug', 'bughunt', 'hata', 'defect', 'kusur', 'issue', 'problem', 'arıza', 'bug-hunter'],
+  debugging: [
+    'debug',
+    'debugging',
+    'hata ayıkla',
+    'reproduce',
+    'kök neden',
+    'root cause',
+    'crash',
+    'regression',
+    'failing',
+  ],
+  verification: ['verify', 'doğrula', 'kanıtla', 'proof', 'kanıt', 'verify-before-done'],
 };
 
-async function readSkillsFromDir(dirPath: string, layer: 'core' | 'workspace'): Promise<SkillMetadata[]> {
+async function readSkillsFromDir(
+  dirPath: string,
+  layer: 'core' | 'workspace',
+): Promise<SkillMetadata[]> {
   const result: SkillMetadata[] = [];
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
@@ -111,7 +263,9 @@ async function readSkillsFromDir(dirPath: string, layer: 'core' | 'workspace'): 
           if (frontmatterMatch) {
             const fm = frontmatterMatch[1];
             const nameMatch = fm.match(/name:\s*([^\n\r]+)/);
-            const descMatch = fm.match(/description:\s*(?:>-\s*)?([\s\S]*?)(?=\n[a-zA-Z0-9_-]+:|$)/);
+            const descMatch = fm.match(
+              /description:\s*(?:>-\s*)?([\s\S]*?)(?=\n[a-zA-Z0-9_-]+:|$)/,
+            );
             const name = nameMatch ? nameMatch[1].trim() : entry.name;
             const description = descMatch ? descMatch[1].replace(/\s+/g, ' ').trim() : '';
 
@@ -135,7 +289,15 @@ async function readSkillsFromDir(dirPath: string, layer: 'core' | 'workspace'): 
             const notUseMatch = description.match(/Do NOT use[^.]+\./i);
             if (notUseMatch) exclusions.push(notUseMatch[0]);
 
-            result.push({ name, path: skillPath, description, domain, layer, triggers, exclusions });
+            result.push({
+              name,
+              path: skillPath,
+              description,
+              domain,
+              layer,
+              triggers,
+              exclusions,
+            });
           }
         } catch {
           // Ignore missing SKILL.md
@@ -150,7 +312,7 @@ async function readSkillsFromDir(dirPath: string, layer: 'core' | 'workspace'): 
 
 export async function loadSkills(): Promise<SkillMetadata[]> {
   const coreSkills = await readSkillsFromDir(CORE_SKILLS_DIR, 'core');
-  
+
   let workspaceDir = WORKSPACE_SKILLS_DIR;
   try {
     await fs.access(workspaceDir);
@@ -209,7 +371,10 @@ export function matchSkills(prompt: string, skills: SkillMetadata[]): MatchResul
     }
 
     // 3. Description Token Overlap
-    const descWords = skill.description.toLowerCase().split(/\W+/).filter((w) => w.length > 4);
+    const descWords = skill.description
+      .toLowerCase()
+      .split(/\W+/)
+      .filter((w) => w.length > 4);
     for (const word of descWords) {
       if (lowerPrompt.includes(word) && !matchedKeywords.includes(word)) {
         score += 5;
@@ -243,22 +408,31 @@ export function matchSkills(prompt: string, skills: SkillMetadata[]): MatchResul
   return results.sort((a, b) => b.score - a.score);
 }
 
-export function buildExecutionPipeline(matches: MatchResult[]): { order: number; skill: string; domain: string; rationale: string }[] {
+export function buildExecutionPipeline(
+  matches: MatchResult[],
+): { order: number; skill: string; domain: string; rationale: string }[] {
   const pipeline: { order: number; skill: string; domain: string; rationale: string }[] = [];
 
   // Domain execution precedence order:
   // 1. Architecture / Planning -> 2. Audio/Creative assets -> 3. Video / 3D Canvas -> 4. Quality & Audit
   const orderedSkills = [...matches];
   orderedSkills.sort((a, b) => {
-    const priority = (dom: string) => {
-      if (dom.includes('Architecture')) return 1;
-      if (dom.includes('Documents')) return 2;
-      if (dom.includes('Creative')) return 3;
-      if (dom.includes('Frontier')) return 4;
-      if (dom.includes('Security') || dom.includes('Tooling')) return 5;
-      return 6;
+    const priority = (name: string, dom: string) => {
+      // Proof-driven bug hunt execution order
+      if (name === 'bug-hunter') return 1;
+      if (name === 'debugging') return 2;
+      if (name === 'testing') return 3;
+      if (name === 'verify-before-done') return 4;
+      if (dom.includes('Testing')) return 5;
+
+      if (dom.includes('Architecture')) return 10;
+      if (dom.includes('Documents')) return 11;
+      if (dom.includes('Creative')) return 12;
+      if (dom.includes('Frontier')) return 13;
+      if (dom.includes('Security') || dom.includes('Tooling')) return 14;
+      return 15;
     };
-    return priority(a.skill.domain) - priority(b.skill.domain);
+    return priority(a.skill.name, a.skill.domain) - priority(b.skill.name, b.skill.domain);
   });
 
   orderedSkills.slice(0, 4).forEach((match, idx) => {
@@ -273,7 +447,11 @@ export function buildExecutionPipeline(matches: MatchResult[]): { order: number;
   return pipeline;
 }
 
-async function inspectRepoVersions(): Promise<{ found: boolean; versions: Record<string, string>; path: string } | null> {
+async function inspectRepoVersions(): Promise<{
+  found: boolean;
+  versions: Record<string, string>;
+  path: string;
+} | null> {
   try {
     const pkgPath = path.resolve(process.cwd(), 'package.json');
     const content = await fs.readFile(pkgPath, 'utf8');
@@ -329,9 +507,17 @@ Usage:
     for (const [dep, ver] of Object.entries(repoInfo.versions)) {
       if (
         prompt.toLowerCase().includes(dep.toLowerCase()) ||
-        ['react', 'next', 'typescript', 'vitest', 'tailwindcss', 'three', 'motion', 'remotion', 'biome'].some((k) =>
-          dep.toLowerCase().includes(k),
-        )
+        [
+          'react',
+          'next',
+          'typescript',
+          'vitest',
+          'tailwindcss',
+          'three',
+          'motion',
+          'remotion',
+          'biome',
+        ].some((k) => dep.toLowerCase().includes(k))
       ) {
         relevantDeps.push(`${dep}@${ver}`);
       }
@@ -341,20 +527,27 @@ Usage:
     } else {
       console.log(`   Scanned dependencies; no direct name overlap with prompt query.`);
     }
-    console.log(`   \x1b[90mRule: Check live registry (e.g. registry.npmjs.org/<pkg>/latest) before changing or adding dependencies.\x1b[0m\n`);
+    console.log(
+      `   \x1b[90mRule: Check live registry (e.g. registry.npmjs.org/<pkg>/latest) before changing or adding dependencies.\x1b[0m\n`,
+    );
   }
 
   const matches = matchSkills(prompt, skills);
 
   if (matches.length === 0) {
-    console.log('⚠️ No specialized skill matched with high confidence. Defaulting to standard agent workflow.');
+    console.log(
+      '⚠️ No specialized skill matched with high confidence. Defaulting to standard agent workflow.',
+    );
     return;
   }
 
   console.log('🎯 Top Matching Skills:');
   matches.slice(0, 5).forEach((m, i) => {
-    const layerTag = m.skill.layer === 'core' ? '\x1b[34m[Core Bundled]\x1b[0m' : '\x1b[90m[Workspace Ext]\x1b[0m';
-    console.log(`  ${i + 1}. \x1b[32m${m.skill.name}\x1b[0m ${layerTag} (Score: ${m.score}) [${m.skill.domain}]`);
+    const layerTag =
+      m.skill.layer === 'core' ? '\x1b[34m[Core Bundled]\x1b[0m' : '\x1b[90m[Workspace Ext]\x1b[0m';
+    console.log(
+      `  ${i + 1}. \x1b[32m${m.skill.name}\x1b[0m ${layerTag} (Score: ${m.score}) [${m.skill.domain}]`,
+    );
     console.log(`     Keywords: ${m.matchedKeywords.slice(0, 5).join(', ')}`);
   });
 

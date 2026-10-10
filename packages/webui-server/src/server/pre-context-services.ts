@@ -109,6 +109,26 @@ import type { WebUIOptions } from './types.js';
 const GITHUB_PROVIDERS_OVERLAY_URL =
   'https://raw.githubusercontent.com/WrongStack/WrongStack/main/packages/cli/data/providers.json';
 
+function resolveBundledSkillsDir(): string | undefined {
+  try {
+    const req = createRequire(import.meta.url);
+    const corePkg = wrongstackPackageJsonPath('@wrongstack/core', (id) => req.resolve(id));
+    return path.join(path.dirname(corePkg), 'skills');
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveBundledPromptsDir(): string | undefined {
+  try {
+    const req = createRequire(import.meta.url);
+    const corePkg = wrongstackPackageJsonPath('@wrongstack/core', (id) => req.resolve(id));
+    return path.join(path.dirname(corePkg), 'data', 'prompts');
+  } catch {
+    return undefined;
+  }
+}
+
 interface PreContextServicesInput {
   config: Config;
   wpaths: WstackPaths;
@@ -230,8 +250,20 @@ export async function createPreContextServices(
   const events = opts.services?.events ?? new EventBus();
   events.setLogger(logger);
 
+  const bundledSkillsDir = config.features.skills ? resolveBundledSkillsDir() : undefined;
+  const bundledPromptsDir =
+    config.features.prompts !== false ? resolveBundledPromptsDir() : undefined;
+
   // ── Container ──
-  const container = createDefaultContainer({ config, wpaths, logger, modelsRegistry, events });
+  const container = createDefaultContainer({
+    config,
+    wpaths,
+    logger,
+    modelsRegistry,
+    events,
+    bundledSkillsDir,
+    bundledPromptsDir,
+  });
   const configStore = opts.services?.configStore ?? container.resolve(TOKENS.ConfigStore);
 
   // ── Provider registry ──
@@ -288,7 +320,13 @@ export async function createPreContextServices(
   // ── Skill loader ── created before the registry so the `skill` tool the
   // progressive manifest points at is registered alongside it.
   const skillLoader = config.features.skills
-    ? new DefaultSkillLoader({ paths: wpaths })
+    ? new DefaultSkillLoader({
+        paths: wpaths,
+        bundledDir: bundledSkillsDir,
+        readClaudeSkills: config.skills?.readClaudeSkills,
+        foreignSources: config.skills?.foreignSources,
+        extraDirs: config.skills?.extraDirs,
+      })
     : undefined;
 
   // ── Tool registry (+ memory + mailbox tools) ──
@@ -498,20 +536,6 @@ export async function createPreContextServices(
 
   // ── Prompt library ──
   const promptsEnabled = config.features.prompts !== false;
-  const bundledPromptsDir = promptsEnabled
-    ? (() => {
-        try {
-          const req = createRequire(import.meta.url);
-          return path.join(
-            path.dirname(wrongstackPackageJsonPath('@wrongstack/core', (id) => req.resolve(id))),
-            'data',
-            'prompts',
-          );
-        } catch {
-          return undefined;
-        }
-      })()
-    : undefined;
   const promptLoader = promptsEnabled
     ? new DefaultPromptLoader({ paths: wpaths, bundledDir: bundledPromptsDir })
     : undefined;

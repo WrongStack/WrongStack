@@ -64,6 +64,12 @@ export function lockSessionSubagentPolicyForSession(sessionId: string | undefine
   if (sessionId) lockedSessions.add(sessionId);
 }
 
+export function unlockSessionSubagentPolicyForSession(sessionId: string | undefined): void {
+  if (!sessionId) return;
+  lockedSessions.delete(sessionId);
+  sessionPolicies.set(sessionId, 'all');
+}
+
 /** General subagents (everything but the resident companions). */
 export function areSubagentsAllowed(ctx: PolicyContext | null | undefined): boolean {
   return subagentPolicyMode(ctx) === 'all';
@@ -87,24 +93,36 @@ export function areSubagentCompanionsAllowedForSession(sessionId: string | undef
 export async function setSessionSubagentPolicy(
   ctx: PolicyContext,
   mode: SubagentPolicyMode,
+  options?: { force?: boolean } | undefined,
 ): Promise<void> {
   if (subagentPolicyMode(ctx) === mode) return;
-  if (isSubagentPolicyLocked(ctx)) {
+  if (!options?.force && isSubagentPolicyLocked(ctx)) {
     throw new Error(
       'Subagent policy is locked after the session starts. Start a new session to change it.',
     );
   }
-  if (!ctx.meta || !ctx.session) throw new Error('Session context is unavailable.');
+  if (!options?.force && (!ctx.meta || !ctx.session)) {
+    throw new Error('Session context is unavailable.');
+  }
 
-  await ctx.session.append({
-    type: 'subagent_policy',
-    ts: new Date().toISOString(),
-    allowed: mode === 'all',
-    ...(mode === 'companions' ? { companions: true } : {}),
-  });
+  if (ctx.session?.append) {
+    await ctx.session.append({
+      type: 'subagent_policy',
+      ts: new Date().toISOString(),
+      allowed: mode === 'all',
+      ...(mode === 'companions' ? { companions: true } : {}),
+    });
+  }
   applyMode(ctx, mode);
-  ctx.meta[SUBAGENTS_POLICY_LOCKED_META_KEY] = false;
-  sessionPolicies.set(ctx.session.id, mode);
+  if (ctx.meta) {
+    ctx.meta[SUBAGENTS_POLICY_LOCKED_META_KEY] = false;
+  }
+  if (ctx.session?.id) {
+    if (options?.force) {
+      lockedSessions.delete(ctx.session.id);
+    }
+    sessionPolicies.set(ctx.session.id, mode);
+  }
 }
 
 /** Boolean form: `true` = all, `false` = strict solo. */
