@@ -97,7 +97,9 @@ export function scoreSuggestions(
     const suggested = decide(request);
     return { request, suggested, outcome: classifyCase(request, suggested) };
   });
-  const covered = cases.filter((c) => (c.request.gold ?? undefined) !== undefined).length;
+  // Same emptiness convention as classifyCase (an empty-string gold is not a
+  // covering skill), so the covered denominator and the outcome buckets agree.
+  const covered = cases.filter((c) => Boolean(c.request.gold)).length;
   const uncovered = cases.length - covered;
   const count = (outcome: ScoredCase['outcome']): number =>
     cases.filter((c) => c.outcome === outcome).length;

@@ -75,6 +75,17 @@ describe('scoreSuggestions', () => {
     expect(score.needless).toBe(0);
     expect(Number.isNaN(score.needless)).toBe(false);
   });
+
+  it('counts an empty-string gold as uncovered, matching classifyCase', () => {
+    // parseEvalJsonl accepts `"gold": ""`, and classifyCase treats it as
+    // uncovered. The covered denominator must use the same convention, or the
+    // case lands in the uncovered bucket while `covered` counts it.
+    expect(classifyCase({ text: 'c', gold: '' }, 'git-flow')).toBe('needless');
+    const { score } = scoreSuggestions([{ text: 'c', gold: '' }], () => 'git-flow');
+    expect(score.covered).toBe(0);
+    expect(score.uncovered).toBe(1);
+    expect(score.needless).toBe(1);
+  });
 });
 
 describe('redecide', () => {
