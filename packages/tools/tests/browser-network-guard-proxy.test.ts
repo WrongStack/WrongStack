@@ -197,56 +197,65 @@ describe('BrowserNetworkGuardProxy', () => {
     await expect(proxy.start()).resolves.toBe(proxyAddress.toString().replace(/\/$/, ''));
   });
 
-  it('forwards guarded plain WebSocket upgrades', async () => {
-    const target = http.createServer();
-    const targetSockets = new Set<net.Socket>();
-    target.on('upgrade', (_request, socket) => {
-      targetSockets.add(socket as net.Socket);
-      socket.once('close', () => targetSockets.delete(socket as net.Socket));
-      socket.write(
-        'HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n',
-      );
-      socket.on('data', (chunk) => socket.write(`ws:${chunk.toString('utf8')}`));
-    });
-    await new Promise<void>((resolve) => target.listen(0, '127.0.0.1', resolve));
-    closers.push(async () => {
-      for (const socket of targetSockets) socket.destroy();
-      await new Promise<void>((resolve) => target.close(() => resolve()));
-    });
-    const targetAddress = target.address();
-    if (!targetAddress || typeof targetAddress === 'string')
-      throw new Error('target failed to bind');
-
-    const authority = `socket.test:${targetAddress.port}`;
-    const proxy = new BrowserNetworkGuardProxy({
-      allowedPrivateOrigins: [`http://${authority}`],
-      lookup: async () => [{ address: '127.0.0.1', family: 4 }],
-    });
-    const proxyAddress = new URL(await proxy.start());
-    closers.push(() => proxy.close());
-
-    const result = await new Promise<string>((resolve, reject) => {
-      const client = net.connect(Number(proxyAddress.port), proxyAddress.hostname);
-      let received = '';
-      client.once('connect', () => {
-        client.write(
-          `GET ws://${authority}/chat HTTP/1.1\r\nHost: ${authority}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n`,
+  it.each(['absolute', 'origin'] as const)(
+    'forwards guarded %s-form WebSocket upgrades',
+    async (form) => {
+      const target = http.createServer();
+      const targetSockets = new Set<net.Socket>();
+      target.on('upgrade', (_request, socket) => {
+        targetSockets.add(socket as net.Socket);
+        socket.once('close', () => targetSockets.delete(socket as net.Socket));
+        socket.write(
+          'HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n\r\n',
         );
+        socket.on('data', (chunk) => socket.write(`ws:${chunk.toString('utf8')}`));
       });
-      client.on('data', (chunk) => {
-        received += chunk.toString('utf8');
-        if (received.includes('101 Switching Protocols') && !received.includes('ws:ping')) {
-          client.write('ping');
-        }
-        if (received.includes('ws:ping')) {
-          client.destroy();
-          resolve(received);
-        }
+      await new Promise<void>((resolve) => target.listen(0, '127.0.0.1', resolve));
+      closers.push(async () => {
+        for (const socket of targetSockets) socket.destroy();
+        await new Promise<void>((resolve) => target.close(() => resolve()));
       });
-      client.on('error', reject);
-    });
+      const targetAddress = target.address();
+      if (!targetAddress || typeof targetAddress === 'string')
+        throw new Error('target failed to bind');
 
-    expect(result).toContain('101 Switching Protocols');
-    expect(result).toContain('ws:ping');
-  });
+      const authority = `socket.test:${targetAddress.port}`;
+      const proxy = new BrowserNetworkGuardProxy({
+        allowedPrivateOrigins: [`http://${authority}`],
+        lookup: async () => [{ address: '127.0.0.1', family: 4 }],
+      });
+      const proxyAddress = new URL(await proxy.start());
+      closers.push(() => proxy.close());
+
+      const result = await new Promise<string>((resolve, reject) => {
+        const client = net.connect(Number(proxyAddress.port), proxyAddress.hostname);
+        const timeout = setTimeout(() => {
+          client.destroy();
+          reject(new Error(`WebSocket proxy failed to upgrade: ${received}`));
+        }, 3_000);
+        client.once('close', () => clearTimeout(timeout));
+        let received = '';
+        client.once('connect', () => {
+          const requestTarget = form === 'absolute' ? `http://${authority}/chat` : '/chat';
+          client.write(
+            `GET ${requestTarget} HTTP/1.1\r\nHost: ${authority}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n`,
+          );
+        });
+        client.on('data', (chunk) => {
+          received += chunk.toString('utf8');
+          if (received.includes('101 Switching Protocols') && !received.includes('ws:ping')) {
+            client.write('ping');
+          }
+          if (received.includes('ws:ping')) {
+            client.destroy();
+            resolve(received);
+          }
+        });
+        client.on('error', reject);
+      });
+
+      expect(result).toContain('101 Switching Protocols');
+      expect(result).toContain('ws:ping');
+    },
+  );
 });

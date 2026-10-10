@@ -165,8 +165,12 @@ export class BrowserNetworkGuardProxy {
     let upstream: http.ClientRequest | undefined;
     try {
       const rawUrl = request.url ?? '';
-      const websocketUrl = new URL(rawUrl);
-      if (websocketUrl.protocol !== 'ws:') {
+      // RFC 6455 handshakes carry an HTTP URI or an origin-form path, even
+      // when the WebSocket's public URL uses ws:. Keep legacy ws: callers too.
+      const websocketUrl = rawUrl.startsWith('/')
+        ? new URL(rawUrl, `http://${request.headers.host ?? ''}`)
+        : new URL(rawUrl);
+      if (websocketUrl.protocol !== 'ws:' && websocketUrl.protocol !== 'http:') {
         throw new Error('browser: only plain ws upgrades are handled by the HTTP proxy');
       }
       websocketUrl.protocol = 'http:';

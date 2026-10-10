@@ -123,4 +123,24 @@ describe('browser security boundary', () => {
     expect(redacted).not.toContain('sk_live_x');
     expect(redactBrowserText('TOKEN_URL=https://x')).toBe('TOKEN_URL=https://x');
   });
+
+  it('redacts the AWS secret access key family without adding a bare key match', () => {
+    // The canonical AWS secret value — the credential most likely to be printed
+    // by a misconfigured app — has a name (`secret access key`) the key
+    // alternation did not list, so its value reached the model in the clear.
+    const secret = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+    for (const input of [
+      `AWS_SECRET_ACCESS_KEY=${secret}`,
+      `{"SecretAccessKey":"${secret}"}`,
+      `aws_secret_access_key = ${secret}`,
+    ]) {
+      expect(redactBrowserText(input)).not.toContain(secret);
+      expect(redactBrowserText(input)).toContain('[REDACTED]');
+    }
+    // No bare `key` was added: identifiers and unrelated keys stay readable.
+    expect(redactBrowserText('access_key=AKIAIOSFODNN7EXAMPLE')).toBe(
+      'access_key=AKIAIOSFODNN7EXAMPLE',
+    );
+    expect(redactBrowserText('SORT_KEY=customer#1')).toBe('SORT_KEY=customer#1');
+  });
 });
