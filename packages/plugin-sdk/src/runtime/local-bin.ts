@@ -244,9 +244,15 @@ export function resolveNodeBin(
     } catch {
       // Bun keeps negative module-resolution results after a package is installed.
       // Re-probe real search paths when our own bounded negative cache expires.
-      if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(packageName) || packageName === '..') throw new Error('Invalid package name');
+      if (
+        !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(packageName) ||
+        packageName.split('/').some((part) => part === '.' || part === '..')
+      )
+        throw new Error('Invalid package name');
       const candidates = requireFromProject.resolve.paths(packageName) ?? [];
-      const found = candidates.map((directory) => join(directory, packageName, 'package.json')).find(isExistingFile);
+      const found = candidates
+        .map((directory) => join(directory, packageName, 'package.json'))
+        .find(isExistingFile);
       if (!found) throw new Error('Package is not installed');
       packagePath = found;
     }
