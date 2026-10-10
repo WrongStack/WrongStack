@@ -7,9 +7,5 @@
   "model": "MiniMax-M3.1-Flash-Preview",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\i18n\\archive\\learned-2026-09-28T22-10-58-107Z.md",
-  "skills": [
-    "react-modern",
-    "output-standards",
-    "testing"
-  ]
+  "skills": ["react-modern", "output-standards", "testing"]
 }

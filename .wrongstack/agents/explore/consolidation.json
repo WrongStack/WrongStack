@@ -7,7 +7,5 @@
   "model": "glm-5.3",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\explore\\archive\\learned-2026-09-29T20-09-44-795Z.md",
-  "skills": [
-    "codebase-navigation"
-  ]
+  "skills": ["codebase-navigation"]
 }

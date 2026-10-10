@@ -7,9 +7,5 @@
   "model": "MiniMax-M3.1-Flash-Preview",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\bug-hunter\\archive\\learned-2026-10-06T10-52-37-730Z.md",
-  "skills": [
-    "typescript-strict",
-    "bug-hunter",
-    "testing"
-  ]
+  "skills": ["typescript-strict", "bug-hunter", "testing"]
 }

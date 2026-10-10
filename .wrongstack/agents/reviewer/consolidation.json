@@ -7,9 +7,5 @@
   "model": "gpt-6.1-sol",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\reviewer\\archive\\learned-2026-10-07T10-10-49-338Z.md",
-  "skills": [
-    "chimera",
-    "testing",
-    "code-review"
-  ]
+  "skills": ["chimera", "testing", "code-review"]
 }

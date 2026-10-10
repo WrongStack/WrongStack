@@ -4,7 +4,7 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-10-10T09:57:35.513Z; skill=codebase-navigation; applied=8; wins=8; skipped=40; skippedWins=40 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-10-10T09:57:35.513Z; skill=codebase-navigation; applied=8; wins=8; skipped=45; skippedWins=45 -->
 - **Always check `architecture/test-skip-budget.json` and `docs/reports/architecture-health-current.json` for dependents of test files under `packages/*/tests/` — these data ratchets are the only "importers" a spec typically has, and edits to its skip structure or content require re-syncing via root `check:architecture`.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `architecture/test-skip-budget.json`

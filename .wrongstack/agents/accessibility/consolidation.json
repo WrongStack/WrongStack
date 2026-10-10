@@ -7,7 +7,5 @@
   "model": "muse-spark-1.3-contributor",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\accessibility\\archive\\learned-2026-09-30T16-56-39-707Z.md",
-  "skills": [
-    "react-modern"
-  ]
+  "skills": ["react-modern"]
 }

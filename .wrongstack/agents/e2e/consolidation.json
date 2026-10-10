@@ -7,7 +7,5 @@
   "model": "cc/claude-opus-5-5",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\e2e\\archive\\learned-2026-10-01T06-34-57-748Z.md",
-  "skills": [
-    "testing"
-  ]
+  "skills": ["testing"]
 }

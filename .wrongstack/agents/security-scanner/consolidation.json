@@ -7,8 +7,5 @@
   "model": "step-5-preview-free",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\security-scanner\\archive\\learned-2026-10-09T08-24-21-695Z.md",
-  "skills": [
-    "security-scanner",
-    "api-design"
-  ]
+  "skills": ["security-scanner", "api-design"]
 }
