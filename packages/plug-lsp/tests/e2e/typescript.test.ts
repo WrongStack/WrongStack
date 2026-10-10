@@ -13,7 +13,7 @@ import type { PlugLSPConfig } from '../../src/types.js';
 import { resolveServerCommand } from '../../src/utils/command-resolver.js';
 
 // Runs whenever the server binary resolves. `typescript-language-server` is a
-// root devDependency precisely so this runs on every `pnpm test`: it is the
+// root devDependency precisely so this runs on every `bun run test`: it is the
 // only check that exercises a real JSON-RPC handshake, and the four bugs it
 // caught on first execution (bare-name spawn on Windows, URI spelling
 // mismatch, unwaited push diagnostics, undeclared publishDiagnostics
@@ -44,7 +44,13 @@ describe.skipIf(!hasTypeScriptLanguageServer)('typescript-language-server E2E', 
       JSON.stringify({ compilerOptions: { strict: true, target: 'ES2022', module: 'ESNext' } }),
     );
     const source = path.join(root, 'index.ts');
-    await fs.writeFile(source, 'export const answer: number = "nope";\nanswer;\n');
+    // Keep semantic analysis slower than the server's syntax-diagnostic debounce.
+    // A clean syntax publication must not satisfy the semantic-error assertion.
+    const declarations = Array.from(
+      { length: 15_000 },
+      (_, i) => `export const value_${i} = ${i};`,
+    ).join('\n');
+    await fs.writeFile(source, `export const answer: number = "nope";\nanswer;\n${declarations}\n`);
 
     // Resolve the way the plugin does at runtime. A bare name is not
     // spawnable on Windows even when `where.exe` finds it, so a test that
@@ -60,7 +66,7 @@ describe.skipIf(!hasTypeScriptLanguageServer)('typescript-language-server E2E', 
           languages: ['typescript', 'typescriptreact', 'javascript', 'javascriptreact'],
           rootPatterns: ['tsconfig.json', 'package.json'],
           // The temp workspace has no node_modules, and this repo's own
-          // TypeScript is the 6.x native build with no tsserver.js. Point the
+          // TypeScript is the native build with no tsserver.js. Point the
           // server at the aliased 5.x devDependency instead.
           initializationOptions: { tsserver: { path: tsserverPath() } },
           startupTimeoutMs: 15_000,
@@ -82,26 +88,44 @@ describe.skipIf(!hasTypeScriptLanguageServer)('typescript-language-server E2E', 
     const tracker = new DocumentTracker(() => holder.registry!, log, root);
     const registry = new LSPRegistry(cfg, tracker, { cwd: root, log, events: new EventBus() });
     holder.registry = registry;
-    await registry.bind(root, 'lazy');
-    await tracker.open(source);
+    try {
+      await registry.bind(root, 'lazy');
+      await tracker.open(source);
 
-    const tools = new Map(
-      makeLSPTools({ registry, tracker, cfg, log }).map((tool) => [tool.name, tool]),
-    );
-    const ctx = { cwd: root, projectRoot: root } as never;
-    const signal = new AbortController().signal;
+      const tools = new Map(
+        makeLSPTools({ registry, tracker, cfg, log }).map((tool) => [tool.name, tool]),
+      );
+      const ctx = { cwd: root, projectRoot: root } as never;
+      const signal = new AbortController().signal;
 
-    const definition = await tools
-      .get('lsp_definition')!
-      .execute({ path: source, line: 1, character: 14 }, ctx, { signal });
-    expect(String(definition)).toContain('index.ts:1:1');
+      const definition = await tools
+        .get('lsp_definition')!
+        .execute({ path: source, line: 1, character: 14 }, ctx, { signal });
+      expect(String(definition)).toContain('index.ts:1:1');
 
-    const diagnostics = await tools
-      .get('lsp_diagnostics')!
-      .execute({ path: source }, ctx, { signal });
-    expect(String(diagnostics).toLowerCase()).toContain('string');
-
-    await registry.shutdown();
+      // TypeScript publishes syntax, semantic, and suggestion diagnostics separately.
+      // The first publication can be empty while semantic analysis is still running.
+      await expect
+        .poll(
+          async () => {
+            const diagnostics = await tools
+              .get('lsp_diagnostics')!
+              .execute({ path: source }, ctx, { signal });
+            return String(diagnostics).toLowerCase();
+          },
+          { timeout: cfg.diagnosticsWaitMs },
+        )
+        .toContain('string');
+    } finally {
+      await registry.shutdown();
+      // Windows can retain tsserver's cwd after shutdown. Remove fixture files
+      // and let OS temp cleanup reclaim the empty directory once it is released.
+      await Promise.all(
+        ['index.ts', 'package.json', 'tsconfig.json'].map((file) =>
+          fs.rm(path.join(root, file), { force: true }),
+        ),
+      );
+    }
   }, 30_000);
 });
 
