@@ -256,7 +256,7 @@ export async function checkExecKillCommand(
     }
 
     // node -e "process.kill(12345)" — eval-based kill
-    if (cmdLower === 'node' || cmdLower === 'node.exe') {
+    if (cmdLower === 'node' || cmdLower === 'bun') {
       if (args.includes('-e') || args.includes('--eval')) {
         const evalIdx = args.indexOf('-e') !== -1 ? args.indexOf('-e') : args.indexOf('--eval');
         const evalCode = args[evalIdx + 1] ?? '';
@@ -272,7 +272,7 @@ export async function checkExecKillCommand(
           return {
             blocked: true,
             reason:
-              'Blocked: node -e with process.kill() — would target protected WrongStack process(es).',
+              `Blocked: ${cmdLower} -e with process.kill() — would target protected WrongStack process(es).`,
           };
         }
       }
@@ -410,11 +410,10 @@ async function checkPkillSelection(
     .toLowerCase()
     .replace(/\.exe$/, '');
   const protectedPids = await getPersistentProcessRegistry().getAllProtectedPids();
-  if (protectedPids.length === 0 && currentImage !== 'node') return { blocked: false };
   const reason = `Blocked: ${fullCommand.slice(0, 80)} can select protected WrongStack processes.`;
   const selector = cmd === 'killall' ? KILLALL_SELECTOR_RE : PKILL_SELECTOR_RE;
   if (args.some((a) => selector.test(a))) return { blocked: true, reason };
-  const targets = ['node', 'wrongstack', currentImage];
+  const targets = ['wrongstack', currentImage, ...(protectedPids.length > 0 ? ['node', 'bun'] : [])];
   for (const word of args) {
     if (word.startsWith('-')) continue;
     const compiled = compileUserRegex(word, 'i');
@@ -488,20 +487,25 @@ async function checkKillTarget(target: KillTarget): Promise<ExecKillCheckResult>
       nameLower === 'node' ||
       nameLower.startsWith('node') ||
       (wildcard && wildcardNameMatches(nameLower, 'node'));
-    if (targetsNodeRuntime && currentImage === 'node') {
+    const targetsCurrentRuntime =
+      nameLower === currentImage ||
+      (wildcard && wildcardNameMatches(nameLower, currentImage)) ||
+      (targetsNodeRuntime && currentImage === 'node');
+    if (targetsCurrentRuntime) {
       return {
         blocked: true,
-        reason: `Blocked: kill ${target.signal} '${target.name}' would kill the active WrongStack node.exe runtime.`,
+        reason: `Blocked: kill ${target.signal} '${target.name}' would kill the active WrongStack ${currentImage} runtime.`,
       };
     }
 
     // Also protect other registered WrongStack instances that use Node even
     // when this instance is running from a packaged executable.
     const protectedPids = await registry.getAllProtectedPids();
-    if (protectedPids.length > 0 && targetsNodeRuntime) {
+    const targetsBunRuntime = nameLower === 'bun' || (wildcard && wildcardNameMatches(nameLower, 'bun'));
+    if (protectedPids.length > 0 && (targetsNodeRuntime || targetsBunRuntime)) {
       return {
         blocked: true,
-        reason: `Blocked: kill ${target.signal} '${target.name}' would kill all node.exe processes including active WrongStack instance(s).`,
+        reason: `Blocked: kill ${target.signal} '${target.name}' would kill runtime processes including active WrongStack instance(s).`,
       };
     }
 
