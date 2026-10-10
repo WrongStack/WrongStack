@@ -305,13 +305,13 @@ export function HomePage() {
             <div className="max-w-3xl">
               <Eyebrow>Release highlights · v{version}</Eyebrow>
               <h2 className="mt-3 text-3xl font-black tracking-[-0.035em] text-fg sm:text-4xl">
-                Separate goal branches. Clear next steps. Reviewable cleanup.
+                Bun-first development. Skill guidance. Sealed helpers.
               </h2>
               <p className="mt-4 text-base leading-7 text-muted">
-                In {version}: track project goals by owning session, keep each goal's branch for
-                review, and choose how automatic work continues. Scan TypeScript dead code, preview
-                selected edits and verify cleanup. MCP visibility and HQ attention shortcuts keep
-                the work inspectable.
+                In {version}: contributor scripts, tests, CI and the SQLite adapters run on the
+                pinned Bun toolchain. A resident Skill Companion watches active work and recommends
+                missed skills, sealed subagents keep host-owned helpers inside one job, and
+                document, media and workflow playbooks grow the bundled skill catalog to 114 skills.
               </p>
             </div>
             <a
@@ -325,16 +325,16 @@ export function HomePage() {
           <div className="mt-6 grid gap-px overflow-hidden rounded-2xl border border-line bg-line md:grid-cols-3">
             {[
               [
-                'Project-owned goals',
-                'My Goals and /goals separate task progress, blockers and verification. New git-backed goals use dedicated checkouts; observing another terminal does not transfer control.',
+                'Bun-first development',
+                'Workspace scripts, tests, CI and the SQLite adapters support Bun, and contributor commands run on the pinned Bun toolchain.',
               ],
               [
-                'Continuation you choose',
-                '/nextsteps requires a follow-on action or completion marker and can limit automatic turns. Session YOLO+ removes confirmation prompts while retaining explicit user refusal rules.',
+                'Skill guidance',
+                'Local intent rules suggest playbooks without an API call, and the Skill Companion recommends missed skills through a sealed, tool-less judge that accepts only host-owned tasks.',
               ],
               [
-                'Inspect before cleanup',
-                'dead-code-scan supplies finding ids, confidence and planned diffs. dead-code-fix rechecks the selection, typechecks packages by default and rolls back failed verification.',
+                'Focused reading and setup',
+                'codebase-read-symbol reads a named declaration from a file with AST parsing and exact line bounds. /browser reports Chromium readiness, installs its runtime and manages project origin allowances.',
               ],
             ].map(([title, body], index) => (
               <Reveal key={title} delay={index * 0.04} className="bg-card p-6">

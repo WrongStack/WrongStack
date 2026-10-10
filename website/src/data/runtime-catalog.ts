@@ -596,14 +596,6 @@ export const toolCatalog = [
     mutating: true,
     category: 'Discovery & index',
   },
-  {
-    name: 'codebase-read-symbol',
-    summary:
-      'Read the exact implementation of a named declaration (function, method, class, interface, type, enum, variable) from a file using AST parsing. Returns line-numbered code in standard N→content format, eliminating offset guessing and saving context tokens.',
-    permission: 'auto',
-    mutating: false,
-    category: 'Discovery & index',
-  },
 ] as const;
 
 export const pluginSources = ['Core', 'Suite', 'Bridge'] as const;

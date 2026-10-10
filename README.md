@@ -27,14 +27,14 @@ irm https://wrongstack.com/install.ps1 | iex
 
 ---
 
-WrongStack is **free, open source, and MIT licensed**. It drives autonomous goal
-loops, parallel subagent fan-out, and Brain-governed policy decisions — with a
-**project-wide SAGE memory** that persists knowledge across sessions, **active
-Kanban boards** with atomic verification, an **inter-agent mailbox** that links
-every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with a deep built-in toolbox, bundled skills, managed first-party
-plugins, and a provider catalog pulled live from
-[models.dev](https://models.dev) — all on top of a compact, swappable kernel.
+WrongStack is **free, open source, and MIT licensed**. Give its leader a task:
+It can work directly or delegate independent parts to specialist agents.
+The **Brain** evaluates policy decisions; **SAGE** retains project knowledge
+across sessions; **Kanban** tracks work and verification; the **mailbox** links
+agents across clients; and **Chimera** reviews their diffs. Autonomous goal loops
+and parallel workers use these same systems, rather than a separate agent engine.
+Built-in tools, bundled skill playbooks, managed first-party plugins and a live
+[models.dev](https://models.dev) provider catalog sit on a compact, swappable kernel.
 
 The coding loop compares completed tool results when detecting repetition.
 With the LSP plugin and hooks enabled, successful single and bulk file edits include bounded,
@@ -55,7 +55,21 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
-### What's new in 1.0.36
+### What's new in 1.0.37
+
+- **Browser setup:** [`/browser`](docs/slash/browser.md) reports Chromium
+  readiness, installs its runtime and manages exact project origin allowances.
+- **Focused code reading:** `codebase-read-symbol` reads a named declaration
+  directly from a file using AST parsing, with exact source-line bounds.
+- **Skill guidance:** local intent rules suggest playbooks without an API call;
+  the CLI Skill Companion watches active work and recommends missed skills.
+  Its sealed, tool-less judge accepts only host-owned tasks, not fleet work.
+- **Broader skills:** document, media and workflow playbooks join the bundled
+  catalog. See [skills](docs/skills.md) and [suggestions](docs/skills-suggestion.md).
+- **Bun-first development:** workspace scripts, tests, CI and SQLite adapters
+  support Bun; contributor commands use the pinned Bun toolchain.
+
+Highlights from **1.0.36**, the previous release:
 
 - **Effort that follows the work:** the leader raises or lowers its own
   reasoning effort per phase with `leader_effort_set`, and gives each delegated
@@ -72,13 +86,12 @@ home to.
 - **Pinned Bun typechecking** for contributors: `bun run setup:bun` provisions the
   checker, and there is no `tsc` fallback.
 
-1.0.35 hardened command guards, secret redaction and dependency audits, and
-kept ChatGPT/Codex prompt caches stable. 1.0.34 added
-[project goals](docs/architecture/project-goals.md),
-[explicit continuation](docs/slash/nextsteps.md), [YOLO+](docs/slash/yolo.md)
-and the [dead-code workflow](docs/tools/dead-code.md).
+1.0.35 hardened command guards, secret redaction and dependency audits; 1.0.34
+added [project goals](docs/architecture/project-goals.md), [explicit
+continuation](docs/slash/nextsteps.md), [YOLO+](docs/slash/yolo.md) and the
+[dead-code workflow](docs/tools/dead-code.md).
 
-See the complete [release notes](CHANGELOG.md).
+See the [release history](CHANGELOG.md) for earlier releases.
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -106,53 +119,53 @@ See the complete [release notes](CHANGELOG.md).
 
 ## Why WrongStack
 
-- 🧠 **It remembers your project.** **SAGE** keeps long-term memory in
+- **It remembers your project.** **SAGE** keeps long-term memory in
   SQLite/FTS5, anchored to real files, symbols, commands, and commits — and
   re-verified as they change. Decisions, conventions, and root causes survive the
   session that produced them.
-- 🤖 **A fleet, not a lone agent.** A full specialist roster and smart dispatcher
+- **A fleet, not a lone agent.** A full specialist roster and smart dispatcher
   fan out under a Director, each subagent isolated with its own budget and JSONL
   transcript.
-- 📈 **The roster gets better here.** Each role turns useful outcomes into
+- **The roster gets better here.** Each role turns useful outcomes into
   skill-specific practice, ranks what actually works in *this* repo, and applies
   it on the next matching task.
-- 🛠️ **A deep toolbox, no plugins required.** Edits, lint/format/typecheck/test,
+- **A deep toolbox, no plugins required.** Edits, lint/format/typecheck/test,
   execution, git, web, browser/E2E, and a SQLite codebase index with symbol and
   call-graph navigation.
-- 🖥️ **Six surfaces, one brain.** A plain readline REPL, an Ink/React **TUI**
+- **Six surfaces, one brain.** A plain readline REPL, an Ink/React **TUI**
   (`--tui`), the full **WebUI** (`--webui`), lightweight **SimpleUI**,
   **Desktop** (`--desktop`), and the cross-machine **HQ** (`--hq`) — same engine,
   same session, same memory underneath.
-- 🛰️ **HQ for the whole room.** Aggregate live sessions, agents, fleets, mailbox
+- **HQ for the whole room.** Aggregate live sessions, agents, fleets, mailbox
   state, cost, tools, Brain decisions, and worktrees across machines — then
   steer, note, queue, or stop connected clients through their own guardrails.
-- 📬 **Agents that coordinate instead of collide.** One project-wide mailbox
+- **Agents that coordinate instead of collide.** One project-wide mailbox
   links every client, session, branch, and linked worktree, with typed messages
   and live presence.
-- ♾️ **Set a goal, walk away.** `/goal` locks a contract and the eternal /
+- **Set a goal, walk away.** `/goal` locks a contract and the eternal /
   parallel engines grind until it is *verifiably* done — with the **Brain**
   deciding risky calls by policy, denying them, or escalating to a human.
-- 🗂️ **Work tracking that resists lying.** Durable Kanban boards and typed tasks
+- **Work tracking that resists lying.** Durable Kanban boards and typed tasks
   with dependencies, lifecycle stages, and **atomic verification** gates that let
   a card reach Done only when its criteria actually pass.
-- 🦂 **Your diffs get reviewed.** **Chimera** critiques changed files with
+- **Your diffs get reviewed.** **Chimera** critiques changed files with
   severity-ranked `file:line` findings and a one-line fix each, and fixer agents
   can follow up.
-- 🔌 **Providers without lock-in.** Anthropic, OpenAI, Google, and a broad range
+- **Providers without lock-in.** Anthropic, OpenAI, Google, and a broad range
   of OpenAI-compatible endpoints, refreshed from models.dev at boot.
-- 🏠 **Local & custom endpoints.** One-command presets for **Ollama / vLLM / LM
+- **Local & custom endpoints.** One-command presets for **Ollama / vLLM / LM
   Studio**, plus any custom `baseUrl` or **OmniRoute**-style gateway; run fully
   on localhost.
-- 🔑 **Sign in with an account.** ChatGPT plan API and legacy Codex, Claude,
+- **Sign in with an account.** ChatGPT plan API and legacy Codex, Claude,
   GitHub Copilot, xAI/Grok, Kimi Code, Meta, OpenRouter, and Antigravity auth
   run alongside API keys. Access and billing follow the selected provider's grant.
-- 🔀 **Per-role model routing.** Assign different providers/models per role or
+- **Per-role model routing.** Assign different providers/models per role or
   phase, with automatic **fallback chains** when a model is overloaded.
-- 🔐 **Locked down where it counts.** Encrypted secrets and a permission policy
+- **Locked down where it counts.** Encrypted secrets and a permission policy
   on every tool call, both always on. Project-root containment is opt-in
   (`/settings` → Filesystem access); once you enable it, neither YOLO nor a
   repo-committed config can turn it back off.
-- 🪶 **A kernel you can actually read.** `Container · Pipeline · EventBus ·
+- **A kernel you can actually read.** `Container · Pipeline · EventBus ·
   RunController` — small enough to read in one sitting. Everything above it is
   swappable.
 
@@ -415,8 +428,9 @@ owned live browsers. See [automation](docs/subcommands/automation.md),
 [offline quality experiments](docs/subcommands/bench-experiments.md) and
 [cloud routing profiles](docs/subcommands/provider-cloud.md).
 
-`/goal` locks a verifiable contract and the eternal / parallel engines run until
-it's done, surfacing a live stage chip (`⟳ DECIDE` / `⚡ EXECUTE` / `◎ REFLECT`).
+`/goal` locks a verifiable contract and the eternal / parallel engines — two
+run modes that keep looping through plan → act → check — run until it's done,
+surfacing a live stage chip (`⟳ DECIDE` / `⚡ EXECUTE` / `◎ REFLECT`).
 The **Brain** governs risky decisions with deterministic rules, decision traces,
 quality gates, and circuit breaking.
 Its optional Jev System One tier handles bounded lower-risk choices; high-risk
@@ -450,10 +464,11 @@ TUI session admits workers or only read-only companions; choose it before work s
 
 ### Multi-agent fleet + Director
 
-A specialist roster and smart dispatcher fan out under a Director. Each subagent
-is isolated with its own budget and JSONL transcript, coordinated over a
-project-wide mailbox. See [Director architecture](docs/director-architecture.md)
-and [agents](docs/agents.md).
+A specialist roster and smart dispatcher fan out under a Director (the leader
+agent that splits your request into delegated tasks). Each subagent is isolated
+with its own budget and a JSONL transcript — an append-only, replayable log of
+everything it did — coordinated over a project-wide mailbox. See
+[Director architecture](docs/director-architecture.md) and [agents](docs/agents.md).
 
 ### Self-improving roster agents
 
@@ -545,7 +560,8 @@ Work is tracked with real, durable structure — not throwaway checklists:
 - **`todo`** — session-level step tracking for the task in flight.
 - **`plan`** — a persistent strategic roadmap that survives turns; promote items into todos or tasks.
 - **`task`** — structured, cross-session work items with types, priorities, and dependencies.
-- **`kanban`** — durable project boards with columns, task **chains**, dependencies, and assignment snapshots. One project IPC owner serializes the authoritative `.wrongstack/kanbans/_kanban.sqlite` state and broadcasts daemon events; clients do not open the database directly. The `@wrongstack/kanban` package provides the storage + lifecycle layer (claim, recover stale assignments, verify completion) with **lease fencing** and cost guardrails for safe multi-agent execution.
+- **`kanban`** — durable project boards with columns, task **chains**, dependencies, and assignment snapshots. One project IPC owner serializes the authoritative `.wrongstack/kanbans/_kanban.sqlite` state and broadcasts daemon events; clients do not open the database directly. The `@wrongstack/kanban` package provides the storage + lifecycle layer (claim, recover stale assignments, verify completion) with **lease fencing** (an old worker's lease cannot overwrite
+  a newer assignment) and cost guardrails for safe multi-agent execution.
 
 Managed cards follow an explicit `Backlog → Todo → Running → Review → Done`
 lifecycle, and **HQ** exposes a shared, project-scoped board that reconciles live
@@ -561,7 +577,9 @@ means the card enters **Review**, not Done.
 ### Spec-Driven Development (`/sdd`)
 
 Turn a spec into acceptance criteria, decompose into dependency-linked tasks,
-implement one at a time, and validate against the spec before closing.
+implement one at a time, and validate against the spec before closing — spec,
+tasks, and verification evidence stay linked in project-scoped SDD stores so
+progress is auditable at any point.
 
 ### Plugin ecosystem
 
@@ -737,7 +755,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- **v1.0.36** — current repository version; semver from 1.0.0 onward
+- **v1.0.37** — current repository version; semver from 1.0.0 onward
 - Full release verification: `bun run release:check` before publishing
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
 - Packages and apps use TypeScript strict + `noUncheckedIndexedAccess`

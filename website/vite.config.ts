@@ -231,8 +231,8 @@ function validateProductCatalog() {
   const websiteCommandCount = parseWebsiteCommands(
     fs.readFileSync(path.resolve(websiteRoot, 'src/data/content-commands.ts'), 'utf8'),
   ).length;
-  const utilsSource = fs.readFileSync(path.resolve(websiteRoot, 'src/lib/utils.ts'), 'utf8');
-  const skillsBlock = sourceSection(utilsSource, 'export const skills', '] as const;');
+  const skillsSource = fs.readFileSync(path.resolve(websiteRoot, 'src/data/skills.ts'), 'utf8');
+  const skillsBlock = sourceSection(skillsSource, 'export const skills = [', '] as const;');
   const runtimeSkillCount = captures(skillsBlock, /^\s*(?:\{\s*)?name:\s*'([^']+)'/gm).length;
   const runtimePluginCount = captures(
     sourceSection(runtimeCatalogSource, 'export const pluginCatalog'),
