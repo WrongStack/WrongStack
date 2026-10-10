@@ -41,11 +41,11 @@
     "data"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "pnpm --filter @wrongstack/tools run build && pnpm --filter @wrongstack/tui run build && pnpm --filter @wrongstack/webui-server run build && node ../../scripts/bun-typecheck.mjs --noEmit && node ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
-    "test": "vitest run",
-    "test:hqdash": "vitest run --config vitest.hqdash.config.ts",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun run --filter @wrongstack/tools build && bun run --filter @wrongstack/tui build && bun run --filter @wrongstack/webui-server build && bun ../../scripts/bun-typecheck.mjs --noEmit && bun ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
+    "test": "bun --bun run vitest run",
+    "test:hqdash": "bun --bun run vitest run --config vitest.hqdash.config.ts",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/acp": "workspace:*",
@@ -75,7 +75,7 @@
     "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
     "@wrongstack/wrongtrace": "workspace:*",
-    "ws": "^8.21.3"
+    "ws": "^8.22.0"
   },
   "optionalDependencies": {
     "@wrongstack/desktop": "workspace:*"

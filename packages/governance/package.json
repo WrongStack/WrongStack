@@ -27,10 +27,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit",
-    "test": "vitest run --root ../.. packages/governance/tests",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "test": "bun --bun run vitest run --root ../.. packages/governance/tests",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/persistence": "workspace:*"

@@ -31,10 +31,10 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit && node ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
-    "test": "echo \"Run @wrongstack/codebase-index-mcp tests from the workspace root: pnpm exec vitest run packages/codebase-index-mcp/tests\"",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit && bun ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
+    "test": "echo \"Run @wrongstack/codebase-index-mcp tests from the workspace root: bun --bun run vitest run packages/codebase-index-mcp/tests\"",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",

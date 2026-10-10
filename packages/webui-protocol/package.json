@@ -42,12 +42,12 @@
     "schema"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit",
-    "schema": "node ../../scripts/generate-protocol-schema.mjs",
-    "test": "vitest run",
-    "test:coverage": "node ../../scripts/coverage-lock.mjs node ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "schema": "bun ../../scripts/generate-protocol-schema.mjs",
+    "test": "bun --bun run vitest run",
+    "test:coverage": "bun ../../scripts/coverage-lock.mjs bun ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*"

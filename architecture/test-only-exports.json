@@ -1027,6 +1027,9 @@
     "packages/sage/src/middleware/path-remap.ts": [
       "replaceIdentifier"
     ],
+    "packages/sage/src/middleware/tool-call-memory-breaker.ts": [
+      "isStoreFault"
+    ],
     "packages/sage/src/middleware/tool-call-memory-retrieval.ts": [
       "pathAnchorRelation"
     ],

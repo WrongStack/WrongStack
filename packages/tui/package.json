@@ -26,14 +26,14 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "test": "vitest run --config vitest.config.ts",
-    "test:status-bar": "vitest run --config vitest.status-bar-sgr.config.ts",
-    "test:watch": "vitest --config vitest.config.ts",
-    "test:coverage": "vitest run --coverage --config vitest.config.ts",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit && node ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
-    "typecheck:tests": "node ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "build": "bun ../../scripts/build-package.mjs",
+    "test": "bun --bun run vitest run --config vitest.config.ts",
+    "test:status-bar": "bun --bun run vitest run --config vitest.status-bar-sgr.config.ts",
+    "test:watch": "bun --bun run vitest --config vitest.config.ts",
+    "test:coverage": "bun --bun run vitest run --coverage --config vitest.config.ts",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit && bun ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
+    "typecheck:tests": "bun ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",

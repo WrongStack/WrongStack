@@ -27,11 +27,11 @@
     "README.md"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit",
-    "test": "vitest run",
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "test": "bun --bun run vitest run",
     "test:integration": "WRONGSTACK_VECTOR_INTEGRATION=1 vitest run tests/integration.test.ts",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",

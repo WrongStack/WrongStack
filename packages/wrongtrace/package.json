@@ -27,10 +27,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs -p tsconfig.json --noEmit",
-    "test": "vitest run --config vitest.config.ts",
-    "test:watch": "vitest --config vitest.config.ts"
+    "build": "bun --bun run tsc -p tsconfig.json",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs -p tsconfig.json --noEmit",
+    "test": "bun --bun run vitest run --config vitest.config.ts",
+    "test:watch": "bun --bun run vitest --config vitest.config.ts"
   },
   "engines": {
     "node": ">=22.19.0"

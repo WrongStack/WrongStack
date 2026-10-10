@@ -4,11 +4,11 @@
   "version": "1.0.37",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "node ../scripts/bun-typecheck.mjs && vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "typecheck:tests": "node ../scripts/bun-typecheck.mjs --project tsconfig.tests.json",
+    "dev": "bun --bun run vite",
+    "build": "bun ../scripts/bun-typecheck.mjs && bun --bun run vite build",
+    "preview": "bun --bun run vite preview",
+    "test": "bun --bun run vitest run",
+    "typecheck:tests": "bun ../scripts/bun-typecheck.mjs --project tsconfig.tests.json",
     "format": "prettier --write ."
   },
   "dependencies": {

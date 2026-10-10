@@ -47,10 +47,10 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit",
-    "test": "vitest run --root ../.. packages/kanban/tests",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "test": "bun --bun run vitest run --root ../.. packages/kanban/tests",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/persistence": "workspace:*",

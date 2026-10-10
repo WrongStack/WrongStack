@@ -398,11 +398,11 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "test": "bun --bun run vitest run",
+    "test:watch": "bun --bun run vitest",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
@@ -414,6 +414,7 @@
     "@wrongstack/plugin-sdk": "workspace:*",
     "@wrongstack/primitives": "workspace:*",
     "@wrongstack/tools": "workspace:*",
+    "jsonc-parser": "^3.3.1",
     "yaml": "^2.9.1"
   },
   "publishConfig": {

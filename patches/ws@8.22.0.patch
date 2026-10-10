@@ -1,0 +1,28 @@
+diff --git a/node_modules/ws/.bun-tag-24dff0a81a750fea b/.bun-tag-24dff0a81a750fea
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/ws/native.d.mts b/native.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..3f05196d2f42a3aecfe38b8096ed47c2966185c5
+--- /dev/null
++++ b/native.d.mts
+@@ -0,0 +1 @@
++export { default, WebSocket, WebSocketServer, Receiver, Sender, createWebSocketStream } from 'ws';
+diff --git a/package.json b/package.json
+index 3dad931c4bbc5086b58c21b6503a6ae7adb455ff..abdaa73aa5ab7c520c5e33d16acba6e6bad8b25c 100644
+--- a/package.json
++++ b/package.json
+@@ -25,7 +25,12 @@
+       "import": "./wrapper.mjs",
+       "require": "./index.js"
+     },
+-    "./package.json": "./package.json"
++    "./package.json": "./package.json",
++    "./native": {
++      "types": "./native.d.mts",
++      "import": "./wrapper.mjs",
++      "require": "./index.js"
++    }
+   },
+   "browser": "browser.js",
+   "engines": {

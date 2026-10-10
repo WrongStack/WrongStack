@@ -51,12 +51,12 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit",
-    "typecheck:tests": "node ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "test": "vitest run",
-    "smoke": "pnpm build && node --experimental-strip-types ../../scripts/acp-smoke-test.mts"
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "typecheck:tests": "bun ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "test": "bun --bun run vitest run",
+    "smoke": "bun run build && bun ../../scripts/acp-smoke-test.mts"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^1.4.0",

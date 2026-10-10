@@ -33,15 +33,15 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "node ../../scripts/build.mjs --target @wrongstack/webui --skip-if-workspace-build && node ../../scripts/build-package.mjs && vite build",
-    "dev": "pnpm run build && electron .",
+    "build": "bun ../../scripts/build.mjs --target @wrongstack/webui --skip-if-workspace-build && bun ../../scripts/build-package.mjs && bun --bun run vite build",
+    "dev": "bun run build && electron .",
     "start": "electron .",
-    "test": "vitest run --config vitest.config.ts",
-    "test:coverage": "node ../../scripts/coverage-lock.mjs node ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs --noEmit",
-    "package": "node ../../scripts/package-desktop.mjs",
-    "package:dir": "node ../../scripts/package-desktop.mjs --dir",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "test": "bun --bun run vitest run --config vitest.config.ts",
+    "test:coverage": "bun ../../scripts/coverage-lock.mjs bun ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "package": "bun ../../scripts/package-desktop.mjs",
+    "package:dir": "bun ../../scripts/package-desktop.mjs --dir",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",

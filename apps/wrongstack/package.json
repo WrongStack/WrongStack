@@ -28,9 +28,9 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "node ../../scripts/bun-typecheck.mjs -p tsconfig.tests.json",
-    "test": "vitest run"
+    "build": "bun --bun run tsc -p tsconfig.build.json",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs -p tsconfig.tests.json",
+    "test": "bun --bun run vitest run"
   },
   "dependencies": {
     "@wrongstack/cli": "workspace:*"
