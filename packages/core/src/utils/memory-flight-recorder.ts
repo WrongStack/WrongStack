@@ -5,6 +5,7 @@ import {
   type MemoryProfileArtifact,
   startContinuousMemoryProfiler,
 } from './continuous-memory-profiler.js';
+import { toErrorMessage } from './error.js';
 import type { HeapDiagnosticFields, HeapSample } from './heap-watchdog-types.js';
 import { wstackGlobalRoot } from './wstack-paths.js';
 
@@ -94,6 +95,7 @@ async function pruneCaptureFiles(artifactDir: string): Promise<void> {
         fsp.rm(path.join(artifactDir, eventName), { force: true }),
         fsp.rm(path.join(artifactDir, `allocations-${stem}.heapprofile`), { force: true }),
         fsp.rm(path.join(artifactDir, `allocations-${stem}.pb.gz`), { force: true }),
+        fsp.rm(path.join(artifactDir, `allocations-${stem}.heapstats.json`), { force: true }),
       ];
     }),
   );
@@ -146,7 +148,7 @@ class ContinuousMemoryCaptureWriter implements MemoryCaptureWriter {
     this.root = root;
     this.artifactDir = path.join(root, `${timestampSlug()}-pid-${process.pid}`);
     this.ready = this.start().catch((error) => {
-      this.startError = error instanceof Error ? error.message : String(error);
+      this.startError = toErrorMessage(error);
       this.profilerBackend = 'unavailable';
     });
   }
@@ -194,7 +196,7 @@ class ContinuousMemoryCaptureWriter implements MemoryCaptureWriter {
           };
         }
       } catch (error) {
-        captureError = error instanceof Error ? error.message : String(error);
+        captureError = toErrorMessage(error);
       }
     }
 

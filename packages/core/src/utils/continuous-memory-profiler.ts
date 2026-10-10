@@ -1,4 +1,5 @@
 import { Session } from 'node:inspector/promises';
+import { toErrorMessage } from './error.js';
 
 const DEFAULT_SAMPLE_INTERVAL_BYTES = 512 * 1024;
 const DEFAULT_STACK_DEPTH = 64;
@@ -39,9 +40,9 @@ export interface MemoryAllocationSummary {
 }
 
 export interface MemoryProfileArtifact {
-  backend: 'datadog-pprof' | 'node-inspector';
+  backend: 'datadog-pprof' | 'node-inspector' | 'bun-jsc';
   data: Buffer | string;
-  extension: '.heapprofile' | '.pb.gz';
+  extension: '.heapprofile' | '.pb.gz' | '.heapstats.json';
   summary?: MemoryAllocationSummary | undefined;
 }
 
@@ -63,10 +64,6 @@ interface DatadogPprofModule {
     start(intervalBytes: number, stackDepth: number): void;
     stop(): void;
   };
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function numeric(value: Numeric | undefined): number {
@@ -205,10 +202,33 @@ async function startInspectorProfiler(): Promise<ContinuousMemoryProfiler> {
  * Node's built-in Inspector sampling remains a functional fallback.
  */
 export async function startContinuousMemoryProfiler(): Promise<ContinuousMemoryProfilerStart> {
+  if (process.versions.bun) {
+    const moduleName = 'bun:jsc';
+    const { heapStats } = (await import(moduleName)) as { heapStats(): unknown };
+    let stopped = false;
+    return {
+      fallbackReason:
+        'JavaScriptCore heap statistics; allocation stack sampling is not available through this backend.',
+      profiler: {
+        backend: 'bun-jsc',
+        capture: async () => {
+          if (stopped) throw new Error('Continuous memory profiler is stopped');
+          return {
+            backend: 'bun-jsc',
+            extension: '.heapstats.json',
+            data: JSON.stringify({ kind: 'heap-statistics', statistics: heapStats() }),
+          };
+        },
+        stop: async () => {
+          stopped = true;
+        },
+      },
+    };
+  }
   try {
     return { profiler: await startDatadogProfiler() };
   } catch (error) {
-    const fallbackReason = errorMessage(error);
+    const fallbackReason = toErrorMessage(error);
     return {
       profiler: await startInspectorProfiler(),
       fallbackReason,

@@ -2,6 +2,7 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as profilerModule from '../../src/utils/continuous-memory-profiler.js';
 import type { HeapSample } from '../../src/utils/heap-watchdog.js';
 import {
   createMemoryFlightRecorder,
@@ -31,6 +32,43 @@ afterEach(async () => {
 });
 
 describe('memory flight recorder', () => {
+  it.each(['startup', 'capture'] as const)(
+    'redacts credentials from %s failures in saved evidence',
+    async (stage) => {
+      const diagnosticsRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'wrongstack-flight-error-'));
+      tempDirs.push(diagnosticsRoot);
+      const credential = 'sk-' + 'x'.repeat(48);
+      const failure = new Error(`Profiler failed with ${credential}`);
+      const start = vi.spyOn(profilerModule, 'startContinuousMemoryProfiler');
+      if (stage === 'startup') start.mockRejectedValue(failure);
+      else
+        start.mockResolvedValue({
+          profiler: {
+            backend: 'bun-jsc',
+            capture: vi.fn().mockRejectedValue(failure),
+            stop: vi.fn().mockResolvedValue(undefined),
+          },
+        });
+      const recorder = createMemoryFlightRecorder({
+        enabled: true,
+        diagnosticsRoot,
+        warmupMs: 0,
+        absoluteHeapBytes: 1,
+      });
+      recorder.observe(sample(), {});
+      await recorder.stop();
+      const eventName = (await fsp.readdir(recorder.artifactDir)).find(
+        (file) => file.startsWith('event-') && file.endsWith('.json'),
+      );
+      expect(eventName).toBeDefined();
+      const event = JSON.parse(
+        await fsp.readFile(path.join(recorder.artifactDir, eventName!), 'utf8'),
+      );
+      expect(event.captureError).toContain('Profiler failed with');
+      expect(event.captureError).not.toContain(credential);
+    },
+  );
+
   it('classifies sustained JS growth and captures automatically after warmup', async () => {
     let now = 0;
     const captures: MemoryCaptureEvent[] = [];
@@ -81,16 +119,31 @@ describe('memory flight recorder', () => {
 
     const files = await fsp.readdir(recorder.artifactDir);
     expect(diagnosis['memoryCaptureReason']).toBe('absolute-heap');
-    expect(files.some((file) => file.endsWith('.pb.gz') || file.endsWith('.heapprofile'))).toBe(
-      true,
-    );
+    expect(
+      files.some(
+        (file) =>
+          file.endsWith('.pb.gz') ||
+          file.endsWith('.heapprofile') ||
+          file.endsWith('.heapstats.json'),
+      ),
+    ).toBe(true);
     expect(files.some((file) => file.startsWith('event-') && file.endsWith('.json'))).toBe(true);
 
     const eventName = files.find((file) => file.startsWith('event-') && file.endsWith('.json'));
     const event = JSON.parse(
       await fsp.readFile(path.join(recorder.artifactDir, eventName ?? ''), 'utf8'),
     ) as Record<string, unknown>;
-    expect(event['profilerBackend']).toMatch(/^(datadog-pprof|node-inspector)$/u);
+    if (process.versions.bun) {
+      expect(event['profilerBackend']).toBe('bun-jsc');
+      const profileFile = files.find((file) => file.endsWith('.heapstats.json'));
+      expect(profileFile).toBeDefined();
+      const profile = JSON.parse(
+        await fsp.readFile(path.join(recorder.artifactDir, profileFile!), 'utf8'),
+      );
+      expect(profile.kind).toBe('heap-statistics');
+      expect(profile.statistics.heapSize).toBeGreaterThan(0);
+      expect(profile.statistics.objectCount).toBeGreaterThan(0);
+    } else expect(event['profilerBackend']).toMatch(/^(datadog-pprof|node-inspector)$/u);
   });
 
   it('keeps rolling profiles even before a leak threshold is crossed', async () => {
