@@ -2,16 +2,16 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parse, parseAllDocuments } from 'yaml';
+import { parse } from 'yaml';
+import { readBunLock } from '../../../../scripts/lib/read-bun-lock.mjs';
 
 const root = path.resolve(import.meta.dirname, '../../../..');
 
 describe('dependency advisory guards', () => {
   it('retains patched source-map-js and removes the sprintf-js chain without audit exemptions', async () => {
     const workspace = parse(await readFile(path.join(root, 'pnpm-workspace.yaml'), 'utf8'));
-    const documents = parseAllDocuments(await readFile(path.join(root, 'pnpm-lock.yaml'), 'utf8'));
-    const packageNames = documents.flatMap((document) =>
-      Object.keys(document.toJSON().packages ?? {}),
+    const packageNames = Object.values(readBunLock(path.join(root, 'bun.lock')).packages).map(
+      (pkg) => pkg[0],
     );
     const versions = packageNames.filter((name) => name.startsWith('source-map-js@'));
     expect(versions.length).toBeGreaterThan(0);
@@ -30,7 +30,9 @@ describe('dependency advisory guards', () => {
 
   it('checks the installed downstream resolutions using metadata only', async () => {
     const desktop = createRequire(path.join(root, 'apps/desktop/package.json'));
-    const builder = desktop.resolve('app-builder-lib/package.json');
+    const builder = createRequire(desktop.resolve('electron-builder/package.json')).resolve(
+      'app-builder-lib/package.json',
+    );
     const get = createRequire(builder).resolve('@electron/get/package.json');
     const agent = createRequire(get).resolve('global-agent/package.json');
     const metadata = JSON.parse(await readFile(agent, 'utf8'));

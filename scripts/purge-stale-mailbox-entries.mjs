@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * One-shot purge of stale mailbox client and agent registry entries.
  *

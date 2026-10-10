@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Controlled retained-heap benchmark for the production Ink history renderer.
  *

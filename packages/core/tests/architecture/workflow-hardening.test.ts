@@ -232,7 +232,8 @@ describe('release scripts (WS-040)', () => {
   it('allows it only on the CI path, where a tag checkout is a detached HEAD', () => {
     // Here the check cannot pass by construction, and what it guarded is
     // replaced more strictly by the workflow's verify job.
-    expect(scripts()['release:ci']).toContain('--no-git-checks');
+    expect(scripts()['release:ci']).not.toContain('--no-git-checks');
+    expect(read('release.yml')).toContain('--tarballs-dir release-tarballs');
   });
 
   it('runs the full gate before a local publish', () => {
@@ -248,7 +249,7 @@ describe('release scripts (WS-040)', () => {
     // wires the read-only variant — never the sync/--write maintenance one.
     expect(releaseCheck).toContain('release-check-matrix');
     const runner = readFileSync(join(repoRoot, 'scripts', 'release-check-matrix.mjs'), 'utf8');
-    expect(runner).toContain("'pnpm check:architecture'");
+    expect(runner).toContain("'bun run check:architecture'");
     expect(runner).not.toContain('check:architecture:sync');
     expect(architectureCheck).toBeDefined();
     expect(architectureCheck).not.toContain('--write');
@@ -257,14 +258,14 @@ describe('release scripts (WS-040)', () => {
 
   it('refreshes Core API evidence before committing staged source changes', () => {
     const hook = readFileSync(join(repoRoot, '.githooks', 'pre-commit'), 'utf8');
-    expect(hook).toContain('node scripts/sync-core-public-api-snapshot.mjs');
+    expect(hook).toContain('bun scripts/sync-core-public-api-snapshot.mjs');
   });
 
   it('does not gate git push; ci:local stays an explicit command', () => {
     // Pre-push gating was removed (2026-08): pushes are not gated locally.
     // The same matrix stays available on demand via `pnpm ci:local`.
     expect(existsSync(join(repoRoot, '.githooks', 'pre-push'))).toBe(false);
-    expect(scripts()['ci:local']).toBe('node scripts/release-check-matrix.mjs --profile local');
+    expect(scripts()['ci:local']).toBe('bun scripts/release-check-matrix.mjs --profile local');
   });
 
   it('keeps coverage and e2e out of the laptop local profile', () => {
@@ -302,11 +303,11 @@ describe('website CI and Pages verification', () => {
   it('runs website compilation and tests in their existing CI jobs after workspace install', () => {
     const ci = withoutComments(read('ci.yml'));
     for (const [job, command] of [
-      ['typecheck', 'pnpm --filter wrongstack-website typecheck:tests'],
-      ['test', 'pnpm --filter wrongstack-website test'],
+      ['typecheck', 'bun run --filter wrongstack-website typecheck:tests'],
+      ['test', 'bun run --filter wrongstack-website test'],
     ] as const) {
       const block = jobBlock(ci, job);
-      const install = block.indexOf('run: pnpm install --frozen-lockfile --ignore-scripts');
+      const install = block.indexOf('run: bun install --frozen-lockfile --ignore-scripts');
       const check = block.indexOf(`run: ${command}`);
       expect(install).toBeGreaterThan(-1);
       expect(check).toBeGreaterThan(install);
@@ -318,11 +319,11 @@ describe('website CI and Pages verification', () => {
     expect(verify).toMatch(/^ {4}permissions:\n {6}contents: read$/m);
     expect(verify).not.toMatch(/(?:contents|pages|id-token):\s*write/);
     expect(verify).not.toMatch(/continue-on-error:|^ {4}if:/m);
-    expect(verify).toContain('cache: pnpm');
-    const install = verify.indexOf('run: pnpm install --frozen-lockfile --ignore-scripts');
-    const rebuild = verify.indexOf('run: pnpm rebuild ');
-    const typecheck = verify.indexOf('run: pnpm --filter wrongstack-website typecheck:tests');
-    const tests = verify.indexOf('run: pnpm --filter wrongstack-website test');
+    expect(verify).toContain('oven-sh/setup-bun@');
+    const install = verify.indexOf('run: bun install --frozen-lockfile --ignore-scripts');
+    const rebuild = verify.indexOf('run: bun run setup:native');
+    const typecheck = verify.indexOf('run: bun run --filter wrongstack-website typecheck:tests');
+    const tests = verify.indexOf('run: bun run --filter wrongstack-website test');
     expect(install).toBeGreaterThan(-1);
     expect(rebuild).toBeGreaterThan(install);
     expect(typecheck).toBeGreaterThan(rebuild);
@@ -346,12 +347,16 @@ describe('website CI and Pages verification', () => {
     const build = jobBlock(pages, 'build');
     expect(build).toMatch(/^ {4}permissions:\n {6}contents: read$/m);
     expect(build).not.toMatch(/(?:pages|id-token):\s*write/);
-    expect(build).toContain('cache-dependency-path: website/package-lock.json');
-    expect(build).toMatch(/working-directory: website\n\s+run: npm ci --ignore-scripts/);
-    expect(build).toMatch(/working-directory: website\n\s+run: npm audit --audit-level=moderate/);
-    expect(build).toMatch(/working-directory: website\n\s+run: npm run build/);
+    expect(build).toContain('oven-sh/setup-bun@');
+    expect(build).toMatch(
+      /working-directory: website\n\s+run: bun install --frozen-lockfile --ignore-scripts/,
+    );
+    expect(build).toMatch(
+      /working-directory: website\n\s+run: bun \.\.\/scripts\/audit-dependencies\.mjs --audit-level=moderate/,
+    );
+    expect(build).toMatch(/working-directory: website\n\s+run: bun run build/);
     expect(build).toContain('path: website/dist');
-    expect(build).not.toContain('pnpm install');
+    expect(build).not.toContain('npm ci');
     expect(pages).toMatch(/^permissions:\n {2}contents: read$/m);
     expect(pages).toContain('cancel-in-progress: false');
   });

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * List the workspace packages `pnpm publish -r` would publish.
  *

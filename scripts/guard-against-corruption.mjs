@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { execSync, execFileSync } from 'node:child_process';
 const MAX_FILES = Number.parseInt(process.env.GUARD_MAX_FILES ?? '', 10) || 500;
 const FORCE_FLAG = process.argv.includes('--force');

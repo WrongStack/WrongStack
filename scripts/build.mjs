@@ -1,19 +1,7 @@
-#!/usr/bin/env node
-/**
- * Workspace build runner — bypasses `pnpm -r build` to work around
- * pnpm 11's `; echo "EXIT=$?"` wrapper, which cmd.exe (the default
- * script-shell on Windows) does not understand as a separator. The
- * wrapper is passed as literal args to package build commands, which then
- * fail. pnpm 11.5.2 + cmd.exe has no clean
- * `script-shell` setting, so we run each workspace package's `build`
- * script directly via cmd.exe here. cmd.exe handles `&&` correctly,
- * so chained scripts like `vite build && node build-package.mjs` keep working.
- *
- * Workspace layout is mirrored from pnpm-workspace.yaml (packages/*
- * apps/* and website). Update both together if packages move.
- */
+#!/usr/bin/env bun
+/** Build workspace packages in dependency order using Bun package scripts. */
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -156,21 +144,9 @@ function selectBuildSet(ordered, targets) {
 }
 
 function runBuild(pkgDir, script, envOverrides) {
-  // Cross-platform: cmd.exe on Windows (ComSpec), POSIX sh elsewhere.
-  // pnpm 11.5.2 + cmd.exe strips the script-shell config that lets `npm
-  // run`-style `; echo "EXIT=$?"` wrappers work, so on Windows we still
-  // shell out to cmd.exe /c which handles `&&` chained scripts correctly
-  // (e.g. `vite build && node build-package.mjs`). On macOS/Linux we use the user's $SHELL
-  // (or /bin/sh fallback) with `-c`.
   const isWin = process.platform === 'win32';
-  const shell = isWin ? process.env.ComSpec || 'cmd.exe' : process.env.SHELL || '/bin/sh';
-  const shellArgs = isWin ? ['/c', script] : ['-c', script];
   console.log(`\n> ${pkgDir} > ${script}`);
-  // node_modules/.bin must be on PATH so tsc, vite, etc. resolve when
-  // spawned via cmd.exe (or sh) — the Node process inherits npm's path
-  // resolution but the spawned shell does not. Prefer the package-local bin:
-  // pnpm places workspace dependency symlinks under each package; prefer those
-  // so package-local tool versions resolve before the root shim.
+  // Preserve package-local tools before root tools on PATH.
   const rootBin = join(root, 'node_modules', '.bin');
   const pkgBin = join(root, pkgDir, 'node_modules', '.bin');
   const pathSep = isWin ? ';' : ':';
@@ -183,7 +159,7 @@ function runBuild(pkgDir, script, envOverrides) {
     NODE_OPTIONS: '--max-old-space-size=4096',
     WRONGSTACK_WORKSPACE_BUILD: '1',
   };
-  const result = spawnSync(shell, shellArgs, {
+  const result = spawnSync(process.execPath, ['run', 'build'], {
     cwd: join(root, pkgDir),
     stdio: 'inherit',
     env,

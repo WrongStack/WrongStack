@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Pre-commit guard: every relative import in a staged TypeScript file must
  * resolve to a file that will exist in the commit (i.e. is in the git index).

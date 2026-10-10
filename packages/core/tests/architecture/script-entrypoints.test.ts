@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { transformSync } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = resolve(import.meta.dirname, '../../../..');
@@ -63,13 +65,14 @@ const executableScripts = [
 
 describe('executable script inventory', () => {
   it.each(executableScripts)('%s has valid module syntax', (relativePath) => {
-    const result = spawnSync(process.execPath, ['--check', resolve(repoRoot, relativePath)], {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      timeout: 10_000,
-    });
-    expect(result.error).toBeUndefined();
-    expect(result.status, `${relativePath}\n${result.stderr}`).toBe(0);
+    // Bun --check typechecks AND executes the entrypoint. Syntax validation
+    // must never execute release/install/cleanup scripts.
+    expect(() =>
+      transformSync(readFileSync(resolve(repoRoot, relativePath), 'utf8'), {
+        loader: relativePath.endsWith('.mts') ? 'ts' : 'js',
+        format: 'esm',
+      }),
+    ).not.toThrow();
   });
 
   it.each([

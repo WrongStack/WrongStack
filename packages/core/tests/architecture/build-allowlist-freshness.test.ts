@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readBunLock } from '../../../../scripts/lib/read-bun-lock.mjs';
 
 /**
  * WS-072 / DEP-005 — `allowBuilds` and `onlyBuiltDependencies` must not
@@ -24,7 +25,10 @@ import { describe, expect, it } from 'vitest';
  */
 const repoRoot = resolve(import.meta.dirname, '../../../..');
 const workspaceYaml = readFileSync(resolve(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
-const lockfile = readFileSync(resolve(repoRoot, 'pnpm-lock.yaml'), 'utf8');
+const bunLock = readBunLock(resolve(repoRoot, 'bun.lock'));
+const lockfile = Object.values(bunLock.packages)
+  .map((pkg) => pkg[0])
+  .join('\n');
 
 /** Strip YAML quoting from a scalar. */
 function unquote(value: string): string {
@@ -84,7 +88,7 @@ function resolveInstalledPackage(name: string): string | null {
   const direct = resolve(repoRoot, 'node_modules', name, 'package.json');
   if (existsSync(direct)) return direct;
 
-  const store = resolve(repoRoot, 'node_modules', '.pnpm');
+  const store = resolve(repoRoot, 'node_modules', '.bun');
   if (!existsSync(store)) return null;
   const prefix = `${name.replace('/', '+')}@`;
   for (const entry of readdirSync(store)) {
@@ -229,6 +233,16 @@ describe('build-allowlist freshness across workflows (VF-31)', () => {
     lines.forEach((line, i) => {
       const trimmed = line.trimStart();
       if (trimmed.startsWith('#') || trimmed.startsWith('//')) return;
+      if (line.includes('bun run setup:native')) {
+        const helper = readFileSync(
+          resolve(repoRoot, 'scripts/rebuild-reviewed-native.mjs'),
+          'utf8',
+        );
+        const names = [...helper.matchAll(/\['([^']+)', '\.\.\//g)].map((match) => match[1]!);
+        expect(names.length).toBeGreaterThan(0);
+        lists.push({ where: `${relPath}:${i + 1}`, pkgs: new Set(names) });
+        return;
+      }
       const m = line.match(/pnpm rebuild\s+([^\n#]+)/);
       if (!m?.[1]) return;
       lists.push({ where: `${relPath}:${i + 1}`, pkgs: new Set(m[1].trim().split(/\s+/)) });
@@ -294,7 +308,7 @@ describe('cooldown exclusions stay in sync with the tree (WS-SEC-17)', () => {
    */
   function lockfileVersions(name: string): string[] {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(`^  '?${escaped}@([^:']+)'?:`, 'gm');
+    const re = new RegExp(`^${escaped}@([^\\n]+)$`, 'gm');
     const out = new Set<string>();
     for (const m of lockfile.matchAll(re)) {
       // Strip pnpm's peer-suffix: `4.0.62(zod@4.4.3)` is still 4.0.62.

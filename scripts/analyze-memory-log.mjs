@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { createReadStream } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { homedir } from 'node:os';

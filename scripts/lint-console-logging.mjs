@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Guards against ad-hoc console.warn/console.error string literals.
  *

@@ -36,6 +36,25 @@ const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies', 'peerDependen
  * @returns {string[]} absolute workspace member directory paths
  */
 export function workspaceMemberDirs(root = repoRoot) {
+  const rootManifest = join(root, 'package.json');
+  if (existsSync(rootManifest)) {
+    const workspaces = JSON.parse(readFileSync(rootManifest, 'utf8')).workspaces;
+    if (Array.isArray(workspaces)) {
+      return workspaces.flatMap((glob) => {
+        if (glob.endsWith('/*')) {
+          const base = join(root, glob.slice(0, -2));
+          if (!existsSync(base)) return [];
+          return readdirSync(base, { withFileTypes: true })
+            .filter(
+              (entry) => entry.isDirectory() && existsSync(join(base, entry.name, 'package.json')),
+            )
+            .map((entry) => join(base, entry.name));
+        }
+        return existsSync(join(root, glob, 'package.json')) ? [join(root, glob)] : [];
+      });
+    }
+  }
+  // Backwards compatibility for older fixture/release trees.
   const text = readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8');
   /** @type {string[]} */
   const dirs = [];

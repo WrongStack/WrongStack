@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Defensive preload for Vitest coverage on long Windows monorepo runs.
  *

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Smoke-test a standalone executable from scripts/build-binaries.mjs on the
  * machine it was built for. Runs in an isolated WRONGSTACK_HOME and a scratch

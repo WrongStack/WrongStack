@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { execFile } from 'node:child_process';
 import path from 'node:path';

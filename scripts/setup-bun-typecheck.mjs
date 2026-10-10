@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { fileURLToPath } from 'node:url';
 import { ensureBunTypechecker } from '../packages/tools/src/_bun-typechecker.ts';
 

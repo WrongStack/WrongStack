@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Brain workload report — which real decisions actually cost a model call?
  *

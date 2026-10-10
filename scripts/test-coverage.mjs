@@ -54,7 +54,7 @@ export function resolvePnpmInvocation(pnpmCli, execPath = process.execPath) {
 }
 
 export function runCoverage(options = {}) {
-  const pnpmCli = options.pnpmCli ?? process.env.npm_execpath;
+  const pnpmCli = options.pnpmCli ?? process.execPath;
   const runs = options.runs ?? COVERAGE_RUNS;
   const spawnPnpm = options.spawnPnpm ?? spawnSync;
   const execPath = options.execPath ?? process.execPath;
@@ -66,7 +66,9 @@ export function runCoverage(options = {}) {
     throw new Error('test:coverage must be started through pnpm');
   }
 
-  const pnpm = resolvePnpmInvocation(pnpmCli, execPath);
+  const pnpm = options.pnpmCli
+    ? resolvePnpmInvocation(pnpmCli, execPath)
+    : { command: process.execPath, args: ['run'] };
 
   let failed = false;
   const transientRetryArgs =
@@ -82,7 +84,13 @@ export function runCoverage(options = {}) {
 
   for (const run of runs) {
     log(`\n=== Coverage: ${run.label} ===\n`);
-    const args = run.vitest ? [...run.args, ...transientRetryArgs] : run.args;
+    const runArgs =
+      !options.pnpmCli && run.args[0] === '--filter'
+        ? ['--filter', run.args[1], ...run.args.slice(2)]
+        : run.args;
+    const args = run.vitest
+      ? [...runArgs, ...transientRetryArgs.filter((arg) => options.pnpmCli || arg !== '--')]
+      : runArgs;
     const result = spawnPnpm(pnpm.command, [...pnpm.args, ...args], {
       cwd,
       env,

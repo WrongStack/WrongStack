@@ -115,7 +115,9 @@ function releaseInputFingerprint() {
     .filter(Boolean)
     .filter((file) => !file.startsWith('.reports/') && !file.startsWith('coverage/'))
     .sort();
-  const hash = createHash('sha256').update(`node:${process.version}\n`);
+  const hash = createHash('sha256').update(
+    `runtime:${process.versions.bun ? `bun:${process.versions.bun}` : `node:${process.version}`}\n`,
+  );
   for (const file of files) {
     hash.update(`${file}\0`);
     try {
@@ -194,107 +196,111 @@ function failureDiagnosticLines(lines) {
  * guaranteed failure.
  */
 const GATES = [
-  { id: 'audit', label: 'Dependency audit', cmd: 'pnpm audit --audit-level=moderate' },
+  {
+    id: 'audit',
+    label: 'Dependency audit',
+    cmd: 'bun scripts/audit-dependencies.mjs --audit-level=moderate',
+  },
   {
     id: 'build',
     label: 'Production build (esbuild + tsc declarations)',
-    cmd: 'pnpm build',
+    cmd: 'bun run build',
   },
   {
     id: 'tools-package-smoke',
     label: '@wrongstack/tools extracted-package WASM smoke',
-    cmd: 'node scripts/check-tools-package-smoke.mjs',
+    cmd: 'bun scripts/check-tools-package-smoke.mjs',
     prereq: 'build',
   },
   {
     id: 'dist-hidden',
     label: 'No hidden files in published trees',
-    cmd: 'pnpm check:dist-hidden',
+    cmd: 'bun run check:dist-hidden',
     prereq: 'build',
   },
   {
     id: 'providers-catalog',
     label: 'Provider catalog snapshot',
-    cmd: 'pnpm providers:catalog:check',
+    cmd: 'bun run providers:catalog:check',
     prereq: 'build',
   },
   {
     id: 'website-tool-catalog',
     label: 'Website tool catalog and detail projections',
-    cmd: 'pnpm website:tools:check',
+    cmd: 'bun run website:tools:check',
     prereq: 'build',
   },
   {
     id: 'plugin-manifests',
     label: 'Plugin projection snapshots',
-    cmd: 'pnpm plugins:manifest:check',
+    cmd: 'bun run plugins:manifest:check',
     prereq: 'build',
   },
   {
     id: 'package-contracts',
     label: 'Publishable package contracts',
-    cmd: 'node scripts/check-package-contracts.mjs',
+    cmd: 'bun scripts/check-package-contracts.mjs',
     prereq: 'build',
   },
   {
     id: 'npm-package-install',
     label: 'Packed providers install with npm 10.9.8',
-    cmd: 'node scripts/check-npm-package-install.mjs',
+    cmd: 'bun scripts/check-npm-package-install.mjs',
     prereq: 'build',
   },
   {
     id: 'build-manifest-write',
     label: 'Write build lineage manifest',
-    cmd: 'pnpm write:build-manifest',
+    cmd: 'bun run write:build-manifest',
     prereq: 'build',
   },
   {
     id: 'build-manifest-verify',
     label: 'Verify build lineage manifest',
-    cmd: 'pnpm check:build-manifest',
+    cmd: 'bun run check:build-manifest',
     prereq: 'build-manifest-write',
   },
   {
     id: 'architecture',
     label: 'Architecture health + freshness gate',
-    cmd: 'pnpm check:architecture',
+    cmd: 'bun run check:architecture',
     prereq: 'build',
   },
   {
     id: 'test-inventory',
     label: 'Runtime test inventory',
-    cmd: 'pnpm check:test-inventory',
+    cmd: 'bun run check:test-inventory',
     prereq: 'build',
   },
   {
     id: 'test-skips',
     label: 'Test skip budget',
-    cmd: 'pnpm check:test-skips',
+    cmd: 'bun run check:test-skips',
     prereq: 'build',
   },
   {
     id: 'node-pty',
     label: 'Windows node-pty install',
-    cmd: 'pnpm check:node-pty',
+    cmd: 'bun run check:node-pty',
   },
-  { id: 'rulebook', label: 'TechStack rulebook schema', cmd: 'pnpm check:rulebook' },
-  { id: 'i18n', label: 'i18n completeness', cmd: 'pnpm lint:i18n' },
+  { id: 'rulebook', label: 'TechStack rulebook schema', cmd: 'bun run check:rulebook' },
+  { id: 'i18n', label: 'i18n completeness', cmd: 'bun run lint:i18n' },
   {
     id: 'typecheck',
     label: 'Workspace typecheck',
-    cmd: 'pnpm typecheck:only',
+    cmd: 'bun run typecheck:only',
     prereq: 'build',
   },
   {
     id: 'test-types',
     label: 'Test-type ratchet',
-    cmd: 'pnpm check:test-types',
+    cmd: 'bun run check:test-types',
     prereq: 'typecheck',
   },
   {
     id: 'coverage',
     label: 'Coverage ratchets (root + scripts)',
-    cmd: 'pnpm test:coverage',
+    cmd: 'bun run test:coverage',
     prereq: 'build',
   },
 ];
@@ -305,23 +311,23 @@ const GATES = [
  * adding a bare `pnpm test` to `release` would double the wall time.
  */
 const LOCAL_ONLY_GATES = [
-  { id: 'lint', label: 'Biome lint', cmd: 'pnpm lint' },
+  { id: 'lint', label: 'Biome lint', cmd: 'bun run lint' },
   {
     id: 'test',
     label: 'Vitest + WebUI tests',
-    cmd: 'pnpm test:affected',
+    cmd: 'bun run test:affected',
     prereq: 'build',
   },
   {
     id: 'hqdash',
     label: 'HQ dashboard tests',
-    cmd: 'pnpm --filter @wrongstack/cli test:hqdash',
+    cmd: 'bun run --filter @wrongstack/cli test:hqdash',
     prereq: 'build',
   },
   {
     id: 'status-bar',
     label: 'TUI status-bar overflow',
-    cmd: 'pnpm --filter @wrongstack/tui test:status-bar',
+    cmd: 'bun run --filter @wrongstack/tui test:status-bar',
     prereq: 'build',
   },
 ];

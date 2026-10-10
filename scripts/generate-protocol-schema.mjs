@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Generate the machine-readable contract of the public API from the
  * TypeScript types in packages/webui-protocol:

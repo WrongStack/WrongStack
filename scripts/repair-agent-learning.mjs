@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * One-shot repair for `.wrongstack/agents/<role>/learned.md` buffers written by
  * the pre-fix renderer.

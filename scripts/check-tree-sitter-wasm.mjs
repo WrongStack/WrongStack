@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Tree-sitter grammar integrity gate (security report Phase 4, item 20 /
 // VF-30). The vendored grammar set under
 // `packages/tools/src/codebase-index/wasm/` (13 grammars + the

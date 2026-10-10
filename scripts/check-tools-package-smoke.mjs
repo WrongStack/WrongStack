@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Verify that the packed @wrongstack/tools artifact contains and can load its
  * vendored Tree-sitter WASM grammars. The build gate runs first, so this check
@@ -44,7 +44,7 @@ async function main() {
   mkdirSync(installedTools, { recursive: true });
 
   try {
-    run('pnpm', ['--filter', '@wrongstack/tools', 'pack', '--pack-destination', packDir]);
+    run(process.execPath, ['pm', 'pack', '--destination', packDir], path.join(repoRoot, 'packages', 'tools'));
     const tarball = readdirSync(packDir).find((entry) => entry.endsWith('.tgz'));
     if (!tarball) throw new Error('Tools package packing produced no .tgz artifact.');
 

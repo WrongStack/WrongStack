@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Fail if `docs/feature-matrix.md` has drifted from the plugin sources.
  *

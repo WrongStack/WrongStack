@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Fail if any dependency spec in the workspace contains a Windows path
  * separator (`\`).

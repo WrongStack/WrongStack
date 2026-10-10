@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { bunTypecheckInvocation } from '../packages/tools/src/_bun-typechecker.ts';

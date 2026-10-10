@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Run only the test files that something under them changed.
  *
@@ -189,10 +189,8 @@ const args = [
 ];
 // String form via a shell resolves the `vitest` bin the same way a package.json
 // script line would, on both Windows and POSIX.
-const command = `npx ${args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}`;
-const child = spawn(command, {
+const child = spawn(process.execPath, ['--bun', 'run', ...args], {
   stdio: 'inherit',
-  shell: true,
   cwd: REPO_ROOT,
   env: { ...process.env, WRONGSTACK_AFFECTED_SALT: salt },
 });

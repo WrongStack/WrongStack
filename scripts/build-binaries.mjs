@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Build standalone WrongStack executables — one self-contained file per
  * platform, no Node.js or npm needed on the target machine.

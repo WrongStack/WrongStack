@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Rank a V8 `.cpuprofile` by SELF time per function.
  *

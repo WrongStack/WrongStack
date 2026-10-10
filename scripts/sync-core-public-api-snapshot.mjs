@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Keep the committed Core API evidence aligned with a staged source change.
  *

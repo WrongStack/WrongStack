@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * TechStack — rulebook contract check (CI gate).
  *

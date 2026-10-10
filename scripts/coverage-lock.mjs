@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Serializes concurrent coverage runs so they cannot corrupt each other's
 // coverage/.tmp directory.
 //

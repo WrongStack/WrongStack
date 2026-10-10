@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * One-time SAGE memory maintenance: recover-then-purge.

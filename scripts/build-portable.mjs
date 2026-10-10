@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Build a Windows portable WrongStack CLI distribution.
  *
- * The launcher is a Node SEA executable, while the application and production
+ * The launcher is a Bun compiled executable, while the application and production
  * dependencies remain beside it. Keeping the application external is
  * intentional: WrongStack loads plugins, workers, native addons, WebUI assets,
  * and optional browser tooling dynamically, which a single-file JS bundle
@@ -10,22 +10,12 @@
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-  copyFileSync,
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { cleanBuildOutput } from './lib/build-output-cleanup.mjs';
+import { deployBunWorkspace } from './lib/deploy-bun-workspace.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -58,45 +48,8 @@ rmSync(stagingDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20
 mkdirSync(bundleDir, { recursive: true });
 mkdirSync(stagingDir, { recursive: true });
 
-const pnpmCli = process.env.npm_execpath?.includes('pnpm')
-  ? { script: process.env.npm_execpath, prefix: [] }
-  : {
-      script: join(dirname(process.execPath), 'node_modules', 'corepack', 'dist', 'corepack.js'),
-      prefix: ['pnpm'],
-    };
-if (!existsSync(pnpmCli.script)) {
-  throw new Error(`Unable to locate the pnpm CLI: ${pnpmCli.script}`);
-}
-const pnpmInvocation = resolvePnpmInvocation(pnpmCli);
-const deployDir = mkdtempSync(join(tmpdir(), 'wrongstack-portable-deploy-'));
-try {
-  try {
-    runPnpm([
-      '--config.node-linker=hoisted',
-      '--filter',
-      '@wrongstack/cli',
-      'deploy',
-      '--prod',
-      '--legacy',
-      deployDir,
-    ]);
-  } finally {
-    // pnpm's legacy deploy can leave workspace dependency verification wanting
-    // a production-only reinstall. Restore the checkout before a local release
-    // continues to `pnpm publish` (and before a failed build returns control).
-    runPnpm(['install', '--frozen-lockfile']);
-  }
-
-  // pnpm 11's deploy importer cannot reliably replace its pre-created target
-  // directory on Windows when that target is inside the workspace (EPERM).
-  // Complete the deploy in the system temp directory, then copy the resulting
-  // self-contained, hoisted application into the portable bundle.
-  cleanBuildOutput(appDir);
-  mkdirSync(appDir, { recursive: true });
-  cpSync(deployDir, appDir, { recursive: true, errorOnExist: true });
-} finally {
-  rmSync(deployDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-}
+cleanBuildOutput(appDir);
+deployBunWorkspace('@wrongstack/cli', appDir, root);
 
 const cliEntry = join(appDir, 'dist', 'index.js');
 if (!existsSync(cliEntry)) {
@@ -113,15 +66,14 @@ if (!existsSync(electronExecutable)) {
 }
 
 const bootstrap = join(stagingDir, 'bootstrap.cjs');
-const seaBlob = join(stagingDir, 'sea-prep.blob');
-const seaConfig = join(stagingDir, 'sea-config.json');
+
 writeFileSync(
   bootstrap,
   `const path = require('node:path');\n` +
     `const fs = require('node:fs');\n` +
     `const { pathToFileURL } = require('node:url');\n` +
-    `const app = path.join(__dirname, 'app');\n` +
-    `const cli = path.join(__dirname, 'app', 'dist', 'index.js');\n` +
+    `const app = path.join(path.dirname(process.execPath), 'app');\n` +
+    `const cli = path.join(path.dirname(process.execPath), 'app', 'dist', 'index.js');\n` +
     `const requested = typeof process.argv[2] === 'string' ? path.resolve(process.argv[2]) : '';\n` +
     `const appPrefix = path.resolve(app) + path.sep;\n` +
     `const internalScript = requested.startsWith(appPrefix) && /\\.[cm]?js$/i.test(requested) && fs.existsSync(requested);\n` +
@@ -133,22 +85,8 @@ writeFileSync(
     `  process.exitCode = 1;\n` +
     `});\n`,
 );
-writeFileSync(
-  seaConfig,
-  `${JSON.stringify({ main: bootstrap, output: seaBlob, disableExperimentalSEAWarning: true }, null, 2)}\n`,
-);
-
-run(process.execPath, ['--experimental-sea-config', seaConfig]);
 const preparedExecutable = existsSync(executable) ? join(stagingDir, 'WrongStack.exe') : executable;
-copyFileSync(process.execPath, preparedExecutable);
-run(process.execPath, [
-  join(root, 'node_modules', 'postject', 'dist', 'cli.js'),
-  preparedExecutable,
-  'NODE_SEA_BLOB',
-  seaBlob,
-  '--sentinel-fuse',
-  'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
-]);
+run(process.execPath, ['build', '--compile', bootstrap, '--outfile', preparedExecutable]);
 
 if (preparedExecutable !== executable) {
   const preparedDigest = hashFile(preparedExecutable);
@@ -225,23 +163,6 @@ function run(command, args, options = {}) {
   if (result.status !== 0) {
     throw new Error(`${command} ${args.join(' ')} exited with code ${result.status}`);
   }
-}
-
-export function resolvePnpmInvocation(pnpmTarget, execPath = process.execPath) {
-  // Corepack on Windows can set npm_execpath to its native pnpm executable (.exe)
-  // or a .cmd/.bat shim. An executable must be spawned directly; passing an .exe
-  // to Node makes ESM reject the unknown file extension.
-  const isBatch = /\.(?:cmd|bat)$/i.test(pnpmTarget.script);
-  const isExecutable = !/\.[cm]?js$/i.test(pnpmTarget.script);
-  return {
-    command: isExecutable ? pnpmTarget.script : execPath,
-    args: isExecutable ? [...pnpmTarget.prefix] : [pnpmTarget.script, ...pnpmTarget.prefix],
-    options: isBatch ? { shell: true } : {},
-  };
-}
-
-function runPnpm(args) {
-  run(pnpmInvocation.command, [...pnpmInvocation.args, ...args], pnpmInvocation.options);
 }
 
 function hashFile(path) {

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Fail if a build directory contains a hidden (dot-prefixed) entry.
  *

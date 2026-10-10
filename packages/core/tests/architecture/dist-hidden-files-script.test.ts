@@ -81,7 +81,7 @@ describe('the check is actually wired up (WS-070)', () => {
   it('runs BEFORE the artifact upload, not after', () => {
     // Running it afterwards would report the problem only once the files had
     // already been published.
-    const check = workflow.indexOf('pnpm check:dist-hidden');
+    const check = workflow.indexOf('bun run check:dist-hidden');
     const upload = workflow.indexOf('actions/upload-artifact');
     expect(check).toBeGreaterThan(-1);
     expect(upload).toBeGreaterThan(-1);

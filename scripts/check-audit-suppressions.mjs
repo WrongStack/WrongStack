@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Refuse advisory suppressions that a pull request adds to its own audit gate.
  *

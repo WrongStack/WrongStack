@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // CI repo security scan (VF-20, security report Phase 4). Before this script
 // existed, only unit tests OF the scanners ran in CI — nothing scanned the
 // repository itself. It runs the repo's own analyzer

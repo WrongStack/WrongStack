@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Fail if a GitHub Actions `uses:` reference is not pinned to a commit SHA.
  *

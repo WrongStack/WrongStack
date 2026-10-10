@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Package WrongStack Desktop into a native application.
  *
@@ -32,9 +32,10 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { delimiter, dirname, extname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DESKTOP_PACKAGE_STAGE_RELATIVE } from './desktop-package-paths.mjs';
+import { deployBunWorkspace } from './lib/deploy-bun-workspace.mjs';
 import { writeDesktopChecksums } from './lib/desktop-package-checksums.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,63 +49,6 @@ function runNode(args, cwd) {
   execFileSync(process.execPath, args, { cwd, stdio: 'inherit' });
 }
 
-/**
- * Resolve a bare command name to an absolute path, PATH + PATHEXT, no cwd.
- *
- * cmd.exe resolves `call pnpm` and `call "pnpm"` differently. Unquoted, it
- * appends each PATHEXT extension and finds `pnpm.CMD`. Quoted, it matches the
- * EXTENSIONLESS `pnpm` that npm-style bin directories ship next to the shim for
- * Git Bash, and fails with "The system cannot find the path specified." — which
- * is what broke Windows Desktop packaging on CI while working on developer
- * machines whose bin directory happens to hold only the `.CMD`.
- *
- * The shim builder has to quote every token; that quoting is what stops an
- * argument from starting a second command. So the command must arrive already
- * resolved. The cwd is deliberately not searched, matching
- * `hardenWin32ExecutableSearch`.
- */
-function resolveWin32Executable(command) {
-  const exts = (process.env['PATHEXT'] ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean);
-  const dirs = (process.env['Path'] ?? process.env['PATH'] ?? '').split(delimiter).filter(Boolean);
-  for (const dir of dirs) {
-    for (const ext of exts) {
-      const candidate = join(dir, `${command}${ext}`);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return undefined;
-}
-
-/** Run pnpm without joining its argv through `shell: true` on Windows. */
-async function runPnpm(args, cwd) {
-  if (process.platform !== 'win32') {
-    execFileSync('pnpm', args, { cwd, stdio: 'inherit' });
-    return;
-  }
-  const resolved = resolveWin32Executable('pnpm');
-  if (!resolved) {
-    throw new Error(
-      'pnpm was not found on PATH (searched every PATHEXT extension). ' +
-        'Desktop packaging needs pnpm to materialise the workspace closure.',
-    );
-  }
-  // A real executable needs no shell at all: spawn it and skip cmd.exe, and
-  // with it the whole quoting problem this function exists to navigate.
-  if (extname(resolved).toLowerCase() === '.exe') {
-    execFileSync(resolved, args, { cwd, stdio: 'inherit' });
-    return;
-  }
-  // Core is built before this function is called. Import its canonical shim
-  // builder lazily so a clean checkout does not need pre-existing dist output.
-  const { buildWin32CmdShimInvocation } = await import('@wrongstack/core/utils');
-  const invocation = buildWin32CmdShimInvocation(resolved, args);
-  execFileSync(invocation.command, invocation.args, {
-    cwd,
-    stdio: 'inherit',
-    windowsVerbatimArguments: invocation.windowsVerbatimArguments,
-  });
-}
-
 const forwarded = process.argv.slice(2);
 
 // 1. Build the app and its workspace dependencies so `dist/` is current.
@@ -114,21 +58,7 @@ runNode([join(repoRoot, 'scripts', 'build.mjs'), '--target', '@wrongstack/deskto
 //    stage is removed first; it is disposable by construction.
 if (existsSync(stageDir)) rmSync(stageDir, { recursive: true, force: true });
 mkdirSync(dirname(stageDir), { recursive: true });
-await runPnpm(
-  // Ink's workspace patch is unused in Desktop's production dependency closure.
-  // Keep this exception local to deploy, not the workspace install policy.
-  [
-    '--filter',
-    '@wrongstack/desktop',
-    'deploy',
-    '--legacy',
-    '--prod',
-    '--config.allow-unused-patches=true',
-    '--ignore-scripts',
-    stageDir,
-  ],
-  repoRoot,
-);
+deployBunWorkspace('@wrongstack/desktop', stageDir, repoRoot);
 
 // 3. The packaging inputs are not dependencies, so `deploy` does not copy them.
 cpSync(join(desktopDir, 'electron-builder.yml'), join(stageDir, 'electron-builder.yml'));

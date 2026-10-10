@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Publish the workspace to npm in dependency layers, proving each layer is
  * resolvable on the registry before the next one goes out.
@@ -56,13 +56,13 @@
  * the two call for opposite reactions and only one of them is alarming.
  *
  * Usage:
- *   node scripts/publish-workspace.mjs [--dry-run] [--plan] [options] [-- <pnpm args>]
+ *   bun scripts/publish-workspace.mjs [--dry-run] [--plan] [options] [-- <publish args>]
  *
  * Exit codes: 0 success; 1 publish failure; 2 usage error; 3 published but the
  * registry had not served a layer in time - re-run to resume.
  */
-import { spawn } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -85,7 +85,7 @@ const RESUME_HINT =
 /** npm asks for this shape on install; verifying the same document is what proves a user can resolve. */
 const PACKUMENT_ACCEPT = 'application/vnd.npm.install-v1+json';
 
-const USAGE = `Usage: node scripts/publish-workspace.mjs [options] [-- <extra pnpm publish args>]
+const USAGE = `Usage: bun scripts/publish-workspace.mjs [options] [-- <extra publish args>]
 
   --plan                 print the dependency-layer plan and exit
   --dry-run              pass --dry-run to pnpm/npm; skip registry verification
@@ -248,18 +248,19 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * @param {string[]} args
  * @returns {Promise<void>}
  */
-function runPnpm(args) {
+function runBun(args, cwd) {
   return new Promise((resolve, reject) => {
-    const child = spawn('pnpm', args, {
+    const child = spawn(process.execPath, args, {
+      cwd,
       stdio: 'inherit',
       // pnpm ships as a .cmd shim on Windows, which cannot be exec'd directly.
-      shell: process.platform === 'win32',
+      shell: false,
       windowsHide: true,
     });
     child.on('error', reject);
     child.on('exit', (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`pnpm ${args.join(' ')} exited with code ${code}`));
+      else reject(new Error(`bun ${args.join(' ')} exited with code ${code}`));
     });
   });
 }
@@ -271,11 +272,11 @@ function runPnpm(args) {
  * @param {string[]} args
  * @returns {Promise<void>}
  */
-function runNpm(args) {
+function runOidcClient(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn('npm', args, {
+    const child = spawn(process.execPath, ['x', '--bun', 'npm@12.2.0', ...args], {
       stdio: 'inherit',
-      shell: process.platform === 'win32',
+      shell: false,
       windowsHide: true,
     });
     child.on('error', reject);
@@ -593,6 +594,23 @@ export async function main(argv) {
     console.log(USAGE);
     return 0;
   }
+  if (
+    !options.plan &&
+    !options.dryRun &&
+    !options.verifyOnly &&
+    !options.pack &&
+    !options.tarballsDir
+  ) {
+    // Bun publish does not enforce pnpm's former clean-main guard.
+    const branch = execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim();
+    const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
+    if (branch !== 'main' || dirty) {
+      console.error(
+        'Local publishing requires a clean main checkout. Use release:dry to inspect pending changes.',
+      );
+      return 1;
+    }
+  }
 
   const { publishable, skipped } = collectPublishablePackages();
   if (publishable.length === 0) {
@@ -633,6 +651,8 @@ export async function main(argv) {
   if (options.plan) return 0;
 
   if (options.pack) {
+    options.packDestination = path.resolve(options.packDestination);
+    mkdirSync(options.packDestination, { recursive: true });
     // Pack mode (M13/VF-19): produce npm tarballs WITHOUT publishing. Runs in
     // the unprivileged `pack` CI job — packing executes lifecycle scripts
     // (prepack), which is exactly the code that must never see the OIDC
@@ -641,7 +661,7 @@ export async function main(argv) {
     console.log(`\nPacking ${total} publishable package(s) into ${options.packDestination}`);
     for (const layer of layers) {
       for (const p of layer) {
-        await runPnpm(['--filter', p.name, 'pack', '--pack-destination', options.packDestination]);
+        await runBun(['pm', 'pack', '--destination', options.packDestination], p.dir);
         resolveTarball(options.packDestination, p.name, p.version);
       }
     }
@@ -704,9 +724,7 @@ export async function main(argv) {
     }
 
     if (todo.length > 0) console.log(`   publishing ${todo.length} package(s)`);
-    const filters = todo.flatMap((p) => ['--filter', p.name]);
     const args = [
-      ...filters,
       'publish',
       '--access',
       'public',
@@ -735,7 +753,7 @@ export async function main(argv) {
         // workflow_dispatch re-run resume instead of dying on npm's E403.
         for (const p of todo) {
           const tarball = resolveTarball(options.tarballsDir, p.name, p.version);
-          await runNpm([
+          await runOidcClient([
             'publish',
             tarball,
             '--access',
@@ -745,7 +763,9 @@ export async function main(argv) {
           ]);
         }
       } else {
-        await runPnpm(args);
+        for (const p of todo) {
+          await runBun(args, p.dir);
+        }
       }
     } catch (error) {
       // A non-zero exit is not proof that nothing landed. npm rejects a

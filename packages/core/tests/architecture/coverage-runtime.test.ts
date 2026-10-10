@@ -1,9 +1,9 @@
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   checkZeroCoverage,
   compareZeroCoverage,
@@ -346,7 +346,7 @@ describe('coverage lock script', () => {
     const scriptPath = path.join(repoRoot, 'scripts', 'coverage-lock.mjs');
     const originalArgv = process.argv;
     const originalHeld = process.env.WRONGSTACK_COVERAGE_LOCK_HELD;
-    process.argv = [process.execPath, scriptPath, 'node', '--version'];
+    process.argv = [process.execPath, scriptPath, process.execPath, '--version'];
     process.env.WRONGSTACK_COVERAGE_LOCK_HELD = '1';
     const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
@@ -391,7 +391,7 @@ describe('coverage runner script', () => {
       ) as { scripts?: { 'test:coverage'?: string } };
 
       expect(packageJson.scripts?.['test:coverage']).toMatch(
-        /^node \.\.\/\.\.\/scripts\/coverage-lock\.mjs node \.\.\/\.\.\/scripts\/run-vitest-coverage\.mjs /u,
+        /^bun \.\.\/\.\.\/scripts\/coverage-lock\.mjs bun \.\.\/\.\.\/scripts\/run-vitest-coverage\.mjs /u,
       );
     }
   });
@@ -550,15 +550,37 @@ describe('coverage runner script', () => {
   it('executes the direct CLI branch with default runtime dependencies', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'wrongstack-coverage-runner-'));
     temporaryDirectories.push(directory);
-    const fakePnpm = path.join(directory, 'fake-pnpm.mjs');
-    writeFileSync(fakePnpm, 'process.exit(0);\n');
-
+    writeFileSync(
+      path.join(directory, 'package.json'),
+      JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: Object.fromEntries(
+          ['test:coverage:root', 'check:coverage-zero', 'test:coverage:scripts'].map((name) => [
+            name,
+            'bun --version',
+          ]),
+        ),
+      }),
+    );
+    for (const name of ['plug-lsp', 'webui', 'webui-protocol', 'desktop']) {
+      const dir = path.join(directory, 'packages', name);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        path.join(dir, 'package.json'),
+        JSON.stringify({
+          name: '@wrongstack/' + name,
+          scripts: { 'test:coverage': 'bun --version' },
+        }),
+      );
+    }
+    vi.spyOn(process, 'cwd').mockReturnValue(directory);
     const scriptPath = path.join(repoRoot, 'scripts', 'test-coverage.mjs');
     const originalArgv = process.argv;
     const originalNpmExecPath = process.env.npm_execpath;
     const originalExitCode = process.exitCode;
     process.argv = [process.execPath, scriptPath];
-    process.env.npm_execpath = fakePnpm;
+    delete process.env.npm_execpath;
 
     try {
       await import(/* @vite-ignore */ `${pathToFileURL(scriptPath).href}?direct=${Date.now()}`);
@@ -696,6 +718,8 @@ describe('zero-coverage ratchet script', () => {
 });
 
 describe('Vitest worker selection', () => {
+  beforeEach(() => vi.stubEnv('WRONGSTACK_VITEST_MAX_WORKERS', undefined));
+  afterEach(() => vi.unstubAllEnvs());
   it('uses process arguments when no explicit list is provided', () => {
     expect(getVitestMaxWorkers()).toBe(2);
   });
