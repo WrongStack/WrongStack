@@ -15,7 +15,7 @@ metadata:
 # Codex Adversarial Code Review Architecture
 
 ## Selection card
-- Task: Review adversarially and propose approval-gated fixes. / TR: Karşıt bakışla incele ve onay gerektiren düzeltme öner.
+- Task: Review adversarially and propose approval-gated fixes.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

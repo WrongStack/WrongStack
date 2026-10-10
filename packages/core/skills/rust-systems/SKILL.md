@@ -14,7 +14,7 @@ metadata:
 # Rust Systems
 
 ## Selection card
-- Task: Implement Rust ownership, error and async boundaries. / TR: Rust sahiplik, hata ve async sınırları uygula.
+- Task: Implement Rust ownership, error and async boundaries.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

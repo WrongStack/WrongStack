@@ -13,7 +13,7 @@ metadata:
 # CI/CD
 
 ## Selection card
-- Task: Build automated CI checks and delivery pipelines. / TR: Otomatik CI kontrolleri ve teslim pipeline kur.
+- Task: Build automated CI checks and delivery pipelines.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

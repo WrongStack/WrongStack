@@ -13,7 +13,7 @@ metadata:
 # Accessibility
 
 ## Selection card
-- Task: Fix keyboard, focus and assistive technology behavior. / TR: Klavye, odak ve yardımcı teknoloji davranışını düzelt.
+- Task: Fix keyboard, focus and assistive technology behavior.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

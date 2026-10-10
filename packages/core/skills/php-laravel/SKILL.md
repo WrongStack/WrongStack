@@ -14,7 +14,7 @@ metadata:
 # Php Laravel
 
 ## Selection card
-- Task: Implement Laravel policies, requests and Eloquent. / TR: Laravel policy, request ve Eloquent uygula.
+- Task: Implement Laravel policies, requests and Eloquent.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

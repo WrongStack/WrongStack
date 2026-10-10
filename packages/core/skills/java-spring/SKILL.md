@@ -14,7 +14,7 @@ metadata:
 # Java Spring
 
 ## Selection card
-- Task: Implement Spring Boot validation and transactions. / TR: Spring Boot doğrulama ve transaction uygula.
+- Task: Implement Spring Boot validation and transactions.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

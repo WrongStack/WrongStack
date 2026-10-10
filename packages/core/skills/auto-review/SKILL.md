@@ -18,7 +18,7 @@ metadata:
 # Auto Review — Built-in Plugin
 
 ## Selection card
-- Task: Operate the built-in automatic review plugin. / TR: Yerleşik otomatik review pluginini yönet.
+- Task: Operate the built-in automatic review plugin.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

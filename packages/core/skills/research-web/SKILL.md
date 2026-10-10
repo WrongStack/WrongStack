@@ -13,7 +13,7 @@ metadata:
 # Web Research
 
 ## Selection card
-- Task: Research a question using authoritative web sources. / TR: Yetkili web kaynaklarıyla soruyu araştır.
+- Task: Research a question using authoritative web sources.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

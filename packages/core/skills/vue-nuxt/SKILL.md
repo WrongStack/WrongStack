@@ -14,7 +14,7 @@ metadata:
 # Vue Nuxt
 
 ## Selection card
-- Task: Vue components and Nuxt server routes. / TR: Vue bileşenleri ve Nuxt sunucu rotaları.
+- Task: Vue components and Nuxt server routes.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

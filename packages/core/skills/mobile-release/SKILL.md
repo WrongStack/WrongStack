@@ -14,7 +14,7 @@ metadata:
 # Mobile Release
 
 ## Selection card
-- Task: Prepare mobile signing and app-store releases. / TR: Mobil imzalama ve uygulama mağazası sürümü hazırla.
+- Task: Prepare mobile signing and app-store releases.
 - Start: Identify the platform, screen, device and native integration boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

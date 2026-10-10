@@ -14,7 +14,7 @@ metadata:
 # Kotlin Android
 
 ## Selection card
-- Task: Build Kotlin Android and Jetpack Compose features. / TR: Kotlin Android ve Jetpack Compose özellikleri kur.
+- Task: Build Kotlin Android and Jetpack Compose features.
 - Start: Identify the platform, screen, device and native integration boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

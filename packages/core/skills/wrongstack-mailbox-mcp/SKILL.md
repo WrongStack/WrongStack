@@ -16,7 +16,7 @@ Use MCP as the only Mailbox boundary. Never open or edit `_mailbox.sqlite`, lega
 credential files, bridge locks, or token files directly.
 
 ## Selection card
-- Task: Use the roster mailbox MCP transport. / TR: Roster mailbox MCP taşımasını kullan.
+- Task: Use the roster mailbox MCP transport.
 - Start: Identify the host, protocol, enabled integration and authorization scope.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -14,7 +14,7 @@ metadata:
 # Visual Regression
 
 ## Selection card
-- Task: Compare rendered UI states against screenshot baselines. / TR: Render edilmiş arayüzü ekran görüntüsü baseline ile karşılaştır.
+- Task: Compare rendered UI states against screenshot baselines.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -13,7 +13,7 @@ metadata:
 # Media Production
 
 ## Selection card
-- Task: Produce Remotion videos or assemble and encode media. / TR: Remotion videosu üret veya medyayı birleştirip kodla.
+- Task: Produce Remotion videos or assemble and encode media.
 - Start: Identify the existing engine, scene, timeline and delivery format.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

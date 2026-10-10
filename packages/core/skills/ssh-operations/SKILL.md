@@ -14,7 +14,7 @@ metadata:
 # Ssh Operations
 
 ## Selection card
-- Task: Establish verified SSH identities, sessions and transfers. / TR: Doğrulanmış SSH kimliği, oturumu ve aktarımı kur.
+- Task: Establish verified SSH identities, sessions and transfers.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

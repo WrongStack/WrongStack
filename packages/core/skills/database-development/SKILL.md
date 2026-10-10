@@ -14,7 +14,7 @@ metadata:
 # Database Development
 
 ## Selection card
-- Task: Design database queries, indexes and transactions. / TR: Veritabanı sorgu, indeks ve transaction tasarla.
+- Task: Design database queries, indexes and transactions.
 - Start: Identify the data owner, query/schema, consistency and recovery contract.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

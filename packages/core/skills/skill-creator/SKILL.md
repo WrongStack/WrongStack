@@ -13,7 +13,7 @@ metadata:
 # Skill Creator — WrongStack
 
 ## Selection card
-- Task: Author and validate bundled or project skills. / TR: Bundled veya proje skilli yaz ve doğrula.
+- Task: Author and validate bundled or project skills.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -15,7 +15,7 @@ metadata:
 # Web Platform Baseline — WrongStack
 
 ## Selection card
-- Task: Choose compatible HTML, CSS and browser APIs. / TR: Uyumlu HTML, CSS ve tarayıcı API seç.
+- Task: Choose compatible HTML, CSS and browser APIs.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

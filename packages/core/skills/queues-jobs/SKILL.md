@@ -14,7 +14,7 @@ metadata:
 # Queues Jobs
 
 ## Selection card
-- Task: Build bounded retries, background jobs and deduplication. / TR: Sınırlı retry, arka plan işi ve tekilleştirme kur.
+- Task: Build bounded retries, background jobs and deduplication.
 - Start: Identify the data owner, query/schema, consistency and recovery contract.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

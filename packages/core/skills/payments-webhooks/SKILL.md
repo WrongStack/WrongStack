@@ -14,7 +14,7 @@ metadata:
 # Payments Webhooks
 
 ## Selection card
-- Task: Implement signed, idempotent payment callbacks. / TR: İmzalı, idempotent ödeme callback uygula.
+- Task: Implement signed, idempotent payment callbacks.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

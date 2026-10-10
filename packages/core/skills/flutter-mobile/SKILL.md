@@ -14,7 +14,7 @@ metadata:
 # Flutter Mobile
 
 ## Selection card
-- Task: Build Flutter widgets, state and platform integration. / TR: Flutter widget, durum ve platform entegrasyonu kur.
+- Task: Build Flutter widgets, state and platform integration.
 - Start: Identify the platform, screen, device and native integration boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

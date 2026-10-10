@@ -27,7 +27,7 @@ file:line references; in a proof-driven round it selects the one candidate it
 can prove, and hands it to the proof, fix, and verification discipline.
 
 ## Selection card
-- Task: Run the WrongStack bug-hunt and cascade workflow. / TR: WrongStack bug hunt ve cascade akışını yürüt.
+- Task: Run the WrongStack bug-hunt and cascade workflow.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

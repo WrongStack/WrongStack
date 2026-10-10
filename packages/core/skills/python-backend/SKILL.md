@@ -14,7 +14,7 @@ metadata:
 # Python Backend
 
 ## Selection card
-- Task: Implement Python APIs and typed validation. / TR: Python API ve tipli doğrulama uygula.
+- Task: Implement Python APIs and typed validation.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -13,7 +13,7 @@ metadata:
 # Database Migrations
 
 ## Selection card
-- Task: Deploy compatible schema changes and backfills. / TR: Uyumlu şema değişikliği ve backfill yayınla.
+- Task: Deploy compatible schema changes and backfills.
 - Start: Identify the data owner, query/schema, consistency and recovery contract.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

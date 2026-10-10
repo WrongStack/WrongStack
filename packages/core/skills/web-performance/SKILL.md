@@ -13,7 +13,7 @@ metadata:
 # Web Performance
 
 ## Selection card
-- Task: Measure and improve browser loading and interaction. / TR: Tarayıcı yüklenmesini ve etkileşimini ölçüp iyileştir.
+- Task: Measure and improve browser loading and interaction.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

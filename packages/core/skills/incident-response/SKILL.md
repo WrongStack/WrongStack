@@ -14,7 +14,7 @@ metadata:
 # Incident Response
 
 ## Selection card
-- Task: Coordinate production outage triage and recovery. / TR: Üretim kesintisi teşhisi ve kurtarmayı koordine et.
+- Task: Coordinate production outage triage and recovery.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

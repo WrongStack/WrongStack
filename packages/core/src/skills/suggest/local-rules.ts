@@ -7,6 +7,104 @@ export interface LocalSkillRule {
 }
 export const LOCAL_SKILL_RULES: readonly LocalSkillRule[] = [
   {
+    name: 'algorithmic-art',
+    domain: 'media',
+    match:
+      /\b(?:algorithmic art|generative art|p5\.js|fractal art|algoritmik sanat|uretimsel sanat)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'brand-guidelines',
+    domain: 'frontend',
+    match: /\b(?:brand guidelines|brand-guidelines|brand identity|marka kimligi|marka kilavuzu)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'canvas-design',
+    domain: 'media',
+    match: /\b(?:canvas design|canvas-design|poster|afis|static artwork|print design)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'discernment-nudge',
+    domain: 'quality',
+    match:
+      /\b(?:discernment|epistemic|assumption checks?|critical assumptions|varsayim denetimi)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'doc-coauthoring',
+    domain: 'workflow',
+    match:
+      /\b(?:doc-coauthoring|coauthor(?:ing|ed)?|co-author(?:ing|ed)?|document collaboration|ortak belge)\b/i,
+    priority: 95,
+  },
+  {
+    name: 'docx',
+    domain: 'media',
+    match: /\b(?:docx|word document|word report|word belgesi|word raporu)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'internal-comms',
+    domain: 'workflow',
+    match:
+      /\b(?:internal-comms|internal communications|stakeholder update|ic iletisim|paydas guncellemesi)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'llm-runtime',
+    domain: 'integration',
+    match:
+      /\b(?:llm-runtime|llm runtime|ai agent runtime|streaming sse endpoint|prompt caching|tool.calling loop|llm calisma zamani)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'micro-animation-gif',
+    domain: 'media',
+    match:
+      /\b(?:micro-animation-gif|animated gif|gif animation|animated emoji|animasyonlu gif|hareketli gif)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'pdf',
+    domain: 'media',
+    match: /\b(?:pdf|portable document format)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'pptx',
+    domain: 'media',
+    match: /\b(?:pptx|powerpoint|presentation deck|sunum)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'theme-factory',
+    domain: 'frontend',
+    match: /\b(?:theme-factory|theme factory|theme pack|tema paketi|tema seti)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'web-artifacts',
+    domain: 'frontend',
+    match:
+      /\b(?:web-artifacts|web artifacts?|html artifact|interactive artifact|interaktif artifact)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'webapp-testing',
+    domain: 'quality',
+    match:
+      /\b(?:webapp-testing|webapp testing|browser e2e|playwright ui|tarayici[^\n]{0,60}test)\b/i,
+    priority: 100,
+  },
+  {
+    name: 'xlsx',
+    domain: 'media',
+    match: /\b(?:xlsx|excel|spreadsheet|hesap tablosu)\b/i,
+    priority: 100,
+  },
+  {
     name: 'nextjs-modern',
     domain: 'frontend',
     match: /\b(?:next(?:[ .-]?js)|next\s+\d+|app router|server action|revalidatetag|updatetag)\b/i,

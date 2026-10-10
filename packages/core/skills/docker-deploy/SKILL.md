@@ -14,7 +14,7 @@ metadata:
 # Docker Deploy
 
 ## Selection card
-- Task: Build and deploy a reproducible container image. / TR: Tekrarlanabilir container imajı kur ve deploy et.
+- Task: Build and deploy a reproducible container image.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

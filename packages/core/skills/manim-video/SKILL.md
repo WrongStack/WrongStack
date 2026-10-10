@@ -13,7 +13,7 @@ metadata:
 # Manim Video
 
 ## Selection card
-- Task: Render mathematical animation with Manim Community. / TR: Manim Community ile matematik animasyonu render et.
+- Task: Render mathematical animation with Manim Community.
 - Start: Identify the existing engine, scene, timeline and delivery format.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

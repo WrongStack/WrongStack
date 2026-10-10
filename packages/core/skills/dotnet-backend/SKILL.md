@@ -14,7 +14,7 @@ metadata:
 # Dotnet Backend
 
 ## Selection card
-- Task: Build ASP.NET services and dependency injection. / TR: ASP.NET servis ve dependency injection kur.
+- Task: Build ASP.NET services and dependency injection.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -14,7 +14,7 @@ metadata:
 # React Native Expo
 
 ## Selection card
-- Task: Build React Native and Expo app screens. / TR: React Native ve Expo uygulama ekranı kur.
+- Task: Build React Native and Expo app screens.
 - Start: Identify the platform, screen, device and native integration boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

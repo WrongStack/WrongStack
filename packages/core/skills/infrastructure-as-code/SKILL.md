@@ -14,7 +14,7 @@ metadata:
 # Infrastructure As Code
 
 ## Selection card
-- Task: Plan versioned Terraform or infrastructure changes. / TR: Sürümlü Terraform veya altyapı değişikliği planla.
+- Task: Plan versioned Terraform or infrastructure changes.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

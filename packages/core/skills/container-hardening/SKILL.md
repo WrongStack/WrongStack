@@ -14,7 +14,7 @@ metadata:
 # Container Hardening
 
 ## Selection card
-- Task: Reduce container privilege and secret exposure. / TR: Container ayrıcalığını ve secret maruziyetini azalt.
+- Task: Reduce container privilege and secret exposure.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

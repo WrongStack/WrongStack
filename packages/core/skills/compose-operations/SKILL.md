@@ -14,7 +14,7 @@ metadata:
 # Compose Operations
 
 ## Selection card
-- Task: Operate multi-service Docker Compose dependencies. / TR: Çok servisli Docker Compose bağımlılıklarını yönet.
+- Task: Operate multi-service Docker Compose dependencies.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

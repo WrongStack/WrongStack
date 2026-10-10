@@ -14,7 +14,7 @@ metadata:
 # Storage Uploads
 
 ## Selection card
-- Task: Implement owned object storage and upload lifecycle. / TR: Sahipliği tanımlı nesne deposu ve yükleme yaşam döngüsü uygula.
+- Task: Implement owned object storage and upload lifecycle.
 - Start: Identify the data owner, query/schema, consistency and recovery contract.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

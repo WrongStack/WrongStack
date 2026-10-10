@@ -14,7 +14,7 @@ metadata:
 # Vps Deploy
 
 ## Selection card
-- Task: Release an application on an existing VPS. / TR: Mevcut VPS üzerinde uygulama sürümü yayınla.
+- Task: Release an application on an existing VPS.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

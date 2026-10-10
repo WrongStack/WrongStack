@@ -13,7 +13,7 @@ metadata:
 # Bundled Skill Router
 
 ## Selection card
-- Task: select a small, ordered skill pipeline for an ambiguous or multi-domain request. / TR: belirsiz veya çok alanlı bir iş için küçük, sıralı skill akışı seç.
+- Task: select a small, ordered skill pipeline for an ambiguous or multi-domain request.
 - Start: extract the requested result, exact technology, action and acceptance check.
 - Finish: load each selected skill before its phase and verify the delivered result.
 

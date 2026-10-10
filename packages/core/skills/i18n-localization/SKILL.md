@@ -14,7 +14,7 @@ metadata:
 # I18N Localization
 
 ## Selection card
-- Task: Implement translation, plurals and bidirectional layout. / TR: Çeviri, çoğul ve çift yönlü yerleşim uygula.
+- Task: Implement translation, plurals and bidirectional layout.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

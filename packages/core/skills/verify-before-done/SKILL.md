@@ -15,7 +15,7 @@ metadata:
 # Verify Before Done
 
 ## Selection card
-- Task: Prove a claimed fix or completion actually works. / TR: Düzeltme veya tamamlanma iddiasını çalıştırarak kanıtla.
+- Task: Prove a claimed fix or completion actually works.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

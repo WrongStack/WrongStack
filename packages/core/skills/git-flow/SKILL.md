@@ -14,7 +14,7 @@ metadata:
 # Git Workflow
 
 ## Selection card
-- Task: Manage scoped commits, branches and pull requests. / TR: Kapsamlı commit, branch ve pull request yönet.
+- Task: Manage scoped commits, branches and pull requests.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -13,7 +13,7 @@ metadata:
 # Code Quality
 
 ## Selection card
-- Task: Measure dead code, unused dependencies and bundle waste. / TR: Ölü kod, kullanılmayan bağımlılık ve bundle israfını ölç.
+- Task: Measure dead code, unused dependencies and bundle waste.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

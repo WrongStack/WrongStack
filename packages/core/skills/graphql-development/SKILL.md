@@ -14,7 +14,7 @@ metadata:
 # Graphql Development
 
 ## Selection card
-- Task: Implement GraphQL schema and resolver contracts. / TR: GraphQL şema ve resolver sözleşmeleri uygula.
+- Task: Implement GraphQL schema and resolver contracts.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

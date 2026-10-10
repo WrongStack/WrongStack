@@ -15,7 +15,7 @@ metadata:
 # Observability
 
 ## Selection card
-- Task: Instrument logs, traces, metrics and service signals. / TR: Log, trace, metrik ve servis sinyallerini ekle.
+- Task: Instrument logs, traces, metrics and service signals.
 - Start: Identify the data owner, query/schema, consistency and recovery contract.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

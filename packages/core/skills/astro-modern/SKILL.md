@@ -14,7 +14,7 @@ metadata:
 # Astro Modern
 
 ## Selection card
-- Task: Astro content sites and islands. / TR: Astro içerik siteleri ve island bileşenleri.
+- Task: Astro content sites and islands.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

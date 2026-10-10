@@ -14,7 +14,7 @@ metadata:
 # Sveltekit Modern
 
 ## Selection card
-- Task: Svelte runes and SvelteKit actions. / TR: Svelte runes ve SvelteKit action.
+- Task: Svelte runes and SvelteKit actions.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -14,7 +14,7 @@ metadata:
 # Design Assets
 
 ## Selection card
-- Task: Create consistent icons and exportable visual assets. / TR: Tutarlı ikon ve dışa aktarılabilir görsel varlık oluştur.
+- Task: Create consistent icons and exportable visual assets.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

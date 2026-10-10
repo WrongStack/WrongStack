@@ -13,7 +13,7 @@ metadata:
 # Motion Canvas Video
 
 ## Selection card
-- Task: Animate a scripted 2D scene with Motion Canvas. / TR: Motion Canvas ile kodlu 2D sahne canlandır.
+- Task: Animate a scripted 2D scene with Motion Canvas.
 - Start: Identify the existing engine, scene, timeline and delivery format.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

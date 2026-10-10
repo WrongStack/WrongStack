@@ -13,7 +13,7 @@ metadata:
 # Design System Engine — WrongStack
 
 ## Selection card
-- Task: Define shared colors, typography and component tokens. / TR: Paylaşılan renk, tipografi ve bileşen tokenı tanımla.
+- Task: Define shared colors, typography and component tokens.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

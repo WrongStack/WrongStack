@@ -13,7 +13,7 @@ metadata:
 # MCP Development
 
 ## Selection card
-- Task: Build an MCP server and test its tool contracts. / TR: MCP sunucu kur ve araç sözleşmesini test et.
+- Task: Build an MCP server and test its tool contracts.
 - Start: Identify the host, protocol, enabled integration and authorization scope.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

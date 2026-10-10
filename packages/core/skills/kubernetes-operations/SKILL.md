@@ -14,7 +14,7 @@ metadata:
 # Kubernetes Operations
 
 ## Selection card
-- Task: Operate Kubernetes workloads and autoscaling. / TR: Kubernetes workload ve otomatik ölçekleme yönet.
+- Task: Operate Kubernetes workloads and autoscaling.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

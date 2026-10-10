@@ -16,7 +16,7 @@ metadata:
 # WrongStack Kanban
 
 ## Selection card
-- Task: Operate WrongStack task-board lifecycle. / TR: WrongStack görev panosu yaşam döngüsünü yönet.
+- Task: Operate WrongStack task-board lifecycle.
 - Start: Identify the host, protocol, enabled integration and authorization scope.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

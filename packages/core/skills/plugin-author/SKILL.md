@@ -14,7 +14,7 @@ metadata:
 # Plugin Author — WrongStack
 
 ## Selection card
-- Task: Author WrongStack plugin hooks and registration. / TR: WrongStack plugin hook ve kayıt sistemi yaz.
+- Task: Author WrongStack plugin hooks and registration.
 - Start: Identify the host, protocol, enabled integration and authorization scope.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

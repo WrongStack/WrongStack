@@ -15,7 +15,7 @@ metadata:
 # Codebase Navigation
 
 ## Selection card
-- Task: Locate repository entry points and owning modules. / TR: Depo giriş noktalarını ve sorumlu modülleri bul.
+- Task: Locate repository entry points and owning modules.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

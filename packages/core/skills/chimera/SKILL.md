@@ -23,7 +23,7 @@ metadata:
 # Chimera — Post-Session Code Guardian
 
 ## Selection card
-- Task: Review session changes through the read-only guardian. / TR: Oturum değişikliklerini salt okunur guardian ile incele.
+- Task: Review session changes through the read-only guardian.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

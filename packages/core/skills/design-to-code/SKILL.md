@@ -14,7 +14,7 @@ metadata:
 # Design To Code
 
 ## Selection card
-- Task: Implement a supplied design or Figma reference. / TR: Verilen tasarım veya Figma referansını uygula.
+- Task: Implement a supplied design or Figma reference.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

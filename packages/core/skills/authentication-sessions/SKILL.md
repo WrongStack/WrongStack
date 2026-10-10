@@ -14,7 +14,7 @@ metadata:
 # Authentication Sessions
 
 ## Selection card
-- Task: Build login, session rotation and revocation. / TR: Giriş, oturum yenileme ve iptal kur.
+- Task: Build login, session rotation and revocation.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

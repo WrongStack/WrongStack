@@ -44,6 +44,21 @@ describe('local bundled skill recommendations', () => {
     ['Build a C# minimal API', 'dotnet-backend'],
     ['Add spring transitions to this React interface with reduced motion', 'motion-design'],
     ['Implement a Spring Boot validation endpoint', 'java-spring'],
+    ['Create generative art with p5.js', 'algorithmic-art'],
+    ['Apply brand guidelines to this interface', 'brand-guidelines'],
+    ['Design a poster for the launch', 'canvas-design'],
+    ['Review critical assumptions in this plan', 'discernment-nudge'],
+    ['Create a coauthored technical specification', 'doc-coauthoring'],
+    ['Write a Word document', 'docx'],
+    ['Write an internal communications update', 'internal-comms'],
+    ['Implement an LLM runtime', 'llm-runtime'],
+    ['Generate an animated GIF', 'micro-animation-gif'],
+    ['Generate a PDF report', 'pdf'],
+    ['Create a PowerPoint presentation deck', 'pptx'],
+    ['Create a theme pack for this app', 'theme-factory'],
+    ['Build an interactive HTML artifact', 'web-artifacts'],
+    ['Test the browser E2E flow', 'webapp-testing'],
+    ['Create an Excel spreadsheet', 'xlsx'],
   ])('routes %s to %s', (text, expected) => {
     expect(recommendLocalSkills(text, catalog, ['skill'])?.names[0]).toBe(expected);
   });
@@ -206,6 +221,21 @@ describe('automatic local skill prompt injection', () => {
     const nextTurn = await capture(h);
     expect(nextTurn.system).toHaveLength(1);
     expect(nextTurn.system?.[0]?.text).toBe('Stable prefix');
+  });
+
+  it('keeps its advice through a tool-loop iteration ending in a tool_result', async () => {
+    // A tool-loop iteration ends with a user message carrying only tool_result
+    // blocks. The latest user TEXT is still the turn's request, so the advice
+    // must not be stripped as if the user had said nothing.
+    const h = harness();
+    h.request.system = (await capture(h)).system;
+    h.request.messages.push({ role: 'assistant', content: 'running the tool' }, {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }],
+    } as never);
+    const afterTool = await capture(h);
+    expect(afterTool.system).toHaveLength(2);
+    expect(afterTool.system?.[1]?.text).toContain('Primary instructions (nextjs-modern)');
   });
 
   it('propagates a downstream/provider error exactly once', async () => {

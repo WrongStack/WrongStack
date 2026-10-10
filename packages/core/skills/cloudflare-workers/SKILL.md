@@ -13,7 +13,7 @@ metadata:
 # Cloudflare Workers
 
 ## Selection card
-- Task: Implement Cloudflare Workers bindings and deployment. / TR: Cloudflare Workers binding ve deploy uygula.
+- Task: Implement Cloudflare Workers bindings and deployment.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

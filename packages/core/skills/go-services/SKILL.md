@@ -14,7 +14,7 @@ metadata:
 # Go Services
 
 ## Selection card
-- Task: Build Go handlers, concurrency and cancellation. / TR: Go handler, eşzamanlılık ve iptal kur.
+- Task: Build Go handlers, concurrency and cancellation.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

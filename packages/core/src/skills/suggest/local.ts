@@ -12,7 +12,7 @@ import { LOCAL_SKILL_RULES } from './local-rules.js';
 const MAX_QUERY_CHARS = 16_384;
 const MAX_BODY_CHARS = 12_000;
 const ACTION =
-  /\b(?:build|create|implement|add|fix|repair|debug|diagnose|refactor|migrate|upgrade|update|deploy|configure|render|animate|generate|write|commit|define|specify|redesign|collect|harden|tune|externalize|triage|design|review|audit|test|verify|prove|optimize|prepare|set up|choose|plan|find|measure|restore|port|kur\w*|yap\w*|ekle\w*|duzelt\w*|gelistir\w*|olustur\w*|uret\w*|hazirla\w*|tasarla\w*|guclendir\w*|teshis\w*|incele\w*|dogrula\w*|kanitla\w*|guncelle\w*|tasi\w*|yaz\w*|arastir\w*|bul\w*|olc\w*|sec\w*|canlandir\w*|uygula\w*|fails|failing|crashes|broken|calismiyor|hata veriyor|takiliyor)\b/;
+  /\b(?:build|create|implement|apply|add|fix|repair|debug|diagnose|refactor|migrate|upgrade|update|deploy|configure|render|animate|generate|write|commit|define|specify|redesign|collect|harden|tune|externalize|triage|design|review|audit|test|verify|prove|optimize|prepare|set up|choose|plan|find|measure|restore|port|kur\w*|yap\w*|ekle\w*|duzelt\w*|gelistir\w*|olustur\w*|uret\w*|hazirla\w*|tasarla\w*|guclendir\w*|teshis\w*|incele\w*|dogrula\w*|kanitla\w*|guncelle\w*|tasi\w*|yaz\w*|arastir\w*|bul\w*|olc\w*|sec\w*|canlandir\w*|uygula\w*|fails|failing|crashes|broken|calismiyor|hata veriyor|takiliyor)\b/;
 const PROSE =
   /\b(?:birthday|haiku|poem|joke|greeting|weather|pizza|dogum gunu|siir|saka|gunaydin|hava durumu)\b/;
 const SOFTWARE =
@@ -208,11 +208,21 @@ async function prepareLocalSuggestion(
 }
 
 function latestUserText(request: Request): string {
-  const user = request.messages.findLast((message) => message.role === 'user');
-  return typeof user?.content === 'string'
-    ? user.content
-    : (user?.content
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text)
-        .join('\n') ?? '');
+  // Scan back to the last user message that actually carries text. A tool-loop
+  // iteration ends with a user message holding only tool_result blocks; the
+  // latest USER TEXT is still the turn's request, and treating the tool-result
+  // message as "no request" would strip this middleware's own advice mid-turn.
+  for (let i = request.messages.length - 1; i >= 0; i--) {
+    const user = request.messages[i];
+    if (user?.role !== 'user') continue;
+    const text =
+      typeof user.content === 'string'
+        ? user.content
+        : user.content
+            .filter((block) => block.type === 'text')
+            .map((block) => block.text)
+            .join('\n');
+    if (text.trim()) return text;
+  }
+  return '';
 }

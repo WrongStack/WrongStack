@@ -13,7 +13,7 @@ metadata:
 # Security Scanner
 
 ## Selection card
-- Task: Review source trust boundaries and defensive security. / TR: Kaynak güven sınırlarını ve savunma güvenliğini incele.
+- Task: Review source trust boundaries and defensive security.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

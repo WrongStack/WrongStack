@@ -19,7 +19,7 @@ metadata:
 Designs and reviews data governance for services and data stores: schema ownership, PII handling, retention, lineage, access policy, and migration safety.
 
 ## Selection card
-- Task: Define data ownership, retention and PII boundaries. / TR: Veri sahipliği, saklama ve kişisel veri sınırı tanımla.
+- Task: Define data ownership, retention and PII boundaries.
 - Start: Identify the data owner, query/schema, consistency and recovery contract.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -16,7 +16,7 @@ metadata:
 # Debugging
 
 ## Selection card
-- Task: Reproduce and diagnose a reported failure. / TR: Bildirilen hatayı yeniden üret ve teşhis et.
+- Task: Reproduce and diagnose a reported failure.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

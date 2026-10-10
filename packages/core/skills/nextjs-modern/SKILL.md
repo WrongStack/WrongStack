@@ -13,7 +13,7 @@ metadata:
 # Next.js 16 App Router
 
 ## Selection card
-- Task: Next.js App Router routes, actions and caching. / TR: Next.js App Router rotaları, action ve cache.
+- Task: Next.js App Router routes, actions and caching.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -14,7 +14,7 @@ metadata:
 # Linux Service Ops
 
 ## Selection card
-- Task: Operate Linux services, journals and resource limits. / TR: Linux servis, journal ve kaynak sınırlarını yönet.
+- Task: Operate Linux services, journals and resource limits.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

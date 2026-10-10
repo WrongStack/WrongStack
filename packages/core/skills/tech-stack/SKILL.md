@@ -13,7 +13,7 @@ metadata:
 # Tech Stack Validator
 
 ## Selection card
-- Task: Verify latest stable versions and migration constraints. / TR: Son kararlı sürüm ve geçiş kısıtını doğrula.
+- Task: Verify latest stable versions and migration constraints.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

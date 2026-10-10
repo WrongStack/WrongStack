@@ -15,7 +15,7 @@ metadata:
 # Modern Node.js
 
 ## Selection card
-- Task: Node runtime APIs, ESM and async cancellation. / TR: Node çalışma zamanı API, ESM ve async iptal.
+- Task: Node runtime APIs, ESM and async cancellation.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

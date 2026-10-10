@@ -13,7 +13,7 @@ metadata:
 # Three.js and Browser 3D
 
 ## Selection card
-- Task: Build interactive Three.js 3D rendering and shaders. / TR: Etkileşimli Three.js 3D render ve shader kur.
+- Task: Build interactive Three.js 3D rendering and shaders.
 - Start: Identify the existing engine, scene, timeline and delivery format.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -15,7 +15,7 @@ metadata:
 # Modern React
 
 ## Selection card
-- Task: React component state, forms and hooks. / TR: React bileşen durumu, form ve hook.
+- Task: React component state, forms and hooks.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

@@ -15,7 +15,7 @@ metadata:
 # Design Critique — WrongStack
 
 ## Selection card
-- Task: Critique an existing interface with visual evidence. / TR: Mevcut arayüzü görsel kanıtla değerlendir.
+- Task: Critique an existing interface with visual evidence.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

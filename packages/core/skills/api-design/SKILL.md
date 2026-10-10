@@ -15,7 +15,7 @@ metadata:
 # API Design
 
 ## Selection card
-- Task: Define HTTP contracts, pagination and error schemas. / TR: HTTP sözleşmesi, sayfalama ve hata şeması tanımla.
+- Task: Define HTTP contracts, pagination and error schemas.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

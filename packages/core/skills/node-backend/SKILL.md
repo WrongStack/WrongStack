@@ -14,7 +14,7 @@ metadata:
 # Node Backend
 
 ## Selection card
-- Task: Implement Node server endpoints and shutdown. / TR: Node sunucu endpoint ve kapanış uygula.
+- Task: Implement Node server endpoints and shutdown.
 - Start: Locate the endpoint, schema, authentication boundary and caller.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

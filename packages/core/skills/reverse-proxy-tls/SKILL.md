@@ -14,7 +14,7 @@ metadata:
 # Reverse Proxy Tls
 
 ## Selection card
-- Task: Configure proxy routing, certificates and TLS renewal. / TR: Proxy yönlendirme, sertifika ve TLS yenileme yapılandır.
+- Task: Configure proxy routing, certificates and TLS renewal.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

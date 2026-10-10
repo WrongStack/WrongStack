@@ -14,7 +14,7 @@ metadata:
 # Mobile Performance
 
 ## Selection card
-- Task: Profile device startup, scrolling and memory. / TR: Cihaz açılışını, kaydırmayı ve belleği ölç.
+- Task: Profile device startup, scrolling and memory.
 - Start: Identify the platform, screen, device and native integration boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

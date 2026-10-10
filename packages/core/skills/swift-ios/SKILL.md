@@ -14,7 +14,7 @@ metadata:
 # Swift Ios
 
 ## Selection card
-- Task: Build SwiftUI and Apple platform features. / TR: SwiftUI ve Apple platform özellikleri kur.
+- Task: Build SwiftUI and Apple platform features.
 - Start: Identify the platform, screen, device and native integration boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

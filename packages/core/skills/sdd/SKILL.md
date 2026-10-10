@@ -16,7 +16,7 @@ metadata:
 # Spec-Driven Development — WrongStack
 
 ## Selection card
-- Task: Define acceptance criteria and dependent tasks. / TR: Kabul kriteri ve bağımlı görevler tanımla.
+- Task: Define acceptance criteria and dependent tasks.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

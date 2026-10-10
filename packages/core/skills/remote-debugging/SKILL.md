@@ -14,7 +14,7 @@ metadata:
 # Remote Debugging
 
 ## Selection card
-- Task: Diagnose remote processes and networking over SSH. / TR: SSH üzerinden uzak süreç ve ağı teşhis et.
+- Task: Diagnose remote processes and networking over SSH.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

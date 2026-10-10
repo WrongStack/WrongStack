@@ -16,7 +16,7 @@ metadata:
 # Testing
 
 ## Selection card
-- Task: Write meaningful behavior and regression tests. / TR: Anlamlı davranış ve regresyon testleri yaz.
+- Task: Write meaningful behavior and regression tests.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

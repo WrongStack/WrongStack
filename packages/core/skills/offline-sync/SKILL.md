@@ -14,7 +14,7 @@ metadata:
 # Offline Sync
 
 ## Selection card
-- Task: Reconcile offline edits, outboxes and conflicts. / TR: Çevrimdışı değişiklik, outbox ve çakışmaları uzlaştır.
+- Task: Reconcile offline edits, outboxes and conflicts.
 - Start: Identify the data owner, query/schema, consistency and recovery contract.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

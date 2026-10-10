@@ -14,7 +14,7 @@ metadata:
 # Release Rollback
 
 ## Selection card
-- Task: Verify release promotion and rollback paths. / TR: Sürüm yükseltme ve rollback yollarını doğrula.
+- Task: Verify release promotion and rollback paths.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

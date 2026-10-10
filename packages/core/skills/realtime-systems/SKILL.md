@@ -14,7 +14,7 @@ metadata:
 # Realtime Systems
 
 ## Selection card
-- Task: Build ordered live updates and reconnection. / TR: Sıralı canlı güncelleme ve yeniden bağlantı kur.
+- Task: Build ordered live updates and reconnection.
 - Start: Identify the data owner, query/schema, consistency and recovery contract.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

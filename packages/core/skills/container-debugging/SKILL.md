@@ -14,7 +14,7 @@ metadata:
 # Container Debugging
 
 ## Selection card
-- Task: Diagnose a running container failure. / TR: Çalışan container hatasını teşhis et.
+- Task: Diagnose a running container failure.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

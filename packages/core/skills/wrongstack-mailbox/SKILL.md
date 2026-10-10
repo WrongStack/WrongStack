@@ -38,7 +38,7 @@ side starts the HTTP server; this skill teaches you (the external
 agent) how to talk to it.
 
 ## Selection card
-- Task: Use the roster mailbox client protocol. / TR: Roster mailbox istemci protokolünü kullan.
+- Task: Use the roster mailbox client protocol.
 - Start: Identify the host, protocol, enabled integration and authorization scope.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

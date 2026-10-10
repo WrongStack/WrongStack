@@ -13,7 +13,7 @@ metadata:
 # Audio Studio
 
 ## Selection card
-- Task: Prepare music, narration and audio delivery. / TR: Müzik, seslendirme ve ses teslimi hazırla.
+- Task: Prepare music, narration and audio delivery.
 - Start: Identify the existing engine, scene, timeline and delivery format.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

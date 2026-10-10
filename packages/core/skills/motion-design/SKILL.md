@@ -13,7 +13,7 @@ metadata:
 # Motion Design
 
 ## Selection card
-- Task: Animate live web UI transitions and gestures. / TR: Canlı web arayüzü geçişlerini ve hareketlerini canlandır.
+- Task: Animate live web UI transitions and gestures.
 - Start: Identify the existing engine, scene, timeline and delivery format.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

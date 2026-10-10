@@ -14,7 +14,7 @@ metadata:
 # Cloud Architecture
 
 ## Selection card
-- Task: Choose cloud topology, failure domains and services. / TR: Bulut topolojisi, hata alanı ve servis seç.
+- Task: Choose cloud topology, failure domains and services.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

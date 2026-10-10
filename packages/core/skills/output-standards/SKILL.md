@@ -19,7 +19,7 @@ in final messages. This ensures system-level parsing and automation can reliably
 extract structured data from agent responses.
 
 ## Selection card
-- Task: Apply precise evidence and response formatting. / TR: Kesin kanıt ve yanıt biçimini uygula.
+- Task: Apply precise evidence and response formatting.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

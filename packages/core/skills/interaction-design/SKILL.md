@@ -14,7 +14,7 @@ metadata:
 # Interaction Design
 
 ## Selection card
-- Task: Design user journeys, feedback and recovery. / TR: Kullanıcı yolculuğu, geri bildirim ve kurtarma tasarla.
+- Task: Design user journeys, feedback and recovery.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

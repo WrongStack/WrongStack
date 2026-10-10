@@ -19,7 +19,7 @@ reusable decisions, not a finished composition. Removing gradients or changing
 three cards to four does not make a design original.
 
 ## Selection card
-- Task: Build or restyle a concrete product interface. / TR: Somut ürün arayüzü kur veya yeniden biçimlendir.
+- Task: Build or restyle a concrete product interface.
 - Start: Identify the target surface, reference, user task and existing tokens.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

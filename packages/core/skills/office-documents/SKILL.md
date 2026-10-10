@@ -13,7 +13,7 @@ metadata:
 # Office Documents
 
 ## Selection card
-- Task: Create and verify Word, spreadsheet, slide or PDF artifacts. / TR: Word, tablo, sunum veya PDF üret ve doğrula.
+- Task: Create and verify Word, spreadsheet, slide or PDF artifacts.
 - Start: Identify the existing engine, scene, timeline and delivery format.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

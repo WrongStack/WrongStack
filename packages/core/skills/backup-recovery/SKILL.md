@@ -14,7 +14,7 @@ metadata:
 # Backup Recovery
 
 ## Selection card
-- Task: Prove backup restore and recovery objectives. / TR: Yedek geri yükleme ve kurtarma hedefini kanıtla.
+- Task: Prove backup restore and recovery objectives.
 - Start: Identify the authorized target, current health and rollback boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

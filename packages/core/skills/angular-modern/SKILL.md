@@ -14,7 +14,7 @@ metadata:
 # Angular Modern
 
 ## Selection card
-- Task: Angular signals and standalone components. / TR: Angular signals ve standalone bileşenler.
+- Task: Angular signals and standalone components.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

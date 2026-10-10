@@ -13,7 +13,7 @@ metadata:
 # Multi-Agent Coordination
 
 ## Selection card
-- Task: Plan coordinated work when delegation is authorized. / TR: Delegasyon yetkiliyse koordineli çalışma planla.
+- Task: Plan coordinated work when delegation is authorized.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

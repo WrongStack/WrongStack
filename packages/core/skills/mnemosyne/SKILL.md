@@ -16,7 +16,7 @@ metadata:
 # Mnemosyne — SAGE Memory Custodian
 
 ## Selection card
-- Task: Maintain the SAGE memory corpus and retrieval anchors. / TR: SAGE hafıza corpusunu ve erişim anchorlarını düzenle.
+- Task: Maintain the SAGE memory corpus and retrieval anchors.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

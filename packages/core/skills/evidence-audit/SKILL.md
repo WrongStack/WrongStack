@@ -14,7 +14,7 @@ metadata:
 Invoke as `$evidence-audit <scope>`. The text after the skill name is the scope. Every round produces the same thing: a ledger of findings where each finding has a proof that fails on current code, a patch that touches only the scope, and a verifier that passes after the patch. Nothing without a proof becomes a patch. Nothing without a verifier is called fixed. This holds in every language and every repo: an unproven "improvement" is a regression risk with no upside.
 
 ## Selection card
-- Task: Find, prove, fix and independently verify real defects. / TR: Gerçek kusuru bul, kanıtla, düzelt ve bağımsız doğrula.
+- Task: Find, prove, fix and independently verify real defects.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

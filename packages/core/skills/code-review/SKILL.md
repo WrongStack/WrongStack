@@ -15,7 +15,7 @@ metadata:
 # Code Review
 
 ## Selection card
-- Task: Review implementation correctness and maintainability. / TR: Uygulama doğruluğunu ve bakım kolaylığını incele.
+- Task: Review implementation correctness and maintainability.
 - Start: Identify the scope and obtain an executable before-proof or review evidence.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

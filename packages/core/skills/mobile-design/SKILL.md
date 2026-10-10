@@ -14,7 +14,7 @@ metadata:
 # Mobile Design
 
 ## Selection card
-- Task: Design native touch layouts and safe-area behavior. / TR: Native dokunmatik yerleşim ve safe area tasarla.
+- Task: Design native touch layouts and safe-area behavior.
 - Start: Identify the platform, screen, device and native integration boundary.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

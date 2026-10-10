@@ -15,7 +15,7 @@ metadata:
 # Prompt Engineering
 
 ## Selection card
-- Task: Design grounded instructions and output contracts. / TR: Kaynağa dayalı yönerge ve çıktı sözleşmesi tasarla.
+- Task: Design grounded instructions and output contracts.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

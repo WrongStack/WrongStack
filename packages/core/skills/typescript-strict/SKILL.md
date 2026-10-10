@@ -15,7 +15,7 @@ metadata:
 # TypeScript Strict
 
 ## Selection card
-- Task: TypeScript contracts and narrowing without any. / TR: any kullanmadan TypeScript sözleşmeleri ve daraltma.
+- Task: TypeScript contracts and narrowing without any.
 - Start: Locate the affected route/component and its runtime/lockfile.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 

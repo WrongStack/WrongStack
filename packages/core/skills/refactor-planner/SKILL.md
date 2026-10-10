@@ -13,7 +13,7 @@ metadata:
 # Refactor Planner
 
 ## Selection card
-- Task: Plan behavior-preserving module decomposition. / TR: Davranışı koruyan modül ayrıştırması planla.
+- Task: Plan behavior-preserving module decomposition.
 - Start: Identify the requested artifact, repository owner and acceptance criteria.
 - Finish: apply the acceptance checks below; report observed results and unresolved constraints.
 
