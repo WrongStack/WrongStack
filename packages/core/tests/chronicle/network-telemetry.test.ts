@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../../src/kernel/events.js';
 import {
   runWithNetworkTelemetry,
@@ -12,6 +12,27 @@ afterEach(async () => {
 });
 
 describe('network telemetry', () => {
+  it('keeps one observer until the last runtime stops and preserves a caller replacement', () => {
+    const original = globalThis.fetch;
+    const stopFirst = startNetworkTelemetryMonitor();
+    const stopSecond = startNetworkTelemetryMonitor();
+    const installed = globalThis.fetch;
+    stopFirst();
+    expect(globalThis.fetch).toBe(installed);
+    stopSecond();
+    stopSecond();
+    expect(globalThis.fetch).toBe(original);
+    const stop = startNetworkTelemetryMonitor();
+    const replacement = vi.fn(original) as typeof fetch;
+    globalThis.fetch = replacement;
+    try {
+      stop();
+      expect(globalThis.fetch).toBe(replacement);
+    } finally {
+      stop();
+      globalThis.fetch = original;
+    }
+  });
   it('correlates fetch lifecycle while removing path and query values', async () => {
     const server = createServer((_request, response) => {
       response.setHeader('content-length', '2');

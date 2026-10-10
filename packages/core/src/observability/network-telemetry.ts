@@ -148,7 +148,11 @@ function observeBunFetch(
   failed: (message: unknown) => void,
 ): () => void {
   const original = globalThis.fetch;
-  if (!process.versions.bun || original.name !== 'fetch' || !original.toString().includes('[native code]')) {
+  if (
+    !process.versions.bun ||
+    original.name !== 'fetch' ||
+    !original.toString().includes('[native code]')
+  ) {
     return () => {};
   }
   let active = true;
@@ -168,12 +172,18 @@ function observeBunFetch(
     started({ request });
     try {
       const response = await original(input, init);
+      // Stop clears `active` while the socket is still in flight. Publishing
+      // after that attributes the outcome to a monitor that has already released
+      // its subscribers.
+      if (!active) return response;
       const rawHeaders: string[] = [];
-      response.headers.forEach((value, name) => rawHeaders.push(name, value));
+      response.headers.forEach((value, name) => {
+        rawHeaders.push(name, value);
+      });
       completed({ request, response: { statusCode: response.status, headers: rawHeaders } });
       return response;
     } catch (error) {
-      failed({ request, error });
+      if (active) failed({ request, error });
       throw error;
     }
   }) as typeof fetch;
