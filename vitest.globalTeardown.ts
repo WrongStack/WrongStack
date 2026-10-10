@@ -27,7 +27,19 @@ export function hasCompetingVitestRun(candidates: readonly Candidate[], ownerPid
   return candidates.some(
     (candidate) =>
       candidate.pid !== ownerPid &&
-      /(?:^|[\\/])vitest\.mjs(?:["\s]|$)/u.test(candidate.commandLine),
+      (/(?:^|[\\/])vitest\.mjs(?:["\s]|$)/u.test(candidate.commandLine) ||
+        isBunVitestCoordinator(candidate.commandLine)),
+  );
+}
+
+function isBunVitestCoordinator(commandLine: string): boolean {
+  const tokens = (commandLine.match(/"[^"]*"|'[^']*'|\S+/gu) ?? []).map((token) =>
+    token.replace(/^["']|["']$/gu, ''),
+  );
+  const executable = tokens[0]?.split(/[\\/]/u).pop()?.toLowerCase();
+  if (executable !== 'bun' && executable !== 'bun.exe') return false;
+  return tokens.some(
+    (token, index) => (token === 'run' || token === 'x') && tokens[index + 1] === 'vitest',
   );
 }
 
@@ -43,14 +55,14 @@ function isTempRooted(commandLine: string): boolean {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-async function listNodeProcesses(): Promise<Candidate[]> {
+async function listRuntimeProcesses(): Promise<Candidate[]> {
   if (process.platform === 'win32') {
     const { stdout } = await run(
       'powershell',
       [
         '-NoProfile',
         '-Command',
-        'Get-CimInstance Win32_Process -Filter "Name=\'node.exe\'" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress',
+        "Get-CimInstance Win32_Process -Filter \"Name='node.exe' OR Name='bun.exe'\" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress",
       ],
       { maxBuffer: 16 * 1024 * 1024 },
     );
@@ -88,7 +100,7 @@ export default function setup(): () => Promise<void> {
 export async function teardown(): Promise<void> {
   let candidates: Candidate[];
   try {
-    candidates = await listNodeProcesses();
+    candidates = await listRuntimeProcesses();
   } catch {
     // Process enumeration is best-effort; never fail a green run over it.
     return;

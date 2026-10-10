@@ -55,6 +55,7 @@ const SALT_FILES = [
   'vitest.setup.ts',
   'vitest.globalTeardown.ts',
   'scripts/vitest-core-aliases.mjs',
+  'scripts/vitest-test-order.ts',
   'package.json',
   'bun.lock',
   'bunfig.toml',

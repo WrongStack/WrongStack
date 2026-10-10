@@ -1,17 +1,12 @@
 #!/usr/bin/env bun
 /** Build workspace packages in dependency order using Bun package scripts. */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { workspaceMemberDirs } from './lib/publishable-packages.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
-
-const workspaceGlobs = [
-  ['packages', true],
-  ['apps', true],
-  ['website', false],
-];
 
 function parseArgs(argv) {
   const targets = [];
@@ -40,17 +35,7 @@ function parseArgs(argv) {
 }
 
 function discoverPackages() {
-  const found = [];
-  for (const [dir] of workspaceGlobs) {
-    const abs = join(root, dir);
-    if (!existsSync(abs)) continue;
-    for (const entry of readdirSync(abs)) {
-      const child = join(abs, entry);
-      if (!existsSync(join(child, 'package.json'))) continue;
-      found.push(relative(root, child));
-    }
-  }
-  return found;
+  return workspaceMemberDirs(root).map((dir) => relative(root, dir));
 }
 
 function readPkgMeta(pkgDir) {

@@ -1,10 +1,18 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { BaseSequencer, type TestSpecification } from 'vitest/node';
 import { coreAliases } from './scripts/vitest-core-aliases.mjs';
+import { deferSubprocessIntegration } from './scripts/vitest-test-order.js';
 import { getVitestMaxWorkers } from './vitest.workers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+class BunGateSequencer extends BaseSequencer {
+  async sort(files: TestSpecification[]): Promise<TestSpecification[]> {
+    return deferSubprocessIntegration(await super.sort(files));
+  }
+}
 
 export default defineConfig({
   // The `@` alias is webui-only (no other package uses it). Mapping it here lets
@@ -65,6 +73,7 @@ export default defineConfig({
     external: ['typescript', 'typescript/lib/typescript'],
   },
   test: {
+    sequence: { sequencer: BunGateSequencer },
     globals: false,
     environment: 'node',
     // forks pool: each test file runs in a dedicated child process with

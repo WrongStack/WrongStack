@@ -60,7 +60,12 @@ function selectionList(value: string | string[] | undefined): string[] | undefin
 }
 
 const runtimeByName = new Map(builtinTools.map((tool) => [tool.name, tool]));
-const websiteNames = new Set(toolCatalog.map((tool) => tool.name));
+const websiteNames = new Set<string>();
+const duplicateWebsiteNames = new Set<string>();
+for (const tool of toolCatalog) {
+  if (websiteNames.has(tool.name)) duplicateWebsiteNames.add(tool.name);
+  websiteNames.add(tool.name);
+}
 const runtimeNames = new Set(builtinTools.map((tool) => tool.name));
 /** Explicit categories for newly registered tools; generated output stays writer-owned. */
 const newToolCategories: Readonly<Record<string, ToolCategory>> = {
@@ -78,9 +83,12 @@ const removedRuntimeTools = toolCatalog
   .filter((tool) => !runtimeNames.has(tool.name))
   .map((tool) => tool.name);
 
-if (missingCategories.length || removedRuntimeTools.length) {
+if (duplicateWebsiteNames.size || missingCategories.length || removedRuntimeTools.length) {
   console.error(
     [
+      duplicateWebsiteNames.size
+        ? `Duplicate website tool names: ${[...duplicateWebsiteNames].join(', ')}`
+        : '',
       missingCategories.length
         ? `Website tools missing a category: ${missingCategories.join(', ')}`
         : '',

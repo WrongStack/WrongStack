@@ -46,7 +46,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 if (!process.env['WRONGSTACK_HOME']) {
-  process.env['WRONGSTACK_HOME'] = path.join(os.tmpdir(), `wstack-vitest-${process.pid}`);
+  // Match the production directory layout so private writes use the same
+  // inherited owner-only ACLs instead of spawning icacls for every file.
+  process.env['WRONGSTACK_HOME'] = path.join(
+    os.tmpdir(),
+    `wstack-vitest-${process.pid}`,
+    '.wrongstack',
+  );
 }
 
 // ── Mailbox has no in-process mode ────────────────────────────────────────
