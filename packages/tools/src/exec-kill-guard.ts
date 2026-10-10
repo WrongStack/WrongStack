@@ -51,6 +51,28 @@ export async function checkExecKillCommand(
     .replace(/\.exe$/, '');
   const fullCommand = [cmdLower, ...args].join(' ').replace(/\s+/g, ' ').trim();
 
+  // node -e "process.kill(12345)" — eval-based kill
+  if (cmdLower === 'node' || cmdLower === 'bun') {
+    if (args.includes('-e') || args.includes('--eval')) {
+      const evalIdx = args.indexOf('-e') !== -1 ? args.indexOf('-e') : args.indexOf('--eval');
+      const evalCode = args[evalIdx + 1] ?? '';
+      if (/\bprocess\.kill\s*\(/.test(evalCode)) {
+        // Extract the PID from process.kill(...)
+        const pidMatch = evalCode.match(/process\.kill\s*\(\s*(\d+)/);
+        if (pidMatch?.[1]) {
+          const pid = parseInt(pidMatch[1], 10);
+          const result = await checkKillTarget({ pid, signal: 'SIGTERM', cmd: fullCommand });
+          if (result.blocked) return result;
+        }
+        // Can't extract PID but it's process.kill — block conservatively
+        return {
+          blocked: true,
+          reason: `Blocked: ${cmdLower} -e with process.kill() — would target protected WrongStack process(es).`,
+        };
+      }
+    }
+  }
+
   // On Windows, check for taskkill, Stop-Process, wmic kill
   if (isWin) {
     // taskkill /IM node.exe or taskkill /F /PID 1234
@@ -254,29 +276,6 @@ export async function checkExecKillCommand(
         };
       }
     }
-
-    // node -e "process.kill(12345)" — eval-based kill
-    if (cmdLower === 'node' || cmdLower === 'bun') {
-      if (args.includes('-e') || args.includes('--eval')) {
-        const evalIdx = args.indexOf('-e') !== -1 ? args.indexOf('-e') : args.indexOf('--eval');
-        const evalCode = args[evalIdx + 1] ?? '';
-        if (/\bprocess\.kill\s*\(/.test(evalCode)) {
-          // Extract the PID from process.kill(...)
-          const pidMatch = evalCode.match(/process\.kill\s*\(\s*(\d+)/);
-          if (pidMatch?.[1]) {
-            const pid = parseInt(pidMatch[1], 10);
-            const result = await checkKillTarget({ pid, signal: 'SIGTERM', cmd: fullCommand });
-            if (result.blocked) return result;
-          }
-          // Can't extract PID but it's process.kill — block conservatively
-          return {
-            blocked: true,
-            reason:
-              `Blocked: ${cmdLower} -e with process.kill() — would target protected WrongStack process(es).`,
-          };
-        }
-      }
-    }
   } else {
     // POSIX
     // Direct kill/pkill/killall via exec
@@ -413,7 +412,11 @@ async function checkPkillSelection(
   const reason = `Blocked: ${fullCommand.slice(0, 80)} can select protected WrongStack processes.`;
   const selector = cmd === 'killall' ? KILLALL_SELECTOR_RE : PKILL_SELECTOR_RE;
   if (args.some((a) => selector.test(a))) return { blocked: true, reason };
-  const targets = ['wrongstack', currentImage, ...(protectedPids.length > 0 ? ['node', 'bun'] : [])];
+  const targets = [
+    'wrongstack',
+    currentImage,
+    ...(protectedPids.length > 0 ? ['node', 'bun'] : []),
+  ];
   for (const word of args) {
     if (word.startsWith('-')) continue;
     const compiled = compileUserRegex(word, 'i');
@@ -501,7 +504,8 @@ async function checkKillTarget(target: KillTarget): Promise<ExecKillCheckResult>
     // Also protect other registered WrongStack instances that use Node even
     // when this instance is running from a packaged executable.
     const protectedPids = await registry.getAllProtectedPids();
-    const targetsBunRuntime = nameLower === 'bun' || (wildcard && wildcardNameMatches(nameLower, 'bun'));
+    const targetsBunRuntime =
+      nameLower === 'bun' || (wildcard && wildcardNameMatches(nameLower, 'bun'));
     if (protectedPids.length > 0 && (targetsNodeRuntime || targetsBunRuntime)) {
       return {
         blocked: true,
