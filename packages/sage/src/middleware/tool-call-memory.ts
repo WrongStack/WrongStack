@@ -238,7 +238,7 @@ export function createSageToolCallMiddleware(
             maxHints,
             nextPayload.ctx.projectRoot,
             relationFloor,
-            opts.getSessionId?.(),
+            opts.getSessionId?.() ?? (nextPayload.ctx.session as { id?: string } | undefined)?.id,
           ),
           opts.retrievalTimeoutMs ?? DEFAULT_RETRIEVAL_TIMEOUT_MS,
         );
@@ -467,9 +467,23 @@ export function createSageToolCallMiddleware(
         const placedKey = sessionId ?? '<no-session>';
         placed.delete(placedKey);
         placed.set(placedKey, new Set(evidence.memoryIds));
+        // The placement record is the only handle that can lift a permanent
+        // cooldown after the line leaves the window. Drop a session only once
+        // its ids are already gone, and lift those cooldowns in the same step.
         if (placed.size > 256) {
-          const oldest = placed.keys().next().value;
-          if (oldest !== undefined) placed.delete(oldest);
+          const present = memoryIdsInEvidence(readToolMemoryEvidence(nextPayload.ctx));
+          for (const key of [...placed.keys()]) {
+            if (placed.size <= 256) break;
+            const ids = placed.get(key);
+            if (!ids) {
+              placed.delete(key);
+              continue;
+            }
+            if ([...ids].some((id) => present.has(id))) continue;
+            const keySession = key === '<no-session>' ? undefined : key;
+            for (const id of ids) seen.delete(cooldownKey(id, keySession));
+            placed.delete(key);
+          }
         }
         pruneCooldowns(
           seen,

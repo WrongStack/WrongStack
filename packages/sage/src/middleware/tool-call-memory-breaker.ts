@@ -66,9 +66,11 @@ export class StoreFaultBreaker {
 
   recordFailure(error: unknown, now: number): StoreFaultOutcome {
     if (!isStoreFault(error)) {
-      // An unrelated failure says nothing about the store; keep the streak
-      // from silently carrying across it.
+      // An unrelated failure says nothing about the store. Clear the probe
+      // flag too: a timeout after the cooldown is not a failed storage probe,
+      // and leaving it set made the next single I/O error skip the threshold.
       this.consecutive = 0;
+      this.probing = false;
       return { tripped: false };
     }
     this.consecutive += 1;
