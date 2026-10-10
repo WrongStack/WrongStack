@@ -69,6 +69,9 @@ describe('runWebUI mailbox operations', () => {
 
     const projectRoot = path.join(tmpDir, 'project');
     await fs.promises.mkdir(projectRoot, { recursive: true });
+    // mailbox.clear cold-starts a detached owner for this project; register its
+    // dir so teardown stops it (Windows cannot remove the dir while it lives).
+    mailboxProjectDirs.push(resolveProjectDir(projectRoot, tmpDir));
 
     serverDone = runWebUI({
       port: wsPort,
@@ -89,9 +92,11 @@ describe('runWebUI mailbox operations', () => {
     const { ws, waitForMessage } = await openWs(`ws://127.0.0.1:${wsPort}`);
     await waitForMessage('session.start');
 
-    // Send mailbox.clear and expect mailbox.cleared response
+    // Send mailbox.clear and expect mailbox.cleared response. This is the first
+    // touch of the project mailbox, so the reply waits on a cold-started owner
+    // daemon - slow enough to overrun the 5s default when the suite is loaded.
     ws.send(JSON.stringify({ type: 'mailbox.clear' }));
-    const cleared = await waitForMessage('mailbox.cleared');
+    const cleared = await waitForMessage('mailbox.cleared', undefined, 30_000);
     expect(cleared.type).toBe('mailbox.cleared');
     expect(cleared.payload).toEqual({});
 

@@ -50,8 +50,11 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       // the reads a DISARMED (recovered) load performs, or a test that checks
       // "did the second load re-read the file?" is measuring its own mock.
       return new Proxy(handle, {
-        get(target, prop, receiver) {
-          if (prop !== 'read') return Reflect.get(target, prop, receiver);
+        get(target, prop) {
+          if (prop !== 'read') {
+            const value = Reflect.get(target, prop, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          }
           return (...args: unknown[]) => {
             readFault.reads += 1;
             if (

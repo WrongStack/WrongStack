@@ -29,14 +29,17 @@ beforeEach(async () => {
 });
 
 async function rmWithRetry(dir: string): Promise<void> {
-  for (let i = 0; i < 5; i++) {
+  // ~5s budget: a loaded full-suite run on Windows can hold handles on the
+  // temp dir (indexer/AV scan, trailing async writes) well past the first second.
+  const attempts = 20;
+  for (let i = 0; i < attempts; i++) {
     try {
       await fs.rm(dir, { recursive: true, force: true });
       return;
     } catch (err: unknown) {
-      if (i === 4) throw err;
+      if (i === attempts - 1) throw err;
       // ENOTEMPTY/EBUSY on Windows: give the OS a moment to release handles
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 250));
     }
   }
 }

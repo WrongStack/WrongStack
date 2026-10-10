@@ -38,10 +38,8 @@ async function mount(): Promise<HTMLDivElement> {
   document.body.append(container);
   const created = createRoot(container);
   root = created;
-  // Render AND settle inside one act window. The active view is lazy-loaded
-  // behind Suspense: module loading is not a plain microtask, so give it a
-  // macrotask tick before act exits — otherwise the suspense retry pings
-  // (and the mocked fetch updates) land outside act and React warns.
+  // Await the lazy view's actual imports inside act. Counting timer ticks
+  // does not ensure cold module loads have finished under Bun.
   await act(async () => {
     created.render(<AppShell />);
     // Cold dynamic imports do real fs work under vitest; a single tick is
@@ -51,6 +49,7 @@ async function mount(): Promise<HTMLDivElement> {
         setTimeout(resolve, 0);
       });
     }
+    await vi.dynamicImportSettled();
   });
   return container;
 }
@@ -64,6 +63,7 @@ async function interact(action: () => void): Promise<void> {
         setTimeout(resolve, 0);
       });
     }
+    await vi.dynamicImportSettled();
   });
 }
 
@@ -84,8 +84,11 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
-  if (root !== null) act(() => root?.unmount());
+afterEach(async () => {
+  await act(async () => {
+    root?.unmount();
+    await vi.dynamicImportSettled();
+  });
   container?.remove();
   root = null;
   container = null;

@@ -1,4 +1,4 @@
-import { WebSocket } from 'ws/native';
+import { WebSocket } from '../src/ws-runtime.js';
 
 /**
  * Wraps a WebSocket with a buffered message queue. The `'message'` listener is
@@ -11,7 +11,12 @@ import { WebSocket } from 'ws/native';
  */
 export interface WsClient {
   ws: WebSocket;
-  waitForMessage(type: string, predicate?: (m: WsMessage) => boolean): Promise<WsMessage>;
+  /** `timeoutMs` defaults to 5s; raise it for replies gated on a cold-started daemon. */
+  waitForMessage(
+    type: string,
+    predicate?: (m: WsMessage) => boolean,
+    timeoutMs?: number,
+  ): Promise<WsMessage>;
 }
 
 type WsMessage = { type?: string | undefined; [key: string]: unknown };
@@ -41,6 +46,7 @@ export function openWs(url: string): Promise<WsClient> {
     const waitForMessage = (
       type: string,
       predicate?: (m: WsMessage) => boolean,
+      timeoutMs = 5_000,
     ): Promise<WsMessage> =>
       new Promise((res, rej) => {
         const idx = buffer.findIndex((m) => m.type === type && (!predicate || predicate(m)));
@@ -48,7 +54,7 @@ export function openWs(url: string): Promise<WsClient> {
           res(buffer.splice(idx, 1)[0]!);
           return;
         }
-        const timer = setTimeout(() => rej(new Error(`timed out waiting for ${type}`)), 5_000);
+        const timer = setTimeout(() => rej(new Error(`timed out waiting for ${type}`)), timeoutMs);
         waiters.push({
           type,
           predicate,

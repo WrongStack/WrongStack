@@ -117,7 +117,8 @@ describe('large CLI entrypoint guards', () => {
   });
 
   it('propagates hook-registry construction failures during lifecycle setup', async () => {
-    mocks.HookRegistry.mockImplementationOnce(() => {
+    // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
+    mocks.HookRegistry.mockImplementationOnce(function () {
       throw new Error('hook registry unavailable');
     });
     await expect(

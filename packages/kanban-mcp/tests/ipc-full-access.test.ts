@@ -17,6 +17,7 @@ describe('Kanban MCP full-access IPC integration', () => {
   let projectRoot = '';
   let previousForceIpc: string | undefined;
   let serverProcess: ChildProcess | undefined;
+  let serverClosed: Promise<void> | undefined;
 
   beforeAll(async () => {
     previousForceIpc = process.env['WRONGSTACK_KANBAN_FORCE_IPC'];
@@ -30,6 +31,7 @@ describe('Kanban MCP full-access IPC integration', () => {
       windowsHide: true,
       env: { ...process.env, NODE_ENV: 'production', VITEST: 'false' },
     });
+    serverClosed = new Promise((resolve) => serverProcess!.once('close', () => resolve()));
     await new Promise<void>((resolve, reject) => {
       let stderr = '';
       const timeout = setTimeout(
@@ -59,7 +61,22 @@ describe('Kanban MCP full-access IPC integration', () => {
       // The daemon may already have stopped after a failed assertion.
     } finally {
       closeKanbanServerConnections();
-      if (serverProcess && serverProcess.exitCode === null) serverProcess.kill('SIGTERM');
+      if (serverClosed) {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            serverClosed,
+            new Promise<never>((_, reject) => {
+              timeout = setTimeout(() => {
+                serverProcess?.kill('SIGTERM');
+                reject(new Error('Kanban daemon did not close after shutdown'));
+              }, 5_000);
+            }),
+          ]);
+        } finally {
+          if (timeout !== undefined) clearTimeout(timeout);
+        }
+      }
       if (previousForceIpc === undefined) delete process.env['WRONGSTACK_KANBAN_FORCE_IPC'];
       else process.env['WRONGSTACK_KANBAN_FORCE_IPC'] = previousForceIpc;
       if (projectRoot) {

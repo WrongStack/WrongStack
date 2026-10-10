@@ -2,14 +2,20 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as commandRunner from '../src/exec-command.js';
 import { gradeLocalManifest } from '../src/graders/local-manifest-grader.js';
 import { createLocalManifestSuite, type LocalTaskMeta } from '../src/suites/local-manifest.js';
 import type { BenchTask } from '../src/types.js';
 
 const tempDirs: string[] = [];
 
+vi.mock('../src/exec-command.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/exec-command.js')>()),
+}));
+
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(
     tempDirs
       .splice(0)
@@ -172,6 +178,12 @@ describe('bench final coverage branches', () => {
 
   it('uses defaults for absent assertions and command args', async () => {
     const dir = await makeSuiteDir();
+    const command = vi.spyOn(commandRunner, 'execCommand').mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+      timedOut: false,
+    });
     const result = await gradeLocalManifest({
       workdir: dir,
       task: graderTask(dir, {
@@ -184,6 +196,27 @@ describe('bench final coverage branches', () => {
       timeoutMs: 50,
     });
 
+    expect(result).toEqual({ passed: true });
+    expect(command).toHaveBeenCalledWith(
+      expect.objectContaining({ args: [], timeoutMs: 50, cwd: dir }),
+    );
+  });
+
+  it('times out a command that stays running under either runtime', async () => {
+    const dir = await makeSuiteDir();
+    const result = await gradeLocalManifest({
+      workdir: dir,
+      task: graderTask(dir, {
+        grader: {
+          type: 'command',
+          command: process.execPath,
+          args: ['-e', 'setInterval(() => {}, 1000)'],
+          shell: false,
+        },
+      }),
+      timeoutMs: 50,
+    });
+    expect(result.passed).toBe(false);
     expect(result.detail).toContain('command timed out');
   });
 });

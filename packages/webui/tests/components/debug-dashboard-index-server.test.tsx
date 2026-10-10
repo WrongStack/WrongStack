@@ -143,7 +143,7 @@ describe('DebugDashboard codebase index health', () => {
     render(<DebugDashboard />);
 
     await waitFor(() => expect(screen.getByText('Codebase Index Server')).toBeTruthy());
-    expect(screen.getByText('healthy')).toBeTruthy();
+    expect(await screen.findByText('healthy')).toBeTruthy();
     expect(screen.getByText('64.0 MB')).toBeTruthy();
     expect(screen.getByText('2 requests')).toBeTruthy();
     expect(screen.getByText('1 owners · 4 pending')).toBeTruthy();

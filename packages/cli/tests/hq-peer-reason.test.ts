@@ -25,8 +25,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from 'ws/native';
 import { startHqServer } from '../src/hq-server.js';
+import { WebSocket } from '../src/ws-runtime.js';
 
 let tempRoot = '';
 let dataDir = '';
@@ -49,6 +49,25 @@ function waitForOpen(ws: WebSocket, timeout = 5_000): Promise<void> {
       reject(err);
     });
   });
+}
+
+async function registerClient(ws: WebSocket, frame: string): Promise<void> {
+  const welcomed = new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      ws.off('message', onMessage);
+      reject(new Error('HQ welcome timeout'));
+    }, 5_000);
+    function onMessage(raw: unknown) {
+      const message = JSON.parse(String(raw)) as { type?: string };
+      if (message.type !== 'hq.welcome') return;
+      clearTimeout(timer);
+      ws.off('message', onMessage);
+      resolve();
+    }
+    ws.on('message', onMessage);
+  });
+  ws.send(frame);
+  await welcomed;
 }
 
 interface HelloOpts {
@@ -158,11 +177,15 @@ afterEach(async () => {
   }
   await handle?.close?.();
   handle = null;
+  vi.useRealTimers();
   await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => undefined);
 });
 
 describe('HQ peer-lifecycle reason label', () => {
   it('reports a session-summary-TTL reap as a crash, not a heartbeat timeout', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const startedAt = Date.now();
+    vi.setSystemTime(startedAt);
     // LONG client TTL so the genuine-heartbeat-timeout branch can never fire;
     // SHORT session-summary TTL so the session-summary branch does.
     const port = getPort();
@@ -178,8 +201,10 @@ describe('HQ peer-lifecycle reason label', () => {
     const leader = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
     sockets.push(leader);
     await waitForOpen(leader);
-    leader.send(hello('lead-ttl', 'mach-A', 'projTTL', { sessionSummary: true, pid: 101 }));
-    await new Promise((r) => setTimeout(r, 30));
+    await registerClient(
+      leader,
+      hello('lead-ttl', 'mach-A', 'projTTL', { sessionSummary: true, pid: 101 }),
+    );
 
     // Healthy control-capable survivor in the same project so leader loss is
     // fanned out to a surviving client. Distinct pid avoids the supersede
@@ -188,8 +213,7 @@ describe('HQ peer-lifecycle reason label', () => {
     sockets.push(survivor);
     await waitForOpen(survivor);
     const envelopes = collectPeerEnvelopes(survivor);
-    survivor.send(hello('follow-ttl', 'mach-A', 'projTTL', { pid: 202 }));
-    await new Promise((r) => setTimeout(r, 30));
+    await registerClient(survivor, hello('follow-ttl', 'mach-A', 'projTTL', { pid: 202 }));
 
     // Keep the leader ALIVE so the ONLY branch that can reap it is the
     // session-summary-TTL one.
@@ -198,6 +222,9 @@ describe('HQ peer-lifecycle reason label', () => {
       if (leader.readyState === WebSocket.OPEN)
         leader.send(keepalive('lead-ttl', 'projTTL', seq++));
     }, 20);
+
+    // Advance only after both registrations; cold startup cannot consume TTL.
+    vi.setSystemTime(startedAt + 200);
 
     try {
       await vi.waitFor(
@@ -219,8 +246,11 @@ describe('HQ peer-lifecycle reason label', () => {
   });
 
   it('still reports a genuine missed heartbeat as heartbeat-timeout', async () => {
-    // Neighbor unaffected path: SHORT client TTL, leader goes silent, survivor
-    // heartbeats. The genuine-heartbeat-timeout branch keeps its label.
+    // Control the clock, keeping sockets and the cleanup interval real. A
+    // slow handshake must not expire the leader before a survivor registers.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const startedAt = Date.now();
+    vi.setSystemTime(startedAt);
     const port = getPort();
     handle = await startOpenHqServer({
       port,
@@ -232,34 +262,23 @@ describe('HQ peer-lifecycle reason label', () => {
     sockets.push(leader);
     await waitForOpen(leader);
     // Distinct pid so the survivor's hello does not supersede the leader.
-    leader.send(hello('lead-hb', 'mach-B', 'projHB', { pid: 11 }));
+    await registerClient(leader, hello('lead-hb', 'mach-B', 'projHB', { pid: 11 }));
+
+    vi.setSystemTime(startedAt + 200);
 
     const survivor = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
     sockets.push(survivor);
     await waitForOpen(survivor);
     const envelopes = collectPeerEnvelopes(survivor);
-    survivor.send(hello('follow-hb', 'mach-B', 'projHB', { pid: 22 }));
-    await new Promise((r) => setTimeout(r, 30));
-
-    // Survivor heartbeats so it outlives the leader; the leader stays silent
-    // so its lastSeenAt ages past clientTtlMs.
-    let seq = 1;
-    const beat = setInterval(() => {
-      if (survivor.readyState === WebSocket.OPEN) {
-        survivor.send(keepalive('follow-hb', 'projHB', seq++));
-      }
-    }, 20);
-
-    try {
-      await vi.waitFor(
-        () => {
-          expect(envelopes.some((e) => e.payload?.reason !== undefined)).toBe(true);
-        },
-        { timeout: 8_000, interval: 25 },
-      );
-    } finally {
-      clearInterval(beat);
-    }
+    await registerClient(survivor, hello('follow-hb', 'mach-B', 'projHB', { pid: 22 }));
+    // The leader is 400 ms old, while the survivor is only 200 ms old.
+    vi.setSystemTime(startedAt + 400);
+    await vi.waitFor(
+      () => {
+        expect(envelopes.some((e) => e.payload?.reason !== undefined)).toBe(true);
+      },
+      { timeout: 8_000, interval: 25 },
+    );
 
     const timeoutReap = envelopes.find((e) => e.payload?.reason !== undefined)!;
     expect(timeoutReap.payload?.reason).toBe('heartbeat-timeout');

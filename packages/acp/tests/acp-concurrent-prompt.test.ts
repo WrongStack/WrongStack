@@ -13,6 +13,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { waitForProcessExit } from '../../core/tests/helpers/project-server-harness.js';
 import { ACPSession } from '../src/client/acp-session.js';
 import { makeACPSubagentRunnerWithStop } from '../src/integration/acp-subagent-runner.js';
 
@@ -179,10 +180,12 @@ describe('persistent ACP subagent runner', () => {
     (globalThis as { WebSocket?: unknown }).WebSocket = realWS;
     dir = await fs.mkdtemp(path.join(os.tmpdir(), 'acp-persistent-'));
     const okFile = path.join(dir, 'ok');
+    const pidFile = path.join(dir, 'failed-start-pids.txt');
     const agent = path.join(dir, 'agent.cjs');
     await fs.writeFile(
       agent,
       [
+        `require('node:fs').appendFileSync(${JSON.stringify(pidFile)}, process.pid + '\\n');`,
         `if (!require('node:fs').existsSync(${JSON.stringify(okFile)})) process.exit(9);`,
         "const rl = require('node:readline').createInterface({ input: process.stdin });",
         "const send = (m) => process.stdout.write(JSON.stringify(m) + '\\n');",
@@ -220,6 +223,8 @@ describe('persistent ACP subagent runner', () => {
     } finally {
       stderr.mockRestore();
       await stop();
+      const pids = (await fs.readFile(pidFile, 'utf8')).trim().split('\n').map(Number);
+      await Promise.all(pids.map((pid) => waitForProcessExit(pid)));
     }
   }, 30_000);
 });

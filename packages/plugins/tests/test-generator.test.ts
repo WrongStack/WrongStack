@@ -9,7 +9,7 @@ type FsEntry = { type: 'file'; content: string } | { type: 'dir' };
 let mockFs: Record<string, FsEntry> = {};
 
 function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/');
+  return p.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
 }
 
 function mockReadFileSync(p: string, encoding?: string) {

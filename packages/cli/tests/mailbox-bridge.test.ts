@@ -8,6 +8,7 @@ import {
 } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { waitForProcessExit } from '../../core/tests/helpers/project-server-harness.js';
 import { mailboxServeCmd } from '../src/subcommands/handlers/mailbox-serve.js';
 
 /**
@@ -185,8 +186,11 @@ afterAll(async () => {
   }
   if (mailboxProjectDir) {
     const connection = new MailboxProjectServerConnection(mailboxProjectDir);
-    await connection.shutdown('mailbox bridge integration test complete').catch(() => undefined);
+    const stopped = await connection
+      .shutdown('mailbox bridge integration test complete')
+      .catch(() => undefined);
     connection.close();
+    if (stopped?.pid !== undefined) await waitForProcessExit(stopped.pid);
   }
   if (process.env['WRONGSTACK_HOME']) {
     // maxRetries/retryDelay ride out any lingering Windows file lock.

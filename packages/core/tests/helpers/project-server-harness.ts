@@ -78,10 +78,7 @@ export async function waitForMetadataFile<T extends Record<string, unknown>>(
  * not reliably to a directory watch on every platform, whereas a directory
  * watch reports both the create and the delete of a single entry.
  */
-export function waitForMetadataRemoval(
-  metadataPath: string,
-  timeoutMs = 15_000,
-): Promise<void> {
+export function waitForMetadataRemoval(metadataPath: string, timeoutMs = 15_000): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const dir = path.dirname(metadataPath);
     const base = path.basename(metadataPath);
@@ -92,14 +89,28 @@ export function waitForMetadataRemoval(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      watcher?.close();
-      if (error) reject(error);
-      else resolve();
+      let closeTimer: ReturnType<typeof setTimeout> | undefined;
+      const complete = () => {
+        if (closeTimer !== undefined) clearTimeout(closeTimer);
+        if (error) reject(error);
+        else resolve();
+      };
+      if (watcher) {
+        // Windows releases the directory handle when cancellation completes.
+        closeTimer = setTimeout(
+          () => reject(new Error(`metadata watcher did not close: ${metadataPath}`)),
+          timeoutMs,
+        );
+        watcher.once('close', complete);
+        watcher.close();
+      } else complete();
     };
 
     // One bounded deadline replaces the unbounded poll.
     const timer = setTimeout(() => {
-      finish(new Error(`daemon metadata was never removed at ${metadataPath} within ${timeoutMs}ms`));
+      finish(
+        new Error(`daemon metadata was never removed at ${metadataPath} within ${timeoutMs}ms`),
+      );
     }, timeoutMs);
 
     // The file may already be gone before the watcher arms; a fast shutdown

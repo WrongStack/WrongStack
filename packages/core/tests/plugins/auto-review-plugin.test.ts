@@ -15,7 +15,7 @@ import {
 } from '../../src/plugins/auto-review-plugin.js';
 import type { Config } from '../../src/types/config.js';
 
-let tmp: string;
+let tmp = '';
 
 function gitInit(dir: string): void {
   execFileSync('git', ['init', '-q'], { cwd: dir });
@@ -76,17 +76,18 @@ function reviewPayloads(emitCustom: ReturnType<typeof vi.fn>): ChimeraReviewNeed
     .map(([, payload]) => payload as ChimeraReviewNeededPayload);
 }
 
-beforeEach(async () => {
+async function setupGitFixture() {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'auto-review-'));
   gitInit(tmp);
   await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 1;\n');
   commitAll(tmp, 'initial');
-});
+}
 
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  await fs.rm(tmp, { recursive: true, force: true });
+  if (tmp) await fs.rm(tmp, { recursive: true, force: true });
+  tmp = '';
 });
 
 describe('trimKnownFingerprints', () => {
@@ -108,6 +109,7 @@ describe('trimKnownFingerprints', () => {
 });
 
 describe('auto-review change detection', () => {
+  beforeEach(setupGitFixture);
   it('registers the cascade review_complete listener but not review_needed', () => {
     const { api, onPattern } = makeApi();
     createAutoReviewPlugin().setup!(api);
@@ -145,7 +147,13 @@ describe('auto-review change detection', () => {
   it('waits for a trailing quiet window and reviews the latest content in the background', {
     timeout: 20000,
   }, async () => {
+    vi.useFakeTimers();
     const { api, events, emitCustom } = makeApi({ debounceMs: 200 });
+    const reviewed = new Promise<void>((resolve) => {
+      emitCustom.mockImplementation((event: string) => {
+        if (event === 'chimera.review_needed') resolve();
+      });
+    });
     createAutoReviewPlugin().setup!(api);
     try {
       await events['agent.run.started']!();
@@ -154,20 +162,16 @@ describe('auto-review change detection', () => {
       await events['iteration.completed']!();
       expect(reviewPayloads(emitCustom)).toHaveLength(0);
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await vi.advanceTimersByTimeAsync(100);
       await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 3;\n');
       await events['iteration.completed']!();
       expect(reviewPayloads(emitCustom)).toHaveLength(0);
 
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await vi.advanceTimersByTimeAsync(150);
       expect(reviewPayloads(emitCustom)).toHaveLength(0);
-      // The quiet timer also awaits real git snapshot/context subprocesses on Windows.
-      await vi.waitFor(
-        () => {
-          expect(reviewPayloads(emitCustom)).toHaveLength(1);
-        },
-        { timeout: 10000 },
-      );
+      await vi.advanceTimersByTimeAsync(50);
+      // Await the real background event, keeping Git and file reads real.
+      await reviewed;
 
       const payloads = reviewPayloads(emitCustom);
       expect(payloads).toHaveLength(1);
@@ -672,6 +676,7 @@ describe('reviewer model round-robin', () => {
  * These pin the two bounds that keep that from coming back.
  */
 describe('auto-review snapshot memory bounds', () => {
+  beforeEach(setupGitFixture);
   it('skips a snapshot pass while another is still walking the tree', async () => {
     const { api, events, log } = makeApi();
     createAutoReviewPlugin().setup!(api);

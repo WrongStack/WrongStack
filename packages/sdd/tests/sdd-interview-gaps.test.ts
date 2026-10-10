@@ -1,6 +1,7 @@
 import * as os from 'node:os';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isExplanatoryText, SddInterviewDriver } from '../src/sdd-interview-driver.js';
 import { SpecStore } from '../src/spec-store.js';
 import { TaskGraphStore } from '../src/task-graph-store.js';
@@ -16,16 +17,26 @@ function tmp(prefix: string): string {
 
 function makeDriver() {
   const dir = tmp('sdd-gaps');
-  const specStore = new SpecStore({ baseDir: path.join(dir, 'specs') });
-  const graphStore = new TaskGraphStore({ baseDir: path.join(dir, 'graphs') });
+  const specStore = new SpecStore({ baseDir: path.join(dir, '.wrongstack', 'specs') });
+  const graphStore = new TaskGraphStore({ baseDir: path.join(dir, '.wrongstack', 'task-graphs') });
   const driver = new SddInterviewDriver({
     specStore,
     graphStore,
     minQuestions: 1,
     maxQuestions: 3,
   });
-  return { driver, specStore, graphStore, dir };
+  const fixture = { driver, specStore, graphStore, dir };
+  fixtures.push(fixture);
+  return fixture;
 }
+
+const fixtures: Array<{ dir: string; specStore: SpecStore; graphStore: TaskGraphStore }> = [];
+afterEach(async () => {
+  for (const fixture of fixtures.splice(0)) {
+    await Promise.all([fixture.specStore.list(), fixture.graphStore.list()]);
+    await fs.rm(fixture.dir, { recursive: true, force: true });
+  }
+});
 
 const SPEC_OUTPUT = [
   'Here is the spec:',
@@ -90,24 +101,28 @@ describe('SddInterviewDriver — gap coverage', () => {
   });
 
   describe('trySaveImplementationPlan', () => {
-    it('captures a prose plan preceding a JSON block', async () => {
-      const { driver } = makeDriver();
-      driver.start('OAuth login');
-      await driver.ingestAgentOutput(SPEC_OUTPUT);
-      // Advance to implementation phase
-      await driver.approve(); // → implementation
-      const implText = [
-        'The implementation plan is as follows:',
-        'We will build a middleware layer that handles JWT verification and session persistence.',
-        'The middleware sits between the router and the controller, validating tokens on each request.',
-        '```json',
-        JSON.stringify([
-          { title: 'Create middleware', description: 'JWT', type: 'feature', priority: 'high' },
-        ]),
-        '```',
-      ].join('\n');
-      const res = await driver.ingestAgentOutput(implText);
-      expect(res.implementationDetected).toBe(true);
+    describe('prose plan with JSON', () => {
+      let driver: SddInterviewDriver;
+      beforeEach(async () => {
+        ({ driver } = makeDriver());
+        driver.start('OAuth login');
+        await driver.ingestAgentOutput(SPEC_OUTPUT);
+        await driver.approve(); // → implementation
+      });
+      it('captures a prose plan preceding a JSON block', async () => {
+        const implText = [
+          'The implementation plan is as follows:',
+          'We will build a middleware layer that handles JWT verification and session persistence.',
+          'The middleware sits between the router and the controller, validating tokens on each request.',
+          '```json',
+          JSON.stringify([
+            { title: 'Create middleware', description: 'JWT', type: 'feature', priority: 'high' },
+          ]),
+          '```',
+        ].join('\n');
+        const res = await driver.ingestAgentOutput(implText);
+        expect(res.implementationDetected).toBe(true);
+      });
     });
 
     it('captures a long prose plan without JSON', async () => {
@@ -145,19 +160,22 @@ describe('SddInterviewDriver — gap coverage', () => {
   });
 
   describe('ensureTaskGraph', () => {
-    it('generates a graph when approving into executing without prior tasks', async () => {
-      const { driver } = makeDriver();
-      driver.start('OAuth login');
-      await driver.ingestAgentOutput(SPEC_OUTPUT);
-      // No task array ingested — graph is null
-      expect(driver.getGraph()).toBeNull();
-      // Approve through to executing
-      await driver.approve(); // → implementation
-      await driver.approve(); // → task_review
-      const { phase } = await driver.approve(); // → executing (ensureTaskGraph)
-      expect(phase).toBe('executing');
-      const graph = driver.getGraph();
-      expect(graph).not.toBeNull();
+    describe('approval without prior tasks', () => {
+      let driver: SddInterviewDriver;
+      beforeEach(async () => {
+        ({ driver } = makeDriver());
+        driver.start('OAuth login');
+        await driver.ingestAgentOutput(SPEC_OUTPUT);
+        expect(driver.getGraph()).toBeNull();
+        await driver.approve(); // → implementation
+        await driver.approve(); // → task_review
+      });
+      it('generates a graph when approving into executing without prior tasks', async () => {
+        const { phase } = await driver.approve(); // → executing (ensureTaskGraph)
+        expect(phase).toBe('executing');
+        const graph = driver.getGraph();
+        expect(graph).not.toBeNull();
+      });
     });
 
     it('returns the existing graph if one already exists', async () => {

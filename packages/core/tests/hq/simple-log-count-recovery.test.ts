@@ -39,8 +39,11 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       const handle = await open(p as string, flags as never, mode);
       if (!(String(p).endsWith(LOG) && flags === 'r')) return handle;
       return new Proxy(handle, {
-        get(target, prop, receiver) {
-          if (prop !== 'read') return Reflect.get(target, prop, receiver);
+        get(target, prop) {
+          if (prop !== 'read') {
+            const value = Reflect.get(target, prop, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          }
           return (...args: unknown[]) => {
             readFault.reads += 1;
             // Armed means every read of the log fails — a fault that has not

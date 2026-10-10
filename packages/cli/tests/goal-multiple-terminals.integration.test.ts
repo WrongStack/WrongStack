@@ -6,7 +6,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { deferred, goalGitFixture } from '../../core/tests/goal/helpers/goal-git-fixture.js';
 import { createGoalHost } from '../src/goal-host.js';
 
-const GIT_SETTLE_MS = 30_000;
+// Measured under a loaded full-suite run: the squash-merge after a goal's phase
+// completed took ~28s, just missing a 30s window. Two sequential waits use this,
+// so the test timeout below must cover both with room to spare.
+const GIT_SETTLE_MS = 60_000;
 
 afterEach(() => vi.unstubAllEnvs());
 it('two terminal goals run independently and integrate only into their own goal branches', async () => {
@@ -106,7 +109,9 @@ it('two terminal goals run independently and integrate only into their own goal 
     secondRelease.resolve();
     first.onGoalStop();
     second.onGoalStop();
-    await vi.waitFor(() => expect(first.getGoalRunner() || second.getGoalRunner()).toBeNull());
+    await vi.waitFor(() => expect(first.getGoalRunner() || second.getGoalRunner()).toBeNull(), {
+      timeout: GIT_SETTLE_MS,
+    });
     await fixture.dispose();
   }
-}, 120_000);
+}, 240_000);

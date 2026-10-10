@@ -50,9 +50,10 @@ describe('createGoalHost', () => {
   const prevVerify = process.env['WRONGSTACK_GOAL_VERIFY'];
 
   beforeEach(async () => {
-    storeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ap-store-'));
     // Non-git temp dir → worktree isolation never activates.
     projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ap-root-'));
+    storeDir = path.join(projectRoot, '.wrongstack', 'task-graphs');
+    await fs.mkdir(storeDir, { recursive: true });
     // The verify gate would shell out to typecheck/lint — off for unit tests.
     process.env['WRONGSTACK_GOAL_VERIFY'] = '0';
   });

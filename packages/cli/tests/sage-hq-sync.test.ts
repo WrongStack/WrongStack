@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { HQ_AUTH_FILE_VERSION, type HqPublisher, writeHqAuthFile } from '@wrongstack/core/hq';
 import { SageProjectServerConnection } from '@wrongstack/sage';
 import { afterEach, expect, it, vi } from 'vitest';
+import { waitForProcessExit } from '../../core/tests/helpers/project-server-harness.js';
 import { createCliHqPublisher } from '../src/hq-publisher.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { createSageHqSync } from '../src/sage-hq-sync.js';
@@ -27,8 +28,9 @@ afterEach(async () => {
   await server?.close();
   await Promise.all(
     clients.map(async (c) => {
-      await c.ipc.shutdown('test-cleanup');
+      const stopped = await c.ipc.shutdown('test-cleanup');
       c.ipc.close();
+      if (stopped.pid !== undefined) await waitForProcessExit(stopped.pid);
     }),
   );
   clients.length = 0;

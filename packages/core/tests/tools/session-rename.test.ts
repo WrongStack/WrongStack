@@ -27,7 +27,13 @@ async function fixture() {
     await fs.rm(dir, { recursive: true, force: true });
   });
   const current = await store.create({ id: '', model: 'm', provider: 'p' });
+  cleanups.push(async () => {
+    await current.close();
+  });
   const other = await store.create({ id: '', model: 'm', provider: 'p' });
+  cleanups.push(async () => {
+    await other.close();
+  });
   const ctx = new Context({
     systemPrompt: [],
     provider: {} as Provider,

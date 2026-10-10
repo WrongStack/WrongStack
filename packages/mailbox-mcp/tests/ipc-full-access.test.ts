@@ -3,8 +3,13 @@ import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createProjectMailbox, MailboxEventEmitter } from '@wrongstack/core/coordination';
+import {
+  createProjectMailbox,
+  MailboxEventEmitter,
+  MailboxProjectServerConnection,
+} from '@wrongstack/core/coordination';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { waitForProcessExit } from '../../core/tests/helpers/project-server-harness.js';
 import { createMailboxMcpToolHost } from '../src/adapter.js';
 
 function objectContent(result: { content: unknown; isError: boolean }): Record<string, unknown> {
@@ -34,6 +39,7 @@ async function waitForServer(metadataPath: string, child: ChildProcess, stderr: 
 describe('Mailbox MCP full-access IPC integration', () => {
   let projectDir = '';
   let serverProcess: ChildProcess | undefined;
+  let serverClosed: Promise<void> | undefined;
   let mailbox: ReturnType<typeof createProjectMailbox> | undefined;
   let emitter: MailboxEventEmitter | undefined;
 
@@ -48,6 +54,7 @@ describe('Mailbox MCP full-access IPC integration', () => {
       windowsHide: true,
       env: { ...process.env, NODE_ENV: 'production', VITEST: 'false' },
     });
+    serverClosed = new Promise((resolve) => serverProcess?.once('close', () => resolve()));
     serverProcess.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString('utf8');
     });
@@ -62,17 +69,30 @@ describe('Mailbox MCP full-access IPC integration', () => {
     await mailbox?.close().catch(() => {});
     emitter?.clear();
     if (serverProcess && serverProcess.exitCode === null) {
-      serverProcess.kill('SIGTERM');
-      await new Promise<void>((resolve) => {
-        // Under a loaded coverage run the child can take well over 2 s to
-        // exit; removing its project dir before then fails EBUSY on Windows.
-        const timer = setTimeout(resolve, 10_000);
-        serverProcess?.once('exit', () => {
-          clearTimeout(timer);
-          resolve();
-        });
-      });
+      const connection = new MailboxProjectServerConnection(projectDir);
+      try {
+        await connection.shutdown('Mailbox MCP integration test complete');
+      } finally {
+        connection.close();
+      }
     }
+    if (serverClosed) {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          serverClosed,
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => {
+              serverProcess?.kill('SIGTERM');
+              reject(new Error('Mailbox daemon did not close after shutdown'));
+            }, 10_000);
+          }),
+        ]);
+      } finally {
+        if (timeout !== undefined) clearTimeout(timeout);
+      }
+    }
+    if (serverProcess?.pid !== undefined) await waitForProcessExit(serverProcess.pid);
     if (projectDir) {
       await rm(projectDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
     }

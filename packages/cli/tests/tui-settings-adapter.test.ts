@@ -354,9 +354,7 @@ describe('TUI settings adapter', () => {
     expect(settings['showAgentSwarmPanel']).toBe('off');
   });
 
-  it('nextStepsTool-only saves update disk and the live config store', {
-    timeout: 5000,
-  }, async () => {
+  it('nextStepsTool-only saves update disk and the live config store', async () => {
     const { adapter, configStore, globalConfig } = makeAdapter();
 
     const err = await adapter.saveSettings({ nextStepsTool: true });

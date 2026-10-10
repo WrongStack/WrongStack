@@ -125,6 +125,13 @@ const seedProject = async (slug: string): Promise<ProjectFixture> => {
   };
 };
 
+/**
+ * The first gateway request of a test cold-starts the detached project owner,
+ * which a loaded full-suite run can delay well past 5s. Stay under the 60s
+ * per-test limit so a genuine hang still fails with a clear timeout.
+ */
+const GATEWAY_REQUEST_TIMEOUT_MS = 30_000;
+
 const gatewayUrl = (h: HqServerHandle, projectId: string, route: string): string =>
   `http://127.0.0.1:${h.port}/api/projects/${encodeURIComponent(projectId)}/mailbox${route}`;
 
@@ -137,7 +144,7 @@ const post = async (
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(5_000),
+    signal: AbortSignal.timeout(GATEWAY_REQUEST_TIMEOUT_MS),
   });
   const text = await res.text();
   let parsed: unknown = null;
@@ -508,7 +515,7 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(5_000),
+      signal: AbortSignal.timeout(GATEWAY_REQUEST_TIMEOUT_MS),
     });
     const text = await res.text();
     let parsed: unknown = null;

@@ -55,7 +55,7 @@ describe('EventsView (W5 #19)', () => {
     // The Refresh button starts as 'Refreshing…' during the initial mount-fetch.
     // Wait for the first fetch to resolve so the button returns to 'Refresh'.
     await waitFor(() => expect(mockFetchEvents).toHaveBeenCalled());
-    expect(screen.getByText('Refresh')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Refresh' })).toBeTruthy();
   });
 
   it('calls fetchEvents on mount with the initial filters', async () => {
@@ -92,7 +92,7 @@ describe('EventsView (W5 #19)', () => {
     await user.type(typeInput, '  brain.event  ');
 
     // The manual Refresh click should send a trimmed filter.
-    await user.click(screen.getByText('Refresh'));
+    await user.click(await screen.findByRole('button', { name: 'Refresh' }));
     await waitFor(() => {
       const lastCall = mockFetchEvents.mock.calls.at(-1)?.[0] as FetchEventsFilters | undefined;
       expect(lastCall?.type).toBe('brain.event');
@@ -104,7 +104,7 @@ describe('EventsView (W5 #19)', () => {
     render(<EventsView />);
     await waitFor(() => expect(mockFetchEvents).toHaveBeenCalled());
 
-    await user.click(screen.getByText('Refresh'));
+    await user.click(await screen.findByRole('button', { name: 'Refresh' }));
     await waitFor(() => {
       const lastCall = mockFetchEvents.mock.calls.at(-1)?.[0] as FetchEventsFilters | undefined;
       expect(lastCall?.type).toBeUndefined();

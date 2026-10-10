@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { KanbanBoard, KanbanTask } from '../src/types.js';
 import {
   BoundedProcessOutput,
@@ -210,38 +210,43 @@ describe('VerificationContext git helpers', () => {
     expect(result).toMatchObject({ clean: false, untracked: 1, unstaged: 0, staged: 0 });
   });
 
-  it('isolates changes made after a dirty worktree snapshot', { timeout: 15_000 }, async () => {
-    const root = await mkdtemp(join(tmpdir(), 'verification-context-snapshot-'));
-    roots.push(root);
-    await execFileAsync('git', ['init'], { cwd: root });
-    await execFileAsync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
-    await execFileAsync('git', ['config', 'user.name', 'Verification Test'], { cwd: root });
-    await writeFile(join(root, 'tracked.txt'), 'committed\n');
-    await execFileAsync('git', ['add', 'tracked.txt'], { cwd: root });
-    await execFileAsync('git', ['commit', '-m', 'fixture'], { cwd: root });
-    await writeFile(join(root, 'tracked.txt'), 'pre-existing dirty state\n');
-    await writeFile(join(root, 'before.txt'), 'pre-existing untracked state\n');
+  describe('dirty worktree snapshot', () => {
+    let root: string;
+    beforeEach(async () => {
+      root = await mkdtemp(join(tmpdir(), 'verification-context-snapshot-'));
+      roots.push(root);
+      await execFileAsync('git', ['init'], { cwd: root });
+      await execFileAsync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
+      await execFileAsync('git', ['config', 'user.name', 'Verification Test'], { cwd: root });
+      await writeFile(join(root, 'tracked.txt'), 'committed\n');
+      await execFileAsync('git', ['add', 'tracked.txt'], { cwd: root });
+      await execFileAsync('git', ['commit', '-m', 'fixture'], { cwd: root });
+      await writeFile(join(root, 'tracked.txt'), 'pre-existing dirty state\n');
+      await writeFile(join(root, 'before.txt'), 'pre-existing untracked state\n');
+    });
 
-    const ctx = await context(root);
-    const snapshot = await ctx.captureSnapshot();
-    expect(await ctx.diffSince(snapshot)).toEqual([]);
+    it('isolates changes made after a dirty worktree snapshot', { timeout: 15_000 }, async () => {
+      const ctx = await context(root);
+      const snapshot = await ctx.captureSnapshot();
+      expect(await ctx.diffSince(snapshot)).toEqual([]);
 
-    await writeFile(join(root, 'tracked.txt'), 'changed after snapshot\n');
-    await writeFile(join(root, 'after.txt'), 'created after snapshot\n');
+      await writeFile(join(root, 'tracked.txt'), 'changed after snapshot\n');
+      await writeFile(join(root, 'after.txt'), 'created after snapshot\n');
 
-    const diff = await ctx.diffSince(snapshot);
-    expect(diff).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ path: 'tracked.txt', operation: 'modify' }),
-        expect.objectContaining({
-          path: 'after.txt',
-          operation: 'create',
-          linesAdded: 1,
-          linesRemoved: 0,
-        }),
-      ]),
-    );
-    expect(diff.map((entry) => entry.path)).not.toContain('before.txt');
+      const diff = await ctx.diffSince(snapshot);
+      expect(diff).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: 'tracked.txt', operation: 'modify' }),
+          expect.objectContaining({
+            path: 'after.txt',
+            operation: 'create',
+            linesAdded: 1,
+            linesRemoved: 0,
+          }),
+        ]),
+      );
+      expect(diff.map((entry) => entry.path)).not.toContain('before.txt');
+    });
   });
 });
 

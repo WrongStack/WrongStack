@@ -14,6 +14,9 @@ import { beforeAll } from 'vitest';
 beforeAll(async () => {
   try {
     const { default: i18n } = await import('i18next');
+    if (i18n?.isInitializing && !i18n.isInitialized) {
+      await new Promise<void>((resolve) => i18n.once('initialized', () => resolve()));
+    }
     if (i18n?.isInitialized && typeof i18n.loadNamespaces === 'function') {
       await i18n.loadNamespaces(['activity', 'settings']);
     }

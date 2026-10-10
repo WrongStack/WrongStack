@@ -8,7 +8,7 @@ const run = promisify(execFile);
 export async function goalGitFixture() {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-multi-goal-'));
   const projectRoot = path.join(parent, 'project');
-  const storeDir = path.join(parent, 'store');
+  const storeDir = path.join(projectRoot, '.wrongstack', 'task-graphs');
   await fs.mkdir(projectRoot);
   const git = async (...args: string[]) =>
     (await run('git', args, { cwd: projectRoot, windowsHide: true })).stdout.trim();
@@ -25,7 +25,20 @@ export async function goalGitFixture() {
     storeDir,
     baseline,
     git,
-    dispose: () => fs.rm(parent, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }),
+    dispose: async () => {
+      // Completed goals retain their checkouts for inspection. Release the
+      // fixture's nested Git worktrees before removing their owning repository.
+      const directories = (await git('worktree', 'list', '--porcelain'))
+        .split('\n')
+        .flatMap((line) => (line.startsWith('worktree ') ? [path.resolve(line.slice(9))] : []))
+        .filter((directory) => directory.startsWith(projectRoot + path.sep))
+        .sort((a, b) => b.length - a.length);
+      for (const directory of directories) {
+        await git('worktree', 'remove', '--force', directory);
+      }
+      await git('worktree', 'prune');
+      await fs.rm(parent, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    },
   };
 }
 

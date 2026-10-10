@@ -8,15 +8,18 @@ import { SessionRecovery } from '../../src/storage/session-recovery.js';
 import type { SessionEvent } from '../../src/types/session.js';
 
 let tmp: string;
+let fixtureRoot: string;
 let store: DefaultSessionStore;
 
 beforeEach(async () => {
-  tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-sess-extra-'));
+  fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-sess-extra-'));
+  tmp = path.join(fixtureRoot, '.wrongstack', 'sessions');
+  await fs.mkdir(tmp, { recursive: true });
   store = new DefaultSessionStore({ dir: tmp });
 });
 afterEach(async () => {
   vi.restoreAllMocks();
-  await fs.rm(tmp, { recursive: true, force: true });
+  await fs.rm(fixtureRoot, { recursive: true, force: true });
 });
 
 const now = () => new Date().toISOString();
@@ -1849,20 +1852,28 @@ describe('DefaultSessionStore.rename', () => {
     expect(refreshed.find((summary) => summary.id === id)?.name).toBe('Changed by peer store');
   });
 
-  it('rejects and rolls back the sidecar when the rename index update fails', {
-    timeout: 5000,
-  }, async () => {
+  describe('rename index failure rollback', () => {
     const id = '2026-07-04/rn-index-failure';
-    const writer = await store.create({ id, model: 'm', provider: 'p' });
-    await writer.close();
-    const sidecarPath = path.join(tmp, '2026-07-04', 'rn-index-failure.summary.json');
-    const before = JSON.parse(await fs.readFile(sidecarPath, 'utf8')) as { name?: string };
-    (store as never as { appendToIndexStrict(): Promise<void> }).appendToIndexStrict = () =>
-      Promise.reject(new Error('index unavailable'));
+    let sidecarPath: string;
+    let before: { name?: string };
+    beforeEach(async () => {
+      // Filesystem/catalog setup belongs to the hook budget, not the rename
+      // operation's five-second deadline (especially with Windows ACL work).
+      const writer = await store.create({ id, model: 'm', provider: 'p' });
+      await writer.close();
+      sidecarPath = path.join(tmp, '2026-07-04', 'rn-index-failure.summary.json');
+      before = JSON.parse(await fs.readFile(sidecarPath, 'utf8')) as { name?: string };
+    });
 
-    await expect(store.rename(id, 'Must be indexed')).rejects.toThrow('index unavailable');
-    const after = JSON.parse(await fs.readFile(sidecarPath, 'utf8')) as { name?: string };
-    expect(after.name).toBe(before.name);
+    it('rejects and rolls back the sidecar when the rename index update fails', {
+      timeout: 5000,
+    }, async () => {
+      (store as never as { appendToIndexStrict(): Promise<void> }).appendToIndexStrict = () =>
+        Promise.reject(new Error('index unavailable'));
+      await expect(store.rename(id, 'Must be indexed')).rejects.toThrow('index unavailable');
+      const after = JSON.parse(await fs.readFile(sidecarPath, 'utf8')) as { name?: string };
+      expect(after.name).toBe(before.name);
+    });
   });
 });
 
