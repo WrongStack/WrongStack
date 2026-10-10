@@ -11,7 +11,10 @@ interface BunDatabaseOptions {
 }
 
 interface BunSqliteModule {
-  Database: new (filename: string, options?: BunDatabaseOptions) => unknown;
+  Database: {
+    new (filename: string, options?: BunDatabaseOptions): unknown;
+    prototype: object;
+  };
 }
 
 function databaseSyncFromNode(module: unknown): DatabaseSyncConstructor | null {
@@ -36,9 +39,41 @@ function databaseSyncFromBun(module: unknown): DatabaseSyncConstructor | null {
     const bunOptions: BunDatabaseOptions | undefined = options?.readOnly
       ? { readonly: true, create: false, readwrite: false }
       : undefined;
-    return new BunDatabase(filename, bunOptions) as unknown as DatabaseSync;
+    const database = new BunDatabase(filename, bunOptions) as {
+      close?: (throwOnError?: boolean) => void;
+      prepare?: DatabaseSync['prepare'];
+      inTransaction?: boolean;
+    };
+    let isOpen = true;
+    Object.defineProperties(database, {
+      isOpen: { get: () => isOpen },
+      isTransaction: { get: () => database.inTransaction },
+    });
+    if (typeof database.prepare === 'function') {
+      const prepare = database.prepare.bind(database);
+      database.prepare = (...args: Parameters<DatabaseSync['prepare']>) => {
+        const statement = prepare(...args);
+        const get = statement.get.bind(statement);
+        // Bun returns null for a missing row; the Node contract is undefined.
+        statement.get = (...params) => Reflect.apply(get, statement, params) ?? undefined;
+        return statement;
+      };
+    }
+    if (typeof database.close === 'function') {
+      const close = database.close.bind(database);
+      // Node close invalidates every statement and releases the file immediately.
+      // Bun's default close(false) leaves .prepare() statements and handles alive.
+      database.close = () => {
+        if (!isOpen) return;
+        close(true);
+        isOpen = false;
+      };
+      Object.defineProperty(database, Symbol.dispose, { value: () => database.close?.() });
+    }
+    return database as unknown as DatabaseSync;
   }
 
+  BunDatabaseSync.prototype = BunDatabase.prototype;
   return BunDatabaseSync as unknown as DatabaseSyncConstructor;
 }
 
@@ -62,6 +97,12 @@ export function loadRuntimeDatabaseSync(loadModule?: ModuleLoader): DatabaseSync
     return _cachedDefaultDatabaseSync;
   }
   const loader = loadModule ?? getDefaultRequire();
+  if (isDefault && process.versions.bun) {
+    const Database = databaseSyncFromBun(loader('bun:sqlite'));
+    if (!Database) throw new Error('bun:sqlite did not export Database');
+    _cachedDefaultDatabaseSync = Database;
+    return Database;
+  }
 
   let nodeError: unknown;
   try {

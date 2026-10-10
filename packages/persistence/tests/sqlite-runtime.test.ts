@@ -2,6 +2,46 @@ import { describe, expect, it, vi } from 'vitest';
 import { isRuntimeSqliteAvailable, loadRuntimeDatabaseSync } from '../src/sqlite-runtime.js';
 
 describe('runtime SQLite compatibility', () => {
+  it('invalidates retained statements and releases a real database file on close', () => {
+    const root = mkdtempSync(join(tmpdir(), 'wrongstack-sqlite-close-'));
+    const Database = loadRuntimeDatabaseSync();
+    const db = new Database(join(root, 'store.sqlite'));
+    const statement = db.prepare('SELECT 42 AS value');
+    expect(statement.get()).toMatchObject({ value: 42 });
+    db.close();
+    expect(() => statement.get()).toThrow();
+    rmSync(root, { recursive: true });
+  });
+
+  it('returns undefined for a missing row and tracks transaction state', () => {
+    const Database = loadRuntimeDatabaseSync();
+    const db = new Database(':memory:');
+    try {
+      expect(db.isOpen).toBe(true);
+      expect(db.prepare('SELECT 1 WHERE 0').get()).toBeUndefined();
+      db.exec('BEGIN');
+      expect(db.isTransaction).toBe(true);
+      db.exec('ROLLBACK');
+      expect(db.isTransaction).toBe(false);
+    } finally {
+      db.close();
+    }
+    expect(db.isOpen).toBe(false);
+  });
+  it('finalizes outstanding statements when closing the native Bun fallback', () => {
+    const close = vi.fn();
+    class BunDatabase {
+      close = close;
+    }
+    const Database = loadRuntimeDatabaseSync((specifier) => {
+      if (specifier === 'node:sqlite') throw new Error('missing node builtin');
+      return { Database: BunDatabase };
+    });
+    const db = new Database('store.db');
+    db.close();
+    expect(close).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
   it('uses node:sqlite when DatabaseSync is available', () => {
     class NodeDatabase {}
     const load = vi.fn((specifier: string) => {
@@ -48,3 +88,7 @@ describe('runtime SQLite compatibility', () => {
     expect(() => loadRuntimeDatabaseSync(load)).toThrow(/node:sqlite.*bun:sqlite/u);
   });
 });
+
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
