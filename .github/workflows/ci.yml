@@ -148,9 +148,6 @@ jobs:
         # require the same review bar documented at the top of that file.
         run: bun run setup:native
 
-      - name: TypeCheck (website tests)
-        run: bun run --filter wrongstack-website typecheck:tests
-
       # Build first so cross-package type declarations exist. Several packages
       # (e.g. @wrongstack/kanban) import workspace deps like
       # @wrongstack/persistence whose `types` resolve to dist/*.d.ts, which do
@@ -160,6 +157,10 @@ jobs:
         run: bun run build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
+
+      # The website checker also imports workspace runtime helpers from dist.
+      - name: TypeCheck (website tests)
+        run: bun run --filter wrongstack-website typecheck:tests
 
       # Workspace Bun checks run serially, with four checker threads per package.
       # Matches the root package.json script exactly.

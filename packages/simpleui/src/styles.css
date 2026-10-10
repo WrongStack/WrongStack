@@ -4429,9 +4429,13 @@ input:focus-visible,
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: Reduced motion must override component shorthands regardless of specificity. */
     scroll-behavior: auto !important;
+    /* biome-ignore lint/complexity/noImportantStyles: Reduced motion must override component shorthands regardless of specificity. */
     animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: Stop infinite component animations when reduced motion is requested. */
     animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: Reduced motion must override component shorthands regardless of specificity. */
     transition-duration: 0.01ms !important;
   }
 }
@@ -7330,9 +7334,6 @@ input:focus-visible,
   display: none;
 }
 
-.version-chip {
-}
-
 .agent-strip {
   height: 42px;
   padding: 0 max(12px, calc((100vw - var(--simple-content-width)) / 2));
@@ -7478,9 +7479,6 @@ input:focus-visible,
   padding: 14px;
 }
 
-.message-body :not(pre) > code {
-}
-
 .next-steps {
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
   background: color-mix(in srgb, var(--accent) 6%, var(--surface));
@@ -7577,11 +7575,6 @@ input:focus-visible,
 .composer-meta {
   padding: 7px 4px 0;
   font-size: 9px;
-}
-
-.permission-bar,
-.queue-strip,
-.refine-panel {
 }
 
 .file-picker,
@@ -7761,10 +7754,6 @@ input:focus-visible,
   box-shadow: var(--simple-elevation);
 }
 
-.file-changes-button,
-.jump-to-latest {
-}
-
 .fallback-modal,
 .outage-card,
 .settings-panel,
@@ -7773,13 +7762,6 @@ input:focus-visible,
 .file-diff-panel,
 .mailbox-sidebar {
   box-shadow: var(--simple-elevation);
-}
-
-.user-input-question-card,
-.user-input-question label,
-.user-input-question textarea,
-.user-input-custom,
-.user-input-delegate {
 }
 
 @media (max-width: 1080px) {
@@ -8029,18 +8011,6 @@ input:focus-visible,
 }
 
 :is(
-  .memory-drawer-search input,
-  .file-manager-search input,
-  .brain-panel-ask input,
-  .prompt-library-add input,
-  .prompt-library-add textarea,
-  .vector-memory-panel__search input,
-  .settings-search input,
-  .command-palette-search input
-) {
-}
-
-:is(
   .memory-drawer-search button,
   .brain-panel-ask button,
   .prompt-library-add > button,
@@ -8188,17 +8158,9 @@ input:focus-visible,
   color: var(--text-secondary);
 }
 
-.settings-segmented,
-.settings-field input,
-.settings-field select {
-}
-
 .settings-toggle {
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   padding-top: 10px;
-}
-
-.settings-palette {
 }
 
 .ctx-breakdown-modal,
@@ -8217,14 +8179,6 @@ input:focus-visible,
   border: 1px solid var(--line);
 }
 
-.command-palette-item {
-}
-
-.ctx-breakdown-summary,
-.ctx-breakdown-section,
-.ctx-breakdown-list {
-}
-
 .ctx-breakdown-stat,
 .ctx-breakdown-section,
 .ctx-breakdown-list {
@@ -8234,9 +8188,6 @@ input:focus-visible,
 
 .diff-panel {
   inset: 18px;
-}
-
-.diff-file-item {
 }
 
 .diff-view-head {
