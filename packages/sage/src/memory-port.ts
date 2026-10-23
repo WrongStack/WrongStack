@@ -92,6 +92,7 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     recordInjection: (memoryIds, trigger, sessionId) =>
       super.recordInjection(memoryIds, trigger, sessionId),
     recordUse: (memoryIds, source, sessionId) => super.recordUse(memoryIds, source, sessionId),
+    verifyForPaths: (paths, signal) => super.verifyForPaths(paths, signal),
     // SqliteSageStore writes injection/use counters to the memories row
     // synchronously inside recordInjection/recordUse. There is no
     // in-memory pending accumulator, so flushPendingCounters is a no-op:

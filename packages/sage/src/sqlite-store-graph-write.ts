@@ -7,7 +7,7 @@ import {
 } from './sqlite-store-graph.js';
 import { runSqliteSageHygiene } from './sqlite-store-hygiene.js';
 import { rememberSqliteSage } from './sqlite-store-remember.js';
-import { verifySqliteSage } from './sqlite-store-verify.js';
+import { verifySqliteSage, verifySqliteSageForPaths } from './sqlite-store-verify.js';
 import type {
   MemoryCandidate,
   MemoryVerificationResult,
@@ -87,6 +87,28 @@ export async function verify(
         syncAnchorEdges: (memory) => host.syncAnchorEdges(memory),
       },
       memoryId,
+      signal,
+    ),
+  );
+}
+
+export async function verifyForPaths(
+  host: SqliteStoreGraphWriteHost,
+  paths: readonly string[],
+  signal?: AbortSignal,
+): Promise<MemoryVerificationResult[]> {
+  await host.initialize();
+  return host.runCompositeOperation(() =>
+    verifySqliteSageForPaths(
+      {
+        projectRoot: host.projectRoot,
+        stmt: (sql) => host.stmt(sql),
+        nowIso: () => host.nowIso(),
+        runMutation: (work) => host.runMutation(work),
+        upsertMemory: (memory) => host.upsertMemory(memory),
+        syncAnchorEdges: (memory) => host.syncAnchorEdges(memory),
+      },
+      paths,
       signal,
     ),
   );

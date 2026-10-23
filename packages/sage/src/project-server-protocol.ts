@@ -227,6 +227,7 @@ export interface SageServerOperations {
     result: MemoryGraphEdge[];
   };
   verify: { args: { memoryId?: string | undefined }; result: MemoryVerificationResult[] };
+  verifyForPaths: { args: { paths: string[] }; result: MemoryVerificationResult[] };
   hygiene: {
     args: {
       options?: SageHygieneOptions | undefined;
@@ -365,6 +366,7 @@ export const SAGE_DISPATCH_FIELD_SPECS = {
   retrieveForAudience: [['context', 'object']],
   graphFor: [['query', 'string']],
   verify: [],
+  verifyForPaths: [['paths', 'string[]']],
   hygiene: [],
   listCandidates: [],
   createCandidate: [['input', 'object']],

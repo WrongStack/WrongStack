@@ -188,6 +188,10 @@ export async function dispatch(
       const args = rawArgs as SageServerOperations['verify']['args'];
       return store.verify(args.memoryId, signal);
     }
+    case 'verifyForPaths': {
+      const args = rawArgs as SageServerOperations['verifyForPaths']['args'];
+      return store.verifyForPaths(args.paths, signal);
+    }
     case 'hygiene':
       return runHygiene(rawArgs as SageServerOperations['hygiene']['args']);
     case 'listCandidates': {

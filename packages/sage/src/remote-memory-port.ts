@@ -134,6 +134,8 @@ export class ProjectSageMemoryPort implements MemoryPort {
       this.call('recordInjection', { memoryIds, trigger, sessionId }),
     recordUse: (memoryIds, source, sessionId) =>
       this.call('recordUse', { memoryIds, source, sessionId }),
+    verifyForPaths: (paths, signal) =>
+      this.call('verifyForPaths', { paths }, { signal, timeoutMs: 2 * 60_000 }),
     flushPendingCounters: async () => {},
     retrieveForAudience: (context, limit, _onTruncated, sessionId, includeAllSessions) =>
       this.call('retrieveForAudience', { context, limit, sessionId, includeAllSessions }),

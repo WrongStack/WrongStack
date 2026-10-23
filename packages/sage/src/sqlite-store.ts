@@ -45,6 +45,7 @@ import {
   deleteSage as deleteSageFromHost,
   hygiene as hygieneFromHost,
   rememberSage as rememberSageFromHost,
+  verifyForPaths as verifyForPathsFromHost,
   verify as verifyFromHost,
 } from './sqlite-store-graph-write.js';
 import { importLegacySqliteMemory, searchLegacySqliteMemory } from './sqlite-store-legacy-api.js';
@@ -324,6 +325,18 @@ export class SqliteSageStore extends SqliteSageStoreCore implements MemoryStore 
    */
   async verify(memoryId?: string, signal?: AbortSignal): Promise<MemoryVerificationResult[]> {
     return verifyFromHost(this.sqliteStoreGraphWriteHost(), memoryId, signal);
+  }
+
+  /**
+   * Re-check only the memories anchored to `paths` (absolute or
+   * project-relative). The tool-call middleware calls this after a mutating
+   * tool so memories about the touched files are reconciled immediately.
+   */
+  async verifyForPaths(
+    paths: readonly string[],
+    signal?: AbortSignal,
+  ): Promise<MemoryVerificationResult[]> {
+    return verifyForPathsFromHost(this.sqliteStoreGraphWriteHost(), paths, signal);
   }
 
   /**
