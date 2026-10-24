@@ -3,7 +3,7 @@ import type {
   ProviderAuthOutcome,
   ProviderAuthSession,
   ProviderAuthStrategy,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { generatePkce, parseAuthorizationInput, startLoopbackServer } from './shared.js';
 
 const AUTHORIZE_URL = 'https://openrouter.ai/auth';

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { activeLimits, positiveLimit, TOOL_MEMORY_GUARD_BYTES } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import { activeLimits, positiveLimit, TOOL_MEMORY_GUARD_BYTES } from '@wrongstack/core/types';
 import * as Core from '@wrongstack/core/utils';
 import { type DietResult, dietCommandOutput } from './_output-diet.js';
 

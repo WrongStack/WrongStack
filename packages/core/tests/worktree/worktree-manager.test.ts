@@ -2,14 +2,14 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import {
   normalizeWorktreeEvent,
   projectWorktreeTimeline,
   WORKTREE_EVENT_NAMES,
   type WorktreeTimelineEvent,
-} from '../../src/types/worktree-timeline.js';
+} from '@wrongstack/contracts/types/worktree-timeline';
+import { describe, expect, it } from 'vitest';
 import {
   assertSafePath,
   parseConflictPaths,

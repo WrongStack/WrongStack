@@ -15,7 +15,7 @@ import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import type { FleetBus } from './fleet-bus.js';

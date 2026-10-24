@@ -3,7 +3,7 @@ import {
   type ProviderApiKey,
   type ProviderConfig,
   ProviderError,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 
 export function unavailableProviderCredentials(
   id: string,

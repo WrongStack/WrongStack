@@ -29,8 +29,8 @@ vi.mock('../../src/vcs/vcs-adapter.js', async (importOriginal) => ({
   gitFilterIsolationEnv: async () => ({}),
 }));
 
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { assessCommitSafety } from '../../src/coordination/commit-safety.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { getChangedFiles } from '../../src/plugins/auto-review-git.js';
 import { createChimeraPlugin } from '../../src/plugins/chimera-plugin.js';
 import { buildReviewContext } from '../../src/plugins/review-context-builder.js';

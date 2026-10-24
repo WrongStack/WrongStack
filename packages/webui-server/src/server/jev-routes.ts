@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Config, ConfigStore, SecretVault } from '@wrongstack/core/types';
+import type { Config, ConfigStore, SecretVault } from '@wrongstack/contracts/types';
 import {
   jevActivitySnapshot,
   jevSettingsSnapshot,

@@ -20,7 +20,7 @@
  * those, it should bring its own ajv-based validator and call this only for
  * the cheap path.
  */
-import type { JSONSchema } from '../types/tool.js';
+import type { JSONSchema } from '@wrongstack/contracts/types/tool';
 import { patternIsLikelyCatastrophic } from './json-schema-pattern-safety.js';
 
 export interface ValidationError {

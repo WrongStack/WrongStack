@@ -1,4 +1,4 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 
 export function installStorageObservability(
   events: EventBus,

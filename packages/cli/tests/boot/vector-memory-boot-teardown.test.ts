@@ -24,13 +24,12 @@
  */
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-import { ToolRegistry } from '@wrongstack/core/registry';
+import type { Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Tool } from '@wrongstack/core/types';
+import { ToolRegistry } from '@wrongstack/core/registry';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
 import { TransformersEmbeddingProvider, VectorMemoryStore } from '@wrongstack/vector-memory';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { FakeEmbeddingProvider } from './fake-vector-embedding-provider.js';
 

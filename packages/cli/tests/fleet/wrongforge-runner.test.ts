@@ -4,8 +4,8 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { ACPProgressEvent } from '@wrongstack/acp';
+import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { getAllProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import type { SubagentRunContext, TaskSpec } from '@wrongstack/core/types';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildAcpSubagentRunner } from '../../src/fleet/host-acp.js';
 import {

@@ -1,5 +1,5 @@
 // Models domain: model registry, mode store, LLM selection
-export type { ModelBlackoutRule } from '../core/model-availability-calendar.js';
+export type { ModelBlackoutRule } from '@wrongstack/contracts/types/model-availability';
 export {
   ALIBABA_TOKEN_PLAN_MODELS,
   type AlibabaTokenPlanModelMeta,
@@ -15,6 +15,8 @@ export {
   startCatalog,
 } from './catalog-refresh.js';
 export { CODEX_MODELS, type CodexModelMeta, codexModelMeta } from './codex-catalog.js';
+// The built-in mode catalog (moved from `types/`: its prompts load from disk).
+export { DEFAULT_MODES } from './default-modes.js';
 export {
   buildFallbackSuggestPrompt,
   DEFAULT_MAX_AGE_MONTHS,

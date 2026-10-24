@@ -8,7 +8,7 @@
  * providers resolve aliases, so it would fire on every healthy response.
  */
 
-import type { Request, StreamEvent } from '@wrongstack/core/types';
+import type { Request, StreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { aggregateStream } from '../src/aggregate.js';
 import { OpenAICodexProvider, parseOpenAIResponsesStream } from '../src/openai-codex.js';

@@ -1,4 +1,4 @@
-import type { InputReader, Tool } from '@wrongstack/core/types';
+import type { InputReader, Tool } from '@wrongstack/contracts/types';
 import { stripAnsi } from '@wrongstack/core/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

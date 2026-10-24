@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DefaultSecretScrubber, DefaultSessionStore, EventBus } from '../../src/index.js';
 import { SessionRecovery } from '../../src/storage/session-recovery.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 let tmp: string;
 let fixtureRoot: string;

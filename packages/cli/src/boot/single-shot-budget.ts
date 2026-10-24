@@ -9,8 +9,8 @@
  * line has already been paid for, so the cap bounds the overshoot to one
  * request rather than preventing it.
  */
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { TokenCounter } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { TokenCounter } from '@wrongstack/contracts/types';
 
 /** Parse the flag. `undefined` = not set; throws on a value that is set but unusable. */
 export function parseMaxBudgetUsd(value: string | boolean | undefined): number | undefined {

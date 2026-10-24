@@ -1,3 +1,5 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { Agent, Context } from '@wrongstack/core/agent';
 import type { AgentFactory } from '@wrongstack/core/coordination';
 import type {
@@ -7,9 +9,7 @@ import type {
   PhaseOrchestrator,
   PhaseStore,
   PhaseTemplate,
-} from '@wrongstack/core/goal';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+} from '@wrongstack/goal';
 import type { WorktreeManager } from '@wrongstack/core/worktree';
 import type { WebSocket } from 'ws';
 import type { GoalWsRunControlsHost } from './goal-ws-run-controls.js';
@@ -63,7 +63,7 @@ export interface GoalWsHandlerInternals extends GoalWsRunControlsHost {
   handleRevert(): Promise<void>;
   planPhases(goal: string, signal?: AbortSignal): Promise<PhaseTemplate[]>;
   executeTaskWithAgent(
-    task: import('@wrongstack/core/types').TaskNode,
+    task: import('@wrongstack/contracts/types').TaskNode,
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
@@ -75,7 +75,7 @@ export interface GoalWsHandlerInternals extends GoalWsRunControlsHost {
     env?: { cwd?: string | undefined; branch?: string | undefined },
   ): Promise<void>;
   runChimeraReview(
-    task: import('@wrongstack/core/types').TaskNode,
+    task: import('@wrongstack/contracts/types').TaskNode,
     phaseId: string,
     result: unknown,
     cwd?: string | undefined,

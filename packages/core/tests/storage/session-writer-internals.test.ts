@@ -1,10 +1,10 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionEvent, SessionMetadata } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SessionSummaryTracker } from '../../src/storage/session-summary-tracker.js';
 import { isClosedHandleError } from '../../src/storage/session-writer/session-writer-flush.js';
-import type { SessionEvent, SessionMetadata } from '../../src/types/session.js';
 
 const STARTED_AT = '2026-01-01T00:00:00.000Z';
 const META: Omit<SessionMetadata, 'startedAt'> = {

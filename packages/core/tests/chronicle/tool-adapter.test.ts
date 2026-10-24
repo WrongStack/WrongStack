@@ -1,6 +1,8 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import { ToolErrorCategory } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   ChronicleJournal,
@@ -8,8 +10,6 @@ import {
   createChronicleContext,
   wireToolsToChronicle,
 } from '../../src/chronicle/index.js';
-import { EventBus } from '../../src/kernel/events.js';
-import { ToolErrorCategory } from '../../src/types/tool.js';
 
 const tempDirs: string[] = [];
 const scrubber = {

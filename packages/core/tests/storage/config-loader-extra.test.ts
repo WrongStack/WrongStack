@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SecretVault } from '@wrongstack/contracts/types/secret-vault';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   assertInProjectAllowListComplete,
@@ -8,7 +9,6 @@ import {
   DefaultConfigLoader,
   stripUnsafeInProjectFields,
 } from '../../src/storage/config-loader.js';
-import type { SecretVault } from '../../src/types/secret-vault.js';
 import { resolveWstackPaths } from '../../src/utils/wstack-paths.js';
 
 let projectRoot: string;

@@ -1,3 +1,8 @@
+import type {
+  SubagentRunContext,
+  SubagentRunOutcome,
+  TaskSpec,
+} from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import {
   AGENT_CATALOG,
@@ -13,11 +18,6 @@ import {
   FLEET_ROSTER,
   FLEET_ROSTER_BUDGETS,
 } from '../../src/coordination/fleet.js';
-import type {
-  SubagentRunContext,
-  SubagentRunOutcome,
-  TaskSpec,
-} from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

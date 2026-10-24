@@ -19,17 +19,17 @@
  * @module council-brain
  */
 
-import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../coordination/brain.js';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type {
   CouncilLLMCaller,
   CouncilModelTarget,
   CouncilProfileConfig,
   CouncilSeatConfig,
   CouncilVoteResult,
-} from '../types/council.js';
-import type { OneShotLLMInput, OneShotLLMResult } from '../types/one-shot-llm.js';
-import type { Provider } from '../types/provider.js';
+} from '@wrongstack/contracts/types/council';
+import type { OneShotLLMInput, OneShotLLMResult } from '@wrongstack/contracts/types/one-shot-llm';
+import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../brain/brain.js';
 import { type BrainLlmTarget, completeBrainLlmDetailed } from './autonomy-brain.js';
 import { CouncilOrchestrator, DEFAULT_COUNCIL_MAX_CONCURRENCY } from './council-orchestrator.js';
 import {

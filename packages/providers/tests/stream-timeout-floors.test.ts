@@ -4,7 +4,7 @@
  * those turns on all four attempts. Their floor applies only where nobody
  * chose a value.
  */
-import type { StreamEvent } from '@wrongstack/core/types';
+import type { StreamEvent } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   SLOW_BACKEND_HANG_TIMEOUT_MS,

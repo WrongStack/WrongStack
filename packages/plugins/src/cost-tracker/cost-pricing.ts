@@ -1,4 +1,4 @@
-import type { PluginAPI } from '@wrongstack/core/types';
+import type { PluginAPI } from '@wrongstack/contracts/types';
 import { BoundedMap } from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------

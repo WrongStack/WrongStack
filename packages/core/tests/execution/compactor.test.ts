@@ -1,8 +1,8 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { HybridCompactor } from '../../src/execution/compactor.js';
 import { createContextEvidenceState } from '../../src/utils/context-evidence.js';
-import type { Message } from '../../src/types/messages.js';
 
 function fakeContext(messages: Message[]): Context {
   const ctx = { messages } as never as Context;

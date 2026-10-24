@@ -1,4 +1,4 @@
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type { GovernanceRuntimeObservationInput } from '@wrongstack/runtime/governance-bootstrap';
 import { describe, expect, it, vi } from 'vitest';
 import { createGovernanceShadowBridge } from '../src/boot/governance-shadow-bridge.js';

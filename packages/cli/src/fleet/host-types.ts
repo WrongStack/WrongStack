@@ -1,8 +1,4 @@
-import type { AgentPipelines, FallbackProfileManager } from '@wrongstack/core/agent';
-import type { BrainArbiter, ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import type { HookRunner } from '@wrongstack/core/hooks';
-import type { Container, EventBus } from '@wrongstack/core/kernel';
-import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { Container, EventBus } from '@wrongstack/contracts/kernel';
 import type {
   ConfigStore,
   ModelsRegistry,
@@ -13,7 +9,11 @@ import type {
   SystemPromptBuilder,
   TokenCounter,
   Tracer,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { AgentPipelines, FallbackProfileManager } from '@wrongstack/core/agent';
+import type { BrainArbiter, ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import type { HookRunner } from '@wrongstack/core/hooks';
+import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 
 export interface MultiAgentDeps {
   container: Container;

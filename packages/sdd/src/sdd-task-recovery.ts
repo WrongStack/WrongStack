@@ -7,9 +7,9 @@ export interface SddTaskRecoveryHost {
   retryMap: Map<string, number>;
   persistRetries: (taskId: string, retries: number) => void;
   cancelledTasks: Set<string>;
-  emit: <K extends keyof import('@wrongstack/core/kernel').EventMap>(
+  emit: <K extends keyof import('@wrongstack/contracts/kernel').EventMap>(
     event: K,
-    payload: import('@wrongstack/core/kernel').EventMap[K],
+    payload: import('@wrongstack/contracts/kernel').EventMap[K],
   ) => void;
   runId: string;
   maxRetries: number;

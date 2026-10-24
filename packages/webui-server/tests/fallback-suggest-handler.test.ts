@@ -1,5 +1,5 @@
+import type { Provider } from '@wrongstack/contracts/types';
 import type { FallbackSuggestCandidate } from '@wrongstack/core/models';
-import type { Provider } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { handleFallbackSuggest } from '../src/server/fallback-suggest-handler.js';

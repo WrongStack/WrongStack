@@ -1,4 +1,4 @@
-import type { Logger, SessionStore } from '@wrongstack/core/types';
+import type { Logger, SessionStore } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { deleteWebUISession, type SessionDeletionContext } from './session-deletion.js';
 

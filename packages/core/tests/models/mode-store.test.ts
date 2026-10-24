@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_MODES } from '../../src/models/default-modes.js';
 import { DefaultModeStore, loadProjectModes, loadUserModes } from '../../src/models/mode-store.js';
-import { DEFAULT_MODES } from '../../src/types/mode.js';
 
 let tmpDir: string;
 

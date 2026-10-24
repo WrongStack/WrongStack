@@ -1,10 +1,10 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Usage } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import {
   ProviderCacheLedger,
   RECENT_HIT_RATIO_WINDOW,
 } from '../../src/infrastructure/provider-cache-ledger.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Usage } from '../../src/types/provider.js';
 
 /** Emit a token.accounted event with a CUMULATIVE usage snapshot. */
 function emit(events: EventBus, usage: Usage, provider?: string) {

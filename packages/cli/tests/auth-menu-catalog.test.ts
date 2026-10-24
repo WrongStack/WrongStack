@@ -8,8 +8,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelsRegistry, ResolvedProvider } from '@wrongstack/contracts/types';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import type { ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { addFromCatalog } from '../src/auth-menu/add-provider.js';
 import type { AuthMenuDeps } from '../src/auth-menu/types.js';

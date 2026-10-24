@@ -1,4 +1,4 @@
-import type { ContentBlock, ImageBlock } from '../types/blocks.js';
+import type { ContentBlock, ImageBlock } from '@wrongstack/contracts/types/blocks';
 
 /**
  * Wire shape for one image attached to a WebUI `user_message`. `data` may be

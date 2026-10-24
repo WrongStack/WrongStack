@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
-import type { StreamEvent } from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+import type { StreamEvent } from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import {
   CodexWebSocketFallbackError,
   CodexWebSocketRecoveryError,

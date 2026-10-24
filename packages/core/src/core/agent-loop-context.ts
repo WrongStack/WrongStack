@@ -1,5 +1,5 @@
-import { AgentError, ERROR_CODES } from '../types/errors.js';
-import type { Request } from '../types/provider.js';
+import { AgentError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
+import type { Request } from '@wrongstack/contracts/types/provider';
 import {
   CONTEXT_REQUEST_OVERHEAD_META,
   type ContextRequestOverhead,
@@ -23,7 +23,7 @@ import {
 
 export interface AgentLoopContextManager {
   refreshProviderContextLimit(
-    provider: import('../types/provider.js').Provider,
+    provider: import('@wrongstack/contracts/types/provider').Provider,
     model: string,
     opts?: { probe?: boolean },
   ): Promise<void>;
@@ -32,7 +32,7 @@ export interface AgentLoopContextManager {
   refreshContextRequestTokenStash(opts?: { force?: boolean | undefined }): number;
   buildRequestWithPreflightCompaction(opts: RunOptions): Promise<{
     req: Request;
-    provider: import('../types/provider.js').Provider;
+    provider: import('@wrongstack/contracts/types/provider').Provider;
     preFlight: RequestTokenBreakdown;
   }>;
   emitContextPct(): void;
@@ -105,7 +105,7 @@ export function createAgentLoopContextManager(
   }
 
   async function refreshProviderContextLimit(
-    provider: import('../types/provider.js').Provider,
+    provider: import('@wrongstack/contracts/types/provider').Provider,
     model: string,
     opts: { probe?: boolean } = {},
   ): Promise<void> {
@@ -384,7 +384,7 @@ export function createAgentLoopContextManager(
 
   async function buildRequestWithPreflightCompaction(opts: RunOptions): Promise<{
     req: Request;
-    provider: import('../types/provider.js').Provider;
+    provider: import('@wrongstack/contracts/types/provider').Provider;
     preFlight: RequestTokenBreakdown;
   }> {
     let prepared = await handlers.response.buildAndRunRequestPipeline(opts);
@@ -470,7 +470,7 @@ export function createAgentLoopContextManager(
    * when context-window management does not apply to this request.
    */
   function measurePreparedRequest(
-    provider: import('../types/provider.js').Provider,
+    provider: import('@wrongstack/contracts/types/provider').Provider,
     req: Request,
   ): PreparedRequestCheck | undefined {
     if (

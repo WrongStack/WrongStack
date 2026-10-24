@@ -1,12 +1,12 @@
+import type { ModelsDevModel } from '@wrongstack/contracts/types/models-registry';
 import { describe, expect, it } from 'vitest';
 import {
   MODELS_DEV_MODALITY_VALUES,
+  type ModelsDevModelParsed,
   modelsDevModelSchema,
   modelsDevPayloadSchema,
   modelsDevProviderSchema,
-  type ModelsDevModelParsed,
 } from '../../src/models/models-dev-schema.js';
-import type { ModelsDevModel } from '../../src/types/models-registry.js';
 
 /**
  * Fixtures sampled from the LIVE https://models.dev/api.json on 2026-08-03

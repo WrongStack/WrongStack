@@ -1,8 +1,8 @@
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { scrubPersistedSessionEvent } from '../../src/storage/session-read-scrubber.js';
 import { scrubSessionWriterEvent } from '../../src/storage/session-writer-scrubber.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const IMAGE_DATA = `/EAAA${'A'.repeat(24)}/AA`;
 const SECRET = `sk-ant-api03-${'a'.repeat(49)}`;

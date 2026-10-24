@@ -18,9 +18,9 @@
  */
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import type { DirectorStateCheckpoint, DirectorStateSnapshot } from '../storage/director-state.js';
-import type { TaskResult } from '../types/multi-agent.js';
-import type { SessionWriter } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 
 /**

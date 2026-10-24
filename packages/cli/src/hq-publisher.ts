@@ -1,6 +1,6 @@
-import type { CreateHqPublisherOptions, HqPublisher, HqSocketLike } from '@wrongstack/core/hq';
-import { createHqPublisherFromEnv, resolveHqConfig } from '@wrongstack/core/hq';
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
+import type { CreateHqPublisherOptions, HqPublisher, HqSocketLike } from '@wrongstack/hq';
+import { createHqPublisherFromEnv, resolveHqConfig } from '@wrongstack/hq';
 import { createKanbanHqSync, type KanbanHqSyncStats } from './kanban-hq-sync.js';
 import { createSageHqSync } from './sage-hq-sync.js';
 import { CLI_VERSION } from './version.js';

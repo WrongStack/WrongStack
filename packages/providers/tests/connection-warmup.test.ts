@@ -5,7 +5,7 @@
  */
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { Request } from '@wrongstack/core/types';
+import type { Request } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CatalogRoutedProvider } from '../src/catalog-routed.js';
 import { warmConnection } from '../src/connection-warmup.js';

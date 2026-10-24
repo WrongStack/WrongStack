@@ -4,7 +4,7 @@ import {
   type NestedToolCaller,
   type Tool,
   ToolValidationError,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 
 export interface ToolUseInput {
   tool: string;

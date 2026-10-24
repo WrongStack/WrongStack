@@ -1,5 +1,5 @@
+import type { Config } from '@wrongstack/contracts/types/config';
 import { parseModelRef } from '../core/model-ref.js';
-import type { Config } from '../types/config.js';
 
 /** Which config key produced a refiner target — for logs and tests. */
 export type RefinerTargetSource = 'fallback_profile' | 'explicit';

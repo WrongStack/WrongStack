@@ -1,4 +1,4 @@
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
+import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
 
 import { detectLocale } from '@/i18n/languages';
 

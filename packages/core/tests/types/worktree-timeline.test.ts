@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import {
   formatWorktreeDuration,
   normalizeWorktreeEvent,
@@ -7,7 +6,8 @@ import {
   WORKTREE_EVENT_NAMES,
   type WorktreeTimelineEvent,
   worktreeTimelineTicks,
-} from '../../src/types/worktree-timeline.js';
+} from '@wrongstack/contracts/types/worktree-timeline';
+import { describe, expect, it } from 'vitest';
 
 const ev = (
   kind: WorktreeTimelineEvent['kind'],

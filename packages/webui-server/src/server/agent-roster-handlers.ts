@@ -18,6 +18,7 @@
  *   agent-roster.clear-consolidated { role } → cleared
  */
 
+import type { Provider } from '@wrongstack/contracts/types';
 import {
   applyProjectAgentConfig,
   captureLearnedFromAgentOutputDetailed,
@@ -58,7 +59,6 @@ import {
   updateProjectAgentLearned,
   updateProjectAgentLearningPolicy,
 } from '@wrongstack/core/coordination';
-import type { Provider } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
 import { errMessage } from './ws-utils.js';

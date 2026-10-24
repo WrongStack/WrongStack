@@ -8,8 +8,8 @@ import type {
   StopReason,
   StreamEvent,
   Usage,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from './_tool-input.js';
 import { isEffortRejected, isEffortRejection, rememberEffortRejected } from './effort-support.js';

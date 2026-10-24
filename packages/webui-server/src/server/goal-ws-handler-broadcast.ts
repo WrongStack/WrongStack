@@ -1,4 +1,4 @@
-import type { PhaseGraph } from '@wrongstack/core/goal';
+import type { PhaseGraph } from '@wrongstack/goal';
 import type { GoalWsHandlerInternals, WSClient } from './goal-ws-handler-internals.js';
 import { errMessage, sendSerialized } from './ws-utils.js';
 

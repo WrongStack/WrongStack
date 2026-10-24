@@ -2,7 +2,7 @@
  * `tool_script`: a JavaScript program composing tool calls, run in QuickJS
  * with no access to anything but the agent's tool gate.
  */
-import type { NestedToolCaller, NestedToolCallResult, Tool } from '@wrongstack/core/types';
+import type { NestedToolCaller, NestedToolCallResult, Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { toolScriptTool } from '../src/tool-script.js';
 import { toolFlowMetrics } from '../src/toolflow-presentation.js';

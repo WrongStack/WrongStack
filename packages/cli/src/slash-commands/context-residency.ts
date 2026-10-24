@@ -1,4 +1,5 @@
 import type { Context } from '@wrongstack/core/agent';
+import { getHistoryRetention } from '@wrongstack/core/execution';
 import {
   CACHE_LANE_HINTS,
   CACHE_LANE_LABELS,
@@ -6,7 +7,6 @@ import {
   CACHE_VERDICT_LABELS,
   type CacheLane,
   color,
-  getHistoryRetention,
   getRequestResidency,
   type HistoryRetention,
   RESIDENCY_SEGMENT_LABELS,

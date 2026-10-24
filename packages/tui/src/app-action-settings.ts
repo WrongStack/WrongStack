@@ -1,3 +1,4 @@
+import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/contracts/types';
 import type {
   StatuslineDensities,
   StatuslineDensity,
@@ -5,7 +6,6 @@ import type {
   StatuslineLines,
   StatuslineOrder,
 } from '@wrongstack/core/statusline';
-import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/core/types';
 import type { State } from './app-state.js';
 import type {
   AuthCatalogRow,

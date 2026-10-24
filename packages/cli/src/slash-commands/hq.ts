@@ -1,7 +1,7 @@
-import type { HqClientConfig } from '@wrongstack/core/hq';
-import { readHqRuntimeFileSync, resolveHqConfig, resolveHqDataDir } from '@wrongstack/core/hq';
+import type { SlashCommand } from '@wrongstack/contracts/types';
+import type { HqClientConfig } from '@wrongstack/hq';
+import { readHqRuntimeFileSync, resolveHqConfig, resolveHqDataDir } from '@wrongstack/hq';
 import { noOpVault } from '@wrongstack/core/security';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { readHqLiveStatus } from '../hq-live-status.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';

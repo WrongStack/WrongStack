@@ -1,5 +1,11 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
+import type {
+  DirectoryPolicy,
+  PermissionDecision,
+  PermissionPolicy,
+} from '@wrongstack/contracts/types/permission';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import {
@@ -8,12 +14,6 @@ import {
   resolveTargetPath,
 } from '../../src/security/directory-permission-policy.js';
 import { validateDirectoryPolicy } from '../../src/security/directory-policy-schema.js';
-import type { Tool } from '../../src/types/index.js';
-import type {
-  DirectoryPolicy,
-  PermissionDecision,
-  PermissionPolicy,
-} from '../../src/types/permission.js';
 import { bindProviderCatalogId } from '../../src/utils/provider-catalog-binding.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

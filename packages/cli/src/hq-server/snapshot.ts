@@ -21,8 +21,8 @@ import type {
   HqSessionSnapshotPayload,
   HqSessionSummary,
   HqSnapshot,
-} from '@wrongstack/core/hq';
-import { summarizeCommandLatency } from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
+import { summarizeCommandLatency } from '@wrongstack/hq';
 import { WebSocket } from '../ws-runtime.js';
 import type { ConnectedClient, HqSnapshotBroadcaster, ProjectDetail } from './types.js';
 import { hqMachineKey } from './utils.js';

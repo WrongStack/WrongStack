@@ -1,9 +1,9 @@
 import { join, resolve } from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import {
   projectWorktreeTimeline,
   type WorktreeTimelineEvent,
-} from '@wrongstack/core/types/worktree-timeline';
+} from '@wrongstack/contracts/types/worktree-timeline';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 

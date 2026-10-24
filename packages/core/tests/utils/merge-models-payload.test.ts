@@ -1,5 +1,5 @@
+import type { ModelsDevPayload } from '@wrongstack/contracts/types/models-registry';
 import { describe, expect, it } from 'vitest';
-import type { ModelsDevPayload } from '../../src/types/models-registry.js';
 import { mergeModelsPayload } from '../../src/utils/merge-models-payload.js';
 
 function payload(p: ModelsDevPayload): ModelsDevPayload {

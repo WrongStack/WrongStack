@@ -1,13 +1,13 @@
+import type { Mode } from '@wrongstack/contracts/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Mode } from '@wrongstack/core/types';
-import { Text } from '../src/ink.js';
 import {
   buildModePickerOptions,
-  useModePicker,
   type GetModesResult,
+  useModePicker,
 } from '../src/hooks/use-mode-picker.js';
+import { Text } from '../src/ink.js';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

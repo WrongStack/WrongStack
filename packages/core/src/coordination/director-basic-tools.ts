@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { isWrongStackError, ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { TaskSpec } from '@wrongstack/contracts/types/multi-agent';
+import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { isWrongStackError, ToolValidationError } from '../types/errors.js';
-import type { TaskSpec } from '../types/multi-agent.js';
-import type { JSONSchema, Tool } from '../types/tool.js';
 import { toErrorMessage } from '../utils/error.js';
 import { findDelegationForTask, noteLeaderConsumedTask } from './delegation/delegation-lookup.js';
 import type * as Host from './director-host-contracts.js';

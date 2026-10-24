@@ -1,6 +1,6 @@
+import type { ContentBlock, UserInputResponse } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import { startFreshTopicContext, TopicShiftAdvisor } from '@wrongstack/core/execution';
-import type { ContentBlock, UserInputResponse } from '@wrongstack/core/types';
 import { typeSafeJudgeFromContainer } from '@wrongstack/core/typesafe';
 import {
   buildUserContentBlocks,

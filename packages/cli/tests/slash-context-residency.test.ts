@@ -1,5 +1,5 @@
+import type { Message } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Message } from '@wrongstack/core/types';
 import {
   commitRequestLayout,
   type RequestLayoutInput,

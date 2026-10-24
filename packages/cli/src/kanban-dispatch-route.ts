@@ -1,6 +1,6 @@
+import type { Config } from '@wrongstack/contracts/types';
 import { fallbackProfileChain, parseModelRef } from '@wrongstack/core/agent';
 import { resolveTier } from '@wrongstack/core/coordination';
-import type { Config } from '@wrongstack/core/types';
 
 interface KanbanDispatchRouteInput {
   provider?: string | undefined;

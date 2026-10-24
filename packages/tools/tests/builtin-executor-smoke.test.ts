@@ -2,9 +2,13 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type {
+  PermissionDecision,
+  ToolResultBlock,
+  ToolUseBlock,
+} from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { ToolExecutor } from '@wrongstack/core/execution';
-import type { PermissionDecision, ToolResultBlock, ToolUseBlock } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { builtinTools } from '../src/builtin.js';
 

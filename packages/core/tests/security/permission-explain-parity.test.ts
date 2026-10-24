@@ -11,6 +11,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionPermissionOverride, Tool } from '@wrongstack/contracts/types';
 import { expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolCapabilities } from '../../src/security/capabilities.js';
@@ -19,7 +20,6 @@ import {
   compilePermissionRules,
   matchedPermissionRule,
 } from '../../src/security/permission-rules.js';
-import type { SessionPermissionOverride, Tool } from '../../src/types/index.js';
 
 const T = (
   name: string,

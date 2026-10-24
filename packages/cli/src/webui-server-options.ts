@@ -1,8 +1,4 @@
-import type { Agent } from '@wrongstack/core/agent';
-import type { BrainArbiter } from '@wrongstack/core/coordination';
-import type { BrainAutoRisk } from '@wrongstack/core/execution';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { TrustBoundary } from '@wrongstack/core/security';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   MemoryPort,
   ModelsRegistry,
@@ -11,7 +7,11 @@ import type {
   SessionStore,
   SessionWriter,
   SkillLoader,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Agent } from '@wrongstack/core/agent';
+import type { BrainArbiter } from '@wrongstack/core/coordination';
+import type { BrainAutoRisk } from '@wrongstack/core/execution';
+import type { TrustBoundary } from '@wrongstack/core/security';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
@@ -113,7 +113,7 @@ export interface CliWebUIOptions {
   /** Project root — recorded in the running-instance registry. */
   projectRoot?: string | undefined;
   /** Full app config, used for HQ client publishing settings. */
-  appConfig?: import('@wrongstack/core/types').Config | undefined;
+  appConfig?: import('@wrongstack/contracts/types').Config | undefined;
   /** Pop the browser open to the served URL once the frontend is ready. */
   open?: boolean | undefined;
   /** Read-only worker transcript snapshot used for F5/reconnect replay. */
@@ -166,7 +166,7 @@ export interface CliWebUIOptions {
    * command dispatch surface yet).
    */
   subscribeEternalIteration?:
-    | ((fn: (entry: import('@wrongstack/core/goal').JournalEntry) => void) => () => void)
+    | ((fn: (entry: import('@wrongstack/goal').JournalEntry) => void) => () => void)
     | undefined;
   /** Callback to invoke when the WebUI is shut down by a client request. */
   onExit?: (() => void) | undefined;

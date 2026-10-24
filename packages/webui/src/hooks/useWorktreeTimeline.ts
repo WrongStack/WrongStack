@@ -1,7 +1,7 @@
 import {
   projectWorktreeTimeline,
   type WorktreeTimeline,
-} from '@wrongstack/core/types/worktree-timeline';
+} from '@wrongstack/contracts/types/worktree-timeline';
 import { useEffect, useMemo, useState } from 'react';
 import { useWorktreeStore } from '@/stores';
 

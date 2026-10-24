@@ -1,4 +1,4 @@
-import type { Mode } from '@wrongstack/core/types';
+import type { Mode } from '@wrongstack/contracts/types';
 import { useCallback } from 'react';
 import type { Action } from '../app-reducer.js';
 import { toModeOptions } from '../components/mode-picker.js';

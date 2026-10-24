@@ -1,7 +1,7 @@
-import type { Context } from '../core/context.js';
-import type { Compactor } from '../types/compactor.js';
-import type { Message } from '../types/messages.js';
-import type { Tool } from '../types/tool.js';
+import type { Compactor } from '@wrongstack/contracts/types/compactor';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { compactionReportStillCurrent } from '../utils/compaction-result-state.js';
 import { repairToolUseAdjacency } from '../utils/message-invariants.js';
 import { estimateMessageTokens, estimateRequestTokens } from '../utils/token-estimate.js';
@@ -164,7 +164,7 @@ export function createContextManagerTool(
     // own context without hitting a permission prompt loop.
     mutating: false,
 
-    async execute(input: ContextManagerInput, ctx: Context): Promise<ContextManagerResult> {
+    async execute(input: ContextManagerInput, ctx: AgentContext): Promise<ContextManagerResult> {
       const messages = ctx.messages;
       const beforeTokens = roughEstimate(messages);
 

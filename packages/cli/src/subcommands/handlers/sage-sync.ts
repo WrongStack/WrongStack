@@ -1,4 +1,4 @@
-import { resolveHqConfig } from '@wrongstack/core/hq';
+import { resolveHqConfig } from '@wrongstack/hq';
 import { SageProjectServerConnection } from '@wrongstack/sage';
 import { startCliHqConnection } from '../../hq-publisher.js';
 import type { SubcommandDeps } from '../contracts.js';

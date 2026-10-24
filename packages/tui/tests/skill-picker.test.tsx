@@ -1,4 +1,4 @@
-import type { SkillEntry, SkillLoader } from '@wrongstack/core/types';
+import type { SkillEntry, SkillLoader } from '@wrongstack/contracts/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';

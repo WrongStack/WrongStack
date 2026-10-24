@@ -1,4 +1,4 @@
-import type { TaskNode } from '@wrongstack/core/types';
+import type { TaskNode } from '@wrongstack/contracts/types';
 import type { WorktreeHandle } from '@wrongstack/core/worktree';
 import { describe, expect, it, vi } from 'vitest';
 import type { SddParallelRunOptions } from '../src/sdd-parallel-run-types.js';

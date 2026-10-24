@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { PathResolver } from '../types/path-resolver.js';
+import type { PathResolver } from '@wrongstack/contracts/types/path-resolver';
 
 const PROJECT_MARKERS = [
   '.git',

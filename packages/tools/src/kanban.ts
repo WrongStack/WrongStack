@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { handleKanbanBoardAction } from './kanban-board-actions.js';
 import { handleKanbanContractAction } from './kanban-contract-actions.js';
 import { handleKanbanDecompositionAction } from './kanban-decomposition-actions.js';

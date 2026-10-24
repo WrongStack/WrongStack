@@ -1,7 +1,7 @@
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
+import { AgentError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
 import { type Context, resolveEventSessionId } from '../core/context.js';
-import type { EventBus } from '../kernel/events.js';
-import type { Compactor, CompactReport } from '../types/compactor.js';
-import { AgentError, ERROR_CODES } from '../types/errors.js';
 import type { ContextWindowBudgetSnapshot } from '../utils/context-budget.js';
 import { estimateRequestTokens } from '../utils/token-estimate.js';
 import type { CompactionFailureMode } from './auto-compaction-run-contracts.js';

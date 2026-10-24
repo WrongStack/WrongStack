@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ToolResultBlock } from '../types/blocks.js';
+import type { ToolResultBlock } from '@wrongstack/contracts/types/blocks';
 
 // Keep the full, scrubbed output's digest off provider blocks and journals.
 // A random spool path is not new evidence. Content-changing policies invalidate

@@ -5,7 +5,7 @@ import type {
   SessionMoveTarget,
   SessionStoragePolicy,
   SessionSummary,
-} from '../types/session.js';
+} from '@wrongstack/contracts/types/session';
 import { sessionContentText } from './session-helpers.js';
 import { executeMoveSession } from './session-store/move-session.js';
 import { pruneSessionFiles } from './session-store/prune-helpers.js';
@@ -22,7 +22,7 @@ export interface SessionStoreRetentionHost {
   resolveId: (query: string) => Promise<string>;
   _indexCache: import('./session-store/types.js').IndexCacheEntry | null;
   catalogClient: import('../session-catalog/client.js').SessionCatalogProjectClient | undefined;
-  secretScrubber: import('../types/secret-scrubber.js').SecretScrubber;
+  secretScrubber: import('@wrongstack/contracts/types/secret-scrubber').SecretScrubber;
   clearLoadCache: (sessionId?: string | undefined) => void;
   sessionPath: (id: string, ext: '.jsonl' | '.jsonl.gz' | '.summary.json') => string;
   dir: string;
@@ -30,21 +30,27 @@ export interface SessionStoreRetentionHost {
   readSummaryManifest: (
     id: string,
     startTime?: number,
-  ) => Promise<import('../types/session.js').SessionSummary | null>;
-  summaryFor: (id: string) => Promise<import('../types/session.js').SessionSummary>;
-  appendToIndexStrict: (summary: import('../types/session.js').SessionSummary) => Promise<void>;
+  ) => Promise<import('@wrongstack/contracts/types/session').SessionSummary | null>;
+  summaryFor: (id: string) => Promise<import('@wrongstack/contracts/types/session').SessionSummary>;
+  appendToIndexStrict: (
+    summary: import('@wrongstack/contracts/types/session').SessionSummary,
+  ) => Promise<void>;
   isSessionInUse: ((sessionId: string) => Promise<string | null>) | undefined;
   maintenanceHolderId: `${string}-${string}-${string}-${string}-${string}`;
   compactIndex: () => Promise<void>;
   ensureShardDir: (id: string) => Promise<string>;
-  storagePolicy: import('../types/session-storage.js').SessionStoragePolicy;
+  storagePolicy: import('@wrongstack/contracts/types/session-storage').SessionStoragePolicy;
   archiveIdleInFlight: {
     key: string;
-    promise: Promise<import('../types/session-storage.js').SessionArchiveIdleResult>;
+    promise: Promise<
+      import('@wrongstack/contracts/types/session-storage').SessionArchiveIdleResult
+    >;
   } | null;
   archiveIdle: (
-    policy?: Partial<import('../types/session-storage.js').SessionStoragePolicy> | undefined,
-  ) => Promise<import('../types/session-storage.js').SessionArchiveIdleResult>;
+    policy?:
+      | Partial<import('@wrongstack/contracts/types/session-storage').SessionStoragePolicy>
+      | undefined,
+  ) => Promise<import('@wrongstack/contracts/types/session-storage').SessionArchiveIdleResult>;
 }
 
 export async function move(

@@ -1,8 +1,7 @@
-import { FetchError, ToolValidationError } from '@wrongstack/core/types';
-import { expectDefined } from '@wrongstack/core/utils';
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
+import { FetchError, ToolValidationError } from '@wrongstack/contracts/types';
+import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import { guardedFetch } from './_fetch-guard.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 
 export interface SearchResult {
   title: string;

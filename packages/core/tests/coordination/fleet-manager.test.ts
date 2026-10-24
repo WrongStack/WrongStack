@@ -14,10 +14,10 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it, vi } from 'vitest';
 import { FleetBus } from '../../src/coordination/fleet-bus.js';
 import { FleetManager } from '../../src/coordination/fleet-manager.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

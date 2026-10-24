@@ -1,5 +1,5 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { CollaborationBus } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { CollaborationWebSocketHandler } from '@wrongstack/webui-server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

@@ -1,7 +1,7 @@
+import type { Plugin, PluginAPI } from '@wrongstack/contracts/types/plugin';
 import { describe, expect, it, vi } from 'vitest';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { loadPlugins, unloadPlugins } from '../../src/plugin/loader.js';
-import type { Plugin, PluginAPI } from '../../src/types/plugin.js';
 
 const log = new DefaultLogger({ level: 'error' });
 

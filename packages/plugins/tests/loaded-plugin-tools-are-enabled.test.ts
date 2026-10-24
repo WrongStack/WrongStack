@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Plugin, Tool } from '@wrongstack/core/types';
+import type { Plugin, Tool } from '@wrongstack/contracts/types';
 import { afterAll, describe, expect, it } from 'vitest';
 import accessibilityAuditor from '../src/accessibility-auditor/index.js';
 import autoI18nExtractor from '../src/auto-i18n-extractor/index.js';

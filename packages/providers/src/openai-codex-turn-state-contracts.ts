@@ -1,4 +1,4 @@
-import type { Request } from '@wrongstack/core/types';
+import type { Request } from '@wrongstack/contracts/types';
 
 /** Sticky-routing token the ChatGPT backend hands back on every response. */
 export const CODEX_TURN_STATE_HEADER = 'x-codex-turn-state';

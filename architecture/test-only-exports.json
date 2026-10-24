@@ -396,6 +396,12 @@
     "packages/codebase-index-mcp/src/main.ts": [
       "resolveIndexProjectRoot"
     ],
+    "packages/contracts/src/types/runtime-capability-manifest.ts": [
+      "isDeprecatedRuntimeToolAlias",
+      "isKnownRuntimeCapability",
+      "normalizeRuntimeToolName",
+      "runtimeCapabilityForTool"
+    ],
     "packages/core/src/chronicle/project-server-client.ts": [
       "resolveChronicleProjectServerUrl"
     ],
@@ -525,48 +531,48 @@
       "classifiedToolErrorResult",
       "getToolErrorInfo"
     ],
-    "packages/core/src/goal/phase-orchestrator-integration.ts": [
+    "packages/goal/src/phase-orchestrator-integration.ts": [
       "markPhaseMergeFailed"
     ],
-    "packages/core/src/hq/alerts-config.ts": [
+    "packages/hq/src/alerts-config.ts": [
       "emptyHqAlertsConfig",
       "HQ_ALERTS_CONFIG_VERSION",
       "hqAlertsConfigFilePath",
       "mutateHqAlertsConfig",
       "writeHqAlertsConfig"
     ],
-    "packages/core/src/hq/approval-bridge.ts": [
+    "packages/hq/src/approval-bridge.ts": [
       "approvalGrantExpiry",
       "DEFAULT_ALWAYS_APPROVAL_TTL_MS"
     ],
-    "packages/core/src/hq/auth-revocation.ts": [
+    "packages/hq/src/auth-revocation.ts": [
       "sessionAffectedByRevocation"
     ],
-    "packages/core/src/hq/auth-store.ts": [
+    "packages/hq/src/auth-store.ts": [
       "defaultHqDataDir",
       "emptyHqAuthFile",
       "hqRuntimeFilePath",
       "mintHqBrowserToken",
       "writeHqAuthFile"
     ],
-    "packages/core/src/hq/exposure.ts": [
+    "packages/hq/src/exposure.ts": [
       "isOpenMode"
     ],
-    "packages/core/src/hq/factory.ts": [
+    "packages/hq/src/factory.ts": [
       "resolveHqConfigFromEnv"
     ],
-    "packages/core/src/hq/kanban-store.ts": [
+    "packages/hq/src/kanban-store.ts": [
       "MAX_HQ_KANBAN_CACHE_PROJECTS"
     ],
-    "packages/core/src/hq/mailbox-mapper.ts": [
+    "packages/hq/src/mailbox-mapper.ts": [
       "createMailboxSnapshotPayload",
       "mapMailboxAgentToHqSummary",
       "mapMailboxMessageToHqSummary"
     ],
-    "packages/core/src/hq/protocol/core.ts": [
+    "packages/hq/src/protocol/core.ts": [
       "KNOWN_HQ_CLIENT_FRAME_TYPES"
     ],
-    "packages/core/src/hq/redaction.ts": [
+    "packages/hq/src/redaction.ts": [
       "redactHqValue"
     ],
     "packages/core/src/infrastructure/mcp-servers.ts": [
@@ -658,12 +664,6 @@
       "readLearnedScoutTools",
       "recordGatewayToolUse",
       "scoutToolUseLogPath"
-    ],
-    "packages/core/src/types/runtime-capability-manifest.ts": [
-      "isDeprecatedRuntimeToolAlias",
-      "isKnownRuntimeCapability",
-      "normalizeRuntimeToolName",
-      "runtimeCapabilityForTool"
     ],
     "packages/core/src/typesafe/activity.ts": [
       "appendJevActivity"

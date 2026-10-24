@@ -4,7 +4,7 @@ import type {
   CouncilQuestion,
   CouncilVoteResult,
   ResolvedCouncilSeat,
-} from '../types/council.js';
+} from '@wrongstack/contracts/types/council';
 import {
   readBundledInstructionText,
   renderInstructionTemplate,

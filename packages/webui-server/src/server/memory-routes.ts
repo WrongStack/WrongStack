@@ -1,4 +1,4 @@
-import type { Config, MemoryPort } from '@wrongstack/core/types';
+import type { Config, MemoryPort } from '@wrongstack/contracts/types';
 import type { WebSocket } from 'ws';
 import { handleSageDoctor } from './memory-doctor-handler.js';
 import {

@@ -1,24 +1,24 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   type BrainDecision,
   type BrainDecisionRequest,
   ObservableBrainArbiter,
-} from '../../src/coordination/brain.js';
-import { markDecisionTier } from '../../src/coordination/brain-telemetry.js';
+} from '../../src/brain/brain.js';
+import { markDecisionTier } from '../../src/brain/brain-telemetry.js';
 import {
   applyContentMode,
   BrainTraceRecorder,
   readBrainTrace,
   sanitizeRequest,
-} from '../../src/coordination/brain-trace.js';
+} from '../../src/brain/brain-trace.js';
 import {
   brainTraceToEvaluationCase,
   runBrainEvaluation,
 } from '../../src/execution/brain-evaluation.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'req-1',

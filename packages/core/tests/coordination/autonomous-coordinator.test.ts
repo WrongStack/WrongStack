@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LIGHT_BUDGET } from '../../src/coordination/agents/types.js';
 import type { CoordinatorEvent } from '../../src/coordination/autonomous-coordinator.js';
@@ -13,7 +14,6 @@ import { KnowledgeGraph } from '../../src/coordination/knowledge-graph.js';
 import type { Mailbox } from '../../src/coordination/mailbox-types.js';
 import { TaskAuctioneer } from '../../src/coordination/task-auctioneer.js';
 import { TaskDAG } from '../../src/coordination/task-dag.js';
-import type { TaskSpec } from '../../src/types/multi-agent.js';
 
 // ── Test setup ─────────────────────────────────────────────────────────────
 

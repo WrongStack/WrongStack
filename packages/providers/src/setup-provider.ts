@@ -23,7 +23,7 @@
  * pointers whose provider has no saved entry, so the first real credential the
  * user adds silently retires setup mode. See `provider-config-utils.ts`.
  */
-import type { ProviderFactory } from '@wrongstack/core/registry';
+
 import type {
   Capabilities,
   Provider,
@@ -32,7 +32,8 @@ import type {
   ResolvedProvider,
   Response,
   StreamEvent,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { ProviderFactory } from '@wrongstack/core/registry';
 
 /** Registry key, config `provider` value, and picker id for setup mode. */
 export const SETUP_PROVIDER_ID = 'wrongstack-setup';

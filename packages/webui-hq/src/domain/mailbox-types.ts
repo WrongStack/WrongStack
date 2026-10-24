@@ -8,7 +8,7 @@
  * Leaf module — no React state, no styling. `tone` is a semantic token the
  * Badge component maps to colours.
  */
-import type { HqMailboxMessageType } from '@wrongstack/core/hq';
+import type { HqMailboxMessageType } from '@wrongstack/hq';
 import {
   Megaphone,
   MessageCircle,

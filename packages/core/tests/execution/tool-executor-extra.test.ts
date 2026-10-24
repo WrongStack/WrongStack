@@ -1,15 +1,15 @@
 import { createHash } from 'node:crypto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { classifyToolError } from '../../src/execution/tool-executor.js';
-import type { ErrorCode, ErrorSubsystem } from '../../src/types/errors.js';
+import type { ErrorCode, ErrorSubsystem } from '@wrongstack/contracts/types/errors';
 import {
   ERROR_CODES,
   FetchError,
   ToolValidationError,
   WrongStackError,
-} from '../../src/types/errors.js';
-import { ToolErrorCategory } from '../../src/types/tool.js';
-import type { ConfirmAwaiter } from '../../src/types/tool-executor.js';
+} from '@wrongstack/contracts/types/errors';
+import { ToolErrorCategory } from '@wrongstack/contracts/types/tool';
+import type { ConfirmAwaiter } from '@wrongstack/contracts/types/tool-executor';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { classifyToolError } from '../../src/execution/tool-executor.js';
 
 // ---------------------------------------------------------------------------
 // classifyToolError — exhaustive coverage of every branch
@@ -198,16 +198,16 @@ describe('classifyToolError', () => {
   });
 });
 
+import { EventBus, type EventMap } from '@wrongstack/contracts/kernel/events';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { PermissionDecision } from '@wrongstack/contracts/types/permission';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 // ---------------------------------------------------------------------------
 // ToolExecutor — additional coverage for PreToolUse hooks, streaming,
 // budget edge cases, and error handling scenarios
 // ---------------------------------------------------------------------------
 import type { Context } from '../../src/core/context.js';
 import { classifyToolError as _cte, ToolExecutor } from '../../src/execution/tool-executor.js';
-import { EventBus, type EventMap } from '../../src/kernel/events.js';
-import type { ToolResultBlock, ToolUseBlock } from '../../src/types/blocks.js';
-import type { PermissionDecision } from '../../src/types/permission.js';
-import type { Tool } from '../../src/types/tool.js';
 
 // Re-export to avoid unused import warning
 void _cte;

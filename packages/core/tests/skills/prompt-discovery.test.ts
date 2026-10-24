@@ -1,3 +1,4 @@
+import type { SkillLoader, SkillManifest } from '@wrongstack/contracts/types/skill';
 import { describe, expect, it } from 'vitest';
 import {
   buildCompactSkillBodiesText,
@@ -8,7 +9,6 @@ import {
   skillPromptExclusionReasons,
   skillUseWhenText,
 } from '../../src/skills/prompt-discovery.js';
-import type { SkillLoader, SkillManifest } from '../../src/types/skill.js';
 
 describe('skill prompt discovery', () => {
   it('shows routing guidance only when the maintained bundled router is usable', async () => {

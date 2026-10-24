@@ -1,5 +1,9 @@
-import type { AddAttachmentInput, AttachmentRef, AttachmentStore } from '../types/attachment.js';
-import type { ContentBlock } from '../types/blocks.js';
+import type {
+  AddAttachmentInput,
+  AttachmentRef,
+  AttachmentStore,
+} from '@wrongstack/contracts/types/attachment';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
 
 export interface InputBuilderOptions {
   store: AttachmentStore;

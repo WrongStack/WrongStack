@@ -9,8 +9,9 @@
  * eating keystrokes), and the mirrored card must expire on a heartbeat rather
  * than linger forever or vanish while the question is still on screen.
  */
-import type { ApprovalRegistry, PendingApproval } from '@wrongstack/core/hq';
-import type { Tool } from '@wrongstack/core/types';
+
+import type { Tool } from '@wrongstack/contracts/types';
+import type { ApprovalRegistry, PendingApproval } from '@wrongstack/hq';
 import { describe, expect, it, vi } from 'vitest';
 import { makeMirroredPromptDelegate, REPL_MIRROR_TTL_MS } from '../src/permission-prompt-mirror.js';
 

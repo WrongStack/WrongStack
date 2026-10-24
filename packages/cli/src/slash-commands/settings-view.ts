@@ -1,5 +1,5 @@
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
-import { resolveFleetChatVerbosity, resolveNextStepsMode } from '@wrongstack/core/types';
+import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
+import { resolveFleetChatVerbosity, resolveNextStepsMode } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import { formatDelay } from '../utils/delay-format.js';
 import type { SlashCommandContext } from './command-context.js';

@@ -4,7 +4,7 @@ import {
   buildTranscriptFromEvents,
   type HqTranscriptEntry,
   resolveHqDataDir,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type { TranscriptRing } from '../types.js';
 import {
   agentRingKey,

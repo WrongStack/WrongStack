@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { DesignKitEntry, DesignKitLoader } from '@wrongstack/contracts/types/design-kit';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ensureDesignDeal,
@@ -8,7 +9,6 @@ import {
   recordDesignChoice,
   renderDesignDeal,
 } from '../../src/execution/design-deal.js';
-import type { DesignKitEntry, DesignKitLoader } from '../../src/types/design-kit.js';
 
 const entry = (id: string, aesthetic: string, stacks = ['web']): DesignKitEntry =>
   ({ id, name: id, aesthetic, bestFor: 'apps', stacks, source: 'bundled' }) as DesignKitEntry;

@@ -1,4 +1,4 @@
-import type { ResolvedProvider } from '@wrongstack/core/types';
+import type { ResolvedProvider } from '@wrongstack/contracts/types';
 import { color, stripAnsi } from '@wrongstack/core/utils';
 
 export const theme = {

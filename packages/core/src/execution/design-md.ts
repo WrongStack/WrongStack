@@ -14,8 +14,8 @@
  * dark theme, so a round trip through this module keeps both themes.
  */
 
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { parseDocument, stringify } from 'yaml';
-import type { DesignKitTokens } from '../types/design-kit.js';
 import { classifyTokenValue, colorToHex, contrastRatio } from './design-color.js';
 
 export interface DesignMdTypography {

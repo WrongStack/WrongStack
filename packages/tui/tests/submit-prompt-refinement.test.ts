@@ -1,5 +1,5 @@
+import type { Provider, Request } from '@wrongstack/contracts/types';
 import { nextEnhanceTimeout } from '@wrongstack/core/execution';
-import type { Provider, Request } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { refineSubmittedPrompt } from '../src/submit-prompt-refinement.js';
 

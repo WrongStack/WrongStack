@@ -7,8 +7,8 @@
  * disable a feature.
  */
 
+import { FetchError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it, vi } from 'vitest';
-import { FetchError } from '../src/types/errors.js';
 import {
   createTypeSafeBreaker,
   resolveTypeSafeAccount,

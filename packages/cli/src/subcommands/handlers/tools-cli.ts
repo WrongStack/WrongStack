@@ -15,8 +15,9 @@
  *   4 needs an interactive confirmation this surface cannot give
  * A batch exits with the code of its first failing call (0 when all pass).
  */
+
+import type { Tool, ToolSettlement } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Tool, ToolSettlement } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   createToolGateway,

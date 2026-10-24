@@ -1,6 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Config, TokenSavingTier } from '@wrongstack/contracts/types/config';
+import {
+  REASONING_EFFORT_LEVELS,
+  type ReasoningEffort,
+} from '@wrongstack/contracts/types/provider';
 import { migrateLegacyConfig, migrateProfileFiles } from './boot-config-migration.js';
 import {
   assertProjectRootOutsideStateDir,
@@ -13,8 +18,6 @@ import { DefaultPathResolver } from './infrastructure/path-resolver.js';
 import { DefaultSecretVault, migratePlaintextSecrets } from './security/secret-vault.js';
 import { ALL_DESTRUCTIVE_KINDS } from './security/yolo-risk.js';
 import { DefaultConfigLoader } from './storage/config-loader.js';
-import type { Config, TokenSavingTier } from './types/config.js';
-import { REASONING_EFFORT_LEVELS, type ReasoningEffort } from './types/provider.js';
 import { toErrorMessage } from './utils/error.js';
 import {
   ensureProjectGitignore,

@@ -1,4 +1,4 @@
-import type { Config, SecretVault } from '@wrongstack/core/types';
+import type { Config, SecretVault } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { hasSubscriptionRefreshTransaction } from '@wrongstack/providers';
 import { bootConfig, patchConfig } from './boot.js';

@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
+import type { Config, ConfigLoader, SyncConfig } from '@wrongstack/contracts/types/config';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { SecretVault } from '@wrongstack/contracts/types/secret-vault';
 import { decryptConfigSecrets } from '../security/config-secrets.js';
-import type { Config, ConfigLoader, SyncConfig } from '../types/config.js';
-import type { Logger } from '../types/logger.js';
-import type { SecretVault } from '../types/secret-vault.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { backupConfigFile } from '../utils/config-backup.js';
 import { type DeepMergeOptions, deepMerge as deepMergeCore } from '../utils/deep-merge.js';

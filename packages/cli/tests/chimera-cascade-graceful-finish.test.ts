@@ -16,9 +16,10 @@
  *   2. The rung's own-turn completion is preserved as the task result.
  *   3. The ladder does NOT retry the rung, even though a second rung exists.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { SubagentRunContext, SubagentRunOutcome, TaskSpec } from '@wrongstack/contracts/types';
 import { Director } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { SubagentRunContext, SubagentRunOutcome, TaskSpec } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ReviewerAttempt } from '../src/chimera-reviewer-policy.js';

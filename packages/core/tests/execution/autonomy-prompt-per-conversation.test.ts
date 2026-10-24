@@ -15,10 +15,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { BuildContext } from '@wrongstack/contracts/types/system-prompt';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { makeAutonomyPromptContributor } from '../../src/execution/autonomy-prompt-contributor.js';
 import { emptyGoal, goalFilePath, saveGoal } from '../../src/storage/goal-store.js';
-import type { BuildContext } from '../../src/types/system-prompt.js';
 
 let tmp: string;
 let goalPath: string;

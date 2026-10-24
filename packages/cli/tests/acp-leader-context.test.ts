@@ -7,8 +7,8 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Config, StreamEvent } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, StreamEvent } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const acp = vi.hoisted(() => ({

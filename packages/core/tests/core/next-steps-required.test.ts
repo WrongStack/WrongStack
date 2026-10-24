@@ -2,6 +2,9 @@
  * `autonomy.nextSteps: 'required'` — the side request that fills in a missing
  * `<nextsteps>` block, and the completion marker that ends a run instead.
  */
+
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import { buildLiveNextStepsGateBlock } from '../../src/core/agent-response.js';
 import type { TodoItem } from '../../src/core/context.js';
@@ -10,8 +13,6 @@ import {
   NEXT_STEPS_REQUIRED_PROMPT,
   readNextStepsMode,
 } from '../../src/core/next-steps-required.js';
-import { TOKENS } from '../../src/kernel/tokens.js';
-import type { Provider, Request, Response } from '../../src/types/provider.js';
 import {
   hasNextStepsCompleteMarker,
   NEXT_STEPS_COMPLETE_MARKER,

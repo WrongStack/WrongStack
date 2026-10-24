@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { PromptEntry } from '@wrongstack/contracts/types/prompt';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DefaultPromptLoader, renderPrompt } from '../../src/execution/prompt-loader.js';
 import { DefaultPromptStore } from '../../src/storage/prompt-store.js';
-import type { PromptEntry } from '../../src/types/prompt.js';
 import { resolveWstackPaths } from '../../src/utils/wstack-paths.js';
 
 function entry(slug: string, over: Partial<PromptEntry> = {}): PromptEntry {

@@ -1,3 +1,6 @@
+import type { Plugin } from '@wrongstack/contracts/types/plugin';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import { capSkillBody, stripFrontmatter } from '../core/system-prompt-skill-text.js';
 import { githubDirectAdapter } from '../skills/registry/github-direct-adapter.js';
 import type { SkillRegistryAdapter } from '../skills/registry/registry-adapter.js';
@@ -5,9 +8,6 @@ import {
   createSkillsShAdapter,
   DEFAULT_SKILLS_SH_URL,
 } from '../skills/registry/skills-sh-adapter.js';
-import type { Plugin } from '../types/plugin.js';
-import type { SkillLoader } from '../types/skill.js';
-import type { SlashCommand } from '../types/slash-command.js';
 import { color } from '../utils/color.js';
 import { buildSkillGeneratorCommand } from './skills-plugin-authoring.js';
 import { skillDiscoveryReport } from './skills-plugin-diagnostics.js';

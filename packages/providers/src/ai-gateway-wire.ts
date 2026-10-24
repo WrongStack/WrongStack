@@ -8,7 +8,7 @@ import {
   type StreamEvent,
   type Usage,
   type Tool as WrongStackTool,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import {
   APICallError,
   type FinishReason,

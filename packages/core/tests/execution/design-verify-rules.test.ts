@@ -1,6 +1,6 @@
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { describe, expect, it } from 'vitest';
 import { verifyFiles } from '../../src/execution/design-verify.js';
-import type { DesignKitTokens } from '../../src/types/design-kit.js';
 
 /**
  * The catalogue additions: every rule is shown catching its pattern and

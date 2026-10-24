@@ -1,5 +1,5 @@
-import type { PhaseGraph, PhaseNode } from '@wrongstack/core/goal';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types';
+import type { PhaseGraph, PhaseNode } from '@wrongstack/goal';
 import { describe, test } from 'vitest';
 import { GoalWebSocketHandler } from '../../src/server/goal-ws-handler.js';
 

@@ -16,7 +16,7 @@
  * downloaded build that is waiting for a session to exit.
  */
 import { realpathSync } from 'node:fs';
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { isStandaloneBinary, writeErr } from '@wrongstack/core/utils';
 import type { UpdateInfo } from './update-check.js';
 

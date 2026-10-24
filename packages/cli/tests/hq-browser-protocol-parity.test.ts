@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
  * Every `hq.*` frame the server sends to a BROWSER must be a frame the browser
  * knows how to receive.
  *
- * `hq.kanban_snapshot` was defined in `core/src/hq/protocol/kanban.ts`, sent to
+ * `hq.kanban_snapshot` was defined in `hq/src/protocol/kanban.ts`, sent to
  * every browser socket by `hq-server/ws.ts` — unscoped, one chunk per board
  * delta — and appeared nowhere in `HqBrowserMessage` or in the SPA's dispatch
  * chain. `HqWsClient` parsed each frame, handed it to the handler, and it fell
@@ -72,7 +72,7 @@ function browserHandledTypes(): Set<string> {
  * the literals across the whole protocol directory.
  */
 function unionTypes(): Set<string> {
-  const dir = path.join(ROOT, 'core/src/hq/protocol');
+  const dir = path.join(ROOT, 'hq/src/protocol');
   const found = new Set<string>();
   for (const file of readdirSync(dir)) {
     if (!file.endsWith('.ts')) continue;

@@ -4,7 +4,7 @@
  * with their models, and `provider.models` answers from the host's list
  * without the catalog. A saved record of the same id is never shadowed.
  */
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { createProviderOperations } from '../src/server/provider-handlers.js';

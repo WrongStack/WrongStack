@@ -1,6 +1,6 @@
 import * as path from 'node:path';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import { ProviderConfigSnapshots } from '@wrongstack/providers';
 import { loadConfigProviders, mutateConfigProviders } from '../provider-config-utils.js';
 

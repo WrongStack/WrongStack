@@ -1,4 +1,4 @@
-import type { BrainConfig } from '../types/config.js';
+import type { BrainConfig } from '@wrongstack/contracts/types/config';
 
 /** Preserve edit order and convert host writer failures into the runtime result contract. */
 export function createBrainPersistenceQueue(persist?: (config: BrainConfig) => Promise<void>) {

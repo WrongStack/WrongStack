@@ -29,8 +29,8 @@
  * with two call sites.
  */
 
-import type { Config } from '../types/config/root.js';
-import type { TypeSafeConfig } from '../types/config/typesafe.js';
+import type { Config } from '@wrongstack/contracts/types/config/root';
+import type { TypeSafeConfig } from '@wrongstack/contracts/types/config/typesafe';
 import { observeJevClient } from './activity.js';
 import { createTypeSafeBreaker, type TypeSafeBreaker, TypeSafeDisabledError } from './breaker.js';
 import { createTypeSafeClient, type TypeSafeUsage } from './client.js';

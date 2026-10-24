@@ -1,8 +1,8 @@
+import type { TaskResult, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import type * as Host from '../../src/coordination/director-host-contracts.js';
 import { makeMutationTestTool } from '../../src/coordination/director-mutation-test-tool.js';
 import { FLEET_ROSTER } from '../../src/coordination/fleet.js';
-import type { TaskResult, TaskSpec } from '../../src/types/multi-agent.js';
 
 /**
  * In-memory DirectorRepairPort double. Records spawn/assign/await calls so

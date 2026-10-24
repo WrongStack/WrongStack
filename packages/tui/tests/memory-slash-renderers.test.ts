@@ -1,4 +1,4 @@
-import type { MemoryEntry, MemoryPort } from '@wrongstack/core/types';
+import type { MemoryEntry, MemoryPort } from '@wrongstack/contracts/types';
 import { SAGE_SURFACE_CAPABILITY } from '@wrongstack/sage';
 import { describe, expect, it, vi } from 'vitest';
 import {

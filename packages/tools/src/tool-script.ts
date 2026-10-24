@@ -18,8 +18,8 @@
  *
  * @module tools/tool-script
  */
-import type { NestedToolCaller, Tool } from '@wrongstack/core/types';
-import { TOOL_MEMORY_GUARD_BYTES } from '@wrongstack/core/types';
+import type { NestedToolCaller, Tool } from '@wrongstack/contracts/types';
+import { TOOL_MEMORY_GUARD_BYTES } from '@wrongstack/contracts/types';
 import type { QuickJSContext, QuickJSHandle, QuickJSWASMModule } from 'quickjs-emscripten-core';
 
 export interface ToolScriptInput {

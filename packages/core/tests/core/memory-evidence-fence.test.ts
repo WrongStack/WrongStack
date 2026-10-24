@@ -1,7 +1,7 @@
+import type { Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
 import { createAgentResponseHandler } from '../../src/core/agent-response.js';
-import type { Request } from '../../src/types/provider.js';
 import {
   formatMemoryEvidenceBlock,
   sanitizeMemoryEvidenceBody,

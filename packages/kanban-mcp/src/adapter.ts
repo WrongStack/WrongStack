@@ -1,5 +1,5 @@
+import type { JSONSchema } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { JSONSchema } from '@wrongstack/core/types';
 import { coerceAgainstSchema, validateAgainstSchema } from '@wrongstack/core/utils';
 import { getKanbanServerConnection, type KanbanServerEvent } from '@wrongstack/kanban';
 import {

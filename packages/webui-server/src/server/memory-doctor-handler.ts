@@ -1,4 +1,4 @@
-import type { Config, MemoryPort } from '@wrongstack/core/types';
+import type { Config, MemoryPort } from '@wrongstack/contracts/types';
 import {
   getSageSurface,
   SAGE_DOCTOR_FIX_IDS,

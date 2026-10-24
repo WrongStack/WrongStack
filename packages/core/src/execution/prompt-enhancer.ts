@@ -1,4 +1,4 @@
-import { isTextBlock } from '../types/blocks.js';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
 import type {
   Provider,
   ReasoningConfig,
@@ -6,7 +6,7 @@ import type {
   ReasoningRequest,
   Request,
   Usage,
-} from '../types/provider.js';
+} from '@wrongstack/contracts/types/provider';
 import { toErrorMessage } from '../utils/error.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
 import type { OneShotOrchestrator } from './one-shot-llm.js';

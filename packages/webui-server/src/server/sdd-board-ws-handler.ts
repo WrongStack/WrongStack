@@ -1,6 +1,6 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { TrustBoundary } from '@wrongstack/core/security';
-import type { Logger } from '@wrongstack/core/types';
 import {
   enqueueKanbanWorkflowCommand,
   kanbanWorkflowId,

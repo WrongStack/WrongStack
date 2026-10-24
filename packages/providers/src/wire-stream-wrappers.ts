@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { StreamHangError } from '@wrongstack/core/types';
+import { StreamHangError } from '@wrongstack/contracts/types';
 import { isNodeReadable } from './object-utils.js';
 import { pushDebugChunkStats } from './stream-debug-state.js';
 

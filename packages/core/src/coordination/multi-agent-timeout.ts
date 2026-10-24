@@ -1,4 +1,8 @@
-import type { SubagentRunContext, SubagentRunner, TaskSpec } from '../types/multi-agent.js';
+import type {
+  SubagentRunContext,
+  SubagentRunner,
+  TaskSpec,
+} from '@wrongstack/contracts/types/multi-agent';
 import {
   BudgetExceededError,
   DECISION_TIMEOUT_MS,

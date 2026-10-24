@@ -41,7 +41,7 @@
  */
 
 import { readFileSync, statSync } from 'node:fs';
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { type ParseError, parse as parseJsonSyntax, printParseErrorCode } from 'jsonc-parser';
 import { LineCounter, parseAllDocuments, type YAMLError } from 'yaml';
 import { withinProject } from '../runtime/index.js';

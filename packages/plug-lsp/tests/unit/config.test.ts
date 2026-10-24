@@ -1,4 +1,4 @@
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import { describe, expect, it } from 'vitest';
 import {
   mergeConfig,

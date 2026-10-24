@@ -1,10 +1,10 @@
+import type { Config, ReasoningConfig, ReasoningEffort } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import {
   createFallbackManageTools,
   createPluginManagerTool,
   type PluginManagerHookRunner,
-} from '@wrongstack/core/tools';
-import type { Config, ReasoningConfig, ReasoningEffort } from '@wrongstack/core/types';
+} from '@wrongstack/tools/management';
 import { updateJsonObjectFile } from '@wrongstack/core/utils';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from '../plugin-management.js';

@@ -1,9 +1,9 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import {
   DefaultSystemPromptBuilder,
   SYSTEM_BLOCK_SOURCE,
 } from '../../src/core/system-prompt-builder.js';
-import type { Tool } from '../../src/types/tool.js';
 
 const make = (name: string, description: string, category?: string): Tool => ({
   name,

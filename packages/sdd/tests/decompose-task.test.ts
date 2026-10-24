@@ -1,4 +1,4 @@
-import type { TaskNode } from '@wrongstack/core/types/task-graph.js';
+import type { TaskNode } from '@wrongstack/contracts/types/task-graph';
 import { describe, expect, it } from 'vitest';
 import { makeLlmSubtaskGenerator, makePlanningDecomposer } from '../src/decompose-task.js';
 

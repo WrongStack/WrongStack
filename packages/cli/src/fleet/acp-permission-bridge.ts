@@ -16,8 +16,8 @@ import type {
   PermissionPolicy as AcpPermissionPolicy,
   PermissionRequest as AcpPermissionRequest,
 } from '@wrongstack/acp';
+import type { PermissionDecision, Tool } from '@wrongstack/contracts/types';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import type { PermissionDecision, Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
 /** The WrongStack tool call an ACP permission request stands for. */

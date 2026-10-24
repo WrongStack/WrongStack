@@ -6,7 +6,7 @@
  */
 
 import * as fs from 'node:fs/promises';
-import { type Tool, ToolValidationError } from '@wrongstack/core/types';
+import { type Tool, ToolValidationError } from '@wrongstack/contracts/types';
 import { safeResolveProjectPath } from '../_util.js';
 import { type InvariantViolation, polyglotInvariantEngine } from './ast-invariant-engine.js';
 import { detectLang, EXT_TO_LANG } from './languages.js';

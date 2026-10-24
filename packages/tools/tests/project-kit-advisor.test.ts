@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import type { ToolResultBlock, ToolSettlement, ToolUseBlock } from '@wrongstack/core/types';
+import type { ToolResultBlock, ToolSettlement, ToolUseBlock } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   isAdHocScriptCall,

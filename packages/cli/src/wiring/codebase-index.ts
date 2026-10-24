@@ -17,8 +17,8 @@
  */
 
 import * as path from 'node:path';
+import type { IndexingConfig, Logger } from '@wrongstack/contracts/types';
 import type { AgentPipelines, Context, ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import type { IndexingConfig, Logger } from '@wrongstack/core/types';
 import {
   cancelPendingReindexes,
   enqueueReindex,

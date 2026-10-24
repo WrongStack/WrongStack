@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { SAGE_SURFACE_CAPABILITY, type Sage, type SageSurface } from '@wrongstack/sage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {

@@ -14,7 +14,7 @@
  *   task_completed.
  */
 
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { color, onResize } from '@wrongstack/core/utils';
 
 export interface FleetAgentState {

@@ -1,5 +1,5 @@
 import type * as http from 'node:http';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import {
   getSageService,
   InvalidSearchCursorError,

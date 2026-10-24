@@ -1,6 +1,6 @@
+import type { SkillEntry, SkillLoader, SkillManifest } from '@wrongstack/contracts/types/skill';
 import { describe, expect, it, vi } from 'vitest';
 import { createSkillSuggester } from '../../src/skills/suggest/skill-suggester.js';
-import type { SkillEntry, SkillLoader, SkillManifest } from '../../src/types/skill.js';
 import type {
   SystemOneRequest,
   SystemOneResult,

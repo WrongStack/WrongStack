@@ -1,6 +1,6 @@
-import type { BrainDecision, BrainDecisionRequest } from '../coordination/brain.js';
-import type { EventBus } from '../kernel/events.js';
-import type { Provider, ResponseFormat, Usage } from '../types/provider.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Provider, ResponseFormat, Usage } from '@wrongstack/contracts/types/provider';
+import type { BrainDecision, BrainDecisionRequest } from '../brain/brain.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
 import { safeParse } from '../utils/safe-json.js';
 import type { BrainCircuitBreaker } from './brain-circuit.js';

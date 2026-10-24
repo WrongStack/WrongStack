@@ -1,7 +1,7 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
-import { TelegramBot } from '../../src/bot.js';
 import type { TelegramIncomingMessage } from '../../src/bot.js';
+import { TelegramBot } from '../../src/bot.js';
 import { makeTelegramReadTool } from '../../src/tools/telegram-read.js';
 import { makeTelegramSendTool } from '../../src/tools/telegram-send.js';
 

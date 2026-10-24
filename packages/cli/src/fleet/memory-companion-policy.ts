@@ -1,5 +1,5 @@
+import type { SubagentConfig, Tool } from '@wrongstack/contracts/types';
 import { makeSubagentResultTool } from '@wrongstack/core/coordination';
-import type { SubagentConfig, Tool } from '@wrongstack/core/types';
 
 export const MEMORY_COMPANION_READ_TOOLS = [
   'read',

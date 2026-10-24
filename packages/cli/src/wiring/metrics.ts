@@ -1,7 +1,14 @@
 import { constants as fsConstants, writeFileSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type {
+  HealthRegistry,
+  MetricsRuntimeStatus,
+  MetricsSink,
+  ObservabilityConfig,
+  Tracer,
+} from '@wrongstack/contracts/types';
 import {
   DefaultHealthRegistry,
   InMemoryMetricsSink,
@@ -10,13 +17,6 @@ import {
   startOtlpExport,
   wireMetricsToEvents,
 } from '@wrongstack/core/observability';
-import type {
-  HealthRegistry,
-  MetricsRuntimeStatus,
-  MetricsSink,
-  ObservabilityConfig,
-  Tracer,
-} from '@wrongstack/core/types';
 import { toErrorMessage, type WstackPaths } from '@wrongstack/core/utils';
 import type {
   MCPHealthState,

@@ -1,4 +1,4 @@
-import type { BridgeMessage, BridgeTransport } from '../types/agent-bridge.js';
+import type { BridgeMessage, BridgeTransport } from '@wrongstack/contracts/types/agent-bridge';
 
 /**
  * In-memory pub/sub transport for agent-to-agent messaging.

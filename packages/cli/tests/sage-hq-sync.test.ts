@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { HQ_AUTH_FILE_VERSION, type HqPublisher, writeHqAuthFile } from '@wrongstack/core/hq';
+import { HQ_AUTH_FILE_VERSION, type HqPublisher, writeHqAuthFile } from '@wrongstack/hq';
 import { SageProjectServerConnection } from '@wrongstack/sage';
 import { afterEach, expect, it, vi } from 'vitest';
 import {

@@ -8,16 +8,16 @@
  * Reads mutable state from TuiRuntimeState (activeSessionStore, wpaths).
  */
 import * as path from 'node:path';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { SessionWriter } from '@wrongstack/contracts/types';
+import { projectLastRequestTokens } from '@wrongstack/contracts/types/session-timeline';
 import {
   restoreSessionSubagentModelPlan,
   restoreSessionSubagentPolicy,
 } from '@wrongstack/core/coordination';
-import { TOKENS } from '@wrongstack/core/kernel';
 import { restoreSessionPermissionOverrides } from '@wrongstack/core/security';
 import { restoreRequiredSkillsFromEvents } from '@wrongstack/core/skills';
 import { attachTodosCheckpoint, loadTodosCheckpoint } from '@wrongstack/core/storage';
-import type { SessionWriter } from '@wrongstack/core/types';
-import { projectLastRequestTokens } from '@wrongstack/core/types/session-timeline';
 import {
   clearLeaderEffortOverride,
   rehydrateContextEvidenceFromMessages,
@@ -153,7 +153,7 @@ export async function resumeSession(
    * The journal, once read. Hoisted so the failure arm can render the
    * transcript read-only instead of re-reading a 100 MB file it already has.
    */
-  let hydrated: import('@wrongstack/core/types').SessionData | undefined;
+  let hydrated: import('@wrongstack/contracts/types').SessionData | undefined;
   let identityClaimed = false;
   let resumeClaim: import('@wrongstack/core/storage').SessionResumeClaim | undefined;
   let writerSwapped = false;

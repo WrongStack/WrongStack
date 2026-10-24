@@ -14,7 +14,7 @@ import type {
   HqToken,
   HqTranscriptEntry,
   HqWelcomePayload,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import {
   HQ_PROTOCOL_VERSION,
   hqTokenKey,
@@ -23,7 +23,7 @@ import {
   resolveHqRedactionPolicy,
   tightenHqRedactionPolicy,
   tokenHasCapability,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { WebSocket } from '../ws-runtime.js';
 import { sendSageSnapshot } from './sage-sync-send.js';

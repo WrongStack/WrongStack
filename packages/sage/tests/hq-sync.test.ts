@@ -7,8 +7,8 @@ const DatabaseSync = loadTestDatabaseSync();
 type DatabaseSync = InstanceType<typeof DatabaseSync>;
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { chunkHqSageRecords, isHqSageSnapshotPayload } from '../../core/src/hq/protocol/sage.js';
-import { HqSageStore } from '../../core/src/hq/sage-store.js';
+import { chunkHqSageRecords, isHqSageSnapshotPayload } from '../../hq/src/protocol/sage.js';
+import { HqSageStore } from '../../hq/src/sage-store.js';
 import { SqliteSageStore } from '../src/sqlite-store.js';
 
 let root: string;

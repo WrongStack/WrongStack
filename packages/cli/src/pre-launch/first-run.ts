@@ -15,8 +15,9 @@
  * Options 1–3 delegate to the same auth-menu flows `wstack auth` uses, so
  * there is no second implementation of any credential path here.
  */
+
+import type { Config, ModelsRegistry, SecretVault } from '@wrongstack/contracts/types';
 import { hasProviderCredential } from '@wrongstack/core/models';
-import type { Config, ModelsRegistry, SecretVault } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { PROVIDER_DEFINITIONS } from '@wrongstack/providers/definitions';
 import { addFromCatalog } from '../auth-menu/add-provider.js';
@@ -25,8 +26,8 @@ import { runOAuthLoginMenu } from '../auth-menu/oauth-menu.js';
 import type { AuthMenuDeps } from '../auth-menu/types.js';
 import type { ReadlineInputReader } from '../input-reader.js';
 import { boxBottom, boxDivider, boxRow, boxTop, theme } from '../picker-ui.js';
-import { isKeylessLocalProvider } from '../provider-helpers.js';
 import { resolveActiveApiKey } from '../provider-config-utils.js';
+import { isKeylessLocalProvider } from '../provider-helpers.js';
 import type { TerminalRenderer } from '../renderer.js';
 
 /**

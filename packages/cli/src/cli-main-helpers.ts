@@ -1,7 +1,7 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, Logger, ModelsRegistry } from '@wrongstack/contracts/types';
 import type { AgentPipelines } from '@wrongstack/core/agent';
 import { getSharedProjectMailbox, type MailboxAgentStatus } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config, Logger, ModelsRegistry } from '@wrongstack/core/types';
 import type {
   BootstrapGovernanceRuntimeOptions,
   GovernanceRuntimeBootstrapCloseResult,
@@ -117,7 +117,7 @@ export async function setupCliGovernance(input: {
   readonly events: EventBus;
   readonly planPath: string;
   readonly captureWorkspaceCheckpoint: () => Promise<
-    import('@wrongstack/core/types').WorkspaceCheckpointRef | undefined
+    import('@wrongstack/contracts/types').WorkspaceCheckpointRef | undefined
   >;
 }): Promise<CliGovernanceRuntimeHandle | undefined> {
   const result = await bootstrapCliGovernance({

@@ -24,11 +24,11 @@ import {
   writeFileSync,
 } from 'node:fs';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import {
   SCOUT_DIRECT_TOOL_NAMES,
   SCOUT_LEARNED_TOOLS_META_KEY,
-} from '../core/scout-tool-surface.js';
-import type { EventBus } from '../kernel/events.js';
+} from '../registry/scout-tool-surface.js';
 
 export const SCOUT_TOOL_USE_LOG = 'scout-tool-use.jsonl';
 

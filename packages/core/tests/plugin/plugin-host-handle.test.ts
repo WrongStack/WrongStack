@@ -1,6 +1,6 @@
+import type { Plugin, PluginAPI } from '@wrongstack/contracts/types/plugin';
 import { describe, expect, it, vi } from 'vitest';
 import { loadPlugins } from '../../src/plugin/loader.js';
-import type { Plugin, PluginAPI } from '../../src/types/plugin.js';
 
 const log = {
   trace: vi.fn(),

@@ -10,7 +10,7 @@
  * 3. ChatGPT plan renewal re-verified the ID token AFTER the server had
  *    rotated the refresh token, so a JWKS blip discarded the new pair.
  */
-import type { ProviderApiKey, ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderApiKey, ProviderConfig } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { refreshChatGPTDirect } from '../src/oauth/chatgpt-direct.js';
 import {

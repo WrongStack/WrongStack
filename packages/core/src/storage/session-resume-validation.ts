@@ -5,7 +5,7 @@ import type {
   ResumeFileValidationEntry,
   ResumeValidation,
   SessionEvent,
-} from '../types/session.js';
+} from '@wrongstack/contracts/types/session';
 import { toErrorMessage } from '../utils/index.js';
 import { mapWithConcurrency } from './storage-concurrency.js';
 

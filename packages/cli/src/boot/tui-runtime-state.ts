@@ -50,8 +50,9 @@
  *   is simpler to sync back than 8 separate refs, and the mutation
  *   pattern (`.field = x`) is cleaner than `.field.current = x`.
  */
+
+import type { SessionStore } from '@wrongstack/contracts/types';
 import type { AutonomousCoordinator, CoordinatorEvent } from '@wrongstack/core/coordination';
-import type { SessionStore } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { SessionIdentityTarget } from '../wiring/session-registry.js';
 import type { PendingProjectSwitch } from './tui-project-spawn.js';
@@ -89,7 +90,9 @@ export interface TuiRuntimeState {
    * resume handler is then a no-op for the ref, leaving provider calls pinned
    * to the boot session — same behavior as before this field existed.
    */
-  sessionRef?: { current: import('@wrongstack/core/types').SessionWriter | undefined } | undefined;
+  sessionRef?:
+    | { current: import('@wrongstack/contracts/types').SessionWriter | undefined }
+    | undefined;
 
   // ── TUI-branch-scope mutables (declared inside the TUI branch) ────────
 

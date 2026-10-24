@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { Message, Request, Tool } from '@wrongstack/core/types';
+import type { Message, Request, Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { OpenAICodexProvider } from '../src/openai-codex.js';
 import { codexCacheSessionId } from '../src/openai-codex-request.js';

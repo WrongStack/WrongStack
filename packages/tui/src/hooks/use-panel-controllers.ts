@@ -1,4 +1,4 @@
-import type { TokenSavingTier } from '@wrongstack/core/types';
+import type { TokenSavingTier } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import React, { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';

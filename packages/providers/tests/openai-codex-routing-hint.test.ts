@@ -5,7 +5,7 @@
  * model is served is also where its prompt cache lives.
  */
 
-import type { Request } from '@wrongstack/core/types';
+import type { Request } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { OpenAICodexProvider } from '../src/openai-codex.js';
 import { CODEX_ROUTING_HINT_HEADER, codexRoutingHint } from '../src/openai-codex-request.js';

@@ -25,7 +25,7 @@
  * so the policy is unit-testable and holds no I/O or layer dependencies.
  */
 
-import type { Config, ModelTierLeaderMode } from '../types/config.js';
+import type { Config, ModelTierLeaderMode } from '@wrongstack/contracts/types/config';
 import { activeTierConfig, listTierIds } from './model-tier.js';
 
 /** Per-1M-token prices and window for one model, as published by models.dev. */

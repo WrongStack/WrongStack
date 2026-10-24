@@ -34,6 +34,7 @@
     "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/primitives": "workspace:*",
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "@wrongstack/contracts": "workspace:*",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

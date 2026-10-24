@@ -37,7 +37,7 @@
  * @public
  */
 
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import type { Snapshot } from './snapshot.js';
 import {
   type CheckpointHost,

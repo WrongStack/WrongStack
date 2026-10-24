@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
 import { access } from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import { parseNextSteps } from '@wrongstack/tools/next-steps';

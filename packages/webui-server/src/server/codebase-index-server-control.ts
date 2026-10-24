@@ -1,5 +1,5 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import type { TrustBoundary } from '@wrongstack/core/security';
-import type { Logger } from '@wrongstack/core/types';
 import { shutdownCodebaseIndexServer } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { authorizeWebUIAction } from './privileged-actions.js';

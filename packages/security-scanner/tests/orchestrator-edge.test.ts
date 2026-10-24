@@ -11,7 +11,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Provider, Response } from '@wrongstack/core/types';
+import type { Provider, Response } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SecurityScannerOrchestrator } from '../src/orchestrator.js';
 

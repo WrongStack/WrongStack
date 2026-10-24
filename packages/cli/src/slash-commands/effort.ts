@@ -3,7 +3,7 @@ import {
   REASONING_EFFORT_LEVELS,
   type ReasoningEffort,
   type SlashCommand,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { color, updateJsonObjectFile } from '@wrongstack/core/utils';
 import { catalogProviderIdFor } from '@wrongstack/providers';

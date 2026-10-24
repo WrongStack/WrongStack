@@ -1,8 +1,8 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Config, ModelsRegistry, SecretVault } from '@wrongstack/contracts/types';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultModelsRegistry, startCatalog } from '@wrongstack/core/models';
-import type { Config, ModelsRegistry, SecretVault } from '@wrongstack/core/types';
 import {
   color,
   isStdinTTY,

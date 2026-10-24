@@ -9,12 +9,12 @@ import { createGoogleVertexAnthropic } from '@ai-sdk/google-vertex/anthropic';
 import { createGoogleVertexMaas } from '@ai-sdk/google-vertex/maas';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import type { Capabilities, ModelsDevModel, Provider } from '@wrongstack/contracts/types';
+import { ConfigError } from '@wrongstack/contracts/types';
 import {
   type NativeCloudSettings,
   resolveNativeCloudSettings,
 } from '@wrongstack/core/cloud-provider';
-import type { Capabilities, ModelsDevModel, Provider } from '@wrongstack/core/types';
-import { ConfigError } from '@wrongstack/core/types';
 import type { LanguageModel } from 'ai';
 import { AiGatewayProvider } from './ai-gateway.js';
 import { createCloudflareGatewayModel } from './cloudflare-ai-gateway.js';

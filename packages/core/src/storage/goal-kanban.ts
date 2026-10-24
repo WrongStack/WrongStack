@@ -14,7 +14,7 @@
  *   formatGoalKanbanChoicePrompt()                      → string (selection screen)
  */
 
-import { completionPercent } from '../types/task-graph.js';
+import { completionPercent } from '@wrongstack/contracts/types/task-graph';
 import { color } from '../utils/color.js';
 import { boardStore, tryBoardStore } from './board-store-port.js';
 import type { GoalFile } from './goal-store.js';

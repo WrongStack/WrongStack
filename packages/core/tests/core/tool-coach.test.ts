@@ -1,7 +1,7 @@
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { createToolCoach, isToolCoachEnabled } from '../../src/core/tool-coach.js';
-import type { ToolResultBlock, ToolUseBlock } from '../../src/types/blocks.js';
-import type { Tool } from '../../src/types/tool.js';
 import { createMockTool } from '../helpers/test-harness.js';
 
 function tool(name: string, description: string, options: Partial<Tool> = {}): Tool {

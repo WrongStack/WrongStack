@@ -1,9 +1,4 @@
-import type { UserInputPayload } from '@wrongstack/core/agent';
-import { FallbackProfileManager } from '@wrongstack/core/agent';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
-import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import { DefaultConfigStore } from '@wrongstack/core/storage';
+import { Container, TOKENS } from '@wrongstack/contracts/kernel';
 import {
   type Config,
   type Provider,
@@ -11,7 +6,12 @@ import {
   type SessionWriter,
   type SubagentConfig,
   type Tool,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { UserInputPayload } from '@wrongstack/core/agent';
+import { FallbackProfileManager } from '@wrongstack/core/agent';
+import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { DefaultConfigStore } from '@wrongstack/core/storage';
 import { describe, expect, it, vi } from 'vitest';
 import {
   abortLightSubagent,

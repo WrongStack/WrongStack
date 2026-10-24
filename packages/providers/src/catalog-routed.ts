@@ -8,8 +8,8 @@ import type {
   Response,
   StreamEvent,
   WireFamily,
-} from '@wrongstack/core/types';
-import { ConfigError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ConfigError } from '@wrongstack/contracts/types';
 import { AnthropicProvider } from './anthropic.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { GoogleProvider } from './google.js';

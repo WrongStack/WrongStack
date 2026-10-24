@@ -1,14 +1,14 @@
-import type { Context } from '../core/context.js';
-import type { Compactor } from '../types/compactor.js';
-import type { Config } from '../types/config.js';
-import type { ErrorHandler, RecoveryDecision } from '../types/error-handler.js';
-import type { ModelsRegistry } from '../types/models-registry.js';
+import type { Compactor } from '@wrongstack/contracts/types/compactor';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { ErrorHandler, RecoveryDecision } from '@wrongstack/contracts/types/error-handler';
+import type { ModelsRegistry } from '@wrongstack/contracts/types/models-registry';
 import {
   isContextOverflowShaped,
   isRetryableKind,
   ProviderError,
   type ProviderErrorKind,
-} from '../types/provider.js';
+} from '@wrongstack/contracts/types/provider';
+import type { Context } from '../core/context.js';
 import { defaultContextOutputReserve } from '../utils/context-budget.js';
 import { compactionReportStillCurrent } from './compaction-result-state.js';
 import { NETWORK_ERR_RE } from './regex-patterns.js';

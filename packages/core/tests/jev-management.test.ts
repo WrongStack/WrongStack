@@ -1,9 +1,9 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Config } from '@wrongstack/contracts/types/config/root';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DefaultConfigStore } from '../src/storage/config-store.js';
-import type { Config } from '../src/types/config/root.js';
 import {
   appendJevActivity,
   jevActivitySnapshot,

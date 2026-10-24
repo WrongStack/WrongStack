@@ -1,4 +1,4 @@
-import type { MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/core/types';
+import type { MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/contracts/types';
 import { SAGE_MEMORY_KINDS } from '@wrongstack/core/utils/sage-kinds';
 
 export const DEFAULT_MEMORY_LIMIT = 50;

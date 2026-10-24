@@ -1,6 +1,6 @@
 /** Boot-time launch choices: system-prompt variant, mode, YOLO and autonomy (prompted or defaulted). */
 
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { color, toErrorMessage, type WstackPaths, writeErr } from '@wrongstack/core/utils';
 import { maybeRunSystemPromptMenu } from './boot/system-prompt-menu.js';
 import type { BootPhaseExit } from './boot-provider-gate.js';

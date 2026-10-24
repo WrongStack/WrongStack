@@ -30,7 +30,7 @@ export type SageStatus =
   | 'archived'
   | 'deleted';
 
-/** Mirrors `MemoryScope` from `@wrongstack/core/types` (legacy back-compat field). */
+/** Mirrors `MemoryScope` from `@wrongstack/contracts/types` (legacy back-compat field). */
 export type SageLegacyScope = 'project-agents' | 'project-memory' | 'user-memory';
 
 /** Mirrors `PersistenceClass` — controls how hygiene treats a memory. */

@@ -1,4 +1,4 @@
-import { ToolError } from '@wrongstack/core/types';
+import { ToolError } from '@wrongstack/contracts/types';
 
 export type JsonRpcResult = {
   jsonrpc: '2.0';

@@ -11,7 +11,7 @@
  * tool, `/design materialize`, the WebUI button) decide how/where to write.
  */
 
-import type { DesignKitTokens, DesignStack } from '../types/design-kit.js';
+import type { DesignKitTokens, DesignStack } from '@wrongstack/contracts/types/design-kit';
 import { classifyTokenValue, colorToHex, isColorToken } from './design-color.js';
 
 // ── Scale-token axis mapping ─────────────────────────────────────────────────

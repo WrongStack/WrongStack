@@ -1,4 +1,4 @@
-import type { TaskGraph } from '../types/task-graph.js';
+import type { TaskGraph } from '@wrongstack/contracts/types/task-graph';
 import type { TaskStore } from './task-tracker.js';
 
 /**

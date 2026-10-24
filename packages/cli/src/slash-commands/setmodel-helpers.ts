@@ -1,4 +1,4 @@
-import type { ModelMatrixEntry, ProviderConfig } from '@wrongstack/core/types';
+import type { ModelMatrixEntry, ProviderConfig } from '@wrongstack/contracts/types';
 import { color, updateJsonObjectFile } from '@wrongstack/core/utils';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 import { backupCurrent } from '../config-history.js';
@@ -11,8 +11,8 @@ import { backupCurrent } from '../config-history.js';
  * map and callers fall back to the saved list.
  */
 export async function resolveCatalogModelIds(
-  registry: import('@wrongstack/core/types').ModelsRegistry | undefined,
-  config: import('@wrongstack/core/types').Config,
+  registry: import('@wrongstack/contracts/types').ModelsRegistry | undefined,
+  config: import('@wrongstack/contracts/types').Config,
   providerIds: string[],
 ): Promise<Map<string, string[]>> {
   const out = new Map<string, string[]>();

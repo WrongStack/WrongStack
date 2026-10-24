@@ -1,5 +1,5 @@
 import * as https from 'node:https';
-import { ConfigError } from '@wrongstack/core/types';
+import { ConfigError } from '@wrongstack/contracts/types';
 import type { HttpDispatcher } from '@wrongstack/core/utils';
 import type { Agent as UndiciAgent } from 'undici';
 import {

@@ -26,7 +26,7 @@
  * tested without standing up a real `http.Server`/`WebSocketServer`. `index.ts`
  * builds a thin closure that pulls the fields below off the incoming request.
  */
-import { isLoopbackHost as isLoopbackHostCore } from '@wrongstack/core/hq';
+import { isLoopbackHost as isLoopbackHostCore } from '@wrongstack/hq';
 import { timingSafeTokenEqual } from '@wrongstack/primitives';
 
 /** A hostname that refers to the local machine. */

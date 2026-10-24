@@ -1,5 +1,5 @@
 import { mailboxSessionTag } from '@wrongstack/core/coordination';
-import type { HqClientCapability } from '@wrongstack/core/hq';
+import type { HqClientCapability } from '@wrongstack/hq';
 import { createWebuiClientPresence } from '@wrongstack/webui-server';
 import {
   createHqCommandDispatcher,
@@ -22,8 +22,8 @@ export interface WebuiHqControlHooks {
 
 export interface WebuiClientRegistrationDeps {
   projectRoot: string | undefined;
-  appConfig: import('@wrongstack/core/types').Config | undefined;
-  events: import('@wrongstack/core/kernel').EventBus;
+  appConfig: import('@wrongstack/contracts/types').Config | undefined;
+  events: import('@wrongstack/contracts/kernel').EventBus;
   hqSessionId: string;
   getSessionId: () => string;
   /** Session ids the connected browsers display — one per open tab. */
@@ -32,7 +32,7 @@ export interface WebuiClientRegistrationDeps {
   isSessionOwnedElsewhere?: ((sessionId: string) => boolean) | undefined;
   /** A tab's own session writer, so HQ streams its turns without a disk tail. */
   getSessionWriter?:
-    | ((sessionId: string) => import('@wrongstack/core/types').SessionWriter | undefined)
+    | ((sessionId: string) => import('@wrongstack/contracts/types').SessionWriter | undefined)
     | undefined;
   hqControl?: WebuiHqControlHooks | undefined;
 }

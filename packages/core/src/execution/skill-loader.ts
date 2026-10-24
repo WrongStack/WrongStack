@@ -1,12 +1,5 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { FOREIGN_SKILL_TOOLS, resolveForeignToolIds } from '../skills/foreign-sources.js';
-import {
-  isValidSkillNameFormat,
-  parseSkillFrontmatter,
-  stripFrontmatter,
-} from '../skills/frontmatter.js';
-import { SKILL_LIMITS } from '../skills/limits.js';
 import type {
   ShadowedSkill,
   SkillEntry,
@@ -14,7 +7,14 @@ import type {
   SkillLoaderDiagnostics,
   SkillManifest,
   SkippedSkill,
-} from '../types/skill.js';
+} from '@wrongstack/contracts/types/skill';
+import { FOREIGN_SKILL_TOOLS, resolveForeignToolIds } from '../skills/foreign-sources.js';
+import {
+  isValidSkillNameFormat,
+  parseSkillFrontmatter,
+  stripFrontmatter,
+} from '../skills/frontmatter.js';
+import { SKILL_LIMITS } from '../skills/limits.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 
 /**

@@ -1,6 +1,6 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/core/coordination';
 import type { RedoRewindResult } from '@wrongstack/core/storage';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import {

@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types';
 import { validateSkillDocument } from '@wrongstack/core/skills';
-import type { Provider, Request, Response } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BatchScanner } from '../src/batch-scanner.js';
 import { gatherFiles } from '../src/file-gathering.js';

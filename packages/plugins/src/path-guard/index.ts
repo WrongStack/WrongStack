@@ -7,7 +7,7 @@
 
 import { existsSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import type { Plugin, PluginAPI } from '@wrongstack/core/types';
+import type { Plugin, PluginAPI } from '@wrongstack/contracts/types';
 import { withinProject } from '../runtime/index.js';
 import {
   compilePathGlob,

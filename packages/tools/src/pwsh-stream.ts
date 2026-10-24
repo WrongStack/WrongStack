@@ -1,13 +1,13 @@
 import { spawn } from 'node:child_process';
 import * as os from 'node:os';
 import { StringDecoder } from 'node:string_decoder';
+import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import {
   emitProcessCompleted,
   emitProcessOutput,
   emitProcessStarted,
 } from '@wrongstack/core/observability';
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { detectDanger } from './_danger-detect.js';
 import { buildChildEnv } from './_env.js';

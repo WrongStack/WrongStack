@@ -4,10 +4,11 @@
  * provider when the user has set an explicit fallbackModels list or
  * a named fallbackProfile. The explicit chain is authoritative.
  */
+
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
 import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
-import type { Config } from '../../src/types/config.js';
 
 function makeConfig(overrides: Record<string, unknown> = {}): Config {
   return {

@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types';
 import type { TaskStore } from '@wrongstack/core/tasking';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { atomicWrite, ensureDir, withFileLock } from '@wrongstack/core/utils';
 
 export interface TaskGraphStoreOptions {

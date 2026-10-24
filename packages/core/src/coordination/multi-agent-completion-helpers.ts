@@ -1,4 +1,4 @@
-import type { TaskResult } from '../types/multi-agent.js';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import type { FleetBus } from './fleet-bus.js';
 import type { SubagentEntry } from './multi-agent-queue-helpers.js';
 

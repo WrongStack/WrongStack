@@ -2,6 +2,8 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import type { Context } from '../core/context.js';
 import { validateSkillDocument, validateSkillName } from '../skills/frontmatter.js';
 import {
@@ -12,8 +14,6 @@ import {
   validateSkillNameAvailable,
   writeSkeletonSkill,
 } from '../skills/skill-generator.js';
-import type { SkillLoader } from '../types/skill.js';
-import type { SlashCommand } from '../types/slash-command.js';
 import { color } from '../utils/color.js';
 import { toErrorMessage } from '../utils/error.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';

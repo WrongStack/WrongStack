@@ -20,7 +20,7 @@
  * resolution, budget tightening and ceilings as a tier the leader named.
  */
 
-import type { Config } from '../types/config.js';
+import type { Config } from '@wrongstack/contracts/types/config';
 import type { TypeSafeJudge } from '../typesafe/judgments.js';
 import { activeTierConfig, classifyTier, listTierIds, tierLevel } from './model-tier.js';
 

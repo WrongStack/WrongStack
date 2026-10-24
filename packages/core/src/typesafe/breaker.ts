@@ -27,7 +27,7 @@
  * client after fixing the credential; other clients keep their own counters.
  */
 
-import { FetchError } from '../types/errors.js';
+import { FetchError } from '@wrongstack/contracts/types/errors';
 import type { SystemOneRequest, SystemOneResult, TypeSafeClient } from './client.js';
 
 /** Statuses that mean "this credential will not work, ever". */

@@ -1,3 +1,4 @@
+import { EventBus, type TrackedAgentSnapshot } from '@wrongstack/contracts/kernel/events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { agentPrompt } from '../../src/coordination/agents/agent-prompts.js';
 import {
@@ -18,7 +19,6 @@ import type {
   MailboxMessage,
   MailboxQuery,
 } from '../../src/coordination/mailbox-types.js';
-import { EventBus, type TrackedAgentSnapshot } from '../../src/kernel/events.js';
 import { ToolCapabilities } from '../../src/security/capabilities.js';
 
 const LEADER_SESSION = 'sess-leader';

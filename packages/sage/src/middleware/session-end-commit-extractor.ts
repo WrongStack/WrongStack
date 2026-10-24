@@ -56,8 +56,8 @@
  * fall back to `void run().catch(...)` — the work still runs, just
  * outside the join contract. The extraction itself is advisory.
  */
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { writeErr } from '@wrongstack/core/utils';
 import { SageDomainTermExtractor } from '../domain-term-extractor.js';
 

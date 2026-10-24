@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sageProjectServerMetadataPath } from '../src/project-server-endpoint.js';
 import type { ProjectSageMemoryPort } from '../src/remote-memory-port.js';

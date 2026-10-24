@@ -1,10 +1,7 @@
-import type { EventBus } from '../kernel/events.js';
-
-import type { FleetSupervisorConfig } from '../types/config.js';
-
-import type { TaskSpec } from '../types/multi-agent.js';
-
-import type { BrainArbiter } from './brain.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { FleetSupervisorConfig } from '@wrongstack/contracts/types/config';
+import type { TaskSpec } from '@wrongstack/contracts/types/multi-agent';
+import type { BrainArbiter } from '../brain/brain.js';
 
 import type { FleetBus } from './fleet-bus.js';
 

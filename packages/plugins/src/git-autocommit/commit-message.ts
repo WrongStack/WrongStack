@@ -1,4 +1,4 @@
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 
 export type ConventionalType =
   | 'feat'

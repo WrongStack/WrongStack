@@ -1,5 +1,5 @@
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import { resolveContinuation, type TodoItem } from '@wrongstack/core/agent';
-import type { ContentBlock } from '@wrongstack/core/types';
 import {
   createAutoProceedLoopGuard,
   createContinuationAttemptTracker,

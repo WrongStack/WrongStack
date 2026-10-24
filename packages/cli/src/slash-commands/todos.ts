@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { TodoItem } from '@wrongstack/core/agent';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { formatTodosList } from '@wrongstack/core/utils';
 import { todoTool } from '@wrongstack/tools';
 import type { SlashCommandContext } from './command-context.js';

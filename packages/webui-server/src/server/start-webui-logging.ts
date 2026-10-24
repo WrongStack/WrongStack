@@ -1,4 +1,4 @@
-﻿import type { EventBus } from '@wrongstack/core/kernel';
+﻿import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { WebuiDeps, WebuiMutableState } from './routes.js';
 import { startTerminalDashboard } from './terminal-dashboard.js';
 import type { ConnectedClient } from './types.js';

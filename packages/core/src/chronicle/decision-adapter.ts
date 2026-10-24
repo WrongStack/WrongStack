@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { BrainDecision, BrainDecisionRequest } from '../coordination/brain.js';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { BrainDecision, BrainDecisionRequest } from '../brain/brain.js';
 import type { ChronicleContext } from './context.js';
 import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput } from './types.js';

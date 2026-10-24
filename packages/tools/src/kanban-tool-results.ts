@@ -1,4 +1,4 @@
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import {
   decodeLifecycleIssues,
   type KanbanBoard,

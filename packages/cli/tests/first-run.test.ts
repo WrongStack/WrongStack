@@ -1,4 +1,4 @@
-import type { Config, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry, ResolvedProvider } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runOAuthLoginMenu = vi.fn(async () => undefined);

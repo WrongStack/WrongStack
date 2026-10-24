@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { SlashCommandContext } from './command-context.js';
 
 // Re-export for consumers that import from this barrel

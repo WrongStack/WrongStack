@@ -6,8 +6,8 @@ import type {
   ProviderConfig,
   ProviderErrorKind,
   Response,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
 interface ModelSmokeTarget {

@@ -1,5 +1,5 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { useCallback, useEffect, useRef } from 'react';
 import type { Action } from '../app-reducer.js';

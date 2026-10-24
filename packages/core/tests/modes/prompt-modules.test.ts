@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PROMPT as briefPrompt } from '../../src/core/modes/brief.js';
 import { PROMPT as defaultPrompt } from '../../src/core/modes/default.js';
 import { PROMPT as teachPrompt } from '../../src/core/modes/teach.js';
-import { DEFAULT_MODES } from '../../src/types/mode.js';
+import { DEFAULT_MODES } from '../../src/models/default-modes.js';
 
 // These modules only export a `PROMPT` string. Coverage requires the file
 // to be executed at least once; this test does that and asserts the strings

@@ -1,4 +1,4 @@
-import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/core/types';
+import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/contracts/types';
 import type {
   AgentSwarmPanelMode,
   CacheTtl,

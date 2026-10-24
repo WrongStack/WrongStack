@@ -9,7 +9,7 @@
 
 import { watch as fsWatch, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { createHostStates } from '../runtime/host-state.js';
 import { safePath } from '../runtime/sandbox.js';
 

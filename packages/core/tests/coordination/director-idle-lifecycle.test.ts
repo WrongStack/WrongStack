@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Director } from '../../src/coordination/director.js';
 import type {
   SubagentRunContext,
   SubagentRunOutcome,
   TaskSpec,
-} from '../../src/types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Director } from '../../src/coordination/director.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

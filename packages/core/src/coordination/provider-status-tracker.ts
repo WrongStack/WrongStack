@@ -42,9 +42,10 @@
  * @module coordination/provider-status-tracker
  */
 
-import type { EventBus } from '../kernel/events.js';
-import type { ProviderErrorKind } from '../types/provider.js';
-import { ROUTE_SCOPED_QUOTA_RE } from '../types/quota-regex.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { ProviderErrorKind } from '@wrongstack/contracts/types/provider';
+import type { ProviderStatusTrackerPort } from '@wrongstack/contracts/types/provider-status';
+import { ROUTE_SCOPED_QUOTA_RE } from '@wrongstack/contracts/types/quota-regex';
 
 export * from './provider-status-tracker-types.js';
 
@@ -76,7 +77,12 @@ import {
   unpairKey,
 } from './provider-status-tracker-types.js';
 
-export class ProviderModelStatusTracker {
+/**
+ * `ProviderModelStatusTracker` (below) is both the constructor VALUE and a TYPE
+ * alias of `ProviderStatusTrackerPort`, so the kernel token and low-layer
+ * contracts name the port without importing this coordination module.
+ */
+export class ProviderModelStatusTrackerImpl implements ProviderStatusTrackerPort {
   private readonly cfg: Required<ProviderStatusTrackerConfig>;
   private readonly map = new Map<string, MutableProviderModelStatus>();
   /** Account/plan quota blocks apply to unseen sibling models too. */
@@ -683,3 +689,9 @@ export class ProviderModelStatusTracker {
     }
   }
 }
+
+/** Instances are typed as the port so callers' inferred types never name the implementation class. */
+export const ProviderModelStatusTracker: new (
+  ...args: ConstructorParameters<typeof ProviderModelStatusTrackerImpl>
+) => ProviderStatusTrackerPort = ProviderModelStatusTrackerImpl;
+export type ProviderModelStatusTracker = ProviderStatusTrackerPort;

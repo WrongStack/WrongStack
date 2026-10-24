@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import type { EventBus, EventMap } from '../kernel/events.js';
-import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type { ToolSettlement } from '../types/tool.js';
+import type { EventBus, EventMap } from '@wrongstack/contracts/kernel/events';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { ToolSettlement } from '@wrongstack/contracts/types/tool';
 import type { ChronicleContext } from './context.js';
 import { fileToolStats } from './file-tool-stats.js';
 import type { ChronicleEventSink } from './sink.js';

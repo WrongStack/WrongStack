@@ -1,7 +1,10 @@
-import { hashRequest } from './hash.js';
+import type { Response } from '@wrongstack/contracts/types/provider';
+import type {
+  ProviderRunner,
+  RunProviderOptions,
+} from '@wrongstack/contracts/types/provider-runner';
 import type { ReplayLogStore } from '../storage/replay-log-store.js';
-import type { ProviderRunner, RunProviderOptions } from '../types/provider-runner.js';
-import type { Response } from '../types/provider.js';
+import { hashRequest } from './hash.js';
 
 /**
  * ReplayProviderRunner — idea #2 from IDEAS.md.

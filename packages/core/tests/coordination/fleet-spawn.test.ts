@@ -1,3 +1,4 @@
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it, vi } from 'vitest';
 import {
   FleetContextOverflowError,
@@ -8,7 +9,6 @@ import {
 import type { DirectorFleetHost } from '../../src/coordination/fleet-spawn.js';
 import { spawn } from '../../src/coordination/fleet-spawn.js';
 import { InMemoryBridgeTransport } from '../../src/coordination/in-memory-transport.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 function makeHost(overrides: Partial<DirectorFleetHost> = {}): DirectorFleetHost {
   const coordinator = {

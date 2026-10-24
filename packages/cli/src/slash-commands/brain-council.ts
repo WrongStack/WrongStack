@@ -4,6 +4,7 @@
  * @module slash-commands/brain-council
  */
 
+import type { BrainCouncilVoterConfig } from '@wrongstack/contracts/types';
 import { parseModelRef } from '@wrongstack/core/agent';
 import {
   type BrainConfigPatch,
@@ -11,7 +12,6 @@ import {
   BUILTIN_COUNCIL_PERSONA_IDS,
   BUILTIN_COUNCIL_PERSONAS,
 } from '@wrongstack/core/execution';
-import type { BrainCouncilVoterConfig } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

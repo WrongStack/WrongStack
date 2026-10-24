@@ -18,8 +18,8 @@ vi.mock('../src/server/git-process.js', () => ({
 
 // Mock core/goal with stub types — handler does `new PhaseOrchestrator(...)` and
 // `new PhaseStore(...)`, so we need constructors (must use class/function syntax).
-vi.mock('@wrongstack/core/goal', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@wrongstack/core/goal')>();
+vi.mock('@wrongstack/goal', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wrongstack/goal')>();
   class FakeOrchestrator {
     start = vi.fn();
     stop = vi.fn();

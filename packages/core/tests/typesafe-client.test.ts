@@ -1,5 +1,5 @@
+import { FetchError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it, vi } from 'vitest';
-import { FetchError } from '../src/types/errors.js';
 import {
   createTypeSafeClient,
   DEFAULT_TYPESAFE_ENDPOINT,

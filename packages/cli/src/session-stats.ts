@@ -1,5 +1,5 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { TokenCounter } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { TokenCounter } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import type { TerminalRenderer } from './renderer.js';
 import { fmtTok } from './utils.js';

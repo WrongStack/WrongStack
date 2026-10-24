@@ -1,14 +1,14 @@
-import type { TextBlock } from '../types/blocks.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
 import {
   missingRequiredRuntimeTools,
   missingRuntimeCapabilities,
-} from '../types/runtime-capability-manifest.js';
+} from '@wrongstack/contracts/types/runtime-capability-manifest';
 import type {
   BuildContext,
   SystemPromptBuilder,
   SystemPromptRegions,
-} from '../types/system-prompt.js';
-import { flattenSystemPromptRegions } from '../types/system-prompt.js';
+} from '@wrongstack/contracts/types/system-prompt';
+import { flattenSystemPromptRegions } from '@wrongstack/contracts/types/system-prompt';
 import {
   formatProjectSuppliedBlock,
   PROJECT_SUPPLIED_INSTRUCTIONS_TAG,

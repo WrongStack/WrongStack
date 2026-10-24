@@ -1,4 +1,4 @@
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRuntimePickerDeps } from '../src/wiring/runtime-picker-deps.js';
 

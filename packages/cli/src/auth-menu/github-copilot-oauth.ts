@@ -17,7 +17,7 @@ import {
   ParseError,
   type ProviderApiKey,
   type ProviderConfig,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import { copilotBaseUrlFromToken, refreshCopilotToken } from '@wrongstack/providers';
 import { fetchCopilotModels as fetchAccountCopilotModels } from '@wrongstack/providers/oauth';

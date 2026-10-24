@@ -1,11 +1,11 @@
 /** Construction options of the {@link DefaultSystemPromptBuilder} (system-prompt-builder.ts). */
 
-import type { TokenSavingTier } from '../types/config.js';
-import type { MemoryStore } from '../types/memory.js';
-import type { ModeStore } from '../types/mode.js';
-import type { SkillLoader } from '../types/skill.js';
-import type { ModelCapabilities } from '../types/system-prompt.js';
-import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
+import type { TokenSavingTier } from '@wrongstack/contracts/types/config';
+import type { MemoryStore } from '@wrongstack/contracts/types/memory';
+import type { ModeStore } from '@wrongstack/contracts/types/mode';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
+import type { ModelCapabilities } from '@wrongstack/contracts/types/system-prompt';
+import type { SystemPromptContributor } from '@wrongstack/contracts/types/system-prompt-contributor';
 import type { InstructionBundle, InstructionBundlePaths } from './instruction-bundle.js';
 
 export interface DefaultSystemPromptBuilderOptions {

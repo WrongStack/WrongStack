@@ -1,9 +1,9 @@
+import { EventBus, type EventMap } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter, BrainDecision } from '../../src/coordination/brain.js';
-import { DefaultBrainArbiter } from '../../src/coordination/brain.js';
-import { type BrainInterventionInput, BrainMonitor } from '../../src/coordination/brain-monitor.js';
+import type { BrainArbiter, BrainDecision } from '../../src/brain/brain.js';
+import { DefaultBrainArbiter } from '../../src/brain/brain.js';
+import { type BrainInterventionInput, BrainMonitor } from '../../src/brain/brain-monitor.js';
 import { createTieredBrainArbiter } from '../../src/execution/autonomy-brain.js';
-import { EventBus, type EventMap } from '../../src/kernel/events.js';
 
 const STEER: BrainDecision = {
   type: 'answer',
@@ -267,7 +267,7 @@ describe('BrainMonitor', () => {
       async decide(request) {
         const d = await tiered.decide(request);
         if (d.type !== 'ask_human') return d;
-        const { terminalPolicyDecision } = await import('../../src/coordination/brain.js');
+        const { terminalPolicyDecision } = await import('../../src/brain/brain.js');
         const terminal = terminalPolicyDecision(request);
         escalated.push(terminal);
         return terminal;

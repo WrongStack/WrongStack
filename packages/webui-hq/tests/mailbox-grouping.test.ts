@@ -14,7 +14,7 @@ import type {
   HqMailboxMessageSummary,
   HqMailboxSnapshotPayload,
   HqMailboxSummary,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { groupMailboxEvents } from '../src/domain/mailbox-grouping.js';
 

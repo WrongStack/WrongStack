@@ -32,7 +32,7 @@ import { redirectSafeFetch } from './redirect-safe-fetch.js';
 
 export interface CodexAccountCatalogHost {
   baseUrl: string;
-  buildHeaders: (_req: import('@wrongstack/core/types').Request) => Record<string, string>;
+  buildHeaders: (_req: import('@wrongstack/contracts/types').Request) => Record<string, string>;
   contextLimitsEtag: string | undefined;
   fetchImpl: (input: string | URL | Request, init?: RequestInit | undefined) => Promise<Response>;
   contextLimitsFreshUntil: number;

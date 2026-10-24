@@ -3,7 +3,7 @@
  * stream, a cut connection, a blocked prompt, a stale WebSocket handshake.
  * Each case used to either commit a wrong turn or classify retryability wrong.
  */
-import { ProviderError, type StreamEvent } from '@wrongstack/core/types';
+import { ProviderError, type StreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import {
   CodexWebSocketFallbackError,

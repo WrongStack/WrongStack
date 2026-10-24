@@ -6,10 +6,11 @@
  * belongs to. Nobody answering within two minutes, or the turn stopping,
  * refuses it: an outside agent's call is never approved by default.
  */
+
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { PermissionPolicy, Tool } from '@wrongstack/contracts/types';
 import { confirmObserverCount } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
 import { DEFAULT_ALWAYS_TRUST_TTL_MS, scopedApprovalPattern } from '@wrongstack/core/security';
-import type { PermissionPolicy, Tool } from '@wrongstack/core/types';
 
 export const ACP_CONFIRM_TIMEOUT_MS = 120_000;
 

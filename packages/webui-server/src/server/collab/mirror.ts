@@ -1,4 +1,4 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { WSServerMessage } from '../types.js';
 import type { CollabContext } from './collab-context.js';

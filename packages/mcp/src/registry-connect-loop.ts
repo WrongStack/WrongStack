@@ -1,6 +1,6 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { MCPClient } from './client.js';
 import { expandMcpEnvPlaceholders } from './config-env.js';
@@ -18,8 +18,8 @@ import {
 import { collectCatalogPages } from './registry-catalog.js';
 import type { ServerSlot } from './registry-slots.js';
 import type { MCPRegistryOptions } from './registry-types.js';
-import { wrapMCPTool } from './wrap-tool.js';
 import type { MCPTaskRecovery } from './task-recovery.js';
+import { wrapMCPTool } from './wrap-tool.js';
 
 export interface RegistryConnectContext {
   servers: Map<string, ServerSlot>;

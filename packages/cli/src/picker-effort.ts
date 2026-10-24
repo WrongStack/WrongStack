@@ -13,7 +13,7 @@ import {
   type ModelsDevModel,
   REASONING_EFFORT_LEVELS,
   type ReasoningEffort,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 
 /** Sentinel first option: leave the persisted reasoning effort untouched. */
 export const EFFORT_KEEP = 'default';

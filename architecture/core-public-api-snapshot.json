@@ -13,8 +13,6 @@
       "source": "packages/core/src/index.ts",
       "declarations": [
         "export * from './chronicle/index.js';",
-        "export * from './hq/index.js';",
-        "export * from './kernel/index.js';",
         "export * from './observability/network-telemetry.js';",
         "export * from './observability/process-telemetry.js';",
         "export * from './prompts/index.js';",
@@ -23,31 +21,30 @@
         "export * from './public-storage.js';",
         "export * from './session-catalog/index.js';",
         "export * from './skills/index.js';",
-        "export * from './types/index.js';",
         "export * from './utils/index.js';",
-        "export type { CacheStats, LastRequestCacheStats, ProviderCacheStats, TokenCounter, } from './types/token-counter.js';",
+        "export * from '@wrongstack/contracts/kernel';",
+        "export * from '@wrongstack/contracts/types';",
+        "export type { CacheStats, LastRequestCacheStats, ProviderCacheStats, TokenCounter, } from '@wrongstack/contracts/types/token-counter';",
         "export type { CascadeAgentKind, ChimeraCascadeNeededPayload, ChimeraReviewCompletePayload, ChimeraReviewNeededPayload, ResolvedChimeraConfig, ReviewContextBundle, } from './plugins/chimera-plugin.js';",
         "export type { ChimeraFinding, ChimeraFindingLocation, ChimeraFindingOrigin, ChimeraFindingResolution, FindingEventType, FindingLifecycleEvent, FindingSeverity, FindingSource, FindingStatus, ResolutionOutcome, } from './plugins/review-finding-types.js';",
-        "export type { Compactor, CompactReport } from './types/compactor.js';",
+        "export type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';",
         "export type { FallbackChain, FallbackChainEntry, ProviderHealth, } from './core/fallback-profile-manager.js';",
-        "export type { FileEventRecord } from './types/file-event-record.js';",
-        "export type { Logger, LogLevel } from './types/logger.js';",
-        "export type { ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsRegistry, ResolvedModel, ResolvedProvider, WireFamily, } from './types/models-registry.js';",
-        "export type { ProviderRunner, RunProviderOptions } from './types/provider-runner.js';",
+        "export type { FileEventRecord } from '@wrongstack/contracts/types/file-event-record';",
+        "export type { Logger, LogLevel } from '@wrongstack/contracts/types/logger';",
+        "export type { ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsRegistry, ResolvedModel, ResolvedProvider, WireFamily, } from '@wrongstack/contracts/types/models-registry';",
+        "export type { ProviderRunner, RunProviderOptions, } from '@wrongstack/contracts/types/provider-runner';",
         "export type { ReportEventType, ReportLifecycleStatus, ReviewReport, ReviewReportCounts, ReviewReportEvent, ReviewReportFile, } from './plugins/review-report-types.js';",
-        "export type { RotatableSecretVault, SecretVault } from './types/secret-vault.js';",
-        "export type { SecretScrubber } from './types/secret-scrubber.js';",
+        "export type { RotatableSecretVault, SecretVault } from '@wrongstack/contracts/types/secret-vault';",
+        "export type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';",
         "export type { SessionLiveStatus, SessionRegistryEntry, } from './session-catalog/session-registry.js';",
         "export type { ToolWrapper } from './registry/tool-registry.js';",
-        "export { AGENT_MODEL_ASSIGN_TOOL_NAME, createFallbackManageTools, FALLBACK_CHAIN_MANAGE_TOOL_NAME, FALLBACK_PROFILE_MANAGE_TOOL_NAME, FAVORITE_MANAGE_TOOL_NAME, type FallbackManageToolOptions, LEADER_MODEL_SET_TOOL_NAME, PROVIDER_KEY_SET_TOOL_NAME, PROVIDER_MANAGE_TOOL_NAME, SYSTEM_CONFIG_VIEW_TOOL_NAME, } from './tools/fallback-manage-tools.js';",
         "export { Agent, type AgentInit, type AgentInput, type AgentPipelines, createDefaultPipelines, DEFAULT_MAX_ITERATIONS, type RunResult, type ToolCallPipelinePayload, type UserInputPayload, } from './core/agent.js';",
         "export { CHIMERA_REVIEW_PROMPT, createChimeraPlugin, resolveChimeraConfig, } from './plugins/chimera-plugin.js';",
-        "export { CONTEXT_WINDOW_MODE_PINNED_META_KEY, CONTEXT_WINDOW_MODES, type ContextWindowAggressiveOn, type ContextWindowConfigLike, type ContextWindowMode, type ContextWindowModeId, type ContextWindowModeSelectionId, type ContextWindowPolicy, type ContextWindowThresholds, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, type DeprecatedContextWindowModeId, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, LARGE_WINDOW_DEEP_MODE_THRESHOLD, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './types/context-window.js';",
-        "export { COUNCIL_TOOL_NAME, type CouncilToolInput, type CreateCouncilToolOptions, createCouncilTool, } from './tools/council-tool.js';",
+        "export { CONTEXT_WINDOW_MODE_PINNED_META_KEY, CONTEXT_WINDOW_MODES, type ContextWindowAggressiveOn, type ContextWindowConfigLike, type ContextWindowMode, type ContextWindowModeId, type ContextWindowModeSelectionId, type ContextWindowPolicy, type ContextWindowThresholds, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, type DeprecatedContextWindowModeId, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, LARGE_WINDOW_DEEP_MODE_THRESHOLD, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from '@wrongstack/contracts/types/context-window';",
         "export { Context, type ContextInit, type ProviderMemoryEvidence, type RunOptions, type TodoItem, } from './core/context.js';",
         "export { ConversationState, type ReadonlyConversationState, type StateChange, type StateChangeHandler, wrapAsState, } from './core/conversation-state.js';",
         "export { DANGEROUS_FOR_SUBAGENTS, getDangerousCapabilities, hasCapability, hasDangerousCapabilityForSubagents, ToolCapabilities, type ToolCapability, WIDE_SUBAGENT_CAPABILITIES, } from './security/capabilities.js';",
-        "export { DEFAULT_SESSION_PRUNE_DAYS } from './types/default-config.js';",
+        "export { DEFAULT_SESSION_PRUNE_DAYS } from '@wrongstack/contracts/types/default-config';",
         "export { DefaultLogger, type DefaultLoggerOptions, type LogFormat, } from './infrastructure/logger.js';",
         "export { DefaultPluginAPI, definePlugin, type PluginAPIInit } from './plugin/api.js';",
         "export { DefaultSecretScrubber } from './security/secret-scrubber.js';",
@@ -73,13 +70,11 @@
         "export { countShellHooks, HookRegistry, type HookRunEnv, HookRunner, type HookRunnerOptions, hookMatcherMatches, type PreToolUseResult, type PromptResult, runShellHook, type ShellHookSpec, shellHooksEqual, } from './hooks/index.js';",
         "export { createCloudConfigSyncPlugin } from './plugins/cloud-config-sync-plugin.js';",
         "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackModelDeps, fallbackProfileChain, formatModelRef, normalizeModelRef, parseModelRef, runtimeFallbackChain, smartDefaultFallbackChain, } from './core/fallback-model.js';",
-        "export { createMcpControlTool, type MCPRegistryHandle } from './tools/mcp-control.js';",
-        "export { createMcpUseTool } from './tools/mcp-use.js';",
         "export { createPromptsPlugin } from './plugins/prompts-plugin.js';",
         "export { createSkillsPlugin } from './plugins/skills-plugin.js';",
         "export { createSyncPlugin } from './plugins/sync-plugin.js';",
         "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type ResolvedPluginConfig, type ResolvePluginConfigInput, redactPluginConfig, resolvePluginConfig, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './plugin/config.js';",
-        "export { encryptedPrefixForVersion, noOpVault, parseEncryptedVersion, } from './types/secret-vault.js';",
+        "export { encryptedPrefixForVersion, noOpVault, parseEncryptedVersion, } from '@wrongstack/contracts/types/secret-vault';",
         "export { ensureGitignore, getPromptJournalEntries, type PromptCategory, type PromptJournalEntry, type PromptJournalFilter, type RecordPromptOptions, recordPromptJournalEntry, } from './prompts/index.js';",
         "export { evaluateModelCalendar, logicalCalendarTarget, type ModelBlackoutRule, type ModelCalendarDecision, } from './core/model-availability-calendar.js';",
         "export { evaluateToolKanbanBoundary, type ToolKanbanBoundaryEvaluation, } from './security/kanban-boundary.js';",
@@ -96,11 +91,8 @@
         "export { safeParse, safeStringify, sanitizeJsonString, stripCodeFences, } from './utils/safe-json.js';",
         "export { type AfterIterationHook, type AfterRunHook, type AfterToolExecutionHook, type AgentExtension, type BeforeIterationHook, type BeforeRunHook, type BeforeToolExecutionHook, type BeforeTurnEndHook, ExtensionRegistry, type OnErrorHook, type ProviderRunnerWrapper, } from './extension/index.js';",
         "export { type AllocateOpts, assertSafePath, type MergeOpts, type MergeResult, type WorktreeHandle, WorktreeManager, type WorktreeManagerOptions, type WorktreeRunResult, type WorktreeStatus, } from './worktree/index.js';",
-        "export { type Checkpoint, CheckpointManager, type CheckpointManagerOptions, createGoalRunnerFromTaskGraph, type GoalOptions, GoalPlanner, type GoalPlannerOptions, type GoalPlanResult, GoalRunner, type GoalRunnerOptions, PHASE_EVENT_NAMES, type PhaseEventMap, type PhaseEventName, type PhaseExecutionContext, type PhaseFilter, type PhaseGraph, PhaseGraphBuilder, type PhaseGraphBuilderOptions, type PhaseNode, PhaseOrchestrator, type PhaseOrchestratorOptions, type PhaseProgress, type PhaseSort, type PhaseStatus, PhaseStore, type PhaseStoreOptions, type PhaseTemplate, } from './goal/index.js';",
         "export { type ContinuationInput, type ContinuationSource, detectContinueIntent, type ResolvedContinuation, resolveContinuation, } from './core/continue-intent.js';",
         "export { type ContinueDirective, makeContinueToNextIterationTool, parseContinueDirective, } from './core/continue-to-next-iteration.js';",
-        "export { type CreateOneShotLLMToolOptions, createOneShotLLMTool, ONE_SHOT_LLM_TOOL_NAME, } from './tools/one-shot-llm-tool.js';",
-        "export { type CreatePluginManagerToolOptions, createPluginManagerTool, PLUGIN_MANAGER_TOOL_NAME, type PluginManagerCatalogEntry, type PluginManagerMutationResult, } from './tools/plugin-manager.js';",
         "export { type DomainGlossaryOptions, renderDomainGlossary, } from './core/system-prompt-glossary.js';",
         "export { type FindingsIntegrationResult, integrateFindings, } from './plugins/review-finding-integration.js';",
         "export { type InstructionBundle, type InstructionBundlePaths, loadInstructionBundle, mergeInstructionBundle, type SystemInstructionBundle, type SystemInstructionVariant, } from './core/instruction-bundle.js';",
@@ -114,21 +106,6 @@
       ]
     },
     {
-      "subpath": "./kernel",
-      "target": {
-        "types": "./dist/kernel/index.d.ts",
-        "import": "./dist/kernel/index.js"
-      },
-      "source": "packages/core/src/kernel/index.ts",
-      "declarations": [
-        "export { Container, type Token, type Factory, type Decorator, type BindOptions, } from './container.js';",
-        "export { EventBus, ScopedEventBus, type EventMap, type EventName, type Listener, type EventLogger, } from './events.js';",
-        "export { Pipeline, type Middleware, type MiddlewareHandler, type NextFn, type PipelineOptions, } from './pipeline.js';",
-        "export { RunController, type RunControllerOptions } from './run-controller.js';",
-        "export { TOKENS } from './tokens.js';"
-      ]
-    },
-    {
       "subpath": "./agent",
       "target": {
         "types": "./dist/core/index.d.ts",
@@ -137,6 +114,7 @@
       "source": "packages/core/src/core/index.ts",
       "declarations": [
         "export { // Exported so surfaces that need to *predict* the identity block (e.g. the // CLI's startup system-prompt menu, which shows a per-variant token count) // compose it exactly the way the builder does instead of re-implementing the // WS-016 project-append rule and drifting from it. buildIdentityLayer, DefaultSystemPromptBuilder, type DefaultSystemPromptBuilderOptions, type SystemBlockSource, } from './system-prompt-builder.js';",
+        "export { AGENT_COORDINATION, type AgentCoordinationPort, HQ_MAILBOX_PUBLISHER_FACTORY, resolveAgentCoordination, resolveHqMailboxPublisherFactory, } from './agent-coordination.js';",
         "export { Agent, type RunResult, type UserInputPayload, } from './agent.js';",
         "export { Context, type ContextInit, type ProviderMemoryEvidence, type RunOptions, type TodoItem, } from './context.js';",
         "export { ConversationState, type ReadonlyConversationState, type StateChange, type StateChangeHandler, wrapAsState, } from './conversation-state.js';",
@@ -155,12 +133,13 @@
         "export { formatModelRef, type ModelRef, normalizeModelRef, parseModelRef, } from './model-ref.js';",
         "export { isSealedAgent, SEALED_AGENT_META_KEY, sealedSubagentRefusal } from './sealed-agent.js';",
         "export { keepsOwnContext } from './agent-owned-context.js';",
-        "export { markUserInputObserver, userInputObserverCount } from './user-input-observers.js';",
-        "export { providerToolsForVariant, SCOUT_DIRECT_TOOL_NAMES } from './scout-tool-surface.js';",
+        "export { markUserInputObserver, userInputObserverCount } from '../hooks/user-input-observers.js';",
+        "export { providerToolsForVariant, SCOUT_DIRECT_TOOL_NAMES, } from '../registry/scout-tool-surface.js';",
         "export { readUserInstructions, type UserInstructionsDocument, userInstructionsFile, writeUserInstructions, } from './project-instructions.js';",
         "export { runProviderWithRetry } from './provider-runner.js';",
         "export { setQueuedMessagesSnapshot } from './queued-messages.js';",
         "export { type AgentInit, type AgentInput, type AgentPipelines, createDefaultPipelines, installPipelineErrorBoundaries, type ToolCallPipelinePayload, } from './agent-types.js';",
+        "export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';",
         "export { type ContinuationInput, type ContinuationSource, detectContinueIntent, type ResolvedContinuation, resolveContinuation, } from './continue-intent.js';",
         "export { type DomainGlossaryOptions, renderDomainGlossary, } from './system-prompt-glossary.js';",
         "export { type InstructionBundle, type InstructionBundlePaths, loadInstructionBundle, type SystemInstructionVariant, } from './instruction-bundle.js';",
@@ -226,110 +205,28 @@
       ]
     },
     {
-      "subpath": "./types",
+      "subpath": "./agent-coordination",
       "target": {
-        "types": "./dist/types/index.d.ts",
-        "import": "./dist/types/index.js"
+        "types": "./dist/agent-coordination-default.d.ts",
+        "import": "./dist/agent-coordination-default.js"
       },
-      "source": "packages/core/src/types/index.ts",
+      "source": "packages/core/src/agent-coordination-default.ts",
       "declarations": [
-        "export type { AdaptiveConcurrencyConfig, AgentLearningConfig, AutonomyConfig, AutoThinConfig, BrainConfig, BrainCouncilConfig, BrainCouncilVoterConfig, BrainModelEntry, CircuitBreakerRuntimeConfig, ConcreteTokenSavingTier, Config, ConfigLoader, ConfigStore, ContextConfig, CouncilPersonaDefinition, CouncilToolConfig, CouncilToolProfileDefinition, CustomModelDefinition, DisabledToolMeta, ExecDangerConfig, ExecToolConfig, FeaturesConfig, FleetChatVerbosity, FleetConfig, FleetSupervisorConfig, GitBehaviorConfig, HqClientConfig, IndexingAtlasConfig, IndexingConceptsConfig, IndexingConfig, IndexingEmbeddingsConfig, InputHistoryConfig, LaunchConfig, LaunchMenuChoice, LimitBound, LimitsBudgetKey, LimitsConfig, LimitsScalarKey, LogConfig, LoopDetectionConfig, MCPHealthConfig, MCPHealthThresholds, MCPServerConfig, ModelMatrixEntry, ModelRuntimeCacheConfig, ModelRuntimeConfig, ModelRuntimeParametersConfig, ModelRuntimeReasoningConfig, ModelRuntimeStreamingConfig, ModelTierId, ModelTierLeaderConfig, ModelTierLeaderMode, ModelTierLevel, ModelTierRouting, ModelTiersConfig, NextStepsMode, NextStepsToolConfig, ObservabilityConfig, OtlpExportConfig, PluginConfig, PluginManagerConfig, ProviderApiKey, ProviderConfig, SageConfig, SessionLoggingConfig, SkillSuggestConfig, SkillsConfig, SyncCategory, SyncConfig, ThemeName, ThemePresetId, ThemePresetMeta, TokenSavingTier, ToolDescriptionMode, ToolDescriptionModeConfig, ToolResultRenderMode, ToolResultRenderModeConfig, ToolsConfig, } from './config.js';",
-        "export type { AddAttachmentInput, Attachment, AttachmentKind, AttachmentMeta, AttachmentRef, AttachmentStore, } from './attachment.js';",
-        "export type { AgentContextUsage, CacheTtl, Capabilities, JsonSchemaSpec, Provider, ProviderContextLimit, ProviderErrorBody, ProviderErrorKind, ReasoningConfig, ReasoningEffort, ReasoningRequest, Request, RequestCacheControl, Response, ResponseFormat, SafetySetting, StopReason, StreamEvent, Usage, } from './provider.js';",
-        "export type { AggregateHealth, HealthCheck, HealthCheckResult, HealthRegistry, HealthStatus, MetricLabels, MetricSeries, MetricsRuntimeStatus, MetricsSink, MetricsSnapshot, Span, Tracer, } from './observability.js';",
-        "export type { AnyHookOutcome, ConfiguredHook, HookEntry, HookEvent, HookFailurePolicy, HookInput, HookInvocationContext, HookMatcher, HookOutcome, HookRegistrationOptions, HttpHook, InProcessHook, ObservationalHookEvent, PreToolUseOutcome, PreToolUseStage, ShellHook, } from './hooks.js';",
-        "export type { AutonomyStage } from './autonomy.js';",
-        "export type { AwaitAnyResult, CoordinatorEvents, CoordinatorStatus, DoneCondition, MultiAgentConfig, MultiAgentCoordinator, SpawnResult, SubagentConfig, SubagentContext, SubagentError, SubagentErrorKind, SubagentPartialResult, SubagentRunContext, SubagentRunner, SubagentRunOutcome, SubagentSpawnLineage, SubagentStructuredReport, TaskDelegation, TaskResult, TaskSpec, } from './multi-agent.js';",
-        "export type { BrowserElementSelection } from '@wrongstack/primitives';",
-        "export type { BuildContext, ModelCapabilities, SystemPromptBuilder, SystemPromptRegions, } from './system-prompt.js';",
-        "export type { BuiltinPromptCategory, PromptCategory, PromptCategoryCount, PromptEntry, PromptLoader, PromptManifest, PromptManifestRef, PromptSearchOptions, PromptSource, PromptVariable, } from './prompt.js';",
-        "export type { CacheStats, LastRequestCacheStats, ProviderCacheStats, TokenCounter, } from './token-counter.js';",
-        "export type { CheckpointInfo, RewindResult, RewindResultExtended, SessionRewinder, } from './session-rewinder.js';",
-        "export type { CompactionObserver, CompactionTrigger, CompactOptions, Compactor, CompactReport, } from './compactor.js';",
-        "export type { CompletedWorkEvidence, CompletedWorkSource, ContextEvidenceState, ToolOutputMetadata, } from './context-evidence.js';",
-        "export type { ConfirmAwaiter, GovernedToolExecutionResult, GovernedToolExecutor, ToolBatchResult, ToolConfirmPendingResult, ToolExecution, ToolExecutionOutput, ToolExecutorInit, ToolExecutorLike, ToolExecutorOptions, ToolExecutorStrategy, } from './tool-executor.js';",
-        "export type { ContentBlock, DocumentBlock, ImageBlock, TextBlock, ThinkingBlock, ToolResultBlock, ToolUseBlock, } from './blocks.js';",
-        "export type { ContextSnapshot, ContextWindowAggressiveOn, ContextWindowConfigLike, ContextWindowMode, ContextWindowModeId, ContextWindowModeSelectionId, ContextWindowPolicy, ContextWindowThresholds, DeprecatedContextWindowModeId, } from './context-window.js';",
-        "export type { CouncilDistinctness, CouncilLLMCaller, CouncilModelTarget, CouncilOption, CouncilPersona, CouncilProfileConfig, CouncilQuestion, CouncilResolutionMethod, CouncilResult, CouncilSeatConfig, CouncilUsage, CouncilVoteResult, CouncilVoteStatus, ResolvedCouncilProfile, ResolvedCouncilSeat, } from './council.js';",
-        "export type { CriticalPathResult, SerializableTaskGraph, SerializedTaskGraph, TaskAssignment, TaskDependency, TaskEdge, TaskFilter, TaskGraph, TaskNode, TaskPriority, TaskProgress, TaskSort, TaskStatus, TaskType, } from './task-graph.js';",
-        "export type { DefaultSessionReaderOptions, SessionEventType, SessionExportOptions, SessionQuery, SessionReader, SessionSearchHit, SessionSearchQuery, SessionSummaryLite, } from './session-reader.js';",
-        "export type { DesignKitEntry, DesignKitLoader, DesignKitManifest, DesignKitTokens, DesignStack, DesignStudioState, DesignTokenSet, TokenValueKind, } from './design-kit.js';",
-        "export type { DirectoryPolicy, DirectoryRule, PermissionDecision, PermissionPolicy, PermissionRule, PermissionTrace, PermissionTraceStep, TrustPolicy, } from './permission.js';",
-        "export type { DistributiveOmit } from './utility-types.js';",
-        "export type { ErrorCode, ErrorSeverity, ErrorSubsystem } from './errors.js';",
-        "export type { FileEventRecord } from './file-event-record.js';",
-        "export type { FileSnapshot, ForkedSession, ResumedSession, ResumeFileStatus, ResumeFileValidationEntry, ResumeValidation, SessionArchiveIdleResult, SessionArchiveResult, SessionData, SessionEvent, SessionForkOptions, SessionLoadProgress, SessionMetadata, SessionMoveResult, SessionMoveTarget, SessionStoragePolicy, SessionStore, SessionSummary, SessionWriter, WorkspaceCheckpointRef, WorkspaceMaterializationResult, } from './session.js';",
-        "export type { GeneratedImage, ImageGenerationRequest, ImageGenerationResult, } from './image-generation.js';",
-        "export type { InputReader, PromptOption, ReadKeyOptions } from './input-reader.js';",
-        "export type { InstalledPromptEntry, PromptManifestData, PromptRegistryManifest, PromptRegistryRef, RegistryDiff, } from './prompt-registry.js';",
-        "export type { JSONSchema, Permission, RiskTier, Tool, ToolCallContext, ToolErrorInfo, ToolFinalEvent, ToolIconId, ToolProgressEvent, ToolSettlement, ToolStreamEvent, } from './tool.js';",
-        "export type { Logger, LogLevel } from './logger.js';",
-        "export type { MCPRegistryView, MetricsSinkView, Notifier, Plugin, PluginAPI, PluginCapabilities, PluginConfigFieldLifecycle, PluginConfigFieldMetadata, PluginConfigFields, PluginCouncilOptions, PluginDependency, PluginJev, PluginLLM, PluginLLMOptions, PluginLLMResult, PluginPipelines, PluginRuntime, ProviderAuthRegistryView, ProviderFactory, ProviderRegistryView, SessionWriterView, SlashCommandRegistryView, ToolRegistryView, } from './plugin.js';",
-        "export type { MemoryCapability, MemoryClearedPayload, MemoryConsolidatedPayload, MemoryEntry, MemoryForgottenPayload, MemoryHealth, MemoryPort, MemoryPriority, MemoryRelevanceContext, MemoryRememberedPayload, MemoryScope, MemoryStore, MemoryType, ScoredEntry, } from './memory.js';",
-        "export type { Message, MessageRole } from './messages.js';",
-        "export type { Mode, ModeConfig, ModeManifest, ModeStore } from './mode.js';",
-        "export type { ModelCatalogSource, ModelProvenance, ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsDevReasoningOption, ModelsRegistry, ResolvedModel, ResolvedProvider, WireFamily, } from './models-registry.js';",
-        "export type { NestedToolCaller, NestedToolCallResult } from './context.js';",
-        "export type { OneShotLLMInput, OneShotLLMResult, OneShotModelPick, OneShotModelRouter, OneShotOrchestratorOptions, } from './one-shot-llm.js';",
-        "export type { ProjectSessionTimelineInput, SessionTimelineAssistantEntry, SessionTimelineEntry, SessionTimelineImage, SessionTimelineMarkerEntry, SessionTimelineSystemEntry, SessionTimelineThinkingEntry, SessionTimelineToolEntry, SessionTimelineUserEntry, SessionToolMeta, TextBlockMode, ThinkingPlacement, } from './session-timeline.js';",
-        "export type { ProviderAuthBeginDeps, ProviderAuthInteraction, ProviderAuthInteractionType, ProviderAuthOutcome, ProviderAuthSession, ProviderAuthStrategy, ProviderAuthStrategyMetadata, } from './provider-auth.js';",
-        "export type { ProviderRunner, RunProviderOptions } from './provider-runner.js';",
-        "export type { Renderer } from './renderer.js';",
-        "export type { RotatableSecretVault, SecretVault } from './secret-vault.js';",
-        "export type { SecretScrubber } from './secret-scrubber.js';",
-        "export type { SessionMarker, SessionMarkerDetail, SessionMarkerLevel, } from './session-markers.js';",
-        "export type { SessionPermissionOverride } from './session-permission-override.js';",
-        "export type { SideEffect } from './side-effect.js';",
-        "export type { SkillEntry, SkillLoader, SkillManifest } from './skill.js';",
-        "export type { SlashCommand } from './slash-command.js';",
-        "export type { SpecAnalysis, SpecApiEndpoint, Specification, SpecRequirement, SpecSection, SpecSectionType, SpecStatus, SpecTemplate, SpecValidationResult, } from './spec.js';",
-        "export type { SystemPromptContributor } from './system-prompt-contributor.js';",
-        "export type { UserInputAnswer, UserInputAwaiter, UserInputOption, UserInputQuestion, UserInputQuestionKind, UserInputRequest, UserInputResponse, UserInputTab, } from './user-input.js';",
-        "export { AgentError, ConfigError, ERROR_CODES, FetchError, FsError, hasModifiedPaths, isAgentError, isConfigError, isFetchError, isFsError, isParseError, isPluginError, isSddError, isSessionError, isToolError, isToolValidationError, isWrongStackError, ParseError, PartialWriteError, PluginError, SddError, SessionError, ToolError, ToolValidationError, toWrongStackError, WrongStackError, } from './errors.js';",
-        "export { BUILTIN_PROMPT_CATEGORIES, isBuiltinCategory, PROMPT_CATEGORY_LABELS } from './prompt.js';",
-        "export { CHAT_MARKER_SOURCES, isSystemInjectedMessage, projectSessionMarkers, SESSION_MARKER_EVENT_TYPES, SYSTEM_INJECTION_PREFIXES, sessionEventToMarker, } from './session-markers.js';",
-        "export { CONTEXT_WINDOW_MODE_PINNED_META_KEY, CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, LARGE_WINDOW_DEEP_MODE_THRESHOLD, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './context-window.js';",
-        "export { DEFAULT_AUTONOMY_CONFIG, DEFAULT_CIRCUIT_BREAKER_CONFIG, DEFAULT_CONTEXT_CONFIG, DEFAULT_SESSION_LOGGING_CONFIG, DEFAULT_SESSION_PRUNE_DAYS, DEFAULT_TOOLS_CONFIG, } from './default-config.js';",
-        "export { DEFAULT_MODES } from './mode.js';",
-        "export { DEFAULT_SPEC_TEMPLATE } from './spec.js';",
-        "export { DESIGN_STACKS, isDesignStack, KNOWN_TOKEN_GROUPS, KNOWN_TOKEN_NAMES, } from './design-kit.js';",
-        "export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';",
-        "export { HOOK_EVENTS, isHookEvent } from './hooks.js';",
-        "export { MALFORMED_ARG_MARKERS } from './tool-markers.js';",
-        "export { ToolErrorCategory } from './tool.js';",
-        "export { activeLimits, BUILTIN_MODEL_TIER_IDS, clampLimit, clampLimits, DEFAULT_TUI_THINKING_WORD, FLEET_CHAT_VERBOSITY_VALUES, formatLimitRange, installLimitsSource, LIMIT_BOUNDS, LIMITS_BUDGET_KEYS, LIMITS_SCALAR_KEYS, limitValueError, MAX_TUI_THINKING_WORD_LENGTH, MAX_WRONGPROXY_URL_LENGTH, NEXT_STEPS_MODES, normalizeTokenSavingTier, normalizeTuiThinkingWord, positiveLimit, resolveFleetChatVerbosity, resolveNextStepsMode, resolveTokenSavingTier, THEME_PRESET_IDS, THEME_PRESET_META, THEME_RANDOM_ID, TOOL_MEMORY_GUARD_BYTES, } from './config.js';",
-        "export { classifyProviderError, effectiveInputTokens, freshInputTokens, isContextOverflowShaped, isFallbackWorthy, isReasoningEffort, isRetryableKind, isSafetyPolicyCode, isSafetyPolicyRefusal, ProviderError, promptCacheHitRatio, REASONING_EFFORT_LEVELS, SAFETY_POLICY_GUIDANCE, StreamHangError, totalUsageTokens, } from './provider.js';",
-        "export { clearProviderReportedMaxOutputs, parseProviderReportedMaxOutput, providerReportedMaxOutput, recordProviderReportedMaxOutput, } from './provider-output-caps.js';",
-        "export { defineMemoryCapability, MEMORY_TYPE_LABELS } from './memory.js';",
-        "export { diffRegistry, validateRegistryManifest } from './prompt-registry.js';",
-        "export { documentAsText, isImageBlock, isTextBlock, isToolResultBlock, isToolUseBlock, isVolatileSystemBlock, markVolatileSystemBlock, VOLATILE_SYSTEM_BLOCKS, } from './blocks.js';",
-        "export { flattenSystemPromptRegions } from './system-prompt.js';",
-        "export { projectSessionTimeline, projectSessionToolMeta } from './session-timeline.js';"
+        "export const defaultAgentCoordination"
       ]
     },
     {
-      "subpath": "./types/limits",
+      "subpath": "./boot",
       "target": {
-        "types": "./dist/types/config/limits.d.ts",
-        "import": "./dist/types/config/limits.js"
+        "types": "./dist/boot.d.ts",
+        "import": "./dist/boot.js"
       },
-      "source": "packages/core/src/types/config/limits.ts",
+      "source": "packages/core/src/boot.ts",
       "declarations": [
-        "export const LIMITS_BUDGET_KEYS",
-        "export const LIMITS_SCALAR_KEYS",
-        "export const LIMIT_BOUNDS",
-        "export const TOOL_MEMORY_GUARD_BYTES",
-        "export function activeLimits",
-        "export function clampLimit",
-        "export function clampLimits",
-        "export function formatLimitRange",
-        "export function installLimitsSource",
-        "export function limitValueError",
-        "export function positiveLimit",
-        "export interface LimitBound",
-        "export interface LimitsConfig",
-        "export type LimitsBudgetKey",
-        "export type LimitsScalarKey"
+        "export function flagsToConfigPatch",
+        "export interface BootConfigOptions",
+        "export interface BootConfigResult",
+        "export { assertProjectRootOutsideStateDir, cleanupStaleProjects, } from './boot-project-registration.js';"
       ]
     },
     {
@@ -340,83 +237,7 @@
       },
       "source": "packages/core/src/cloud-provider.ts",
       "declarations": [
-        "export const CLOUD_FIELDS",
-        "export function cloudFieldsForProvider",
-        "export function parseNativeCloudSettings",
-        "export function resolveNativeCloudSettings",
-        "export interface NativeCloudSettings"
-      ]
-    },
-    {
-      "subpath": "./types/session-markers",
-      "target": {
-        "types": "./dist/types/session-markers.d.ts",
-        "import": "./dist/types/session-markers.js"
-      },
-      "source": "packages/core/src/types/session-markers.ts",
-      "declarations": [
-        "export const CHAT_MARKER_SOURCES",
-        "export const SESSION_MARKER_EVENT_TYPES",
-        "export const SYSTEM_INJECTION_PREFIXES",
-        "export function isSystemInjectedMessage",
-        "export function projectSessionMarkers",
-        "export function sessionEventToMarker",
-        "export interface SessionMarker",
-        "export type SessionMarkerDetail",
-        "export type SessionMarkerLevel"
-      ]
-    },
-    {
-      "subpath": "./types/session-timeline",
-      "target": {
-        "types": "./dist/types/session-timeline.d.ts",
-        "import": "./dist/types/session-timeline.js"
-      },
-      "source": "packages/core/src/types/session-timeline.ts",
-      "declarations": [
-        "export function projectLastRequestTokens",
-        "export function projectSessionTimeline",
-        "export function projectSessionToolMeta",
-        "export interface ProjectSessionTimelineInput",
-        "export interface SessionTimelineAssistantEntry",
-        "export interface SessionTimelineImage",
-        "export interface SessionTimelineMarkerEntry",
-        "export interface SessionTimelineSystemEntry",
-        "export interface SessionTimelineThinkingEntry",
-        "export interface SessionTimelineToolEntry",
-        "export interface SessionTimelineUserEntry",
-        "export interface SessionToolMeta",
-        "export type SessionTimelineEntry",
-        "export type TextBlockMode",
-        "export type ThinkingPlacement"
-      ]
-    },
-    {
-      "subpath": "./types/worktree-timeline",
-      "target": {
-        "types": "./dist/types/worktree-timeline.d.ts",
-        "import": "./dist/types/worktree-timeline.js"
-      },
-      "source": "packages/core/src/types/worktree-timeline.ts",
-      "declarations": [
-        "export const DEFAULT_WORKTREE_TIMELINE_LANES",
-        "export const WORKTREE_CLEANUP_ALL_HANDLE",
-        "export const WORKTREE_EVENT_NAMES",
-        "export function formatWorktreeDuration",
-        "export function normalizeWorktreeEvent",
-        "export function projectWorktreeTimeline",
-        "export function shortWorktreeBranch",
-        "export function worktreeTimelineTicks",
-        "export interface ProjectWorktreeTimelineOptions",
-        "export interface WorktreeLane",
-        "export interface WorktreeLaneSegment",
-        "export interface WorktreeTimeline",
-        "export interface WorktreeTimelineEvent",
-        "export type WorktreeEventName",
-        "export type WorktreeFailedStage",
-        "export type WorktreeLaneOutcome",
-        "export type WorktreeLanePhase",
-        "export type WorktreeTimelineEventKind"
+        "export { CLOUD_FIELDS, cloudFieldsForProvider, type NativeCloudSettings, parseNativeCloudSettings, resolveNativeCloudSettings, } from '@wrongstack/contracts/types/native-cloud';"
       ]
     },
     {
@@ -472,7 +293,7 @@
         "export { applyToolResultRenderModes, DEFAULT_TOOL_RESULT_RENDER_MODE, getToolResultRenderMode, normalizeToolResultRenderMode, resolveToolResultRenderMode, setToolResultRenderMode, type ToolResultRenderModeRegistryLike, } from './tool-result-render-mode.js';",
         "export { assertDaemonRuntimeVersion, WRONGSTACK_RUNTIME_VERSION, withDaemonVersion, } from '@wrongstack/primitives';",
         "export { assertNotPrivateHost, embeddedIPv4, expandIPv6, isPrivateIPv4, isPrivateIPv6, } from './ip-guard.js';",
-        "export { authoredBlocks, authoredText, LIVE_CONTEXT_MARKER } from './live-context.js';",
+        "export { authoredBlocks, authoredText, LIVE_CONTEXT_MARKER, } from '@wrongstack/contracts/types/live-context';",
         "export { bindProviderCatalogId, configuredProviderIdentities, providerIdentities, } from './provider-catalog-binding.js';",
         "export { buildCompletedWorkLedgerBlock, buildContextEvidenceDigest, COMPLETED_WORK_LEDGER_MARKER, createContextEvidenceState, formatCompletedWorkLedger, markAssistantReferencedEvidence, type RecordCompletedWorkInput, type RecordToolOutputEvidenceInput, recordCompletedWorkEvidence, recordToolOutputEvidence, recordUserIntentEvidence, rehydrateContextEvidenceFromMessages, repeatedReadPressure, syncCompletedWorkLedgerBlock, } from './context-evidence.js';",
         "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, isStdinTTY, type MouseProtocol, onResize, safeEmit, setOutputLineGuard, setRawMode, setTitle, type TerminalCapability, TerminalLifecycle, writeErr, writeOut, } from './term.js';",
@@ -491,7 +312,6 @@
         "export { expandGlob } from './glob-expand.js';",
         "export { formatMemoryEvidenceBlock, MEMORY_EVIDENCE_TAG, sanitizeMemoryEvidenceBody, sanitizeMemoryEvidenceSource, } from './memory-evidence-fence.js';",
         "export { formatProjectSuppliedBlock, PROJECT_SUPPLIED_INSTRUCTIONS_TAG, PROJECT_SUPPLIED_TAG, sanitizeProjectSuppliedBody, sanitizeProjectSuppliedSource, } from './project-supplied-fence.js';",
-        "export { getHistoryRetention, type HistoryRetention, type RetentionClass, } from './history-retention.js';",
         "export { getPerfProfile, indexParallelBatchSize, isFrugalPerf, type PerfProfile, SageCachePragmas, sqliteCachePragmas, tuiStreamFlushMs, useDaemonPerfDefaults, } from './perf-profile.js';",
         "export { hardenWin32ExecutableSearch, NO_CWD_EXE_SEARCH_ENV } from './win32-exe-search.js';",
         "export { hasMeaningfulContent, type MessageRepairReport, type MessageRepairResult, repairToolUseAdjacency, } from './message-invariants.js';",
@@ -511,7 +331,6 @@
         "export { type CoercionResult, coerceAgainstSchema, type ValidationError, type ValidationResult, validateAgainstSchema, } from './json-schema-validate.js';",
         "export { type CompactToolDefinitionForWireOptions, type CompactWireToolDefinition, compactSchemaDescriptions, compactToolDefinitionForWire, normalizeTopLevelToolSchema, SCHEMA_DESCRIPTION_MAX_CHARS, TOOL_DESCRIPTION_MAX_CHARS, type ToolWireDefinitionLike, } from './tool-wire-compact.js';",
         "export { type CompileFail, type CompileResult, capSubject, compileUserRegex, MAX_SUBJECT_LEN, } from './regex-guard.js';",
-        "export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';",
         "export { type DeepMergeOptions, deepMerge, FORBIDDEN_PROTO_KEYS, isPrimitiveArray, } from './deep-merge.js';",
         "export { type ProjectWatchEvent, type ProjectWatchSubscription, watchProjectTree, } from './project-watch.js';",
         "export { withSqliteExperimentalWarningSuppressed } from './sqlite-warning.js';"
@@ -525,7 +344,7 @@
       },
       "source": "packages/core/src/utils/expect-defined.ts",
       "declarations": [
-        "export function expectDefined"
+        "export { expectDefined } from '@wrongstack/primitives/expect-defined';"
       ]
     },
     {
@@ -604,8 +423,7 @@
       },
       "source": "packages/core/src/utils/error.ts",
       "declarations": [
-        "export function rawErrorMessage",
-        "export function toErrorMessage"
+        "export { rawErrorMessage, toErrorMessage } from '@wrongstack/primitives/error';"
       ]
     },
     {
@@ -634,6 +452,7 @@
       "declarations": [
         "export function embeddedIPv4",
         "export function expandIPv6",
+        "export function isLoopbackHost",
         "export function isPrivateIPv4",
         "export function isPrivateIPv6"
       ]
@@ -683,6 +502,7 @@
       },
       "source": "packages/core/src/execution/index.ts",
       "declarations": [
+        "export type { ToolExecutorInit, ToolExecutorOptions } from './tool-executor-options.js';",
         "export { AutoCompactionMiddleware, type ContextWindowBudgetSnapshot, } from './auto-compaction-middleware.js';",
         "export { AutonomousRunner, type AutonomousRunnerOptions, type DoneCheckResult, DoneConditionChecker, } from './autonomous-runner.js';",
         "export { BRAIN_EVALUATION_CASE_VERSION, type BrainEvaluationCaseResult, type BrainEvaluationCaseV1, type BrainEvaluationCaseValidation, type BrainEvaluationExpectations, type BrainEvaluationFailure, type BrainEvaluationFailureCode, type BrainEvaluationMetrics, type BrainEvaluationReport, runBrainEvaluation, validateBrainEvaluationCase, } from './brain-evaluation.js';",
@@ -701,15 +521,16 @@
         "export { _resetDesignKitLoaderMemo, DefaultDesignKitLoader, type DesignKitLoaderOptions, getDesignKitLoader, resolveBundledDesignKitsDir, } from './design-kit-loader.js';",
         "export { _resetDesignRulesCache, clearPersistedActiveKit, designProjectDir, loadActiveKit, loadProjectDesignRules, type PersistedActiveKit, recordKitChoice, } from './design-project-store.js';",
         "export { activateDesign, clearActiveKit, detectFrontendFile, detectFrontendIntent, getDesignState, installDesignStudioMiddleware, makeDesignDetectToolCallMiddleware, makeDesignDetectUserInputMiddleware, makeDesignStudioRequestMiddleware, setActiveKit, } from './design-detect.js';",
-        "export { activeLeaderEffort, clearLeaderEffortOverride, LEADER_EFFORT_META_KEY, type LeaderEffortOverride, readLeaderEffortOverride, restoreLeaderEffortOverride, } from '../utils/leader-effort-override.js';",
-        "export { applyModelRuntime, createModelRuntimeMiddleware, type ModelRuntimeMiddlewareOptions, mergeModelRuntime, type ResolvedModelRuntime, resolveCacheForRequest, resolveModelRuntime, resolveReasoningForRequest, } from './model-runtime.js';",
+        "export { activeLeaderEffort, clearLeaderEffortOverride, LEADER_EFFORT_META_KEY, type LeaderEffortOverride, readLeaderEffortOverride, restoreLeaderEffortOverride, writeLeaderEffortOverride, } from '../utils/leader-effort-override.js';",
+        "export { applyModelRuntime, createModelRuntimeMiddleware, type ModelRuntimeMiddlewareOptions, mergeModelRuntime, nearestSupportedEffort, type ResolvedModelRuntime, resolveCacheForRequest, resolveModelRuntime, resolveReasoningForRequest, } from './model-runtime.js';",
         "export { assembleBrainTiers, type BrainTierAssembly, type BrainTierAssemblyOptions, } from './brain-chain.js';",
-        "export { buildCouncilJudgeSystemPrompt, buildCouncilJudgeUserPrompt, buildCouncilQuestionPrompt, buildCouncilVoterSystemPrompt, buildCouncilVoterUserPrompt, COUNCIL_JUDGE_PROMPT_PATH, COUNCIL_VOTER_PROMPT_PATH, } from './council-prompts.js';",
+        "export { buildCouncilJudgeSystemPrompt, buildCouncilJudgeUserPrompt, buildCouncilQuestionPrompt, buildCouncilVoterSystemPrompt, buildCouncilVoterUserPrompt, COUNCIL_JUDGE_PROMPT_PATH, COUNCIL_VOTER_PROMPT_PATH, validateCouncilOptions, } from './council-prompts.js';",
         "export { buildGoalPreamble } from './goal-preamble.js';",
         "export { buildRecoveryStrategies, DEFAULT_RECOVERY_STRATEGIES, DefaultErrorHandler, type RecoveryStrategy, } from './error-handler.js';",
         "export { buildRefinerContextSections, completeRefinerPass, DEFAULT_REFINER_RETRY_FEEDBACK, ENHANCER_SYSTEM_PROMPT, type EnhanceFailureKind, enhanceUserPrompt, gatedEnhancerReasoning, isValidEnglishRefinement, normalizedEqual, parseBilingualEnhancement, recentTextTurns, shouldEnhance, } from './prompt-enhancer.js';",
         "export { compactionReportStillCurrent } from './compaction-result-state.js';",
         "export { createSystemOneBrainTier, probeSystemOneBrain, type SystemOneBrainProbe, type SystemOneBrainTier, type SystemOneBrainTierOptions, systemOneBrainSettles, } from './brain-system-one.js';",
+        "export { getHistoryRetention } from './history-retention.js';",
         "export { installSubagentAutoCompaction } from './subagent-compaction.js';",
         "export { nextEnhanceTimeout, resolveConfiguredRefinerRef, resolveEnhanceFallbackRef, } from './enhance-recovery.js';",
         "export { projectRefineResult, type RefineErrorKind, type RefineFailureDecision, type RefineFailureNextStep, type RefinePreviewDecision, type RefinePreviewTexts, type RefineResultAction, type RefineResultPayload, type RefineSendPlan, resolveFailureNextStep, resolvePreviewAction, } from './refine-decisions.js';",
@@ -720,7 +541,7 @@
         "export { type CompactorOptions, HybridCompactor } from './compactor.js';",
         "export { type CompactorStrategy, createStrategyCompactor, type StrategyCompactorOptions, } from './strategy-compactor.js';",
         "export { type CouncilResolution, type CouncilResolutionInput, type CouncilResolutionSeat, type CouncilResolutionVote, resolveCouncilVotes, } from './council-resolution.js';",
-        "export { type ParallelEngineState, ParallelEternalEngine, type ParallelEternalOptions, type ParallelIterationStage, } from './parallel-eternal-engine.js';"
+        "export { type RefinerTargetSpec, resolveRefinerTargetSpecs } from './refiner-target.js';"
       ]
     },
     {
@@ -748,7 +569,7 @@
         "export * from '../execution/design-turn-gate.js';",
         "export * from '../execution/design-verify-run.js';",
         "export * from '../execution/design-verify.js';",
-        "export { type DesignKitLoader, type DesignStack, isDesignStack, type SkippedKitInfo, } from '../types/design-kit.js';"
+        "export { type DesignKitLoader, type DesignStack, isDesignStack, type SkippedKitInfo, } from '@wrongstack/contracts/types/design-kit';"
       ]
     },
     {
@@ -767,8 +588,8 @@
         "export type { IFleetManager } from './ifleet-manager.js';",
         "export { ACP_AGENTS, ALL_FLEET_AGENTS, AUDIT_LOG_AGENT, applyRosterBudget, BUG_HUNTER_AGENT, FLEET_ROSTER, FLEET_ROSTER_BUDGETS, FLEET_ROSTER_WITHACP, type FleetRosterBudget, GENERIC_AGENT, REFACTOR_PLANNER_AGENT, SECURITY_SCANNER_AGENT, } from './fleet.js';",
         "export { AUTO_WAKE_MARKER, buildAutoWakePrompt, DEFAULT_AUTO_WAKE_DEBOUNCE_MS, DEFAULT_MAX_CHAINED_WAKES, DEFAULT_MIN_WAKE_INTERVAL_MS, type LeaderAutoWakeConfig, LeaderAutoWakeController, type LeaderAutoWakeControllerOptions, type LeaderAutoWakeStartedEvent, type LeaderAutoWakeSuppressedEvent, type LeaderAutoWakeSuppressedReason, type LeaderWakeDecision, type LeaderWakePort, } from './delegation/leader-auto-wake.js';",
-        "export { BrainDecisionLedger, type BrainDecisionLedgerOptions, type BrainLedgerEntry, brainDecisionKey, createLedgerGuardBrainArbiter, type LedgerGuardBrainArbiterOptions, } from './brain-ledger.js';",
-        "export { BrainTraceRecorder, type BrainTraceRecorderOptions } from './brain-trace.js';",
+        "export { BrainDecisionLedger, type BrainDecisionLedgerOptions, type BrainLedgerEntry, brainDecisionKey, createLedgerGuardBrainArbiter, type LedgerGuardBrainArbiterOptions, } from '../brain/brain-ledger.js';",
+        "export { BrainTraceRecorder, type BrainTraceRecorderOptions } from '../brain/brain-trace.js';",
         "export { BudgetExceededError, BudgetThresholdSignal, /** 60 000 ms — hard safety net for budget negotiation decisions. Both the * coordinator watchdog and SubagentBudget._negotiateExtension use this value * so they agree on the decision window. Re-exported here so consumers of * the coordination module can reference it without a sub-module import. */ DECISION_TIMEOUT_MS, SubagentBudget, /** 0.85 — fraction of wall-clock `timeoutMs` at which the coordinator watchdog * fires a PROACTIVE pre-empt (before deadline). Canonical source: * `coordination/subagent-budget.ts`. Re-exported here so all budget symbols * are accessible from one import path. */ TIMEOUT_PREEMPT_FRACTION, } from './subagent-budget.js';",
         "export { DEFAULT_DISPATCH_ROLE, type DispatchCandidate, type DispatchClassifier, type DispatchMethod, type DispatchOptions, type DispatchResult, dispatchAgent, makeLLMClassifier, scoreAgents, } from './dispatcher.js';",
         "export { DEFAULT_MAX_FLEET_SPAWNS, HARD_MAX_SPAWN_DEPTH, resolveMaxSpawnDepth, } from './spawn-budget.js';",
@@ -782,7 +603,7 @@
         "export { LargeAnswerStore } from './large-answer-store.js';",
         "export { NULL_FLEET_BUS } from './null-fleet-bus.js';",
         "export { activeTierConfig, applyTierToSubagentConfig, classifyTier, DEFAULT_TIER_ID, isConfiguredTier, listTierIds, type ModelTierBudget, type ModelTierDecision, type ModelTierSource, type ResolvedTierTarget, resolveTier, tierBudget, tierLevel, tierModelTarget, } from './model-tier.js';",
-        "export { areSubagentCompanionsAllowed, areSubagentCompanionsAllowedForSession, areSubagentsAllowed, areSubagentsAllowedForSession, isSubagentPolicyLocked, lockSessionSubagentPolicy, lockSessionSubagentPolicyForSession, resetSessionSubagentPolicy, restoreSessionSubagentPolicy, SUBAGENT_COMPANIONS_ALLOWED_META_KEY, SUBAGENTS_ALLOWED_META_KEY, SUBAGENTS_POLICY_LOCKED_META_KEY, type SubagentPolicyMode, seedSessionSubagentPolicy, setSessionSubagentPolicy, setSessionSubagentsAllowed, subagentPolicyMode, subagentPolicyModeFrom, unlockSessionSubagentPolicyForSession, } from './session-subagent-policy.js';",
+        "export { areSubagentCompanionsAllowed, areSubagentCompanionsAllowedForSession, areSubagentsAllowed, areSubagentsAllowedForSession, isSubagentPolicyLocked, lockSessionSubagentPolicy, lockSessionSubagentPolicyForSession, resetSessionSubagentPolicy, restoreSessionSubagentPolicy, SUBAGENT_COMPANIONS_ALLOWED_META_KEY, SUBAGENTS_ALLOWED_META_KEY, SUBAGENTS_POLICY_LOCKED_META_KEY, type SubagentPolicyMode, seedSessionSubagentPolicy, setSessionSubagentPolicy, setSessionSubagentsAllowed, subagentPolicyMode, subagentPolicyModeFrom, unlockSessionSubagentPolicyForSession, } from '../security/session-subagent-policy.js';",
         "export { assessCommitSafety, type CommitSafetyOptions, type CommitSafetyReport, } from './commit-safety.js';",
         "export { assignNickname } from './subagent-nicknames.js';",
         "export { attachDepWatcherBridge, type DepWatcherBridgeOptions, } from './dep-watcher-bridge.js';",
@@ -808,9 +629,9 @@
         "export { type AcquireOptions, type AcquireResult, acquireOrJoin, finalize, type LiveLockResult, MAILBOX_BRIDGE_LOCK_FILENAME, MAILBOX_BRIDGE_TOKEN_FILENAME, type MailboxBridgeLock, readLiveLock, release, } from './single-instance-mailbox.js';",
         "export { type AgentFactory, type AgentFactoryResult, type AgentRunnerOptions, makeAgentSubagentRunner, withDisabledToolFiltering, } from './agent-subagent-runner.js';",
         "export { type AutoExtendCeiling, type AutoExtendPolicy, attachAutoExtend, } from './auto-extend.js';",
-        "export { type BrainArbiter, type BrainDecision, type BrainDecisionOption, BrainDecisionQueue, type BrainDecisionRequest, type BrainDecisionSource, type BrainEscalationMode, type BrainFallback, type BrainRisk, DefaultBrainArbiter, type DefaultBrainArbiterOptions, EscalationRoutingBrainArbiter, formatHumanPrompt, HumanEscalatingBrainArbiter, ObservableBrainArbiter, terminalPolicyDecision, } from './brain.js';",
-        "export { type BrainDecisionTier, BrainTierCounter, type BrainTierStats, DETERMINISTIC_BRAIN_TIERS, emitBrainTierTransition, isDeterministicTier, markDecisionTier, readDecisionTier, } from './brain-telemetry.js';",
-        "export { type BrainInterventionInput, BrainMonitor, type BrainMonitorOptions, } from './brain-monitor.js';",
+        "export { type BrainArbiter, type BrainDecision, type BrainDecisionOption, BrainDecisionQueue, type BrainDecisionRequest, type BrainDecisionSource, type BrainEscalationMode, type BrainFallback, type BrainRisk, DefaultBrainArbiter, type DefaultBrainArbiterOptions, EscalationRoutingBrainArbiter, formatHumanPrompt, HumanEscalatingBrainArbiter, ObservableBrainArbiter, terminalPolicyDecision, } from '../brain/brain.js';",
+        "export { type BrainDecisionTier, BrainTierCounter, type BrainTierStats, DETERMINISTIC_BRAIN_TIERS, emitBrainTierTransition, isDeterministicTier, markDecisionTier, readDecisionTier, } from '../brain/brain-telemetry.js';",
+        "export { type BrainInterventionInput, BrainMonitor, type BrainMonitorOptions, } from '../brain/brain-monitor.js';",
         "export { type BugFinding, type CollabBudgetConfig, type CollabBudgetOverrides, type CollabBudgetWarningPayload, type CollabDebugReport, CollabSession, type CollabSessionOptions, type CriticConcern, type CriticEvaluation, type DirectorAlert, DirectorAlertLevel, type DirectorCancelCollabPayload, type RefactorPhase, type RefactorPlan, type SharedFileEntry, type SharedFileSnapshot, } from './collab-debug.js';",
         "export { type CreateDefineSubagentToolOptions, createDefineSubagentTool, type DefineSubagentInput, type DefineSubagentOutput, } from './define-subagent-tool.js';",
         "export { type CreateDelegateToolOptions, createDelegateTool, type DelegateHost, } from './delegate-tool.js';",
@@ -820,7 +641,8 @@
         "export { type FileAuthorTrackerOptions, recordFileAction } from './file-author-tracker.js';",
         "export { type FleetStatusToolOptions, makeFleetStatusTool } from './fleet-status-tool.js';",
         "export { type FleetWorktreePolicy, resolveSubagentWorktreeDecision, subagentNeedsWorktree, WorktreeIntegrationError, type WorktreeIsolationDecision, type WorktreeTaskRunnerOptions, type WorktreeTaskStateUpdate, wrapSubagentRunnerWithWorktrees, } from './worktree-task-runner.js';",
-        "export { type OutdatedNotifyMessage, type PackageOutdatedEntry, type PackageOutdatedResult, type PackageOutdatedWatcherOptions, startPackageOutdatedWatcher, } from './package-outdated-watcher.js';"
+        "export { type OutdatedNotifyMessage, type PackageOutdatedEntry, type PackageOutdatedResult, type PackageOutdatedWatcherOptions, startPackageOutdatedWatcher, } from './package-outdated-watcher.js';",
+        "export { type ParallelEngineState, ParallelEternalEngine, type ParallelEternalOptions, type ParallelIterationStage, } from './parallel-eternal-engine.js';"
       ]
     },
     {
@@ -845,7 +667,7 @@
       },
       "source": "packages/core/src/extension/index.ts",
       "declarations": [
-        "export type { AgentExtension, BeforeRunHook, AfterRunHook, BeforeIterationHook, AfterIterationHook, BeforeTurnEndHook, OnErrorHook, ProviderRunnerWrapper, ProviderRunnerFn, BeforeToolExecutionHook, AfterToolExecutionHook, } from './extension-points.js';",
+        "export type { AfterIterationHook, AfterRunHook, AfterToolExecutionHook, AgentExtension, BeforeIterationHook, BeforeRunHook, BeforeToolExecutionHook, BeforeTurnEndHook, OnErrorHook, ProviderRunnerFn, ProviderRunnerWrapper, } from '@wrongstack/contracts/types/extension-points';",
         "export { ExtensionRegistry } from './registry.js';"
       ]
     },
@@ -858,7 +680,7 @@
       "source": "packages/core/src/plugin/index.ts",
       "declarations": [
         "export type { ChimeraFinding, ChimeraFindingLocation, ChimeraFindingOrigin, ChimeraFindingResolution, FindingCategory, FindingConfidence, FindingEventType, FindingLifecycleEvent, FindingSeverity, FindingSource, FindingStatus, FindingVerification, FindingVerificationStatus, ResolutionOutcome, } from '../plugins/review-finding-types.js';",
-        "export type { PluginAPI, PluginJev } from '../types/plugin.js';",
+        "export type { PluginAPI, PluginJev } from '@wrongstack/contracts/types/plugin';",
         "export type { ReportActorKind, ReportEventType, ReportLifecycleStatus, ReviewReport, ReviewReportCounts, ReviewReportEvent, ReviewReportFile, } from '../plugins/review-report-types.js';",
         "export { DEFAULT_PLUGIN_DISCOVERY_IO, type DiscoveryIo, discoverExternalPlugins, type ExternalPluginCandidate, type PluginDiscoveryResult, resolvePluginEntryPath, resolvePluginTarget, type SkippedPluginCandidate, } from './discovery.js';",
         "export { DEFAULT_SPECIALIST_TRIGGERS, matchSpecialistTriggers, type ResolvedSpecialistTriggerConfig, resolveSpecialistTriggerConfig, type SpecialistTriggerConfig, type SpecialistTriggerMatch, type SpecialistTriggerRule, specialistFireKey, specialistTaskText, } from '../plugins/specialist-trigger-rules.js';",
@@ -999,8 +821,8 @@
       "source": "packages/core/src/storage/index.ts",
       "declarations": [
         "export type { AgentEntry, AgentLiveStatus, SessionLiveStatus, SessionRegistryEntry, SessionWebUIEndpointHint, } from '../session-catalog/session-registry.js';",
-        "export type { DefaultSessionReaderOptions, SessionReader } from '../types/session-reader.js';",
-        "export type { SyncCategory, SyncConfig } from '../types/config.js';",
+        "export type { DefaultSessionReaderOptions, SessionReader, } from '@wrongstack/contracts/types/session-reader';",
+        "export type { SyncCategory, SyncConfig } from '@wrongstack/contracts/types/config';",
         "export type { VcsAdapter, VcsKind, VcsOptions } from '../vcs/vcs-adapter.js';",
         "export type { VcsRunner, VcsRunResult } from '../vcs/vcs-runner.js';",
         "export { ALL_SYNC_CATEGORIES, CloudSync, type SyncResult, } from './cloud-sync.js';",
@@ -1018,7 +840,7 @@
         "export { SessionCheckpointCas, type SessionCheckpointCasOptions, } from './session-checkpoint-cas.js';",
         "export { SessionRegistry as LegacySessionRegistry } from '../session-catalog/session-registry.js';",
         "export { addPlanItem, attachPlanCheckpoint, clearPlan, deriveTodosFromPlanItem, emptyPlan, formatPlan, loadPlan, mutatePlan, type PlanFile, type PlanItem, removePlanItem, savePlan, setPlanItemStatus, } from './plan-store.js';",
-        "export { appendJournal, emptyGoal, formatGoal, type GoalFile, goalFilePath, type JournalEntry, loadGoal, MAX_JOURNAL_ENTRIES, MAX_PROGRESS_HISTORY, type ProgressSnapshot, parseProgressFromText, recordProgress, saveGoal, setProgress, summarizeUsage, } from './goal-store.js';",
+        "export { appendJournal, emptyGoal, formatGoal, type GoalFile, goalFilePath, type JournalEntry, loadGoal, MAX_JOURNAL_ENTRIES, MAX_PROGRESS_HISTORY, type ProgressSnapshot, parseProgressFromText, recordProgress, replaceGoalMission, saveGoal, setProgress, summarizeUsage, updateGoal, } from './goal-store.js';",
         "export { applyGoalDeliverableCompletions, type CompletedGoalDeliverable, type CoordinateGoalIterationOptions, coordinateGoalIteration, type GoalCoordinationResult, isGoalDeliverableComplete, parseCompletedGoalDeliverables, recomputeGoalProgress, stripGoalDeliverableMarker, } from './goal-coordination.js';",
         "export { applyNamespacePayload, buildNamespacePayloads, CLOUD_SYNC_CONTRACT, CLOUD_SYNC_NAMESPACES, CloudConfigSync, type CloudConfigSyncDeps, type CloudConfigSyncSettings, type CloudSyncPassSummary, LOCAL_ONLY_TOP_LEVEL, NAMESPACE_SCHEMA_VERSIONS, stripSecretMaterial, } from './cloud-config-sync.js';",
         "export { attachScoutToolLearning, seedScoutLearnedTools } from './scout-tool-learning.js';",
@@ -1099,7 +921,7 @@
         "export { describeWriteTargets, shellCommandLinesFromInput } from './permission-helpers.js';",
         "export { evaluateToolKanbanBoundary, type ToolKanbanBoundaryEvaluation, } from './kanban-boundary.js';",
         "export { isProjectRootLocked, isYoloLockedOff, lockToProjectRoot, lockYoloOff, } from './process-lockdown.js';",
-        "export { noOpVault } from '../types/secret-vault.js';",
+        "export { noOpVault } from '@wrongstack/contracts/types/secret-vault';",
         "export { restrictDirPermissions, restrictFilePermissions, SECRET_DIR_MODE, SECRET_FILE_MODE, } from './file-permissions.js';",
         "export { setSessionLeaderMetaResolver, subagentYoloPlus } from './session-yolo.js';",
         "export { type KanbanGovernancePort, kanbanGovernance, setKanbanGovernance, } from './kanban-governance-port.js';",
@@ -1177,12 +999,11 @@
       "source": "packages/core/src/infrastructure/index.ts",
       "declarations": [
         "export { CONTEXT_MANAGER_TOOL_NAME, type ContextManagerAction, type ContextManagerInput, type ContextManagerResult, type ContextManagerToolOptions, contextManagerTool, createContextManagerTool, } from './context-manager.js';",
-        "export { DefaultLogger, type DefaultLoggerOptions, type LogFormat } from './logger.js';",
+        "export { DefaultLogger, type DefaultLoggerOptions, type LogFormat, noOpLogger, } from './logger.js';",
         "export { DefaultPathResolver } from './path-resolver.js';",
         "export { DefaultTokenCounter } from './token-counter.js';",
         "export { ProviderCacheLedger } from './provider-cache-ledger.js';",
-        "export { allServers, awsServer, blockServer, braveSearchServer, context7Server, dockerServer, everArtServer, fetchServer, filesystemServer, githubServer, gitlabServer, gitServer, googleMapsServer, memoryServer, miniMaxVisionServer, playwrightServer, postgresServer, puppeteerServer, resolveMcpServerConfig, sentinelServer, sentryServer, sequentialThinkingServer, slackServer, sqliteServer, sshManagerServer, zaiVisionServer, zaiWebReaderServer, zaiWebSearchServer, } from './mcp-servers.js';",
-        "export { assertProjectRootOutsideStateDir, type BootConfigOptions, type BootConfigResult, bootConfig, flagsToConfigPatch, } from '../boot.js';"
+        "export { allServers, awsServer, blockServer, braveSearchServer, context7Server, dockerServer, everArtServer, fetchServer, filesystemServer, githubServer, gitlabServer, gitServer, googleMapsServer, memoryServer, miniMaxVisionServer, playwrightServer, postgresServer, puppeteerServer, resolveMcpServerConfig, sentinelServer, sentryServer, sequentialThinkingServer, slackServer, sqliteServer, sshManagerServer, zaiVisionServer, zaiWebReaderServer, zaiWebSearchServer, } from './mcp-servers.js';"
       ]
     },
     {
@@ -1193,10 +1014,11 @@
       },
       "source": "packages/core/src/models/index.ts",
       "declarations": [
-        "export type { ModelBlackoutRule } from '../core/model-availability-calendar.js';",
+        "export type { ModelBlackoutRule } from '@wrongstack/contracts/types/model-availability';",
         "export { ALIBABA_TOKEN_PLAN_MODELS, type AlibabaTokenPlanModelMeta, alibabaTokenPlanModelMeta, } from './alibaba-token-plan-catalog.js';",
         "export { BACKGROUND_CATALOG_REFRESH_INTERVAL_MS, type CatalogRefreshOutcome, type CatalogStartupOptions, type CatalogStartupResult, RECENT_CATALOG_REFRESH_SECONDS, refreshCatalogIfStale, startCatalog, } from './catalog-refresh.js';",
         "export { CODEX_MODELS, type CodexModelMeta, codexModelMeta } from './codex-catalog.js';",
+        "export { DEFAULT_MODES } from './default-modes.js';",
         "export { DefaultModeStore, loadProjectModes, loadUserModes, type ModeLoaderOptions, } from './mode-store.js';",
         "export { LLMSelector, type LLMSelectorOptions } from './llm-selector.js';",
         "export { MODELS_DEV_MODALITY_VALUES, type ModelsDevModelParsed, type ModelsDevPayloadParsed, type ModelsDevProviderParsed, type ModelsDevSchemaSyncProof, modelsDevCostSchema, modelsDevLimitSchema, modelsDevModalitiesSchema, modelsDevModelSchema, modelsDevPayloadSchema, modelsDevProviderSchema, } from './models-dev-schema.js';",
@@ -1233,65 +1055,6 @@
       ]
     },
     {
-      "subpath": "./hq",
-      "target": {
-        "types": "./dist/hq/index.d.ts",
-        "import": "./dist/hq/index.js"
-      },
-      "source": "packages/core/src/hq/index.ts",
-      "declarations": [
-        "export * from './alerts-config.js';",
-        "export * from './alerts.js';",
-        "export * from './approval-bridge.js';",
-        "export * from './auth-audit.js';",
-        "export * from './auth-revocation.js';",
-        "export * from './auth-store.js';",
-        "export * from './bootstrap-store.js';",
-        "export * from './brain-bridge.js';",
-        "export * from './bridge-context.js';",
-        "export * from './commands.js';",
-        "export * from './cost-bridge.js';",
-        "export * from './exposure.js';",
-        "export * from './factory.js';",
-        "export * from './fleet-bridge.js';",
-        "export * from './mailbox-mapper.js';",
-        "export * from './persistence.js';",
-        "export * from './protocol.js';",
-        "export * from './publisher.js';",
-        "export * from './redaction.js';",
-        "export * from './session-bridge.js';",
-        "export * from './tool-bridge.js';",
-        "export * from './transcript-mapper.js';",
-        "export * from './worktree-bridge.js';",
-        "export type { HqClientConfig } from '../types/config.js';"
-      ]
-    },
-    {
-      "subpath": "./hq/protocol",
-      "target": {
-        "types": "./dist/hq/protocol.d.ts",
-        "import": "./dist/hq/protocol.js"
-      },
-      "source": "packages/core/src/hq/protocol.ts",
-      "declarations": [
-        "export * from './protocol/brain.js';",
-        "export * from './protocol/browser.js';",
-        "export * from './protocol/client.js';",
-        "export * from './protocol/core.js';",
-        "export * from './protocol/fleet.js';",
-        "export * from './protocol/governance.js';",
-        "export * from './protocol/kanban.js';",
-        "export * from './protocol/mailbox.js';",
-        "export * from './protocol/mcp.js';",
-        "export * from './protocol/peer.js';",
-        "export * from './protocol/project.js';",
-        "export * from './protocol/resume.js';",
-        "export * from './protocol/sage.js';",
-        "export * from './protocol/session.js';",
-        "export * from './protocol/tool.js';"
-      ]
-    },
-    {
       "subpath": "./notifications",
       "target": {
         "types": "./dist/notifications/index.d.ts",
@@ -1323,25 +1086,6 @@
         "export { createSandboxExecWrapper, createSandboxMcpGate } from './wrap.js';",
         "export { defaultWindowsHelperRunner, runHelperRoute } from './windows-helper.js';",
         "export { policyOnlySandboxBackend } from './backends/policy-only.js';"
-      ]
-    },
-    {
-      "subpath": "./tools",
-      "target": {
-        "types": "./dist/tools/index.d.ts",
-        "import": "./dist/tools/index.js"
-      },
-      "source": "packages/core/src/tools/index.ts",
-      "declarations": [
-        "export { AGENT_MODEL_ASSIGN_TOOL_NAME, createFallbackManageTools, FALLBACK_CHAIN_MANAGE_TOOL_NAME, FALLBACK_PROFILE_MANAGE_TOOL_NAME, FAVORITE_MANAGE_TOOL_NAME, type FallbackManageToolOptions, LEADER_MODEL_SET_TOOL_NAME, PROVIDER_KEY_SET_TOOL_NAME, PROVIDER_MANAGE_TOOL_NAME, SYSTEM_CONFIG_VIEW_TOOL_NAME, validateProviderBaseUrl, } from './fallback-manage-tools.js';",
-        "export { COUNCIL_TOOL_NAME, type CouncilToolInput, type CreateCouncilToolOptions, createCouncilTool, } from './council-tool.js';",
-        "export { createJevStatusTool, createJevTool, evaluateJevQuestions, type JevToolInput, jevToolStatus, } from './jev-tool.js';",
-        "export { createMcpControlTool, type MCPRegistryHandle } from './mcp-control.js';",
-        "export { createMcpUseTool } from './mcp-use.js';",
-        "export { createSessionRenameTool, SESSION_RENAME_TOOL_NAME, type SessionRenameToolOptions, } from './session-rename.js';",
-        "export { registerJevTools } from './jev-registration.js';",
-        "export { type CreateOneShotLLMToolOptions, createOneShotLLMTool, ONE_SHOT_LLM_TOOL_NAME, } from './one-shot-llm-tool.js';",
-        "export { type CreatePluginManagerToolOptions, createPluginManagerTool, PLUGIN_MANAGER_TOOL_NAME, type PluginManagerCatalogEntry, type PluginManagerHookRunner, type PluginManagerMutationResult, } from './plugin-manager.js';"
       ]
     },
     {
@@ -1385,6 +1129,7 @@
         "export { BUILT_IN_SEMANTIC_LINT_RULES, findSemanticLintCandidates, judgeSemanticLintCandidates, parseSemanticLintRules, type SemanticLintCandidate, type SemanticLintFinding, type SemanticLintResult, type SemanticLintRule, } from './semantic-lint.js';",
         "export { JEV_FEATURES, type JevSettingsPatch, jevSettingsSnapshot, saveJevSettings, testJevConnection, validateJevSettingsPatch, } from './settings.js';",
         "export { askTypeSafeJudge, isTypeSafeJudgmentEnabled, type ResolveTypeSafeJudgeDeps, resetTypeSafeJudgesForTests, resolveTypeSafeJudge, TYPESAFE_JUDGMENT_FEATURES, type TypeSafeJudge, type TypeSafeJudgmentFeature, typeSafeJudgeFromContainer, } from './judgments.js';",
+        "export { createJevStatusTool, createJevTool, evaluateJevQuestions, type JevToolInput, jevToolStatus, } from './jev-tool.js';",
         "export { createTypeSafeBreaker, type TypeSafeBreaker, type TypeSafeBreakerOptions, TypeSafeDisabledError, } from './breaker.js';",
         "export { createTypeSafeRestGate, resetSharedTypeSafeRestGatesForTests, sharedTypeSafeRestGate, type TypeSafeRestGate, type TypeSafeRestGateOptions, TypeSafeRestingError, typeSafeFailureWeight, withTypeSafeRest, } from './rest.js';",
         "export { resetWarnOnceForTests, type WarnSink, warnFeatureUnusable, warnOnce, } from './notify.js';",
@@ -1428,8 +1173,8 @@
       "source": "packages/core/src/tasking/index.ts",
       "declarations": [
         "export { DefaultTaskStore } from './task-store.js';",
-        "export { TaskTracker, type TaskStore, type TaskTrackerChange, type TaskTrackerListener, type TaskTrackerOptions, type TaskTransition, } from './task-tracker.js';",
-        "export { computeTaskProgress, deserializeTaskGraph, serializeTaskGraph, topologicalSort, type TaskGraph, type TaskNode, type TaskProgress, } from '../types/task-graph.js';"
+        "export { computeTaskProgress, deserializeTaskGraph, serializeTaskGraph, type TaskGraph, type TaskNode, type TaskProgress, topologicalSort, } from '@wrongstack/contracts/types/task-graph';",
+        "export { type TaskStore, TaskTracker, type TaskTrackerChange, type TaskTrackerListener, type TaskTrackerOptions, type TaskTransition, } from './task-tracker.js';"
       ]
     },
     {
@@ -1514,31 +1259,6 @@
       ]
     },
     {
-      "subpath": "./goal",
-      "target": {
-        "types": "./dist/goal/index.d.ts",
-        "import": "./dist/goal/index.js"
-      },
-      "source": "packages/core/src/goal/index.ts",
-      "declarations": [
-        "export type { GoalOptions, PhaseEventMap, PhaseEventName, PhaseExecutionContext, PhaseFilter, PhaseGraph, PhaseNode, PhaseProgress, PhaseSort, PhaseStatus, PhaseTemplate, } from './types.js';",
-        "export { GoalAssessor, type GoalAssessorOptions, type GoalAssessResult, } from './goal-assessor.js';",
-        "export { GoalRunLeaseBusyError, PhaseStore, type PhaseStoreOptions } from './phase-store.js';",
-        "export { GoalRunPersistence, prepareGoalGraphForResume } from './goal-run-lifecycle.js';",
-        "export { PHASE_EVENT_NAMES } from './types.js';",
-        "export { PhaseGraphBuilder, type PhaseGraphBuilderOptions, } from './phase-graph-builder.js';",
-        "export { PhaseOrchestrator, type PhaseOrchestratorOptions, } from './phase-orchestrator.js';",
-        "export { appendJournal, emptyGoal, formatGoal, type GoalFile, goalFilePath, type JournalEntry, loadGoal, MAX_JOURNAL_ENTRIES, MAX_PROGRESS_HISTORY, type ProgressSnapshot, parseProgressFromText, recordProgress, replaceGoalMission, saveGoal, setProgress, summarizeUsage, updateGoal, } from '../storage/goal-store.js';",
-        "export { buildGoalRefinementPrompt, parseGoalRefinement, type RefinedMission, refineGoalHeuristic, refineGoalWithProvider, resolveRefinerTarget, } from './mission-refinement.js';",
-        "export { createGoalRunnerFromTaskGraph, GoalRunner, type GoalRunnerOptions, } from './goal-runner.js';",
-        "export { extractJSONArray as extractGoalJSONArray, GoalPlanner, type GoalPlannerOptions, type GoalPlanResult, } from './goal-planner.js';",
-        "export { prepareGoalWorkspace } from './goal-workspace.js';",
-        "export { type Checkpoint, CheckpointManager, type CheckpointManagerOptions, } from './checkpoint.js';",
-        "export { type GoalProjectVerificationResult, type GoalProjectVerifierOptions, verifyGoalProject, } from './project-verifier.js';",
-        "export { type GoalSummary, summarizeGoal } from './goal-summary.js';"
-      ]
-    },
-    {
       "subpath": "./hooks",
       "target": {
         "types": "./dist/hooks/index.d.ts",
@@ -1546,11 +1266,11 @@
       },
       "source": "packages/core/src/hooks/index.ts",
       "declarations": [
-        "export type { AnyHookOutcome, ConfiguredHook, HookEntry, HookEvent, HookFailurePolicy, HookInput, HookInvocationContext, HookMatcher, HookOutcome, HookRegistrationOptions, HttpHook, InProcessHook, ObservationalHookEvent, PreToolUseOutcome, PreToolUseStage, ShellHook, } from '../types/hooks.js';",
+        "export type { AnyHookOutcome, ConfiguredHook, HookEntry, HookEvent, HookFailurePolicy, HookInput, HookInvocationContext, HookMatcher, HookOutcome, HookRegistrationOptions, HttpHook, InProcessHook, ObservationalHookEvent, PreToolUseOutcome, PreToolUseStage, ShellHook, } from '@wrongstack/contracts/types/hooks';",
         "export type { HookExecutionFailure, HookExecutionFailureKind, HookExecutionOptions, HookExecutionResult, ShellHookSpec, } from './shell-executor.js';",
         "export type { HookRunEnv, HookRunnerOptions, ObservationalHookFields, PreToolUseResult, PromptResult, } from './runner.js';",
         "export type { HttpHookSpec } from './http-executor.js';",
-        "export { HOOK_EVENTS, isHookEvent } from '../types/hooks.js';",
+        "export { HOOK_EVENTS, isHookEvent } from '@wrongstack/contracts/types/hooks';",
         "export { HookRegistry, hookMatcherMatches } from './registry.js';",
         "export { HookRunner } from './runner.js';",
         "export { bridgeLifecycleHooks, type LifecycleHookBridgeOptions } from './lifecycle-bridge.js';",
@@ -1621,102 +1341,88 @@
   ],
   "inventory": [
     {
+      "directory": "brain",
+      "classification": "agent-domain service",
+      "intendedOwner": "Core decision arbiter, exported via the coordination subpath",
+      "sourceFiles": 13,
+      "sourceLines": 3949
+    },
+    {
       "directory": "chronicle",
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 51,
-      "sourceLines": 12678
+      "sourceLines": 12672
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 243,
-      "sourceLines": 62723
+      "sourceFiles": 229,
+      "sourceLines": 58672
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 81,
-      "sourceLines": 16607
+      "sourceFiles": 80,
+      "sourceLines": 16799
     },
     {
       "directory": "design",
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner behind a focused public facade",
       "sourceFiles": 1,
-      "sourceLines": 27
+      "sourceLines": 28
     },
     {
       "directory": "execution",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
-      "sourceFiles": 106,
-      "sourceLines": 26494
+      "sourceFiles": 107,
+      "sourceLines": 25987
     },
     {
       "directory": "extension",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin/extension contract",
-      "sourceFiles": 3,
-      "sourceLines": 537
-    },
-    {
-      "directory": "goal",
-      "classification": "storage/repository implementation",
-      "intendedOwner": "repository behind persistence primitive",
-      "sourceFiles": 23,
-      "sourceLines": 4952
+      "sourceFiles": 2,
+      "sourceLines": 373
     },
     {
       "directory": "hooks",
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner",
-      "sourceFiles": 7,
-      "sourceLines": 1746
-    },
-    {
-      "directory": "hq",
-      "classification": "host/application concern",
-      "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
-      "sourceFiles": 63,
-      "sourceLines": 12506
+      "sourceFiles": 8,
+      "sourceLines": 1764
     },
     {
       "directory": "infrastructure",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 2115
-    },
-    {
-      "directory": "kernel",
-      "classification": "kernel primitive",
-      "intendedOwner": "Core",
-      "sourceFiles": 23,
-      "sourceLines": 4554
+      "sourceLines": 2113
     },
     {
       "directory": "models",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
-      "sourceFiles": 17,
-      "sourceLines": 4068
+      "sourceFiles": 19,
+      "sourceLines": 4360
     },
     {
       "directory": "notifications",
       "classification": "host/application concern",
       "intendedOwner": "host adapter behind contract",
       "sourceFiles": 4,
-      "sourceLines": 463
+      "sourceLines": 252
     },
     {
       "directory": "observability",
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 14,
-      "sourceLines": 2211
+      "sourceLines": 2218
     },
     {
       "directory": "performance",
@@ -1730,7 +1436,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 10,
-      "sourceLines": 2789
+      "sourceLines": 2783
     },
     {
       "directory": "plugins",
@@ -1744,7 +1450,7 @@
       "classification": "product feature",
       "intendedOwner": "plugin/runtime implementation",
       "sourceFiles": 4,
-      "sourceLines": 664
+      "sourceLines": 667
     },
     {
       "directory": "quota",
@@ -1757,29 +1463,29 @@
       "directory": "registry",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
-      "sourceFiles": 7,
-      "sourceLines": 1484
+      "sourceFiles": 8,
+      "sourceLines": 1631
     },
     {
       "directory": "replay",
       "classification": "storage/repository implementation",
       "intendedOwner": "repository/runtime implementation",
       "sourceFiles": 3,
-      "sourceLines": 259
+      "sourceLines": 262
     },
     {
       "directory": "sandbox",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused sandbox implementation",
       "sourceFiles": 12,
-      "sourceLines": 1294
+      "sourceLines": 1284
     },
     {
       "directory": "security",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 40,
-      "sourceLines": 11053
+      "sourceLines": 10202
     },
     {
       "directory": "session-catalog",
@@ -1807,7 +1513,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 118,
-      "sourceLines": 26215
+      "sourceLines": 26249
     },
     {
       "directory": "tasking",
@@ -1817,32 +1523,18 @@
       "sourceLines": 680
     },
     {
-      "directory": "tools",
-      "classification": "host/application concern",
-      "intendedOwner": "@wrongstack/tools or product plugin",
-      "sourceFiles": 24,
-      "sourceLines": 4834
-    },
-    {
-      "directory": "types",
-      "classification": "agent-domain contract",
-      "intendedOwner": "Core type-only subpaths",
-      "sourceFiles": 86,
-      "sourceLines": 16752
-    },
-    {
       "directory": "typesafe",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused TypeSafe integration",
-      "sourceFiles": 14,
-      "sourceLines": 2418
+      "sourceFiles": 15,
+      "sourceLines": 2607
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 94,
-      "sourceLines": 15749
+      "sourceFiles": 93,
+      "sourceLines": 15195
     },
     {
       "directory": "vcs",
@@ -1863,7 +1555,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused worktree implementation",
       "sourceFiles": 9,
-      "sourceLines": 1617
+      "sourceLines": 1553
     }
   ]
 }

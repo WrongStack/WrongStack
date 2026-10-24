@@ -1,8 +1,8 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { AgentPhase } from '@wrongstack/core/agent-catalog';
 import { AGENTS_BY_PHASE, summarizeDispatchLog } from '@wrongstack/core/agent-catalog';
 import { dispatchAgent } from '@wrongstack/core/coordination';
 import { sandboxTierForAgent } from '@wrongstack/core/sandbox';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { formatFleetBudgetLines } from '../fleet/host-status.js';
 import type { SlashCommandContext } from './command-context.js';

@@ -20,7 +20,7 @@
  * exports below are thin wrappers that pick the right defaults.
  */
 import { randomUUID } from 'node:crypto';
-import type { Request, StopReason, StreamEvent } from '@wrongstack/core/types';
+import type { Request, StopReason, StreamEvent } from '@wrongstack/contracts/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { providerErrorFromStreamPayload } from '../error-parse.js';

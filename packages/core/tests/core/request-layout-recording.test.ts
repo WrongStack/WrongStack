@@ -1,11 +1,11 @@
+import { markVolatileSystemBlock, type TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider, Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
 import { createAgentResponseHandler } from '../../src/core/agent-response.js';
 import { publishRequestResidency } from '../../src/core/request-layout-capture.js';
 import { SYSTEM_BLOCK_SOURCE } from '../../src/core/system-prompt-blocks.js';
-import { markVolatileSystemBlock, type TextBlock } from '../../src/types/blocks.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Provider, Request } from '../../src/types/provider.js';
 import { createContextEvidenceState } from '../../src/utils/context-evidence.js';
 import {
   commitRequestLayout,

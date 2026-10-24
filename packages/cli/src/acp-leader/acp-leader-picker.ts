@@ -4,8 +4,8 @@
  * models.dev entry, so the WebUI pickers only offer it through this list.
  */
 import { findAgentDescriptor } from '@wrongstack/acp';
+import type { Config, Provider, ProviderConfig } from '@wrongstack/contracts/types';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
-import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
 import { installedBridgeAgents } from '../fleet/acp-wrongstack-bridge.js';
 import { ACP_LEADER_PROVIDER_ID } from './acp-leader-host.js';
 

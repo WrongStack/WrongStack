@@ -1,3 +1,4 @@
+import type { Message } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildLosslessDigest,
@@ -15,7 +16,6 @@ import {
   hasToolUse,
   scoreMessage,
 } from '../../src/execution/compaction-core.js';
-import type { Message } from '../../src/types/index.js';
 import { repairToolUseAdjacency } from '../../src/utils/message-invariants.js';
 import { estimateMessageTokens } from '../../src/utils/token-estimate.js';
 

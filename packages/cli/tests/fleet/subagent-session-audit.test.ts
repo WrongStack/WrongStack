@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { SessionEvent } from '@wrongstack/contracts/types';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { EventBus } from '@wrongstack/core/kernel';
 import { createSessionEventBridge, DefaultSessionStore } from '@wrongstack/core/storage';
-import type { SessionEvent } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installSubagentSessionAudit } from '../../src/fleet/host-subagent-session-audit.js';
 

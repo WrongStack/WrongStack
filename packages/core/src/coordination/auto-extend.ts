@@ -18,7 +18,7 @@
  * fail. The non-timeout kinds (iterations/tool_calls/tokens/cost) extend up to
  * a per-kind cap, then deny — those ceilings are the real runaway guard.
  */
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 
 export interface AutoExtendCeiling {
   maxIterations?: number | undefined;

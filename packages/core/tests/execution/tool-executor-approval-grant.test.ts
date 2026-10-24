@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
+import type { PermissionTrace } from '@wrongstack/contracts/types/permission';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { withExecutorGate } from '../../src/security/permission-explain.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
-import type { Tool } from '../../src/types/index.js';
-import type { PermissionTrace } from '../../src/types/permission.js';
 
 /**
  * "Always allow" at a confirm prompt must stick, also for tools with a

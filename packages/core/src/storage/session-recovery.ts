@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SessionEvent } from '../types/session.js';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import {
   isColdSessionTranscriptFileName,
   isSessionTranscriptFileName,

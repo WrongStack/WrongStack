@@ -4,7 +4,7 @@
  * Folded from the same `buildFleetTopology` output the Fleet Map renders, so
  * the nav and the map can never disagree about what the fleet contains.
  */
-import type { HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSnapshot } from '@wrongstack/hq';
 import {
   buildFleetTopology,
   type FleetTopology,

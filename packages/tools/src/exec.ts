@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
+import type { Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import {
   emitProcessCompleted,
   emitProcessOutput,
   emitProcessStarted,
 } from '@wrongstack/core/observability';
-import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { type DangerAssessment, detectDanger } from './_danger-detect.js';
 import { buildChildEnv } from './_env.js';

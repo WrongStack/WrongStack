@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
-import { type Tool, ToolValidationError } from '@wrongstack/core/types';
+import { type Tool, ToolValidationError } from '@wrongstack/contracts/types';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import { type InvariantViolation, polyglotInvariantEngine } from './ast-invariant-engine.js';
 import { ensureAtlasDir, writeAtlasFile } from './atlas-projection.js';

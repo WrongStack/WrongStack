@@ -1,5 +1,5 @@
-import type { CacheStats, TokenCounter, Usage } from '@wrongstack/core/types';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { CacheStats, TokenCounter, Usage } from '@wrongstack/contracts/types';
 import { useEffect, useState } from 'react';
 
 export interface TokenRefreshData {

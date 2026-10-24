@@ -1,4 +1,9 @@
-import type { MemoryEntry, MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/core/types';
+import type {
+  MemoryEntry,
+  MemoryPriority,
+  MemoryScope,
+  MemoryType,
+} from '@wrongstack/contracts/types';
 import type { Sage, SageKind, SageScope } from './memory-model.js';
 
 export function sageToLegacyScope(scope: SageScope): MemoryScope {

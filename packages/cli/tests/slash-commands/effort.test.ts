@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Config, ModelsRegistry, ReasoningEffort } from '@wrongstack/contracts/types';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import type { Config, ModelsRegistry, ReasoningEffort } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildEffortCommand } from '../../src/slash-commands/effort.js';
 import type { SlashCommandContext } from '../../src/slash-commands/index.js';

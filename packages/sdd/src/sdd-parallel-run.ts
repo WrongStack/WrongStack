@@ -17,8 +17,9 @@
  * await run.run({ onProgress: (p) => console.log(renderProgress(p)) });
  * ```
  */
+
+import type { TaskNode } from '@wrongstack/contracts/types';
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import type { TaskNode } from '@wrongstack/core/types';
 import {
   cancelTask as cancelTaskFromHost,
   cleanupWorktrees as cleanupWorktreesFromHost,

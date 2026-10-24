@@ -1,9 +1,9 @@
-import type { ConfigStore } from '@wrongstack/core/types';
+import type { ConfigStore } from '@wrongstack/contracts/types';
 import {
   normalizeTokenSavingTier,
   resolveFleetChatVerbosity,
   resolveNextStepsMode,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { normalizeTuiThinkingWord } from '../tui-thinking-word.js';
 
 /**

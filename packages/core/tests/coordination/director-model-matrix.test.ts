@@ -1,8 +1,8 @@
+import type { SubagentRunner } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AGENT_CATALOG } from '../../src/coordination/agents/index.js';
 import { Director } from '../../src/coordination/director.js';
 import { phaseForRole } from '../../src/coordination/model-matrix.js';
-import type { SubagentRunner } from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

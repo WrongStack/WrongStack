@@ -2,10 +2,11 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
 import type { ChimeraReviewNeededPayload, SlashCommand } from '../../src/index.js';
-import { EventBus } from '../../src/kernel/events.js';
 import {
   buildReviewerModelPool,
   createAutoReviewPlugin,
@@ -13,7 +14,6 @@ import {
   selectRoundRobinReviewerAssignment,
   trimKnownFingerprints,
 } from '../../src/plugins/auto-review-plugin.js';
-import type { Config } from '../../src/types/config.js';
 
 let tmp = '';
 

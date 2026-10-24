@@ -39,7 +39,7 @@
  * callers can flip the layer off without re-instantiating the policy.
  */
 
-import type { Context } from '../core/context.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type {
   DirectoryPolicy,
   DirectoryRule,
@@ -47,8 +47,8 @@ import type {
   PermissionPolicy,
   PermissionTrace,
   PermissionTraceStep,
-} from '../types/permission.js';
-import type { Tool } from '../types/tool.js';
+} from '@wrongstack/contracts/types/permission';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { providerIdentities } from '../utils/provider-catalog-binding.js';
 import {
   clonePolicy,
@@ -92,7 +92,7 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
     return clonePolicy(this.policy);
   }
 
-  async evaluate(tool: Tool, input: unknown, ctx: Context): Promise<PermissionDecision> {
+  async evaluate(tool: Tool, input: unknown, ctx: AgentContext): Promise<PermissionDecision> {
     // Session-level disable toggle: pass through when the layer is off.
     if (ctx.meta['directoryRules'] === false) {
       return this.inner.evaluate(tool, input, ctx);
@@ -180,7 +180,7 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
   private async refuse(
     tool: Tool,
     input: unknown,
-    ctx: Context,
+    ctx: AgentContext,
     refusal: PermissionDecision,
   ): Promise<PermissionDecision> {
     const mode = this.inner.yoloModeFor?.(ctx);
@@ -192,7 +192,7 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
     return inner.decision.permission === 'deny' ? inner.decision : asked;
   }
 
-  yoloModeFor(ctx?: Pick<Context, 'meta'> | undefined): { yolo: boolean; yoloPlus: boolean } {
+  yoloModeFor(ctx?: Pick<AgentContext, 'meta'> | undefined): { yolo: boolean; yoloPlus: boolean } {
     return this.inner.yoloModeFor?.(ctx) ?? { yolo: false, yoloPlus: false };
   }
 
@@ -274,7 +274,7 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
   }
 
   /** Its own rules first (they are checked first), then the inner policy's. */
-  async listRules(ctx?: Context | undefined): Promise<UnnumberedPermissionRule[]> {
+  async listRules(ctx?: AgentContext | undefined): Promise<UnnumberedPermissionRule[]> {
     const inner = (await this.inner.listRules?.(ctx)) ?? [];
     if (ctx?.meta['directoryRules'] === false) return inner;
     const own: UnnumberedPermissionRule[] = [];
@@ -315,7 +315,7 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
     return [...own, ...inner];
   }
 
-  async explain(tool: Tool, input: unknown, ctx: Context): Promise<PermissionTrace> {
+  async explain(tool: Tool, input: unknown, ctx: AgentContext): Promise<PermissionTrace> {
     const steps: PermissionTraceStep[] = [];
     let winnerIndex = -1;
     // A pass-through is only half an answer: the inner policy decided, and its

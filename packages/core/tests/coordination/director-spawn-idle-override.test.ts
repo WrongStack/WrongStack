@@ -9,9 +9,9 @@
  * this.subagentIdleTimeoutMs (director.ts:494-509).
  */
 
+import type { SubagentRunOutcome, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
-import type { SubagentRunOutcome, TaskSpec } from '../../src/types/multi-agent.js';
 
 type DirectorOpts = ConstructorParameters<typeof Director>[0];
 const tick = () => new Promise((r) => setImmediate(r));

@@ -1,10 +1,10 @@
+import { FetchError, ParseError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it } from 'vitest';
 import {
   createSkillsShAdapter,
   DEFAULT_SKILLS_SH_URL,
   type SkillsShFetcher,
 } from '../../../src/skills/registry/skills-sh-adapter.js';
-import { FetchError, ParseError } from '../../../src/types/errors.js';
 
 /**
  * skills.sh adapter — search + resolveInstallRef. HTTP is fully mocked via the

@@ -8,7 +8,7 @@ import { consoleLogger } from './webui-server/logger-shim.js';
 interface SetupWebuiSessionMaintenanceInput {
   opts: import('./webui-server-options.js').CliWebUIOptions;
   broadcastEveryone: (msg: import('./webui-server/contracts.js').WSServerMessage) => void;
-  getForegroundSession: () => import('@wrongstack/core/types').SessionWriter;
+  getForegroundSession: () => import('@wrongstack/contracts/types').SessionWriter;
   clients: Map<
     import('ws').default,
     import('./webui-server/connection-handler.js').ConnectedClient

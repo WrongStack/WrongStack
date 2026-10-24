@@ -6,7 +6,7 @@ import type {
   HqEventEnvelope,
   HqSessionSnapshotPayload,
   HqSnapshot,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type { HqFleetState, HqSelectionState } from '../../src/data/store/types.js';
 
 export const T0 = '2026-07-14T12:00:00.000Z';

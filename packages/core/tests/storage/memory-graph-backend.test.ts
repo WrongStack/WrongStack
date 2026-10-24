@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { MemoryEntry } from '@wrongstack/contracts/types/memory';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { GraphMemoryBackend } from '../../src/storage/memory-graph-backend.js';
-import type { MemoryEntry } from '../../src/types/memory.js';
 
 let tmp: string;
 let memFile: string;

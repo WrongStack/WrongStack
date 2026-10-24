@@ -1,5 +1,7 @@
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config } from '@wrongstack/contracts/types';
 import {
   getSharedProjectMailbox,
   type RemoteMailbox,
@@ -10,10 +12,8 @@ import type {
   CreateHqPublisherOptions,
   HqClientCapability,
   HqPublisher,
-} from '@wrongstack/core/hq';
-import { createApprovalRegistry, startApprovalTelemetryBridge } from '@wrongstack/core/hq';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config } from '@wrongstack/core/types';
+} from '@wrongstack/hq';
+import { createApprovalRegistry, startApprovalTelemetryBridge } from '@wrongstack/hq';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import {
   startWebuiHqSessionTelemetry,
@@ -54,7 +54,7 @@ export interface WebuiClientPresenceDeps {
   isSessionOwnedElsewhere?: ((sessionId: string) => boolean) | undefined;
   /** A tab's own session writer, when the host holds one. */
   getSessionWriter?:
-    | ((sessionId: string) => import('@wrongstack/core/types').SessionWriter | undefined)
+    | ((sessionId: string) => import('@wrongstack/contracts/types').SessionWriter | undefined)
     | undefined;
   clientVersion?: string | undefined;
   startHqConnection: (options: WebuiHqConnectionOptions) => WebuiHqConnection;

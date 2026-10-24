@@ -8,6 +8,10 @@
  * the YOLO and auto-compaction fixes: the preference moved to the session, the
  * runtime that applies it stayed process-wide.
  */
+
+import { Pipeline } from '@wrongstack/contracts/kernel/pipeline';
+import type { ModelRuntimeConfig } from '@wrongstack/contracts/types/config';
+import type { Capabilities, ReasoningConfig, Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import { bindRequestConversation } from '../../src/core/request-conversation-binding.js';
 import { bindRequestProvider } from '../../src/core/request-provider-binding.js';
@@ -15,9 +19,6 @@ import {
   applyModelRuntime,
   createModelRuntimeMiddleware,
 } from '../../src/execution/model-runtime.js';
-import { Pipeline } from '../../src/kernel/pipeline.js';
-import type { ModelRuntimeConfig } from '../../src/types/config.js';
-import type { Capabilities, ReasoningConfig, Request } from '../../src/types/provider.js';
 
 const REASONING: ReasoningConfig = {
   default: 'enabled',

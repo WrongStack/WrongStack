@@ -4,7 +4,7 @@
  * `design-verify.ts` stays a pure function of file text.
  */
 
-import type { DesignKitTokens } from '../types/design-kit.js';
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { type DesignVerifyReport, verifyFiles } from './design-verify.js';
 
 const UI_EXT_RE = /\.(css|scss|sass|less|tsx|jsx|vue|svelte|astro|html?)$/i;

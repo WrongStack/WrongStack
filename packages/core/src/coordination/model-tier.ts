@@ -26,8 +26,8 @@ import type {
   ModelMatrixEntry,
   ModelTierLevel,
   ModelTiersConfig,
-} from '../types/config.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
+} from '@wrongstack/contracts/types/config';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import type { ResolvedModelTarget } from './model-matrix.js';
 import { phaseForRole, resolveModelTargetFromEntry } from './model-matrix.js';
 

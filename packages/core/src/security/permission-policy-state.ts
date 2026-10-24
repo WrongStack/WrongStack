@@ -5,10 +5,14 @@
  */
 
 import * as fs from 'node:fs/promises';
-import type { Context } from '../core/context.js';
-import type { InputReader } from '../types/input-reader.js';
-import type { PermissionDecision, PermissionPolicy, TrustPolicy } from '../types/permission.js';
-import type { Tool } from '../types/tool.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { InputReader } from '@wrongstack/contracts/types/input-reader';
+import type {
+  PermissionDecision,
+  PermissionPolicy,
+  TrustPolicy,
+} from '@wrongstack/contracts/types/permission';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { matchGlob } from '../utils/glob-match.js';
 import { LruCache } from '../utils/lru-cache.js';
@@ -126,7 +130,7 @@ export abstract class PermissionPolicyState {
     return [...this.yoloConfirmKinds].every((kind) => LOCKED_DESTRUCTIVE_KINDS.has(kind));
   }
 
-  protected hasAgentStateWriteTarget(tool: Tool, input: unknown, ctx: Context): boolean {
+  protected hasAgentStateWriteTarget(tool: Tool, input: unknown, ctx: AgentContext): boolean {
     // B1 (AC-008 / RCE-007): the original `FS_WRITE` gate let
     // `CONFIG_MUTATE` tools — chiefly `mcp_control({action:'enable'})` —
     // escape the carve-out and run an unprompted
@@ -156,7 +160,7 @@ export abstract class PermissionPolicyState {
    * prompt promised that only destructive calls still ask. Tools with no
    * per-call classifier keep their tier.
    */
-  protected broadApprovalStopsShort(tool: Tool, input: unknown, ctx: Context): boolean {
+  protected broadApprovalStopsShort(tool: Tool, input: unknown, ctx: AgentContext): boolean {
     if (this.destructiveKindOf(tool, input, ctx) !== undefined) return true;
     return tool.riskTier === 'destructive' && !isShellSurface(tool);
   }
@@ -169,7 +173,7 @@ export abstract class PermissionPolicyState {
   protected destructiveKindOf(
     tool: Tool,
     input: unknown,
-    ctx: Context,
+    ctx: AgentContext,
   ): DestructiveKind | undefined {
     if (this.hasAgentStateWriteTarget(tool, input, ctx)) return 'agent-state';
 
@@ -202,14 +206,14 @@ export abstract class PermissionPolicyState {
   protected gatedDestructiveKind(
     tool: Tool,
     input: unknown,
-    ctx: Context,
+    ctx: AgentContext,
   ): DestructiveKind | undefined {
     if (!this.effectiveYolo(ctx)) return undefined;
     const kind = this.destructiveKindOf(tool, input, ctx);
     return kind !== undefined && this.yoloConfirmKinds.has(kind) ? kind : undefined;
   }
 
-  protected yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: Context): boolean {
+  protected yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: AgentContext): boolean {
     return this.gatedDestructiveKind(tool, input, ctx) !== undefined;
   }
 
@@ -227,7 +231,7 @@ export abstract class PermissionPolicyState {
    * tools of the other three. The instance flag stays as the fallback for
    * hosts (and tests) that never write the meta key.
    */
-  protected effectiveYolo(ctx?: Pick<Context, 'meta'> | undefined): boolean {
+  protected effectiveYolo(ctx?: Pick<AgentContext, 'meta'> | undefined): boolean {
     // `--restricted`: no path — config, /yolo, a scoped tab — turns YOLO on.
     if (isYoloLockedOff()) return false;
     const scoped = ctx?.meta?.['yolo'];
@@ -244,7 +248,7 @@ export abstract class PermissionPolicyState {
    * {@link effectiveYolo}, then the process switch. `--restricted` locks it off
    * the same way it locks YOLO off.
    */
-  protected effectiveYoloPlus(ctx?: Pick<Context, 'meta'> | undefined): boolean {
+  protected effectiveYoloPlus(ctx?: Pick<AgentContext, 'meta'> | undefined): boolean {
     // YOLO+ never outlives YOLO: "YOLO off" must always mean every call asks,
     // whatever a stale YOLO+ flag in this tab's meta still says.
     if (!this.effectiveYolo(ctx)) return false;
@@ -263,7 +267,7 @@ export abstract class PermissionPolicyState {
     return this.yoloPlus && this.getYolo();
   }
 
-  yoloModeFor(ctx?: Pick<Context, 'meta'> | undefined): { yolo: boolean; yoloPlus: boolean } {
+  yoloModeFor(ctx?: Pick<AgentContext, 'meta'> | undefined): { yolo: boolean; yoloPlus: boolean } {
     return { yolo: this.effectiveYolo(ctx), yoloPlus: this.effectiveYoloPlus(ctx) };
   }
 

@@ -9,10 +9,10 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { TaskGraph } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
 import type { TaskStore } from '@wrongstack/core/tasking';
-import type { TaskGraph } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SddBoardStore } from '../src/sdd-board-store.js';
 import { startSddRun } from '../src/start-sdd-run.js';

@@ -1,12 +1,12 @@
-import { scrubErrorText } from '@wrongstack/core/security';
-import type { ProviderErrorBody } from '@wrongstack/core/types';
+import type { ProviderErrorBody } from '@wrongstack/contracts/types';
 import {
   classifyProviderError,
   isRetryableKind,
   isSafetyPolicyCode,
   ProviderError,
   SAFETY_POLICY_GUIDANCE,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { scrubErrorText } from '@wrongstack/core/security';
 import { isPlainObject } from './object-utils.js';
 
 /**

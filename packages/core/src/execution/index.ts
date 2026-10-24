@@ -7,6 +7,7 @@ export {
   type LeaderEffortOverride,
   readLeaderEffortOverride,
   restoreLeaderEffortOverride,
+  writeLeaderEffortOverride,
 } from '../utils/leader-effort-override.js';
 export {
   AutoCompactionMiddleware,
@@ -116,6 +117,7 @@ export {
   buildCouncilVoterUserPrompt,
   COUNCIL_JUDGE_PROMPT_PATH,
   COUNCIL_VOTER_PROMPT_PATH,
+  validateCouncilOptions,
 } from './council-prompts.js';
 export {
   type CouncilResolution,
@@ -172,24 +174,20 @@ export {
   type IterationStage,
 } from './eternal-autonomy.js';
 export { buildGoalPreamble } from './goal-preamble.js';
+export { getHistoryRetention } from './history-retention.js';
 export { IntelligentCompactor, type IntelligentCompactorOptions } from './intelligent-compactor.js';
 export {
   applyModelRuntime,
   createModelRuntimeMiddleware,
   type ModelRuntimeMiddlewareOptions,
   mergeModelRuntime,
+  nearestSupportedEffort,
   type ResolvedModelRuntime,
   resolveCacheForRequest,
   resolveModelRuntime,
   resolveReasoningForRequest,
 } from './model-runtime.js';
 export { OneShotOrchestrator } from './one-shot-llm.js';
-export {
-  type ParallelEngineState,
-  ParallelEternalEngine,
-  type ParallelEternalOptions,
-  type ParallelIterationStage,
-} from './parallel-eternal-engine.js';
 export {
   buildRefinerContextSections,
   completeRefinerPass,
@@ -204,6 +202,7 @@ export {
   recentTextTurns,
   shouldEnhance,
 } from './prompt-enhancer.js';
+export { type RefinerTargetSpec, resolveRefinerTargetSpecs } from './refiner-target.js';
 export { DefaultPromptLoader, type PromptLoaderOptions, renderPrompt } from './prompt-loader.js';
 export {
   projectRefineResult,
@@ -233,6 +232,7 @@ export {
 } from './strategy-compactor.js';
 export { installSubagentAutoCompaction } from './subagent-compaction.js';
 export { ToolExecutor } from './tool-executor.js';
+export type { ToolExecutorInit, ToolExecutorOptions } from './tool-executor-options.js';
 export {
   startFreshTopicContext,
   type TopicShiftAdvice,

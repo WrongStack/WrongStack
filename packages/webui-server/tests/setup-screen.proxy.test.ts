@@ -5,8 +5,8 @@
  * real singleton) and the provider factory.
  */
 
+import type { Config } from '@wrongstack/contracts/types';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
-import type { Config } from '@wrongstack/core/types';
 import {
   __resetProxyConfigForTests,
   applyProxyConfig,

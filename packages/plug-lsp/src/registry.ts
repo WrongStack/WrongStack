@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import { languageIdFor } from './language-detect.js';
 import { nextReconnectDelay } from './server/lifecycle.js';
 import { LSPServer } from './server/lsp-server.js';

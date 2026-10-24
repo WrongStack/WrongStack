@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { areSubagentsAllowed } from '../coordination/session-subagent-policy.js';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import { isWrongStackError } from '@wrongstack/contracts/types/errors';
+import type { Tool } from '@wrongstack/contracts/types/tool';
+import {
+  GOVERNED_TOOL_EXECUTOR_META_KEY,
+  type GovernedToolExecutor,
+  type ToolBatchResult,
+  type ToolExecutionOutput,
+  type ToolExecutorStrategy,
+} from '@wrongstack/contracts/types/tool-executor';
 import { keepsOwnContext } from '../core/agent-owned-context.js';
 import type { Context } from '../core/context.js';
 import { queueDirectoryInstructions } from '../core/project-instructions.js';
@@ -12,22 +21,13 @@ import {
   ToolCapabilities,
 } from '../security/capabilities.js';
 import { describeWriteTargets } from '../security/permission-helpers.js';
+import { areSubagentsAllowed } from '../security/session-subagent-policy.js';
 import {
   pendingRequiredSkills,
   REQUIRED_SKILLS_LOADER_TOOL,
   requiredSkillsDeniedMessage,
 } from '../skills/required-skill-gate.js';
 import { skillSpeedBump } from '../skills/skill-speed-bump.js';
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import { isWrongStackError } from '../types/errors.js';
-import type { Tool } from '../types/tool.js';
-import {
-  GOVERNED_TOOL_EXECUTOR_META_KEY,
-  type GovernedToolExecutor,
-  type ToolBatchResult,
-  type ToolExecutionOutput,
-  type ToolExecutorStrategy,
-} from '../types/tool-executor.js';
 import { toErrorMessage } from '../utils/error.js';
 import { rememberProgrammaticOutput } from '../utils/tool-programmatic-output.js';
 import {

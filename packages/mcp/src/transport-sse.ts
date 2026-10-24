@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { ToolError } from '@wrongstack/core/types';
+import { ToolError } from '@wrongstack/contracts/types';
 import { assertSupportedServerProtocolVersion, MCP_CONSTANTS } from './constants.js';
 import type { JsonRpcResponse, ToolCallResult } from './contracts.js';
 import {

@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { color, getToolDescriptionMode } from '@wrongstack/core/utils';
 import { toolDisplayName } from '@wrongstack/tools/tool-summary';
 import type { SlashCommandContext } from './command-context.js';

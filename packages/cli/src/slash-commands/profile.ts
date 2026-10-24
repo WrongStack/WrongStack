@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { Config, SlashCommand } from '@wrongstack/core/types';
+import type { Config, SlashCommand } from '@wrongstack/contracts/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { atomicWrite, color, readJsonObjectFile } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';

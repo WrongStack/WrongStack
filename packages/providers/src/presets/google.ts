@@ -15,7 +15,7 @@ import type {
   StreamEvent,
   Tool,
   Usage,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { compactToolDefinitionForWire, safeParse } from '@wrongstack/core/utils';
 import { providerErrorFromStreamPayload } from '../error-parse.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';

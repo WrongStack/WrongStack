@@ -1,4 +1,4 @@
-import type { MCPServerConfig, Tool } from '@wrongstack/core/types';
+import type { MCPServerConfig, Tool } from '@wrongstack/contracts/types';
 import type { MCPClient } from './client.js';
 import type { MCPUnsupportedProtocolVersionError } from './constants.js';
 import type { ConnectionState, MCPTool } from './contracts.js';

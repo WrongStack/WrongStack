@@ -15,9 +15,9 @@
  * Route new tests through here instead of hand-rolling a registry.
  */
 import * as path from 'node:path';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
+import { Container, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config, SessionWriter, TextBlock } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Config, SessionWriter, TextBlock } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { vi } from 'vitest';
 import { setupCliPromptAndTools } from '../src/wiring/cli-prompt-and-tools-setup.js';

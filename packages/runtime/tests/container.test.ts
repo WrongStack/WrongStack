@@ -1,12 +1,13 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { FallbackProfileManager } from '@wrongstack/core/agent';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { SessionStore } from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
+import { FallbackProfileManager, HQ_MAILBOX_PUBLISHER_FACTORY } from '@wrongstack/core/agent';
+import { createHqPublisherFromEnv } from '@wrongstack/hq';
 import { DirectoryPermissionPolicy } from '@wrongstack/core/security';
 import { DefaultConfigStore, getSessionRegistry } from '@wrongstack/core/storage';
-import type { SessionStore } from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
 import { SqliteMemoryPort } from '@wrongstack/sage';
 import { describe, expect, it, vi } from 'vitest';
 import { createDefaultContainer } from '../src/container.js';
@@ -68,6 +69,18 @@ describe('createDefaultContainer', () => {
       modelsRegistry: mockModels,
     });
     expect(c).toBeInstanceOf(Container);
+  });
+
+  it('binds the HQ mailbox publisher factory for the agent mailbox wiring', () => {
+    // Core resolves this from the container; unbound silently disables the
+    // HQ mirror of the project mailbox.
+    const c = createDefaultContainer({
+      config: mockConfig,
+      wpaths: mockWpaths,
+      logger: mockLogger,
+      modelsRegistry: mockModels,
+    });
+    expect(c.resolve(HQ_MAILBOX_PUBLISHER_FACTORY)).toBe(createHqPublisherFromEnv);
   });
 
   it('binds ConfigStore with the provided config', () => {

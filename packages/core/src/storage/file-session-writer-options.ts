@@ -1,5 +1,5 @@
-import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type { SessionEvent, SessionSummary } from '../types/session.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { SessionEvent, SessionSummary } from '@wrongstack/contracts/types/session';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
 
 /** Constructor options for `FileSessionWriter` (file-session-writer.ts). */

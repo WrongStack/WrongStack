@@ -1,4 +1,4 @@
-import type { ReasoningEffort } from '@wrongstack/core/types';
+import type { ReasoningEffort } from '@wrongstack/contracts/types';
 
 /**
  * Canonical effort levels. `satisfies` pins this copy to core's

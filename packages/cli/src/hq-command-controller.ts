@@ -16,9 +16,9 @@
  * @module hq-command-controller
  */
 
+import type { UserInputResponse } from '@wrongstack/contracts/types';
 import type { RemoteMailbox } from '@wrongstack/core/coordination';
-import type { HqCommand, HqPublisherCommandResult } from '@wrongstack/core/hq';
-import type { UserInputResponse } from '@wrongstack/core/types';
+import type { HqCommand, HqPublisherCommandResult } from '@wrongstack/hq';
 
 /**
  * Mutable holder for the command dispatch targets. Each field is populated

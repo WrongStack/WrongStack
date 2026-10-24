@@ -1,10 +1,10 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
 import {
   BudgetExceededError,
-  SubagentBudget,
   BudgetThresholdSignal,
+  SubagentBudget,
 } from '../../src/coordination/subagent-budget.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 describe('SubagentBudget', () => {
   it('records iterations and throws when over limit', () => {

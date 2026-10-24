@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Provider, Request } from '@wrongstack/core/types';
+import type { Provider, Request } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SecurityScanner } from '../src/scanner.js';
 import type { GeneratedSkill } from '../src/skill-generator.js';

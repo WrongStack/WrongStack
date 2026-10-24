@@ -3,7 +3,7 @@ import type {
   Message,
   SessionEvent,
   TokenSavingTier,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import type { State } from './app-state.js';
 import { AUTH_PANEL_INITIAL } from './auth-panel-model.js';
 import { retainCheckpoints } from './checkpoint-retention.js';

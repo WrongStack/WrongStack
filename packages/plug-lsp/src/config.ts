@@ -1,6 +1,6 @@
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { JSONSchema } from '@wrongstack/contracts/types';
 import type { PluginAPI } from '@wrongstack/core/plugin';
-import type { JSONSchema } from '@wrongstack/core/types';
 import { PRESETS } from './presets.js';
 import type { PlugLSPConfig, ServerConfig, SeverityName } from './types.js';
 

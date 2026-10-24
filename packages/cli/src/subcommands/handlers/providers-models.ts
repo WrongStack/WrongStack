@@ -1,4 +1,4 @@
-import type { WireFamily } from '@wrongstack/core/types';
+import type { WireFamily } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import { visibleModelIds } from '../../provider-helpers.js';
 import type { SubcommandHandler } from '../contracts.js';

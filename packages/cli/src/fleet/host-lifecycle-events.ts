@@ -1,5 +1,5 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { TaskResult } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { TaskResult } from '@wrongstack/contracts/types';
 
 export function emitHostLifecycleCompleted(
   events: EventBus,

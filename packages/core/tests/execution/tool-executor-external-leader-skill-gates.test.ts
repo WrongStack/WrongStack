@@ -9,11 +9,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';

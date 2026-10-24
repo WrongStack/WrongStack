@@ -1,12 +1,13 @@
 import { appendFileSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   providerToolsForVariant,
   SCOUT_LEARNED_TOOLS_META_KEY,
-} from '../../src/core/scout-tool-surface.js';
-import { EventBus } from '../../src/kernel/events.js';
+} from '../../src/registry/scout-tool-surface.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { ToolCapabilities } from '../../src/security/capabilities.js';
 import {
@@ -16,7 +17,6 @@ import {
   scoutToolUseLogPath,
   seedScoutLearnedTools,
 } from '../../src/storage/scout-tool-learning.js';
-import type { Tool } from '../../src/types/tool.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 9, 4);

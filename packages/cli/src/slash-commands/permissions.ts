@@ -1,3 +1,4 @@
+import type { SessionPermissionOverride, SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import {
   compilePermissionRules,
@@ -6,7 +7,6 @@ import {
   readSessionPermissionOverrides,
   setSessionPermissionOverrides,
 } from '@wrongstack/core/security';
-import type { SessionPermissionOverride, SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import {
   explainCall,

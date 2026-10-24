@@ -24,12 +24,13 @@
  * D2 fixed all of these; this test pins the contract so any future
  * refactor that loses one of the guarantees fails loudly.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it, vi } from 'vitest';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { TaskResult } from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

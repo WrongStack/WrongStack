@@ -1,4 +1,4 @@
-import type { ContextBreakdown } from '@wrongstack/core/utils';
+import type { ContextBreakdown } from '@wrongstack/core/agent';
 import { render } from 'ink-testing-library';
 import { describe, expect, it } from 'vitest';
 import { contextSpectrum, SidebarContent } from '../src/components/sidebar-content.js';

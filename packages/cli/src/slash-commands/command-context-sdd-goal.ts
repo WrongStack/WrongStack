@@ -52,7 +52,7 @@ export interface SlashSddGoalCommandContext {
     goal: string;
     projectContext?: string | undefined;
   }) => Promise<
-    { ok: true; graph: import('@wrongstack/core/goal').PhaseGraph } | { ok: false; error: string }
+    { ok: true; graph: import('@wrongstack/goal').PhaseGraph } | { ok: false; error: string }
   >;
   onGoalPause?: (() => void) | undefined;
   onGoalResume?: (() => void) | undefined;
@@ -63,16 +63,15 @@ export interface SlashSddGoalCommandContext {
    */
   onGoalResumeFromGraph?:
     | ((
-        graph: import('@wrongstack/core/goal').PhaseGraph,
+        graph: import('@wrongstack/goal').PhaseGraph,
       ) => Promise<
-        | { ok: true; graph: import('@wrongstack/core/goal').PhaseGraph }
-        | { ok: false; error: string }
+        { ok: true; graph: import('@wrongstack/goal').PhaseGraph } | { ok: false; error: string }
       >)
     | undefined;
   /** Live, read-only view of the running Goal (null when idle). */
   getGoalRunner?: () => {
-    graph: import('@wrongstack/core/goal').PhaseGraph;
-    getProgress: () => import('@wrongstack/core/goal').PhaseProgress | null;
+    graph: import('@wrongstack/goal').PhaseGraph;
+    getProgress: () => import('@wrongstack/goal').PhaseProgress | null;
     isRunning: () => boolean;
   } | null;
   /** Interactive board: move a task to another phase (returns false when idle/invalid). */
@@ -88,8 +87,8 @@ export interface SlashSddGoalCommandContext {
         spec: {
           title: string;
           description?: string;
-          type?: import('@wrongstack/core/types').TaskNode['type'];
-          priority?: import('@wrongstack/core/types').TaskNode['priority'];
+          type?: import('@wrongstack/contracts/types').TaskNode['type'];
+          priority?: import('@wrongstack/contracts/types').TaskNode['priority'];
         },
       ) => string | null)
     | undefined;

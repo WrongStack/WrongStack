@@ -1,9 +1,9 @@
+import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
+import type { ContextWindowPolicy } from '@wrongstack/contracts/types/context-window';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import type { Context } from '../core/context.js';
 import { noOpLogger } from '../infrastructure/logger.js';
-import type { Compactor, CompactReport } from '../types/compactor.js';
-import type { ContextWindowPolicy } from '../types/context-window.js';
-import type { Logger } from '../types/logger.js';
-import type { Message } from '../types/messages.js';
 import {
   buildContextEvidenceDigest,
   checkCompactionQuality,
@@ -50,14 +50,14 @@ export interface CompactorOptions {
  * Import this instead of hardcoding to avoid cross-surface inconsistencies.
  * These mirror the values in CONFIG_BEHAVIOR_DEFAULTS (config-loader.ts).
  *
- * @deprecated Import from '../types/default-config.js' instead.
+ * @deprecated Import from '@wrongstack/contracts/types/default-config' instead.
  *             This re-export exists for backward compatibility.
  */
 export {
   DEFAULT_AUTONOMY_CONFIG,
   DEFAULT_CONTEXT_CONFIG,
   DEFAULT_TOOLS_CONFIG,
-} from '../types/default-config.js';
+} from '@wrongstack/contracts/types/default-config';
 
 export class HybridCompactor implements Compactor {
   private readonly preserveK: number;

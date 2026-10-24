@@ -1,4 +1,4 @@
-import { FetchError, ParseError } from '@wrongstack/core/types';
+import { FetchError, ParseError } from '@wrongstack/contracts/types';
 
 // Copilot token minting + API-base derivation, split out of github-copilot.ts
 // so the oauth entry (oauth/copilot.ts) can mint tokens without bundling the

@@ -1,6 +1,6 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it } from 'vitest';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 /**
  * `token.accounted` must be able to name the agent that spent the tokens.

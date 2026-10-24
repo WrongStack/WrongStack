@@ -1,5 +1,5 @@
+import type { Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Tool } from '@wrongstack/core/types';
 import { executeBashStream } from './bash-stream.js';
 import type { BashInput, BashOutput } from './bash-types.js';
 import { getProcessRegistry } from './process-registry.js';

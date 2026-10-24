@@ -1,6 +1,6 @@
 import type * as http from 'node:http';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { sanitizeApiError } from '@wrongstack/core/security';
-import type { MemoryPort } from '@wrongstack/core/types';
 import { getSageSurface, type Sage } from '@wrongstack/sage';
 
 interface MemorySearchHit {

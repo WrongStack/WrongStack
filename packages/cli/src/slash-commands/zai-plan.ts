@@ -19,8 +19,8 @@
  *   /zai-plan <days>   Same, with a 1–30 day usage window
  */
 
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { formatQuotaResetIn, quotaResetInMs } from '@wrongstack/core/quota';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import {
   listZaiAccounts,

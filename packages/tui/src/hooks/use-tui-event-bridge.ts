@@ -1,5 +1,5 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import { normalizeWorktreeEvent } from '@wrongstack/core/types/worktree-timeline';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import { normalizeWorktreeEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
 import { useCallback, useEffect } from 'react';
 import type { Action, State } from '../app-reducer.js';

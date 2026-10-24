@@ -1,6 +1,6 @@
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import type { InputBuilder } from '@wrongstack/core/agent';
 import { buildGoalPreamble } from '@wrongstack/core/execution';
-import type { ContentBlock } from '@wrongstack/core/types';
 import { type Dispatch, type MutableRefObject, useEffect, useRef } from 'react';
 import type { Action } from '../app-action-type.js';
 

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
+import type { ProviderApiKey, ProviderConfig } from '@wrongstack/contracts/types';
 import type { DefaultSecretVault } from '@wrongstack/core/security';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
-import type { ProviderApiKey, ProviderConfig } from '@wrongstack/core/types';
 import { atomicWrite, expectDefined } from '@wrongstack/core/utils';
 // One masking policy per package. This file used to carry a byte-identical
 // private copy of `maskedKey`, so a change to how much of a secret is shown

@@ -1,4 +1,4 @@
-import type { Config } from '../../types/config.js';
+import type { Config } from '@wrongstack/contracts/types/config';
 import type { PartialConfig } from './env-overrides.js';
 
 const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([

@@ -1,4 +1,4 @@
-import { resolveHqDataDir } from '@wrongstack/core/hq';
+import { resolveHqDataDir } from '@wrongstack/hq';
 import type { SubcommandDeps } from '../contracts.js';
 
 // ── --ttl parsing ──────────────────────────────────────────────────────────

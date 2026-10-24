@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { GoalSummary } from '@wrongstack/core/goal';
+import type { GoalSummary } from '@wrongstack/goal';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MyGoals } from '../../src/components/MyGoals';
 import {

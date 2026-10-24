@@ -4,7 +4,7 @@ import {
   type LimitsBudgetKey,
   type LimitsScalarKey,
   limitValueError,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
 import {
   CACHE_TTL_VALUES,

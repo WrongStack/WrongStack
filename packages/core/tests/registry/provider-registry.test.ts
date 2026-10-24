@@ -1,6 +1,6 @@
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import { type ProviderFactory, ProviderRegistry } from '../../src/registry/provider-registry.js';
-import type { Provider } from '../../src/types/provider.js';
 
 const fakeProvider: Provider = {
   id: 'fake',

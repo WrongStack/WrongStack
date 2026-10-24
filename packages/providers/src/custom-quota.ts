@@ -14,13 +14,13 @@
  * @module custom-quota
  */
 
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import {
   type ProviderQuotaCredits,
   type ProviderQuotaSnapshot,
   type ProviderQuotaWindow,
   recordProviderQuota,
 } from '@wrongstack/core/quota';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import { formatBalance } from './balance-quota.js';
 import { upstreamUrl } from './proxy-upstream.js';
 

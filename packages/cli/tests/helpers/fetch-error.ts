@@ -31,7 +31,7 @@
  * in an `afterEach` if subsequent assertions need the real fetch). This
  * matches the existing test pattern.
  */
-import { type FetchError, isFetchError } from '@wrongstack/core/types';
+import { type FetchError, isFetchError } from '@wrongstack/contracts/types';
 import { expect, vi } from 'vitest';
 
 export interface ExpectFetchErrorOptions {

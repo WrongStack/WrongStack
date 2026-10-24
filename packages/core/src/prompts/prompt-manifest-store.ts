@@ -1,6 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { InstalledPromptEntry, PromptManifestData } from '../types/prompt-registry.js';
+import type {
+  InstalledPromptEntry,
+  PromptManifestData,
+} from '@wrongstack/contracts/types/prompt-registry';
 import { atomicWrite, ensureDir } from '../utils/atomic-write.js';
 
 /**

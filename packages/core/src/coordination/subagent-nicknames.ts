@@ -209,11 +209,11 @@ export function getAllNicknameKeys(): string[] {
  * (e.g. "Einstein (Executor)").
  */
 export function applyCoordinatorNickname(
-  subagent: import('../types/multi-agent.js').SubagentConfig,
+  subagent: import('@wrongstack/contracts/types/multi-agent').SubagentConfig,
   subagentId: string,
   usedNicknames: Set<string>,
   subagentNicknames: Map<string, string>,
-): import('../types/multi-agent.js').SubagentConfig {
+): import('@wrongstack/contracts/types/multi-agent').SubagentConfig {
   const role = subagent.role ?? 'subagent';
   const name = subagent.name?.trim() ?? '';
   const isPlaceholder =

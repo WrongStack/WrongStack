@@ -1,12 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { type DocumentBlock, documentAsText } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import { projectSessionTimeline } from '@wrongstack/contracts/types/session-timeline';
 import { describe, expect, it } from 'vitest';
 import { InputBuilder } from '../../src/core/input-builder.js';
 import { DefaultAttachmentStore } from '../../src/storage/attachment-store.js';
-import { type DocumentBlock, documentAsText } from '../../src/types/blocks.js';
-import type { Message } from '../../src/types/messages.js';
-import { projectSessionTimeline } from '../../src/types/session-timeline.js';
 import { adaptDocumentsForModel } from '../../src/utils/document-blocks.js';
 import {
   IncomingImageError,

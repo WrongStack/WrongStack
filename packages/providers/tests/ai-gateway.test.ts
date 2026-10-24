@@ -1,4 +1,4 @@
-import type { ModelsRegistry, Request, StreamEvent, Tool } from '@wrongstack/core/types';
+import type { ModelsRegistry, Request, StreamEvent, Tool } from '@wrongstack/contracts/types';
 import { APICallError, type LanguageModelUsage, type TextStreamPart, type ToolSet } from 'ai';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

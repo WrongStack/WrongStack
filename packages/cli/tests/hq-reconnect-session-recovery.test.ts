@@ -14,12 +14,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { HqSnapshot } from '@wrongstack/core/hq';
-import {
-  HQ_AUTH_FILE_VERSION,
-  startSessionTelemetryBridge,
-  writeHqAuthFile,
-} from '@wrongstack/core/hq';
+import type { HqSnapshot } from '@wrongstack/hq';
+import { HQ_AUTH_FILE_VERSION, startSessionTelemetryBridge, writeHqAuthFile } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from '../src/ws-runtime.js';
 import { createCliHqPublisher } from '../src/hq-publisher.js';

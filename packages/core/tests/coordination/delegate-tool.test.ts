@@ -1,6 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type {
+  SubagentRunContext,
+  SubagentRunOutcome,
+  TaskSpec,
+} from '@wrongstack/contracts/types/multi-agent';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDelegateTool,
@@ -9,14 +16,7 @@ import {
 } from '../../src/coordination/delegate-tool.js';
 import { Director } from '../../src/coordination/director.js';
 import { FLEET_ROSTER } from '../../src/coordination/fleet.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { ToolCapabilities } from '../../src/security/capabilities.js';
-import type {
-  SubagentRunContext,
-  SubagentRunOutcome,
-  TaskSpec,
-} from '../../src/types/multi-agent.js';
-import type { Tool } from '../../src/types/tool.js';
 
 /**
  * Every call in this file exercises the historical BLOCKING contract, so the

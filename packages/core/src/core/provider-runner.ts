@@ -1,19 +1,19 @@
-import { createChroniclePromptManifest } from '../chronicle/prompt-manifest.js';
-import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
-import type { EventBus } from '../kernel/events.js';
-import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
-import { scrubErrorText } from '../security/error-sanitize.js';
-import type { AgentContext } from '../types/context.js';
-import { toWrongStackError } from '../types/errors.js';
-import type { Logger } from '../types/logger.js';
-import type { Tracer } from '../types/observability.js';
-import type { Provider, Request, Response } from '../types/provider.js';
-import { isSafetyPolicyRefusal, ProviderError } from '../types/provider.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import { toWrongStackError } from '@wrongstack/contracts/types/errors';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Tracer } from '@wrongstack/contracts/types/observability';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
+import { isSafetyPolicyRefusal, ProviderError } from '@wrongstack/contracts/types/provider';
 import {
   parseProviderReportedMaxOutput,
   recordProviderReportedMaxOutput,
-} from '../types/provider-output-caps.js';
-import type { RetryPolicy } from '../types/retry-policy.js';
+} from '@wrongstack/contracts/types/provider-output-caps';
+import type { ProviderStatusTrackerPort } from '@wrongstack/contracts/types/provider-status';
+import type { RetryPolicy } from '@wrongstack/contracts/types/retry-policy';
+import { createChroniclePromptManifest } from '../chronicle/prompt-manifest.js';
+import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
+import { scrubErrorText } from '../security/error-sanitize.js';
 import { adaptDocumentsForModel } from '../utils/document-blocks.js';
 import {
   deactivateProxyOnConnectionFailure,
@@ -59,7 +59,7 @@ export interface RunProviderOptions {
    * put a quarantined (provider, model) pair on the wire and reports every
    * wire outcome back into it. See {@link runProviderWithRetry}.
    */
-  statusTracker?: ProviderModelStatusTracker | undefined;
+  statusTracker?: ProviderStatusTrackerPort | undefined;
   /**
    * Stable id for this logical step. Every retry, and every fallback hop an
    * extension takes for the same agent-loop iteration, shares it — so

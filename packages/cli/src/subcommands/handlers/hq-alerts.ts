@@ -6,7 +6,7 @@ import {
   type HqAlertRuleConfig,
   type HqSnapshot,
   readHqAlertsConfig,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type { SubcommandDeps } from '../contracts.js';
 
 // ── --ttl parsing ──────────────────────────────────────────────────────────

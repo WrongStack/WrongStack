@@ -3,7 +3,7 @@
 // share this port). Override with --host / WEBUI_HOST and --port / PORT.
 // Run several instances on different ports — `wstack --webui --list` shows
 // which are open for which project (registry: ~/.wrongstack/webui-instances.json).
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { hardenWin32ExecutableSearch } from '@wrongstack/core/utils';
 import { startWebUI } from './index.js';
 import { formatInstances, listInstances } from './instance-registry.js';

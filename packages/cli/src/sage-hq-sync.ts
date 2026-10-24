@@ -6,7 +6,7 @@ import {
   type HqSageSnapshotPayload,
   isHqSageRecord,
   MAX_HQ_SAGE_RECORD_BYTES,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { SageProjectServerConnection } from '@wrongstack/sage';
 

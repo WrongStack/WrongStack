@@ -12,7 +12,7 @@
 import { execFile } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 
 const API_VERSION = '^0.1.10';
 

@@ -1,4 +1,4 @@
-import type { AgentContext } from '../types/context.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
 import { resolveEventSessionId, resolveOwningSessionId } from './context-session-id.js';
 
 /**

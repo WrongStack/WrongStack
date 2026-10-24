@@ -8,13 +8,14 @@
  * `context_overflow` — which is NOT fallback-worthy, so it surfaces as an error
  * instead of continuing to the next candidate.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { createFallbackModelExtension } from '../../src/core/fallback-model.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Config } from '../../src/types/config.js';
-import type { Provider, Request, Response } from '../../src/types/provider.js';
-import { ProviderError } from '../../src/types/provider.js';
 
 function makeProvider(id: string, maxContext: number): Provider {
   return {

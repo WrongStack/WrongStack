@@ -65,6 +65,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^2.0.0",
+    "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/primitives": "workspace:*"
   },

@@ -4,8 +4,7 @@
  * {@link CouncilOrchestrator} (council-orchestrator.ts).
  */
 
-import type { FallbackProfileManager } from '../core/fallback-profile-manager.js';
-import type { Config } from '../types/config.js';
+import type { Config } from '@wrongstack/contracts/types/config';
 import type {
   CouncilLLMCaller,
   CouncilModelTarget,
@@ -13,8 +12,9 @@ import type {
   CouncilQuestion,
   CouncilVoteResult,
   ResolvedCouncilProfile,
-} from '../types/council.js';
-import type { OneShotLLMResult } from '../types/one-shot-llm.js';
+} from '@wrongstack/contracts/types/council';
+import type { OneShotLLMResult } from '@wrongstack/contracts/types/one-shot-llm';
+import type { FallbackProfileManager } from '../core/fallback-profile-manager.js';
 import {
   addUsage,
   CALL_CANCELLED_REASON,

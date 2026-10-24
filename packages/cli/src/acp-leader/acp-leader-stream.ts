@@ -6,7 +6,7 @@
  * ProviderErrors.
  */
 import type { ACPCapturedToolCall, ACPSessionRunResult } from '@wrongstack/acp';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   ContentBlock,
   Message,
@@ -15,8 +15,8 @@ import type {
   StreamEvent,
   SubagentError,
   Usage,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
 /** A push-to-pull bridge: the agent's progress callback pushes, the stream iterates. */

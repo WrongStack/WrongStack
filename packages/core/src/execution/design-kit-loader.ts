@@ -1,8 +1,6 @@
 import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { moduleDirFor } from '@wrongstack/persistence';
-import { stripFrontmatter } from '../skills/frontmatter.js';
 import {
   DESIGN_STACKS,
   type DesignKitEntry,
@@ -12,7 +10,9 @@ import {
   type DesignStack,
   isDesignStack,
   type SkippedKitInfo,
-} from '../types/design-kit.js';
+} from '@wrongstack/contracts/types/design-kit';
+import { moduleDirFor } from '@wrongstack/persistence';
+import { stripFrontmatter } from '../skills/frontmatter.js';
 import { toErrorMessage } from '../utils/error.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 

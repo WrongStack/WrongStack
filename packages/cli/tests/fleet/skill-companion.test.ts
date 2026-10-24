@@ -1,22 +1,22 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Context } from '@wrongstack/core/agent';
-import { renderInstructionLayer } from '@wrongstack/core/agent';
-import type { Director } from '@wrongstack/core/coordination';
-import { DEFAULT_SUBAGENT_BASELINE, makeSubagentResultTool } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
-import {
-  markRecommendedSkillLoaded,
-  markRecommendedSkillUnavailable,
-  readSkillCompanionState,
-} from '@wrongstack/core/skills';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   SkillLoader,
   SkillManifest,
   SubagentConfig,
   TaskResult,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Context } from '@wrongstack/core/agent';
+import { renderInstructionLayer } from '@wrongstack/core/agent';
+import type { Director } from '@wrongstack/core/coordination';
+import { DEFAULT_SUBAGENT_BASELINE, makeSubagentResultTool } from '@wrongstack/core/coordination';
+import {
+  markRecommendedSkillLoaded,
+  markRecommendedSkillUnavailable,
+  readSkillCompanionState,
+} from '@wrongstack/core/skills';
 import { estimateTextTokens } from '@wrongstack/core/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HostSkillCompanion } from '../../src/fleet/host-skill-companion.js';

@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { assessCommitSafety } from '@wrongstack/core/coordination';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { runGit } from '../services/run-git.js';
 import type { SlashCommandContext } from './command-context.js';

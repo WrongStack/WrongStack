@@ -1,13 +1,13 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SecretScrubber } from '../types/secret-scrubber.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type {
   FileSnapshot,
   SessionEvent,
   SessionMetadata,
   SessionSummary,
   SessionWriter,
-} from '../types/session.js';
+} from '@wrongstack/contracts/types/session';
 import type { EventBus } from './event-bus-port.js';
 import type { FileSessionWriterOptions } from './file-session-writer-options.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';

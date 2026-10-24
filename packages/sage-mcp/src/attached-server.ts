@@ -17,7 +17,7 @@
  * - **Read + propose.** The read tools plus `memory_candidates` narrowed to
  *   `list`/`propose`, stamped with the caller's name.
  */
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { MCPServer, type MCPServerToolHost, serveStdio } from '@wrongstack/mcp';
 import { ProjectSageMemoryPort } from '@wrongstack/sage';

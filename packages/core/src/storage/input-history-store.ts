@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SecretScrubber } from '../types/secret-scrubber.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import { atomicWrite, ensureDir, withFileLock } from '../utils/atomic-write.js';
 
 /**

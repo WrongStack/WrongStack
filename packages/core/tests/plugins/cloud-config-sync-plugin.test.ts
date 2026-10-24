@@ -1,10 +1,10 @@
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { CloudSyncConfig } from '@wrongstack/contracts/types/config';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCloudConfigSyncPlugin } from '../../src/plugins/cloud-config-sync-plugin.js';
-import type { CloudSyncConfig } from '../../src/types/config.js';
-import type { SlashCommand } from '../../src/types/slash-command.js';
 
 const VALID_TOKEN = `wst_${'a'.repeat(43)}`;
 

@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelsDevPayload } from '@wrongstack/contracts/types/models-registry';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { classifyFamily, DefaultModelsRegistry } from '../../src/models/models-registry.js';
-import type { ModelsDevPayload } from '../../src/types/models-registry.js';
 
 const SAMPLE: ModelsDevPayload = {
   anthropic: {

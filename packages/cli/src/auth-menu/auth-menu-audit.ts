@@ -29,8 +29,8 @@
  */
 
 import { appendFileSync } from 'node:fs';
+import type { SecretScrubber } from '@wrongstack/contracts/types';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { SecretScrubber } from '@wrongstack/core/types';
 
 /**
  * Discriminated union of every event the auth-menu local flow

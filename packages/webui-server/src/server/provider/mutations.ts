@@ -1,5 +1,5 @@
+import type { ModelsRegistry, ProviderConfig } from '@wrongstack/contracts/types';
 import type { ProviderAuthRegistry } from '@wrongstack/core/registry';
-import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from '../types.js';
 import { send as sendToSocket, stampDispatchSession } from '../ws-utils.js';

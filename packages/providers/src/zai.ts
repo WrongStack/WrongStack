@@ -27,7 +27,6 @@
  * @module zai
  */
 
-import { recordProviderQuota } from '@wrongstack/core/quota';
 import type {
   Capabilities,
   ImageGenerationRequest,
@@ -38,8 +37,9 @@ import type {
   Request,
   Response,
   StreamEvent,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
+import { recordProviderQuota } from '@wrongstack/core/quota';
 import { AnthropicProvider } from './anthropic.js';
 import type { CompatibilityQuirks } from './compatibility-quirks.js';
 import type { BuildBodyContext } from './model-output-limits.js';

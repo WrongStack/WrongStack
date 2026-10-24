@@ -2,7 +2,7 @@ import type {
   ReasoningConfig,
   ReasoningRequest,
   RequestCacheControl,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import type { WrongForgeInfo } from './wrongforge-info.js';
 
 /** Task API accepts these controls and owns model-specific clamping/omission. */

@@ -1,3 +1,4 @@
+import type { MultiAgentConfig, SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
 import {
@@ -7,7 +8,6 @@ import {
   DEFAULT_SUBAGENT_BASELINE,
   rosterSummaryFromConfigs,
 } from '../../src/coordination/director-prompts.js';
-import type { MultiAgentConfig, SubagentConfig } from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

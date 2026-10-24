@@ -1,12 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import {
   MailboxProjectServerConnection,
   RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { TuiMailboxSnapshot } from '../src/mailbox-view-model-types.js';

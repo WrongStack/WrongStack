@@ -6,6 +6,7 @@
  * reads from the server-backed project mailbox and responds.
  */
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import {
   actionToAckInput,
   getSharedProjectMailbox,
@@ -15,7 +16,6 @@ import {
   type RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { WebSocket } from 'ws';
 import type { MailboxActionPayload, MailboxSendPayload } from './ws-payload-validation.js';
 import { clampLimit } from './ws-payload-validation.js';

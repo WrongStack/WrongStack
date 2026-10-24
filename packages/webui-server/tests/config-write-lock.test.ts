@@ -9,14 +9,15 @@
  * serialise on the lock and the second writer sees the first
  * writer's post-write state.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { withFileLock } from '@wrongstack/core/utils';
-import { updateGlobalConfig } from '../src/server/pref-helpers.js';
+import type { SecretVault } from '@wrongstack/contracts/types';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import type { SecretVault } from '@wrongstack/core/types';
+import { withFileLock } from '@wrongstack/core/utils';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { updateGlobalConfig } from '../src/server/pref-helpers.js';
 
 async function makeTestVault(): Promise<SecretVault> {
   // The vault writes its key file to `globalRoot`; use a fresh

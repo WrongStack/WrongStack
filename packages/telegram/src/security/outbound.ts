@@ -1,5 +1,5 @@
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { redactSecrets } from '../redact.js';
 
 export type TelegramChatId = string | number;

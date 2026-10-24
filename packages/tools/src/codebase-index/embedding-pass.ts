@@ -93,7 +93,7 @@ export interface EmbedResult {
 /**
  * Build the text to embed for one file.
  *
- * The path is always included: it is real signal (`packages/core/src/types` is
+ * The path is always included: it is real signal (`packages/contracts/src/types` is
  * meaningful) and it keeps two files with identical summaries from collapsing
  * onto the same vector.
  */

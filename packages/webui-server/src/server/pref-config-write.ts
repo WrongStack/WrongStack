@@ -17,8 +17,8 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SecretVault } from '@wrongstack/contracts/types';
 import { decryptConfigSecretsForRewrite, encryptConfigSecrets } from '@wrongstack/core/security';
-import type { SecretVault } from '@wrongstack/core/types';
 import { atomicWrite, backupConfigFile, withFileLock } from '@wrongstack/core/utils';
 import { errMessage } from './ws-utils.js';
 

@@ -1,4 +1,4 @@
-import type { Tool, ToolUseBlock } from '@wrongstack/core/types';
+import type { Tool, ToolUseBlock } from '@wrongstack/contracts/types';
 import { readKitAdviceCatalog } from './catalog.js';
 
 type Candidate = Awaited<ReturnType<typeof readKitAdviceCatalog>>[number];

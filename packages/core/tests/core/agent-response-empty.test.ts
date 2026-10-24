@@ -1,8 +1,8 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
-import { createAgentResponseHandler } from '../../src/core/agent-response.js';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Provider, Request, Response } from '../../src/types/provider.js';
+import { createAgentResponseHandler } from '../../src/core/agent-response.js';
 
 /**
  * Issue #271 — a stream interrupted before the first meaningful delta must

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   formatCrashRecoveryNotice,
@@ -8,7 +9,6 @@ import {
   isResumeNoticeMessage,
   validateResumeFileObservations,
 } from '../../src/storage/session-resume-validation.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 // Mock node:fs/promises for file system operations
 vi.mock('node:fs/promises', async () => {

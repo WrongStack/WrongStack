@@ -7,7 +7,7 @@
  * @see packages/techstack/src/research/llm.ts
  */
 
-import type { Provider, Response } from '@wrongstack/core/types';
+import type { Provider, Response } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createProviderLlm, parseResearchJson } from '../../src/research/llm.js';
 

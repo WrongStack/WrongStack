@@ -1,8 +1,8 @@
-import type { Container, EventBus } from '@wrongstack/core/kernel';
+import type { Container, EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger, MemoryPort, SessionStore } from '@wrongstack/contracts/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import type { Logger, MemoryPort, SessionStore } from '@wrongstack/core/types';
+import { type CliFlags, configureSimpleUiRuntimeContext } from '../boot/simpleui-full-auto.js';
 import { setupCliGovernance } from '../cli-main-helpers.js';
-import { configureSimpleUiRuntimeContext, type CliFlags } from '../boot/simpleui-full-auto.js';
 
 interface SetupReplayAndGovernanceOptions {
   flags: CliFlags;

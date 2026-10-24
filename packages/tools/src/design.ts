@@ -1,5 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import type { DesignStack } from '@wrongstack/core/design';
 import {
   applyTokenOverrides,
@@ -20,8 +22,6 @@ import {
   setActiveKit,
   setDesignOverrides,
 } from '@wrongstack/core/design';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import { checkDealtChoice, dealAction, diffAction, documentAction } from './design-actions.js';
 

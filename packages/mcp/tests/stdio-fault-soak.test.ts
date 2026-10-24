@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger, MCPServerConfig } from '@wrongstack/contracts/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger, MCPServerConfig } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { MCPClient } from '../src/client.js';
 import { MCPRegistry } from '../src/registry.js';

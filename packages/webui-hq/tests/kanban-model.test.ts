@@ -1,4 +1,4 @@
-import type { HqKanbanSnapshotPayload } from '@wrongstack/core/hq';
+import type { HqKanbanSnapshotPayload } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import {
   matchesKanbanTask,

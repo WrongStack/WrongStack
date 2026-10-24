@@ -137,7 +137,7 @@ function validateProductCatalog() {
   );
 
   const modeSource = fs.readFileSync(
-    path.join(repoRoot, 'packages/core/src/types/mode.ts'),
+    path.join(repoRoot, 'packages/core/src/models/default-modes.ts'),
     'utf8',
   );
   const runtimeModeBlock = sourceSection(modeSource, 'export const DEFAULT_MODES', '\n];');

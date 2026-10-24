@@ -15,7 +15,7 @@
  * caller preserves the exact teardown sequence — do not move it here.
  */
 import * as path from 'node:path';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import {
   startFirstBootSageSync,
   subscribeVectorMemoryToSage,

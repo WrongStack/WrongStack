@@ -42,7 +42,7 @@ import {
   SqliteMemoryPort,
   SqliteSageStore,
 } from '@wrongstack/sage';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 ```
 
 Why the public exports are sufficient: `@wrongstack/sage` re-exports the SAGE service contract types (`SageServiceLike`, `SageSurface`, `SageRetrieverLike`), all `Sage` shape types, and the IPC connection type — anything you'd want is reachable without reaching into `packages/sage/src/...`.
@@ -135,7 +135,7 @@ Defined indirectly in `packages/sage/src/remote-memory-port.ts:30-69`. The capab
 `ProjectSageMemoryPort` forwards server-side `memory.*` events to a host `EventBus`. If you pass an `EventBus` to the constructor and subscribe, you get a live stream of mutation events:
 
 ```ts
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 
 const events = new EventBus();
 events.onPattern('memory.*', (eventName, payload) => {

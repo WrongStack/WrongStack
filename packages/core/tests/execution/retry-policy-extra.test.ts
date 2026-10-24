@@ -1,10 +1,10 @@
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import {
   DefaultRetryPolicy,
   RETRY_BASE_DELAY_MS,
   RETRY_JITTER_MS,
 } from '../../src/execution/retry-policy.js';
-import { ProviderError } from '../../src/types/provider.js';
 
 describe('DefaultRetryPolicy — extra', () => {
   const p = new DefaultRetryPolicy();

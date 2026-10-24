@@ -15,6 +15,9 @@
  *  5. The Chimera reviewer policy opts in (verified in the cli package's
  *     chimera policy test).
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { SubagentRunner, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { executeSubagentWithTimeout } from '../../src/coordination/multi-agent-timeout.js';
@@ -28,8 +31,6 @@ import {
   resolveGracefulFinish,
   SUBAGENT_FINISH_REQUESTED_EVENT,
 } from '../../src/coordination/subagent-finish.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { SubagentRunner, TaskSpec } from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

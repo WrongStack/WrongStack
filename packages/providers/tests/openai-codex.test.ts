@@ -7,7 +7,7 @@ import {
   SAFETY_POLICY_GUIDANCE,
   type StreamEvent,
   type TextBlock,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetSharedOAuthRefreshState } from '../src/oauth-refresh-coordinator.js';
 import { requestBodyText } from './helpers/request-body.js';

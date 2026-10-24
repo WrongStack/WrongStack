@@ -1,10 +1,13 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { ConfigError, ERROR_CODES } from '../types/errors.js';
-import type { Logger } from '../types/logger.js';
-import type { RotatableSecretVault } from '../types/secret-vault.js';
-import { ENCRYPTED_PREFIX_PATTERN, encryptedPrefixForVersion } from '../types/secret-vault.js';
+import { ConfigError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { RotatableSecretVault } from '@wrongstack/contracts/types/secret-vault';
+import {
+  ENCRYPTED_PREFIX_PATTERN,
+  encryptedPrefixForVersion,
+} from '@wrongstack/contracts/types/secret-vault';
 import { restrictFilePermissions as restrictPermissions } from './file-permissions.js';
 import {
   ALGO,

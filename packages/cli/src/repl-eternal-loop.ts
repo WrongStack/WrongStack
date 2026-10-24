@@ -4,7 +4,7 @@
  * @module repl-eternal-loop
  */
 
-import { goalFilePath, summarizeUsage } from '@wrongstack/core/goal';
+import { goalFilePath, summarizeUsage } from '@wrongstack/goal';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { loadGoalSafe } from './repl-goal-banner.js';
 import type { ReplOptions } from './repl-options.js';

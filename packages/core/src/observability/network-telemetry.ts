@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 import { channel } from 'node:diagnostics_channel';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 
 export interface NetworkTelemetryContext {
   events: EventBus;

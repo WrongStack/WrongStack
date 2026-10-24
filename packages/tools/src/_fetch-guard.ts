@@ -1,6 +1,6 @@
 import * as dns from 'node:dns/promises';
 import * as net from 'node:net';
-import { FetchError, ToolValidationError } from '@wrongstack/core/types';
+import { FetchError, ToolValidationError } from '@wrongstack/contracts/types';
 import { isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils';
 import type { Agent } from 'undici';
 import {

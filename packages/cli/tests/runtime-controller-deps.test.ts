@@ -1,5 +1,5 @@
+import type { Provider } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Provider } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { createRuntimeControllerDeps } from '../src/wiring/runtime-controller-deps.js';
 

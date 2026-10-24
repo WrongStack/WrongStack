@@ -1,4 +1,4 @@
-import type { ContentBlock } from '@wrongstack/core/types';
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import { tuiStreamFlushMs } from '@wrongstack/core/utils';
 import { DEFAULT_MIN_IMPORTANCE, DEFAULT_MIN_SCORE, MIN_RELATION_STRENGTH } from '@wrongstack/sage';
 import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';

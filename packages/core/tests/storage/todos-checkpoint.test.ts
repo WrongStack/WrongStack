@@ -1,14 +1,14 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import { describe, expect, it, vi } from 'vitest';
 import { Context } from '../../src/core/context.js';
-import type { EventBus } from '../../src/kernel/events.js';
 import {
   attachTodosCheckpoint,
   loadTodosCheckpoint,
   saveTodosCheckpoint,
 } from '../../src/storage/todos-checkpoint.js';
-import type { SessionWriter } from '../../src/types/session.js';
 
 // vi.mock is hoisted above imports.  We use vi.importActual inside the factory
 // to lazily get the real module, avoiding TDZ issues.  The returned plain object

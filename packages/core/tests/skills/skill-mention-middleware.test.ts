@@ -1,8 +1,8 @@
+import { isVolatileSystemBlock } from '@wrongstack/contracts/types/blocks';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
 import { describe, expect, it, vi } from 'vitest';
 import { createSkillMentionMiddleware } from '../../src/skills/mention-middleware.js';
-import { isVolatileSystemBlock } from '../../src/types/blocks.js';
-import type { Request } from '../../src/types/provider.js';
-import type { SkillLoader } from '../../src/types/skill.js';
 
 const loader = () =>
   ({

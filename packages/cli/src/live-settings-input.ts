@@ -1,4 +1,4 @@
-import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/core/types';
+import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/contracts/types';
 
 /**
  * Settings payload shared by `saveSettings` (persist) and `applyLiveSettings`

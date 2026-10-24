@@ -1,5 +1,5 @@
+import type { Config, ProviderConfig } from '@wrongstack/contracts/types';
 import { ProviderRegistry } from '@wrongstack/core/registry';
-import type { Config, ProviderConfig } from '@wrongstack/core/types';
 import { createSetupProviderFactory } from '@wrongstack/providers';
 import { expect, it, vi } from 'vitest';
 import { resolveSetupProvider } from '../src/server/setup-screen.js';

@@ -1,4 +1,4 @@
-import type { Specification, TaskGraph } from '@wrongstack/core/types';
+import type { Specification, TaskGraph } from '@wrongstack/contracts/types';
 
 export interface TaskGraphRequirementCoverage {
   valid: boolean;

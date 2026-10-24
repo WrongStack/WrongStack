@@ -1,14 +1,14 @@
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { mkdir, mkdtemp, readFile, readdir, realpath, rm } from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import { EventBus } from '@wrongstack/core/kernel';
+import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger } from '@wrongstack/core/types';
-import type { MCPTaskContext as AgentContext } from '../src/task-identity.js';
 import { expect, it, vi } from 'vitest';
 import { MCPRegistry } from '../src/registry.js';
+import type { MCPTaskContext as AgentContext } from '../src/task-identity.js';
 
 it.each([
   'resume',

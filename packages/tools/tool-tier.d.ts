@@ -1,4 +1,4 @@
-import type { ConcreteTokenSavingTier, Tool } from '@wrongstack/core/types';
+import type { ConcreteTokenSavingTier, Tool } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 
 /**

@@ -58,7 +58,7 @@ const wsProxy = new Proxy(OrigWebSocket, {
 const { HqSocket, getHqSocket, closeHqSocket } = await import(
   '../../src/data/transport/hq-socket.js'
 );
-const { HQ_BROWSER_PEER_RESUME_CLIENT_ID } = await import('@wrongstack/core/hq/protocol');
+const { HQ_BROWSER_PEER_RESUME_CLIENT_ID } = await import('@wrongstack/hq/protocol');
 
 import type { HqSocketState } from '../../src/data/transport/hq-socket.js';
 

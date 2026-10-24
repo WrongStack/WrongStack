@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config } from '@wrongstack/contracts/types';
 import { createDefaultPipelines, type ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Config } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import { setupSage } from '../src/host-wiring.js';

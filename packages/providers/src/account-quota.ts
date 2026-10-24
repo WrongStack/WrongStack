@@ -24,7 +24,7 @@
  * @module account-quota
  */
 
-import type { Provider } from '@wrongstack/core/types';
+import type { Provider } from '@wrongstack/contracts/types';
 import { balanceEndpoint, balanceVendorOfHost, reportBalanceQuota } from './balance-quota.js';
 import { type QuotaEndpointConfig, reportCustomQuota } from './custom-quota.js';
 import { KIMI_CODE_HOSTS, type KimiCodeHost, reportKimiCodeQuota } from './kimi-code-quota.js';

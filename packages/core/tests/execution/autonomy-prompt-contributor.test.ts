@@ -1,16 +1,16 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { BuildContext } from '@wrongstack/contracts/types/system-prompt';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { makeAutonomyPromptContributor } from '../../src/execution/autonomy-prompt-contributor.js';
 import {
   appendJournal,
   emptyGoal,
+  type GoalFile,
   goalFilePath,
   saveGoal,
-  type GoalFile,
 } from '../../src/storage/goal-store.js';
-import type { BuildContext } from '../../src/types/system-prompt.js';
 
 const emptyCtx: BuildContext = {
   cwd: '/tmp',

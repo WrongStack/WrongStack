@@ -1,5 +1,5 @@
-import { ERROR_CODES, PluginError } from '../types/errors.js';
-import type { Plugin, PluginAPI } from '../types/plugin.js';
+import { ERROR_CODES, PluginError } from '@wrongstack/contracts/types/errors';
+import type { Plugin, PluginAPI } from '@wrongstack/contracts/types/plugin';
 
 /**
  * Wrap the PluginAPI so calls that contradict the plugin's declared

@@ -1,16 +1,16 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { Director } from '../../src/coordination/director.js';
-import { makeQualityGateTool } from '../../src/coordination/director-tools.js';
-import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import type {
   MultiAgentConfig,
   SubagentRunner,
   TaskResult,
   TaskSpec,
-} from '../../src/types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import { afterEach, describe, expect, it } from 'vitest';
+import { Director } from '../../src/coordination/director.js';
+import { makeQualityGateTool } from '../../src/coordination/director-tools.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

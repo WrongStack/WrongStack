@@ -1,10 +1,10 @@
 import { spawn } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import type { ReviewContextBundle } from '@wrongstack/core/plugin';
 import { emitReviewIfChanged } from '@wrongstack/core/plugin';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import type { SlashCommandContext } from './command-context.js';
 

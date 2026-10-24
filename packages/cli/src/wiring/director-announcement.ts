@@ -1,7 +1,7 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/core/coordination';
 import { FLEET_ROSTER } from '@wrongstack/core/coordination';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger } from '@wrongstack/core/types';
 import type { MultiAgentHost } from '../fleet/host.js';
 
 /**

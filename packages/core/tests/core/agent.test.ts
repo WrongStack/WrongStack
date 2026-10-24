@@ -1,6 +1,20 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Container } from '@wrongstack/contracts/kernel/container';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import { type AgentError, isAgentError } from '@wrongstack/contracts/types/errors';
+import type {
+  Capabilities,
+  Provider,
+  Request,
+  Response,
+  StreamEvent,
+} from '@wrongstack/contracts/types/provider';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
+import type { BuildContext } from '@wrongstack/contracts/types/system-prompt';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toolSearchTool } from '../../../tools/src/tool-search.js';
 import { toolUseTool } from '../../../tools/src/tool-use.js';
@@ -12,25 +26,11 @@ import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { ExtensionRegistry } from '../../src/extension/registry.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { Container } from '../../src/kernel/container.js';
-import { EventBus } from '../../src/kernel/events.js';
-import { TOKENS } from '../../src/kernel/tokens.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import { type AgentError, isAgentError } from '../../src/types/errors.js';
-import type {
-  Capabilities,
-  Provider,
-  Request,
-  Response,
-  StreamEvent,
-} from '../../src/types/provider.js';
-import { ProviderError } from '../../src/types/provider.js';
-import type { BuildContext } from '../../src/types/system-prompt.js';
-import type { Tool } from '../../src/types/tool.js';
 import { MockProvider, StreamingMockProvider } from '../helpers/mock-provider.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
@@ -60,8 +60,8 @@ async function buildAgent(
   options?: {
     refreshSystemPrompt?: boolean;
     systemPromptBuild?: (
-      ctx: import('../../src/types/system-prompt.js').BuildContext,
-    ) => Promise<import('../../src/types/blocks.js').TextBlock[]>;
+      ctx: import('@wrongstack/contracts/types/system-prompt').BuildContext,
+    ) => Promise<import('@wrongstack/contracts/types/blocks').TextBlock[]>;
   },
 ) {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-ag-'));

@@ -1,4 +1,4 @@
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { todoTool } from '@wrongstack/tools';
 import { describe, expect, it, vi } from 'vitest';
 import { buildDiagCommand, buildStatsCommand } from '../src/slash-commands/diag-stats.js';

@@ -19,7 +19,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { MCPServerConfig } from '@wrongstack/core/types';
+import type { MCPServerConfig } from '@wrongstack/contracts/types';
 import { readJsonObjectFile, setJsonPath, updateJsonObjectFile } from '@wrongstack/core/utils';
 import { mcpEnvPlaceholders } from '@wrongstack/mcp';
 import { normalizeMcpServerEntry } from '../../boot/mcp-config-flag.js';

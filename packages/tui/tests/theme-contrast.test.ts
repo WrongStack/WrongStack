@@ -1,4 +1,4 @@
-import { THEME_PRESET_IDS } from '@wrongstack/core/types';
+import { THEME_PRESET_IDS } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { themePresets } from '../src/theme-presets.js';
 import { contrastRatio, relativeLuminance } from '../src/theme-utils.js';

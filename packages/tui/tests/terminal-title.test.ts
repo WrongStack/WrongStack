@@ -1,4 +1,4 @@
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startTerminalTitle } from '../src/terminal-title.js';
 

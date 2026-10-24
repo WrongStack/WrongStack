@@ -4,8 +4,8 @@
  * can watch Claude Code / Gemini / Kimi the same way they watch a native worker.
  */
 import type { ACPProgressEvent } from '@wrongstack/acp';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { FleetBus } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import { compactBridgeToolInput } from './host-event-bridge.js';
 
 export interface PublishAcpLiveProgressOpts {

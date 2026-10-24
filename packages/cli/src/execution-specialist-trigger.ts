@@ -14,10 +14,10 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { SessionWriter, StopReason } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { SpecialistNeededPayload } from '@wrongstack/core/plugin';
-import type { SessionWriter, StopReason } from '@wrongstack/core/types';
 
 export interface InstallSpecialistTriggerHandlerOptions {
   events: EventBus;

@@ -13,8 +13,8 @@
  * Public surface: `runWebUI` plus WS message shapes.
  */
 import * as path from 'node:path';
+import type { SessionWriter } from '@wrongstack/contracts/types';
 import { createCompatibilityTrustBoundary, DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { SessionWriter } from '@wrongstack/core/types';
 import { addFatalSalvageHook } from '@wrongstack/core/utils';
 import {
   buildWebUIAccessUrl,

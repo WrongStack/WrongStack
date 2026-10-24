@@ -1,13 +1,13 @@
+import { Container } from '@wrongstack/contracts/kernel/container';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
-import { Container } from '../../src/kernel/container.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { DefaultPluginAPI } from '../../src/plugin/api.js';
 import { ProviderAuthRegistry } from '../../src/registry/provider-auth-registry.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
 import { SlashCommandRegistry } from '../../src/registry/slash-command-registry.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
-import type { Config } from '../../src/types/config.js';
 
 /**
  * Regressions for the plugin mutation-boundary gaps found by the 2026-08-20

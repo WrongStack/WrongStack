@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   color,
   configureChildEnvGitIdentity,

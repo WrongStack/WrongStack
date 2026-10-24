@@ -11,7 +11,7 @@ import type {
   SubagentConfig,
   TaskResult,
   TaskSpec,
-} from '../types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
 import type { DispatchLogEntry } from './agents/dispatch-log.js';
 import type { CollabDebugReport, CollabSessionOptions } from './collab-debug.js';
 import type { DispatchClassifier } from './dispatcher.js';

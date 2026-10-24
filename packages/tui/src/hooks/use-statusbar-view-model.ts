@@ -1,9 +1,8 @@
 import * as fs from 'node:fs/promises';
-import type { CacheStats } from '@wrongstack/core/types';
+import type { CacheStats } from '@wrongstack/contracts/types';
+import { type ContextBreakdown, getContextBreakdown } from '@wrongstack/core/agent';
+import { getHistoryRetention } from '@wrongstack/core/execution';
 import {
-  type ContextBreakdown,
-  getContextBreakdown,
-  getHistoryRetention,
   getRequestResidency,
   type HistoryRetention,
   type RequestResidency,
@@ -151,7 +150,7 @@ export function useStatusbarViewModel({
   // for the status bar. `tokenCounter.total()` is cumulative across the
   // entire session and the `TokenCounter` type contract explicitly warns
   // it cannot be compared meaningfully against a per-request maxContext
-  // ceiling (see packages/core/src/types/token-counter.ts:22-29). We never
+  // ceiling (see packages/contracts/src/types/token-counter.ts:22-29). We never
   // substitute `total()` into the bar: doing so yields a 100% reading after
   // any model switch that targets a smaller context window, because the
   // cumulative from the previous model can dwarf the new maxContext.

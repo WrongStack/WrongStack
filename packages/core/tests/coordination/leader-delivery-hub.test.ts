@@ -1,3 +1,4 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DELEGATION_RESULT_MARKER,
@@ -6,7 +7,6 @@ import {
   LeaderDeliveryHub,
   renderLeaderDeliveryBlock,
 } from '../../src/coordination/delegation/leader-delivery-hub.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 function delivery(id: string, over: Partial<LeaderDelivery> = {}, excerpt = 'ok'): LeaderDelivery {
   return {

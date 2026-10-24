@@ -12,8 +12,8 @@
  * the same pass, and `maxDecompositions` caps LLM spend per graph.
  */
 
+import type { TaskNode } from '@wrongstack/contracts/types';
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import type { TaskNode } from '@wrongstack/core/types';
 import {
   type AtomicityRuleSetConfig,
   assessAtomicity,

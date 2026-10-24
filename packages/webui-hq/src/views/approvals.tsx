@@ -13,7 +13,7 @@
  * arbiter decides without you.
  */
 
-import type { UserInputQuestion, UserInputResponse } from '@wrongstack/core/types';
+import type { UserInputQuestion, UserInputResponse } from '@wrongstack/contracts/types';
 import { CircleCheck, CircleSlash, ShieldQuestion, Siren, TriangleAlert } from 'lucide-react';
 import type * as React from 'react';
 import { useState } from 'react';

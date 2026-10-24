@@ -1,4 +1,4 @@
-import type { WireFamily } from '@wrongstack/core/types';
+import type { WireFamily } from '@wrongstack/contracts/types';
 import { authProfileAliasError } from '@wrongstack/providers';
 import {
   mutateConfigProviders,

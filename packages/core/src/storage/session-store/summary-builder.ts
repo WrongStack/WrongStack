@@ -1,6 +1,6 @@
-import { effectiveInputTokens } from '../../types/provider.js';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
-import type { SessionEvent, SessionSummary } from '../../types/session.js';
+import { effectiveInputTokens } from '@wrongstack/contracts/types/provider';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { SessionEvent, SessionSummary } from '@wrongstack/contracts/types/session';
 import { sessionContentPreview, userInputTitle } from '../session-helpers.js';
 import { isSessionErrorEvent, resolveSessionOutcome } from '../session-outcome.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';

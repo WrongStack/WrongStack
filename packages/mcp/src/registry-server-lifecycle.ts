@@ -1,6 +1,6 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger, MCPServerConfig } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger, MCPServerConfig } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import type { MCPClient } from './client.js';
 import type { MCPTool } from './contracts.js';

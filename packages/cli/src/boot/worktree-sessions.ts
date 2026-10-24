@@ -7,7 +7,7 @@
  * F1 project switch) before resuming, so its file work lands in the right tree.
  */
 import * as path from 'node:path';
-import type { SessionSummary } from '@wrongstack/core/types';
+import type { SessionSummary } from '@wrongstack/contracts/types';
 import type { GitWorktreeEntry } from '@wrongstack/core/worktree';
 
 export interface WorktreeRef {

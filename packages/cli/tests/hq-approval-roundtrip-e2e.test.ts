@@ -14,6 +14,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import {
   type ApprovalRegistry,
   createApprovalRegistry,
@@ -22,12 +23,11 @@ import {
   HqPublisher,
   startApprovalTelemetryBridge,
   writeHqAuthFile,
-} from '@wrongstack/core/hq';
-import { EventBus } from '@wrongstack/core/kernel';
+} from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from '../src/ws-runtime.js';
 import { createHqCommandDispatcher } from '../src/hq-command-controller.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
+import { WebSocket } from '../src/ws-runtime.js';
 
 const BROWSER_TOKEN = 'browser-secret';
 const CLIENT_TOKEN = 'client-secret';

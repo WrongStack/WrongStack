@@ -2,7 +2,7 @@
  * Coverage tests for openai-responses.ts (new file, 0% coverage).
  */
 
-import { ProviderError } from '@wrongstack/core/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('OpenAIResponsesProvider', () => {

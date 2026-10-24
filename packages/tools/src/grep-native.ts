@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { compilePathGlob } from '@wrongstack/core/utils';
 import { mapWithConcurrency } from './_concurrency.js';
 import { expandBraceAlternation } from './_glob-braces.js';

@@ -20,9 +20,9 @@
  *      phantom assignments or a per-tick event storm.
  */
 
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { SerializedTaskGraph, TaskEdge, TaskNode } from '@wrongstack/contracts/types';
 import { deserializeTaskGraph } from '@wrongstack/core/tasking';
-import type { SerializedTaskGraph, TaskEdge, TaskNode } from '@wrongstack/core/types';
 import {
   attachVerificationReport,
   buildVerificationReport,

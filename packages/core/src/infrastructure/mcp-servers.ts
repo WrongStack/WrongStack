@@ -1,4 +1,4 @@
-import type { MCPServerConfig } from '../types/config.js';
+import type { MCPServerConfig } from '@wrongstack/contracts/types/config';
 
 /**
  * Built-in MCP server presets available to all WrongStack users out of the box.

@@ -12,7 +12,7 @@
  *   F-extra-1 — The `tier` getter (system-prompt-builder.ts:182-187)
  *               returns invalid tier strings verbatim instead of
  *               coercing them to 'off' (cf. `normalizeTokenSavingTier`
- *               in packages/core/src/types/config.ts:112-125 which does
+ *               in packages/contracts/src/types/config.ts:112-125 which does
  *               the validation). This means an upstream typo like
  *               `tokenSavingMode: 'minimal'` (correct) vs
  *               `tokenSavingMode: 'Minimal'` (typo) takes two
@@ -240,7 +240,7 @@ describe('DefaultSystemPromptBuilder — F-area tier semantics', () => {
   describe('F-extra — invalid tier strings (now normalized at boundary)', () => {
     // The `tier` getter at system-prompt-builder.ts:182-189 now
     // delegates to `normalizeTokenSavingTier` from
-    // packages/core/src/types/config.ts:112-125. Invalid strings
+    // packages/contracts/src/types/config.ts:112-125. Invalid strings
     // are coerced to 'off' at the prompt-builder boundary,
     // matching the canonical call sites that consume
     // `config.features.tokenSavingMode` through `normalizeTokenSavingTier`
@@ -426,7 +426,7 @@ describe('DefaultSystemPromptBuilder — F-area tier semantics', () => {
 
 /**
  * Mirror of `normalizeTokenSavingTier` from
- * `packages/core/src/types/config.ts`. Kept in the test file so the
+ * `packages/contracts/src/types/config.ts`. Kept in the test file so the
  * test expresses the contract independently of the system-prompt
  * builder's implementation.
  *

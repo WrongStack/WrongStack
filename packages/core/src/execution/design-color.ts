@@ -169,7 +169,9 @@ const SHADOW_RE = new RegExp(String.raw`(?:^|,)\s*(?:inset\s+)?${OFFSET}\s+${OFF
  * quoted/multi-word/known-generic name) rather than by a token-name allowlist,
  * so custom fonts classify correctly.
  */
-export function classifyTokenValue(value: string): import('../types/design-kit.js').TokenValueKind {
+export function classifyTokenValue(
+  value: string,
+): import('@wrongstack/contracts/types/design-kit').TokenValueKind {
   const v = value.trim();
   if (!v) return 'raw';
   if (isColorToken(v)) return 'color';

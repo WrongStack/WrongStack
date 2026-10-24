@@ -1,11 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, describe, expect, it } from 'vitest';
 import { attachDepWatcherBridge } from '../../src/coordination/dep-watcher-bridge.js';
 import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { startTechStackConsumer } from '../../src/coordination/techstack-mailbox-consumer.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

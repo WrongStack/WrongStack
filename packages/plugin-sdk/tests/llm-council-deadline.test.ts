@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { CouncilResult } from '../../contracts/src/types/council.js';
+import type { Provider } from '../../contracts/src/types/provider.js';
 import { noOpLogger } from '../../core/src/infrastructure/logger.js';
 import { makePluginLLM } from '../../core/src/plugin/plugin-llm.js';
 import { ProviderRegistry } from '../../core/src/registry/provider-registry.js';
 import { CONFIG_BEHAVIOR_DEFAULTS } from '../../core/src/storage/config-loader/defaults.js';
-import type { CouncilResult } from '../../core/src/types/council.js';
-import type { Provider } from '../../core/src/types/provider.js';
 import { runOptionalPluginCouncil } from '../src/runtime/llm.js';
 
 function fixture() {

@@ -1,4 +1,4 @@
-import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/core/types';
+import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/contracts/types';
 
 export interface PluginManagementDeps {
   config: Config;

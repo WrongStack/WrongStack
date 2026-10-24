@@ -14,7 +14,7 @@
  * @module tests/hq-auth-revocation
  */
 
-import { emptyHqAuthFile, type HqAuthFile, type HqToken, hqTokenKey } from '@wrongstack/core/hq';
+import { emptyHqAuthFile, type HqAuthFile, type HqToken, hqTokenKey } from '@wrongstack/hq';
 import { describe, expect, it, vi } from 'vitest';
 import { createHqAuthState } from '../src/hq-server/auth-state.js';
 

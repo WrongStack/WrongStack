@@ -20,7 +20,7 @@
  * @module request-conversation-binding
  */
 
-import type { Request } from '../types/provider.js';
+import type { Request } from '@wrongstack/contracts/types/provider';
 
 /** The slice of a conversation a request-pipeline middleware may consult. */
 export interface RequestConversation {

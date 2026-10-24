@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import {
   commandOutputPreviewBytes,

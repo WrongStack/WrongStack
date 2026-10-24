@@ -1,4 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import type { SubagentRunner } from '@wrongstack/contracts/types';
+import {
+  AgentError,
+  type Config,
+  type SubagentConfig,
+  type TaskResult,
+  type Tool,
+} from '@wrongstack/contracts/types';
 /**
  * L1-E: Multi-agent CLI integration. The coordinator + per-task agent
  * factory is created lazily on the first `/spawn` so users who never use
@@ -18,14 +26,6 @@ import {
   type TaskResultNotification,
 } from '@wrongstack/core/coordination';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import type { SubagentRunner } from '@wrongstack/core/types';
-import {
-  AgentError,
-  type Config,
-  type SubagentConfig,
-  type TaskResult,
-  type Tool,
-} from '@wrongstack/core/types';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import type { BuildAcpSubagentRunnerOptions } from './host-acp.js';
 import type { HostAcpRunnerHost } from './host-acp-runner.js';
@@ -78,7 +78,7 @@ export class MultiAgentHost {
    *  mode can publish structured events (bug.found, refactor.plan,
    *  critic.evaluation) onto the fleet bus without needing the tool registered
    *  in the host's ToolRegistry. */
-  private fleetEmitTool?: import('@wrongstack/core/types').Tool | undefined;
+  private fleetEmitTool?: import('@wrongstack/contracts/types').Tool | undefined;
   /** Director-owned tools available to scoped subagents even when the leader
    * ToolRegistry was not populated because director mode was promoted lazily. */
   private directorToolsByName = new Map<string, Tool>();
@@ -218,7 +218,7 @@ export class MultiAgentHost {
    * has been built. Used by makeSubagentFactory to inject the tool into
    * the filtered tool registry so collab session agents can emit fleet events.
    */
-  getFleetEmitTool(): import('@wrongstack/core/types').Tool | undefined {
+  getFleetEmitTool(): import('@wrongstack/contracts/types').Tool | undefined {
     return this.fleetEmitTool;
   }
 

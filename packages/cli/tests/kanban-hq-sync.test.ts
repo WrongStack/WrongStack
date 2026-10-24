@@ -1,5 +1,5 @@
-import type { HqKanbanSnapshotPayload, HqPublisher } from '@wrongstack/core/hq';
-import { isHqKanbanSnapshotPayload, MAX_HQ_KANBAN_BOARDS } from '@wrongstack/core/hq';
+import type { HqKanbanSnapshotPayload, HqPublisher } from '@wrongstack/hq';
+import { isHqKanbanSnapshotPayload, MAX_HQ_KANBAN_BOARDS } from '@wrongstack/hq';
 import { readBoard, readKanbanMetadata, writeBoard, writeKanbanMetadata } from '@wrongstack/kanban';
 import { createBoardObject } from '@wrongstack/kanban/test-support';
 import { createHash } from 'node:crypto';

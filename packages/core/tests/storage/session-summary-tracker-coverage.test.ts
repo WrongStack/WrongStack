@@ -1,9 +1,9 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionEvent, SessionMetadata } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SessionSummaryTracker } from '../../src/storage/session-summary-tracker.js';
-import type { SessionEvent, SessionMetadata } from '../../src/types/session.js';
 
 const ts = '2026-01-01T00:00:00.000Z';
 const baseMeta: SessionMetadata = {

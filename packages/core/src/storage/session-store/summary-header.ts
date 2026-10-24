@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
-import type { SessionSummary } from '../../types/session.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { iterateSessionEvents } from './summary-builder.js';
 import type { SessionFileRef } from './types.js';
 

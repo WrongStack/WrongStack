@@ -1,5 +1,5 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { type RegistryIdleContext, sleepIdleSlot, sweepIdleSlots } from '../src/registry-idle.js';
 import type { ServerSlot } from '../src/registry-slots.js';

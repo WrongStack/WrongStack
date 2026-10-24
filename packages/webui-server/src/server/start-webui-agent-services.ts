@@ -1,6 +1,6 @@
+import type { Config } from '@wrongstack/contracts/types';
 import { startOtlpExport } from '@wrongstack/core/observability';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
-import type { Config } from '@wrongstack/core/types';
 import { createAgentServices } from './backend-services.js';
 import { setupWebUiGovernance } from './governance-runtime.js';
 import type { createPreContextServices } from './pre-context-services.js';

@@ -1,12 +1,16 @@
-import type { DirectorStateSnapshot } from '../storage/director-state.js';
 import type {
   AwaitAnyResult,
   CoordinatorStatus,
   SubagentConfig,
   TaskResult,
   TaskSpec,
-} from '../types/multi-agent.js';
-import type { Tool } from '../types/tool.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import type { Tool } from '@wrongstack/contracts/types/tool';
+import {
+  areSubagentCompanionsAllowedForSession,
+  areSubagentsAllowedForSession,
+} from '../security/session-subagent-policy.js';
+import type { DirectorStateSnapshot } from '../storage/director-state.js';
 import {
   acquireCheckpointLock as acquireDirectorCheckpointLock,
   resumeFromCheckpoint as resumeDirectorFromCheckpoint,
@@ -51,10 +55,6 @@ import type { FleetUsage } from './fleet-bus.js';
 import type { DirectorFleetHost } from './fleet-spawn.js';
 import type { ICoordinator } from './icoordinator.js';
 import type { SubagentSlotClaim } from './session-subagent-models.js';
-import {
-  areSubagentCompanionsAllowedForSession,
-  areSubagentsAllowedForSession,
-} from './session-subagent-policy.js';
 
 export {
   FleetContextOverflowError,

@@ -73,6 +73,7 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
+    "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/tools": "workspace:*"
   },

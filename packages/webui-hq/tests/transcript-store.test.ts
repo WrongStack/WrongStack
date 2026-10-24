@@ -4,7 +4,7 @@
  * overlap dedup. This is the layer that fixes the old console's
  * "re-append the whole ring on every event" duplication bug.
  */
-import type { HqTranscriptEntry } from '@wrongstack/core/hq';
+import type { HqTranscriptEntry } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import {
   applyFetch,

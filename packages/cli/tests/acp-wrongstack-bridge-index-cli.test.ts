@@ -1,4 +1,4 @@
-import type { SubagentRunContext, TaskSpec } from '@wrongstack/core/types';
+import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { wrongstackBridgeSetup, wstackToolsCommand } from '../src/fleet/acp-wrongstack-bridge.js';
 

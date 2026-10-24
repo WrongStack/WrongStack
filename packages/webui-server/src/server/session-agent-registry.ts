@@ -20,15 +20,15 @@
  * event bus is how the host observes every tab). Everything per-run is not.
  */
 
-import { Agent, Context } from '@wrongstack/core/agent';
-import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { setSessionLeaderMetaResolver } from '@wrongstack/core/security';
 import type {
   ModelsRegistry,
   SessionStore,
   SessionWriter,
   TokenCounter,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { Agent, Context } from '@wrongstack/core/agent';
+import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { setSessionLeaderMetaResolver } from '@wrongstack/core/security';
 import { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
 
 /** Session-writer shape, as `SessionStore.create()` produces it. */

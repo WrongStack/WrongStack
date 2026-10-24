@@ -1,4 +1,4 @@
-import type { HqSessionAgentSummary, HqSessionSnapshotPayload } from '@wrongstack/core/hq';
+import type { HqSessionAgentSummary, HqSessionSnapshotPayload } from '@wrongstack/hq';
 
 export type FleetTopologyNodeKind = 'machine' | 'project' | 'terminal' | 'agent';
 

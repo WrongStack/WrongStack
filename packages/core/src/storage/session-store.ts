@@ -16,7 +16,7 @@ import type {
   SessionSummary,
   SessionWriter,
   WorkspaceCheckpointRef,
-} from '../types/session.js';
+} from '@wrongstack/contracts/types/session';
 import {
   type CheckpointGcResult,
   collectReachableManifestHashes,

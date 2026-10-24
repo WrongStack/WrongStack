@@ -44,7 +44,7 @@ vi.mock('@wrongstack/core/utils', () => ({
   updateJsonObjectFile: mocks.updateJsonObjectFile,
 }));
 
-vi.mock('@wrongstack/core/tools', () => ({
+vi.mock('@wrongstack/tools/management', () => ({
   createFallbackManageTools: mocks.createFallbackManageTools,
   createPluginManagerTool: mocks.createPluginManagerTool,
 }));

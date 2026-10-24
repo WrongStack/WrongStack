@@ -12,7 +12,7 @@ WrongStack enforces a strict guarantee across all interfaces:
 
 To achieve byte-accurate and visual parity across heterogeneous runtimes:
 1. **Single Source of Truth for Ordering (`projectSessionTimeline`)**: A pure two-pointer merge algorithm reconciles the conversation backbone and the audit marker stream. UI layers only style; they never re-order.
-2. **Single Source of Truth for Marker Wording (`sessionEventToMarker`)**: All textual audit labels originate from `@wrongstack/core/types/session-markers.ts`.
+2. **Single Source of Truth for Marker Wording (`sessionEventToMarker`)**: All textual audit labels originate from `@wrongstack/contracts/types/session-markers.ts`.
 3. **Writer-Boundary Attribution (`withAgentAttribution`)**: Agent and subagent identities (`agentId`) are attached at the writer stream wrapper, never fabricated at emission sites.
 4. **Journal-First Replay**: Replays prioritize persisted disk journals over in-memory working sets to guarantee that audit markers, tool latencies, and token diagnostics survive restarts.
 5. **Positive Session Routing**: In multi-session environments (WebUI), all state and stream routing are positively keyed by `sessionId`. Background tabs receive stream deltas into dedicated lanes without cross-contaminating the foreground DOM or state stores.

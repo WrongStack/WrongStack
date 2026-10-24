@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Config } from '@wrongstack/contracts/types';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
-import type { Config } from '@wrongstack/core/types';
 import { recordJevActivity } from '@wrongstack/core/typesafe';
 import { describe, expect, it, vi } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';

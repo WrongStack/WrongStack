@@ -1,6 +1,6 @@
-import type { ProviderConfig, SecretVault } from '@wrongstack/core/types';
-import type { WebSocket } from 'ws';
+import type { ProviderConfig, SecretVault } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 import { createProviderHandlers } from '../src/server/provider-handlers.js';
 
 const mockLoadSavedProviders = vi.hoisted(() => vi.fn());

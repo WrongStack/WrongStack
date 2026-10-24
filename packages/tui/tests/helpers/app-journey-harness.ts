@@ -1,7 +1,7 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { AttachmentStore, Message } from '@wrongstack/contracts/types';
 import type { Agent, TodoItem } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { AttachmentStore, Message } from '@wrongstack/core/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { vi } from 'vitest';

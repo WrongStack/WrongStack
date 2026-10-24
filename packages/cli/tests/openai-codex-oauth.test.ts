@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { isParseError, type ModelsRegistry, ProviderError } from '@wrongstack/core/types';
+import { isParseError, type ModelsRegistry, ProviderError } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAuthorizeUrl,

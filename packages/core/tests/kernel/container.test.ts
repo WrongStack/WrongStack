@@ -1,5 +1,5 @@
+import { Container, type Token } from '@wrongstack/contracts/kernel/container';
 import { describe, expect, it } from 'vitest';
-import { Container, type Token } from '../../src/kernel/container.js';
 
 interface Logger {
   msg: string;

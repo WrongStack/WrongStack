@@ -6,8 +6,9 @@
  * before: auto-proceed delay (0 vs 15s), cache TTL (default vs 1h), SAGE
  * inject visibility (on vs off) and threshold (0.85 vs 0.9).
  */
+
+import type { ConfigStore } from '@wrongstack/contracts/types';
 import { CONFIG_BEHAVIOR_DEFAULTS } from '@wrongstack/core/storage';
-import type { ConfigStore } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { SETTINGS_DEFAULTS } from '../../tui/src/components/settings-picker-model.js';
 import { readTuiSettings } from '../src/boot/tui-settings-read.js';

@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   createKanbanSddSessionPersistence,
   renderProgress,
@@ -20,7 +20,7 @@ import { runSddInspectCommand } from './sdd-inspect-commands.js';
 import { runSddSessionCommand } from './sdd-session-commands.js';
 import { executeSddTaskMutation } from './sdd-task-mutations.js';
 
-export type { TaskProgress } from '@wrongstack/core/types';
+export type { TaskProgress } from '@wrongstack/contracts/types';
 export {
   findSpec,
   gatherProjectContext,

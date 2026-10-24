@@ -1,6 +1,6 @@
+import type { AttachmentStore, ContentBlock } from '@wrongstack/contracts/types';
 import type { InputBuilder } from '@wrongstack/core/agent';
 import type { Director } from '@wrongstack/core/coordination';
-import type { AttachmentStore, ContentBlock } from '@wrongstack/core/types';
 import type { Action, State } from './app-reducer.js';
 import type { emptyMemoryContextMonitor } from './memory-context-monitor.js';
 import type { MutableCell } from './shared-types.js';

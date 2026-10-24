@@ -1,4 +1,4 @@
-import { isFetchError } from '@wrongstack/core/types';
+import { isFetchError } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchTool, guardedFetch } from '../src/fetch.js';
 import { mkSandbox, newSignal } from './fixtures.js';

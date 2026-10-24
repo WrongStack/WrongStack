@@ -1,4 +1,4 @@
-import type { SessionEvent, SessionWriter } from '../types/session.js';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
 
 export type AuditLevel = 'minimal' | 'standard' | 'full';
 

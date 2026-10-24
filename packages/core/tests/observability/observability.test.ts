@@ -1,5 +1,5 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import {
   DefaultHealthRegistry,
   InMemoryMetricsSink,
@@ -146,9 +146,10 @@ describe('InMemoryMetricsSink', () => {
   });
 
   it('exposes droppedObservations via the MetricsSink interface', () => {
-    const sink: import('../../src/types/observability.js').MetricsSink = new InMemoryMetricsSink({
-      maxSeriesPerMetric: 2,
-    });
+    const sink: import('@wrongstack/contracts/types/observability').MetricsSink =
+      new InMemoryMetricsSink({
+        maxSeriesPerMetric: 2,
+      });
     sink.counter('c', 1, { u: 'a' });
     sink.counter('c', 1, { u: 'b' });
     sink.counter('c', 1, { u: 'c' }); // dropped

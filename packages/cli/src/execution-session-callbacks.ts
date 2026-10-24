@@ -1,4 +1,4 @@
-import type { SessionSummary } from '@wrongstack/core/types';
+import type { SessionSummary } from '@wrongstack/contracts/types';
 import { listGitWorktrees } from '@wrongstack/core/worktree';
 import { getLiveSessions } from './boot/tui-live-sessions.js';
 import type { TuiRuntimeState } from './boot/tui-runtime-state.js';

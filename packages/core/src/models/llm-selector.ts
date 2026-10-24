@@ -1,10 +1,10 @@
-import type { OneShotOrchestrator } from '../execution/one-shot-llm.js';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { OneShotLLMCaller } from '@wrongstack/contracts/types/one-shot-llm';
+import type { Provider, Request } from '@wrongstack/contracts/types/provider';
+import type { MessageSelector, SelectorResult } from '@wrongstack/contracts/types/selector';
 import { noOpLogger } from '../infrastructure/logger.js';
-import { isTextBlock } from '../types/blocks.js';
-import type { Logger } from '../types/logger.js';
-import type { Message } from '../types/messages.js';
-import type { Provider, Request } from '../types/provider.js';
-import type { MessageSelector, SelectorResult } from '../types/selector.js';
 import { buildCompactionPreview } from '../utils/compaction-preview.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
@@ -37,7 +37,7 @@ export interface LLMSelectorOptions {
    * OneShotOrchestrator for the selector LLM call. When set, uses it
    * instead of direct provider.complete(), gaining fallback chain support.
    */
-  oneShotOrchestrator?: OneShotOrchestrator | undefined;
+  oneShotOrchestrator?: OneShotLLMCaller | undefined;
   /** Structured logger. Defaults to noOpLogger (silent). */
   logger?: Logger | undefined;
 }
@@ -103,7 +103,7 @@ export class LLMSelector implements MessageSelector {
   private readonly maxContextTokens: number;
   private readonly systemPrompt: string;
   private readonly maxOutputTokens: number | undefined;
-  private readonly oneShotOrchestrator?: OneShotOrchestrator | undefined;
+  private readonly oneShotOrchestrator?: OneShotLLMCaller | undefined;
   private readonly logger: Logger;
 
   constructor(opts: LLMSelectorOptions) {

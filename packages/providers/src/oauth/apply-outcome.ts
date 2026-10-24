@@ -1,4 +1,4 @@
-import type { ProviderAuthOutcome, ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderAuthOutcome, ProviderConfig } from '@wrongstack/contracts/types';
 import { authProfileAliasError } from '../provider-config-state.js';
 
 export interface ApplyProviderAuthOutcomeOptions {

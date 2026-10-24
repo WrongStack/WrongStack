@@ -1,14 +1,14 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Provider, Request, Response, Tool } from '@wrongstack/contracts/types';
 import { Agent, Context } from '@wrongstack/core/agent';
 import { DefaultErrorHandler, DefaultRetryPolicy, ToolExecutor } from '@wrongstack/core/execution';
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import type { Provider, Request, Response, Tool } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { installVibeProtocol, VIBE_PROTOCOL_META_KEY } from '../src/vibe-protocol-wiring.js';
 import { setupPipelines } from '../src/wiring/pipeline.js';

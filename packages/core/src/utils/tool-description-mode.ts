@@ -1,5 +1,8 @@
-import type { ToolDescriptionMode, ToolDescriptionModeConfig } from '../types/config.js';
-import type { Tool } from '../types/tool.js';
+import type {
+  ToolDescriptionMode,
+  ToolDescriptionModeConfig,
+} from '@wrongstack/contracts/types/config';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 
 export const DEFAULT_TOOL_DESCRIPTION_MODE: ToolDescriptionMode = 'extend';
 

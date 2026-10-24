@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
-import type { EventBus, EventMap } from '../kernel/events.js';
+import type { EventBus, EventMap } from '@wrongstack/contracts/kernel/events';
 import { redactCommandArgs } from './redact-command.js';
 
 export interface ProcessTelemetryContext {

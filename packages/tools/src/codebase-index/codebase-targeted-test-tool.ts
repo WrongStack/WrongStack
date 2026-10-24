@@ -10,8 +10,8 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { spawnStream } from '../_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveProjectPath } from '../_util.js';

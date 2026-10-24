@@ -1,4 +1,4 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type TelegramApiCallbackQuery,

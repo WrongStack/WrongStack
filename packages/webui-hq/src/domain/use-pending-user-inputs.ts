@@ -1,9 +1,9 @@
+import type { UserInputResponse } from '@wrongstack/contracts/types';
 import type {
   HqEventEnvelope,
   HqUserInputRequestedPayload,
   HqUserInputResolvedPayload,
-} from '@wrongstack/core/hq';
-import type { UserInputResponse } from '@wrongstack/core/types';
+} from '@wrongstack/hq';
 import { useCallback, useMemo, useState } from 'react';
 import { postCommand } from '../data/api.js';
 import { useToastStore } from '../data/toast-store.js';

@@ -27,7 +27,7 @@
 // (pref-helpers.ts) so the toggle lands on whichever layer wins.
 // ---------------------------------------------------------------------------
 
-import type { PluginConfig } from '@wrongstack/core/types';
+import type { PluginConfig } from '@wrongstack/contracts/types';
 
 type PluginEntry = string | PluginConfig;
 

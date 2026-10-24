@@ -1,5 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { CloudSyncConfig, ConfigStore } from '@wrongstack/contracts/types/config';
+import type { Plugin } from '@wrongstack/contracts/types/plugin';
+import type { SecretVault } from '@wrongstack/contracts/types/secret-vault';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 // Types come from their source modules, not '../index.js' — the barrel would put this
 // file into the ARCH-CYCLE-TYPE-14 module cycle.
 import type { Context } from '../core/context.js';
@@ -9,10 +13,6 @@ import {
   encryptConfigSecrets,
 } from '../security/config-secrets.js';
 import { CloudConfigSync } from '../storage/cloud-config-sync.js';
-import type { CloudSyncConfig, ConfigStore } from '../types/config.js';
-import type { Plugin } from '../types/plugin.js';
-import type { SecretVault } from '../types/secret-vault.js';
-import type { SlashCommand } from '../types/slash-command.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { backupConfigFile } from '../utils/config-backup.js';
 import { toErrorMessage } from '../utils/error.js';

@@ -1,4 +1,4 @@
-import { shortWorktreeBranch } from '@wrongstack/core/types/worktree-timeline';
+import { shortWorktreeBranch } from '@wrongstack/contracts/types/worktree-timeline';
 import { useEffect, useMemo, useState } from 'react';
 import { confirmModal } from '@/components/ConfirmModal';
 import { useWebSocket } from '@/hooks/useWebSocket';

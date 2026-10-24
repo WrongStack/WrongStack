@@ -1,4 +1,4 @@
-import type { SessionData } from '../../types/session.js';
+import type { SessionData } from '@wrongstack/contracts/types/session';
 import type { LoadCacheEntry } from './types.js';
 
 const LOAD_CACHE_MAX_ENTRIES = 50;

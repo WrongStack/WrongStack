@@ -1,6 +1,6 @@
-import type { CollaborationBus, InjectedToolResult } from './collab-bus.js';
+import type { Middleware } from '@wrongstack/contracts/kernel/pipeline';
 import type { ToolCallPipelinePayload } from '../core/agent-types.js';
-import type { Middleware } from '../kernel/pipeline.js';
+import type { CollaborationBus, InjectedToolResult } from './collab-bus.js';
 
 /**
  * collabPauseMiddleware — gates the agent's `toolCall` pipeline on

@@ -3,8 +3,17 @@
  * Handles batch tool execution, confirmation flow, and post-execution
  * pipeline/session/event emission.
  */
-import type { BrainRisk } from '../coordination/brain.js';
-import { TOKENS } from '../kernel/tokens.js';
+
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import type {
+  ContentBlock,
+  ToolResultBlock,
+  ToolUseBlock,
+} from '@wrongstack/contracts/types/blocks';
+import type { NestedToolCaller } from '@wrongstack/contracts/types/context';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
+import type { Tool, ToolSettlement } from '@wrongstack/contracts/types/tool';
+import type { BrainRisk } from '../brain/brain.js';
 import { describeWriteTargets } from '../security/permission-helpers.js';
 import {
   approvalRecord,
@@ -12,10 +21,6 @@ import {
   isPersistentApproval,
   userRuleAnswer,
 } from '../security/scoped-approval.js';
-import type { ContentBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { NestedToolCaller } from '../types/context.js';
-import type { SessionEvent } from '../types/session.js';
-import type { Tool, ToolSettlement } from '../types/tool.js';
 import { recordToolOutputEvidence } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
 import { capSageLines, splitSageOutputBlock } from '../utils/sage-output-block.js';
@@ -51,7 +56,7 @@ const SAGE_EVENT_MAX = 2_000;
 export const HUMAN_APPROVAL_TIMEOUT_MS = 120_000;
 
 function approvalBrainRisk(
-  riskTier: import('../types/tool.js').RiskTier | undefined,
+  riskTier: import('@wrongstack/contracts/types/tool').RiskTier | undefined,
   boundaryReason: string | undefined,
 ): BrainRisk {
   if (boundaryReason || riskTier === 'destructive') return 'critical';
@@ -121,8 +126,10 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     input: unknown;
     toolUseId: string;
     suggestedPattern: string;
-    decisionSource?: import('../types/permission.js').PermissionDecision['source'] | undefined;
-    riskTier?: import('../types/tool.js').RiskTier | undefined;
+    decisionSource?:
+      | import('@wrongstack/contracts/types/permission').PermissionDecision['source']
+      | undefined;
+    riskTier?: import('@wrongstack/contracts/types/tool').RiskTier | undefined;
     boundaryReason?: string | undefined;
     writeTargets?: string[] | undefined;
   }): Promise<

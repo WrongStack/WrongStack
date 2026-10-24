@@ -1,6 +1,10 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
+import {
+  NEXT_STEPS_MODES,
+  type NextStepsMode,
+  resolveNextStepsMode,
+} from '@wrongstack/contracts/types';
 import { noOpVault } from '@wrongstack/core/security';
-import type { SlashCommand } from '@wrongstack/core/types';
-import { NEXT_STEPS_MODES, type NextStepsMode, resolveNextStepsMode } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { persistAutonomySetting } from '../settings-menu.js';
 import type { SlashCommandContext } from './command-context.js';

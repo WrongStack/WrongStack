@@ -1,5 +1,5 @@
+import { type Message, ToolErrorCategory } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import { type Message, ToolErrorCategory } from '@wrongstack/core/types';
 import { createContextEvidenceState } from '@wrongstack/core/utils';
 import { describe, expect, it } from 'vitest';
 import {

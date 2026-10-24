@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
-import { stripFrontmatter } from '../../src/skills/frontmatter.js';
 import {
   missingRequiredRuntimeTools,
   RUNTIME_CAPABILITY_MANIFEST,
   runtimeToolReferencesFromText,
-} from '../../src/types/runtime-capability-manifest.js';
+} from '@wrongstack/contracts/types/runtime-capability-manifest';
+import { describe, expect, it } from 'vitest';
+import { stripFrontmatter } from '../../src/skills/frontmatter.js';
 
 /**
  * Skill bodies are re-scanned for tool-shaped references when the prompt is

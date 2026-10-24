@@ -1,4 +1,4 @@
-import type { SubagentRunner } from '@wrongstack/core/types';
+import type { SubagentRunner } from '@wrongstack/contracts/types';
 import { type BuildAcpSubagentRunnerOptions, buildAcpSubagentRunner } from './host-acp.js';
 import { setBoundedLruEntry, touchLruKey } from './host-helpers.js';
 

@@ -1,4 +1,4 @@
-import type { SecretScrubber } from '@wrongstack/core/types';
+import type { SecretScrubber } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { probeLocalLlm } from '../src/local-llm-probe.js';
 

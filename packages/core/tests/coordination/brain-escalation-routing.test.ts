@@ -1,15 +1,11 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  BrainArbiter,
-  BrainDecision,
-  BrainDecisionRequest,
-} from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../../src/brain/brain.js';
 import {
   BrainDecisionQueue,
   EscalationRoutingBrainArbiter,
   terminalPolicyDecision,
-} from '../../src/coordination/brain.js';
-import { EventBus } from '../../src/kernel/events.js';
+} from '../../src/brain/brain.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'e1',

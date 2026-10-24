@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { ERROR_CODES, FsError, WrongStackError } from '../types/errors.js';
-import type { SkillLoader } from '../types/skill.js';
+import { ERROR_CODES, FsError, WrongStackError } from '@wrongstack/contracts/types/errors';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
 import { toErrorMessage } from '../utils/error.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import { isValidSkillNameFormat, parseSkillFrontmatter } from './frontmatter.js';

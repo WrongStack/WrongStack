@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { treeKill } from '@wrongstack/core/utils/tree-kill';
 import { buildWin32CmdShimInvocation } from '../utils/win32-cmd.js';

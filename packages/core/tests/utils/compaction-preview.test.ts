@@ -1,5 +1,5 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { describe, expect, it } from 'vitest';
-import type { Message } from '../../src/types/messages.js';
 import { buildCompactionPreview } from '../../src/utils/compaction-preview.js';
 
 const toolResult = (content: unknown): Message =>

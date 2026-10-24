@@ -1,5 +1,5 @@
+import type { Config, PluginConfigFields } from '@wrongstack/contracts/types';
 import { type PluginAPI, resolvePluginConfig } from '@wrongstack/core/plugin';
-import type { Config, PluginConfigFields } from '@wrongstack/core/types';
 
 export const PLUGIN_NAME = 'telegram';
 export const PLUGIN_CONFIG_ALIASES = ['@wrongstack/telegram'] as const;

@@ -9,8 +9,8 @@
  * shown at 0%, and that a failed read never clobbers a good one.
  */
 
+import type { Request } from '@wrongstack/contracts/types';
 import { getProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import type { Request } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GitHubCopilotProvider } from '../src/github-copilot.js';
 import { parseCopilotQuotaJson, reportCopilotQuota } from '../src/github-copilot-quota.js';

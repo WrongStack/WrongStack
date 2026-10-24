@@ -1,3 +1,4 @@
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { Context } from '../../src/core/context.js';
 import {
@@ -6,7 +7,6 @@ import {
   enqueueSessionNote,
   pendingSessionNoteCount,
 } from '../../src/core/session-notes.js';
-import type { SessionWriter } from '../../src/types/session.js';
 
 function makeWriter(id: string): SessionWriter {
   return {

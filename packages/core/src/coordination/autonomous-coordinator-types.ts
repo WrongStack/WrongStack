@@ -1,7 +1,7 @@
-import type { EventBus } from '../kernel/events.js';
-import type { Logger } from '../types/logger.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { BrainArbiter } from '../brain/brain.js';
 import type { LLMProvider } from './autonomous-brain.js';
-import type { BrainArbiter } from './brain.js';
 import type { Director } from './director.js';
 import type { FleetBus } from './fleet-bus.js';
 import type { FleetManager } from './fleet-manager.js';

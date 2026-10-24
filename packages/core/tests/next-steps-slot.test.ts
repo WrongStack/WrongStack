@@ -1,3 +1,4 @@
+import type { Response } from '@wrongstack/contracts/types/provider';
 import {
   isFinalTurnStopReason,
   parseNextSteps,
@@ -15,7 +16,6 @@ import {
   renderNextStepsBlock,
   writePendingNextSteps,
 } from '../src/core/next-steps-slot.js';
-import type { Response } from '../src/types/provider.js';
 
 /**
  * `core` cannot import the parser (package DAG), so this module re-derives the

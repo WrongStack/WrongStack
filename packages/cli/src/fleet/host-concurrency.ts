@@ -1,4 +1,4 @@
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 
 export function normalizeMaxConcurrent(value: number): number {
   if (!Number.isFinite(value) || value < 1) {

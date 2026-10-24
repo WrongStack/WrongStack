@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { MCPServerConfig } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { MCPServerConfig } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MCPClient } from '../src/client.js';
 import { MCP_CONSTANTS } from '../src/constants.js';

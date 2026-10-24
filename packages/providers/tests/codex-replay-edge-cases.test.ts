@@ -1,4 +1,4 @@
-import type { Message, ThinkingBlock } from '@wrongstack/core/types';
+import type { Message, ThinkingBlock } from '@wrongstack/contracts/types';
 import { expect, it } from 'vitest';
 import {
   CODEX_TOOL_ARGUMENTS_META,

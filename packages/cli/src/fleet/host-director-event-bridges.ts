@@ -1,11 +1,11 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { TaskResult } from '@wrongstack/contracts/types';
 import type {
   AgentMonitorService,
   DefaultMultiAgentCoordinator,
   Director,
   FleetManager,
 } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { TaskResult } from '@wrongstack/core/types';
 
 type CompletedTask = {
   id: string;

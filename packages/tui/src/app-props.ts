@@ -1,8 +1,4 @@
-import type { Agent } from '@wrongstack/core/agent';
-import type { CoordinatorEvent } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { QueueStore } from '@wrongstack/core/storage';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   AttachmentStore,
   AutonomyStage,
@@ -10,7 +6,11 @@ import type {
   SkillLoader,
   TokenCounter,
   TokenSavingTier,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Agent } from '@wrongstack/core/agent';
+import type { CoordinatorEvent } from '@wrongstack/core/coordination';
+import type { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type { QueueStore } from '@wrongstack/core/storage';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
 import type React from 'react';
@@ -138,7 +138,7 @@ export interface AppProps
    */
   getModes?:
     | (() => Promise<{
-        modes: import('@wrongstack/core/types').Mode[];
+        modes: import('@wrongstack/contracts/types').Mode[];
         activeId: string | null;
       }>)
     | undefined;
@@ -158,7 +158,7 @@ export interface AppProps
    * hook so the engine and TUI never race for the shared Context.
    */
   getParallelEngine?:
-    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | (() => import('@wrongstack/core/coordination').ParallelEternalEngine | null)
     | undefined;
   /**
    * Access the active SDD parallel run's control surface (or null). The SIGINT
@@ -183,7 +183,7 @@ export interface AppProps
    * goal.json after the fact.
    */
   subscribeEternalIteration?:
-    | ((fn: (entry: import('@wrongstack/core/goal').JournalEntry) => void) => () => void)
+    | ((fn: (entry: import('@wrongstack/goal').JournalEntry) => void) => () => void)
     | undefined;
   /**
    * Subscribe to per-iteration stage transitions from the autonomy engines.
@@ -398,7 +398,7 @@ export interface AppProps
    * rebuilt with the canonical renderer (tool I/O + interleaved audit markers)
    * instead of meta-only tool chips. Omitted → legacy fallback.
    */
-  restoredEvents?: import('@wrongstack/core/types').SessionEvent[] | undefined;
+  restoredEvents?: import('@wrongstack/contracts/types').SessionEvent[] | undefined;
   /**
    * When true, the agents monitor (F3) is open by default at TUI startup.
    * Used by the `wrongstack quick` command to show agents panel immediately.
@@ -446,5 +446,5 @@ export interface AppProps
    */
   clientId?: string | undefined;
   /** Access the persistent memory store for listing and inspecting memories. */
-  memoryStore?: import('@wrongstack/core/types').MemoryPort | undefined;
+  memoryStore?: import('@wrongstack/contracts/types').MemoryPort | undefined;
 }

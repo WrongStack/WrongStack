@@ -1,6 +1,11 @@
-import type { SubagentConfig } from '../types/multi-agent.js';
-import type { TaskSpec, TaskResult, CoordinatorStatus } from '../types/multi-agent.js';
-export type { TaskSpec, TaskResult } from '../types/multi-agent.js';
+import type {
+  CoordinatorStatus,
+  SubagentConfig,
+  TaskResult,
+  TaskSpec,
+} from '@wrongstack/contracts/types/multi-agent';
+
+export type { TaskResult, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 
 /**
  * Interface for a fleet coordinator. Implemented by both `Director`

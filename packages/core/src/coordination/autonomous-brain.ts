@@ -49,7 +49,7 @@ import type {
   BrainDecisionRequest,
   BrainDecisionSource,
   BrainRisk,
-} from './brain.js';
+} from '../brain/brain.js';
 import type { FleetBus } from './fleet-bus.js';
 import type {
   ChangeNode,

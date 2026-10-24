@@ -23,6 +23,7 @@
  */
 
 import * as path from 'node:path';
+import type { Config } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import { AgentStatusTracker } from '@wrongstack/core/coordination';
 import {
@@ -30,8 +31,7 @@ import {
   createApprovalRegistry,
   startApprovalTelemetryBridge,
   startSessionTelemetryBridge,
-} from '@wrongstack/core/hq';
-import type { Config } from '@wrongstack/core/types';
+} from '@wrongstack/hq';
 import { createHqCommandDispatcher } from './hq-command-controller.js';
 import { startCliHqConnection } from './hq-publisher.js';
 

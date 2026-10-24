@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Specification, TaskGraph, TaskNode } from '@wrongstack/contracts/types';
 import { DefaultTaskStore, TaskTracker } from '@wrongstack/core/tasking';
-import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildBoardSnapshot, buildBoardTasks } from '../src/board-types.js';
 import { assessTaskNodeAtomicity, decomposeNonAtomicTasks } from '../src/plan-decompose.js';

@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import {
   atomicWrite,
   detectNewlineStyle,

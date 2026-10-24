@@ -1,5 +1,5 @@
 import * as fs from 'node:fs/promises';
-import { FsError, type Tool, ToolValidationError } from '@wrongstack/core/types';
+import { FsError, type Tool, ToolValidationError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { isBinaryBuffer, safeResolveReal, sha256hex } from './_util.js';
 import { getIndexState, searchCodebaseIndex } from './codebase-index/background-indexer.js';

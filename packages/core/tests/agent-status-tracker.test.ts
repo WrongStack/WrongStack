@@ -2,9 +2,10 @@
  * AgentStatusTracker unit tests — verify that EventBus events correctly
  * translate to SessionRegistry.updateAgents() calls with the right state.
  */
+
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AgentStatusTracker } from '../src/coordination/agent-status-tracker.js';
-import type { EventBus } from '../src/kernel/events.js';
 import type { AgentEntry, SessionRegistry } from '../src/session-catalog/session-registry.js';
 
 // ── Mocks ──────────────────────────────────────────────────────────────

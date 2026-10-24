@@ -1,3 +1,61 @@
+export * from '@wrongstack/contracts/kernel';
+export * from '@wrongstack/contracts/types';
+export type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
+export {
+  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
+  CONTEXT_WINDOW_MODES,
+  type ContextWindowAggressiveOn,
+  type ContextWindowConfigLike,
+  type ContextWindowMode,
+  type ContextWindowModeId,
+  type ContextWindowModeSelectionId,
+  type ContextWindowPolicy,
+  type ContextWindowThresholds,
+  DEFAULT_CONTEXT_WINDOW_MODE_ID,
+  DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES,
+  type DeprecatedContextWindowModeId,
+  formatContextWindowModeList,
+  getContextWindowMode,
+  isContextWindowModeId,
+  isContextWindowModeSelectionId,
+  isDeprecatedContextWindowModeId,
+  LARGE_WINDOW_DEEP_MODE_THRESHOLD,
+  listContextWindowModes,
+  normalizeContextWindowModeId,
+  resolveContextWindowPolicy,
+} from '@wrongstack/contracts/types/context-window';
+export { DEFAULT_SESSION_PRUNE_DAYS } from '@wrongstack/contracts/types/default-config';
+export type { FileEventRecord } from '@wrongstack/contracts/types/file-event-record';
+export type { Logger, LogLevel } from '@wrongstack/contracts/types/logger';
+// Explicit type re-exports keep the top-level public surface stable for types
+// that are reachable through multiple export chains (types/, execution/, …).
+// Consumers (e.g. @wrongstack/providers) import these directly from '@wrongstack/core'.
+export type {
+  ModelsDevModel,
+  ModelsDevPayload,
+  ModelsDevProvider,
+  ModelsRegistry,
+  ResolvedModel,
+  ResolvedProvider,
+  WireFamily,
+} from '@wrongstack/contracts/types/models-registry';
+export type {
+  ProviderRunner,
+  RunProviderOptions,
+} from '@wrongstack/contracts/types/provider-runner';
+export type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+export type { RotatableSecretVault, SecretVault } from '@wrongstack/contracts/types/secret-vault';
+export {
+  encryptedPrefixForVersion,
+  noOpVault,
+  parseEncryptedVersion,
+} from '@wrongstack/contracts/types/secret-vault';
+export type {
+  CacheStats,
+  LastRequestCacheStats,
+  ProviderCacheStats,
+  TokenCounter,
+} from '@wrongstack/contracts/types/token-counter';
 export {
   isSystemSessionId,
   requireSessionId,
@@ -146,36 +204,6 @@ export {
   type OnErrorHook,
   type ProviderRunnerWrapper,
 } from './extension/index.js';
-// Goal - autonomous phase-based workflow
-export {
-  type Checkpoint,
-  CheckpointManager,
-  type CheckpointManagerOptions,
-  createGoalRunnerFromTaskGraph,
-  type GoalOptions,
-  GoalPlanner,
-  type GoalPlannerOptions,
-  type GoalPlanResult,
-  GoalRunner,
-  type GoalRunnerOptions,
-  PHASE_EVENT_NAMES,
-  type PhaseEventMap,
-  type PhaseEventName,
-  type PhaseExecutionContext,
-  type PhaseFilter,
-  type PhaseGraph,
-  PhaseGraphBuilder,
-  type PhaseGraphBuilderOptions,
-  type PhaseNode,
-  PhaseOrchestrator,
-  type PhaseOrchestratorOptions,
-  type PhaseProgress,
-  type PhaseSort,
-  type PhaseStatus,
-  PhaseStore,
-  type PhaseStoreOptions,
-  type PhaseTemplate,
-} from './goal/index.js';
 export {
   countShellHooks,
   HookRegistry,
@@ -189,7 +217,6 @@ export {
   type ShellHookSpec,
   shellHooksEqual,
 } from './hooks/index.js';
-export * from './hq/index.js';
 export {
   DefaultLogger,
   type DefaultLoggerOptions,
@@ -200,7 +227,6 @@ export {
   type ProviderCacheEntry,
   ProviderCacheLedger,
 } from './infrastructure/provider-cache-ledger.js';
-export * from './kernel/index.js';
 export { attachMailboxChecker } from './mailbox-attach.js';
 // ---- Notifications (one-way channel-agnostic delivery) ----
 export {
@@ -405,92 +431,6 @@ export {
   type TaskTrackerOptions,
   type TaskTransition,
 } from './tasking/task-tracker.js';
-export {
-  COUNCIL_TOOL_NAME,
-  type CouncilToolInput,
-  type CreateCouncilToolOptions,
-  createCouncilTool,
-} from './tools/council-tool.js';
-export {
-  AGENT_MODEL_ASSIGN_TOOL_NAME,
-  createFallbackManageTools,
-  FALLBACK_CHAIN_MANAGE_TOOL_NAME,
-  FALLBACK_PROFILE_MANAGE_TOOL_NAME,
-  FAVORITE_MANAGE_TOOL_NAME,
-  type FallbackManageToolOptions,
-  LEADER_MODEL_SET_TOOL_NAME,
-  PROVIDER_KEY_SET_TOOL_NAME,
-  PROVIDER_MANAGE_TOOL_NAME,
-  SYSTEM_CONFIG_VIEW_TOOL_NAME,
-} from './tools/fallback-manage-tools.js';
-export { createMcpControlTool, type MCPRegistryHandle } from './tools/mcp-control.js';
-export { createMcpUseTool } from './tools/mcp-use.js';
-export {
-  type CreateOneShotLLMToolOptions,
-  createOneShotLLMTool,
-  ONE_SHOT_LLM_TOOL_NAME,
-} from './tools/one-shot-llm-tool.js';
-export {
-  type CreatePluginManagerToolOptions,
-  createPluginManagerTool,
-  PLUGIN_MANAGER_TOOL_NAME,
-  type PluginManagerCatalogEntry,
-  type PluginManagerMutationResult,
-} from './tools/plugin-manager.js';
-export type { Compactor, CompactReport } from './types/compactor.js';
-export {
-  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
-  CONTEXT_WINDOW_MODES,
-  type ContextWindowAggressiveOn,
-  type ContextWindowConfigLike,
-  type ContextWindowMode,
-  type ContextWindowModeId,
-  type ContextWindowModeSelectionId,
-  type ContextWindowPolicy,
-  type ContextWindowThresholds,
-  DEFAULT_CONTEXT_WINDOW_MODE_ID,
-  DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES,
-  type DeprecatedContextWindowModeId,
-  formatContextWindowModeList,
-  getContextWindowMode,
-  isContextWindowModeId,
-  isContextWindowModeSelectionId,
-  isDeprecatedContextWindowModeId,
-  LARGE_WINDOW_DEEP_MODE_THRESHOLD,
-  listContextWindowModes,
-  normalizeContextWindowModeId,
-  resolveContextWindowPolicy,
-} from './types/context-window.js';
-export { DEFAULT_SESSION_PRUNE_DAYS } from './types/default-config.js';
-export type { FileEventRecord } from './types/file-event-record.js';
-export * from './types/index.js';
-export type { Logger, LogLevel } from './types/logger.js';
-// Explicit type re-exports keep the top-level public surface stable for types
-// that are reachable through multiple export chains (types/, execution/, …).
-// Consumers (e.g. @wrongstack/providers) import these directly from '@wrongstack/core'.
-export type {
-  ModelsDevModel,
-  ModelsDevPayload,
-  ModelsDevProvider,
-  ModelsRegistry,
-  ResolvedModel,
-  ResolvedProvider,
-  WireFamily,
-} from './types/models-registry.js';
-export type { ProviderRunner, RunProviderOptions } from './types/provider-runner.js';
-export type { SecretScrubber } from './types/secret-scrubber.js';
-export type { RotatableSecretVault, SecretVault } from './types/secret-vault.js';
-export {
-  encryptedPrefixForVersion,
-  noOpVault,
-  parseEncryptedVersion,
-} from './types/secret-vault.js';
-export type {
-  CacheStats,
-  LastRequestCacheStats,
-  ProviderCacheStats,
-  TokenCounter,
-} from './types/token-counter.js';
 export { expectDefined } from './utils/expect-defined.js';
 export * from './utils/index.js';
 export {

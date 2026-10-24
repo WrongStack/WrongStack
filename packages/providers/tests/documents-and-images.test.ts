@@ -1,4 +1,4 @@
-import type { DocumentBlock, Message, Request } from '@wrongstack/core/types';
+import type { DocumentBlock, Message, Request } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { convertMessages } from '../src/ai-gateway.js';
 import { CatalogRoutedProvider } from '../src/catalog-routed.js';

@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import { StringDecoder } from 'node:string_decoder';
-import type { Tool } from '@wrongstack/core/types';
-import { FsError, ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { FsError, ToolValidationError } from '@wrongstack/contracts/types';
 import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
 import { compileUserRegex } from './_regex.js';
 import { PARSED_COMMAND_OUTPUT_GUARD_BYTES, safeResolveReal } from './_util.js';

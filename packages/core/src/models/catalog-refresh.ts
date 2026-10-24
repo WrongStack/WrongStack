@@ -1,5 +1,5 @@
-import type { Logger } from '../types/logger.js';
-import type { ModelsRegistry } from '../types/models-registry.js';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { ModelsRegistry } from '@wrongstack/contracts/types/models-registry';
 import { toErrorMessage } from '../utils/error.js';
 
 /**

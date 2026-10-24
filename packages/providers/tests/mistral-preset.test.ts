@@ -1,4 +1,4 @@
-import type { StreamEvent } from '@wrongstack/core/types';
+import type { StreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { mistralToolCallId, mistralWireFormat } from '../src/presets/mistral.js';
 import { WireFormatProvider } from '../src/wire-format.js';

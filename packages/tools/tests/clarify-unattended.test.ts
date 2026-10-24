@@ -4,8 +4,9 @@
  * awaiter, and in an eternal / parallel run the awaiter gives up so the tool
  * takes its recommended answers. An attended run keeps waiting for a person.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { Context, createEventUserInputAwaiter, isUnattendedAutonomy } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
 import { describe, expect, it } from 'vitest';
 import { clarifyTool } from '../src/index.js';
 

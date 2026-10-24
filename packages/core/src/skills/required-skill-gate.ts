@@ -32,9 +32,9 @@
  * marker stays an instruction there.
  */
 
-import type { ContentBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
-import type { SessionEvent } from '../types/session-events.js';
+import type { ContentBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SessionEvent } from '@wrongstack/contracts/types/session-events';
 import { isElidedResultContent, isElidedToolInput } from '../utils/elision-markers.js';
 
 export const REQUIRED_SKILLS_META_KEY = 'requiredSkills';

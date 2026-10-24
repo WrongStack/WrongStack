@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
-import type { UserInputAnswer, UserInputQuestion, UserInputRequest } from '@wrongstack/core/types';
+import type {
+  UserInputAnswer,
+  UserInputQuestion,
+  UserInputRequest,
+} from '@wrongstack/contracts/types';
 import { sanitizeTerminalText } from '@wrongstack/core/utils';
 import {
   type ElicitationField,

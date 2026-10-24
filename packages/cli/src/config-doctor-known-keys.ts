@@ -1,4 +1,4 @@
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 
 /** Every key that may legitimately appear in a persisted config file.
  *  Mirrors the `Config` interface in @wrongstack/core types/config.ts.

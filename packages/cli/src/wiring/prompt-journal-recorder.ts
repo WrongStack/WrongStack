@@ -1,10 +1,10 @@
+import type { TextBlock } from '@wrongstack/contracts/types';
+import type { ToolCallPipelinePayload, UserInputPayload } from '@wrongstack/core/agent';
 import {
   PROMPT_JOURNAL_RAW_MARKER,
-  recordPromptJournalEntry,
   type PromptCategory,
+  recordPromptJournalEntry,
 } from '@wrongstack/core/prompts';
-import type { ToolCallPipelinePayload, UserInputPayload } from '@wrongstack/core/agent';
-import type { TextBlock } from '@wrongstack/core/types';
 
 /**
  * userInput-pipeline middleware that records every submitted user prompt into

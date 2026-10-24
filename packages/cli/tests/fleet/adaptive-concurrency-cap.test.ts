@@ -6,9 +6,10 @@
  * cap from the user's 4 — or 2 — to 16 before any 429, and the first 429 only
  * dropped it to 8. The host now defaults the ceiling to the fleet's own cap.
  */
+
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { describe, expect, it, vi } from 'vitest';

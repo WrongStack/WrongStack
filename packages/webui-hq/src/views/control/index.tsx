@@ -11,7 +11,7 @@
  * `--hq-allow-exec` and the operator's token to carry `control.execute` — the
  * server enforces both; this view only explains them.
  */
-import type { HqCommandAuditEntry } from '@wrongstack/core/hq';
+import type { HqCommandAuditEntry } from '@wrongstack/hq';
 import { SquareTerminal, TriangleAlert } from 'lucide-react';
 import type * as React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';

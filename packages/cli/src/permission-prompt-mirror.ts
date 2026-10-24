@@ -28,9 +28,9 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ApprovalRegistry } from '@wrongstack/core/hq';
+import type { Tool } from '@wrongstack/contracts/types';
+import type { ApprovalRegistry } from '@wrongstack/hq';
 import { describeWriteTargets } from '@wrongstack/core/security';
-import type { Tool } from '@wrongstack/core/types';
 
 type PromptDecision =
   | 'yes'

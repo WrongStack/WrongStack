@@ -1,3 +1,4 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   buildWindowsAclPlan,
@@ -10,7 +11,6 @@ import {
   windowsNativeSandboxBackend,
 } from '../../src/sandbox/index.js';
 import { type SandboxConfig, SandboxDeniedError } from '../../src/sandbox/types.js';
-import type { Tool } from '../../src/types/tool.js';
 
 // Re-exported types live here in tests via the barrel; Tool is structural.
 

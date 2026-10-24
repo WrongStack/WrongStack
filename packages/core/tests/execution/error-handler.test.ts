@@ -1,9 +1,9 @@
+import type { Compactor } from '@wrongstack/contracts/types/compactor';
+import type { ModelsRegistry } from '@wrongstack/contracts/types/models-registry';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { buildRecoveryStrategies } from '../../src/execution/error-handler.js';
 import { DefaultErrorHandler, ProviderError } from '../../src/index.js';
-import type { Compactor } from '../../src/types/compactor.js';
-import type { ModelsRegistry } from '../../src/types/models-registry.js';
 
 const provErr = (msg: string, status: number) => new ProviderError(msg, status, false, 'test');
 

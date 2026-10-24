@@ -1,6 +1,6 @@
-import type { ToolResultBlock } from '../types/blocks.js';
-import { isTextBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
+import type { ToolResultBlock } from '@wrongstack/contracts/types/blocks';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
 
 const isHighSurrogate = (code: number): boolean => code >= 0xd800 && code <= 0xdbff;
 const isLowSurrogate = (code: number): boolean => code >= 0xdc00 && code <= 0xdfff;

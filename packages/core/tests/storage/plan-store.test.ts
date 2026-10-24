@@ -2,6 +2,7 @@ import * as testNodeFsPromises from 'node:fs/promises';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { isSessionError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it, vi } from 'vitest';
 import {
   addPlanItem,
@@ -15,7 +16,6 @@ import {
   savePlan,
   setPlanItemStatus,
 } from '../../src/storage/plan-store.js';
-import { isSessionError } from '../../src/types/errors.js';
 
 describe('plan-store', () => {
   it('round-trips a plan through save/load', async () => {

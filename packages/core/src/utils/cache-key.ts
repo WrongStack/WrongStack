@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { TextBlock } from '../types/blocks.js';
-import type { Tool } from '../types/tool.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 
 const keyCache = new WeakMap<readonly TextBlock[], string>();
 const toolsKeyCache = new WeakMap<readonly TextBlock[], WeakMap<readonly Tool[], string>>();

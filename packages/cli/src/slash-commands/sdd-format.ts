@@ -1,4 +1,4 @@
-import type { Specification, TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
+import type { Specification, TaskGraph, TaskNode, TaskProgress } from '@wrongstack/contracts/types';
 import type { AISpecPhase, CriticalPathAnalysis, SpecIndexEntry } from '@wrongstack/sdd';
 
 type FormatElapsed = (ms: number) => string;

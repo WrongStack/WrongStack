@@ -1,14 +1,14 @@
-import type { Agent } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { QueueStore } from '@wrongstack/core/storage';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   AttachmentStore,
   AutonomyStage,
   SkillLoader,
   TokenCounter,
   TokenSavingTier,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Agent } from '@wrongstack/core/agent';
+import type { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type { QueueStore } from '@wrongstack/core/storage';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
 import type { RunTuiSurfaceOptions } from './run-tui-surface-options.js';
@@ -79,7 +79,7 @@ export interface RunTuiOptions extends RunTuiSurfaceOptions {
    * hook so the engine and TUI never race for the shared Context.
    */
   getParallelEngine?:
-    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | (() => import('@wrongstack/core/coordination').ParallelEternalEngine | null)
     | undefined;
   /**
    * Access the active SDD parallel run's control surface (or null). The TUI's
@@ -102,7 +102,7 @@ export interface RunTuiOptions extends RunTuiSurfaceOptions {
    * iteration as a live timeline entry as it lands.
    */
   subscribeEternalIteration?:
-    | ((fn: (entry: import('@wrongstack/core/goal').JournalEntry) => void) => () => void)
+    | ((fn: (entry: import('@wrongstack/goal').JournalEntry) => void) => () => void)
     | undefined;
   /**
    * Subscribe to per-iteration stage transitions from the autonomy engines.
@@ -164,7 +164,7 @@ export interface RunTuiOptions extends RunTuiSurfaceOptions {
   /** Absolute project root for goal.json loading. */
   projectRoot?: string | undefined;
   /** Full app config, used for HQ client publishing settings. */
-  appConfig?: import('@wrongstack/core/types').Config | undefined;
+  appConfig?: import('@wrongstack/contracts/types').Config | undefined;
   /**
    * The embedding host already owns the HQ publisher and telemetry bridges.
    * Prevents this UI surface from opening a duplicate heartbeat-only client.
@@ -203,7 +203,7 @@ export interface RunTuiOptions extends RunTuiSurfaceOptions {
    */
   getModes?:
     | (() => Promise<{
-        modes: import('@wrongstack/core/types').Mode[];
+        modes: import('@wrongstack/contracts/types').Mode[];
         activeId: string | null;
       }>)
     | undefined;

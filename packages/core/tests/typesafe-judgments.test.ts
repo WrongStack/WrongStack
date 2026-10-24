@@ -7,11 +7,11 @@
  * must hand the decision back unchanged.
  */
 
+import { FetchError } from '@wrongstack/contracts/types/errors';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { BrainDecisionRequest } from '../src/coordination/brain.js';
+import type { BrainDecisionRequest } from '../src/brain/brain.js';
 import { createTieredBrainArbiter } from '../src/execution/autonomy-brain.js';
 import { createSystemOneBrainTier } from '../src/execution/brain-system-one.js';
-import { FetchError } from '../src/types/errors.js';
 import {
   createTypeSafeRestGate,
   resetSharedTypeSafeRestGatesForTests,

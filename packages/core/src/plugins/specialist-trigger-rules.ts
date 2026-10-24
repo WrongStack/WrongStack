@@ -26,7 +26,7 @@
  * already good at it; this file's whole job is to be boring.
  */
 
-import type { Config } from '../types/config.js';
+import type { Config } from '@wrongstack/contracts/types/config';
 import { matchAny } from '../utils/glob-match.js';
 
 /** One trigger: paths that, once settled, mean a given specialist has work. */

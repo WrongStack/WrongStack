@@ -7,8 +7,8 @@ import type {
   UserInputRequest,
   UserInputResponse,
   UserInputTab,
-} from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
 export interface ClarifyOptionInput {

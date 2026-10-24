@@ -1,4 +1,4 @@
-import type { Config, ProviderConfig } from '../types/config.js';
+import type { Config, ProviderConfig } from '@wrongstack/contracts/types/config';
 import { parseModelRef } from './model-ref.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

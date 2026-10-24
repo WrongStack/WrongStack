@@ -55,7 +55,7 @@ vi.mock('@wrongstack/providers', async () => {
 
 const { resolveModeAndCapabilities } = await import('../../src/boot/system-prompt.js');
 
-import type { Config, Logger, ModelsRegistry } from '@wrongstack/core/types';
+import type { Config, Logger, ModelsRegistry } from '@wrongstack/contracts/types';
 
 function makeLogger(): Logger {
   return {

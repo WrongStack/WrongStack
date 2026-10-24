@@ -7,12 +7,12 @@
 
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import { forgetSandboxAgentOverride } from '../sandbox/agent-overrides.js';
 import { DirectorStateCheckpoint } from '../storage/director-state.js';
-import type { Config } from '../types/config.js';
-import type { Logger } from '../types/logger.js';
-import type { SubagentConfig, TaskResult, TaskSpec } from '../types/multi-agent.js';
-import type { SessionWriter } from '../types/session.js';
 import { InMemoryAgentBridge } from './agent-bridge.js';
 import {
   appendSessionEvent as appendDirectorSessionEvent,

@@ -13,7 +13,7 @@
  *   - alerts dedup on content, command statuses UPSERT on commandId
  *   - all three ring buffers are bounded
  */
-import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from '@wrongstack/core/hq/protocol';
+import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from '@wrongstack/hq/protocol';
 import { describe, expect, it } from 'vitest';
 import {
   MAX_ALERTS,

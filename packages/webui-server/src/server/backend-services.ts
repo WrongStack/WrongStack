@@ -20,6 +20,9 @@
  * closure (which needs the live `context`, `autoCompactor`, and
  * `modelCapabilitiesRef` it just built).
  */
+
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import { DEFAULT_TOOLS_CONFIG, resolveContextWindowPolicy } from '@wrongstack/contracts/types';
 import { Agent, createEventUserInputAwaiter, isUnattendedAutonomy } from '@wrongstack/core/agent';
 import {
   CollaborationBus as CollaborationBusCtor,
@@ -38,7 +41,6 @@ import {
   CONTEXT_MANAGER_TOOL_NAME,
   createContextManagerTool,
 } from '@wrongstack/core/infrastructure';
-import { TOKENS } from '@wrongstack/core/kernel';
 import {
   createLocalSkillSuggestionSetup,
   createSkillMentionMiddleware,
@@ -46,7 +48,6 @@ import {
 } from '@wrongstack/core/skills';
 import type { ConsolidatorSage } from '@wrongstack/core/storage';
 import { SessionMemoryConsolidator } from '@wrongstack/core/storage';
-import { DEFAULT_TOOLS_CONFIG, resolveContextWindowPolicy } from '@wrongstack/core/types';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import { estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';

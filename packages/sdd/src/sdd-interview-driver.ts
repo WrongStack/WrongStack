@@ -14,8 +14,8 @@
 // and feeds the output back via `ingestAgentOutput`. That keeps core free of any
 // agent-loop / provider coupling.
 
+import type { Specification, TaskGraph, TaskNode } from '@wrongstack/contracts/types';
 import { TaskTracker } from '@wrongstack/core/tasking';
-import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { buildBoardTasks, type SddBoardColumn, type SddBoardTask } from './board-types.js';
 import { AISpecBuilder, type AISpecPhase, type AISpecSessionPersistence } from './spec-builder.js';
 import type { SpecStore } from './spec-store.js';

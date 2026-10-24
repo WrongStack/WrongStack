@@ -1,7 +1,7 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { CollaborationBus, ConsumedInjectionInfo } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { AnnotationsStore, SessionReader } from '@wrongstack/core/storage';
-import type { Logger } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { AnnotateFeature, ResolveFeature } from './collab/annotations.js';

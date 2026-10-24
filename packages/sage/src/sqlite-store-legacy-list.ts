@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { MemoryEntry, MemoryScope } from '@wrongstack/core/types';
+import type { MemoryEntry, MemoryScope } from '@wrongstack/contracts/types';
 
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { legacyScopeFilterClause } from './store-helpers.js';

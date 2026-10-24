@@ -1,4 +1,4 @@
-import { isParseError } from '@wrongstack/core/types';
+import { isParseError } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   isUsableCopilotChatModel,

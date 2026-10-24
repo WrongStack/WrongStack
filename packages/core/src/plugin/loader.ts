@@ -1,6 +1,6 @@
-import { ERROR_CODES, PluginError } from '../types/errors.js';
-import type { Logger } from '../types/logger.js';
-import type { Plugin, PluginAPI, PluginDependency } from '../types/plugin.js';
+import { ERROR_CODES, PluginError } from '@wrongstack/contracts/types/errors';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Plugin, PluginAPI, PluginDependency } from '@wrongstack/contracts/types/plugin';
 import { toErrorMessage } from '../utils/error.js';
 import { validateAgainstSchema } from '../utils/json-schema-validate.js';
 import { resolvePluginManifestConfig, validatePluginConfigMetadata } from './config.js';

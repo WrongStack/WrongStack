@@ -1,4 +1,4 @@
-import type { ContentBlock } from '../types/blocks.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
 
 export { captureCheckpoint, materializeCheckpoint } from './session-workspace-checkpoints.js';
 

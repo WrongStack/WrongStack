@@ -8,18 +8,18 @@
  *   provider, request, retryPolicy, errorHandler, abortController })`.
  */
 
-import { ProviderError } from '@wrongstack/core/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 
 import { type ErrorHandler, NETWORK_ERR_RE, type RetryPolicy } from './_compat-types.js';
 
 /** Result of an LLM `complete` call. Matches `Provider['complete']`'s return. */
 export type LlmResponse = Awaited<
-  ReturnType<import('@wrongstack/core/types').Provider['complete']>
+  ReturnType<import('@wrongstack/contracts/types').Provider['complete']>
 >;
 
 export interface RetryProviderCompleteOptions {
-  provider: import('@wrongstack/core/types').Provider;
-  request: import('@wrongstack/core/types').Request;
+  provider: import('@wrongstack/contracts/types').Provider;
+  request: import('@wrongstack/contracts/types').Request;
   abortController: AbortController;
   retryPolicy?: RetryPolicy | undefined;
   errorHandler?: ErrorHandler | undefined;

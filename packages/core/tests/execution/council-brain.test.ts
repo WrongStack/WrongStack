@@ -1,5 +1,7 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
-import type { BrainDecisionRequest } from '../../src/coordination/brain.js';
+import type { BrainDecisionRequest } from '../../src/brain/brain.js';
 import {
   type BrainLlmTarget,
   completeBrainLlm,
@@ -11,8 +13,6 @@ import {
   createCouncilBrainArbiter,
   makeSeatCallerForVoter,
 } from '../../src/execution/council-brain.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Provider } from '../../src/types/provider.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'c1',

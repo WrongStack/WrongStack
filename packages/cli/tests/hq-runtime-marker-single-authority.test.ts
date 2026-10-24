@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { hqRuntimeFilePath, readHqRuntimeFileSync } from '@wrongstack/core/hq';
+import { hqRuntimeFilePath, readHqRuntimeFileSync } from '@wrongstack/hq';
 import { afterEach, describe, expect, it } from 'vitest';
 import { writeHqRuntimeMarker } from '../src/hq-server/startup.js';
 

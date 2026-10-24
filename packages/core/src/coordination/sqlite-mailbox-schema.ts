@@ -10,8 +10,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
-import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning.js';
+import { loadDatabaseSync } from '../utils/sqlite-database.js';
 import {
   GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE,
   GLOBAL_MAILBOX_FILE,
@@ -30,15 +29,7 @@ import {
 
 export const SQLITE_MAILBOX_SCHEMA_VERSION = 2;
 
-let DatabaseSyncCtor: typeof DatabaseSync | undefined;
-
-export function loadDatabaseSync(): typeof DatabaseSync {
-  if (DatabaseSyncCtor) return DatabaseSyncCtor;
-  return withSqliteExperimentalWarningSuppressed(() => {
-    DatabaseSyncCtor = loadRuntimeDatabaseSync();
-    return DatabaseSyncCtor;
-  });
-}
+export { loadDatabaseSync };
 
 /** The store state schema setup and migration need. */
 export interface SchemaContext {

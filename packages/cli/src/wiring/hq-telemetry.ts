@@ -1,6 +1,8 @@
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, SessionWriter } from '@wrongstack/contracts/types';
 import type { AgentMonitorService, RemoteMailbox } from '@wrongstack/core/coordination';
-import type { HqPublisher } from '@wrongstack/core/hq';
+import type { HqPublisher } from '@wrongstack/hq';
 import {
   type ApprovalRegistry,
   createApprovalRegistry,
@@ -11,9 +13,7 @@ import {
   startSessionTelemetryBridge,
   startToolTelemetryBridge,
   startWorktreeTelemetryBridge,
-} from '@wrongstack/core/hq';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config, SessionWriter } from '@wrongstack/core/types';
+} from '@wrongstack/hq';
 import type { MCPRegistry, MCPServerOperationalHealth } from '@wrongstack/mcp';
 import { startGovernanceHqTelemetry } from '../governance-hq-telemetry.js';
 import {

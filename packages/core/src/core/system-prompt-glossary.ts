@@ -24,8 +24,8 @@
  *   otherwise have to re-derive by reading every recalled SAGE memory, which
  *   is the exact token-cost the design reduces.
  */
-import type { MemoryEntry, MemoryStore } from '../types/memory.js';
-import type { BuildContext } from '../types/system-prompt.js';
+import type { MemoryEntry, MemoryStore } from '@wrongstack/contracts/types/memory';
+import type { BuildContext } from '@wrongstack/contracts/types/system-prompt';
 
 export interface DomainGlossaryOptions {
   /** Max number of bullets. Default 12. */

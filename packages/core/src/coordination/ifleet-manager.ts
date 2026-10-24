@@ -1,4 +1,4 @@
-import type { SubagentConfig } from '../types/multi-agent.js';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import type { FleetBus, FleetUsage } from './fleet-bus.js';
 import type { WorktreeTaskStateUpdate } from './worktree-task-runner.js';
 

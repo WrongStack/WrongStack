@@ -10,13 +10,14 @@
  * ticks. Chimera and memory events retain their existing session behavior;
  * Brain events must already name their owning session before broadcasting.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { ObservableBrainArbiter } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { describe, expect, it, vi } from 'vitest';
-import { WebSocket } from '../src/ws-runtime.js';
 import { registerSetupEventsPatternHandlers } from '../src/server/setup-events-pattern-handlers.js';
 import { createSetupEventSessionHelpers } from '../src/server/setup-events-session-helpers.js';
 import { broadcast } from '../src/server/ws-utils.js';
+import { WebSocket } from '../src/ws-runtime.js';
 
 const RUNTIME_SESSION = 'sess_whichever_tab_the_runtime_is_on';
 

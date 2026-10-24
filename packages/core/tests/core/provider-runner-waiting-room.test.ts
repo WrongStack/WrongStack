@@ -1,13 +1,13 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import { WrongStackError } from '@wrongstack/contracts/types/errors';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
+import { classifyProviderError, ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
 import { runProviderWithRetry } from '../../src/core/provider-runner.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { AgentContext } from '../../src/types/context.js';
-import { WrongStackError } from '../../src/types/errors.js';
-import type { Logger } from '../../src/types/logger.js';
-import type { Provider, Request, Response } from '../../src/types/provider.js';
-import { classifyProviderError, ProviderError } from '../../src/types/provider.js';
 
 /**
  * Kimi answers an exhausted billing cycle with HTTP 403 plus a prose message.

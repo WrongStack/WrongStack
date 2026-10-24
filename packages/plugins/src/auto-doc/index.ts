@@ -16,7 +16,7 @@
  */
 
 import { isAbsolute, relative, resolve } from 'node:path';
-import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/contracts/types';
 
 const AUTO_DOC_API_VERSION = '^0.1.10';
 

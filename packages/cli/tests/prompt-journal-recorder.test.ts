@@ -10,14 +10,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
-import { DefaultErrorHandler, DefaultRetryPolicy, ToolExecutor } from '@wrongstack/core/execution';
-import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
-import { getPromptJournalEntries } from '@wrongstack/core/prompts';
-import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
-import { DefaultSessionStore } from '@wrongstack/core/storage';
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import type {
   Capabilities,
   ContentBlock,
@@ -25,7 +18,14 @@ import type {
   Request,
   Response,
   StreamEvent,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
+import { DefaultErrorHandler, DefaultRetryPolicy, ToolExecutor } from '@wrongstack/core/execution';
+import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { getPromptJournalEntries } from '@wrongstack/core/prompts';
+import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { describe, expect, it, vi } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import {

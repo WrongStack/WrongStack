@@ -1,10 +1,10 @@
 import type { FileHandle } from 'node:fs/promises';
+import { FsError } from '@wrongstack/contracts/types/errors';
 import {
   type AtomicWriteOptions,
   createPersistencePrimitives,
   type FileLockOptions,
 } from '@wrongstack/persistence';
-import { FsError } from '../types/errors.js';
 
 export type { AtomicWriteOptions, FileLockOptions } from '@wrongstack/persistence';
 

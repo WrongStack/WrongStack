@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Specification } from '@wrongstack/core/types';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
-import { computeTaskProgress } from '@wrongstack/core/types/task-graph.js';
+import type { Specification } from '@wrongstack/contracts/types';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types/task-graph';
+import { computeTaskProgress } from '@wrongstack/contracts/types/task-graph';
 import { describe, expect, it } from 'vitest';
 import {
   renderProgress,

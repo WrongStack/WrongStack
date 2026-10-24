@@ -1,5 +1,6 @@
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   captureLearnedFromAgentOutputDetailed,
   getProjectAgentLearnStats,
@@ -18,7 +19,6 @@ import {
   setSkillPinned,
   updateProjectAgentIdentity,
 } from '@wrongstack/core/agent-catalog';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

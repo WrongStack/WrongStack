@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { Logger } from '@wrongstack/contracts/types';
 import {
   createCompatibilityTrustBoundary,
   isTrustDecisionAllowed,
@@ -6,7 +7,6 @@ import {
   type TrustRisk,
   type TrustSubject,
 } from '@wrongstack/core/security';
-import type { Logger } from '@wrongstack/core/types';
 
 export const desktopCompatibilityTrustBoundary = createCompatibilityTrustBoundary({
   policyId: 'desktop-trusted-host-compat-v1',

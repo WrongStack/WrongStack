@@ -1,6 +1,6 @@
+import type { SubagentConfig, TaskResult } from '@wrongstack/contracts/types/multi-agent';
+import type { ReasoningEffort } from '@wrongstack/contracts/types/provider';
 import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
-import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
-import type { ReasoningEffort } from '../types/provider.js';
 import { normalizeWorktreeOverride, stringArray } from './director-input-helpers.js';
 import { readLeaderEffort } from './director-spawn-model.js';
 import { kanbanBoundaryOps } from './kanban-ops-port.js';

@@ -1,3 +1,4 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   clearSandboxAuditLog,
@@ -9,7 +10,6 @@ import {
   setSandboxExpansionApprover,
 } from '../../src/sandbox/index.js';
 import { type SandboxBackend, SandboxDeniedError } from '../../src/sandbox/types.js';
-import type { Tool } from '../../src/types/tool.js';
 
 // Plan 28 T6 — expansion-request flow: deny → (approver) → one-call elevation
 // or SandboxDeniedError; request + outcome mirrored into the session journal.

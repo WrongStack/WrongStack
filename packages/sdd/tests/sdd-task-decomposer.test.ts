@@ -1,7 +1,8 @@
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types/task-graph';
+import type { TaskStore } from '@wrongstack/core/tasking';
 import { describe, expect, it } from 'vitest';
 import { SddTaskDecomposer } from '../src/sdd-task-decomposer.js';
 import { TaskTracker } from '../src/task-tracker.js';
-import type { TaskGraph, TaskNode, TaskStore } from '@wrongstack/core/types/task-graph.js';
 
 function makeFakeStore(): TaskStore {
   const graphs = new Map<string, TaskGraph>();

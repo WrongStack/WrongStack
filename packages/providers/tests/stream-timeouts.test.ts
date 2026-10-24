@@ -3,7 +3,7 @@
  * always accepted them, but no host passed them and the composite providers
  * never forwarded them, so both were pinned at 60s whatever the user set.
  */
-import type { StreamEvent } from '@wrongstack/core/types';
+import type { StreamEvent } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_HEADERS_TIMEOUT_MS,

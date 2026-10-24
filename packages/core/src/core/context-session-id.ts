@@ -1,6 +1,6 @@
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import { requireSessionId } from '@wrongstack/primitives';
-import type { AgentContext } from '../types/context.js';
-import type { SessionWriter } from '../types/session.js';
 
 /**
  * Session id that events of the in-flight run must be stamped with: the

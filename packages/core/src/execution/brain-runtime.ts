@@ -24,24 +24,21 @@
  * @module brain-runtime
  */
 
+import type { BrainConfig } from '@wrongstack/contracts/types/config';
 import {
   type BrainArbiter,
   type BrainDecisionRequest,
   DefaultBrainArbiter,
-} from '../coordination/brain.js';
-import { BrainDecisionCache, createCachingBrainArbiter } from '../coordination/brain-cache.js';
-import {
-  type BrainDecisionExplanation,
-  explainBrainDecision,
-} from '../coordination/brain-explain.js';
-import { createLedgerGuardBrainArbiter } from '../coordination/brain-ledger.js';
+} from '../brain/brain.js';
+import { BrainDecisionCache, createCachingBrainArbiter } from '../brain/brain-cache.js';
+import { type BrainDecisionExplanation, explainBrainDecision } from '../brain/brain-explain.js';
+import { createLedgerGuardBrainArbiter } from '../brain/brain-ledger.js';
 import {
   type CompiledBrainRule,
   compileBrainRules,
   createRuleBrainArbiter,
-} from '../coordination/brain-rules.js';
-import { BrainTierCounter } from '../coordination/brain-telemetry.js';
-import type { BrainConfig } from '../types/config.js';
+} from '../brain/brain-rules.js';
+import { BrainTierCounter } from '../brain/brain-telemetry.js';
 import { createTieredBrainArbiter } from './autonomy-brain.js';
 import { assembleBrainTiers } from './brain-chain.js';
 import { BrainCircuitBreaker } from './brain-circuit.js';

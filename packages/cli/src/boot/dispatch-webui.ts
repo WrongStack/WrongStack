@@ -16,10 +16,7 @@
  */
 
 import * as path from 'node:path';
-import type { Agent } from '@wrongstack/core/agent';
-import type { BrainArbiter } from '@wrongstack/core/coordination';
-import type { JournalEntry } from '@wrongstack/core/goal';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   MemoryPort,
@@ -28,7 +25,10 @@ import type {
   SessionStore,
   SessionWriter,
   SkillLoader,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Agent } from '@wrongstack/core/agent';
+import type { BrainArbiter } from '@wrongstack/core/coordination';
+import type { JournalEntry } from '@wrongstack/goal';
 import { color } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
@@ -87,7 +87,7 @@ export interface WebUIDispatchContext {
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
   skillLoader: SkillLoader | undefined;
-  promptLoader: import('@wrongstack/core/types').PromptLoader | undefined;
+  promptLoader: import('@wrongstack/contracts/types').PromptLoader | undefined;
   modeStore: ModeStore | undefined;
   modeId: string | undefined;
   needsSetup: boolean | undefined;

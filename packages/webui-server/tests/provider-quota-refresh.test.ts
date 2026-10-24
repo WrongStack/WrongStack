@@ -6,8 +6,8 @@
  * inside the throttle window do not reach the vendor again.
  */
 
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { resetProviderQuota } from '@wrongstack/core/quota';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import type { ProviderServiceContext } from '../src/server/provider/mutations.js';

@@ -42,7 +42,7 @@ export function createSessionCheckpointHandlers(
         const data = await store.load(id);
         // Best-effort summary lookup — fall back to deriving from events when
         // the session is not in the capped list (older sessions).
-        let summary: import('@wrongstack/core/types').SessionSummary | undefined;
+        let summary: import('@wrongstack/contracts/types').SessionSummary | undefined;
         try {
           const summaries = await store.list(200);
           summary = summaries.find((s) => s.id === id);

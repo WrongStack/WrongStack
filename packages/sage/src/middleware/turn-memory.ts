@@ -1,4 +1,4 @@
-import type { EventBus, Middleware } from '@wrongstack/core/kernel';
+import type { EventBus, Middleware } from '@wrongstack/contracts/kernel';
 import {
   activeLimits,
   type Message,
@@ -6,7 +6,7 @@ import {
   positiveLimit,
   type Request,
   type TextBlock,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { formatMemoryEvidenceBlock } from '@wrongstack/core/utils';
 import { formatMemoryHintsDetailed } from '../retrieval/format.js';
 import { memoryQueryRelevance, memorySemanticRelevance } from '../retrieval/relevance.js';

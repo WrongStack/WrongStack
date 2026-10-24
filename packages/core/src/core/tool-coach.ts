@@ -1,5 +1,5 @@
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Tool, ToolSettlement } from '../types/tool.js';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Tool, ToolSettlement } from '@wrongstack/contracts/types/tool';
 
 const STOP_WORDS = new Set([
   'a',

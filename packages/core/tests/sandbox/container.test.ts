@@ -1,3 +1,5 @@
+// Tool re-exported through the sandbox barrel? It is not — pull from types.
+import type { Tool as CoreTool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   buildContainerRoute,
@@ -10,8 +12,6 @@ import {
 } from '../../src/sandbox/index.js';
 import type { SandboxRouteRequest } from '../../src/sandbox/types.js';
 import { SandboxDeniedError } from '../../src/sandbox/types.js';
-// Tool re-exported through the sandbox barrel? It is not — pull from types.
-import type { Tool as CoreTool } from '../../src/types/tool.js';
 
 // Plan 28 T4 — container backend argv builder (pure, no Docker required) and
 // the browser_*-disabled tier gate. Runner-dependent paths are covered by the

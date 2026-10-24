@@ -8,7 +8,7 @@
  * Pure functions — no I/O, no logger, no side effects. Safe to import
  * from anywhere.
  */
-import type { ConfiguredHook, HookEvent } from '../types/hooks.js';
+import type { ConfiguredHook, HookEvent } from '@wrongstack/contracts/types/hooks';
 
 /**
  * Compare two `config.hooks` maps. Returns true when they describe the

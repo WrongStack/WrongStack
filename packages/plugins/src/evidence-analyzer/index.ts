@@ -7,7 +7,7 @@
  */
 import { open } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/contracts/types';
 import {
   parseLlmJsonObject,
   runOptionalPluginCouncil,

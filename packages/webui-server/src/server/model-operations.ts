@@ -1,3 +1,10 @@
+import type {
+  Config,
+  MemoryPort,
+  ModelsRegistry,
+  Provider,
+  ProviderConfig,
+} from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import type { EnhanceFailureKind } from '@wrongstack/core/execution';
 import {
@@ -9,13 +16,6 @@ import {
   resolveConfiguredRefinerRef,
   resolveEnhanceFallbackRef,
 } from '@wrongstack/core/execution';
-import type {
-  Config,
-  MemoryPort,
-  ModelsRegistry,
-  Provider,
-  ProviderConfig,
-} from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { resolveProviderModelMetadata } from './model-catalog.js';

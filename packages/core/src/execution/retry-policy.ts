@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
-import { ProviderError, type ProviderErrorKind } from '../types/provider.js';
-import type { RetryPolicy } from '../types/retry-policy.js';
+import { ProviderError, type ProviderErrorKind } from '@wrongstack/contracts/types/provider';
+import type { RetryPolicy } from '@wrongstack/contracts/types/retry-policy';
 import { NETWORK_ERR_RE } from './regex-patterns.js';
 
 /**

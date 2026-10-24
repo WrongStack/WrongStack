@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import type { Message } from '../../src/types/messages.js';
-import type { SessionEvent } from '../../src/types/session.js';
-import { CHAT_MARKER_SOURCES } from '../../src/types/session-markers.js';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
+import { CHAT_MARKER_SOURCES } from '@wrongstack/contracts/types/session-markers';
 import {
   projectLastRequestTokens,
   projectSessionTimeline,
   projectSessionToolMeta,
   type SessionTimelineEntry,
-} from '../../src/types/session-timeline.js';
+} from '@wrongstack/contracts/types/session-timeline';
+import { describe, expect, it } from 'vitest';
 
 const kinds = (entries: SessionTimelineEntry[]): string[] => entries.map((e) => e.kind);
 

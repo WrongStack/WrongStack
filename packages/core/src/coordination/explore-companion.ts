@@ -36,7 +36,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { EventBus, TrackedAgentSnapshot } from '../kernel/events.js';
+import type { EventBus, TrackedAgentSnapshot } from '@wrongstack/contracts/kernel/events';
 import {
   exploreFileKey,
   exploreIgnoredPath,

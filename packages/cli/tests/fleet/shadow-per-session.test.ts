@@ -6,8 +6,8 @@
  * mixed every tab's work, the "problem" text merged unrelated failures, and
  * the spawn named no owner so the reviewer landed in the boot tab's roster.
  */
-import { EventBus } from '@wrongstack/core/kernel';
-import type { ConfigStore, SessionWriter, SubagentConfig } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { ConfigStore, SessionWriter, SubagentConfig } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { HostShadowManager } from '../../src/fleet/host-shadow-manager.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from '../../src/fleet/host-types.js';

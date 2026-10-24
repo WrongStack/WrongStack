@@ -1,7 +1,6 @@
 import * as path from 'node:path';
-
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { extractInterruptedTools, SessionRecovery } from '@wrongstack/core/storage';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 import {

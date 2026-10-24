@@ -1,3 +1,6 @@
+import { type EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config, Logger, ModelsRegistry, Provider } from '@wrongstack/contracts/types';
+import { resolveContextWindowPolicy } from '@wrongstack/contracts/types';
 import {
   Agent,
   type AgentPipelines,
@@ -11,12 +14,9 @@ import {
   createModelRuntimeMiddleware,
   ToolExecutor,
 } from '@wrongstack/core/execution';
-import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { createSessionEventBridge, resolveAuditLevel } from '@wrongstack/core/storage';
-import type { Config, Logger, ModelsRegistry, Provider } from '@wrongstack/core/types';
-import { resolveContextWindowPolicy } from '@wrongstack/core/types';
 import { estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
 import { resolveRuntimeMaxContext } from '../context-limit.js';
 import { bootstrapMailboxBridgeAtStartup } from './mailbox-bridge-bootstrap.js';
@@ -55,9 +55,9 @@ export async function setupCompaction(params: {
   config: {
     provider?: string | undefined;
     model?: string | undefined;
-    providers?: import('@wrongstack/core/types').Config['providers'] | undefined;
+    providers?: import('@wrongstack/contracts/types').Config['providers'] | undefined;
     context: {
-      mode?: import('@wrongstack/core/types').ContextWindowModeSelectionId | undefined;
+      mode?: import('@wrongstack/contracts/types').ContextWindowModeSelectionId | undefined;
       autoCompact?: boolean | undefined;
       warnThreshold: number;
       softThreshold: number;
@@ -77,7 +77,7 @@ export async function setupCompaction(params: {
     | { session?: { auditLevel?: 'minimal' | 'standard' | 'full' | undefined } | undefined }
     | undefined;
   /** Real SessionWriter (used if no pre-created bridge is passed). */
-  sessionWriter?: import('@wrongstack/core/types').SessionWriter | undefined;
+  sessionWriter?: import('@wrongstack/contracts/types').SessionWriter | undefined;
   /** Pre-created SessionEventBridge (preferred for sharing across error + compaction + future events). */
   sessionBridge?: SessionEventBridge | undefined;
 }): Promise<{
@@ -167,7 +167,7 @@ export async function setupCompaction(params: {
 }
 
 export function createAgent(params: {
-  container: import('@wrongstack/core/kernel').Container;
+  container: import('@wrongstack/contracts/kernel').Container;
   tools: ToolRegistry;
   providers: ProviderRegistry;
   events: EventBus;
@@ -183,14 +183,14 @@ export function createAgent(params: {
       perIterationOutputCapBytes: number;
       /** Opt-in Kanban governance gate; see ToolsConfig.kanbanGovernance. */
       kanbanGovernance?: boolean | undefined;
-      loopDetection?: import('@wrongstack/core/types').LoopDetectionConfig | undefined;
+      loopDetection?: import('@wrongstack/contracts/types').LoopDetectionConfig | undefined;
       autoExtendLimit?: boolean | undefined;
       maxAutoExtensions?: number | undefined;
     };
   };
   confirmAwaiter: import('@wrongstack/core/agent').AgentInit['confirmAwaiter'];
-  permissionPolicy?: import('@wrongstack/core/types').PermissionPolicy | undefined;
-  tracer?: import('@wrongstack/core/types').Tracer | undefined;
+  permissionPolicy?: import('@wrongstack/contracts/types').PermissionPolicy | undefined;
+  tracer?: import('@wrongstack/contracts/types').Tracer | undefined;
   /** Optional lifecycle hook runner — wired into the tool executor (PreToolUse/PostToolUse). */
   hookRunner?: import('@wrongstack/core/hooks').HookRunner | undefined;
   /**

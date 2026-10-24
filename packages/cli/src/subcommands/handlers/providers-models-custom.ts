@@ -1,11 +1,11 @@
 import * as fs from 'node:fs/promises';
-import { decryptConfigSecretsForRewrite, encryptConfigSecrets } from '@wrongstack/core/security';
-import type { Capabilities } from '@wrongstack/core/types';
+import type { Capabilities } from '@wrongstack/contracts/types';
 import {
   ConfigError,
   type CustomModelDefinition,
   type ProviderConfig,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { decryptConfigSecretsForRewrite, encryptConfigSecrets } from '@wrongstack/core/security';
 import {
   atomicWrite,
   backupConfigFile,

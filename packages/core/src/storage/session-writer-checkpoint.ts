@@ -1,5 +1,5 @@
 import * as fsp from 'node:fs/promises';
-import type { SessionMetadata, SessionSummary } from '../types/session.js';
+import type { SessionMetadata, SessionSummary } from '@wrongstack/contracts/types/session';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import type { EventBus } from './event-bus-port.js';

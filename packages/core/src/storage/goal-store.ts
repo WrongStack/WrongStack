@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
-import { ERROR_CODES, FsError } from '../types/errors.js';
+import { ERROR_CODES, FsError } from '@wrongstack/contracts/types/errors';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { color } from '../utils/color.js';
 import { toErrorMessage } from '../utils/error.js';

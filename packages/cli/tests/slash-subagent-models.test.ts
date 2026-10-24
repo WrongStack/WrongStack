@@ -1,8 +1,8 @@
+import type { Config, SessionEvent } from '@wrongstack/contracts/types';
 import {
   getSessionSubagentModelPlan,
   resetSessionSubagentModelPlan,
 } from '@wrongstack/core/coordination';
-import type { Config, SessionEvent } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildSubagentModelsCommand } from '../src/slash-commands/subagent-models.js';

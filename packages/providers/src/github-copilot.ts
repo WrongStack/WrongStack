@@ -15,8 +15,8 @@
  * base URL from each new token. The API-key `openai` family is untouched.
  */
 
-import type { Capabilities, ProviderContextLimit, Request } from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+import type { Capabilities, ProviderContextLimit, Request } from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { fetchCopilotModels } from './github-copilot-models.js';
 import { reportCopilotQuota } from './github-copilot-quota.js';

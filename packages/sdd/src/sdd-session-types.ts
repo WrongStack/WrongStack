@@ -1,4 +1,4 @@
-import type { Specification } from '@wrongstack/core/types';
+import type { Specification } from '@wrongstack/contracts/types';
 
 export type AISpecPhase =
   | 'questioning'

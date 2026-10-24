@@ -4,7 +4,7 @@
  * Translates WrongStack Tool definitions → ACP ACPToolDefinition format.
  * Provides tool lookup and result assembly for the ACP protocol handler.
  */
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import type {
   ACPInputSchema,
   ACPToolDefinition,

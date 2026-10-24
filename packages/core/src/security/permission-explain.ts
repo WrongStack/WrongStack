@@ -1,6 +1,10 @@
-import type { Context } from '../core/context.js';
-import type { PermissionTrace, PermissionTraceStep, TrustPolicy } from '../types/permission.js';
-import type { Tool } from '../types/tool.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type {
+  PermissionTrace,
+  PermissionTraceStep,
+  TrustPolicy,
+} from '@wrongstack/contracts/types/permission';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { matchGlob } from '../utils/glob-match.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
 import { isAgentStateWriteTarget } from './agent-state-sensitivity.js';
@@ -45,8 +49,8 @@ export interface PermissionExplainContext {
   yoloPlus?: boolean | undefined;
   promptDelegatePresent: boolean;
   isSensitiveReadCall(tool: Tool, input: unknown): boolean;
-  isDestructiveCall?(tool: Tool, input: unknown, ctx: Context): boolean;
-  yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: Context): boolean;
+  isDestructiveCall?(tool: Tool, input: unknown, ctx: AgentContext): boolean;
+  yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: AgentContext): boolean;
   /** `--allowed-tools` membership; mirrors evaluate()'s launch tool scope. */
   isLaunchAllowed?(toolName: string): boolean;
   /** The `--allowed-tools` patterns, to name the one that matched. */
@@ -57,7 +61,7 @@ export function explainPermissionTrace(
   state: PermissionExplainContext,
   tool: Tool,
   input: unknown,
-  ctx: Context,
+  ctx: AgentContext,
 ): PermissionTrace {
   const subject = subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields);
   const steps: PermissionTraceStep[] = [];

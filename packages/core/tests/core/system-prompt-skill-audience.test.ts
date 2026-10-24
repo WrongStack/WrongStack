@@ -1,3 +1,4 @@
+import type { SkillEntry, SkillLoader, SkillManifest } from '@wrongstack/contracts/types/skill';
 import { describe, expect, it } from 'vitest';
 import {
   buildCompactSkillBodiesText,
@@ -6,7 +7,6 @@ import {
   isSkillHiddenFromPrompt,
 } from '../../src/core/system-prompt-skill-bodies.js';
 import { parseSkillFrontmatter } from '../../src/skills/frontmatter.js';
-import type { SkillEntry, SkillLoader, SkillManifest } from '../../src/types/skill.js';
 
 /** One skill per audience: unset, `roster`, and `external`. */
 function audienceLoader(): SkillLoader {

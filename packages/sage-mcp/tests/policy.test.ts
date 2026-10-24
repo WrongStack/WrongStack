@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { proposalOnlyCandidatesTool, selectAllowedTools } from '../src/policy.js';
 

@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 
 export interface ToolSearchInput {
   query?: string | undefined;

@@ -1,5 +1,9 @@
-import type { ContentBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import { isTextBlock, isToolUseBlock } from '../types/blocks.js';
+import type {
+  ContentBlock,
+  ToolResultBlock,
+  ToolUseBlock,
+} from '@wrongstack/contracts/types/blocks';
+import { isTextBlock, isToolUseBlock } from '@wrongstack/contracts/types/blocks';
 import { toolResultFingerprint } from '../utils/tool-result-fingerprint.js';
 import type { AgentInternals } from './agent-internals.js';
 import { resolveEventSessionId } from './context.js';

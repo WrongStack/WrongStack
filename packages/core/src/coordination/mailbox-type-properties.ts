@@ -1,14 +1,6 @@
-export type MailboxMessageType =
-  | 'note'
-  | 'ask'
-  | 'assign'
-  | 'steer'
-  | 'btw'
-  | 'broadcast'
-  | 'status'
-  | 'result'
-  | 'review'
-  | 'control';
+import type { MailboxMessageType } from '@wrongstack/contracts/types/mailbox';
+
+export type { MailboxMessageType };
 
 /**
  * Semantic category a mail type belongs to - determines its handling

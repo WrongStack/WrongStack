@@ -1,5 +1,5 @@
-import type { Middleware } from '@wrongstack/core/kernel';
-import type { ContentBlock, Request, TextBlock } from '@wrongstack/core/types';
+import type { Middleware } from '@wrongstack/contracts/kernel';
+import type { ContentBlock, Request, TextBlock } from '@wrongstack/contracts/types';
 import { formatMemoryEvidenceBlock, LIVE_CONTEXT_MARKER } from '@wrongstack/core/utils';
 import { formatMemoryHintsDetailed } from '../retrieval/format.js';
 import { checkInjectionValidity } from '../retrieval/validity-checks.js';

@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import type { SageServiceLike } from '../service-contract.js';
 import { validityKey } from '../shared/memory-validity.js';
 import type { Sage, UpdateSageInput } from '../types.js';

@@ -1,5 +1,5 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { MCPClient } from './client.js';
 import type { MCPOperationKind } from './operations.js';
 import type { ServerSlot } from './registry-slots.js';

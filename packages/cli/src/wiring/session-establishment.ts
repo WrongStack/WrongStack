@@ -22,7 +22,7 @@
  *   the session directly.
  */
 import * as path from 'node:path';
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import {
   attachScoutToolLearning,
   getSessionRegistry,

@@ -8,8 +8,8 @@
  *  3. Deduplicate results present in both sources
  */
 
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import {
   codebaseIndexDirOverride,
   internalKindToLspKind,

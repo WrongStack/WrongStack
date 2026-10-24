@@ -18,11 +18,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Context } from '../../src/core/context.js';
-import { DEFAULT_ALWAYS_TRUST_TTL_MS } from '../../src/security/permission-policy.js';
-import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
-import type { Tool } from '../../src/types/tool.js';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Context } from '../../src/core/context.js';
+import {
+  DEFAULT_ALWAYS_TRUST_TTL_MS,
+  DefaultPermissionPolicy,
+} from '../../src/security/permission-policy.js';
 
 let dir: string;
 let trustFile: string;

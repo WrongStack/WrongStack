@@ -16,8 +16,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSageContextMonitorMiddleware } from '../src/middleware/context-monitor.js';
 import { createSageDomainTermExtractorMiddleware } from '../src/middleware/domain-term-extractor-middleware.js';

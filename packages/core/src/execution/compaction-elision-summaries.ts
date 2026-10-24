@@ -2,7 +2,7 @@
  * One-line summaries for elided tool-use inputs and tool results. Split out
  * of compaction-elision.ts.
  */
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
 import { sliceUtf16Safe } from './compaction-scoring.js';
 
 const PATH_HINT_PATTERN =

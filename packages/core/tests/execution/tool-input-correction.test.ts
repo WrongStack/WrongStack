@@ -4,10 +4,11 @@
  * contract twice, pretty-printed. The model still has the first copy; the
  * second needs only the new validation errors.
  */
+
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { toolInputCorrection } from '../../src/execution/tool-executor-results.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Tool } from '../../src/types/tool.js';
 
 const tool = {
   name: 'tool_use',

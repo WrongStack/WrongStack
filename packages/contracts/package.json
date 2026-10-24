@@ -1,0 +1,60 @@
+{
+  "name": "@wrongstack/contracts",
+  "version": "1.1.16",
+  "private": true,
+  "license": "MIT",
+  "description": "WrongStack contracts: the shared type vocabulary (types/) and the DI kernel (kernel/) every package builds against.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WrongStack/WrongStack.git",
+    "directory": "packages/contracts"
+  },
+  "homepage": "https://github.com/WrongStack/WrongStack#readme",
+  "bugs": {
+    "url": "https://github.com/WrongStack/WrongStack/issues"
+  },
+  "author": "ECOSTACK TECHNOLOGY OÜ",
+  "type": "module",
+  "main": "./dist/types/index.js",
+  "types": "./dist/types/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./types/*": {
+      "types": "./dist/types/*.d.ts",
+      "import": "./dist/types/*.js"
+    },
+    "./kernel": {
+      "types": "./dist/kernel/index.d.ts",
+      "import": "./dist/kernel/index.js"
+    },
+    "./kernel/*": {
+      "types": "./dist/kernel/*.d.ts",
+      "import": "./dist/kernel/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@wrongstack/kanban": "workspace:*",
+    "@wrongstack/primitives": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

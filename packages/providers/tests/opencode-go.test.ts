@@ -1,5 +1,5 @@
+import type { Request, StreamEvent } from '@wrongstack/contracts/types';
 import { bindRequestConversation } from '@wrongstack/core/request-conversation';
-import type { Request, StreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { makeProviderFromConfig } from '../src/index.js';
 import { OpenCodeGoProvider, openCodeGoWireForModel } from '../src/opencode-go.js';

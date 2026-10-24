@@ -42,7 +42,7 @@ import {
 
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
+import type { SubagentConfig, TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import type { CollabDirectorHost } from './collab-director-host.js';
 import {
   collabOwnsSubagent,

@@ -21,10 +21,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./kernel": {
-      "types": "./dist/kernel/index.d.ts",
-      "import": "./dist/kernel/index.js"
-    },
     "./agent": {
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.js"
@@ -37,29 +33,17 @@
       "types": "./dist/coordination/agents/index.d.ts",
       "import": "./dist/coordination/agents/index.js"
     },
-    "./types": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.js"
+    "./agent-coordination": {
+      "types": "./dist/agent-coordination-default.d.ts",
+      "import": "./dist/agent-coordination-default.js"
     },
-    "./types/limits": {
-      "types": "./dist/types/config/limits.d.ts",
-      "import": "./dist/types/config/limits.js"
+    "./boot": {
+      "types": "./dist/boot.d.ts",
+      "import": "./dist/boot.js"
     },
     "./cloud-provider": {
       "types": "./dist/cloud-provider.d.ts",
       "import": "./dist/cloud-provider.js"
-    },
-    "./types/session-markers": {
-      "types": "./dist/types/session-markers.d.ts",
-      "import": "./dist/types/session-markers.js"
-    },
-    "./types/session-timeline": {
-      "types": "./dist/types/session-timeline.d.ts",
-      "import": "./dist/types/session-timeline.js"
-    },
-    "./types/worktree-timeline": {
-      "types": "./dist/types/worktree-timeline.d.ts",
-      "import": "./dist/types/worktree-timeline.js"
     },
     "./core/model-ref": {
       "types": "./dist/core/model-ref.d.ts",
@@ -186,14 +170,6 @@
       "types": "./dist/observability/index.d.ts",
       "import": "./dist/observability/index.js"
     },
-    "./hq": {
-      "types": "./dist/hq/index.d.ts",
-      "import": "./dist/hq/index.js"
-    },
-    "./hq/protocol": {
-      "types": "./dist/hq/protocol.d.ts",
-      "import": "./dist/hq/protocol.js"
-    },
     "./notifications": {
       "types": "./dist/notifications/index.d.ts",
       "import": "./dist/notifications/index.js"
@@ -201,10 +177,6 @@
     "./sandbox": {
       "types": "./dist/sandbox/index.d.ts",
       "import": "./dist/sandbox/index.js"
-    },
-    "./tools": {
-      "types": "./dist/tools/index.d.ts",
-      "import": "./dist/tools/index.js"
     },
     "./skills": {
       "types": "./dist/skills/index.d.ts",
@@ -238,10 +210,6 @@
     "./worktree": {
       "types": "./dist/worktree/index.d.ts",
       "import": "./dist/worktree/index.js"
-    },
-    "./goal": {
-      "types": "./dist/goal/index.d.ts",
-      "import": "./dist/goal/index.js"
     },
     "./hooks": {
       "types": "./dist/hooks/index.d.ts",
@@ -278,6 +246,7 @@
     "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@wrongstack/contracts": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/persistence": "workspace:*",
     "@wrongstack/primitives": "workspace:*",

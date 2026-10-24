@@ -1,7 +1,7 @@
 import {
   projectWorktreeTimeline,
   type WorktreeTimelineEvent,
-} from '@wrongstack/core/types/worktree-timeline';
+} from '@wrongstack/contracts/types/worktree-timeline';
 import { describe, expect, it } from 'vitest';
 import type { State } from '../src/app-state.js';
 import {

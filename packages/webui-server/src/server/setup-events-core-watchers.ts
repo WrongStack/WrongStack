@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { EventBus, EventName, Listener } from '@wrongstack/contracts/kernel';
 import type { Context } from '@wrongstack/core/agent';
-import type { EventBus, EventName, Listener } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { subscribeKanbanDaemonEvents } from './kanban-daemon-subscriber.js';

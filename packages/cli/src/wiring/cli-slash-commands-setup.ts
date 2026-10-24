@@ -1,5 +1,5 @@
-import type { Container } from '@wrongstack/core/kernel';
-import { TOKENS } from '@wrongstack/core/kernel';
+import type { Container } from '@wrongstack/contracts/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import { getSddRuntimeStateForCli } from '../cli-main-helpers.js';
 import { createCommandHostAdapters } from './command-host-adapters.js';
 import { createConceptSummarizer } from './concept-summarizer.js';

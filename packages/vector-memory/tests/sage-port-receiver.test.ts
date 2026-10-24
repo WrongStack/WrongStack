@@ -1,4 +1,4 @@
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { SAGE_RETRIEVAL_CAPABILITY, SAGE_SURFACE_CAPABILITY } from '@wrongstack/sage';
 import { describe, expect, it } from 'vitest';
 import { wrapMemoryPortWithVectorRecall } from '../src/sage-port-wrapper.js';

@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { ERROR_CODES } from '../../src/types/errors.js';
+import { ERROR_CODES } from '@wrongstack/contracts/types/errors';
 import {
   classifyProviderError,
   isContextOverflowShaped,
   isRetryableKind,
   ProviderError,
   StreamHangError,
-} from '../../src/types/provider.js';
+} from '@wrongstack/contracts/types/provider';
+import { describe, expect, it } from 'vitest';
 
 describe('ProviderError.isProviderError', () => {
   it('returns true for a genuine ProviderError', () => {

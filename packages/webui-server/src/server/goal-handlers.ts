@@ -15,7 +15,7 @@ import {
   refineGoalHeuristic,
   replaceGoalMission,
   updateGoal,
-} from '@wrongstack/core/goal';
+} from '@wrongstack/goal';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 
 /**

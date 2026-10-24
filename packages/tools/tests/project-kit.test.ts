@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { runWithProcessTelemetry } from '@wrongstack/core/observability';
 import { afterEach, describe, expect, it } from 'vitest';
 import {

@@ -1,13 +1,13 @@
-import { isTextBlock, type TextBlock } from '../types/blocks.js';
-import type { CompactReport } from '../types/compactor.js';
-import type { AgentContext } from '../types/context.js';
+import { isTextBlock, type TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { CompactReport } from '@wrongstack/contracts/types/compactor';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type {
   CompletedWorkEvidence,
   CompletedWorkSource,
   ContextEvidenceState,
   ToolOutputMetadata,
-} from '../types/context-evidence.js';
-import type { Message } from '../types/messages.js';
+} from '@wrongstack/contracts/types/context-evidence';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import {
   extractCommands,
   extractErrors,

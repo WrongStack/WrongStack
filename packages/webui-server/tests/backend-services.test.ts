@@ -194,10 +194,10 @@ vi.mock('../src/server/model-catalog.js', () => ({
   resolveProviderModelMetadata: vi.fn(async () => null),
 }));
 
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import { CONTEXT_WINDOW_MODE_PINNED_META_KEY } from '@wrongstack/contracts/types';
 import { getSharedProjectMailbox, mailboxSessionTag } from '@wrongstack/core/coordination';
 import { createBrainRuntime, createStrategyCompactor } from '@wrongstack/core/execution';
-import { TOKENS } from '@wrongstack/core/kernel';
-import { CONTEXT_WINDOW_MODE_PINNED_META_KEY } from '@wrongstack/core/types';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import { createAgentServices } from '../src/server/backend-services.js';

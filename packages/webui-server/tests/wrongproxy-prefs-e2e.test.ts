@@ -24,7 +24,7 @@
 
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { Provider, ProviderConfig } from '@wrongstack/core/types';
+import type { Provider, ProviderConfig } from '@wrongstack/contracts/types';
 import { __resetProxyConfigForTests, getProxyConfig } from '@wrongstack/core/wiring/proxy-rewrite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';

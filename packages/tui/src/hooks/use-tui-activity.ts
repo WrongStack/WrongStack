@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
+import type { AttachmentStore } from '@wrongstack/contracts/types';
 import type { Agent, InputBuilder } from '@wrongstack/core/agent';
 import { loadGoal } from '@wrongstack/core/storage';
-import type { AttachmentStore } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, State } from '../app-reducer.js';

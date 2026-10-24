@@ -7,7 +7,7 @@
  *
  * @module domain/kanban-actions
  */
-import type { HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSnapshot } from '@wrongstack/hq';
 import type { HqKanbanTaskView } from './kanban-model.js';
 
 export type LifecycleStage = 'backlog' | 'todo' | 'running' | 'review' | 'done';

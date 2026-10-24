@@ -21,9 +21,9 @@
  * close/listTools/getServerMetadata are stubbed at the same boundary. The
  * control proves the harness would observe a resurrect if one occurred.
  */
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { MCPClient } from '../src/client.js';
 import { createMCPServerOperationState } from '../src/operations.js';

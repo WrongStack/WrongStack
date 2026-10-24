@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { SubagentConfig } from '../types/multi-agent.js';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 
 /**
  * Coerce an unknown value into a trimmed array of non-empty strings,

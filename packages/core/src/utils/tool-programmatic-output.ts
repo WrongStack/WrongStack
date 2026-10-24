@@ -1,6 +1,6 @@
-import type { ToolResultBlock } from '../types/blocks.js';
-import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type { JSONSchema } from '../types/tool.js';
+import type { ToolResultBlock } from '@wrongstack/contracts/types/blocks';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { JSONSchema } from '@wrongstack/contracts/types/tool';
 import { validateAgainstSchema } from './json-schema-validate.js';
 
 // Values live only as long as their execution result. They never enter provider

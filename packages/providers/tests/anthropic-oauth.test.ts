@@ -1,4 +1,4 @@
-import { type ProviderConfig, ProviderError, type Request } from '@wrongstack/core/types';
+import { type ProviderConfig, ProviderError, type Request } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ANTHROPIC_OAUTH_RETIRED_MESSAGE,

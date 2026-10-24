@@ -1,9 +1,9 @@
+import type { ModelsDevModel, ResolvedProvider } from '@wrongstack/contracts/types/models-registry';
 import { describe, expect, it } from 'vitest';
 import {
   describeCatalogModel,
   resolveProviderModelList,
 } from '../../src/models/provider-model-resolve.js';
-import type { ModelsDevModel, ResolvedProvider } from '../../src/types/models-registry.js';
 
 function catalogModel(over: Partial<ModelsDevModel> = {}): ModelsDevModel {
   return { id: 'm', name: 'M', ...over };

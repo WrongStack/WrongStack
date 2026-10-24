@@ -22,7 +22,7 @@ wiring, SSE parsing — is shared by `WireFormatProvider`.
 ### The shape
 
 ```ts
-import type { StreamEvent } from '@wrongstack/core/types';
+import type { StreamEvent } from '@wrongstack/contracts/types';
 import type { WireFormatConfig } from '@wrongstack/providers';
 
 const config: WireFormatConfig<MyStreamState> = {
@@ -318,7 +318,7 @@ prefer extending that rather than inlining a map.
 Override only when the vendor returns errors in a non-standard envelope:
 
 ```ts
-import { ProviderError } from '@wrongstack/core/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 
 normalizeError(status, body) {
   const j = JSON.parse(body);

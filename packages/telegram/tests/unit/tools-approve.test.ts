@@ -1,4 +1,4 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TelegramBot } from '../../src/bot.js';
 import { TELEGRAM_APPROVAL_CAPABILITY } from '../../src/security/outbound.js';

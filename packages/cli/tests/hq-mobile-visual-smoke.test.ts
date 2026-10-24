@@ -6,7 +6,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { HQ_PROTOCOL_VERSION } from '@wrongstack/core/hq';
+import { HQ_PROTOCOL_VERSION } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { WebSocket } from '../src/ws-runtime.js';
 import type { RawData } from 'ws';

@@ -15,8 +15,8 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Config, ConfigStore, ThemePresetId } from '@wrongstack/core/types';
-import { THEME_PRESET_IDS } from '@wrongstack/core/types';
+import type { Config, ConfigStore, ThemePresetId } from '@wrongstack/contracts/types';
+import { THEME_PRESET_IDS } from '@wrongstack/contracts/types';
 import { updateJsonObjectFile, type WstackPaths } from '@wrongstack/core/utils';
 import { backupCurrent } from '../config-history.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';

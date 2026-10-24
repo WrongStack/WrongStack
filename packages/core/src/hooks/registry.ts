@@ -4,10 +4,11 @@ import type {
   HookEvent,
   HookMatcher,
   HookRegistrationOptions,
+  HookRegistryPort,
   HttpHook,
   InProcessHook,
   ShellHook,
-} from '../types/hooks.js';
+} from '@wrongstack/contracts/types/hooks';
 
 interface LoadConfiguredHooksOptions {
   /** Load only trusted hooks that remain active under `--no-hooks`. */
@@ -43,7 +44,7 @@ function entryControls(
  * plugins add in-process entries via `PluginAPI.registerHook`. The
  * `HookRunner` reads from it at each lifecycle phase.
  */
-export class HookRegistry {
+export class HookRegistry implements HookRegistryPort {
   private readonly entries: HookEntry[] = [];
 
   /** Register an in-process hook. Returns an unsubscribe function. */

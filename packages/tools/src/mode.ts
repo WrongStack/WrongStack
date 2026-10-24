@@ -1,4 +1,4 @@
-import { type ModeStore, type Tool, ToolValidationError } from '@wrongstack/core/types';
+import { type ModeStore, type Tool, ToolValidationError } from '@wrongstack/contracts/types';
 
 export interface ModeInput {
   action: 'get' | 'list' | 'set' | 'clear';

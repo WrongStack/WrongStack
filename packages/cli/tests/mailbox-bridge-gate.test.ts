@@ -38,7 +38,7 @@ function stubLogger() {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-  } as unknown as import('@wrongstack/core/types').Logger;
+  } as unknown as import('@wrongstack/contracts/types').Logger;
 }
 
 beforeEach(() => {

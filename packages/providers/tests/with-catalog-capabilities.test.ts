@@ -1,12 +1,12 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import type {
   Capabilities,
   ModelsDevModel,
   ModelsDevPayload,
   Provider,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { describe, expect, it, vi } from 'vitest';
 import { withCatalogCapabilities } from '../src/index.js';
 

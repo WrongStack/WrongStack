@@ -3,12 +3,14 @@
  * undisplayed hold), rate limit, chain cap, wake eligibility, config switch,
  * and the prompt's resistance to Agent.run burst-dedupe.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AUTO_WAKE_MARKER,
   buildAutoWakePrompt,
-  LeaderAutoWakeController,
   type LeaderAutoWakeConfig,
+  LeaderAutoWakeController,
   type LeaderWakePort,
 } from '../../src/coordination/delegation/leader-auto-wake.js';
 import {
@@ -16,7 +18,6 @@ import {
   type LeaderDelivery,
   LeaderDeliveryHub,
 } from '../../src/coordination/delegation/leader-delivery-hub.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { isRuntimeContextInput } from '../../src/utils/context-evidence.js';
 
 const SID = 'session-a';

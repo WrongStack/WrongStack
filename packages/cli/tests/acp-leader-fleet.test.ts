@@ -3,8 +3,8 @@
  * HTTP MCP endpoint: only the leader's coordination tools, behind a token,
  * each run as the leader's own tool call.
  */
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Tool } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   FLEET_SERVER_NAME,

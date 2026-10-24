@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "project": "packages/hq",
+  "hashAlgorithm": "sha256-64bit",
+  "diagnostics": {
+    "260e5defce8a0055": 1,
+    "ed511b6d3d475b5f": 1,
+    "78fba8572b12bc3a": 1,
+    "72ea58c3c1c945da": 1,
+    "d9b42d66527d1598": 1,
+    "844c5d53079209d9": 1,
+    "52d66557a0a30215": 1,
+    "62a42df783818b2c": 1,
+    "9ca8e285d07ff6e1": 1,
+    "0a9cef85dc671628": 1,
+    "eaf3f6b5be873b64": 1,
+    "bec53cbdd9ce7e45": 1
+  }
+}

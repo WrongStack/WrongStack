@@ -2,13 +2,13 @@
  * Session context mode route handlers: list, switch, create, update, delete context modes.
  */
 
-import type { Context } from '@wrongstack/core/agent';
 import {
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   getContextWindowMode,
   resolveContextWindowPolicy,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Context } from '@wrongstack/core/agent';
 import {
   collectDisplayedSessionIds,
   readSessionWindowTokens,

@@ -1,6 +1,6 @@
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import { createDefineSubagentTool } from '../../src/coordination/define-subagent-tool.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 describe('define_subagent tool', () => {
   it('registers a custom subagent into the active roster', async () => {

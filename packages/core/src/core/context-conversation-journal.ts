@@ -1,5 +1,5 @@
-import type { Message } from '../types/messages.js';
-import type { SessionEvent, SessionWriter } from '../types/session.js';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
 
 export function isAppendableSessionWriter(writer: unknown): writer is SessionWriter {
   return Boolean(

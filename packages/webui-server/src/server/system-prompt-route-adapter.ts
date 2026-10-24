@@ -1,5 +1,5 @@
+import { resolveTokenSavingTier } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import { resolveTokenSavingTier } from '@wrongstack/core/types';
 import { isOutsideProject, resolveWstackPaths } from '@wrongstack/core/utils';
 import { patchConfig } from './boot.js';
 import type { WebuiDeps, WebuiMutableState } from './route-contracts.js';

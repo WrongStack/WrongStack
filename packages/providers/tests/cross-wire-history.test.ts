@@ -2,7 +2,7 @@
  * History built on one wire must stay sendable on another (`/model` switch,
  * fallback hop), and wire-specific payloads must survive their own round trip.
  */
-import type { Message, StreamEvent } from '@wrongstack/core/types';
+import type { Message, StreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { convertMessages } from '../src/ai-gateway.js';
 import { makeProviderFromConfig } from '../src/index.js';

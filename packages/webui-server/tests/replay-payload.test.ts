@@ -1,4 +1,4 @@
-import type { Message, SessionEvent } from '@wrongstack/core/types';
+import type { Message, SessionEvent } from '@wrongstack/contracts/types';
 import { buildReplayPayload, REPLAY_MESSAGE_CAP } from '@wrongstack/webui-protocol';
 import { describe, expect, it } from 'vitest';
 

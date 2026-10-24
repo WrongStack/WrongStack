@@ -1,3 +1,4 @@
+import type { Config, ModelTiersConfig } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import type { LeaderTierSwitchRequest } from '../../src/coordination/model-tier-leader.js';
 import {
@@ -6,7 +7,6 @@ import {
   leaderTierPolicy,
   tierRank,
 } from '../../src/coordination/model-tier-leader.js';
-import type { Config, ModelTiersConfig } from '../../src/types/config.js';
 
 function makeConfig(tiers?: Partial<ModelTiersConfig>): Config {
   return {

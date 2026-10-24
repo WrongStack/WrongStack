@@ -1,8 +1,8 @@
-import type { MemoryEntry, MemoryScope } from '@wrongstack/core/types';
+import type { MemoryEntry, MemoryScope } from '@wrongstack/contracts/types';
 import { legacyScopeLabel } from './sqlite-store-legacy.js';
 import { formatLegacyEntry } from './sqlite-store-pagination.js';
-import { legacyToSageScope } from './types.js';
 import type { RememberSageInput } from './types.js';
+import { legacyToSageScope } from './types.js';
 
 export async function readAllSqliteMemory(
   read: (scope: MemoryScope) => Promise<string>,

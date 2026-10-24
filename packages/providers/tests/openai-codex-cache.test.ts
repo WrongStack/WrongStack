@@ -15,7 +15,7 @@
  *    previous behaviour, not strand the turn.
  */
 
-import type { Message, Request, StreamEvent } from '@wrongstack/core/types';
+import type { Message, Request, StreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import type { CodexResponseMetadata } from '../src/openai-codex.js';
 import { OpenAICodexProvider } from '../src/openai-codex.js';

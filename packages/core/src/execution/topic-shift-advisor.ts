@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
+import { isTextBlock, type Message, type Provider } from '@wrongstack/contracts/types';
 import type { Context } from '../core/context.js';
-import { isTextBlock, type Message, type Provider } from '../types/index.js';
 import type { TypeSafeJudge } from '../typesafe/judgments.js';
 import { createContextEvidenceState } from '../utils/context-evidence.js';
 

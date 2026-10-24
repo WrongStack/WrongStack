@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as path from 'node:path';
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { withTransientPrivateOrigin } from './browser/policy.js';
 
 /**

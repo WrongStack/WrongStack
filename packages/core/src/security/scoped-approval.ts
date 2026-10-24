@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { AgentContext } from '../types/context.js';
-import type { Tool } from '../types/tool.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 
 const PREFIX = 'wrongstack-approval:v1:';
 

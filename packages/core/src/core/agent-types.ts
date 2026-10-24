@@ -3,21 +3,24 @@
  * dependencies and keep the Agent class focused on runtime logic.
  */
 
+import type { Container } from '@wrongstack/contracts/kernel/container';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import { Pipeline, type PipelineErrorHandler } from '@wrongstack/contracts/kernel/pipeline';
+import type { ContentBlock, TextBlock } from '@wrongstack/contracts/types/blocks';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { LoopDetectionConfig } from '@wrongstack/contracts/types/config';
+import type { Tracer } from '@wrongstack/contracts/types/observability';
+import type { PermissionPolicy } from '@wrongstack/contracts/types/permission';
+import type {
+  ToolCallPipelinePayload,
+  UserInputPayload,
+} from '@wrongstack/contracts/types/pipeline-payloads';
+import type { Request, Response } from '@wrongstack/contracts/types/provider';
+import type { RunResult } from '@wrongstack/contracts/types/run-result';
+import type { ToolExecutorLike } from '@wrongstack/contracts/types/tool-executor';
 import type { ExtensionRegistry } from '../extension/registry.js';
-import type { Container } from '../kernel/container.js';
-import type { EventBus } from '../kernel/events.js';
-import { Pipeline, type PipelineErrorHandler } from '../kernel/pipeline.js';
 import type { ProviderRegistry } from '../registry/provider-registry.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
-import type { ContentBlock, TextBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import { isTextBlock } from '../types/blocks.js';
-import type { LoopDetectionConfig } from '../types/config.js';
-import type { WrongStackError } from '../types/errors.js';
-import type { Tracer } from '../types/observability.js';
-import type { PermissionPolicy } from '../types/permission.js';
-import type { Request, Response } from '../types/provider.js';
-import type { Tool } from '../types/tool.js';
-import type { ToolExecutorLike } from '../types/tool-executor.js';
 import type { Context } from './context.js';
 
 /** Default iteration cap. Use 0 or Infinity via config to disable. */
@@ -31,15 +34,7 @@ export const DEFAULT_MAX_ITERATIONS = 100;
  */
 export const DEFAULT_MAX_AUTO_EXTENSIONS = 3;
 
-export interface RunResult {
-  status: 'done' | 'failed' | 'max_iterations' | 'aborted';
-  error?: WrongStackError | undefined;
-  finalText?: string | undefined;
-  iterations: number;
-  delegateSummaries?: Array<{ summary: string | undefined; ok: boolean }>;
-  /** Human-readable reason for abort (e.g. "user interrupt", "tool timeout", "stream hang"). */
-  abortReason?: string | undefined;
-}
+export type { RunResult };
 
 export interface AgentInit {
   container: Container;
@@ -57,7 +52,7 @@ export interface AgentInit {
   autonomousContinue?: boolean | undefined;
   /** Rebuild the host system prompt from the live direct/catalog tool surfaces before each run. */
   refreshSystemPrompt?: boolean | undefined;
-  confirmAwaiter?: import('../types/tool-executor.js').ConfirmAwaiter | undefined;
+  confirmAwaiter?: import('@wrongstack/contracts/types/tool-executor').ConfirmAwaiter | undefined;
   permissionPolicy?: PermissionPolicy | undefined;
   tracer?: Tracer | undefined;
   extensions?: ExtensionRegistry | undefined;
@@ -101,11 +96,7 @@ export interface AgentPipelines {
   contextWindow: Pipeline<Context>;
 }
 
-export interface UserInputPayload {
-  content: ContentBlock[];
-  text: string;
-  ctx: Context;
-}
+export type { UserInputPayload };
 
 export type AgentInput = string | ContentBlock[];
 
@@ -120,12 +111,7 @@ export function normalizeInput(input: AgentInput): { blocks: ContentBlock[]; tex
   return { blocks: input, text };
 }
 
-export interface ToolCallPipelinePayload {
-  toolUse: ToolUseBlock;
-  result: ToolResultBlock;
-  ctx: Context;
-  tool?: Tool | undefined;
-}
+export type { ToolCallPipelinePayload };
 
 export function createDefaultPipelines(): AgentPipelines {
   return {

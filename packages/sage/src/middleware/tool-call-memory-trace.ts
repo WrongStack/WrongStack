@@ -1,5 +1,5 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { Sage } from '../types.js';
 import { DEFAULT_PERSISTENCE } from '../types.js';
 import type { MemoryInjectorAgent } from './memory-injector-agent.js';

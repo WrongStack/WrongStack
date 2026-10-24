@@ -28,12 +28,12 @@
  * has, by definition, no tab to tell).
  */
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import {
   type LeaderDeliveryHub,
   type LeaderWakePort,
   leaderDeliveryHub,
 } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { PendingConfirm } from './pending-confirms.js';
 
 /** The controller surface this host drives (core's `LeaderAutoWakeController`). */

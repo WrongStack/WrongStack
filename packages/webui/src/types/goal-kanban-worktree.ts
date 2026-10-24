@@ -1,4 +1,4 @@
-import type { WorktreeTimelineEvent } from '@wrongstack/core/types/worktree-timeline';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import type {
   KanbanBoard,
   KanbanBoardPresence,
@@ -175,7 +175,7 @@ export interface WSWorktreeEvent {
 
 /**
  * Bounded lifecycle log on connect (survives release, unlike `worktree.state`).
- * Events are `WorktreeTimelineEvent`s from `@wrongstack/core/types/worktree-timeline`.
+ * Events are `WorktreeTimelineEvent`s from `@wrongstack/contracts/types/worktree-timeline`.
  */
 export interface WSWorktreeTimeline {
   type: 'worktree.timeline';

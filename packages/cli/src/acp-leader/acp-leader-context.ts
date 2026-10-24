@@ -7,8 +7,8 @@
  * Claude's "Compact conversation" call).
  */
 import type { ACPCapturedToolCall } from '@wrongstack/acp';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { AgentContextUsage } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { AgentContextUsage } from '@wrongstack/contracts/types';
 
 /** A compaction's result, when this settled call is one. */
 function compactedTokens(call: ACPCapturedToolCall): number | undefined {

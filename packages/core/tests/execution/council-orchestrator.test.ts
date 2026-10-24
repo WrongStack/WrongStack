@@ -1,3 +1,10 @@
+import type { Config } from '@wrongstack/contracts/types/config';
+import type {
+  CouncilLLMCaller,
+  CouncilProfileConfig,
+  CouncilQuestion,
+} from '@wrongstack/contracts/types/council';
+import type { OneShotLLMInput, OneShotLLMResult } from '@wrongstack/contracts/types/one-shot-llm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
 import { COUNCIL_REFUSE_OPTION_ID } from '../../src/execution/council-brain.js';
@@ -7,13 +14,6 @@ import {
   MAX_COUNCIL_CONCURRENCY,
 } from '../../src/execution/council-orchestrator.js';
 import { DEFAULT_COUNCIL_PROFILE_REGISTRY } from '../../src/execution/council-profiles.js';
-import type { Config } from '../../src/types/config.js';
-import type {
-  CouncilLLMCaller,
-  CouncilProfileConfig,
-  CouncilQuestion,
-} from '../../src/types/council.js';
-import type { OneShotLLMInput, OneShotLLMResult } from '../../src/types/one-shot-llm.js';
 
 interface CallPlan {
   voterResponses: Map<string, string>;
@@ -235,7 +235,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([
         ['executor', JSON.stringify({ optionId: COUNCIL_REFUSE_OPTION_ID, rationale: 'no' })],
@@ -269,7 +269,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator, log } = makeOrchestrator({
       voterResponses: new Map([
         ['a', '{"optionId":"merge"}'],
@@ -306,7 +306,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([
         ['executor', '{"optionId":"merge"}'],
@@ -345,7 +345,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([
         ['a', '{"optionId":"merge"}'],
@@ -378,7 +378,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { caller, log } = makeCaller({
       voterResponses: new Map([
         ['executor', '{"optionId":"merge"}'],
@@ -423,7 +423,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({});
     const controller = new AbortController();
     controller.abort();
@@ -453,7 +453,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([
         ['a', '{"optionId":"merge"}'],
@@ -491,7 +491,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterErrors: new Map([
         ['a', 'down'],
@@ -545,7 +545,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const orchestrator = new CouncilOrchestrator({ caller: noTargetCaller, maxConcurrency: 2 });
     const result = await orchestrator.ask({ ...QUESTION, profile });
 
@@ -593,7 +593,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const orchestrator = new CouncilOrchestrator({
       caller: partialTargetCaller,
       maxConcurrency: 2,
@@ -623,7 +623,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([
         ['executor', '{"stance":"continue, evidence is solid."}'],
@@ -661,7 +661,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([['executor', '{"stance":"continue, evidence is solid."}']]),
     });
@@ -696,7 +696,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([
         ['executor', '{"stance":"proceed carefully"}'],
@@ -736,7 +736,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([
         ['executor', '{"stance":"Yes."}'],
@@ -777,7 +777,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([
         ['executor', '{"stance":"proceed"}'],
@@ -821,7 +821,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const caller: CouncilLLMCaller = {
       async call(input: OneShotLLMInput): Promise<OneShotLLMResult> {
         if (input.userPrompt?.includes('<council-ballots>')) return ok('{"answer":"go"}', input);
@@ -878,7 +878,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const { caller, log } = makeCaller({
       voterResponses: new Map([
         ['a', '{"optionId":"custom_refuse"}'],
@@ -946,7 +946,7 @@ describe('CouncilOrchestrator', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
       overallTimeoutMs: 90_000,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const result = await orch.ask({ ...QUESTION, profile });
     expect(result.status).toBe('decided');
     // The seat target's named profile was resolved to its chain and handed to
@@ -1025,7 +1025,7 @@ describe('CouncilOrchestrator — status + usage consistency', () => {
       judgeMaxTokens: 500,
       perCallTimeoutMs: 100,
       overallTimeoutMs: 100,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     // Voters tie (merge vs hold) so the judge is required; the judge is
     // signal-blind and returns a verdict AFTER the overall budget expired.
     const seatCaller: CouncilLLMCaller = {
@@ -1081,7 +1081,7 @@ describe('CouncilOrchestrator — status + usage consistency', () => {
       // Equal budgets exercise overall expiry before the per-call timers.
       perCallTimeoutMs: 100,
       overallTimeoutMs: 100,
-    } satisfies import('../../src/types/council.js').CouncilProfileConfig;
+    } satisfies import('@wrongstack/contracts/types/council').CouncilProfileConfig;
     const orchestrator = new CouncilOrchestrator({ caller: signalBlind, maxConcurrency: 2 });
     const result = await orchestrator.ask({ ...QUESTION, profile });
 

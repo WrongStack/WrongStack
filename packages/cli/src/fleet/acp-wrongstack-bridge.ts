@@ -19,7 +19,7 @@
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { type AcpSessionSetup, findAgentDescriptor, REGISTRY_ID_ALIASES } from '@wrongstack/acp';
-import type { Config, SubagentRunContext, TaskSpec } from '@wrongstack/core/types';
+import type { Config, SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { cliSpawnArgs, isStandaloneBinary } from '@wrongstack/core/utils';
 
 export type BridgeServer = 'sage' | 'mailbox' | 'kanban' | 'codebase-index' | 'requirement-intake';

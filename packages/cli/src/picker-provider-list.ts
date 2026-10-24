@@ -1,4 +1,4 @@
-import type { ResolvedProvider } from '@wrongstack/core/types';
+import type { ResolvedProvider } from '@wrongstack/contracts/types';
 import { color, setOutputLineGuard, setRawMode, stripAnsi, writeOut } from '@wrongstack/core/utils';
 import { LOCAL_LLM_PRESETS } from './auth-menu/local-presets.js';
 import { applyPickerKey, type ProviderPickerState } from './picker-key-state.js';

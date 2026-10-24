@@ -8,8 +8,8 @@
  * then reaches the worker with `session_note`, as it reaches its own workers.
  */
 import type { AcpSteerOutcome } from '@wrongstack/acp';
+import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { type SessionNoteHub, sessionNoteHub } from '@wrongstack/core/coordination';
-import type { SubagentRunContext, TaskSpec } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
 interface Note {

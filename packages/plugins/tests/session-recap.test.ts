@@ -724,7 +724,7 @@ describe('session-recap: commit counting over real core tool events', () => {
 // Regression (post-hunt): tool-call counting counts INVOCATIONS, not bus
 // events. A single invocation emits tool.started + progress×N +
 // tool.completed + tool.executed (ToolEventMap in
-// packages/core/src/kernel/events/tool-events.ts), and non-invocation
+// packages/contracts/src/kernel/events/tool-events.ts), and non-invocation
 // events (tool.confirm_resolved, tool.loop_detected) also match the
 // `tool.*` wildcard — counting every event inflated the recap's
 // "N tool calls" subject and tools.totalCalls several-fold and polluted

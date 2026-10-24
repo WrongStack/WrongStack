@@ -4,8 +4,8 @@
  * @module repl-goal-banner
  */
 
-import type { GoalFile } from '@wrongstack/core/goal';
-import { goalFilePath, loadGoal } from '@wrongstack/core/goal';
+import type { GoalFile } from '@wrongstack/goal';
+import { goalFilePath, loadGoal } from '@wrongstack/goal';
 import { color, expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import type { ReplOptions } from './repl-options.js';
 

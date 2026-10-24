@@ -1,6 +1,6 @@
-import type { ProviderConfig } from '../types/config.js';
-import type { WireFamily } from '../types/models-registry.js';
-import type { Provider } from '../types/provider.js';
+import type { ProviderConfig } from '@wrongstack/contracts/types/config';
+import type { WireFamily } from '@wrongstack/contracts/types/models-registry';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 
 /**
  * Factory for constructing a Provider instance. The `family` field

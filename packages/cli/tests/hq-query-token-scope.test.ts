@@ -15,7 +15,7 @@
  * loopback Host it did not arrive on.
  */
 import type * as http from 'node:http';
-import { hqTokenVerifier } from '@wrongstack/core/hq';
+import { hqTokenVerifier } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { authenticateBrowserRequest } from '../src/hq-server/auth.js';
 

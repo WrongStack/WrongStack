@@ -1,5 +1,5 @@
+import type { RunEnv } from '@wrongstack/contracts/types/run-env';
 import type { Context } from './context.js';
-import type { RunEnv } from '../types/run-env.js';
 
 /**
  * Immutable run environment — the set-once dependencies for an agent run.
@@ -24,7 +24,7 @@ import type { RunEnv } from '../types/run-env.js';
  * only need read access. Existing APIs continue to accept `Context` until
  * a full split is scheduled.
  */
-export type { RunEnv } from '../types/run-env.js';
+export type { RunEnv } from '@wrongstack/contracts/types/run-env';
 
 export function extractRunEnv(ctx: Context): RunEnv {
   return Object.freeze({

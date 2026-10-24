@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { SessionEvent } from '@wrongstack/core/types';
+import type { SessionEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { buildSddWizardDeps } from '../src/server/sdd-wizard-wiring.js';
 import { buildAgentSessionsPayload } from '../src/server/session-agent-sessions.js';

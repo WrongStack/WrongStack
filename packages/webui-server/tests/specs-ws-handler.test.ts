@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { TaskGraph } from '@wrongstack/core/types';
+import type { TaskGraph } from '@wrongstack/contracts/types';
 import { SpecStore, TaskGraphStore } from '@wrongstack/sdd';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpecsWebSocketHandler } from '../src/server/specs-ws-handler.js';
@@ -27,7 +27,7 @@ describe('SpecsWebSocketHandler', () => {
     const specStore = new SpecStore({ baseDir: specsDir });
     const graphStore = new TaskGraphStore({ baseDir: graphsDir });
 
-    const spec: import('@wrongstack/core/types').Specification = {
+    const spec: import('@wrongstack/contracts/types').Specification = {
       id: 'spec-01',
       title: 'Auth Spec',
       overview: 'Authentication system',

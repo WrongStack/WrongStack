@@ -13,12 +13,12 @@
  * happened, `false` if the flag was empty.
  */
 
+import type { Token } from '@wrongstack/contracts/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { Compactor, Config, Logger } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import { EternalAutonomyEngine } from '@wrongstack/core/execution';
-import type { JournalEntry } from '@wrongstack/core/goal';
-import type { Token } from '@wrongstack/core/kernel';
-import { TOKENS } from '@wrongstack/core/kernel';
-import type { Compactor, Config, Logger } from '@wrongstack/core/types';
+import type { JournalEntry } from '@wrongstack/goal';
 import { color } from '@wrongstack/core/utils';
 import type { TerminalRenderer } from './renderer.js';
 import type { AutonomyMode } from './services/autonomy-mode.js';
@@ -72,7 +72,7 @@ export async function launchEternalFromFlag(deps: EternalFlagDeps): Promise<bool
   const { eternalFlag } = deps;
   if (eternalFlag.length === 0) return false;
 
-  const { saveGoal, emptyGoal, goalFilePath, loadGoal } = await import('@wrongstack/core/goal');
+  const { saveGoal, emptyGoal, goalFilePath, loadGoal } = await import('@wrongstack/goal');
   const goalPath = goalFilePath(deps.projectRoot);
   const prior = await loadGoal(
     goalPath,

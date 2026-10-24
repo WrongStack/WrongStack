@@ -25,7 +25,7 @@
 
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { extname, isAbsolute, relative, resolve } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { BoundedSet, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';

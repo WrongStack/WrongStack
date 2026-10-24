@@ -5,7 +5,7 @@
  * the model's first `vector_memory_search` call fails.
  */
 
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const backend = vi.hoisted(() => ({ installed: false }));

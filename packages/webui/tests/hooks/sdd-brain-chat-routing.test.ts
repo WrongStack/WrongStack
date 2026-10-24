@@ -1,5 +1,5 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { ObservableBrainArbiter } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { SddSupervisor } from '@wrongstack/sdd';
 import { SddWizardWebSocketHandler } from '@wrongstack/webui-server/server/sdd-wizard-ws-handler.js';
 import { registerSetupEventsPatternHandlers } from '@wrongstack/webui-server/server/setup-events-pattern-handlers.js';

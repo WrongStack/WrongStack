@@ -6,7 +6,7 @@ import {
   type WorktreeLanePhase,
   type WorktreeTimelineEvent,
   worktreeTimelineTicks,
-} from '@wrongstack/core/types/worktree-timeline';
+} from '@wrongstack/contracts/types/worktree-timeline';
 import {
   AlertTriangle,
   CheckCircle2,

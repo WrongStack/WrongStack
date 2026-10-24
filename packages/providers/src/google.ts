@@ -6,8 +6,8 @@ import type {
   ImageGenerationResult,
   Request,
   StreamEvent,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import { geminiImageCall } from './image-generation.js';
 import type { GoogleStreamState } from './presets/google.js';

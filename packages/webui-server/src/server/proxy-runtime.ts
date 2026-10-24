@@ -27,7 +27,7 @@
  * embedded-host-adapters, start-webui-credential-watcher).
  */
 
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import {
   applyProxyConfig,
   getProxyConfig,

@@ -22,11 +22,11 @@
  * @module server/hq-session-telemetry
  */
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { SessionWriter } from '@wrongstack/contracts/types';
 import { AgentStatusTracker } from '@wrongstack/core/coordination';
-import type { HqPublisher } from '@wrongstack/core/hq';
-import { startSessionTelemetryBridge } from '@wrongstack/core/hq';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { SessionWriter } from '@wrongstack/core/types';
+import type { HqPublisher } from '@wrongstack/hq';
+import { startSessionTelemetryBridge } from '@wrongstack/hq';
 
 export interface WebuiHqSessionTelemetryOptions {
   events: EventBus;

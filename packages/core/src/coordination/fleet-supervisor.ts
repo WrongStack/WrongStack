@@ -47,8 +47,8 @@ export type {
  */
 
 import { randomUUID } from 'node:crypto';
-import type { TaskSpec } from '../types/multi-agent.js';
-import type { BrainDecision, BrainDecisionOption, BrainDecisionRequest } from './brain.js';
+import type { TaskSpec } from '@wrongstack/contracts/types/multi-agent';
+import type { BrainDecision, BrainDecisionOption, BrainDecisionRequest } from '../brain/brain.js';
 import {
   engageFailureStreak as engageFailureStreakImpl,
   engageIdleWithWork as engageIdleWithWorkImpl,
@@ -56,7 +56,7 @@ import {
   engageStuck as engageStuckImpl,
 } from './fleet-supervisor-worker-health.js';
 
-export type { FleetSupervisorConfig } from '../types/config.js';
+export type { FleetSupervisorConfig } from '@wrongstack/contracts/types/config';
 
 /** Collab subagents (spawned by /collab review flows) and host-owned resident
  *  companions are never supervised — same exclusion the Director's budget

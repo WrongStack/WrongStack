@@ -29,7 +29,7 @@
 
 import { execFile } from 'node:child_process';
 import * as path from 'node:path';
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import { releaseHandle } from '../runtime/index.js';
 

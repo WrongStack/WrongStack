@@ -10,6 +10,7 @@
  * plan on a backoff schedule.
  */
 
+import type { ProviderError, Request, StreamEvent } from '@wrongstack/contracts/types';
 import {
   getProviderQuota,
   hasQuotaData,
@@ -17,7 +18,6 @@ import {
   type ProviderQuotaWindow,
   resetProviderQuota,
 } from '@wrongstack/core/quota';
-import type { ProviderError, Request, StreamEvent } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { OpenAICodexProvider, parseOpenAIResponsesStream } from '../src/openai-codex.js';
 import {

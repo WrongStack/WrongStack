@@ -1,0 +1,48 @@
+{
+  "name": "@wrongstack/goal",
+  "version": "1.1.16",
+  "private": true,
+  "license": "MIT",
+  "description": "WrongStack goal runner: autonomous phase-based workflow — planner, assessor, phase graph/store/orchestrator, checkpoints and project verification. Built on @wrongstack/core.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WrongStack/WrongStack.git",
+    "directory": "packages/goal"
+  },
+  "homepage": "https://github.com/WrongStack/WrongStack#readme",
+  "bugs": {
+    "url": "https://github.com/WrongStack/WrongStack/issues"
+  },
+  "author": "ECOSTACK TECHNOLOGY OÜ",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@wrongstack/contracts": "workspace:*",
+    "@wrongstack/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

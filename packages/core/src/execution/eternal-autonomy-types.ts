@@ -1,8 +1,9 @@
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { IterationStage } from '@wrongstack/contracts/types/autonomy';
+import type { Compactor } from '@wrongstack/contracts/types/compactor';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { BrainArbiter } from '../brain/brain.js';
 import type { Agent } from '../core/agent.js';
-import type { EventBus } from '../kernel/events.js';
-import type { Logger } from '../types/logger.js';
-import type { Compactor } from '../types/compactor.js';
-import type { BrainArbiter } from '../coordination/brain.js';
 import type { JournalEntry } from '../storage/goal-store.js';
 
 export interface EternalAutonomyOptions {
@@ -130,20 +131,4 @@ export interface EternalAutonomyOptions {
 
 export type EternalEngineState = 'idle' | 'running' | 'stopped';
 
-/**
- * Per-iteration phase emitted via `onStage` so UIs can render the
- * engine's live location in the sense-decide-execute-reflect loop.
- */
-export type IterationStage =
-  | { phase: 'idle' }
-  | { phase: 'decide'; reason: string }
-  | { phase: 'execute'; task: string }
-  | {
-      phase: 'reflect';
-      status: 'success' | 'failure' | 'aborted' | 'skipped';
-      note?: string | undefined;
-    }
-  | { phase: 'sleep'; ms: number }
-  | { phase: 'paused' }
-  | { phase: 'stopped' }
-  | { phase: 'error'; message: string };
+export type { IterationStage };

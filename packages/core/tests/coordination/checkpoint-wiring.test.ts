@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as cw from '../../src/coordination/checkpoint-wiring.js';
 import type { DirectorCheckpointHost } from '../../src/coordination/checkpoint-wiring.js';
-import type { TaskResult } from '../../src/types/multi-agent.js';
+import * as cw from '../../src/coordination/checkpoint-wiring.js';
 
 let tmp: string;
 

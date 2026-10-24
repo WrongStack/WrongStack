@@ -1,5 +1,5 @@
-import type { EventBus, Middleware } from '@wrongstack/core/kernel';
-import type { Message, Request } from '@wrongstack/core/types';
+import type { EventBus, Middleware } from '@wrongstack/contracts/kernel';
+import type { Message, Request } from '@wrongstack/contracts/types';
 import type { InjectionTracker } from './injection-tracker.js';
 
 export interface SageContextMonitorOptions {

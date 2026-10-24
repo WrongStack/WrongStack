@@ -1,3 +1,4 @@
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import {
   formatQuotaPercent,
   formatQuotaResetIn,
@@ -5,7 +6,6 @@ import {
   quotaResetInMs,
   quotaWindowLabel,
 } from '@wrongstack/core/quota';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import type { ResourceMenuSnapshot } from '@wrongstack/tui';
 
 /** One provider per row, with all its meters in the detail pane. */

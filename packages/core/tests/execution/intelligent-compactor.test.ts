@@ -1,11 +1,11 @@
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider, Request } from '@wrongstack/contracts/types/provider';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { findSafeBoundary } from '../../src/execution/compaction-core.js';
 import { CompactionSummaryCache } from '../../src/execution/compaction-summary-cache.js';
 import { IntelligentCompactor } from '../../src/execution/intelligent-compactor.js';
-import type { Logger } from '../../src/types/logger.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Provider, Request } from '../../src/types/provider.js';
 
 function fakeContext(messages: Message[]): Context {
   const ctx = {

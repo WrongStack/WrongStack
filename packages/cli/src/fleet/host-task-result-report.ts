@@ -1,10 +1,10 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import {
   formatSubagentStructuredReport,
   getSharedProjectMailbox,
   mailboxSessionTag,
   type TaskResultNotification,
 } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 
 type ReportTaskResultToLeaderOptions = {
   notification: TaskResultNotification;

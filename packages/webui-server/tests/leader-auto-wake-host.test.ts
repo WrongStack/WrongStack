@@ -1,5 +1,5 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { LeaderAutoWakeController, LeaderDeliveryHub } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { AUTO_WAKE_PROMPT_MARKER } from '@wrongstack/webui-protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

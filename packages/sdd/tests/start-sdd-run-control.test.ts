@@ -4,9 +4,10 @@ import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TaskGraph } from '@wrongstack/contracts/types/task-graph';
 import type { AgentFactory } from '@wrongstack/core/coordination/agent-subagent-runner.js';
-import { EventBus } from '@wrongstack/core/kernel/events.js';
-import type { TaskGraph, TaskStore } from '@wrongstack/core/types/task-graph.js';
+import type { TaskStore } from '@wrongstack/core/tasking';
 import {
   closeKanbanServerConnections,
   enqueueKanbanWorkflowCommand,

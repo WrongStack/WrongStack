@@ -10,8 +10,15 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { HQ_MAILBOX_PUBLISHER_FACTORY } from '../../src/core/agent-coordination.js';
+
+// The publisher factory is resolved from the Agent's container (the composition
+// root binds `createHqPublisherFromEnv` from `@wrongstack/hq`).
 const createHqPublisherFromEnv = vi.fn();
-vi.mock('../../src/hq/factory.js', () => ({ createHqPublisherFromEnv }));
+const container = {
+  has: (token: unknown) => token === HQ_MAILBOX_PUBLISHER_FACTORY,
+  resolve: () => createHqPublisherFromEnv,
+};
 
 const getSharedProjectMailbox = vi.fn();
 vi.mock('../../src/coordination/remote-mailbox.js', () => ({ getSharedProjectMailbox }));
@@ -38,6 +45,7 @@ function makeAgent(projectRoot: string, sessionId: string): FakeAgent {
     },
     events: { onPattern: () => () => {} },
     logger: { debug: () => {} },
+    container,
   } as never as Parameters<typeof attachMailboxChecker>[0];
   return {
     internals,

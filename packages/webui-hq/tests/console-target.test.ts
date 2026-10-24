@@ -1,4 +1,4 @@
-import type { HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSnapshot } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { resolveConsoleControlTarget } from '../src/domain/console-target.js';
 

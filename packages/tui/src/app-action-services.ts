@@ -1,4 +1,4 @@
-import type { SkillEntry } from '@wrongstack/core/types';
+import type { SkillEntry } from '@wrongstack/contracts/types';
 import type { ToolResultViewMode } from './settings-contracts.js';
 import type {
   LiveSessionEntry,

@@ -10,8 +10,8 @@
  * WrongStack's rules, next to the code index and the board.
  */
 import { randomBytes } from 'node:crypto';
+import type { Config } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Config } from '@wrongstack/core/types';
 import { createToolGateway, resolveGatewayRegistry } from '../tool-gateway.js';
 import { serveToolGatewayHttp } from '../tool-gateway-http.js';
 import type { WrongForgeGatewaySpec } from './wrongforge-client.js';

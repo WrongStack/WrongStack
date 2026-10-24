@@ -75,7 +75,7 @@ const commands = loaders.properties
     };
   })
   .sort((a, b) => a.name.localeCompare(b.name));
-const modes = array('packages/core/src/types/mode.ts', 'DEFAULT_MODES').map((node) =>
+const modes = array('packages/core/src/models/default-modes.ts', 'DEFAULT_MODES').map((node) =>
   literal(property(node, 'id')),
 );
 const skills = readdirSync(join(root, 'packages/core/skills'))
@@ -151,7 +151,7 @@ const md = [
   '',
   '## Modes and bundled skills',
   '',
-  `${modes.length} mode definitions in ${link('packages/core/src/types/mode.ts')}:`,
+  `${modes.length} mode definitions in ${link('packages/core/src/models/default-modes.ts')}:`,
   '',
   modes.map((id) => `\`${id}\``).join(', '),
   '',

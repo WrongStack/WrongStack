@@ -14,8 +14,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { HqAuthFile } from '@wrongstack/core/hq';
-import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
+import type { HqAuthFile } from '@wrongstack/hq';
+import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from '../src/ws-runtime.js';
 import { hqAuthRequired, hqClientAuthRequired } from '../src/hq-server/auth.js';
@@ -171,7 +171,7 @@ describe('HQ gates reject unauthenticated callers when tokens are configured', (
   // predicate skipped `/ws/client` auth and a tokenless, Origin-less peer was
   // upgraded. Injection-validated against the pre-fix predicate (outcome 'open').
   it('/ws/client rejects a tokenless upgrade on a password HQ with only expired client tokens', async () => {
-    const { hashHqPassword, mintHqCookieSecret } = await import('@wrongstack/core/hq');
+    const { hashHqPassword, mintHqCookieSecret } = await import('@wrongstack/hq');
     const h = await start(
       authFile({
         passwordHash: await hashHqPassword('dummy-password'),

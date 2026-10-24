@@ -148,7 +148,7 @@ describe('clarify tool', () => {
 
   it('still reports a user cancellation as a skipped result', async () => {
     const requestUserInput = vi.fn(
-      async (request: import('@wrongstack/core/types').UserInputRequest) => ({
+      async (request: import('@wrongstack/contracts/types').UserInputRequest) => ({
         requestId: request.id,
         status: 'cancelled' as const,
         answers: [],
@@ -165,7 +165,7 @@ describe('clarify tool', () => {
 
   it('submits a tabbed mixed form once and reports recommended-answer usage', async () => {
     const requestUserInput = vi.fn(
-      async (request: import('@wrongstack/core/types').UserInputRequest) => ({
+      async (request: import('@wrongstack/contracts/types').UserInputRequest) => ({
         requestId: request.id,
         status: 'submitted' as const,
         answers: [
@@ -244,7 +244,7 @@ describe('clarify tool', () => {
 
   it('returns an explicit model delegation without leaking stale answer values', async () => {
     const requestUserInput = vi.fn(
-      async (request: import('@wrongstack/core/types').UserInputRequest) => ({
+      async (request: import('@wrongstack/contracts/types').UserInputRequest) => ({
         requestId: request.id,
         status: 'submitted' as const,
         answers: [
@@ -280,7 +280,7 @@ describe('clarify tool', () => {
 
   it('generates readable Turkish ids and rejects contradictory select flags', async () => {
     const requestUserInput = vi.fn(
-      async (request: import('@wrongstack/core/types').UserInputRequest) => ({
+      async (request: import('@wrongstack/contracts/types').UserInputRequest) => ({
         requestId: request.id,
         status: 'submitted' as const,
         answers: request.tabs.flatMap((tab) =>

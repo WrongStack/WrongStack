@@ -25,8 +25,8 @@
  * in plaintext.
  */
 
+import type { SecretScrubber } from '@wrongstack/contracts/types';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { SecretScrubber } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { authProfileAliasError } from '@wrongstack/providers';
 import type { ProbeOptions, ProbeResult } from '@wrongstack/runtime/probe';

@@ -1,12 +1,12 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { PluginAPI, SessionWriter } from '@wrongstack/contracts/types';
 import type { Agent, Context } from '@wrongstack/core/agent';
 import type { ExtensionRegistry } from '@wrongstack/core/extension';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type {
   ProviderRegistry,
   SlashCommandRegistry,
   ToolRegistry,
 } from '@wrongstack/core/registry';
-import type { PluginAPI, SessionWriter } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WrongStackPack } from './pack.js';
 

@@ -28,7 +28,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { releaseHandle } from '../runtime/index.js';
 import {
   detectLinter,

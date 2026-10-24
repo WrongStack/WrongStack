@@ -1,14 +1,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { BUILTIN_PROMPT_CATEGORIES } from '@wrongstack/contracts/types/prompt';
+import type { JSONSchema } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { DefaultPromptLoader } from '../../src/execution/prompt-loader.js';
 import { PERF_MODES, PERF_PROMPT_SLUGS } from '../../src/performance/perf-modes.js';
 import { extractSkillMentions } from '../../src/skills/mentions.js';
 import { parseRequiredSkillsMarker } from '../../src/skills/required-skill-gate.js';
 import { promptChecksum } from '../../src/storage/prompt-store.js';
-import { BUILTIN_PROMPT_CATEGORIES } from '../../src/types/prompt.js';
-import type { JSONSchema } from '../../src/types/tool.js';
 import { validateAgainstSchema } from '../../src/utils/json-schema-validate.js';
 import { resolveWstackPaths } from '../../src/utils/wstack-paths.js';
 

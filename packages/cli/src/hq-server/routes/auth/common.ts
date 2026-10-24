@@ -1,5 +1,5 @@
 import type * as http from 'node:http';
-import { type HqAuthFile, isLoopbackHost, mutateHqAuthFile } from '@wrongstack/core/hq';
+import { type HqAuthFile, isLoopbackHost, mutateHqAuthFile } from '@wrongstack/hq';
 import { verifyTotpCounter } from '@wrongstack/core/security';
 import { authenticateBrowserRequest, type HqBrowserAuthResult } from '../../auth.js';
 import type { LoginAttemptStore } from '../../login-attempt-store.js';

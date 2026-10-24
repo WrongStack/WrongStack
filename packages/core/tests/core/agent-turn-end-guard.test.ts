@@ -1,6 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Container } from '@wrongstack/contracts/kernel/container';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import { Context } from '../../src/core/context.js';
@@ -11,15 +15,11 @@ import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { ExtensionRegistry } from '../../src/extension/registry.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { Container } from '../../src/kernel/container.js';
-import { EventBus } from '../../src/kernel/events.js';
-import { TOKENS } from '../../src/kernel/tokens.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type { Tool } from '../../src/types/tool.js';
 import { MockProvider } from '../helpers/mock-provider.js';
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

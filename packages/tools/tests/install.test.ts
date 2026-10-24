@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ToolProgressEvent } from '@wrongstack/contracts/types';
 import * as Core from '@wrongstack/core/coordination';
-import type { ToolProgressEvent } from '@wrongstack/core/types';
 import { subjectForToolInput } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SpawnStreamResult } from '../src/_spawn-stream.js';

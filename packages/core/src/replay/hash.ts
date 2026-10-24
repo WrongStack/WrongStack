@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import type { Message } from '../types/messages.js';
-import type { Request } from '../types/provider.js';
-import type { Tool } from '../types/tool.js';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 
 /**
  * Idea #2 from IDEAS.md — Deterministic Replay.

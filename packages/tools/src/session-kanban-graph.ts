@@ -1,6 +1,6 @@
+import type { SerializedTaskGraph, TaskStatus } from '@wrongstack/contracts/types';
 import type { TodoItem } from '@wrongstack/core/agent';
 import type { PlanItem } from '@wrongstack/core/storage';
-import type { SerializedTaskGraph, TaskStatus } from '@wrongstack/core/types';
 import type { TaskItem } from '@wrongstack/core/utils';
 
 export const PLAN_STATUS_TO_TASK: Record<PlanItem['status'], TaskStatus> = {

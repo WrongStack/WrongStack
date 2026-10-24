@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { HookInput } from '../types/hooks.js';
+import type { HookInput } from '@wrongstack/contracts/types/hooks';
 
 type WritePaths = Pick<
   NonNullable<HookInput['toolResult']>,

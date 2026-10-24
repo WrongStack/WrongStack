@@ -1,4 +1,4 @@
-import type { UserInputRequest } from '@wrongstack/core/types';
+import type { UserInputRequest } from '@wrongstack/contracts/types';
 import { create } from 'zustand';
 
 export interface PendingUserInputEntry {

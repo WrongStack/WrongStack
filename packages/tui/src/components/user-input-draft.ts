@@ -1,4 +1,8 @@
-import type { UserInputAnswer, UserInputQuestion, UserInputRequest } from '@wrongstack/core/types';
+import type {
+  UserInputAnswer,
+  UserInputQuestion,
+  UserInputRequest,
+} from '@wrongstack/contracts/types';
 import { type DOMElement, measureElement } from '../ink.js';
 
 export type AnswerDraft = {

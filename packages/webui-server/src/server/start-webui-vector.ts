@@ -1,4 +1,4 @@
-﻿import type { Logger, MemoryPort } from '@wrongstack/core/types';
+﻿import type { Logger, MemoryPort } from '@wrongstack/contracts/types';
 import {
   startFirstBootSageSync,
   subscribeVectorMemoryToSage,

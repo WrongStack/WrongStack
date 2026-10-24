@@ -1,3 +1,5 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Compactor } from '@wrongstack/contracts/types/compactor';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { AutoCompactionMiddleware } from '../../src/execution/auto-compaction-middleware.js';
@@ -5,9 +7,7 @@ import {
   markStaleCompactionReport,
   stampCompactionReport,
 } from '../../src/execution/compaction-result-state.js';
-import { EventBus } from '../../src/kernel/events.js';
 import type { SessionEventBridge } from '../../src/storage/session-event-bridge.js';
-import type { Compactor } from '../../src/types/compactor.js';
 import { createContextEvidenceState } from '../../src/utils/context-evidence.js';
 
 function mockContext(_tokenEstimate: number): Context {

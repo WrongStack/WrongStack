@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SyncCategory, SyncConfig } from '@wrongstack/contracts/types/config';
+import { ERROR_CODES, FsError, WrongStackError } from '@wrongstack/contracts/types/errors';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
-import type { SyncCategory, SyncConfig } from '../types/config.js';
-import { ERROR_CODES, FsError, WrongStackError } from '../types/errors.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { backupConfigFile } from '../utils/config-backup.js';
 import { expectDefined } from '../utils/expect-defined.js';

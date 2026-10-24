@@ -1,6 +1,6 @@
+import type { SideEffect } from '@wrongstack/contracts/types/side-effect';
 import { describe, expect, it, vi } from 'vitest';
 import { Context } from '../../src/core/context.js';
-import type { SideEffect } from '../../src/types/side-effect.js';
 
 /**
  * P2 #5 Phase 1 (before-release.md): structured side-effect recording.

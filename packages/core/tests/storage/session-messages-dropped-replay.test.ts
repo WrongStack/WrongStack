@@ -15,12 +15,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Context } from '../../src/core/context.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Provider } from '../../src/types/provider.js';
 
 let dir: string;
 const SESSION_ID = 'sess_messages_dropped';

@@ -22,7 +22,7 @@ import type { MCPRegistryCatalog } from './registry-types.js';
 
 export interface RegistryCatalogOperationsHost {
   servers: Map<string, import('./registry-slots.js').ServerSlot>;
-  disabledServers: Map<string, import('@wrongstack/core/types').MCPServerConfig>;
+  disabledServers: Map<string, import('@wrongstack/contracts/types').MCPServerConfig>;
   requireSlot: (name: string) => import('./registry-slots.js').ServerSlot;
   withConnectedClient: <T>(
     name: string,

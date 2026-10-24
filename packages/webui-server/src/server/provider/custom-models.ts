@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import type { WebSocket } from 'ws';
 import { errMessage } from '../ws-utils.js';
 import type { ProviderServiceContext } from './mutations.js';

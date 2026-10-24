@@ -8,9 +8,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DefaultConfigLoader } from '../../src/storage/config-loader.js';
-import type { Logger } from '../../src/types/logger.js';
 import { resolveWstackPaths } from '../../src/utils/wstack-paths.js';
 
 let projectRoot: string;

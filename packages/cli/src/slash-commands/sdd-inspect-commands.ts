@@ -1,4 +1,4 @@
-import type { SlashCommand, SpecRequirement } from '@wrongstack/core/types';
+import type { SlashCommand, SpecRequirement } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import {
   analyzeCriticalPath,

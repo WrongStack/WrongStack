@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Context } from '../../src/core/context.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
-import type { Tool } from '../../src/types/index.js';
 
 /**
  * P1 #1 (before-release.md): the permission policy's write-smart-bypass

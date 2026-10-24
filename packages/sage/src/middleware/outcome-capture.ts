@@ -6,9 +6,9 @@
  * hygiene/review remain in control.
  */
 
+import type { Middleware } from '@wrongstack/contracts/kernel';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import type { Middleware } from '@wrongstack/core/kernel';
-import type { MemoryPort } from '@wrongstack/core/types';
 import { getSageSurface } from '../memory-port.js';
 
 export interface SageOutcomeCaptureOptions {

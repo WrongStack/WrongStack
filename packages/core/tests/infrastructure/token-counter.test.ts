@@ -1,8 +1,8 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
 import type { ModelsRegistry, ResolvedModel } from '../../src/index.js';
 import { ProviderCacheLedger } from '../../src/infrastructure/provider-cache-ledger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 const m1: ResolvedModel = {
   providerId: 'anthropic',

@@ -206,12 +206,12 @@ export function useControllerKeyPipeline({
     setSessionCount: (v: number) => void;
   };
   statusbar: {
-    contextBreakdown: import('@wrongstack/core/utils').ContextBreakdown | undefined;
+    contextBreakdown: import('@wrongstack/core/agent').ContextBreakdown | undefined;
     contextResidency: import('@wrongstack/core/utils').RequestResidency | undefined;
     historyRetention: import('@wrongstack/core/utils').HistoryRetention | undefined;
     currentContextTokens: number;
     contextWindow: { used: number; max: number } | undefined;
-    cacheStats: import('@wrongstack/core/types').CacheStats;
+    cacheStats: import('@wrongstack/contracts/types').CacheStats;
     cacheCoverageTokens: number;
     todos: { pending: number; inProgress: number; completed: number };
     fleetCounts: { running: number; idle: number; pending: number; completed: number } | undefined;
@@ -264,7 +264,7 @@ export function useControllerKeyPipeline({
     | (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null)
     | undefined;
   getParallelEngine:
-    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | (() => import('@wrongstack/core/coordination').ParallelEternalEngine | null)
     | undefined;
   eternalLoopRunningRef: React.RefObject<boolean>;
   parallelLoopRunningRef: React.RefObject<boolean>;
@@ -326,7 +326,7 @@ export function useControllerKeyPipeline({
   builderRef: React.RefObject<import('@wrongstack/core/agent').InputBuilder | null>;
   tokenPreviewsRef: React.RefObject<import('./token-previews.js').TokenPreviewStore>;
   runBlocksRef: React.RefObject<
-    (blocks: import('@wrongstack/core/types').ContentBlock[]) => Promise<void>
+    (blocks: import('@wrongstack/contracts/types').ContentBlock[]) => Promise<void>
   >;
   liveModel: string;
   liveProvider: string;

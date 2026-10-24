@@ -1,9 +1,9 @@
+import type { Plugin } from '@wrongstack/contracts/types/plugin';
+import type { PromptEntry, PromptLoader } from '@wrongstack/contracts/types/prompt';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import { DefaultPromptLoader, renderPrompt } from '../execution/prompt-loader.js';
 import { DefaultPromptStore } from '../storage/prompt-store.js';
 import { PromptUsageStore } from '../storage/prompt-usage-store.js';
-import type { Plugin } from '../types/plugin.js';
-import type { PromptEntry, PromptLoader } from '../types/prompt.js';
-import type { SlashCommand } from '../types/slash-command.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 import { buildProofDrivenHuntCommands, PROOF_DRIVEN_HUNT_SPECS } from './hunt-commands.js';
 import { buildPerfCommand } from './perf-command.js';

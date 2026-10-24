@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Action } from './app-action-type.js';
 import { MAX_CHAT_SEARCH_QUERY_CHARS } from './input-validation/limits.js';
 

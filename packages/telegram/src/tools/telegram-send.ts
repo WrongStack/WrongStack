@@ -1,5 +1,5 @@
+import type { Logger, Tool } from '@wrongstack/contracts/types';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import type { Logger, Tool } from '@wrongstack/core/types';
 import type { TelegramBot } from '../bot.js';
 import { truncateForTelegram } from '../bot.js';
 import type { TelegramBotOutbound } from '../bot-queue.js';

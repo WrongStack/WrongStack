@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { PromptEntry, PromptLoader, PromptVariable } from '@wrongstack/contracts/types/prompt';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import type { Context } from '../core/context.js';
 import { type DefaultPromptStore, migratePromptEntry } from '../storage/prompt-store.js';
-import type { PromptEntry, PromptLoader, PromptVariable } from '../types/prompt.js';
-import type { SlashCommand } from '../types/slash-command.js';
 import { toErrorMessage } from '../utils/error.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import {
@@ -16,7 +16,7 @@ import {
 export function buildPromptsCommand(
   getStore: () => DefaultPromptStore | null,
   getLoader: () => PromptLoader | null,
-  getLlm: () => import('../types/plugin.js').PluginLLM | undefined,
+  getLlm: () => import('@wrongstack/contracts/types/plugin').PluginLLM | undefined,
 ): SlashCommand {
   return {
     name: 'prompts',

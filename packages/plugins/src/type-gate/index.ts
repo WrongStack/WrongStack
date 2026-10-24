@@ -31,7 +31,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import {
   type LanguageRuntime,
   releaseHandle,

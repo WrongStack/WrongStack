@@ -68,7 +68,7 @@ export async function submitSlashCommand({
 }: {
   trimmed: string;
   sessionGenerationRef: import('./shared-types.js').MutableCell<number>;
-  attachments: import('@wrongstack/core/types').AttachmentStore;
+  attachments: import('@wrongstack/contracts/types').AttachmentStore;
   tokenPreviewsRef: import('./shared-types.js').MutableCell<
     import('./token-previews.js').TokenPreviewStore
   >;
@@ -123,7 +123,7 @@ export async function submitSlashCommand({
   ) => Promise<boolean>;
   stateRef: import('./shared-types.js').MutableCell<import('./app-state.js').State>;
   runBlocks: (
-    blocks: import('@wrongstack/core/types').ContentBlock[],
+    blocks: import('@wrongstack/contracts/types').ContentBlock[],
     options?: import('./tui-host-capabilities.js').RunBlocksOptions,
   ) => Promise<void>;
   liveDirector: () => import('@wrongstack/core/coordination').Director | null;
@@ -132,7 +132,7 @@ export async function submitSlashCommand({
   setMemoryContextMonitor: (
     value: import('./memory-context-monitor.js').MemoryContextMonitorState,
   ) => void;
-  tokenCounter: import('@wrongstack/core/types').TokenCounter | undefined;
+  tokenCounter: import('@wrongstack/contracts/types').TokenCounter | undefined;
   enhanceAbortRef: import('./shared-types.js').MutableCell<AbortController | null>;
   enhanceCancelledRef: import('./shared-types.js').MutableCell<boolean>;
   enhanceOriginalRef: import('./shared-types.js').MutableCell<string>;

@@ -123,8 +123,8 @@ describe('security helpers are wired, not just present', () => {
       'packages/runtime/src/automation/github.ts', // GitHub webhook HMAC digest, not a bearer token
       'packages/core/src/security/totp.ts', // TOTP codes + recovery-code hashes
       'packages/cli/src/hq-server/auth.ts', // signed session-cookie HMAC
-      'packages/core/src/hq/auth-passwords.ts', // password hash comparison extracted from auth-store
-      'packages/core/src/hq/bootstrap-store.ts',
+      'packages/hq/src/auth-passwords.ts', // password hash comparison extracted from auth-store
+      'packages/hq/src/bootstrap-store.ts',
       'packages/core/src/coordination/mailbox-credential-store.ts',
       'packages/core/src/coordination/mailbox-http-auth.ts',
       'packages/core/src/session-catalog/store-schema.ts',
@@ -153,7 +153,7 @@ describe('security helpers are wired, not just present', () => {
   it('does not grow the number of files that hand-inline toErrorMessage', () => {
     const INLINE = /\w+\s+instanceof\s+Error\s*\?\s*\w+\.message\s*:\s*String\(\s*\w+\s*\)/;
     const ALLOWED = new Set([
-      'packages/core/src/utils/error.ts', // the definition itself
+      'packages/primitives/src/error.ts', // the definition itself (core/utils/error re-exports it)
     ]);
 
     const offenders = SOURCES.filter(({ rel, text }) => !ALLOWED.has(rel) && INLINE.test(text)).map(

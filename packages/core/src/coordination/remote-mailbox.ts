@@ -1,6 +1,6 @@
 import * as path from 'node:path';
-import type { HqPublisher } from '../hq/publisher.js';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { MailboxHqPublisherPort } from '@wrongstack/contracts/types/hq-mailbox-publisher';
 import { HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS } from './mailbox-constants.js';
 import type {
   IssueCredentialOptions,
@@ -32,7 +32,7 @@ import type {
 } from './mailbox-types.js';
 import { SQLITE_MAILBOX_FILE } from './sqlite-mailbox.js';
 
-type HqPublisherRef = HqPublisher | (() => HqPublisher | undefined);
+type HqPublisherRef = MailboxHqPublisherPort | (() => MailboxHqPublisherPort | undefined);
 const HQ_MAILBOX_EVENT_MAX_PENDING = 256;
 
 export interface ProjectMailboxOptions {
@@ -379,7 +379,7 @@ export class RemoteMailbox implements Mailbox {
     };
   }
 
-  private get hqPublisher(): HqPublisher | undefined {
+  private get hqPublisher(): MailboxHqPublisherPort | undefined {
     return typeof this.hqPublisherRef === 'function' ? this.hqPublisherRef() : this.hqPublisherRef;
   }
 

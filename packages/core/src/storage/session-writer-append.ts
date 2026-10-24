@@ -4,7 +4,7 @@
  * file-session-writer.ts.
  */
 import type * as fsp from 'node:fs/promises';
-import type { SessionEvent } from '../types/session.js';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import type { SessionWriteBuffer } from './session-write-buffer.js';
 import { isCriticalEvent } from './session-writer-snapshot.js';
 

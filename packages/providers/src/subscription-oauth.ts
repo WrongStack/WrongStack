@@ -5,8 +5,8 @@ import type {
   ProviderContextLimit,
   Request,
   StreamEvent,
-} from '@wrongstack/core/types';
-import { ConfigError, ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ConfigError, ProviderError } from '@wrongstack/contracts/types';
 import { getProxyConfig, rewriteBaseUrl } from '@wrongstack/core/wiring/proxy-rewrite';
 import { aggregateStream } from './aggregate.js';
 import { AnthropicProvider } from './anthropic.js';

@@ -11,7 +11,7 @@
  * provider's refresh path, which used to keep their own copies.
  */
 
-import { ParseError, type ProviderApiKey } from '@wrongstack/core/types';
+import { ParseError, type ProviderApiKey } from '@wrongstack/contracts/types';
 import { extractAccountId } from '../openai-codex-account.js';
 import { resolveCodexModels } from './codex-models.js';
 import {

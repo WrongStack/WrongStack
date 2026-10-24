@@ -12,7 +12,7 @@ import {
   setSessionSubagentsAllowed,
   subagentPolicyMode,
   unlockSessionSubagentPolicyForSession,
-} from '../../src/coordination/session-subagent-policy.js';
+} from '../../src/security/session-subagent-policy.js';
 
 function policyContext(id: string) {
   return {

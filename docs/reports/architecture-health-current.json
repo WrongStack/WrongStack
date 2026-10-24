@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-24T10:00:22.128Z",
+  "generatedAt": "2026-10-24T09:09:09.321Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,34 +11,35 @@
     ]
   },
   "summary": {
-    "packages": 38,
-    "sourceFiles": 5256,
-    "testFiles": 4653,
-    "sourceLines": 1149780,
-    "workspaceEdges": 140,
-    "moduleEdges": 17311,
+    "packages": 41,
+    "sourceFiles": 5283,
+    "testFiles": 4651,
+    "sourceLines": 1150793,
+    "workspaceEdges": 184,
+    "moduleEdges": 16020,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 5,
+    "typeModuleCycles": 3,
     "testsWithoutTypecheck": 0,
-    "testsWithMultipleTypechecks": 4,
+    "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 970
   },
-  "errors": [],
+  "errors": [
+    "packages/vibeui/src/components/workspace.tsx: hotspot grew from 1100 to 1103 lines; review and update the ratchet in the same change",
+    "packages/vibeui/src/components/workspace.tsx: relative import fan-out increased from 27 to 29; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
+      "brain",
       "chronicle",
       "coordination",
       "core",
       "design",
       "execution",
       "extension",
-      "goal",
       "hooks",
-      "hq",
       "infrastructure",
-      "kernel",
       "models",
       "notifications",
       "observability",
@@ -56,8 +57,6 @@
       "statusline",
       "storage",
       "tasking",
-      "tools",
-      "types",
       "typesafe",
       "utils",
       "vcs",
@@ -65,17 +64,15 @@
       "worktree"
     ],
     "registered": [
+      "brain",
       "chronicle",
       "coordination",
       "core",
       "design",
       "execution",
       "extension",
-      "goal",
       "hooks",
-      "hq",
       "infrastructure",
-      "kernel",
       "models",
       "notifications",
       "observability",
@@ -93,8 +90,6 @@
       "statusline",
       "storage",
       "tasking",
-      "tools",
-      "types",
       "typesafe",
       "utils",
       "vcs",
@@ -111,6 +106,7 @@
       "sourceFiles": 54,
       "testFiles": 60,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/primitives"
       ],
@@ -157,8 +153,11 @@
         "@wrongstack/acp",
         "@wrongstack/bench",
         "@wrongstack/codebase-index-mcp",
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/desktop",
+        "@wrongstack/goal",
+        "@wrongstack/hq",
         "@wrongstack/kanban",
         "@wrongstack/kanban-mcp",
         "@wrongstack/mailbox-mcp",
@@ -228,6 +227,7 @@
       "sourceFiles": 6,
       "testFiles": 5,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/mcp",
         "@wrongstack/tools"
@@ -246,11 +246,34 @@
       ]
     },
     {
+      "name": "@wrongstack/contracts",
+      "dir": "packages/contracts",
+      "sourceFiles": 123,
+      "testFiles": 2,
+      "workspaceDependencies": [
+        "@wrongstack/kanban",
+        "@wrongstack/primitives"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/contracts/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/contracts/tsconfig.test.json",
+          "error": null,
+          "testFiles": 2
+        }
+      ]
+    },
+    {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 1166,
-      "testFiles": 1024,
+      "sourceFiles": 954,
+      "testFiles": 940,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/kanban",
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -259,12 +282,12 @@
         {
           "path": "packages/core/tsconfig.json",
           "error": null,
-          "testFiles": 4
+          "testFiles": 0
         },
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 1024
+          "testFiles": 940
         }
       ]
     },
@@ -274,6 +297,7 @@
       "sourceFiles": 48,
       "testFiles": 35,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/webui",
         "@wrongstack/webui-protocol",
@@ -289,6 +313,28 @@
           "path": "apps/desktop/tsconfig.test.json",
           "error": null,
           "testFiles": 35
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/goal",
+      "dir": "packages/goal",
+      "sourceFiles": 22,
+      "testFiles": 22,
+      "workspaceDependencies": [
+        "@wrongstack/contracts",
+        "@wrongstack/core"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/goal/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/goal/tsconfig.test.json",
+          "error": null,
+          "testFiles": 22
         }
       ]
     },
@@ -310,6 +356,30 @@
           "path": "packages/governance/tsconfig.test.json",
           "error": null,
           "testFiles": 37
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/hq",
+      "dir": "packages/hq",
+      "sourceFiles": 62,
+      "testFiles": 42,
+      "workspaceDependencies": [
+        "@wrongstack/contracts",
+        "@wrongstack/core",
+        "@wrongstack/persistence",
+        "@wrongstack/primitives"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/hq/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/hq/tsconfig.test.json",
+          "error": null,
+          "testFiles": 42
         }
       ]
     },
@@ -341,6 +411,7 @@
       "sourceFiles": 6,
       "testFiles": 5,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/kanban",
         "@wrongstack/mcp",
@@ -388,6 +459,7 @@
       "sourceFiles": 74,
       "testFiles": 97,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core"
       ],
       "tsconfigs": [
@@ -428,6 +500,7 @@
       "sourceFiles": 52,
       "testFiles": 57,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/tools"
       ],
@@ -450,6 +523,7 @@
       "sourceFiles": 12,
       "testFiles": 10,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/tools"
       ],
@@ -472,6 +546,7 @@
       "sourceFiles": 152,
       "testFiles": 127,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/plugin-sdk",
         "@wrongstack/primitives",
@@ -493,7 +568,7 @@
     {
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
-      "sourceFiles": 13,
+      "sourceFiles": 22,
       "testFiles": 17,
       "workspaceDependencies": [],
       "tsconfigs": [
@@ -515,6 +590,7 @@
       "sourceFiles": 138,
       "testFiles": 121,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core"
       ],
       "tsconfigs": [
@@ -580,8 +656,10 @@
       "sourceFiles": 35,
       "testFiles": 34,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/governance",
+        "@wrongstack/hq",
         "@wrongstack/kanban",
         "@wrongstack/primitives",
         "@wrongstack/sage",
@@ -608,7 +686,9 @@
       "sourceFiles": 151,
       "testFiles": 156,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
+        "@wrongstack/hq",
         "@wrongstack/persistence",
         "@wrongstack/primitives"
       ],
@@ -631,6 +711,7 @@
       "sourceFiles": 7,
       "testFiles": 6,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/mcp",
         "@wrongstack/sage"
@@ -654,6 +735,7 @@
       "sourceFiles": 45,
       "testFiles": 42,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/kanban",
         "@wrongstack/primitives",
@@ -678,6 +760,7 @@
       "sourceFiles": 21,
       "testFiles": 34,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core"
       ],
       "tsconfigs": [
@@ -728,6 +811,7 @@
       "sourceFiles": 55,
       "testFiles": 65,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/persistence",
         "@wrongstack/tools"
@@ -751,6 +835,7 @@
       "sourceFiles": 28,
       "testFiles": 43,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/primitives"
       ],
@@ -770,9 +855,10 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 350,
-      "testFiles": 346,
+      "sourceFiles": 373,
+      "testFiles": 363,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -787,7 +873,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 346
+          "testFiles": 363
         }
       ]
     },
@@ -797,7 +883,10 @@
       "sourceFiles": 496,
       "testFiles": 429,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
+        "@wrongstack/goal",
+        "@wrongstack/hq",
         "@wrongstack/kanban",
         "@wrongstack/primitives",
         "@wrongstack/runtime",
@@ -829,6 +918,7 @@
       "sourceFiles": 18,
       "testFiles": 28,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/persistence",
         "@wrongstack/sage"
@@ -873,7 +963,9 @@
       "sourceFiles": 765,
       "testFiles": 506,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
+        "@wrongstack/goal",
         "@wrongstack/kanban",
         "@wrongstack/plugins",
         "@wrongstack/providers",
@@ -904,7 +996,9 @@
       "sourceFiles": 127,
       "testFiles": 55,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
+        "@wrongstack/hq",
         "@wrongstack/tools",
         "@wrongstack/webui-protocol",
         "@wrongstack/webui-server"
@@ -928,7 +1022,9 @@
       "sourceFiles": 29,
       "testFiles": 15,
       "workspaceDependencies": [
-        "@wrongstack/core"
+        "@wrongstack/contracts",
+        "@wrongstack/core",
+        "@wrongstack/hq"
       ],
       "tsconfigs": [
         {
@@ -947,9 +1043,12 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 304,
-      "testFiles": 308,
+      "testFiles": 307,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core",
+        "@wrongstack/goal",
+        "@wrongstack/hq",
         "@wrongstack/kanban",
         "@wrongstack/mcp",
         "@wrongstack/primitives",
@@ -973,7 +1072,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 308
+          "testFiles": 307
         }
       ]
     },
@@ -1036,83 +1135,32 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/core/src/coordination/agents/agent-prompts.ts",
-          "packages/core/src/coordination/agents/index.ts",
-          "packages/core/src/coordination/agents/phase1-discovery.ts",
-          "packages/core/src/coordination/agents/phase2-planning.ts",
-          "packages/core/src/coordination/agents/phase3-build.ts",
-          "packages/core/src/coordination/agents/phase3-wave1-platform.ts",
-          "packages/core/src/coordination/agents/phase3-wave2-meta.ts",
-          "packages/core/src/coordination/agents/phase4-verify.ts",
-          "packages/core/src/coordination/agents/phase5-review.ts",
-          "packages/core/src/coordination/agents/phase6-domain.ts",
-          "packages/core/src/coordination/agents/phase7-knowledge.ts",
-          "packages/core/src/coordination/agents/phase8-delivery.ts",
-          "packages/core/src/coordination/agents/phase8-wave3-products.ts",
-          "packages/core/src/coordination/agents/phase9-meta.ts",
-          "packages/core/src/coordination/agents/phase9-wave4-platform-meta.ts",
-          "packages/core/src/coordination/agents/project-agent-auto-optimize.ts",
-          "packages/core/src/coordination/agents/project-agent-identity.ts",
-          "packages/core/src/coordination/agents/project-agent-optimizer.ts",
-          "packages/core/src/coordination/dispatcher.ts",
-          "packages/core/src/coordination/fleet.ts",
-          "packages/core/src/coordination/multi-agent-coordinator.ts",
-          "packages/core/src/execution/parallel-eternal-engine.ts",
-          "packages/core/src/types/autonomy.ts",
-          "packages/core/src/types/index.ts"
+          "packages/contracts/src/kernel/events.ts",
+          "packages/contracts/src/kernel/events/brain-events.ts",
+          "packages/contracts/src/kernel/events/session-events.ts"
         ]
       },
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/core/src/coordination/brain-telemetry.ts",
-          "packages/core/src/coordination/brain.ts",
-          "packages/core/src/kernel/events.ts",
-          "packages/core/src/kernel/events/brain-events.ts",
-          "packages/core/src/kernel/events/session-events.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/core/src/core/agent-internals.ts",
-          "packages/core/src/core/agent-loop-context.ts",
-          "packages/core/src/core/agent-loop-detector.ts",
-          "packages/core/src/core/agent-loop.ts",
-          "packages/core/src/core/agent-response.ts",
-          "packages/core/src/core/agent-tools.ts",
-          "packages/core/src/core/agent-types.ts",
-          "packages/core/src/core/agent.ts",
-          "packages/core/src/extension/extension-points.ts",
-          "packages/core/src/extension/registry.ts",
-          "packages/core/src/mailbox-attach.ts",
-          "packages/core/src/session-note-attach.ts",
-          "packages/core/src/types/plugin.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/core/src/types/blocks.ts",
-          "packages/core/src/types/context.ts",
-          "packages/core/src/types/conversation-state.ts",
-          "packages/core/src/types/messages.ts",
-          "packages/core/src/types/provider.ts",
-          "packages/core/src/types/run-env.ts",
-          "packages/core/src/types/session-events.ts",
-          "packages/core/src/types/session-storage.ts",
-          "packages/core/src/types/session.ts",
-          "packages/core/src/types/token-counter.ts",
-          "packages/core/src/types/tool.ts"
+          "packages/contracts/src/types/blocks.ts",
+          "packages/contracts/src/types/context.ts",
+          "packages/contracts/src/types/conversation-state.ts",
+          "packages/contracts/src/types/messages.ts",
+          "packages/contracts/src/types/provider.ts",
+          "packages/contracts/src/types/run-env.ts",
+          "packages/contracts/src/types/session-events.ts",
+          "packages/contracts/src/types/session-storage.ts",
+          "packages/contracts/src/types/session.ts",
+          "packages/contracts/src/types/token-counter.ts",
+          "packages/contracts/src/types/tool.ts"
         ]
       }
     ],
     "matchedExceptions": [
       "ARCH-CYCLE-TYPE-05",
       "ARCH-CYCLE-TYPE-09",
-      "ARCH-CYCLE-TYPE-11",
-      "ARCH-CYCLE-TYPE-12",
-      "ARCH-CYCLE-TYPE-29"
+      "ARCH-CYCLE-TYPE-12"
     ],
     "unexcepted": []
   },
@@ -6093,25 +6141,13 @@
         ]
       },
       {
-        "file": "packages/core/src/goal/__tests__/phase-graph-builder-dependencies.test.ts",
+        "file": "packages/contracts/src/kernel/__tests__/pipeline-inflight.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
-        "file": "packages/core/src/hq/__tests__/lru.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/src/kernel/__tests__/pipeline-inflight.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/src/kernel/__tests__/run-controller-disposal.test.ts",
+        "file": "packages/contracts/src/kernel/__tests__/run-controller-disposal.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6274,6 +6310,12 @@
       },
       {
         "file": "packages/core/tests/architecture/dist-hidden-files-script.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/architecture/external-star-reexport.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9057,132 +9099,6 @@
         ]
       },
       {
-        "file": "packages/core/tests/goal/checkpoint.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-assessor.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-catalog.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-final-verification-resume.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-lease-admission.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-planner.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-run-lifecycle.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-run-resume.integration.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-runner-from-taskgraph.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/goal-runner.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/mission-refinement.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/phase-controls-regression.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/phase-graph-builder-extra.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/phase-graph-builder.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/phase-merge-verdict.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/phase-orchestrator-extra.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/phase-orchestrator.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/phase-store.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/project-verifier-timeout.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/project-verifier.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/goal/task-execution-ownership.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/core/tests/hooks/http-executor.test.ts",
         "projects": [
           "root-node"
@@ -9208,252 +9124,6 @@
       },
       {
         "file": "packages/core/tests/hooks/shell-executor.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/alerts-config.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/alerts.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/approval-bridge.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/approval-grant-ttl.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/auth-audit.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/auth-revocation.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/auth-store-content-hash.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/auth-store-coverage.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/auth-store-dir-hardening.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/auth-store.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/brain-bridge.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/browser-socket-close.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/command-latency.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/commands.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/correlation-id.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/cost-bridge.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/exposure.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/factory.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/first-run-audit.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/fleet-bridge.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/kanban-sync.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/lru.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/mailbox-mapper.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/persistence-io.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/persistence.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/protocol-core.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/protocol.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/publisher-cleartext-warning.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/publisher-discovery.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/publisher.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/redaction.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/sage-protocol.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/sage-store.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/session-bridge.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/session-telemetry.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/simple-log-count-recovery.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/timeseries-oversized-load.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/timeseries-partial-load.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/token-ttl.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/tool-bridge.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/hq/worktree-bridge.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9508,12 +9178,6 @@
       },
       {
         "file": "packages/core/tests/jev-activity-content.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/jev-disable-payment.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10150,18 +9814,6 @@
       },
       {
         "file": "packages/core/tests/sandbox/windows-native.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/security/agent-state-root-native-realpath.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/security/agent-state-root-shortname.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11457,102 +11109,6 @@
         ]
       },
       {
-        "file": "packages/core/tests/tools/council-tool-failure-message.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/council-tool.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/fallback-chain-manage-tool.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/fallback-favorite-manage-tool.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/fallback-frozen-config.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/fallback-manage-tools.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/fallback-model-ref-parse-coverage.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/fallback-system-config-view-tool.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/jev-tool.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/leader-effort-set-tool.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/mcp-control-extra.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/mcp-control.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/mcp-use.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/one-shot-llm-tool.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/plugin-manager.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/tools/session-rename.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/core/tests/types/context-window.test.ts",
         "projects": [
           "root-node"
@@ -12237,6 +11793,138 @@
         ]
       },
       {
+        "file": "packages/goal/src/__tests__/phase-graph-builder-dependencies.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/checkpoint.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-assessor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-catalog.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-final-verification-resume.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-lease-admission.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-planner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-run-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-run-resume.integration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-runner-from-taskgraph.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-runner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/mission-refinement.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-controls-regression.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-graph-builder-extra.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-graph-builder.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-merge-verdict.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-orchestrator-extra.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-orchestrator.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/project-verifier-timeout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/project-verifier.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/task-execution-ownership.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/governance/tests/attachment-broker-controller.test.ts",
         "projects": [
           "root-node"
@@ -12454,6 +12142,258 @@
       },
       {
         "file": "packages/governance/tests/verification-tool-gateway.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/src/__tests__/lru.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/alerts-config.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/alerts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/approval-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/approval-grant-ttl.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/auth-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/auth-revocation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/auth-store-content-hash.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/auth-store-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/auth-store-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/auth-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/brain-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/browser-socket-close.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/command-latency.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/commands.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/correlation-id.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/cost-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/exposure.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/factory.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/first-run-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/fleet-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/kanban-sync.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/lru.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/mailbox-mapper.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/persistence-io.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/persistence.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/protocol-core.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/protocol.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/publisher-cleartext-warning.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/publisher-discovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/publisher.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/redaction.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/sage-protocol.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/sage-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/session-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/session-telemetry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/simple-log-count-recovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/timeseries-oversized-load.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/timeseries-partial-load.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/token-ttl.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/tool-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/worktree-bridge.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20181,6 +20121,108 @@
         ]
       },
       {
+        "file": "packages/tools/tests/management/council-tool-failure-message.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/council-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/fallback-chain-manage-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/fallback-favorite-manage-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/fallback-frozen-config.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/fallback-manage-tools.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/fallback-model-ref-parse-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/fallback-system-config-view-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/jev-disable-payment.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/jev-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/leader-effort-set-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/mcp-control-extra.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/mcp-control.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/mcp-use.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/one-shot-llm-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/plugin-manager.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/session-rename.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/memory.test.ts",
         "projects": [
           "root-node"
@@ -24514,12 +24556,6 @@
       },
       {
         "file": "packages/webui-server/tests/file-handlers.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-server/tests/file-mutations-root-case.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29039,48 +29075,7 @@
     ],
     "invalidRuntime": [],
     "withoutTypecheck": [],
-    "multipleTypechecks": [
-      {
-        "file": "packages/core/src/goal/__tests__/phase-graph-builder-dependencies.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": [
-          "packages/core/tsconfig.json",
-          "packages/core/tsconfig.test.json"
-        ]
-      },
-      {
-        "file": "packages/core/src/hq/__tests__/lru.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": [
-          "packages/core/tsconfig.json",
-          "packages/core/tsconfig.test.json"
-        ]
-      },
-      {
-        "file": "packages/core/src/kernel/__tests__/pipeline-inflight.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": [
-          "packages/core/tsconfig.json",
-          "packages/core/tsconfig.test.json"
-        ]
-      },
-      {
-        "file": "packages/core/src/kernel/__tests__/run-controller-disposal.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": [
-          "packages/core/tsconfig.json",
-          "packages/core/tsconfig.test.json"
-        ]
-      }
-    ]
+    "multipleTypechecks": []
   },
   "unresolvedRelativeImports": [
     {
@@ -29280,17 +29275,17 @@
     {
       "file": "packages/core/src/coordination/agent-monitor.ts",
       "lines": 715,
-      "relativeImports": 4
+      "relativeImports": 3
     },
     {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
       "lines": 725,
-      "relativeImports": 15
+      "relativeImports": 13
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
-      "relativeImports": 22
+      "relativeImports": 18
     },
     {
       "file": "packages/plugins/src/audit/index.ts",
@@ -29382,7 +29377,7 @@
     {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
       "lines": 725,
-      "relativeImports": 15
+      "relativeImports": 13
     },
     {
       "file": "packages/webui/src/components/MemoryManager/useMemoryManagerState.ts",
@@ -29392,7 +29387,7 @@
     {
       "file": "packages/core/src/coordination/agent-monitor.ts",
       "lines": 715,
-      "relativeImports": 4
+      "relativeImports": 3
     },
     {
       "file": "packages/plugins/src/audit/index.ts",
@@ -29422,7 +29417,7 @@
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
-      "relativeImports": 22
+      "relativeImports": 18
     },
     {
       "file": "packages/core/src/chronicle/project-server.ts",
@@ -29430,19 +29425,29 @@
       "relativeImports": 21
     },
     {
+      "file": "packages/core/src/coordination/subagent-budget.ts",
+      "lines": 699,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/governance/src/runtime-compatibility.ts",
       "lines": 699,
       "relativeImports": 12
     },
     {
-      "file": "packages/core/src/coordination/subagent-budget.ts",
+      "file": "packages/core/src/coordination/provider-status-tracker.ts",
       "lines": 698,
-      "relativeImports": 6
+      "relativeImports": 4
     },
     {
       "file": "packages/client/src/client.ts",
       "lines": 697,
       "relativeImports": 4
+    },
+    {
+      "file": "packages/core/src/core/agent-response.ts",
+      "lines": 697,
+      "relativeImports": 21
     },
     {
       "file": "packages/cli/src/boot/tui-session-resume.ts",
@@ -29457,7 +29462,12 @@
     {
       "file": "packages/core/src/coordination/fleet-manager.ts",
       "lines": 696,
-      "relativeImports": 15
+      "relativeImports": 13
+    },
+    {
+      "file": "packages/core/src/core/agent-tools.ts",
+      "lines": 696,
+      "relativeImports": 11
     },
     {
       "file": "packages/webui-server/src/server/completion-handlers.ts",
@@ -29470,14 +29480,19 @@
       "relativeImports": 18
     },
     {
+      "file": "packages/core/src/core/agent-loop.ts",
+      "lines": 695,
+      "relativeImports": 31
+    },
+    {
       "file": "packages/core/src/registry/tool-registry.ts",
       "lines": 695,
-      "relativeImports": 9
+      "relativeImports": 5
     },
     {
       "file": "packages/core/src/storage/config-loader.ts",
       "lines": 695,
-      "relativeImports": 28
+      "relativeImports": 25
     },
     {
       "file": "packages/cli/src/slash-commands/fix-classifier.ts",
@@ -29485,19 +29500,9 @@
       "relativeImports": 0
     },
     {
-      "file": "packages/core/src/core/agent-response.ts",
-      "lines": 694,
-      "relativeImports": 25
-    },
-    {
       "file": "packages/core/src/execution/eternal-autonomy.ts",
       "lines": 693,
       "relativeImports": 13
-    },
-    {
-      "file": "packages/core/src/core/agent-loop.ts",
-      "lines": 692,
-      "relativeImports": 39
     },
     {
       "file": "packages/simpleui/src/automation-workspace.tsx",
@@ -29557,7 +29562,7 @@
     {
       "file": "packages/core/src/coordination/autonomous-coordinator.ts",
       "lines": 690,
-      "relativeImports": 20
+      "relativeImports": 17
     },
     {
       "file": "packages/plugins/src/notify-hub/index.ts",
@@ -29570,14 +29575,9 @@
       "relativeImports": 6
     },
     {
-      "file": "packages/core/src/core/agent-tools.ts",
-      "lines": 689,
-      "relativeImports": 19
-    },
-    {
       "file": "packages/core/src/storage/file-session-writer.ts",
       "lines": 689,
-      "relativeImports": 14
+      "relativeImports": 12
     },
     {
       "file": "packages/core/src/coordination/task-auctioneer.ts",
@@ -29588,11 +29588,6 @@
       "file": "packages/webui/src/lib/ws-client.ts",
       "lines": 688,
       "relativeImports": 14
-    },
-    {
-      "file": "packages/core/src/hq/commands.ts",
-      "lines": 687,
-      "relativeImports": 2
     }
   ],
   "testOnlyExports": [
@@ -30361,6 +30356,22 @@
       "name": "resolveIndexProjectRoot"
     },
     {
+      "file": "packages/contracts/src/types/runtime-capability-manifest.ts",
+      "name": "isDeprecatedRuntimeToolAlias"
+    },
+    {
+      "file": "packages/contracts/src/types/runtime-capability-manifest.ts",
+      "name": "isKnownRuntimeCapability"
+    },
+    {
+      "file": "packages/contracts/src/types/runtime-capability-manifest.ts",
+      "name": "normalizeRuntimeToolName"
+    },
+    {
+      "file": "packages/contracts/src/types/runtime-capability-manifest.ts",
+      "name": "runtimeCapabilityForTool"
+    },
+    {
       "file": "packages/core/src/chronicle/project-server-client.ts",
       "name": "resolveChronicleProjectServerUrl"
     },
@@ -30613,94 +30624,6 @@
       "name": "getToolErrorInfo"
     },
     {
-      "file": "packages/core/src/goal/phase-orchestrator-integration.ts",
-      "name": "markPhaseMergeFailed"
-    },
-    {
-      "file": "packages/core/src/hq/alerts-config.ts",
-      "name": "emptyHqAlertsConfig"
-    },
-    {
-      "file": "packages/core/src/hq/alerts-config.ts",
-      "name": "HQ_ALERTS_CONFIG_VERSION"
-    },
-    {
-      "file": "packages/core/src/hq/alerts-config.ts",
-      "name": "hqAlertsConfigFilePath"
-    },
-    {
-      "file": "packages/core/src/hq/alerts-config.ts",
-      "name": "mutateHqAlertsConfig"
-    },
-    {
-      "file": "packages/core/src/hq/alerts-config.ts",
-      "name": "writeHqAlertsConfig"
-    },
-    {
-      "file": "packages/core/src/hq/approval-bridge.ts",
-      "name": "approvalGrantExpiry"
-    },
-    {
-      "file": "packages/core/src/hq/approval-bridge.ts",
-      "name": "DEFAULT_ALWAYS_APPROVAL_TTL_MS"
-    },
-    {
-      "file": "packages/core/src/hq/auth-revocation.ts",
-      "name": "sessionAffectedByRevocation"
-    },
-    {
-      "file": "packages/core/src/hq/auth-store.ts",
-      "name": "defaultHqDataDir"
-    },
-    {
-      "file": "packages/core/src/hq/auth-store.ts",
-      "name": "emptyHqAuthFile"
-    },
-    {
-      "file": "packages/core/src/hq/auth-store.ts",
-      "name": "hqRuntimeFilePath"
-    },
-    {
-      "file": "packages/core/src/hq/auth-store.ts",
-      "name": "mintHqBrowserToken"
-    },
-    {
-      "file": "packages/core/src/hq/auth-store.ts",
-      "name": "writeHqAuthFile"
-    },
-    {
-      "file": "packages/core/src/hq/exposure.ts",
-      "name": "isOpenMode"
-    },
-    {
-      "file": "packages/core/src/hq/factory.ts",
-      "name": "resolveHqConfigFromEnv"
-    },
-    {
-      "file": "packages/core/src/hq/kanban-store.ts",
-      "name": "MAX_HQ_KANBAN_CACHE_PROJECTS"
-    },
-    {
-      "file": "packages/core/src/hq/mailbox-mapper.ts",
-      "name": "createMailboxSnapshotPayload"
-    },
-    {
-      "file": "packages/core/src/hq/mailbox-mapper.ts",
-      "name": "mapMailboxAgentToHqSummary"
-    },
-    {
-      "file": "packages/core/src/hq/mailbox-mapper.ts",
-      "name": "mapMailboxMessageToHqSummary"
-    },
-    {
-      "file": "packages/core/src/hq/protocol/core.ts",
-      "name": "KNOWN_HQ_CLIENT_FRAME_TYPES"
-    },
-    {
-      "file": "packages/core/src/hq/redaction.ts",
-      "name": "redactHqValue"
-    },
-    {
       "file": "packages/core/src/infrastructure/mcp-servers.ts",
       "name": "kanbanServer"
     },
@@ -30869,22 +30792,6 @@
       "name": "scoutToolUseLogPath"
     },
     {
-      "file": "packages/core/src/types/runtime-capability-manifest.ts",
-      "name": "isDeprecatedRuntimeToolAlias"
-    },
-    {
-      "file": "packages/core/src/types/runtime-capability-manifest.ts",
-      "name": "isKnownRuntimeCapability"
-    },
-    {
-      "file": "packages/core/src/types/runtime-capability-manifest.ts",
-      "name": "normalizeRuntimeToolName"
-    },
-    {
-      "file": "packages/core/src/types/runtime-capability-manifest.ts",
-      "name": "runtimeCapabilityForTool"
-    },
-    {
       "file": "packages/core/src/typesafe/activity.ts",
       "name": "appendJevActivity"
     },
@@ -30993,6 +30900,10 @@
       "name": "subscribeToProxyConfig"
     },
     {
+      "file": "packages/goal/src/phase-orchestrator-integration.ts",
+      "name": "markPhaseMergeFailed"
+    },
+    {
       "file": "packages/governance/src/daemon-launcher.ts",
       "name": "launchGovernanceProjectDaemonWithRuntime"
     },
@@ -31079,6 +30990,90 @@
     {
       "file": "packages/governance/src/workflow-state.ts",
       "name": "isTerminalWorkflowState"
+    },
+    {
+      "file": "packages/hq/src/alerts-config.ts",
+      "name": "emptyHqAlertsConfig"
+    },
+    {
+      "file": "packages/hq/src/alerts-config.ts",
+      "name": "HQ_ALERTS_CONFIG_VERSION"
+    },
+    {
+      "file": "packages/hq/src/alerts-config.ts",
+      "name": "hqAlertsConfigFilePath"
+    },
+    {
+      "file": "packages/hq/src/alerts-config.ts",
+      "name": "mutateHqAlertsConfig"
+    },
+    {
+      "file": "packages/hq/src/alerts-config.ts",
+      "name": "writeHqAlertsConfig"
+    },
+    {
+      "file": "packages/hq/src/approval-bridge.ts",
+      "name": "approvalGrantExpiry"
+    },
+    {
+      "file": "packages/hq/src/approval-bridge.ts",
+      "name": "DEFAULT_ALWAYS_APPROVAL_TTL_MS"
+    },
+    {
+      "file": "packages/hq/src/auth-revocation.ts",
+      "name": "sessionAffectedByRevocation"
+    },
+    {
+      "file": "packages/hq/src/auth-store.ts",
+      "name": "defaultHqDataDir"
+    },
+    {
+      "file": "packages/hq/src/auth-store.ts",
+      "name": "emptyHqAuthFile"
+    },
+    {
+      "file": "packages/hq/src/auth-store.ts",
+      "name": "hqRuntimeFilePath"
+    },
+    {
+      "file": "packages/hq/src/auth-store.ts",
+      "name": "mintHqBrowserToken"
+    },
+    {
+      "file": "packages/hq/src/auth-store.ts",
+      "name": "writeHqAuthFile"
+    },
+    {
+      "file": "packages/hq/src/exposure.ts",
+      "name": "isOpenMode"
+    },
+    {
+      "file": "packages/hq/src/factory.ts",
+      "name": "resolveHqConfigFromEnv"
+    },
+    {
+      "file": "packages/hq/src/kanban-store.ts",
+      "name": "MAX_HQ_KANBAN_CACHE_PROJECTS"
+    },
+    {
+      "file": "packages/hq/src/mailbox-mapper.ts",
+      "name": "createMailboxSnapshotPayload"
+    },
+    {
+      "file": "packages/hq/src/mailbox-mapper.ts",
+      "name": "mapMailboxAgentToHqSummary"
+    },
+    {
+      "file": "packages/hq/src/mailbox-mapper.ts",
+      "name": "mapMailboxMessageToHqSummary"
+    },
+    {
+      "file": "packages/hq/src/protocol/core.ts",
+      "name": "KNOWN_HQ_CLIENT_FRAME_TYPES"
+    },
+    {
+      "file": "packages/hq/src/redaction.ts",
+      "name": "redactHqValue"
     },
     {
       "file": "packages/kanban/src/manager/_internal.ts",

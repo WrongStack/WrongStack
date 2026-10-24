@@ -15,8 +15,9 @@
  *
  * So the journal supplies the roster and the monitor fills in the bodies.
  */
+
+import type { SessionEvent } from '@wrongstack/contracts/types';
 import { deriveSessionAgents } from '@wrongstack/core/storage';
-import type { SessionEvent } from '@wrongstack/core/types';
 
 /** Reserved id the leader's own interleaved events are stamped with. */
 const LEADER_AGENT_ID = 'leader';

@@ -7,7 +7,7 @@
  * a sequence number: switching projects while a request is in flight must not
  * paint the previous project's board.
  */
-import type { HqKanbanSnapshotPayload, HqProjectRecord } from '@wrongstack/core/hq';
+import type { HqKanbanSnapshotPayload, HqProjectRecord } from '@wrongstack/hq';
 import { Clock3, Columns3, GitBranch, RefreshCw, TriangleAlert, UserRound } from 'lucide-react';
 import type * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

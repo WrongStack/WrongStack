@@ -1,4 +1,4 @@
-import type { MCPHealthThresholds } from '@wrongstack/core/types';
+import type { MCPHealthThresholds } from '@wrongstack/contracts/types';
 import type { ConnectionState } from './contracts.js';
 
 /** Operator-facing health state. Intentionally separate from transport lifecycle state. */

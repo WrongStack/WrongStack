@@ -1,14 +1,14 @@
-export { ExtensionRegistry } from './registry.js';
 export type {
-  AgentExtension,
-  BeforeRunHook,
-  AfterRunHook,
-  BeforeIterationHook,
   AfterIterationHook,
+  AfterRunHook,
+  AfterToolExecutionHook,
+  AgentExtension,
+  BeforeIterationHook,
+  BeforeRunHook,
+  BeforeToolExecutionHook,
   BeforeTurnEndHook,
   OnErrorHook,
-  ProviderRunnerWrapper,
   ProviderRunnerFn,
-  BeforeToolExecutionHook,
-  AfterToolExecutionHook,
-} from './extension-points.js';
+  ProviderRunnerWrapper,
+} from '@wrongstack/contracts/types/extension-points';
+export { ExtensionRegistry } from './registry.js';

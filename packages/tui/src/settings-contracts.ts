@@ -1,4 +1,4 @@
-import type { ReasoningEffort as CoreReasoningEffort } from '@wrongstack/core/types';
+import type { ReasoningEffort as CoreReasoningEffort } from '@wrongstack/contracts/types';
 import type { ToolResultViewMode } from './tool-result-view-mode.js';
 
 export type { ToolResultViewMode } from './tool-result-view-mode.js';

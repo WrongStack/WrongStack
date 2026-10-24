@@ -9,7 +9,7 @@
  * and are ready for downstream modules (SDD interview kickoff, planning).
  */
 
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { ensureProjectIdentity, resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   AllowAllIntakeAuthorizer,

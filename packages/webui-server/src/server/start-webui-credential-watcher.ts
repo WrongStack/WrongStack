@@ -1,5 +1,5 @@
+import type { Config, ProviderConfig } from '@wrongstack/contracts/types';
 import { watchProviderConfig } from '@wrongstack/core/storage';
-import type { Config, ProviderConfig } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { makeProviderFromConfig, unavailableProviderCredentials } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';

@@ -17,15 +17,15 @@
  * executor's dangerous-capability gate comes after the policy.
  */
 
-import type { AgentContext } from '../types/context.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type {
   PermissionPolicy,
   PermissionRule,
   PermissionTrace,
   TrustPolicy,
-} from '../types/permission.js';
-import type { SessionPermissionOverride } from '../types/session-permission-override.js';
-import type { Tool } from '../types/tool.js';
+} from '@wrongstack/contracts/types/permission';
+import type { SessionPermissionOverride } from '@wrongstack/contracts/types/session-permission-override';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { matchGlob } from '../utils/glob-match.js';
 import { matchesTrust } from './permission-helpers.js';
 import { isScopedApprovalPattern, matchingApprovalScope } from './scoped-approval.js';

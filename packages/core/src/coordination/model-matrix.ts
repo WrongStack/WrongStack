@@ -17,8 +17,8 @@
  * truth both that command and the spawn path use to validate + resolve keys.
  */
 
+import type { Config, ModelMatrixEntry, ProviderConfig } from '@wrongstack/contracts/types/config';
 import { fallbackProfileChain, parseModelRef } from '../core/fallback-model.js';
-import type { Config, ModelMatrixEntry, ProviderConfig } from '../types/config.js';
 import { AGENT_CATALOG, AGENTS_BY_PHASE } from './agents/index.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
 

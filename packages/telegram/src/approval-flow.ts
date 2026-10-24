@@ -1,4 +1,4 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { TelegramApiCallbackQuery, TelegramApiClient } from './api-client.js';
 export interface TelegramApprovalResult {
   approved: boolean;

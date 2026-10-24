@@ -18,8 +18,8 @@
  * @module coordination/delegation/run-delegation
  */
 import { randomUUID } from 'node:crypto';
-import type { EventMap } from '../../kernel/events.js';
-import type { SubagentConfig, TaskResult } from '../../types/multi-agent.js';
+import type { EventMap } from '@wrongstack/contracts/kernel/events';
+import type { SubagentConfig, TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import { toErrorMessage } from '../../utils/error.js';
 import type { Director } from '../director.js';
 import type { PreparedDelegation } from './delegation-preparation.js';

@@ -1,8 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Agent, Context } from '@wrongstack/core/agent';
-import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
-import { DefaultSessionStore } from '@wrongstack/core/storage';
+import { type EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   MemoryPort,
@@ -13,7 +11,9 @@ import type {
   SessionEvent,
   SessionStore,
   SessionWriter,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Agent, Context } from '@wrongstack/core/agent';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { resolveWstackPaths, toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';

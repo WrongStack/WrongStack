@@ -13,7 +13,7 @@
  */
 import type * as http from 'node:http';
 import { Readable } from 'node:stream';
-import { type HqCommandAuditLog, hqTokenVerifier } from '@wrongstack/core/hq';
+import { type HqCommandAuditLog, hqTokenVerifier } from '@wrongstack/hq';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { handleApiCommand } from '../src/hq-server/routes/command-handlers.js';

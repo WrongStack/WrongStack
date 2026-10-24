@@ -1,4 +1,4 @@
-import type { WorktreeTimelineEvent } from '@wrongstack/core/types/worktree-timeline';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import { projectFleetMessage } from '@wrongstack/webui-protocol';
 import type { SubagentEvent } from '@/stores';
 import { useFleetStore, useMonitorStore, useWorktreeStore } from '@/stores';

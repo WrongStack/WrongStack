@@ -3,8 +3,8 @@
  * compaction elision to tell superseded reads from live ones. Split out of
  * compaction-elision.ts.
  */
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { PATH_BACKSLASH_PATTERN } from './compaction-elision-summaries.js';
 
 export interface FileToolLifecycle {

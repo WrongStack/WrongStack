@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { PhaseStore } from '@wrongstack/core/goal';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import { PhaseStore } from '@wrongstack/goal';
 import { afterEach, expect, it, vi } from 'vitest';
-import { deferred, goalGitFixture } from '../../core/tests/goal/helpers/goal-git-fixture.js';
+import { deferred, goalGitFixture } from '../../goal/tests/helpers/goal-git-fixture.js';
 import { createGoalHost } from '../src/goal-host.js';
 
 // Measured under a loaded full-suite run: the squash-merge after a goal's phase

@@ -4,12 +4,12 @@ import type {
   SessionEvent,
   SessionMarker,
   SessionTimelineEntry,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import {
   projectSessionTimeline,
   SESSION_MARKER_EVENT_TYPES,
   sessionEventToMarker,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import type { HistoryEntry } from './types.js';
 

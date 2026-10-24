@@ -1,3 +1,4 @@
+import type { DestructiveKind } from '@wrongstack/contracts/types/permission';
 import { hasContainerVolumeDestroy, hasDatabaseDestroy, hasFindExec } from './yolo-bulk-risk.js';
 import { hasCatastrophicDelete, hasRecursiveForceDelete } from './yolo-delete-risk.js';
 import {
@@ -63,34 +64,7 @@ export function getInputString(input: unknown, key: string): string | undefined 
   return typeof value === 'string' ? value : undefined;
 }
 
-/**
- * WHAT kind of damage a command would do, as the user-facing categories the
- * YOLO confirmation menu is built from.
- *
- * These are not new taxonomy — each one is a check that already existed in this
- * file. Naming them is what lets the user keep, say, `git-history` gated while
- * letting `bulk-delete` through, instead of the all-or-nothing `yoloDestructive`
- * switch (which no surface ever wired up anyway).
- */
-export type DestructiveKind =
-  /** Wipes a disk or the machine: mkfs, dd to a raw device, format C:, fork bomb. */
-  | 'disk-wipe'
-  /** Powers the machine down or restarts it. */
-  | 'system-halt'
-  /** Recursive force-delete that escapes the project, or hits a system/home root. */
-  | 'delete-outside'
-  /** Deletes across many matches at once: `find -exec rm`, an inline `rmSync`, container volumes, database drops. */
-  | 'bulk-delete'
-  /** Destroys VCS history or published refs: reset --hard, clean -f, push --force, filter-branch. */
-  | 'git-history'
-  /** Pushes outward and is hard to retract: npm publish, docker push, kubectl delete namespace. */
-  | 'publish'
-  /** Runs code fetched off the network — the damage is unknowable in advance. */
-  | 'download-and-run'
-  /** Writes WrongStack's own trusted state (config.json / trust.json / auth.json). */
-  | 'agent-state'
-  /** Binds a well-known third-party credential to a provider endpoint. */
-  | 'credential-bind';
+export type { DestructiveKind };
 
 /**
  * The two kinds that can switch the approval system itself off, and so may

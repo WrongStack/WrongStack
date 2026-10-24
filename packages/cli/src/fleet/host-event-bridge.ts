@@ -1,6 +1,6 @@
 import * as path from 'node:path';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { SubagentConfig, TokenCounter, Usage } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { SubagentConfig, TokenCounter, Usage } from '@wrongstack/contracts/types';
 
 const BRIDGE_TEXT_CAP = 360;
 const BRIDGE_OUTPUT_CAP = 4_096;

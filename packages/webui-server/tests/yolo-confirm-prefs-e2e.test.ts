@@ -9,13 +9,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Config } from '@wrongstack/contracts/types';
 import {
   ALL_DESTRUCTIVE_KINDS,
   DefaultPermissionPolicy,
   LOCKED_DESTRUCTIVE_KINDS,
   resolveYoloConfirmKinds,
 } from '@wrongstack/core/security';
-import type { Config } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { seedContextMeta } from '../src/server/context-meta.js';

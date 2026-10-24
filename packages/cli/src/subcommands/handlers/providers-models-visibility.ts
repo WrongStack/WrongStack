@@ -1,5 +1,5 @@
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import type { DefaultModelsRegistry } from '@wrongstack/core/models';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import { mutateConfigProviders } from '../../provider-config-utils.js';

@@ -18,14 +18,15 @@
  * now uses) and asserts that the first 429 moves the pair into the
  * waiting room before the fallback chain rotation completes.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
-import { createFallbackModelExtension } from '../../src/core/fallback-model.js';
 import { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
-import { EventBus } from '../../src/kernel/events.js';
 import type { Context } from '../../src/core/context.js';
-import type { Config } from '../../src/types/config.js';
-import type { Provider, Request, Response } from '../../src/types/provider.js';
-import { ProviderError } from '../../src/types/provider.js';
+import { createFallbackModelExtension } from '../../src/core/fallback-model.js';
 
 function makeProvider(id: string): Provider {
   return { id, capabilities: { streaming: false } } as never as Provider;

@@ -9,8 +9,8 @@
  * @module session-note-hub
  */
 
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { SessionNote, SessionNoteKind } from '../core/session-notes.js';
-import type { EventBus } from '../kernel/events.js';
 import { isMailboxLeader, mailboxIdentityBase } from './mailbox-types.js';
 
 export interface SessionNotePost {

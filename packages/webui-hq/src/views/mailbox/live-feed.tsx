@@ -10,7 +10,7 @@ import type {
   HqMailboxMessageType,
   HqMailboxPriority,
   HqSnapshot,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type * as React from 'react';
 import { useEffect, useMemo, useReducer } from 'react';
 import { EmptyState } from '../../components/hq/primitives.js';

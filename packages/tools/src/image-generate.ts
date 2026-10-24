@@ -1,6 +1,5 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Context } from '@wrongstack/core/agent';
 import type {
   GeneratedImage,
   ImageGenerationResult,
@@ -8,8 +7,9 @@ import type {
   Provider,
   ResolvedProvider,
   Tool,
-} from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
+import type { Context } from '@wrongstack/core/agent';
 import { atomicWrite, toErrorMessage } from '@wrongstack/core/utils';
 import { safeResolveReal } from './_util.js';
 

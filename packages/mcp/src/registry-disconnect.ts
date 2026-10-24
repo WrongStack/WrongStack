@@ -1,4 +1,4 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { ServerSlot } from './registry-slots.js';
 

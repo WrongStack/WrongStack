@@ -2,7 +2,7 @@
  * Coverage for tools/src/tool-tier.ts — selectBuiltinToolsForTier and registerBuiltinToolTier.
  */
 
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { builtinToolsPack } from '../src/pack.js';
 import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '../src/tool-tier.js';

@@ -14,12 +14,12 @@
  */
 
 import { resolve } from 'node:path';
+import { Container, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config, Provider, SessionWriter, Tool } from '@wrongstack/contracts/types';
 import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
-import type { Config, Provider, SessionWriter, Tool } from '@wrongstack/core/types';
 import {
   createWrongTraceHookPair,
   getWrongTrace,

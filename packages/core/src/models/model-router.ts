@@ -13,7 +13,7 @@
  *   // → { provider: 'anthropic', model: 'matched-model', reason: 'best-for security' }
  */
 
-import type { ModelMatrixEntry, ProviderConfig } from '../types/config.js';
+import type { ModelMatrixEntry, ProviderConfig } from '@wrongstack/contracts/types/config';
 
 export interface ModelIntelligenceEntry {
   provider: string;

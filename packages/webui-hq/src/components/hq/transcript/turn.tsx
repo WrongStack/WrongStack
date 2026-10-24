@@ -7,7 +7,7 @@
  * an expanded transcript of forty tool calls is unreadable, and the header
  * line (icon, name, argument summary, duration, status) is usually enough.
  */
-import type { HqTranscriptEntry } from '@wrongstack/core/hq';
+import type { HqTranscriptEntry } from '@wrongstack/hq';
 import { BrainCircuit, ChevronDown, ChevronRight, CircleCheck, CircleX } from 'lucide-react';
 import type * as React from 'react';
 import { memo } from 'react';

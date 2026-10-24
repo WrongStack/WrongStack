@@ -1,3 +1,4 @@
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type Director,
@@ -22,7 +23,6 @@ import {
   makeWorkCompleteTool,
 } from '../../src/coordination/director-tools.js';
 import { ToolCapabilities } from '../../src/security/capabilities.js';
-import { ToolValidationError } from '../../src/types/errors.js';
 
 const dispatchAgentMock = vi.fn();
 vi.mock('../../src/coordination/dispatcher.js', async (importOriginal) => ({

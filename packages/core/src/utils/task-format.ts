@@ -3,8 +3,8 @@ import type {
   TaskPriority,
   TaskStatus,
   TaskType,
-} from '../types/task-graph.js';
-import { completionPercent } from '../types/task-graph.js';
+} from '@wrongstack/contracts/types/task-graph';
+import { completionPercent } from '@wrongstack/contracts/types/task-graph';
 import { color } from './color.js';
 import { sanitizeTerminalText } from './terminal-sanitize.js';
 

@@ -10,11 +10,12 @@
  *     the listener
  *   - no listener leak on any exit path
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it } from 'vitest';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

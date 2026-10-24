@@ -9,7 +9,7 @@ import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/per
 
 const DatabaseSync = loadTestDatabaseSync();
 
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { codebaseAstReplaceTool } from '../src/codebase-index/codebase-ast-replace-tool.js';
 import { codebaseImpactAnalysisTool } from '../src/codebase-index/codebase-impact-analysis-tool.js';

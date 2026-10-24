@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
-import type { Provider } from '@wrongstack/core/types';
+import type { Provider } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 

@@ -11,12 +11,12 @@
  * @module session-note-tool
  */
 
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import type { Context } from '../core/context.js';
 import { resolveOwningSessionId } from '../core/context.js';
 import type { SessionNoteKind } from '../core/session-notes.js';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { ToolValidationError } from '../types/errors.js';
-import type { Tool } from '../types/tool.js';
 import { type MailToolsOptions, makeMailSendTool } from './mail-tools.js';
 import { mailboxIdentityBase } from './mailbox-types.js';
 import { postSessionNote } from './session-note-hub.js';

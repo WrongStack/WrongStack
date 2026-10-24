@@ -4,12 +4,12 @@
  * Every managed worktree is a lane: working → waiting to merge → merging, then
  * merged / conflict / failed / kept, under the base branch with a dot per
  * squash commit. The fold is the shared core projector
- * (`@wrongstack/core/types/worktree-timeline`), so a lane here reads exactly
+ * (`@wrongstack/contracts/types/worktree-timeline`), so a lane here reads exactly
  * like the WebUI timeline and the TUI monitor. Seeded from the persisted event
  * log so a fresh browser sees history, then fed live; selecting a lane lists
  * its raw events below.
  */
-import type { HqEventEnvelope, HqWorktreeEventPayload } from '@wrongstack/core/hq';
+
 import {
   formatWorktreeDuration,
   normalizeWorktreeEvent,
@@ -20,7 +20,8 @@ import {
   type WorktreeLanePhase,
   type WorktreeTimelineEvent,
   worktreeTimelineTicks,
-} from '@wrongstack/core/types/worktree-timeline';
+} from '@wrongstack/contracts/types/worktree-timeline';
+import type { HqEventEnvelope, HqWorktreeEventPayload } from '@wrongstack/hq';
 import {
   Check,
   CircleDot,

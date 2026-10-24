@@ -5,8 +5,8 @@
  * `wstack acp spawn` and `/acp <id> <task>`.
  */
 
+import type { SubagentRunContext } from '@wrongstack/contracts/types';
 import { SubagentBudget } from '@wrongstack/core/coordination';
-import type { SubagentRunContext } from '@wrongstack/core/types';
 import type { ACPProgressHandler } from '../client/acp-session.js';
 import type { PermissionPolicy } from '../client/permission.js';
 import {

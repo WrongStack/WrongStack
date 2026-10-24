@@ -4,7 +4,7 @@
  * first use, so sessions that never open a PDF never load it.
  */
 
-import type { DocumentBlock } from '@wrongstack/core/types';
+import type { DocumentBlock } from '@wrongstack/contracts/types';
 
 /** Pages one call returns at most; a longer document is read in ranges. */
 export const PDF_MAX_PAGES_PER_READ = 20;

@@ -1,4 +1,4 @@
-import type { TaskResult } from '@wrongstack/core/types';
+import type { TaskResult } from '@wrongstack/contracts/types';
 
 /** Read-only fleet concurrency + lifetime spawn budget snapshot for operators. */
 export interface FleetBudgetView {

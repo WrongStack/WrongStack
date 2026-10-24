@@ -1,10 +1,10 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ReadOnlyPermissionPolicy } from '../../src/security/readonly-permission-policy.js';
-import { ToolCapabilities } from '../../src/security/capabilities.js';
 import type { Context } from '../../src/core/context.js';
-import type { Tool } from '../../src/types/index.js';
+import { ToolCapabilities } from '../../src/security/capabilities.js';
+import { ReadOnlyPermissionPolicy } from '../../src/security/readonly-permission-policy.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

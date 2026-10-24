@@ -35,9 +35,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
-import { DefaultBrainArbiter } from '../../src/coordination/brain.js';
-import { readDecisionTier } from '../../src/coordination/brain-telemetry.js';
+import type { BrainArbiter } from '../../src/brain/brain.js';
+import { DefaultBrainArbiter } from '../../src/brain/brain.js';
+import { readDecisionTier } from '../../src/brain/brain-telemetry.js';
 import {
   createAutonomyBrain,
   createTieredBrainArbiter,
@@ -47,8 +49,6 @@ import {
   runBrainEvaluation,
   validateBrainEvaluationCase,
 } from '../../src/execution/brain-evaluation.js';
-import type { BrainArbiter } from '../../src/coordination/brain.js';
-import type { Provider } from '../../src/types/provider.js';
 
 const FIXTURE_DIR = join(fileURLToPath(new URL('../fixtures/brain/', import.meta.url)));
 

@@ -1,6 +1,6 @@
 /** `/settings` mutations for feature flags, fleet chat, loop limits, logging and TUI presentation. */
 
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
+import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import { persistAutonomySetting, persistConfigSetting } from '../settings-menu.js';
 import type { SlashCommandContext } from './command-context.js';

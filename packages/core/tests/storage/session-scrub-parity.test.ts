@@ -35,10 +35,10 @@
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { scrubSessionWriterEvent } from '../../src/storage/session-writer-scrubber.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CORE_SRC = path.resolve(HERE, '../../src');
@@ -48,7 +48,7 @@ const CORE_SRC = path.resolve(HERE, '../../src');
  * imports and re-exports it; reading that file is what made the predecessor of
  * this guard vacuous (see the header).
  */
-const UNION_FILE = path.join(CORE_SRC, 'types/session-events.ts');
+const UNION_FILE = path.resolve(CORE_SRC, '../../contracts/src/types/session-events.ts');
 const SCRUBBER_FILE = path.join(CORE_SRC, 'storage/session-writer-scrubber.ts');
 
 const SCRUBBED_FREE_TEXT_FIELDS: Record<string, readonly string[]> = {

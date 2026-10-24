@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises';
+import type { ConfigStore, MemoryPort } from '@wrongstack/contracts/types';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import { leaderTierPolicy, resolveTier } from '@wrongstack/core/coordination';
-import type { ConfigStore, MemoryPort } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { readJsonObjectFile } from '@wrongstack/core/utils';
 import type { ResourceMenuId, ResourceMenuItem, ResourceMenuSnapshot } from '@wrongstack/tui';

@@ -10,13 +10,14 @@
  * reaches the model, but after the deepest cache boundary and without a
  * breakpoint marker of its own.
  */
+
+import { markVolatileSystemBlock, type TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
 import { createAgentResponseHandler } from '../../src/core/agent-response.js';
 import type { Context } from '../../src/core/context.js';
-import { markVolatileSystemBlock, type TextBlock } from '../../src/types/blocks.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Request } from '../../src/types/provider.js';
 import { createContextEvidenceState } from '../../src/utils/context-evidence.js';
 
 const MARK = 'churning-recall';

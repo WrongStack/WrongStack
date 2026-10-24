@@ -1,19 +1,23 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import { activeLimits, positiveLimit } from '@wrongstack/contracts/types/config/limits';
+import {
+  FetchError,
+  ToolValidationError,
+  WrongStackError,
+} from '@wrongstack/contracts/types/errors';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { Tool, ToolErrorCategory } from '@wrongstack/contracts/types/tool';
+import { ToolErrorCategory as ToolErrorCategoryEnum } from '@wrongstack/contracts/types/tool';
+import { MALFORMED_ARG_MARKERS } from '@wrongstack/contracts/types/tool-markers';
 import { scrubErrorText } from '../security/error-sanitize.js';
-import type { ToolUseBlock } from '../types/blocks.js';
-import { activeLimits, positiveLimit } from '../types/config/limits.js';
-import { FetchError, ToolValidationError, WrongStackError } from '../types/errors.js';
-import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type { Tool, ToolErrorCategory } from '../types/tool.js';
-import { ToolErrorCategory as ToolErrorCategoryEnum } from '../types/tool.js';
-import type { ToolExecutorOptions } from '../types/tool-executor.js';
-import { MALFORMED_ARG_MARKERS } from '../types/tool-markers.js';
 import { toErrorMessage } from '../utils/error.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import { prepareProgrammaticOutput } from '../utils/tool-programmatic-output.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
+import type { ToolExecutorOptions } from './tool-executor-options.js';
 
 const TOOL_OUTPUT_ARTIFACT_THRESHOLD_BYTES = 24 * 1024;
 const TOOL_OUTPUT_ARTIFACT_PREVIEW_BYTES = 6 * 1024;

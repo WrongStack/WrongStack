@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import {
   type DesignKitLoader,
   type DesignStack,
@@ -13,7 +14,6 @@ import {
   renderDesignMdDiff,
   resolveVerifyTokens,
 } from '@wrongstack/core/design';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 
 /** The design tool's `ctx` slice these actions need. */

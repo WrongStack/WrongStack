@@ -1,5 +1,5 @@
 import * as crypto from 'node:crypto';
-import type { Span, Tracer } from '../types/observability.js';
+import type { Span, Tracer } from '@wrongstack/contracts/types/observability';
 
 /**
  * V2-B: OTLP/JSON trace exporter.

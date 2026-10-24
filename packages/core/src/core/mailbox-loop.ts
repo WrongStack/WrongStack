@@ -22,7 +22,11 @@
  * @module mailbox-loop
  */
 
-import type { Mailbox, MailboxMessage, MailboxMessageType } from '../coordination/mailbox-types.js';
+import type {
+  Mailbox,
+  MailboxMessage,
+  MailboxMessageType,
+} from '@wrongstack/contracts/types/mailbox';
 import { toErrorMessage } from '../utils/error.js';
 
 export interface MailboxLoopOptions {

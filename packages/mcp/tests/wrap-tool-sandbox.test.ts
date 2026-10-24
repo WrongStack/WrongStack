@@ -1,3 +1,4 @@
+import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
 import {
   clearSandboxAgentOverrides,
   configureSandboxPolicy,
@@ -6,7 +7,6 @@ import {
   SandboxDeniedError,
   setSandboxAgentOverride,
 } from '@wrongstack/core/sandbox';
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { MCPClient } from '../src/client.js';
 import type { MCPTool } from '../src/contracts.js';

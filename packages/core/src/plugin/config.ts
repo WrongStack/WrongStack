@@ -1,9 +1,9 @@
-import type { Config, PluginConfig } from '../types/config.js';
+import type { Config, PluginConfig } from '@wrongstack/contracts/types/config';
 import type {
   Plugin,
   PluginConfigFieldLifecycle,
   PluginConfigFieldMetadata,
-} from '../types/plugin.js';
+} from '@wrongstack/contracts/types/plugin';
 
 export interface ResolvePluginConfigInput {
   name: string;

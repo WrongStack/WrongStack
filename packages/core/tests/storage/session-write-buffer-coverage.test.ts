@@ -13,14 +13,14 @@ import { closeSync, fsyncSync, openSync, writeSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EventBus } from '../../src/kernel/events.js';
 import {
   type FlushBufferOptions,
   SessionWriteBuffer as ProductionSessionWriteBuffer,
   type SessionWriteBufferOptions,
 } from '../../src/storage/session-write-buffer.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const now = () => new Date().toISOString();
 

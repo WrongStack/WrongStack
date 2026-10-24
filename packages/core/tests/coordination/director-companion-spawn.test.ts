@@ -6,6 +6,7 @@
  * entry point, so a caller-built config cannot claim it through `spawn`.
  */
 
+import type { SubagentRunOutcome } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it, vi } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
 import {
@@ -13,8 +14,7 @@ import {
   setSessionSubagentModelPlanForSession,
   subagentSlotOccupancy,
 } from '../../src/coordination/session-subagent-models.js';
-import { setSessionSubagentPolicy } from '../../src/coordination/session-subagent-policy.js';
-import type { SubagentRunOutcome } from '../../src/types/multi-agent.js';
+import { setSessionSubagentPolicy } from '../../src/security/session-subagent-policy.js';
 
 function directorFor(sessionId: string) {
   return new Director({

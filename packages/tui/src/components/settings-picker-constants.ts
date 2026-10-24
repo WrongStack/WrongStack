@@ -1,4 +1,4 @@
-import type { ReasoningEffort as CoreReasoningEffort } from '@wrongstack/core/types';
+import type { ReasoningEffort as CoreReasoningEffort } from '@wrongstack/contracts/types';
 import { TOTAL_SETTINGS_FIELD_COUNT } from '../ui-contracts.js';
 import { ANIMATION_STYLE_DESCS, ANIMATION_STYLES } from './animation-style.js';
 

@@ -2,10 +2,9 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { cliSpawnArgs } from '@wrongstack/core/utils';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { resolveProjectDir } from '@wrongstack/core/coordination';
-import type { SlashCommand } from '@wrongstack/core/types';
-import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { cliSpawnArgs, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { buildWin32CmdShimInvocation } from '../utils/win32-cmd.js';
 import type { SlashCommandContext } from './command-context.js';
 

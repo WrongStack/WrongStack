@@ -5,26 +5,18 @@ export type {
   AutomationPullRequestView,
 } from './automation-pull-request.js';
 export type { MCPTaskView } from './mcp-tasks.js';
+
 // The two core types the projector's input names. Re-exported for the same
 // reason as the projector itself: SimpleUI reaches core only through this
 // package.
 
-export {
-  detectSkillMention,
-  extractSkillMentions,
-  insertSkillMention,
-  matchSkillMentions,
-  preserveSkillMentions,
-  type SkillMention,
-  type SkillMentionCandidate,
-} from '@wrongstack/core/skill-mentions';
 export type {
   BrowserElementSelection,
   Message,
   SessionEvent,
   SessionMarker,
   SessionMarkerDetail,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 // The marker projector itself, so a LIVE surface can render an event with the
 // same wording its replay will use. Without it the SimpleUI would have had to
 // hand-write a second copy of every marker sentence.
@@ -32,7 +24,7 @@ export {
   isSystemInjectedMessage,
   SYSTEM_INJECTION_PREFIXES,
   sessionEventToMarker,
-} from '@wrongstack/core/types/session-markers';
+} from '@wrongstack/contracts/types/session-markers';
 // Re-exported for SimpleUI, which depends on this package rather than on
 // `@wrongstack/core` directly. Both browser surfaces must project a resumed
 // session through the SAME function the TUI and the servers use, or the
@@ -46,11 +38,20 @@ export type {
   SessionToolMeta,
   TextBlockMode,
   ThinkingPlacement,
-} from '@wrongstack/core/types/session-timeline';
+} from '@wrongstack/contracts/types/session-timeline';
 export {
   projectSessionTimeline,
   projectSessionToolMeta,
-} from '@wrongstack/core/types/session-timeline';
+} from '@wrongstack/contracts/types/session-timeline';
+export {
+  detectSkillMention,
+  extractSkillMentions,
+  insertSkillMention,
+  matchSkillMentions,
+  preserveSkillMentions,
+  type SkillMention,
+  type SkillMentionCandidate,
+} from '@wrongstack/core/skill-mentions';
 export {
   indexInsideCodeFence,
   isFinalTurnStopReason,

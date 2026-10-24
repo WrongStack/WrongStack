@@ -4,7 +4,7 @@ import type {
   SubagentRunner,
   TaskResult,
   TaskSpec,
-} from '../types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
 import { classifySubagentError } from './coordinator/error-classifier.js';
 import { isExternalAgentProvider } from './external-agent-provider.js';
 import type { SubagentEntry } from './multi-agent-queue-helpers.js';
@@ -74,7 +74,7 @@ export interface ExecuteSubagentTaskParams {
   budget: SubagentBudget;
   abortController: AbortController;
   sessionId: string;
-  parentBridge: import('../types/agent-bridge.js').AgentBridge | null;
+  parentBridge: import('@wrongstack/contracts/types/agent-bridge').AgentBridge | null;
   abortSubagent: (id: string) => void;
   sessionOf: (id: string) => string;
 }
@@ -94,7 +94,9 @@ export async function executeSubagentTask(params: ExecuteSubagentTaskParams): Pr
   } = params;
 
   const startTime = Date.now();
-  let latestPartial: import('../types/multi-agent.js').SubagentPartialResult | undefined;
+  let latestPartial:
+    | import('@wrongstack/contracts/types/multi-agent').SubagentPartialResult
+    | undefined;
 
   const runCtx: SubagentRunContext = {
     subagentId,

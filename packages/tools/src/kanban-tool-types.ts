@@ -1,4 +1,4 @@
-import type { SerializedTaskGraph } from '@wrongstack/core/types';
+import type { SerializedTaskGraph } from '@wrongstack/contracts/types';
 import type {
   AssignKanbanTaskInput,
   KanbanAgentRunStatus,

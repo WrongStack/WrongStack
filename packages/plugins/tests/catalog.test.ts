@@ -5,7 +5,7 @@
  * the actual plugin exports.
  */
 
-import type { JSONSchema } from '@wrongstack/core/types';
+import type { JSONSchema } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { PLUGIN_CATALOG, PLUGIN_CATALOG_ENTRIES, PLUGIN_NAMES } from '../src/catalog.js';
 import * as pluginExports from '../src/index.js';

@@ -1,15 +1,15 @@
 import { randomBytes } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { atomicWrite } from '../utils/atomic-write.js';
 import type {
   AddAttachmentInput,
   Attachment,
   AttachmentKind,
   AttachmentRef,
   AttachmentStore,
-} from '../types/attachment.js';
-import type { ContentBlock } from '../types/blocks.js';
+} from '@wrongstack/contracts/types/attachment';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import { atomicWrite } from '../utils/atomic-write.js';
 
 export interface AttachmentStoreOptions {
   /**

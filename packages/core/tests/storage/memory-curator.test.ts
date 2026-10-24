@@ -1,3 +1,5 @@
+import type { MemoryStore } from '@wrongstack/contracts/types/memory';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RunResult } from '../../src/core/agent-types.js';
 import type { Context } from '../../src/core/context.js';
@@ -6,8 +8,6 @@ import {
   type CuratorSageRecord,
   SessionMemoryCurator,
 } from '../../src/storage/memory-curator.js';
-import type { MemoryStore } from '../../src/types/memory.js';
-import type { Provider } from '../../src/types/provider.js';
 
 const mkStore = () =>
   ({

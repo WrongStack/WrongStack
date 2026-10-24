@@ -1,4 +1,4 @@
-import type { JSONSchema } from '@wrongstack/core/types';
+import type { JSONSchema } from '@wrongstack/contracts/types';
 import { validateAgainstSchema } from '@wrongstack/core/utils';
 
 // Deliberately narrow, enforced subset. Unsupported keywords are errors rather

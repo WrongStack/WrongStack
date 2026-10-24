@@ -1,4 +1,3 @@
-import type { TaskTracker } from '@wrongstack/core/tasking';
 import type {
   Specification,
   SpecRequirement,
@@ -6,7 +5,8 @@ import type {
   TaskNode,
   TaskPriority,
   TaskType,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { TaskTracker } from '@wrongstack/core/tasking';
 import { type AtomicityRuleSetConfig, assessAtomicity } from '@wrongstack/kanban';
 
 /** Named estimate constants shared with the atomicity candidate mapping. */

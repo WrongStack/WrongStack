@@ -1,5 +1,5 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import type { TrustBoundary } from '@wrongstack/core/security';
-import type { Logger } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AUTO_HEAL_DEFAULT_COOLDOWN_MS,

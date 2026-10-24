@@ -1,9 +1,9 @@
 import * as http from 'node:http';
 import * as net from 'node:net';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { WebSocket } from '../src/ws-runtime.js';
 import { runWebUI } from '../src/webui-server.js';
+import { WebSocket } from '../src/ws-runtime.js';
 
 function waitForOpen(socket: WebSocket): Promise<void> {
   return new Promise((resolve, reject) => {

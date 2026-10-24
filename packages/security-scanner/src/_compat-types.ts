@@ -4,8 +4,8 @@
  * imports into @wrongstack/core internals that aren't part of the public API.
  */
 
+import type { ProviderError, Response } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { ProviderError, Response } from '@wrongstack/core/types';
 
 /** Matches Node.js ECONN* errors and fetch failure messages. */
 export const NETWORK_ERR_RE = /ECONN|ETIMEDOUT|ETIME|ENOTFOUND|EAI_AGAIN|fetch failed/i;

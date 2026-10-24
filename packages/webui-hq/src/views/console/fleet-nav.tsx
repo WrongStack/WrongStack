@@ -8,7 +8,7 @@
  * project that appears while the console is open shows up already open, with
  * no extra bookkeeping.
  */
-import type { HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSnapshot } from '@wrongstack/hq';
 import { Bot, ChevronRight, FolderGit2, MonitorSmartphone, SquareTerminal } from 'lucide-react';
 import type * as React from 'react';
 import { useMemo, useState } from 'react';

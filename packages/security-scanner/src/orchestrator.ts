@@ -1,7 +1,7 @@
 import { isAbsolute, join } from 'node:path';
+import type { Provider, Request } from '@wrongstack/contracts/types';
+import { ConfigError } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Provider, Request } from '@wrongstack/core/types';
-import { ConfigError } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import type { ErrorHandler, RetryPolicy } from './_compat-types.js';
 import { BatchScanner } from './batch-scanner.js';

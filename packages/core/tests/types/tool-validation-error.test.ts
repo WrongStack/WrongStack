@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
 import {
-  ToolValidationError,
-  isToolValidationError,
-  WrongStackError,
   ERROR_CODES,
-} from '../../src/types/errors.js';
+  isToolValidationError,
+  ToolValidationError,
+  WrongStackError,
+} from '@wrongstack/contracts/types/errors';
+import { describe, expect, it } from 'vitest';
 
 /**
  * P2 #6 (before-release.md): classifyToolError() detected validation errors by

@@ -6,7 +6,7 @@ import {
   type MemoryHealth,
   type MemoryPort,
   type MemoryStore,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import type { SageRetrieverLike } from './middleware/tool-call-memory.js';
 import { ProjectSageMemoryPort, type ProjectSageMemoryPortOptions } from './remote-memory-port.js';
 import type { SageServiceLike, SageSurface } from './service-contract.js';

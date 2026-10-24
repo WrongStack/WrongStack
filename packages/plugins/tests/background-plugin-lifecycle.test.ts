@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import type { Plugin, PluginAPI, Tool } from '@wrongstack/core/types';
+import type { Plugin, PluginAPI, Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fs = vi.hoisted(() => ({ watch: vi.fn() }));

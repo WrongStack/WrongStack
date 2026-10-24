@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   formatContextWindowModeList,
@@ -8,7 +7,8 @@ import {
   listContextWindowModes,
   normalizeContextWindowModeId,
   resolveContextWindowPolicy,
-} from '../../src/types/context-window.js';
+} from '@wrongstack/contracts/types/context-window';
+import { describe, expect, it } from 'vitest';
 
 describe('big-window default: balanced swaps to deep on ≥1M windows', () => {
   it('defaults to deep on a 1M-class window', () => {

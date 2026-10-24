@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Config, Tool } from '@wrongstack/contracts/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import type { Config, Tool } from '@wrongstack/core/types';
 import { builtinToolsPack } from '@wrongstack/tools';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {

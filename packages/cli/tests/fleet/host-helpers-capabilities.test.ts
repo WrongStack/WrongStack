@@ -14,9 +14,10 @@
  * of a spawned subagent — directly by naming it, or transitively by naming a
  * tool that carries it. Both must fail closed.
  */
-import { describe, expect, it } from 'vitest';
+
+import type { SubagentConfig, Tool } from '@wrongstack/contracts/types';
 import { ToolCapabilities, WIDE_SUBAGENT_CAPABILITIES } from '@wrongstack/core/security';
-import type { SubagentConfig, Tool } from '@wrongstack/core/types';
+import { describe, expect, it } from 'vitest';
 import { resolveSubagentCapabilities } from '../../src/fleet/host-helpers.js';
 
 const noTools = () => [] as readonly Tool[];

@@ -10,7 +10,7 @@
 
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { ensureAtlasDir, writeAtlasFile } from './atlas-projection.js';
 import { isTestFilePath } from './codebase-impact-analysis-tool.js';
 import {

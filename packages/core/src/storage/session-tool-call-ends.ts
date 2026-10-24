@@ -1,4 +1,4 @@
-import type { SessionData, SessionEvent } from '../types/session.js';
+import type { SessionData, SessionEvent } from '@wrongstack/contracts/types/session';
 
 type ToolCallEnd = SessionData['toolCallEnds'][number];
 

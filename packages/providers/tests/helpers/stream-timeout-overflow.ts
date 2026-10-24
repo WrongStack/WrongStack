@@ -1,4 +1,4 @@
-import type { StreamEvent } from '@wrongstack/core/types';
+import type { StreamEvent } from '@wrongstack/contracts/types';
 import {
   resetStreamTimeoutDefaults,
   setStreamTimeoutDefaults,

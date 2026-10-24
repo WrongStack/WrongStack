@@ -1,10 +1,10 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ConversationState } from '../../src/core/conversation-state.js';
 import { compactionReportStillCurrent } from '../../src/execution/compaction-result-state.js';
 import { createStrategyCompactor } from '../../src/execution/strategy-compactor.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Provider } from '../../src/types/provider.js';
 
 function fakeContext(messages: Message[], provider?: Provider): Context {
   const ctx = {

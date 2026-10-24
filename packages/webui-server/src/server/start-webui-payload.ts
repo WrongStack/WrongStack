@@ -1,5 +1,5 @@
-import type { Config, ModelsRegistry } from '@wrongstack/core/types';
-import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry } from '@wrongstack/contracts/types';
+import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/contracts/types';
 import type { WebuiMutableState } from './routes.js';
 import { createSessionStartPayload } from './server-runtime.js';
 

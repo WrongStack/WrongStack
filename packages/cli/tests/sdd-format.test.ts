@@ -1,4 +1,4 @@
-import type { Specification, TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
+import type { Specification, TaskGraph, TaskNode, TaskProgress } from '@wrongstack/contracts/types';
 import type { CriticalPathAnalysis, SpecIndexEntry } from '@wrongstack/sdd';
 import { describe, expect, it } from 'vitest';
 import {

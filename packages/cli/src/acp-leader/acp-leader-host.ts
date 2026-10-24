@@ -9,9 +9,10 @@
  * never binds them — the provider runs the agent with the read-only default
  * permission policy and shows no tool cards.
  */
+
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, ConfirmAwaiter, PermissionPolicy, Tool } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config, ConfirmAwaiter, PermissionPolicy, Tool } from '@wrongstack/core/types';
 
 /** The provider id an ACP agent leads under (`--provider acp --model claude-code`). */
 export const ACP_LEADER_PROVIDER_ID = 'acp';

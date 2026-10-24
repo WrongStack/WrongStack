@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { act, renderHook } from '@testing-library/react';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { ContentBlock } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import { useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { useProviderEventBridge } from '../src/hooks/use-provider-event-bridge.js';

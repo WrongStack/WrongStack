@@ -17,7 +17,6 @@
  * `@wrongstack/acp` is loaded on first use: it must stay off the boot graph.
  */
 import { type ACPProgressEvent, type ACPSession, findAgentDescriptor } from '@wrongstack/acp';
-import { type Context, consumeBtwNotes } from '@wrongstack/core/agent';
 import type {
   AgentContextUsage,
   Capabilities,
@@ -29,8 +28,9 @@ import type {
   StreamEvent,
   SubagentRunContext,
   Tool,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
+import { type Context, consumeBtwNotes } from '@wrongstack/core/agent';
 import { subjectForToolInput } from '@wrongstack/core/utils';
 import { isRestrictedMode } from '../boot/restricted-mode.js';
 import { wrongstackAcpPermissionPolicy } from '../fleet/acp-permission-bridge.js';

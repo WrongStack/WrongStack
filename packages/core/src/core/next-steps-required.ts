@@ -16,12 +16,15 @@
  * which is how a required-mode run ends.
  */
 
-import type { Container } from '../kernel/container.js';
-import { TOKENS } from '../kernel/tokens.js';
-import { isTextBlock } from '../types/blocks.js';
-import { type NextStepsMode, resolveNextStepsMode } from '../types/config/autonomy.js';
-import type { Logger } from '../types/logger.js';
-import type { Provider, Request, Response } from '../types/provider.js';
+import type { Container } from '@wrongstack/contracts/kernel/container';
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import {
+  type NextStepsMode,
+  resolveNextStepsMode,
+} from '@wrongstack/contracts/types/config/autonomy';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
 import { adaptDocumentsForModel } from '../utils/document-blocks.js';
 import { toErrorMessage } from '../utils/error.js';
 import { hasMeaningfulContent } from '../utils/message-invariants.js';

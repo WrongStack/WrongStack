@@ -1,10 +1,10 @@
-import { noOpVault } from '@wrongstack/core/security';
 import type {
   SlashCommand,
   ToolDescriptionMode,
   ToolResultRenderMode,
   ToolsConfig,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { noOpVault } from '@wrongstack/core/security';
 import {
   color,
   getToolDescriptionMode,

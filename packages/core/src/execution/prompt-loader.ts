@@ -1,6 +1,5 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { DefaultPromptStore, migratePromptEntry } from '../storage/prompt-store.js';
 import {
   isBuiltinCategory,
   PROMPT_CATEGORY_LABELS,
@@ -8,7 +7,8 @@ import {
   type PromptEntry,
   type PromptLoader,
   type PromptSearchOptions,
-} from '../types/prompt.js';
+} from '@wrongstack/contracts/types/prompt';
+import { DefaultPromptStore, migratePromptEntry } from '../storage/prompt-store.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 
 export interface PromptLoaderOptions {

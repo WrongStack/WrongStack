@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
-import type { TodoItem } from '../core/context.js';
-import type { ConversationState } from '../core/conversation-state.js';
+import type { TodoItem } from '@wrongstack/contracts/types/context';
+import type { ConversationStateApi } from '@wrongstack/contracts/types/conversation-state';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import type { EventBus } from './event-bus-port.js';
@@ -182,7 +182,7 @@ export async function saveTodosCheckpoint(
  * disk hit.
  */
 export function attachTodosCheckpoint(
-  state: ConversationState,
+  state: ConversationStateApi,
   filePath: string,
   sessionId: string,
   events?: EventBus,

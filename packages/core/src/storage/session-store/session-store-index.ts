@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { SECRET_FILE_MODE } from '../../security/file-permissions.js';
-import type { SessionSummary } from '../../types/session.js';
 import { atomicWrite, ensureDir, withFileLock } from '../../utils/atomic-write.js';
 import { compareSessionSummaries } from '../session-summary.js';
 import { applySessionIndexLines, readFileRange } from './index-reader.js';

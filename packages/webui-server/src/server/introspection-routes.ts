@@ -1,5 +1,5 @@
+import type { Config, ConfigStore, ModelsRegistry } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-import type { Config, ConfigStore, ModelsRegistry } from '@wrongstack/core/types';
 import { runBrowserPolicyCommand } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { resolveProviderModelMetadata } from './model-catalog.js';

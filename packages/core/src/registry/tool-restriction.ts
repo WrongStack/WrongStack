@@ -1,4 +1,4 @@
-import type { Tool } from '../types/tool.js';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 
 /** The lazy gateways a restricted provider surface depends on. */
 export const LAZY_TOOL_GATEWAYS = new Set(['tool_search', 'tool_use']);

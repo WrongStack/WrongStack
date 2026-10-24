@@ -1,5 +1,5 @@
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { spawnStream } from './_spawn-stream.js';
 import {
   commandOutputPreviewBytes,

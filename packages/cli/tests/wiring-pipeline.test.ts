@@ -1,10 +1,10 @@
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Request } from '@wrongstack/contracts/types';
 import { Agent } from '@wrongstack/core/agent';
 import { AutoCompactionMiddleware } from '@wrongstack/core/execution';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { Request } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAgent, setupCompaction, setupPipelines } from '../src/wiring/pipeline.js';
 

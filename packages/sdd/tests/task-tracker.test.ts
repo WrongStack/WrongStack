@@ -1,4 +1,5 @@
-import type { TaskGraph, TaskStore } from '@wrongstack/core/types/task-graph.js';
+import type { TaskGraph } from '@wrongstack/contracts/types/task-graph';
+import type { TaskStore } from '@wrongstack/core/tasking';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { TaskTracker } from '../src/task-tracker.js';
 

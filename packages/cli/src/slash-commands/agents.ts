@@ -13,13 +13,13 @@
  *   /agents show <id>     — Show transcript for a specific agent
  */
 
+import type { FleetChatVerbosity, SlashCommand } from '@wrongstack/contracts/types';
 import type {
   AgentMonitorService,
   AgentTimelineEntry,
   AgentVirtualSession,
 } from '@wrongstack/core/coordination';
 import { noOpVault } from '@wrongstack/core/security';
-import type { FleetChatVerbosity, SlashCommand } from '@wrongstack/core/types';
 import { persistAutonomySetting } from '../settings-menu.js';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand } from './helpers.js';

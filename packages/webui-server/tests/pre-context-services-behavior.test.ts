@@ -70,7 +70,7 @@ vi.mock('@wrongstack/core/infrastructure', () => ({
     constructor(readonly options: Record<string, unknown>) {}
   },
 }));
-vi.mock('@wrongstack/core/kernel', () => ({
+vi.mock('@wrongstack/contracts/kernel', () => ({
   EventBus: class EventBusMock {
     setLogger = vi.fn();
   },
@@ -96,7 +96,7 @@ vi.mock('@wrongstack/core/registry', () => ({
   },
 }));
 vi.mock('@wrongstack/core/skills', () => ({ SkillInstaller: class SkillInstallerMock {} }));
-vi.mock('@wrongstack/core/tools', () => ({
+vi.mock('@wrongstack/tools/management', () => ({
   createMcpControlTool: mocks.createMcpControlTool,
   createMcpUseTool: mocks.createMcpUseTool,
   createSessionRenameTool: mocks.createSessionRenameTool,
@@ -111,7 +111,7 @@ vi.mock('@wrongstack/core/storage', () => ({
   PromptUsageStore: class PromptUsageStoreMock {},
   seedScoutLearnedTools: vi.fn(() => []),
 }));
-vi.mock('@wrongstack/core/types', () => ({
+vi.mock('@wrongstack/contracts/types', () => ({
   DEFAULT_SESSION_PRUNE_DAYS: 30,
   normalizeTokenSavingTier: vi.fn((value) => value),
   // The tier is resolved ONCE here and handed to both the tool registry and

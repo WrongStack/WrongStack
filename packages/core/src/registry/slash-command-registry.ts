@@ -1,5 +1,5 @@
-import type { Context } from '../core/context.js';
-import type { SlashCommand } from '../types/slash-command.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 
 /**
  * A slash command registered with the CLI or available to plugins.
@@ -359,7 +359,7 @@ export class SlashCommandRegistry {
    */
   async dispatch(
     line: string,
-    ctx: Context,
+    ctx: AgentContext,
   ): Promise<{
     exit?: boolean | undefined;
     message?: string | undefined;

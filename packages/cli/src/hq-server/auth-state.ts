@@ -1,4 +1,4 @@
-import type { HqAuthFile, HqSnapshot, HqToken } from '@wrongstack/core/hq';
+import type { HqAuthFile, HqSnapshot, HqToken } from '@wrongstack/hq';
 import {
   DEFAULT_HQ_REDACTION_POLICY,
   findRevokedTokenKeys,
@@ -6,7 +6,7 @@ import {
   hqTokenKey,
   isTokenExpired,
   logHqAuthAudit,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type { HqRouterMutableAuth } from './types.js';
 
 const TOKEN_EXPIRY_WARNING_MS = 24 * 60 * 60 * 1000;

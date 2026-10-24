@@ -13,9 +13,10 @@
  * These cases fire the real event path and observe the process-level
  * `unhandledRejection` event.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { ConfigStore, SessionWriter } from '@wrongstack/contracts/types';
 import { FleetCostCapError, FleetSpawnBudgetError } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { ConfigStore, SessionWriter } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HostShadowManager } from '../../src/fleet/host-shadow-manager.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from '../../src/fleet/host-types.js';

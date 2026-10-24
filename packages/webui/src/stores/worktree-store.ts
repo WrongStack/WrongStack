@@ -1,4 +1,4 @@
-import type { WorktreeTimelineEvent } from '@wrongstack/core/types/worktree-timeline';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import { create } from 'zustand';
 import type { WorktreeDiffSummary, WorktreeHandleView, WorktreeOrphanView } from '../types.js';
 

@@ -10,6 +10,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createProjectMailbox,
@@ -19,8 +20,7 @@ import {
   mailboxProjectServerMetadataPath,
   type RemoteMailbox,
 } from '../../src/coordination/index.js';
-import type { HqPublisher } from '../../src/hq/publisher.js';
-import { EventBus } from '../../src/kernel/events.js';
+import type { MailboxHqPublisherPort as HqPublisher } from '@wrongstack/contracts/types/hq-mailbox-publisher';
 import {
   removeProjectFixtureDirectory,
   waitForEndpointClosed,

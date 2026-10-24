@@ -10,7 +10,7 @@
  * @module hq-server/socket-credentials
  */
 
-import { type HqToken, hqTokenKey, isTokenExpired } from '@wrongstack/core/hq';
+import { type HqToken, hqTokenKey, isTokenExpired } from '@wrongstack/hq';
 import { WebSocket } from '../ws-runtime.js';
 import { HQ_SESSION_MAX_AGE_MS, hqClientAuthRequired } from './auth.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from './types.js';

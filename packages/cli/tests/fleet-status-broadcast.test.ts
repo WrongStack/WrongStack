@@ -7,8 +7,8 @@
  * task start/stop, and stop() teardown.
  */
 
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type { Mailbox } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFleetStatusBroadcaster } from '../src/fleet/status-broadcast.js';
 

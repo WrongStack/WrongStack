@@ -9,7 +9,7 @@
  * surface is unchanged.
  */
 
-import type { Logger } from '../../types/logger.js';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import {
   type CollabDebugReport,
   CollabSession,

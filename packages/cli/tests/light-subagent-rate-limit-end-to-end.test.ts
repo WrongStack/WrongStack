@@ -25,12 +25,7 @@
  * end-user-visible surface (the slash command render).
  */
 
-import { FallbackProfileManager } from '@wrongstack/core/agent';
-import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
-import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import { DefaultConfigStore } from '@wrongstack/core/storage';
+import { Container, TOKENS } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   ModelsRegistry,
@@ -40,8 +35,13 @@ import type {
   Response,
   SessionWriter,
   Tool,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
+import { FallbackProfileManager } from '@wrongstack/core/agent';
+import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { DefaultConfigStore } from '@wrongstack/core/storage';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import { describe, expect, it } from 'vitest';
 import { buildProviderStatusCommand } from '../src/slash-commands/provider-status.js';

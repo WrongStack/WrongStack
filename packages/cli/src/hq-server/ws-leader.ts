@@ -10,8 +10,8 @@ import type {
   HqPeerRehydratePayload,
   HqPeerRehydrateReason,
   HqPersistence,
-} from '@wrongstack/core/hq';
-import { HQ_BROWSER_PEER_RESUME_CLIENT_ID, HQ_PROTOCOL_VERSION } from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
+import { HQ_BROWSER_PEER_RESUME_CLIENT_ID, HQ_PROTOCOL_VERSION } from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 import { broadcastEvent, sendGuarded } from './snapshot.js';
 import type { ConnectedClient } from './types.js';
@@ -163,7 +163,7 @@ export function detectLeaderLoss(
   const previousLeaderHandle = lostClient.clientId;
   // Build the envelope JSON once and fan it out to both browsers (the
   // dashboard) AND surviving same-project clients (the protocol target per
-  // `packages/core/src/hq/protocol/peer.ts` and plan §10.1). Clients receive
+  // `packages/hq/src/protocol/peer.ts` and plan §10.1). Clients receive
   // it directly on their WS; the envelope shape matches the existing
   // `hq.event` wrapper used everywhere else (see `broadcastEvent` below) so
   // a future client-side `peer.*` listener can dispatch on

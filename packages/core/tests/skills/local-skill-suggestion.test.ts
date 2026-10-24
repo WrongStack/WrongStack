@@ -1,15 +1,15 @@
 import * as fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { isVolatileSystemBlock } from '@wrongstack/contracts/types/blocks';
+import type { Config } from '@wrongstack/contracts/types/config/root';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { SkillLoader, SkillManifest } from '@wrongstack/contracts/types/skill';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createLocalSkillSuggestionSetup,
   recommendLocalSkills,
 } from '../../src/skills/suggest/local.js';
 import { LOCAL_SKILL_RULES } from '../../src/skills/suggest/local-rules.js';
-import { isVolatileSystemBlock } from '../../src/types/blocks.js';
-import type { Config } from '../../src/types/config/root.js';
-import type { Request } from '../../src/types/provider.js';
-import type { SkillLoader, SkillManifest } from '../../src/types/skill.js';
 
 const catalog: SkillManifest[] = LOCAL_SKILL_RULES.map((rule) => ({
   name: rule.name,

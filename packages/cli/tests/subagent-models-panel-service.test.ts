@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionWriter } from '@wrongstack/contracts/types';
 import {
   getSessionSubagentModelPlan,
   resetSessionSubagentModelPlan,
   restoreSessionSubagentModelPlan,
 } from '@wrongstack/core/coordination';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import type { SessionWriter } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createSubagentModelsPanelHost } from '../src/subagent-models/panel-service.js';
 

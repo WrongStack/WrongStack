@@ -4,7 +4,7 @@ import {
   mintHqToken,
   mutateHqAuthFile,
   readHqAuthFile,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { expectDefined } from '@wrongstack/core/utils';
 import { resolveAuditActor } from '../../hq-server/audit-actor.js';
 import { parseTokenTtlValue as parseTtlValue } from '../../utils/hq-ttl.js';

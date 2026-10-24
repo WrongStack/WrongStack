@@ -4,7 +4,7 @@ import type {
   StopReason,
   StreamEvent,
   Usage,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { parseToolInput } from './_tool-input.js';
 /**

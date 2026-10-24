@@ -9,7 +9,7 @@
  *   - terminals that never had agents (synthetic placeholders) stay
  *   - the machine/project spine stays; no edge points at a hidden node
  */
-import type { HqSessionAgentSummary, HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSessionAgentSummary, HqSnapshot } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import {
   buildFleetTopology,

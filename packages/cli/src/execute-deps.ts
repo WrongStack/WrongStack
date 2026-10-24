@@ -9,23 +9,7 @@
  *   docs/plans/cli-main-executiondeps-refactor.md
  */
 
-import type { Agent, Context } from '@wrongstack/core/agent';
-import type {
-  AgentFactory,
-  BrainArbiter,
-  Director,
-  RemoteMailbox,
-} from '@wrongstack/core/coordination';
-import type { BrainAutoRisk } from '@wrongstack/core/execution';
-import type { JournalEntry } from '@wrongstack/core/goal';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type {
-  StatuslineDensities,
-  StatuslineLines,
-  StatuslineOrder,
-} from '@wrongstack/core/statusline';
-import type { QueueStore } from '@wrongstack/core/storage';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   AttachmentStore,
   AutonomyStage,
@@ -44,7 +28,23 @@ import type {
   SessionWriter,
   SkillLoader,
   TokenCounter,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Agent, Context } from '@wrongstack/core/agent';
+import type {
+  AgentFactory,
+  BrainArbiter,
+  Director,
+  RemoteMailbox,
+} from '@wrongstack/core/coordination';
+import type { BrainAutoRisk } from '@wrongstack/core/execution';
+import type { JournalEntry } from '@wrongstack/goal';
+import type { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type {
+  StatuslineDensities,
+  StatuslineLines,
+  StatuslineOrder,
+} from '@wrongstack/core/statusline';
+import type { QueueStore } from '@wrongstack/core/storage';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
@@ -142,7 +142,9 @@ interface CoreDeps {
    * that predate the refactor) can omit it; provider calls then stay
    * pinned to the boot session — same behavior as before this existed.
    */
-  sessionRef?: { current: import('@wrongstack/core/types').SessionWriter | undefined } | undefined;
+  sessionRef?:
+    | { current: import('@wrongstack/contracts/types').SessionWriter | undefined }
+    | undefined;
   /** Atomically move this process's SessionRegistry ownership after explicit resume. */
   activateSessionIdentity?:
     | ((
@@ -270,8 +272,8 @@ interface FleetDeps {
   fleetRoster?: Record<string, { name: string }> | undefined;
   fleetStreamController?:
     | {
-        mode: import('@wrongstack/core/types').FleetChatVerbosity;
-        setMode: (mode: import('@wrongstack/core/types').FleetChatVerbosity) => void;
+        mode: import('@wrongstack/contracts/types').FleetChatVerbosity;
+        setMode: (mode: import('@wrongstack/contracts/types').FleetChatVerbosity) => void;
       }
     | undefined;
   agentsMonitorController?:
@@ -326,9 +328,9 @@ export interface ControllerDeps {
         providerId?: string,
         modelId?: string,
       ) =>
-        | import('@wrongstack/core/types').ReasoningRequest
+        | import('@wrongstack/contracts/types').ReasoningRequest
         | undefined
-        | Promise<import('@wrongstack/core/types').ReasoningRequest | undefined>)
+        | Promise<import('@wrongstack/contracts/types').ReasoningRequest | undefined>)
     | undefined;
   /**
    * Reasoning-effort levels the ACTIVE model documents (models.dev
@@ -343,7 +345,7 @@ export interface ControllerDeps {
     | ((
         providerId: string,
         modelId: string,
-      ) => Promise<import('@wrongstack/core/types').Provider | undefined>)
+      ) => Promise<import('@wrongstack/contracts/types').Provider | undefined>)
     | undefined;
   /** Resolve the one-key "retry with another model" fallback ref for refinement failures. */
   getEnhanceFallbackRef?: (() => string | undefined) | undefined;
@@ -455,7 +457,7 @@ export interface LifecycleDeps {
     | (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null)
     | undefined;
   getParallelEngine?:
-    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | (() => import('@wrongstack/core/coordination').ParallelEternalEngine | null)
     | undefined;
   getSddRun?: (() => SddRunControl | null) | undefined;
   onSddLifecycle?:

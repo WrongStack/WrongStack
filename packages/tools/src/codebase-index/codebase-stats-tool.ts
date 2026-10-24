@@ -6,7 +6,7 @@
  * Returns: { totalSymbols, totalFiles, byLang, byKind, lastIndexed, sizeBytes, version }
  */
 
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { codebaseIndexStats, getIndexState } from './background-indexer.js';
 import { IndexTimeoutError } from './circuit-breaker.js';

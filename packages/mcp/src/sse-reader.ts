@@ -1,4 +1,4 @@
-import { ToolError } from '@wrongstack/core/types';
+import { ToolError } from '@wrongstack/contracts/types';
 import { MAX_MCP_HTTP_BODY_BYTES } from './read-body.js';
 
 /**

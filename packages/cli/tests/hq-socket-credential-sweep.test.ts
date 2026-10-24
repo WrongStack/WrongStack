@@ -13,7 +13,7 @@
  * @module tests/hq-socket-credential-sweep
  */
 
-import { DEFAULT_HQ_REDACTION_POLICY } from '@wrongstack/core/hq';
+import { DEFAULT_HQ_REDACTION_POLICY } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
 import { HQ_SESSION_MAX_AGE_MS } from '../src/hq-server/auth.js';

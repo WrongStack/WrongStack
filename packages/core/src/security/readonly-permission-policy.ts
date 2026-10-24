@@ -30,9 +30,13 @@
  */
 
 import * as path from 'node:path';
-import type { Context } from '../core/context.js';
-import type { PermissionDecision, PermissionPolicy, PermissionTrace } from '../types/permission.js';
-import type { Tool } from '../types/tool.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type {
+  PermissionDecision,
+  PermissionPolicy,
+  PermissionTrace,
+} from '@wrongstack/contracts/types/permission';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { ToolCapabilities } from './capabilities.js';
 
 // ── Mutation capabilities ──────────────────────────────────────────────────
@@ -120,7 +124,7 @@ export class ReadOnlyPermissionPolicy implements PermissionPolicy {
     private readonly projectRoot: string,
   ) {}
 
-  async evaluate(tool: Tool, input: unknown, ctx: Context): Promise<PermissionDecision> {
+  async evaluate(tool: Tool, input: unknown, ctx: AgentContext): Promise<PermissionDecision> {
     // Session-level toggle: check ctx.meta['readOnly'].
     // When not set or false, pass through to inner policy (no-op).
     if (ctx.meta['readOnly'] !== true) {
@@ -179,7 +183,7 @@ export class ReadOnlyPermissionPolicy implements PermissionPolicy {
     }
   }
 
-  async explain(tool: Tool, input: unknown, ctx: Context): Promise<PermissionTrace> {
+  async explain(tool: Tool, input: unknown, ctx: AgentContext): Promise<PermissionTrace> {
     // Session-level toggle check.
     if (ctx.meta['readOnly'] !== true) {
       if (this.inner.explain) return this.inner.explain(tool, input, ctx);

@@ -1,13 +1,13 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
+import type { ToolExecutorOptions } from '../../src/execution/tool-executor-options.js';
 import { runToolWithTimeout } from '../../src/execution/tool-executor-runner.js';
 import { AutoApprovePermissionPolicy } from '../../src/security/auto-approve-policy.js';
 import {
   __resetProcessLockdownForTests,
   lockYoloOff,
 } from '../../src/security/process-lockdown.js';
-import type { Tool } from '../../src/types/tool.js';
-import type { ToolExecutorOptions } from '../../src/types/tool-executor.js';
 
 afterEach(__resetProcessLockdownForTests);
 const limits = {

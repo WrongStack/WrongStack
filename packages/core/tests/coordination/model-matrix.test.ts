@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelMatrixEntry } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import { agentPrompt } from '../../src/coordination/agents/agent-prompts.js';
 import { AGENT_CATALOG, AGENTS_BY_PHASE } from '../../src/coordination/agents/index.js';
@@ -17,7 +18,6 @@ import {
   roleNeedsIndependentReviewModel,
 } from '../../src/coordination/model-matrix.js';
 import { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
-import type { ModelMatrixEntry } from '../../src/types/config.js';
 
 // Pick a real role + its phase from the catalog so the test stays valid as
 // the catalog evolves (no hardcoded role names to drift out of sync).

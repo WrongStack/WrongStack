@@ -1,4 +1,4 @@
-import type { HqKanbanSnapshotPayload } from '@wrongstack/core/hq';
+import type { HqKanbanSnapshotPayload } from '@wrongstack/hq';
 import { Clock3, Columns3, Play, RefreshCw, Send, TriangleAlert, UserRoundCog } from 'lucide-react';
 import type * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

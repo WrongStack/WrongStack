@@ -33,6 +33,14 @@ const ALLOWED_SELF_IMPORTS = new Set([
   // Dependency-leaf primitives (regex guard et al.) sit below everything;
   // core re-exports the canonical regex guard from it (card #5).
   '@wrongstack/primitives',
+  // Browser-safe primitives subpaths: the error / secret-scrubber chain and
+  // tiny helpers moved there so `types/` and `kernel/` stop depending on
+  // core `utils/`; webui-reachable core entries must not load the main
+  // primitives entry (it imports node:child_process / node:fs).
+  '@wrongstack/primitives/error',
+  '@wrongstack/primitives/expect-defined',
+  '@wrongstack/primitives/redaction',
+  '@wrongstack/primitives/string',
 ]);
 
 /**
@@ -138,6 +146,10 @@ describe('core cross-package boundaries', () => {
       for (const match of text.matchAll(FORBIDDEN_WORKSPACE_IMPORT)) {
         const specifier = match[1];
         if (!specifier || ALLOWED_SELF_IMPORTS.has(specifier)) continue;
+        // @wrongstack/contracts (types + kernel, extracted from core) sits below
+        // core; every module is importable by path (`./types/*`, `./kernel/*`).
+        if (specifier === '@wrongstack/contracts' || specifier.startsWith('@wrongstack/contracts/'))
+          continue;
         violations.push(`${path.relative(process.cwd(), file)} -> ${specifier}`);
       }
     }

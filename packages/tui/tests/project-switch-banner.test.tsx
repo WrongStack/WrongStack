@@ -1,4 +1,4 @@
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { useReducer, useRef } from 'react';
 import { expect, it, vi } from 'vitest';
 import { reducer } from '../src/app-reducer.js';

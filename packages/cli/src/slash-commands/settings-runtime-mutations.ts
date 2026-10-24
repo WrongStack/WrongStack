@@ -1,6 +1,6 @@
 /** `/settings` mutations for versioning, the shell circuit breaker and model-runtime behaviour. */
 
-import { isReasoningEffort, REASONING_EFFORT_LEVELS } from '@wrongstack/core/types';
+import { isReasoningEffort, REASONING_EFFORT_LEVELS } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import { persistAutonomySetting, persistConfigSetting } from '../settings-menu.js';

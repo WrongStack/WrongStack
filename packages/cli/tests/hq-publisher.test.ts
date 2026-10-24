@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { HqSocketLike } from '@wrongstack/core/hq';
-import { HQ_AUTH_FILE_VERSION, writeHqAuthFile, writeHqRuntimeFile } from '@wrongstack/core/hq';
+import type { HqSocketLike } from '@wrongstack/hq';
+import { HQ_AUTH_FILE_VERSION, writeHqAuthFile, writeHqRuntimeFile } from '@wrongstack/hq';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startCliHqConnection } from '../src/hq-publisher.js';
 import { createSageHqSync } from '../src/sage-hq-sync.js';

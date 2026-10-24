@@ -1,5 +1,5 @@
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { summarizeWorkspaceEdit } from '../formatters/workspace-edit.js';
 import { humanToLSP } from '../position.js';
 import { supportsRename } from '../server/capabilities.js';

@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelsDevPayload, ModelsRegistry } from '@wrongstack/contracts/types/models-registry';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { refreshCatalogIfStale, startCatalog } from '../../src/models/catalog-refresh.js';
 import { DefaultModelsRegistry } from '../../src/models/models-registry.js';
-import type { ModelsDevPayload, ModelsRegistry } from '../../src/types/models-registry.js';
 
 function payload(context: number): ModelsDevPayload {
   return {

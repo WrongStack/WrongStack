@@ -7,13 +7,19 @@
  * will fail with context_overflow (which is not fallback-worthy and would
  * surface as a terminal error).
  */
+
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { OneShotOrchestratorOptions } from '@wrongstack/contracts/types/one-shot-llm';
+import type {
+  Provider,
+  ProviderErrorKind,
+  Request,
+  Response,
+} from '@wrongstack/contracts/types/provider';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
 import { OneShotOrchestrator } from '../../src/execution/one-shot-llm.js';
-import { ProviderError } from '../../src/types/provider.js';
-import type { OneShotOrchestratorOptions } from '../../src/types/one-shot-llm.js';
-import type { Provider, ProviderErrorKind, Request, Response } from '../../src/types/provider.js';
-import type { Config } from '../../src/types/config.js';
 
 function fakeProvider(
   id: string,

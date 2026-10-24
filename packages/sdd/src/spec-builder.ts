@@ -1,5 +1,5 @@
-import type { Specification } from '@wrongstack/core/types';
-import { ERROR_CODES, SddError } from '@wrongstack/core/types';
+import type { Specification } from '@wrongstack/contracts/types';
+import { ERROR_CODES, SddError } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import {
   type AISpecPhase,

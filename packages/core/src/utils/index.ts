@@ -1,4 +1,9 @@
 export {
+  authoredBlocks,
+  authoredText,
+  LIVE_CONTEXT_MARKER,
+} from '@wrongstack/contracts/types/live-context';
+export {
   cliSpawnArgs,
   isStandaloneBinary,
   moduleDirFor,
@@ -21,7 +26,6 @@ export * from './color.js';
 export * from './config-backup.js';
 export * from './config-json.js';
 export { checkConnectivity, resetConnectivityCache } from './connectivity.js';
-export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';
 export {
   buildCompletedWorkLedgerBlock,
   buildContextEvidenceDigest,
@@ -69,11 +73,6 @@ export {
   takeHeapSample,
 } from './heap-watchdog.js';
 export {
-  getHistoryRetention,
-  type HistoryRetention,
-  type RetentionClass,
-} from './history-retention.js';
-export {
   ALLOWED_IMAGE_MEDIA_TYPES,
   base64DecodedBytes,
   buildUserContentBlocks,
@@ -112,7 +111,6 @@ export {
   readLeaderEffortOverride,
   restoreLeaderEffortOverride,
 } from './leader-effort-override.js';
-export { authoredBlocks, authoredText, LIVE_CONTEXT_MARKER } from './live-context.js';
 export {
   formatMemoryEvidenceBlock,
   MEMORY_EVIDENCE_TAG,

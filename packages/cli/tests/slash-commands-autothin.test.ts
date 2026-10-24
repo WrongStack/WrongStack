@@ -6,15 +6,15 @@
  * tool registry + config store on every test.
  */
 
-import { EventBus } from '@wrongstack/core/kernel';
-import { ToolRegistry } from '@wrongstack/core/registry';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   AutoThinConfig,
   Config,
   ConfigStore,
   Tool,
   ToolsConfig,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ToolRegistry } from '@wrongstack/core/registry';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
 import { buildToolCommand } from '../src/slash-commands/tool.js';

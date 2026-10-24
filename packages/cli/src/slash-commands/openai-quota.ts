@@ -23,6 +23,7 @@
  *   /openai-quota     Show the latest reading for every metered window
  */
 
+import type { Provider, ProviderConfig, SlashCommand } from '@wrongstack/contracts/types';
 import {
   formatQuotaPercent,
   formatQuotaResetIn,
@@ -33,7 +34,6 @@ import {
   quotaResetInMs,
   quotaWindowLabel,
 } from '@wrongstack/core/quota';
-import type { Provider, ProviderConfig, SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import {
   readConfiguredProviderAccountQuota,

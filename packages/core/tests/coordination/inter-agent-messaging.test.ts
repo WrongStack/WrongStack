@@ -1,10 +1,10 @@
+import type { BridgeMessage } from '@wrongstack/contracts/types/agent-bridge';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  createMessage,
   InMemoryAgentBridge,
   InMemoryBridgeTransport,
-  createMessage,
 } from '../../src/coordination/agent-bridge.js';
-import type { BridgeMessage } from '../../src/types/agent-bridge.js';
 
 /**
  * L2-E: prove the agent-bridge API works for actual subagent ↔ subagent

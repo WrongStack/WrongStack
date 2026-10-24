@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import type { SessionEvent, SessionWriter } from '../../src/types/session.js';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createSessionEventBridge,
   resolveAuditLevel,

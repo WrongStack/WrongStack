@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import { repairToolUseAdjacency } from '../../src/utils/message-invariants.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import { describe, expect, it } from 'vitest';
 import {
-  parseIncomingImages,
   buildUserContentBlocks,
   IncomingImageError,
   MAX_INCOMING_IMAGES,
+  parseIncomingImages,
 } from '../../src/utils/incoming-images.js';
 import { mergeCustomModelDefs } from '../../src/utils/merge-custom-models.js';
 import { mergeModelsPayload } from '../../src/utils/merge-models-payload.js';
-import type { ContentBlock } from '../../src/types/blocks.js';
-import type { Message } from '../../src/types/messages.js';
+import { repairToolUseAdjacency } from '../../src/utils/message-invariants.js';
 
 // ── message-invariants ──────────────────────────────────────────────────
 

@@ -1,6 +1,17 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Container } from '@wrongstack/contracts/kernel/container';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import type { Compactor } from '@wrongstack/contracts/types/compactor';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type {
+  Capabilities,
+  Provider,
+  Request,
+  Response,
+} from '@wrongstack/contracts/types/provider';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import { Context } from '../../src/core/context.js';
@@ -10,17 +21,11 @@ import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { Container } from '../../src/kernel/container.js';
-import { EventBus } from '../../src/kernel/events.js';
-import { TOKENS } from '../../src/kernel/tokens.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type { Compactor } from '../../src/types/compactor.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Capabilities, Provider, Request, Response } from '../../src/types/provider.js';
 import { estimateRequestTokens } from '../../src/utils/token-estimate.js';
 
 // ── Mock provider that echoes back a fixed text response ─────────────────
@@ -53,7 +58,9 @@ function mockProvider(maxContext = 200_000): Provider & {
         usage: { input: 50, output: 10 },
       };
     },
-    async *stream(req: Request): AsyncGenerator<import('../../src/types/provider.js').StreamEvent> {
+    async *stream(
+      req: Request,
+    ): AsyncGenerator<import('@wrongstack/contracts/types/provider').StreamEvent> {
       capture(req);
       yield { type: 'message_start', model: 'mock' };
       yield { type: 'content_block_start', kind: 'text' };

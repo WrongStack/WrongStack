@@ -6,7 +6,7 @@
  * reconstructs that path from the snapshot so the target picker reads like the
  * fleet, not like a list of opaque ids.
  */
-import type { HqClientRecord, HqSnapshot } from '@wrongstack/core/hq';
+import type { HqClientRecord, HqSnapshot } from '@wrongstack/hq';
 
 export function shortId(id: string): string {
   return id.length > 18 ? `${id.slice(0, 10)}…${id.slice(-6)}` : id;

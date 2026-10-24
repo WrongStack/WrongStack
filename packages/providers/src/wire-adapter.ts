@@ -5,8 +5,13 @@ import type {
   Response,
   StreamEvent,
   Tool,
-} from '@wrongstack/core/types';
-import { ConfigError, ParseError, ProviderError, StreamHangError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import {
+  ConfigError,
+  ParseError,
+  ProviderError,
+  StreamHangError,
+} from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { warmConnection } from './connection-warmup.js';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';

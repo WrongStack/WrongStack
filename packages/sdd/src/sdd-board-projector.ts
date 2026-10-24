@@ -13,10 +13,10 @@
  * mostly re-derives the snapshot and only tracks run-level status/wave/deadlock.
  */
 
-import type { EventBus, EventMap } from '@wrongstack/core/kernel';
+import type { EventBus, EventMap } from '@wrongstack/contracts/kernel';
+import type { SecretScrubber, TaskGraph } from '@wrongstack/contracts/types';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import type { SecretScrubber, TaskGraph } from '@wrongstack/core/types';
 import {
   buildBoardSnapshot,
   type SddBoardFeedEntry,

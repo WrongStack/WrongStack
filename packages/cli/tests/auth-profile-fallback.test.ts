@@ -1,14 +1,14 @@
-import { createFallbackModelExtension, FallbackProfileManager } from '@wrongstack/core/agent';
-import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
-import { ProviderRegistry } from '@wrongstack/core/registry';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import {
   type Config,
   type Provider,
   ProviderError,
   type Request,
   type Response,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { createFallbackModelExtension, FallbackProfileManager } from '@wrongstack/core/agent';
+import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import { ProviderRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it, vi } from 'vitest';
 import { resolveActiveApiKey } from '../src/provider-config-utils.js';
 import { buildProviderForId } from '../src/wiring/provider-runtime.js';

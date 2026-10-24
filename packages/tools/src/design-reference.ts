@@ -1,5 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import {
   compareDesignDna,
@@ -21,8 +23,6 @@ import {
   summarizeDesignDna,
 } from '@wrongstack/core/design';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import { managerFor, owner } from './browser/tools.js';
 import { withServedProjectFile } from './design-reference-serve.js';

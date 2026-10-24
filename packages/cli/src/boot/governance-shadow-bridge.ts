@@ -1,4 +1,4 @@
-import type { EventBus, EventMap, EventName } from '@wrongstack/core/kernel';
+import type { EventBus, EventMap, EventName } from '@wrongstack/contracts/kernel';
 import type {
   GovernanceRuntimeObservationInput,
   GovernanceRuntimeObservationResult,

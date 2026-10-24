@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { SubagentConfig, TaskResult } from '@wrongstack/core/types';
+import type { SubagentConfig, TaskResult } from '@wrongstack/contracts/types';
 import {
   REVIEWER_ATTEMPT_TIMEOUT_MS,
   REVIEWER_LADDER_BUDGET_MS,

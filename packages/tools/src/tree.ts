@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
+import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/contracts/types';
 import {
   compilePathGlob,
   DEFAULT_WALK_IGNORE_DIRS,

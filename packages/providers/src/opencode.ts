@@ -5,7 +5,7 @@ import type {
   Request,
   Response,
   StreamEvent,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { CatalogRoutedProvider } from './catalog-routed.js';
 
 export interface OpenCodeZenProviderOptions {

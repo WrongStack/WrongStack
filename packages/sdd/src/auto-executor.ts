@@ -1,6 +1,6 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Specification, TaskGraph, TaskNode } from '@wrongstack/contracts/types';
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { analyzeCriticalPath } from './critical-path.js';
 import {
   assertSpecTaskGraphCoverage,

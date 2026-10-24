@@ -1,8 +1,8 @@
 import { createServer, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger, UserInputRequest, UserInputResponse } from '@wrongstack/contracts/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger, UserInputRequest, UserInputResponse } from '@wrongstack/core/types';
 import { expect, it, vi } from 'vitest';
 import { elicitViaUserInput } from '../src/elicitation-form.js';
 import { MCPRegistry } from '../src/registry.js';

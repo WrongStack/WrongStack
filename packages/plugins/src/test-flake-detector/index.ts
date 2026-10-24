@@ -31,8 +31,8 @@ import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { type HookInput, type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { shellCommandLinesFromInput } from '@wrongstack/core/security';
-import { type HookInput, type Plugin, ToolValidationError } from '@wrongstack/core/types';
 import { scriptSpawnArgs } from '@wrongstack/core/utils';
 import { withinProject } from '../runtime/index.js';
 import {

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { Config, Logger } from '@wrongstack/core/types';
+import type { Config, Logger } from '@wrongstack/contracts/types';
 import { OFFICIAL_PLUGIN_SPECIFIERS } from '@wrongstack/plugins/factories';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {

@@ -10,8 +10,8 @@
  * `setupDepWatcherConsumers()` without reparsing.
  */
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { attachDepWatcherBridge, getSharedProjectMailbox } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 
 interface SetupDepWatcherBridgeDeps {
   config: { extensions?: Record<string, unknown> };

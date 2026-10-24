@@ -14,12 +14,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { HqAuthFile } from '@wrongstack/core/hq';
-import {
-  HQ_AUTH_FILE_VERSION,
-  HqInsecureExposureError,
-  writeHqAuthFile,
-} from '@wrongstack/core/hq';
+import type { HqAuthFile } from '@wrongstack/hq';
+import { HQ_AUTH_FILE_VERSION, HqInsecureExposureError, writeHqAuthFile } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { prepareHqServerStart } from '../src/hq-server/preflight.js';
 

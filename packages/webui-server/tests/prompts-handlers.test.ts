@@ -12,8 +12,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { PromptEntry, PromptLoader } from '@wrongstack/contracts/types';
 import { recordPromptJournalEntry } from '@wrongstack/core/prompts';
-import type { PromptEntry, PromptLoader } from '@wrongstack/core/types';
 import {
   handlePromptsContent,
   handlePromptsCreate,

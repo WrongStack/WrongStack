@@ -5,8 +5,8 @@
  * bodies are the vendors' documented examples.
  */
 
+import type { Provider } from '@wrongstack/contracts/types';
 import { getProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import type { Provider } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   attachAccountQuotaReporting,

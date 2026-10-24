@@ -1,4 +1,4 @@
-import type { HqEventEnvelope } from '@wrongstack/core/hq';
+import type { HqEventEnvelope } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { groupMailboxEvents } from '../src/domain/mailbox-grouping.js';
 

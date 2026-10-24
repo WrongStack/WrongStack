@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import {
   type FileAuthorTrackerOptions,
   getSharedProjectMailbox,
@@ -7,7 +8,6 @@ import {
   startTechStackConsumer,
 } from '@wrongstack/core/coordination';
 import type { DefaultLogger } from '@wrongstack/core/infrastructure';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { MultiAgentHost } from '../multi-agent.js';
 
 /**

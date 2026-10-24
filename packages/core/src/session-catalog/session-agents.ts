@@ -14,8 +14,8 @@
  * merge here is therefore an upsert keyed on `agentId`, never a lookup that
  * assumes the row already exists.
  */
-import type { Usage } from '../types/provider.js';
-import type { SessionEvent } from '../types/session.js';
+import type { Usage } from '@wrongstack/contracts/types/provider';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 
 export type SessionAgentStatus = 'running' | 'completed' | 'failed';
 

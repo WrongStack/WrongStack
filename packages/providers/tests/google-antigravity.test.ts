@@ -13,8 +13,8 @@
  * opaque 400 from a `v1internal` endpoint.
  */
 
+import { ProviderError, type Request } from '@wrongstack/contracts/types';
 import { getProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import { ProviderError, type Request } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FAMILY_BY_PROVIDER_ID, SIBLING_CATALOG_BY_FAMILY } from '../src/capabilities.js';
 import { retryAfterMsFromBody } from '../src/error-parse.js';

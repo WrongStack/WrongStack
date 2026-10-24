@@ -1,4 +1,4 @@
-import type { TaskResult, TaskSpec } from '@wrongstack/core/types';
+import type { TaskResult, TaskSpec } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 /**
  * ToolTranslator — bidirectional translation between WrongStack tools and

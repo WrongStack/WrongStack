@@ -1,5 +1,5 @@
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { ChronicleContext } from './context.js';
 import type { ChronicleEventSink } from './sink.js';
 

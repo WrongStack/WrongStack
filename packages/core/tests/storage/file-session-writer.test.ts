@@ -1,6 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   SecretScrubber,
@@ -8,7 +9,6 @@ import type {
   SessionMetadata,
   SessionSummary,
 } from '../../src/index.js';
-import type { EventBus } from '../../src/kernel/events.js';
 import { FileSessionWriter } from '../../src/storage/file-session-writer.js';
 
 // ---------------------------------------------------------------------------

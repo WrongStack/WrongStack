@@ -19,7 +19,7 @@
  * came from a deeper agent whose own wrapper labelled it first, and that
  * inner attribution is the more specific truth.
  */
-import type { SessionEvent, SessionWriter } from '../types/session.js';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
 
 /** Apply `agentId` to an event unless it already carries one. */
 export function stampAgentId(event: SessionEvent, agentId: string): SessionEvent {

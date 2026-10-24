@@ -1,5 +1,5 @@
-import type { Specification } from '@wrongstack/core/types/spec.js';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
+import type { Specification } from '@wrongstack/contracts/types/spec';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types/task-graph';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SpecVersioning } from '../src/spec-versioning.js';
 

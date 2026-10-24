@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { withSqliteTextIndex } from '@wrongstack/persistence';
 import { removePathSync } from '@wrongstack/primitives';
 import type { DefaultSecretScrubber } from '../security/secret-scrubber.js';
@@ -9,7 +10,6 @@ import {
   resolveSessionId as resolveAmongCandidates,
   sessionIdResolutionError,
 } from '../storage/session-id-resolver.js';
-import type { SessionSummary } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import type {
   CatalogSessionRecord,

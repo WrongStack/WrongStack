@@ -1,11 +1,11 @@
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { HookInput } from '@wrongstack/contracts/types/hooks';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { HookRegistry } from '../../src/hooks/registry.js';
 import { HookRunner } from '../../src/hooks/runner.js';
-import type { ToolResultBlock, ToolUseBlock } from '../../src/types/blocks.js';
-import type { HookInput } from '../../src/types/hooks.js';
-import type { Tool } from '../../src/types/tool.js';
 import { toolResultFingerprint } from '../../src/utils/tool-result-fingerprint.js';
 
 function makeCtx(): Context {

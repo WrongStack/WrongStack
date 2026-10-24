@@ -44,8 +44,6 @@ import {
   tryCreateChronicleJournal,
 } from './session-event-wiring-types.js';
 
-export type { ErrorEntry } from './session-event-wiring-types.js';
-
 // ── Exported wiring ────────────────────────────────────────────────────────
 
 /** Wire SessionEventBridge, appendSessionEvent, error ring, and tool-lifecycle
@@ -56,11 +54,13 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
 
   // ── SessionEventBridge ──────────────────────────────────────────────────
   const sessionConfig = resolveSessionLoggingConfig(config);
-  const sessionWriter: () => import('@wrongstack/core/types').SessionWriter | null | undefined =
-    () =>
-      ((context as Record<string, unknown>).session as
-        | import('@wrongstack/core/types').SessionWriter
-        | undefined) ?? (session as unknown as import('@wrongstack/core/types').SessionWriter);
+  const sessionWriter: () =>
+    | import('@wrongstack/contracts/types').SessionWriter
+    | null
+    | undefined = () =>
+    ((context as Record<string, unknown>).session as
+      | import('@wrongstack/contracts/types').SessionWriter
+      | undefined) ?? (session as unknown as import('@wrongstack/contracts/types').SessionWriter);
   const sessionBridge: SessionEventBridge = createSessionEventBridge(
     sessionWriter,
     sessionConfig.auditLevel,
@@ -577,7 +577,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       delayMs: number;
       status: number;
       description: string;
-      errorBody?: import('@wrongstack/core/types').ProviderErrorBody | undefined;
+      errorBody?: import('@wrongstack/contracts/types').ProviderErrorBody | undefined;
     }) => {
       appendSessionEvent(e.sessionId, {
         type: 'provider_retry',
@@ -600,7 +600,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       status: number;
       description: string;
       retryable?: boolean;
-      errorBody?: import('@wrongstack/core/types').ProviderErrorBody | undefined;
+      errorBody?: import('@wrongstack/contracts/types').ProviderErrorBody | undefined;
     }) => {
       appendSessionEvent(e.sessionId, {
         type: 'provider_error',

@@ -9,8 +9,8 @@
  * same shape.
  */
 
+import type { TaskGraph, TaskNode, TaskProgress } from '@wrongstack/contracts/types';
 import { computeTaskProgress } from '@wrongstack/core/tasking';
-import type { TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
 
 export type SddBoardStatus =
   | 'idle'

@@ -13,8 +13,9 @@
  * string "true" for a boolean field); anything ambiguous is reported as a
  * non-fixable finding instead of guessed at.
  */
+
+import { type Config, type JSONSchema, NEXT_STEPS_MODES } from '@wrongstack/contracts/types';
 import { isSecretField } from '@wrongstack/core/security';
-import { type Config, type JSONSchema, NEXT_STEPS_MODES } from '@wrongstack/core/types';
 import {
   isTypeSafeRoute,
   resolveTypeSafeAccount,
@@ -25,8 +26,6 @@ import { isReservedProviderId } from '@wrongstack/providers';
 import { KNOWN_TOP_LEVEL_KEYS } from './config-doctor-known-keys.js';
 import { nextCustomProviderId } from './provider-id.js';
 import { MAX_TUI_THINKING_WORD_LENGTH, normalizeTuiThinkingWord } from './tui-thinking-word.js';
-
-export type { ConfigKeyCoverage } from './config-doctor-known-keys.js';
 
 type DoctorSeverity = 'error' | 'warning';
 

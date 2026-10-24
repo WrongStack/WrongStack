@@ -1,5 +1,5 @@
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import type { SessionCatalogProjectClient } from '../session-catalog/client.js';
-import type { SessionSummary } from '../types/session.js';
 import { withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import type { EventBus } from './event-bus-port.js';

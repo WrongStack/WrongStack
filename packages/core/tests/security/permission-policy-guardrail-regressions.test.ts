@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import {
   DefaultPermissionPolicy,
   mergeTrustEntries,
 } from '../../src/security/permission-policy.js';
-import type { Tool } from '../../src/types/index.js';
 
 /**
  * Regressions for three guardrail-erasure defects found by the 2026-08-20

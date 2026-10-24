@@ -20,13 +20,17 @@ import type {
   SessionMarker,
   SessionToolMeta,
   Usage,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 // Narrow subpath, not the `types` barrel: this module is the only value import
 // in `src/protocol/`, which the browser bundles pull in wholesale. Going
-// through the barrel reached `types/mode.ts` → `types/mode-prompts.ts` and
-// dragged `node:fs`/`node:path`/`node:url` into every UI build.
-import { CHAT_MARKER_SOURCES, projectSessionMarkers } from '@wrongstack/core/types/session-markers';
-import { projectSessionToolMeta } from '@wrongstack/core/types/session-timeline';
+// through the barrel used to reach `types/mode.ts` → `types/mode-prompts.ts`
+// and drag `node:fs`/`node:path`/`node:url` into every UI build (the loader
+// now lives in `models/`; the narrow subpath still keeps the graph small).
+import {
+  CHAT_MARKER_SOURCES,
+  projectSessionMarkers,
+} from '@wrongstack/contracts/types/session-markers';
+import { projectSessionToolMeta } from '@wrongstack/contracts/types/session-timeline';
 
 /**
  * Upper bound on replayed conversation messages. A very long session would

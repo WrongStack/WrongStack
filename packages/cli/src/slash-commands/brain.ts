@@ -10,12 +10,12 @@
  * (config.brain is denied in project scope by design).
  */
 import { randomUUID } from 'node:crypto';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type {
   BrainAutoRisk,
   BrainConfigPatch,
   BrainConfigSnapshot,
 } from '@wrongstack/core/execution';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { compactEntry, handleBrainCouncilSubcommand, parseRefEntry } from './brain-council.js';
 import { formatBrainStats, formatBrainStatus, readLedgerEntries } from './brain-status.js';

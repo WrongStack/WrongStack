@@ -1,6 +1,6 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it, vi } from 'vitest';
 import { createTurnToolGuidance } from '../../src/core/turn-tool-guidance.js';
-import type { Tool } from '../../src/types/tool.js';
 
 function harness() {
   const afterTools = vi.fn(() => 'follow-up');

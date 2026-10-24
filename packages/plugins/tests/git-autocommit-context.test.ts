@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import type { PluginAPI, Tool } from '@wrongstack/core/types';
+import type { PluginAPI, Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ execFile: vi.fn() }));

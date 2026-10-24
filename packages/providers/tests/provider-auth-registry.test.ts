@@ -1,4 +1,4 @@
-import type { ProviderAuthOutcome, ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderAuthOutcome, ProviderConfig } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { applyProviderAuthOutcome, createBuiltinProviderAuthRegistry } from '../src/oauth/index.js';
 

@@ -1,4 +1,4 @@
-import type { Config, ConfigStore } from '@wrongstack/core/types';
+import type { Config, ConfigStore } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { handleJevRoute } from '../src/server/jev-routes.js';

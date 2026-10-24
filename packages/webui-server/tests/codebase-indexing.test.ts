@@ -1,7 +1,7 @@
 import * as path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type { CircuitSnapshot } from '@wrongstack/tools';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type IndexState = {
   ready: boolean;

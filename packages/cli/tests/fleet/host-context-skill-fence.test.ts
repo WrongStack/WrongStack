@@ -15,7 +15,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import type { SubagentConfig } from '@wrongstack/core/types';
+import type { SubagentConfig } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resolveHostSubagentSkillResolution } from '../../src/fleet/host-context.js';
 import type { MultiAgentDeps } from '../../src/fleet/host-types.js';

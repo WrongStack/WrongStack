@@ -1,4 +1,4 @@
-import type { ModelsDevModel, ResolvedProvider } from '@wrongstack/core/types';
+import type { ModelsDevModel, ResolvedProvider } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { searchCatalogModels } from '../src/server/model-catalog-search.js';
 

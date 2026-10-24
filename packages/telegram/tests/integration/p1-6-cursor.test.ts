@@ -18,7 +18,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TelegramBot } from '../../src/bot.js';
 import { OffsetStore } from '../../src/offset-store.js';

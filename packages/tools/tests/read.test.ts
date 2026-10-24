@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { isFsError, isToolValidationError } from '@wrongstack/core/types';
+import { isFsError, isToolValidationError } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readTool } from '../src/read.js';
 import { mkSandbox, newSignal, type Sandbox } from './fixtures.js';

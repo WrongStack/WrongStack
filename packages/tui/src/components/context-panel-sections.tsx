@@ -1,4 +1,4 @@
-import type { ContextBreakdown } from '@wrongstack/core/utils';
+import type { ContextBreakdown } from '@wrongstack/core/agent';
 import type React from 'react';
 import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';

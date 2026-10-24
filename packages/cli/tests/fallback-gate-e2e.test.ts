@@ -15,9 +15,9 @@
  * resolves null → extension proceeds with the chain head.
  */
 
+import { EventBus } from '@wrongstack/contracts/kernel';
+import { type Config, type Provider, ProviderError } from '@wrongstack/contracts/types';
 import { createFallbackModelExtension } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
-import { type Config, type Provider, ProviderError } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { createFallbackGate } from '../src/wiring/fallback-gate.js';
 

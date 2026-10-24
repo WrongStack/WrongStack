@@ -13,7 +13,7 @@
 import { mkdir } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import type { Provider, Request } from '@wrongstack/core/types';
+import type { Provider, Request } from '@wrongstack/contracts/types';
 import {
   atomicWrite,
   readBundledInstructionText,

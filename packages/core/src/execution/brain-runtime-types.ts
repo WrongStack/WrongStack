@@ -1,16 +1,20 @@
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type {
+  BrainConfig,
+  BrainCouncilVoterConfig,
+  BrainModelEntry,
+} from '@wrongstack/contracts/types/config';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import type {
   BrainArbiter,
   BrainDecisionRequest,
   BrainEscalationMode,
   BrainTerminalPolicy,
-} from '../coordination/brain.js';
-import type { BrainDecisionExplanation } from '../coordination/brain-explain.js';
-import type { BrainHeuristicsConfig } from '../coordination/brain-heuristics.js';
-import type { BrainRule } from '../coordination/brain-rules.js';
-import type { BrainTierStats } from '../coordination/brain-telemetry.js';
-import type { EventBus } from '../kernel/events.js';
-import type { BrainConfig, BrainCouncilVoterConfig, BrainModelEntry } from '../types/config.js';
-import type { Provider } from '../types/provider.js';
+} from '../brain/brain.js';
+import type { BrainDecisionExplanation } from '../brain/brain-explain.js';
+import type { BrainHeuristicsConfig } from '../brain/brain-heuristics.js';
+import type { BrainRule } from '../brain/brain-rules.js';
+import type { BrainTierStats } from '../brain/brain-telemetry.js';
 import type { TypeSafeJudge } from '../typesafe/judgments.js';
 import type { BrainAutoRisk } from './autonomy-brain.js';
 

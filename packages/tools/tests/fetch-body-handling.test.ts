@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { installLimitsSource } from '@wrongstack/core/types';
+import { installLimitsSource } from '@wrongstack/contracts/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // The guard reads this once at module load, so it must be set before import.

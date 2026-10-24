@@ -6,7 +6,7 @@
  * logic can be unit-tested without jsdom, mirroring the pattern set by
  * `mailbox-grouping.test.ts`. Consumed by `mailbox-live-view.tsx`.
  */
-import type { HqMailboxMessageType, HqMailboxPriority } from '@wrongstack/core/hq';
+import type { HqMailboxMessageType, HqMailboxPriority } from '@wrongstack/hq';
 
 export interface MailboxLiveFilterState {
   /** Selected message types. Empty = all types. */

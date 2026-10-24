@@ -1,4 +1,4 @@
-import type { Config, Provider } from '@wrongstack/core/types';
+import type { Config, Provider } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { createGoalRefinerAdapter } from '../src/server/goal-refiner-adapter.js';
 

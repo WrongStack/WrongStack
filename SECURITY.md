@@ -132,7 +132,7 @@ they are defense in depth, not a sandbox.
 - **Plaintext migration** on every boot for users coming from earlier
   versions: detects unencrypted secret-bearing keys and rewrites the
   config encrypted.
-- **Secret scrubber** ([packages/core/src/security/secret-scrubber.ts](packages/core/src/security/secret-scrubber.ts))
+- **Secret scrubber** ([packages/primitives/src/secret-scrubber.ts](packages/primitives/src/secret-scrubber.ts))
   recognizes known credential shapes (Anthropic / OpenAI / GitHub / GCP /
   Slack / Stripe / AWS / Twilio / JWT / mongo-postgres-mysql-redis URIs /
   Bearer / generic high-entropy `*_KEY=` patterns). UI, HQ, and session paths

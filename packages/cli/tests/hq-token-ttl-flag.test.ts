@@ -16,8 +16,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { readHqAuthFile } from '@wrongstack/core/hq';
-import type { ContentBlock, TextBlock } from '@wrongstack/core/types';
+import type { ContentBlock, TextBlock } from '@wrongstack/contracts/types';
+import { readHqAuthFile } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hqCmd } from '../src/subcommands/handlers/hq.js';
 import type { SubcommandDeps } from '../src/subcommands/index.js';

@@ -1,4 +1,4 @@
-import type { MCPServerConfig } from '@wrongstack/core/types';
+import type { MCPServerConfig } from '@wrongstack/contracts/types';
 
 /**
  * `${VAR}` / `${VAR:-default}` placeholders in an MCP server's command, args,

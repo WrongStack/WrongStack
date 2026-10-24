@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { isCompatibilityQuirks, OpenAICompatibleProvider } from '../src/openai-compatible.js';
 

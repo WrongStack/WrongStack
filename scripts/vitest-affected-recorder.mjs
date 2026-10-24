@@ -4,7 +4,7 @@
  *
  * Why this is not `vitest --changed` / `vitest --related`: both were measured
  * against this repo (2026-09-06) and return NOTHING. Appending a line to
- * `packages/core/src/types/session.ts` — a module hundreds of suites reach —
+ * `packages/contracts/src/types/session.ts` — a module hundreds of suites reach —
  * selected zero test files. A selector that silently skips everything that
  * could break is worse than no selector, so the dependency edges are taken
  * from Vitest's own SSR module graph after a run instead of being predicted

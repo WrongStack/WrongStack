@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { WIDE_SUBAGENT_CAPABILITIES } from '../../src/security/capabilities.js';
@@ -13,7 +14,6 @@ import {
   AutoApprovePermissionPolicy,
   DefaultPermissionPolicy,
 } from '../../src/security/permission-policy.js';
-import type { Tool } from '../../src/types/index.js';
 
 /**
  * WS-2026-09-26-03 (security-check 2026-09-26).

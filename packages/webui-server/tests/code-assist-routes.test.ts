@@ -11,8 +11,9 @@
  *  2. A read-only run gets read-only capabilities and is told to recommend
  *     rather than edit. `fix` is the only preset that may write.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type { AgentFactory } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { buildCodeAssistPrompt } from '../src/server/code-assist-prompt.js';

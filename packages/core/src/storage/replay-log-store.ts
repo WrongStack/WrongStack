@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from './event-bus-port.js';
+import type { Request, Response } from '@wrongstack/contracts/types/provider';
 import { hashRequest } from '../replay/hash.js';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
-import type { Request, Response } from '../types/provider.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { safeParse } from '../utils/safe-json.js';
 import { sessionScopedPath } from '../utils/session-scoped-path.js';
+import type { EventBus } from './event-bus-port.js';
 
 /**
  * Surface the OS error code (EACCES, ENOSPC, …) alongside the message in

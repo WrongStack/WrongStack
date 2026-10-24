@@ -5,14 +5,15 @@
  * would free none of the agent's window and would cost the transcript a
  * later model switch or resume carries over.
  */
+
+import type { CompactReport } from '@wrongstack/contracts/types/compactor';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import {
   agentSessionKey,
   readAgentContext,
   recordAgentContext,
 } from '../core/agent-owned-context.js';
 import type { Context } from '../core/context.js';
-import type { CompactReport } from '../types/compactor.js';
-import { ProviderError } from '../types/provider.js';
 
 export async function compactAgentOwnedContext(ctx: Context): Promise<CompactReport> {
   const provider = ctx.provider;

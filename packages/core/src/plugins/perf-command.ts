@@ -15,13 +15,14 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { setSessionSubagentsAllowed } from '../coordination/session-subagent-policy.js';
+import type { PromptLoader } from '@wrongstack/contracts/types/prompt';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 // Types come from their owning modules, not the root barrel. Importing
 // `../index.js` here would enrol this file in ARCH-CYCLE-TYPE-14 — the
 // frozen core/plugins/tools type SCC whose exception is explicit that no new
 // members are allowed.
 import type { Context } from '../core/context.js';
-import type { SlashCommand } from '../types/slash-command.js';
+import { parsePerfLog, summarizePerfLog } from '../performance/perf-log.js';
 import {
   DEFAULT_PERF_MODE,
   isPerfModeId,
@@ -29,11 +30,10 @@ import {
   PERF_MODES,
   type PerfModeId,
 } from '../performance/perf-modes.js';
-import { parsePerfLog, summarizePerfLog } from '../performance/perf-log.js';
 import { detectPerfStacks, renderStackGuidance } from '../performance/perf-stack.js';
 import { isPerfMetricId, PERF_METRICS, type PerfMetricId } from '../performance/perf-types.js';
+import { setSessionSubagentsAllowed } from '../security/session-subagent-policy.js';
 import type { PromptUsageStore } from '../storage/prompt-usage-store.js';
-import type { PromptLoader } from '../types/prompt.js';
 
 export const PERF_LOG_FILENAME = 'PERF_LOG.md';
 

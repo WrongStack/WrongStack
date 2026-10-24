@@ -1,6 +1,10 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type {
+  ContextSnapshot,
+  SessionLoadProgress,
+  TokenCounter,
+} from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { ContextSnapshot, SessionLoadProgress, TokenCounter } from '@wrongstack/core/types';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
 export interface SessionResumeContext {

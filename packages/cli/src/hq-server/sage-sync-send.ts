@@ -1,4 +1,4 @@
-import { chunkHqSageRecords, type HqSageSnapshotPayload } from '@wrongstack/core/hq';
+import { chunkHqSageRecords, type HqSageSnapshotPayload } from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 import { sendGuarded } from './snapshot.js';
 

@@ -9,10 +9,10 @@
  * silently skip the auto-thinned names).
  */
 
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
-import type { Tool } from '../../src/types/tool.js';
 
 const makeTool = (name: string, description = `${name} tool`): Tool => ({
   name,

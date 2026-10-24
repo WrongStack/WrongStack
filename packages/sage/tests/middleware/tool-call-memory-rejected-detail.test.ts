@@ -10,7 +10,7 @@
  * `tool-call-memory.test.ts`.
  */
 
-import type { EventMap } from '@wrongstack/core/kernel';
+import type { EventMap } from '@wrongstack/contracts/kernel';
 import { describe, expect, it } from 'vitest';
 import type { Sage } from '../../src/types.js';
 

@@ -3,10 +3,13 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  diffRegistry,
+  validateRegistryManifest,
+} from '@wrongstack/contracts/types/prompt-registry';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PromptInstaller } from '../../src/prompts/prompt-installer.js';
 import { PromptManifestStore } from '../../src/prompts/prompt-manifest-store.js';
-import { diffRegistry, validateRegistryManifest } from '../../src/types/prompt-registry.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const datasetIndex = path.join(here, '..', '..', 'data', 'prompts', 'index.json');

@@ -1,17 +1,17 @@
 // Backend types for WebUI server
 // These are the internal types used by the server-side code
 
-import type { Agent, AgentPipelines } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { TrustBoundary } from '@wrongstack/core/security';
-import type { JournalEntry } from '@wrongstack/core/storage';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   ConfigStore,
   ModelsRegistry,
   SecretVault,
   SessionStore,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Agent, AgentPipelines } from '@wrongstack/core/agent';
+import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { TrustBoundary } from '@wrongstack/core/security';
+import type { JournalEntry } from '@wrongstack/core/storage';
 import type { WebSocket } from 'ws';
 
 /** Compatibility envelope; new boundaries should decode to CanonicalServerMessage. */

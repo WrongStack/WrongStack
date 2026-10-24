@@ -1,7 +1,7 @@
-import type { SessionEventMap } from '../kernel/events/session-events.js';
-import { isVolatileSystemBlock, type TextBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
-import type { Provider, Request } from '../types/provider.js';
+import type { SessionEventMap } from '@wrongstack/contracts/kernel/events/session-events';
+import { isVolatileSystemBlock, type TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider, Request } from '@wrongstack/contracts/types/provider';
 import { formatMemoryEvidenceBlock } from '../utils/memory-evidence-fence.js';
 import {
   getRequestResidency,

@@ -27,7 +27,7 @@
  *
  * @public
  */
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { releaseHandle } from '../runtime/index.js';
 
 interface WrapEntry {

@@ -1,6 +1,5 @@
+import { DEFAULT_TOOLS_CONFIG } from '@wrongstack/contracts/types';
 import { Agent, Context } from '@wrongstack/core/agent';
-
-import { DEFAULT_TOOLS_CONFIG } from '@wrongstack/core/types';
 
 import { createSessionAgentRegistry, createSessionTokenCounter } from './session-agent-registry.js';
 
@@ -30,13 +29,13 @@ export function createSessionAgentManager({
   projectRoot: string;
   workingDir: string;
   context: import('@wrongstack/core/agent').Context;
-  modelsRegistry: import('@wrongstack/core/types').ModelsRegistry;
-  container: import('@wrongstack/core/kernel').Container;
+  modelsRegistry: import('@wrongstack/contracts/types').ModelsRegistry;
+  container: import('@wrongstack/contracts/kernel').Container;
   toolRegistry: import('@wrongstack/core/registry').ToolRegistry;
   providerRegistry: import('@wrongstack/core/registry').ProviderRegistry;
-  events: import('@wrongstack/core/kernel').EventBus;
+  events: import('@wrongstack/contracts/kernel').EventBus;
   pipelines: import('@wrongstack/core/agent').AgentPipelines;
-  config: import('@wrongstack/core/types').Config;
+  config: import('@wrongstack/contracts/types').Config;
   toolExecutor: import('@wrongstack/core/execution').ToolExecutor;
 }) {
   const sessionAgents = createSessionAgentRegistry({
@@ -53,7 +52,7 @@ export function createSessionAgentManager({
         // A placeholder writer: the real one is installed by the session
         // transition (`session.new` / `session.resume`) that owns this id.
         session: { id: sessionId, traceId: context.traceId } as Awaited<
-          ReturnType<import('@wrongstack/core/types').SessionStore['create']>
+          ReturnType<import('@wrongstack/contracts/types').SessionStore['create']>
         >,
         traceId: context.traceId,
         systemPrompt: context.systemPrompt,

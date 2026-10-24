@@ -1,7 +1,7 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Capabilities, Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import { LLMSelector } from '../../src/models/llm-selector.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Capabilities, Provider } from '../../src/types/provider.js';
 
 function makeTextBlock(text: string) {
   return { type: 'text' as const, text };

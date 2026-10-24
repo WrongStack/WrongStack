@@ -1,5 +1,5 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { render } from 'ink-testing-library';
 import { expect, it, vi } from 'vitest';
 import type { Action } from '../src/app-action-type.js';

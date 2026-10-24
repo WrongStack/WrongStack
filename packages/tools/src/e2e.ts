@@ -1,6 +1,6 @@
 import { open, readdir } from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { safeResolveReal } from './_util.js';
 
 export type E2EFramework = 'playwright' | 'cypress';

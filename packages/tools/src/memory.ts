@@ -1,5 +1,5 @@
-import type { MemoryScope, MemoryStore, Tool } from '@wrongstack/core/types';
-import { ToolValidationError, type MemoryEntry } from '@wrongstack/core/types';
+import type { MemoryScope, MemoryStore, Tool } from '@wrongstack/contracts/types';
+import { type MemoryEntry, ToolValidationError } from '@wrongstack/contracts/types';
 
 export interface RememberInput {
   text: string;

@@ -23,7 +23,7 @@ import type {
   SubagentRunner,
   SubagentRunOutcome,
   TaskSpec,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   cancelTask,

@@ -1,10 +1,10 @@
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { setSandboxAgentOverride } from '../sandbox/agent-overrides.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
+import { lockSessionSubagentPolicyForSession } from '../security/session-subagent-policy.js';
 import { FleetSpawnBudgetError } from './director/director-errors.js';
 import { isExternalAgentSpawn, isHumanPinnedSpawn } from './director-spawn-model.js';
 import { type DirectorFleetHost, spawn as fleetSpawn } from './fleet-spawn.js';
 import { claimSubagentSlot, type SubagentSlotClaim } from './session-subagent-models.js';
-import { lockSessionSubagentPolicyForSession } from './session-subagent-policy.js';
 
 interface DirectorSpawnAdmissionHost {
   readonly workCompleteFlag: boolean;

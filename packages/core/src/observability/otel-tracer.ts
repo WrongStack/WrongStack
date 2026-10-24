@@ -13,7 +13,10 @@
  * don't need a build-time dependency. Anything OTel-compatible works,
  * including OpenInference, Tempo, etc.
  */
-import type { Span as WStackSpan, Tracer as WStackTracer } from '../types/observability.js';
+import type {
+  Span as WStackSpan,
+  Tracer as WStackTracer,
+} from '@wrongstack/contracts/types/observability';
 
 interface OTelLikeSpan {
   setAttribute(key: string, value: string | number | boolean): unknown;

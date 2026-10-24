@@ -30,7 +30,7 @@ import type {
   ProviderAuthOutcome,
   ProviderAuthSession,
   ProviderAuthStrategy,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { bootstrapAntigravityProject } from '../google-antigravity-bootstrap.js';
 import { fetchAntigravityModels } from '../google-antigravity-models.js';
 import {

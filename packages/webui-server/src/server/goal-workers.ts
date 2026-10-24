@@ -1,7 +1,7 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import type { Agent, Context } from '@wrongstack/core/agent';
 import { type AgentFactory, assignNickname } from '@wrongstack/core/coordination';
-import { GoalAssessor, type GoalAssessResult, type PhaseNode } from '@wrongstack/core/goal';
-import type { Logger } from '@wrongstack/core/types';
+import { GoalAssessor, type GoalAssessResult, type PhaseNode } from '@wrongstack/goal';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { sendSerialized } from './ws-utils.js';
@@ -21,7 +21,7 @@ export interface GoalWorkerHost {
 
 export async function executeGoalTask(
   host: GoalWorkerHost,
-  task: import('@wrongstack/core/types').TaskNode,
+  task: import('@wrongstack/contracts/types').TaskNode,
   phaseId: string,
   env?: { cwd?: string | undefined; branch?: string | undefined },
   signal?: AbortSignal | undefined,

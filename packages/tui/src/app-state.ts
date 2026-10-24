@@ -1,7 +1,7 @@
 // State, Action, and supporting types extracted from app-reducer.ts.
 // This file has NO React or Ink dependencies — pure type definitions.
-import type { AutonomyStage, FleetChatVerbosity } from '@wrongstack/core/types';
-import type { WorktreeTimelineEvent } from '@wrongstack/core/types/worktree-timeline';
+import type { AutonomyStage, FleetChatVerbosity } from '@wrongstack/contracts/types';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
 import type { PanelState } from './app-panel-state.js';
 import type { GoalSummary, QueueItem } from './app-state-core-types.js';

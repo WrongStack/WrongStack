@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyRewindToConversation } from '../../src/storage/session-rewind-apply.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type { Message } from '../../src/types/messages.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

@@ -1,4 +1,4 @@
-import type { SideEffect } from '@wrongstack/core/types';
+import type { SideEffect } from '@wrongstack/contracts/types';
 import { Text } from '../ink.js';
 import { theme } from '../theme.js';
 import { MonitorShell } from './monitor-shell.js';

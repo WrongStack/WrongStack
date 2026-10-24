@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock @wrongstack/core - listContextWindowModes, atomicWrite
 const mockListModes = vi.hoisted(() => vi.fn());
 const mockAtomicWrite = vi.hoisted(() => vi.fn());
 const mockReadFile = vi.hoisted(() => vi.fn());
 
-vi.mock('@wrongstack/core/types', () => ({
+vi.mock('@wrongstack/contracts/types', () => ({
   listContextWindowModes: mockListModes,
 }));
 
@@ -22,8 +22,8 @@ vi.mock('node:fs/promises', () => ({
 }));
 
 import {
-  createCustomModeStore,
   type CustomContextMode,
+  createCustomModeStore,
 } from '../src/server/custom-context-modes.js';
 
 // Helper to create a valid custom mode

@@ -1,4 +1,4 @@
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExecuteDeps } from '../src/execute-deps.js';
 import { type ExecutionTuiLocals, runExecutionTui } from '../src/execution-tui.js';

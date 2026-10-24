@@ -3,10 +3,10 @@
  * session-state hints rendered as plain-text context for the refiner call.
  */
 
-import type { ContentBlock } from '../types/blocks.js';
-import { isTextBlock } from '../types/blocks.js';
-import type { MemoryEntry, MemoryScope, MemoryStore } from '../types/memory.js';
-import type { Message } from '../types/messages.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { MemoryEntry, MemoryScope, MemoryStore } from '@wrongstack/contracts/types/memory';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import type {
   ConversationTurn,
   EnhanceResult,

@@ -13,7 +13,7 @@
  * `Tool.promptVars`, never the wire schema.
  */
 
-import type { Config } from '../types/config.js';
+import type { Config } from '@wrongstack/contracts/types/config';
 import { resolveModelTargetFromEntry } from './model-matrix.js';
 import { listTierIds, resolveTier, tierLevel, tierModelTarget } from './model-tier.js';
 

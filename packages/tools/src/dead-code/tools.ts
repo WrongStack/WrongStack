@@ -9,8 +9,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { analyzeDeadCode } from './analyze.js';
 import {

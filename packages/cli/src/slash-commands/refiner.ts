@@ -1,5 +1,5 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { noOpVault } from '@wrongstack/core/security';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistAutonomySetting } from '../settings-menu.js';

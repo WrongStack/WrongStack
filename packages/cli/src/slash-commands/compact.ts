@@ -1,5 +1,5 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { compactionReportStillCurrent } from '@wrongstack/core/execution';
-import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 
 export function buildCompactCommand(opts: SlashCommandContext): SlashCommand {

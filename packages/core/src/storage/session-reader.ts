@@ -1,7 +1,11 @@
-import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
-import type { ContentBlock } from '../types/blocks.js';
-import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type { SessionData, SessionEvent, SessionMetadata, SessionStore } from '../types/session.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type {
+  SessionData,
+  SessionEvent,
+  SessionMetadata,
+  SessionStore,
+} from '@wrongstack/contracts/types/session';
 import type {
   DefaultSessionReaderOptions,
   SessionExportOptions,
@@ -10,7 +14,8 @@ import type {
   SessionSearchHit,
   SessionSearchQuery,
   SessionSummaryLite,
-} from '../types/session-reader.js';
+} from '@wrongstack/contracts/types/session-reader';
+import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import { compileUserRegex } from '../utils/regex-guard.js';
 import {
@@ -57,10 +62,10 @@ export class DefaultSessionReader implements SessionReader {
             minTokens?: number | undefined;
             titleContains?: string | undefined;
             limit?: number | undefined;
-          }) => Promise<import('../types/session.js').SessionSummary[]>)
+          }) => Promise<import('@wrongstack/contracts/types/session').SessionSummary[]>)
         | undefined;
     };
-    let raw: import('../types/session.js').SessionSummary[];
+    let raw: import('@wrongstack/contracts/types/session').SessionSummary[];
     if (typeof storeWithFilter.listFiltered === 'function') {
       raw = await storeWithFilter.listFiltered({
         since: q.since,
@@ -121,10 +126,10 @@ export class DefaultSessionReader implements SessionReader {
               minTokens?: number | undefined;
               titleContains?: string | undefined;
               limit?: number | undefined;
-            }) => Promise<import('../types/session.js').SessionSummary[]>)
+            }) => Promise<import('@wrongstack/contracts/types/session').SessionSummary[]>)
           | undefined;
       };
-      let sessions: import('../types/session.js').SessionSummary[];
+      let sessions: import('@wrongstack/contracts/types/session').SessionSummary[];
       if (typeof storeWithFilter.listFiltered === 'function') {
         sessions = await storeWithFilter.listFiltered({
           since: sessionQuery?.since,

@@ -1,6 +1,4 @@
-import type { Context } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   CompactReport,
   ConfigStore,
@@ -15,7 +13,9 @@ import type {
   SessionStore,
   SkillLoader,
   TokenCounter,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Context } from '@wrongstack/core/agent';
+import type { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MultiAgentHost } from '../multi-agent.js';
 import {
@@ -42,7 +42,9 @@ interface SlashCommandsDeps {
   toolRegistry: ToolRegistry;
   paths: WstackPaths;
   sessionStore: SessionStore;
-  sessionRef?: { current?: import('@wrongstack/core/types').SessionWriter | undefined } | undefined;
+  sessionRef?:
+    | { current?: import('@wrongstack/contracts/types').SessionWriter | undefined }
+    | undefined;
   skillLoader: SkillLoader | undefined;
   tokenCounter: TokenCounter;
   renderer: Renderer;
@@ -62,8 +64,8 @@ interface SlashCommandsDeps {
   model: string;
   multiAgentHost: MultiAgentHost;
   fleetStreamController: {
-    mode: import('@wrongstack/core/types').FleetChatVerbosity;
-    setMode(mode: import('@wrongstack/core/types').FleetChatVerbosity): void;
+    mode: import('@wrongstack/contracts/types').FleetChatVerbosity;
+    setMode(mode: import('@wrongstack/contracts/types').FleetChatVerbosity): void;
   };
   /** Controller for the agents monitor overlay (optional). */
   agentsMonitorController?: {

@@ -1,14 +1,14 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { PluginAPI } from '@wrongstack/core/plugin';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { type TelegramBot, truncateForTelegram } from '../bot.js';
+import type { TelegramBotOutbound } from '../bot-queue.js';
 import type { TelegramPluginConfig } from '../config.js';
 import {
   resolveTelegramOutboundTarget,
   scrubTelegramOutboundText,
   type TelegramOutboundTargetPolicy,
 } from '../security/outbound.js';
-import type { TelegramBotOutbound } from '../bot-queue.js';
 
 // ---------------------------------------------------------------------------
 // /telegram-health

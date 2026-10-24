@@ -17,7 +17,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { DesignKitTokens } from '../types/design-kit.js';
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { classifyTokenValue, colorToHex } from './design-color.js';
 import { designMdToTokens, parseDesignMd } from './design-md.js';
 

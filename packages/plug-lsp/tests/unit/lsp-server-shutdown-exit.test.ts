@@ -8,7 +8,7 @@ vi.mock('../../src/utils/safe-spawn.js', () => ({
 
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { LSPServer } from '../../src/server/lsp-server.js';
 
 function deferred<T>() {

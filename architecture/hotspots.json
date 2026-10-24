@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "thresholdLines": 701,
   "files": {
+    "apps/desktop/src/main/main.ts": {
+      "lines": 734,
+      "relativeImports": 20
+    },
     "packages/acp/src/client/acp-session.ts": {
       "lines": 707,
       "relativeImports": 23
@@ -16,15 +20,15 @@
     },
     "packages/core/src/coordination/agent-monitor.ts": {
       "lines": 715,
-      "relativeImports": 4
+      "relativeImports": 3
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
       "lines": 725,
-      "relativeImports": 15
+      "relativeImports": 13
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
       "lines": 703,
-      "relativeImports": 22
+      "relativeImports": 18
     },
     "packages/plugins/src/audit/index.ts": {
       "lines": 715,
@@ -39,8 +43,8 @@
       "relativeImports": 6
     },
     "packages/vibeui/src/components/workspace.tsx": {
-      "lines": 1103,
-      "relativeImports": 29
+      "lines": 1100,
+      "relativeImports": 27
     },
     "packages/vibeui/src/lib/session.ts": {
       "lines": 911,
@@ -50,6 +54,10 @@
       "lines": 708,
       "relativeImports": 6
     },
+    "packages/webui-server/src/server/memory-handlers.ts": {
+      "lines": 705,
+      "relativeImports": 4
+    },
     "packages/webui/src/components/codemap-model.ts": {
       "lines": 1098,
       "relativeImports": 0
@@ -57,14 +65,6 @@
     "packages/webui/src/components/MemoryManager/useMemoryManagerState.ts": {
       "lines": 720,
       "relativeImports": 9
-    },
-    "packages/webui-server/src/server/memory-handlers.ts": {
-      "lines": 705,
-      "relativeImports": 4
-    },
-    "apps/desktop/src/main/main.ts": {
-      "lines": 734,
-      "relativeImports": 20
     }
   }
 }

@@ -49,8 +49,9 @@
  *
  * @public
  */
+
+import type { HookInvocationContext, Plugin } from '@wrongstack/contracts/types';
 import { shellCommandLinesFromInput } from '@wrongstack/core/security';
-import type { HookInvocationContext, Plugin } from '@wrongstack/core/types';
 import { parseInstallCommands } from './install-commands.js';
 import { registerLockfileSync } from './lockfile-sync.js';
 import { type Ecosystem, ecosystemOf, type RegistryFinding, registryVerdict } from './registry.js';

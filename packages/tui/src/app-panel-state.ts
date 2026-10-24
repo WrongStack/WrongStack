@@ -1,8 +1,3 @@
-import type {
-  StatuslineDensities,
-  StatuslineLines,
-  StatuslineOrder,
-} from '@wrongstack/core/statusline';
 // State, Action, and supporting types extracted from app-reducer.ts.
 // This file has NO React or Ink dependencies — pure type definitions.
 import type {
@@ -11,7 +6,12 @@ import type {
   FleetChatVerbosity,
   SkillEntry,
   TokenSavingTier,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type {
+  StatuslineDensities,
+  StatuslineLines,
+  StatuslineOrder,
+} from '@wrongstack/core/statusline';
 
 import type { ResumeSessionEntry, SlashCommandMatch } from './app-state-core-types.js';
 import type { AuthPanelState } from './auth-panel-model.js';
@@ -146,7 +146,7 @@ export type PanelState = {
      * undo key. Undefined on the first ever open, where there is nothing to go
      * back to.
      */
-    previous?: import('@wrongstack/core/types').ThemePresetId | undefined;
+    previous?: import('@wrongstack/contracts/types').ThemePresetId | undefined;
     /**
      * Live-preview mode: while true, moving the cursor applies each focused
      * preset immediately, and Esc restores `previous` before closing. Off by

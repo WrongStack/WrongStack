@@ -154,7 +154,9 @@ export interface CreateHttpServerOptions {
    * A getter, not a value — see `TechStackHandlerDeps.getLlm`.
    */
   getLlm?:
-    | (() => { provider: import('@wrongstack/core/types').Provider; model: string } | undefined)
+    | (() =>
+        | { provider: import('@wrongstack/contracts/types').Provider; model: string }
+        | undefined)
     | undefined;
   /** Permission-governed language_package bridge for approved remediation. */
   executePackageOperation?: import('./techstack-handlers.js').TechStackHandlerDeps['executePackageOperation'];

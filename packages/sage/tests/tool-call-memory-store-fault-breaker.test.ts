@@ -1,5 +1,5 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSageToolCallMiddleware } from '../src/middleware/tool-call-memory.js';
 import { isStoreFault, StoreFaultBreaker } from '../src/middleware/tool-call-memory-breaker.js';

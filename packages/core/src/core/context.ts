@@ -1,10 +1,14 @@
-import { activeLimits, positiveLimit } from '../types/config/limits.js';
+import { activeLimits, positiveLimit } from '@wrongstack/contracts/types/config/limits';
 // Roadmap 10A: TodoItem's canonical home is the types/context.ts leaf
 // (single source of truth, acyclic); re-exported here for existing import paths.
-import type { AgentContext, ContextMessageLimits, TodoItem } from '../types/context.js';
-import type { FileEventRecord } from '../types/file-event-record.js';
-import type { RunEnv } from '../types/run-env.js';
-import type { SessionEvent } from '../types/session.js';
+import type {
+  AgentContext,
+  ContextMessageLimits,
+  TodoItem,
+} from '@wrongstack/contracts/types/context';
+import type { FileEventRecord } from '@wrongstack/contracts/types/file-event-record';
+import type { RunEnv } from '@wrongstack/contracts/types/run-env';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { isAppendableSessionWriter } from './context-conversation-journal.js';
 import { ContextEnvironment } from './context-environment.js';
 import type { ProviderMemoryEvidence } from './context-evidence.js';
@@ -126,7 +130,7 @@ export { isAppendableSessionWriter, resolveEventSessionId, resolveOwningSessionI
    *
    * Bounded at MAX_SIDE_EFFECTS (500) with oldest-first splice.
    */
-  sideEffects: import('../types/side-effect.js').SideEffect[] = [];
+  sideEffects: import('@wrongstack/contracts/types/side-effect').SideEffect[] = [];
   /**
    * Tracked file events for the current session. Populated by
    * `recordFileEvent()` — used for in-memory audit and real-time
@@ -320,7 +324,7 @@ export { isAppendableSessionWriter, resolveEventSessionId, resolveOwningSessionI
   /**
    * Record a structured side effect for the audit trail (P2 #5).
    */
-  recordSideEffect(sideEffect: import('../types/side-effect.js').SideEffect): void {
+  recordSideEffect(sideEffect: import('@wrongstack/contracts/types/side-effect').SideEffect): void {
     const sessionWriter = this.activeRunSessionWriter ?? this.session;
     recordSideEffectEntry(this.sideEffects, sessionWriter, sideEffect, Context.MAX_SIDE_EFFECTS);
   }

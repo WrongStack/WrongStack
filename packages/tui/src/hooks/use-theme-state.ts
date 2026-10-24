@@ -1,5 +1,5 @@
-import type { ConfigStore } from '@wrongstack/core/types';
-import { THEME_RANDOM_ID } from '@wrongstack/core/types';
+import type { ConfigStore } from '@wrongstack/contracts/types';
+import { THEME_RANDOM_ID } from '@wrongstack/contracts/types';
 import { useEffect } from 'react';
 import {
   getActiveThemeName,

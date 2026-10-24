@@ -8,9 +8,10 @@
  *
  * @module core/system-prompt-blocks
  */
-import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
-import { markVolatileSystemBlock, type TextBlock } from '../types/blocks.js';
-import type { Tool } from '../types/tool.js';
+
+import { markVolatileSystemBlock, type TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { MailboxAgentStatus } from '@wrongstack/contracts/types/mailbox';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import {
   formatProjectSuppliedBlock,
   PROJECT_SUPPLIED_INSTRUCTIONS_TAG,

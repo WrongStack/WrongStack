@@ -6,13 +6,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DefaultSessionRewinder, DefaultSessionStore } from '../../src/index.js';
 import {
   applyRewindToConversation,
   redoLastRewind,
 } from '../../src/storage/session-rewind-apply.js';
-import type { SessionWriter } from '../../src/types/session.js';
 
 let root: string;
 let sessionsDir: string;

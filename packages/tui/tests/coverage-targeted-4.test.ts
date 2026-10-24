@@ -5,8 +5,8 @@
  * highlight, kill-slash, ink, thinking-word.
  */
 
+import type { Message } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
-import type { Message } from '@wrongstack/core/types';
 
 // ────────────────────────────────────────────────────────────────────────────
 // input-editing.ts — remaining branches

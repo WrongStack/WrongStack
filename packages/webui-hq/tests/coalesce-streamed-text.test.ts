@@ -1,4 +1,4 @@
-import type { HqTranscriptEntry } from '@wrongstack/core/hq';
+import type { HqTranscriptEntry } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import {
   coalesceStreamedText,

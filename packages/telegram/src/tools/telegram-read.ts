@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import type { TelegramBot } from '../bot.js';
 
 interface TelegramReadInput {

@@ -8,7 +8,7 @@
  * All tools accept the store directly so hosts can wire them however they
  * like — there's no implicit dependency on the sage runtime surface.
  */
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 
 import type { VectorMemoryStore } from './store.js';
 

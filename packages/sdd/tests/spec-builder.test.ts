@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Specification } from '@wrongstack/core/types/spec.js';
+import type { Specification } from '@wrongstack/contracts/types/spec';
 import { describe, expect, it, vi } from 'vitest';
 import {
   AISpecBuilder,

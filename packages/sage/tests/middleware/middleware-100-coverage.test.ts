@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import type { MemoryPort } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { SAGE_SURFACE_CAPABILITY, type Sage, type SageSurface } from '../../src/index.js';
 import { createSageDomainTermExtractorMiddleware } from '../../src/middleware/domain-term-extractor-middleware.js';

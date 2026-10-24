@@ -61,8 +61,8 @@
  * @module core/instruction-template
  */
 
-import type { ConcreteTokenSavingTier } from '../types/config.js';
-import { RUNTIME_CAPABILITY_MANIFEST } from '../types/runtime-capability-manifest.js';
+import type { ConcreteTokenSavingTier } from '@wrongstack/contracts/types/config';
+import { RUNTIME_CAPABILITY_MANIFEST } from '@wrongstack/contracts/types/runtime-capability-manifest';
 
 const CANONICAL_TOOL_NAMES = new Set(
   RUNTIME_CAPABILITY_MANIFEST.flatMap((entry) => [...entry.tools]),

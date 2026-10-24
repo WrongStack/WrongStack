@@ -1,8 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { noOpLogger } from '../infrastructure/logger.js';
-import { FetchError } from '../types/errors.js';
-import type { Logger } from '../types/logger.js';
+import { FetchError } from '@wrongstack/contracts/types/errors';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import type {
   ModelCatalogSource,
   ModelsDevPayload,
@@ -10,7 +9,8 @@ import type {
   ModelsRegistry,
   ResolvedModel,
   ResolvedProvider,
-} from '../types/models-registry.js';
+} from '@wrongstack/contracts/types/models-registry';
+import { noOpLogger } from '../infrastructure/logger.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { mergeModelsPayload } from '../utils/merge-models-payload.js';

@@ -1,11 +1,11 @@
-import { toErrorMessage } from '../utils/error.js';
 import type {
   AggregateHealth,
   HealthCheck,
   HealthCheckResult,
   HealthRegistry,
   HealthStatus,
-} from '../types/observability.js';
+} from '@wrongstack/contracts/types/observability';
+import { toErrorMessage } from '../utils/error.js';
 
 const SEVERITY: Record<HealthStatus, number> = {
   healthy: 0,

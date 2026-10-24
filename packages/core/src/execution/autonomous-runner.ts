@@ -1,8 +1,8 @@
+import { toWrongStackError } from '@wrongstack/contracts/types/errors';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { DoneCondition } from '@wrongstack/contracts/types/multi-agent';
 import type { Agent, RunResult } from '../core/agent.js';
 import type { Context } from '../core/context.js';
-import { toWrongStackError } from '../types/errors.js';
-import type { Logger } from '../types/logger.js';
-import type { DoneCondition } from '../types/multi-agent.js';
 import { assertNever } from '../utils/assert-never.js';
 import { compileUserRegex } from '../utils/regex-guard.js';
 

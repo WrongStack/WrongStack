@@ -1,3 +1,4 @@
+import type { Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
 import {
@@ -8,7 +9,6 @@ import type { TodoItem } from '../../src/core/context.js';
 import { writePendingNextSteps } from '../../src/core/next-steps-slot.js';
 import { conversationBoundToRequest } from '../../src/core/request-conversation-binding.js';
 import { tagBlock } from '../../src/core/system-prompt-blocks.js';
-import type { Request } from '../../src/types/provider.js';
 import {
   createContextEvidenceState,
   recordUserIntentEvidence,

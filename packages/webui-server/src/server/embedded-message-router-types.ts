@@ -1,7 +1,7 @@
+import type { Logger, MemoryPort } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { TrustBoundary } from '@wrongstack/core/security';
-import type { Logger, MemoryPort } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { WebSocket } from 'ws';
 import type { BrainHandlerContext } from './brain-handlers.js';
@@ -40,7 +40,7 @@ export interface EmbeddedMessageRouterOptions {
 }
 
 export interface EmbeddedMessageRouterDeps {
-  jevVault?: import('@wrongstack/core/types').SecretVault | undefined;
+  jevVault?: import('@wrongstack/contracts/types').SecretVault | undefined;
   trustBoundary: TrustBoundary;
   opts: EmbeddedMessageRouterOptions;
   logger: Logger;

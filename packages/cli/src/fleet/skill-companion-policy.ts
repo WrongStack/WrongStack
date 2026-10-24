@@ -1,7 +1,7 @@
+import type { SkillManifest, SubagentConfig, Tool } from '@wrongstack/contracts/types';
 import { makeSubagentResultTool } from '@wrongstack/core/coordination';
 import { ToolCapabilities } from '@wrongstack/core/security';
 import { skillPromptExclusionReasons } from '@wrongstack/core/skills';
-import type { SkillManifest, SubagentConfig, Tool } from '@wrongstack/core/types';
 
 export const SKILL_COMPANION_ROLE = 'skill-companion';
 export const SKILL_COMPANION_ID_PREFIX = 'skill-companion-';

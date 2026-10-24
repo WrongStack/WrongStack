@@ -5,8 +5,12 @@
  */
 
 import * as path from 'node:path';
-import type { Context } from '../core/context.js';
-import type { DirectoryPolicy, DirectoryRule, PermissionDecision } from '../types/permission.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type {
+  DirectoryPolicy,
+  DirectoryRule,
+  PermissionDecision,
+} from '@wrongstack/contracts/types/permission';
 import { matchAny, matchGlob } from '../utils/glob-match.js';
 
 const PATH_KEYS = new Set([
@@ -70,7 +74,7 @@ function extractPathInputs(input: unknown): string[] {
  * the project root the absolute path is returned unchanged, prefixed
  * with `..` so leading-wildcard patterns still match.
  */
-function resolveRawTargetPath(raw: string, ctx: Context): string {
+function resolveRawTargetPath(raw: string, ctx: AgentContext): string {
   // If the path is absolute, use it directly. Otherwise resolve against
   // workingDir. We deliberately do NOT use projectRoot here — the agent
   // may have set a working directory inside the project, and the rule
@@ -86,14 +90,14 @@ function resolveRawTargetPath(raw: string, ctx: Context): string {
   return path.relative(projectRoot, normalizedAbsolute).replace(/\\/g, '/');
 }
 
-export function resolveTargetPaths(input: unknown, ctx: Context): string[] {
+export function resolveTargetPaths(input: unknown, ctx: AgentContext): string[] {
   // Preserve raw filesystem paths until after path.resolve(). Trust-pattern
   // subjects glob-escape characters such as `[` and `]`, which would change
   // real filenames and let matching rules observe a different path.
   return extractPathInputs(input).map((raw) => resolveRawTargetPath(raw, ctx));
 }
 
-export function resolveGlobSelectors(input: unknown, ctx: Context): Set<string> {
+export function resolveGlobSelectors(input: unknown, ctx: AgentContext): Set<string> {
   if (!input || typeof input !== 'object') return new Set();
   const obj = input as Record<string, unknown>;
   const selectors: string[] = [];
@@ -175,7 +179,7 @@ export function matchTargetRules(
  * normalize it to forward slashes. Multi-target enforcement uses every path
  * internally; this helper retains its historical first-target public contract.
  */
-export function resolveTargetPath(input: unknown, ctx: Context): string | undefined {
+export function resolveTargetPath(input: unknown, ctx: AgentContext): string | undefined {
   return resolveTargetPaths(input, ctx)[0];
 }
 

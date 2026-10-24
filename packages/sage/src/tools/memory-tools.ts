@@ -1,4 +1,4 @@
-import type { MemoryScope, Tool } from '@wrongstack/core/types';
+import type { MemoryScope, Tool } from '@wrongstack/contracts/types';
 import type { SageServiceLike } from '../service-contract.js';
 import { validityKey } from '../shared/memory-validity.js';
 import type {

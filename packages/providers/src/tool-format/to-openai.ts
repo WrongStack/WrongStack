@@ -7,8 +7,8 @@ import type {
   Tool,
   ToolResultBlock,
   ToolUseBlock,
-} from '@wrongstack/core/types';
-import { documentAsText } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { documentAsText } from '@wrongstack/contracts/types';
 import {
   compactToolDefinitionForWire,
   SCHEMA_DESCRIPTION_MAX_CHARS,

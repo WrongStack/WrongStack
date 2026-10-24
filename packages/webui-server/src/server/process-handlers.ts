@@ -16,8 +16,8 @@
  * socket using the existing protocol envelopes.
  */
 
+import type { Logger } from '@wrongstack/contracts/types';
 import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
-import type { Logger } from '@wrongstack/core/types';
 import { getProcessRegistry, tailBackgroundLog } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { authorizeWebUIAction, type WebUIPrivilegedAction } from './privileged-actions.js';

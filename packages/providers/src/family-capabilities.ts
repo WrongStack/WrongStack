@@ -1,4 +1,4 @@
-import type { Capabilities, WireFamily } from '@wrongstack/core/types';
+import type { Capabilities, WireFamily } from '@wrongstack/contracts/types';
 
 /**
  * `maxContext` is 0 (unknown) for every family on purpose. A context window is

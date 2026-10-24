@@ -43,7 +43,7 @@
  *
  * @public
  */
-import type { HookInvocationContext, Plugin } from '@wrongstack/core/types';
+import type { HookInvocationContext, Plugin } from '@wrongstack/contracts/types';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)

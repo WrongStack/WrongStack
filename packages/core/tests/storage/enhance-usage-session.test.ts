@@ -1,7 +1,7 @@
+import type { SessionEvent, SessionMetadata } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { summarizeSessionEvents } from '../../src/storage/session-store/summary-builder.js';
 import { SessionSummaryTracker } from '../../src/storage/session-summary-tracker.js';
-import type { SessionEvent, SessionMetadata } from '../../src/types/session.js';
 
 const ts = '2026-01-01T00:00:00.000Z';
 const baseMeta: SessionMetadata = {

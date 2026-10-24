@@ -1,4 +1,4 @@
-import type { ReasoningEffort, Request } from '@wrongstack/core/types';
+import type { ReasoningEffort, Request } from '@wrongstack/contracts/types';
 import { resolveProviderDefinition } from './provider-definitions.js';
 
 /**

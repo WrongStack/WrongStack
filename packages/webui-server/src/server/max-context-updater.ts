@@ -1,7 +1,4 @@
-import type { Context } from '@wrongstack/core/agent';
-import type { AutoCompactionMiddleware } from '@wrongstack/core/execution';
-import type { EventBus } from '@wrongstack/core/kernel';
-import { refreshCatalogIfStale } from '@wrongstack/core/models';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import {
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   type Config,
@@ -10,7 +7,10 @@ import {
   type Provider,
   type ProviderConfig,
   resolveContextWindowPolicy,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Context } from '@wrongstack/core/agent';
+import type { AutoCompactionMiddleware } from '@wrongstack/core/execution';
+import { refreshCatalogIfStale } from '@wrongstack/core/models';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 

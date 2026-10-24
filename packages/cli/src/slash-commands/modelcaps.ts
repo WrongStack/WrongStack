@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { hasProviderCredential } from '@wrongstack/core/models';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

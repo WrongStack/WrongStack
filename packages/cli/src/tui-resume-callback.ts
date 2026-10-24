@@ -1,4 +1,4 @@
-import type { SessionLoadProgress } from '@wrongstack/core/types';
+import type { SessionLoadProgress } from '@wrongstack/contracts/types';
 
 import { hasOpenTodos } from '@wrongstack/core/utils';
 
@@ -17,12 +17,12 @@ export function createTuiResumeCallback({
 }: {
   state: import('./boot/tui-runtime-state.js').TuiRuntimeState;
   agent: import('@wrongstack/core/agent').Agent;
-  tokenCounter: import('@wrongstack/core/types').TokenCounter;
+  tokenCounter: import('@wrongstack/contracts/types').TokenCounter;
   switchProviderAndModel: (
     providerId: string,
     modelId: string,
   ) => string | Promise<string | null> | null;
-  events: import('@wrongstack/core/kernel').EventBus;
+  events: import('@wrongstack/contracts/kernel').EventBus;
 }) {
   return async (
     sessionId: string,

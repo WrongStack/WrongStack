@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { FetchError } from '@wrongstack/core/types';
+import { FetchError } from '@wrongstack/contracts/types';
 import {
   atomicWrite,
   ensureDir,

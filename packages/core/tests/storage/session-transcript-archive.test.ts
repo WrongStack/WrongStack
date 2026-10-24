@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SessionCatalogStore } from '../../src/session-catalog/store.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 let tmp: string;
 let store: DefaultSessionStore;

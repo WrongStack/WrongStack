@@ -11,10 +11,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadSessionDataFromFile } from '../../src/storage/session-store/load-session-data.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type { SecretScrubber } from '../../src/types/secret-scrubber.js';
 
 const passthroughScrubber: SecretScrubber = {
   scrub: (text) => text,

@@ -1,4 +1,13 @@
 import { join } from 'node:path';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import {
+  type Config,
+  normalizeTokenSavingTier,
+  type Provider,
+  type SecretVault,
+  type SessionWriter,
+  type Tracer,
+} from '@wrongstack/contracts/types';
 import {
   BrainDecisionLedger,
   BrainDecisionQueue,
@@ -19,22 +28,13 @@ import {
   createBrainRuntime,
   resolveBrainConfigDefaults,
 } from '@wrongstack/core/execution';
-import { TOKENS } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import {
   createMcpControlTool,
   createMcpUseTool,
   createSessionRenameTool,
   SESSION_RENAME_TOOL_NAME,
-} from '@wrongstack/core/tools';
-import {
-  type Config,
-  normalizeTokenSavingTier,
-  type Provider,
-  type SecretVault,
-  type SessionWriter,
-  type Tracer,
-} from '@wrongstack/core/types';
+} from '@wrongstack/tools/management';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
 import { installedBridgeAgents } from '../fleet/acp-wrongstack-bridge.js';
@@ -87,7 +87,7 @@ interface BrainOrchestrationDeps {
   modelsRegistry: AnyObj;
   promptBuilder: AnyObj;
   tokenCounter: AnyObj;
-  skillLoader: import('@wrongstack/core/types').SkillLoader | undefined;
+  skillLoader: import('@wrongstack/contracts/types').SkillLoader | undefined;
   projectRoot: string;
   cwd: string;
   wpaths: AnyObj;

@@ -29,9 +29,9 @@ export {
  * runtime light factory can wire fallbacks for SDD worker subagents.
  */
 import { randomUUID } from 'node:crypto';
-import type { AgentExtension } from '../extension/extension-points.js';
-import type { Config } from '../types/config.js';
-import { type Provider, ProviderError, type Response } from '../types/provider.js';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { AgentExtension } from '@wrongstack/contracts/types/extension-points';
+import { type Provider, ProviderError, type Response } from '@wrongstack/contracts/types/provider';
 import {
   configuredProviderIdentities,
   providerIdentities,

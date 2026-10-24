@@ -22,7 +22,7 @@ import {
   hashHqPassword,
   mintHqCookieSecret,
   writeHqAuthFile,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { generateTotp, generateTotpSecret, verifyTotpCounter } from '@wrongstack/core/security';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';

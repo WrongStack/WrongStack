@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { loadGoal } from '@wrongstack/core/goal';
+import { loadGoal } from '@wrongstack/goal';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -181,7 +181,7 @@ describe('/goal refine and concurrent engine writes', () => {
   it('keeps journal entries the engine wrote while the refiner was running', async () => {
     // The refine awaited an LLM and then saved the goal loaded before it,
     // dropping every journal entry the eternal loop recorded in between.
-    const { appendJournal, emptyGoal, saveGoal } = await import('@wrongstack/core/goal');
+    const { appendJournal, emptyGoal, saveGoal } = await import('@wrongstack/goal');
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-goal-refine-'));
     const goalPath = path.join(dir, 'goal.json');
     try {

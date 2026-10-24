@@ -18,8 +18,8 @@ import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelsRegistry } from '@wrongstack/contracts/types';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import type { ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthMenuDeps } from '../src/auth-menu/types.js';
 

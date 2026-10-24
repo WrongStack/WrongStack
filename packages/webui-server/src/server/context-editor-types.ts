@@ -1,4 +1,4 @@
-import type { ContentBlock, Message } from '@wrongstack/core/types';
+import type { ContentBlock, Message } from '@wrongstack/contracts/types';
 
 export type ContextEditorBlock = ContentBlock;
 

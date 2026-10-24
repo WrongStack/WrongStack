@@ -19,24 +19,14 @@
  * across additive host releases.
  */
 
-export { definePlugin, KERNEL_API_VERSION } from '@wrongstack/core/plugin';
-
+export type { EventName, Listener } from '@wrongstack/contracts/kernel';
 // ── The plugin contract ───────────────────────────────────────────────────
-export type {
-  JSONSchema,
-  Plugin,
-  PluginAPI,
-  PluginCapabilities,
-  PluginConfigFieldMetadata,
-  PluginConfigFieldLifecycle,
-  PluginDependency,
-  PluginPipelines,
-  PluginRuntime,
-} from '@wrongstack/core/types';
-
 // ── Lifecycle hooks (Claude-compatible hook points) ───────────────────────
+// ── Tools, events, config ─────────────────────────────────────────────────
 export type {
   AnyHookOutcome,
+  Config,
+  ConfigStore,
   HookEvent,
   HookInput,
   HookInvocationContext,
@@ -44,9 +34,22 @@ export type {
   HookOutcome,
   HookRegistrationOptions,
   InProcessHook,
+  JSONSchema,
+  Logger,
+  Plugin,
+  PluginAPI,
+  PluginCapabilities,
+  PluginConfig,
+  PluginConfigFieldLifecycle,
+  PluginConfigFieldMetadata,
+  PluginDependency,
+  PluginPipelines,
+  PluginRuntime,
   PreToolUseOutcome,
-} from '@wrongstack/core/types';
-
+  SystemPromptContributor,
+  Tool,
+  ToolCallContext,
+} from '@wrongstack/contracts/types';
 // ── Agent extension points (iteration/provider/tool lifecycle) ────────────
 export type {
   AfterIterationHook,
@@ -60,10 +63,4 @@ export type {
   ProviderRunnerFn,
   ProviderRunnerWrapper,
 } from '@wrongstack/core/extension';
-export type { SystemPromptContributor } from '@wrongstack/core/types';
-
-// ── Tools, events, config ─────────────────────────────────────────────────
-export type { Tool, ToolCallContext } from '@wrongstack/core/types';
-export type { EventName, Listener } from '@wrongstack/core/kernel';
-export type { Config, ConfigStore, PluginConfig } from '@wrongstack/core/types';
-export type { Logger } from '@wrongstack/core/types';
+export { definePlugin, KERNEL_API_VERSION } from '@wrongstack/core/plugin';

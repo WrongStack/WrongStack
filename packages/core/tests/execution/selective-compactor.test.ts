@@ -1,13 +1,13 @@
+import type { ContentBlock, TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Capabilities, Provider } from '@wrongstack/contracts/types/provider';
+import type { MessageSelector } from '@wrongstack/contracts/types/selector';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { estimateMessages } from '../../src/execution/compaction-core.js';
 import { CompactionSummaryCache } from '../../src/execution/compaction-summary-cache.js';
 import { SelectiveCompactor } from '../../src/execution/selective-compactor.js';
-import type { ContentBlock, TextBlock } from '../../src/types/blocks.js';
-import type { Logger } from '../../src/types/logger.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Capabilities, Provider } from '../../src/types/provider.js';
-import type { MessageSelector } from '../../src/types/selector.js';
 
 function makeTextBlock(text: string): TextBlock {
   return { type: 'text', text };

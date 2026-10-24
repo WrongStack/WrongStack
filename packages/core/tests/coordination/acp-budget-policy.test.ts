@@ -1,3 +1,4 @@
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   instantiateRosterConfig,
@@ -10,7 +11,6 @@ import {
   createSubagentTaskBudget,
   executeSubagentTask,
 } from '../../src/coordination/multi-agent-runner-helpers.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 const sessionId = 'sess_acp_budget';
 const defaultBudget = {

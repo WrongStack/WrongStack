@@ -16,6 +16,7 @@
  */
 import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import {
   type PersistedQueueItem,
   QUEUE_MAX_BYTES,
@@ -23,7 +24,6 @@ import {
   QUEUE_MAX_ITEMS,
   QueueStore,
 } from '@wrongstack/core/storage';
-import type { ContentBlock } from '@wrongstack/core/types';
 import {
   buildUserContentBlocks,
   type IncomingImagePayload,

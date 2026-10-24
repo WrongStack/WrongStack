@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import type { WorktreeTimelineEvent } from '@wrongstack/core/types/worktree-timeline';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorktreeTimelineView } from '../../src/components/WorktreeTimeline.js';
 import {

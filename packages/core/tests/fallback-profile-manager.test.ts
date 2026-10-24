@@ -1,6 +1,6 @@
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import { FallbackProfileManager } from '../src/core/fallback-profile-manager.js';
-import type { Config } from '../src/types/config.js';
 
 function makeConfig(overrides?: Partial<Config>): Config {
   return {

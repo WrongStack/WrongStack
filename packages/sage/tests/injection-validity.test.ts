@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { expect, it } from 'vitest';
 import { createSageTurnMiddleware } from '../src/middleware/turn-memory.js';
 import { checkInjectionValidity } from '../src/retrieval/validity-checks.js';

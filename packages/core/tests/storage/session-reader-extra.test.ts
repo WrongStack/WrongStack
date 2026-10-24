@@ -1,7 +1,7 @@
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { DefaultSessionReader } from '../../src/storage/session-reader.js';
 import { matchesSessionFilter } from '../../src/storage/session-summary.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 // Covers the across-all-sessions search filters, the search limit cutoff, the
 // export include-flag branches, the invalid-regex throw, and the eventText /

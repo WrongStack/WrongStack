@@ -1,7 +1,7 @@
 import type { Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SessionSummary } from '../../types/session.js';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { withFileLock } from '../../utils/atomic-write.js';
 import { compareSessionSummaries } from '../session-summary.js';
 import { mapWithConcurrency } from '../storage-concurrency.js';

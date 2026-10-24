@@ -9,7 +9,7 @@ import type {
   CouncilResult,
   CouncilVoteResult,
   ResolvedCouncilProfile,
-} from '../types/council.js';
+} from '@wrongstack/contracts/types/council';
 import {
   CALL_CANCELLED_REASON,
   OVERALL_TIMEOUT_REASON,

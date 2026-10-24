@@ -1,4 +1,4 @@
-import type { Message } from '@wrongstack/core/types';
+import type { Message } from '@wrongstack/contracts/types';
 import { type ProjectWatchSubscription, watchProjectTree } from '@wrongstack/core/utils';
 import { useEffect, useRef, useState } from 'react';
 import type { AppProps } from '../app-props.js';

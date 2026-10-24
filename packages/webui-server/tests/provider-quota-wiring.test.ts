@@ -12,7 +12,7 @@
  * declared that session, which would leave every tab but one showing nothing.
  */
 
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { recordProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';

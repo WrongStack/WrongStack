@@ -1,10 +1,10 @@
+import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/core/coordination';
 import type {
   StatuslineDensities,
   StatuslineLines,
   StatuslineOrder,
 } from '@wrongstack/core/statusline';
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
 import type { SessionInterruptController } from './hooks/use-session-interrupt-controller.js';
 import type { AgentTranscriptReader, StatuslineItem } from './ui-contracts.js';
 export interface TuiCoordinationProps {

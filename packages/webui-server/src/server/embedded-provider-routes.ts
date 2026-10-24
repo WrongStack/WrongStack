@@ -1,6 +1,6 @@
 import * as path from 'node:path';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { applyEmbeddedModelSwitch } from './embedded-host-adapters.js';
 import type { EmbeddedMessageRouterDeps } from './embedded-message-router-types.js';

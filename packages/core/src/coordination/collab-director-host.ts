@@ -1,4 +1,4 @@
-import type { SubagentConfig, TaskResult, TaskSpec } from '../types/multi-agent.js';
+import type { SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 
 /** Minimal orchestration surface required by a collaborative session. */
 export interface CollabDirectorHost {

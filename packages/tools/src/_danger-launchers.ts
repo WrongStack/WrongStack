@@ -8,7 +8,7 @@
  * Optional `bypass` argument: a set of rule ids that should be SKIPPED
  * even if they would otherwise match. Wired from
  * `config.tools.exec.danger.bypass` (see `ExecDangerConfig` in
- * `@wrongstack/core/src/types/config.ts`). Unknown ids are silently
+ * `packages/contracts/src/types/config.ts`). Unknown ids are silently
  * ignored — forward-compat: a rule added in a future version can be
  * referenced before the user upgrades their config schema.
  *

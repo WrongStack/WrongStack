@@ -16,7 +16,7 @@
 import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { DesignKitTokens } from '../types/design-kit.js';
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { getDesignKitLoader } from './design-kit-loader.js';
 
 const DESIGN_DIR = '.design';

@@ -1,5 +1,5 @@
+import type { EventBus, EventName, Listener } from '@wrongstack/contracts/kernel';
 import type { Context } from '@wrongstack/core/agent';
-import type { EventBus, EventName, Listener } from '@wrongstack/core/kernel';
 import { onProviderQuota, withQuotaPace } from '@wrongstack/core/quota';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import type { WstackPaths } from '@wrongstack/core/utils';

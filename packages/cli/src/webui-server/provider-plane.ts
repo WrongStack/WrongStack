@@ -1,6 +1,6 @@
 /** Provider routes context + credential hot-reload for the CLI-embedded WebUI host. */
 
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import {
   createEmbeddedProviderOperations,
   type EmbeddedProviderContext,

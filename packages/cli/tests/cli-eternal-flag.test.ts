@@ -1,4 +1,4 @@
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   engineInstances: [] as Array<{ prime: ReturnType<typeof vi.fn> }>,
 }));
 
-vi.mock('@wrongstack/core/goal', () => ({
+vi.mock('@wrongstack/goal', () => ({
   goalFilePath: mocks.goalFilePath,
   loadGoal: mocks.loadGoal,
   saveGoal: mocks.saveGoal,

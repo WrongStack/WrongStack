@@ -1,7 +1,7 @@
+import type { SerializableTaskGraph } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { loadTasks } from '@wrongstack/core/storage';
 import { deserializeTaskGraph, serializeTaskGraph } from '@wrongstack/core/tasking';
-import type { SerializableTaskGraph } from '@wrongstack/core/types';
 import {
   addTask,
   adoptManagedLifecycle,

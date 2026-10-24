@@ -1,5 +1,5 @@
+import type { SessionWriter } from '@wrongstack/contracts/types';
 import { stampAgentId } from '@wrongstack/core/storage';
-import type { SessionWriter } from '@wrongstack/core/types';
 
 /**
  * Session writer for a subagent that has no journal of its own: its events are

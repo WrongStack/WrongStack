@@ -1,10 +1,10 @@
+import { ProviderError, type Response } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import {
   ensureUsableModelResponse,
   isUsableModelResponse,
   shouldFallback,
 } from '../../src/core/fallback-model-selection.js';
-import { ProviderError, type Response } from '../../src/types/provider.js';
 
 /**
  * Regression: an ABORTED run must never be reported as a capacity fault.

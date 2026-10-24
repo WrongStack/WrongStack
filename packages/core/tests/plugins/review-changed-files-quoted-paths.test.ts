@@ -9,8 +9,8 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { getChangedFiles, snapshotChangedFiles } from '../../src/plugins/auto-review-git.js';
 import { createChimeraPlugin } from '../../src/plugins/chimera-plugin.js';
 

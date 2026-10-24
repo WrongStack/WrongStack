@@ -2,13 +2,13 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { getContextBreakdown } from '../../src/core/context-breakdown.js';
 import {
   type Context,
   createContextEvidenceState,
   DefaultSystemPromptBuilder,
   estimateMessageTokens,
   estimateTextTokens,
-  getContextBreakdown,
   type Message,
   SYSTEM_BLOCK_SOURCE,
   type TextBlock,

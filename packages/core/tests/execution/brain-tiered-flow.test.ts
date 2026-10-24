@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  BrainArbiter,
-  BrainDecision,
-  BrainDecisionRequest,
-} from '../../src/coordination/brain.js';
-import { DefaultBrainArbiter } from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../../src/brain/brain.js';
+import { DefaultBrainArbiter } from '../../src/brain/brain.js';
 import {
   type BrainAutoRisk,
   createTieredBrainArbiter,

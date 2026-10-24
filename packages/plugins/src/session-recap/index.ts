@@ -42,7 +42,7 @@
  *
  * @public
  */
-import type { HookInvocationContext, Plugin } from '@wrongstack/core/types';
+import type { HookInvocationContext, Plugin } from '@wrongstack/contracts/types';
 import { releaseHandle } from '../runtime/index.js';
 import { formatDuration, topN, truncate } from './recap-format.js';
 import { readTranscriptTail } from './transcript-tail.js';

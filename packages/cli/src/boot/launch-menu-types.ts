@@ -1,4 +1,4 @@
-import type { LaunchMenuChoice } from '@wrongstack/core/types';
+import type { LaunchMenuChoice } from '@wrongstack/contracts/types';
 import { DEFAULT_PORT as HQ_DEFAULT_PORT } from '../hq-server.js';
 import type { ReadlineInputReader } from '../input-reader.js';
 import type { TerminalRenderer } from '../renderer.js';

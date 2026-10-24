@@ -11,7 +11,7 @@
  * @module worktree/worktree-managed-ops
  */
 import { resolve, sep } from 'node:path';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { GitRunner } from './worktree-git.js';
 import type { WorktreeHandle } from './worktree-types.js';
 

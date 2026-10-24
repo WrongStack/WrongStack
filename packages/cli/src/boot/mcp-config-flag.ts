@@ -11,7 +11,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { MCPServerConfig } from '@wrongstack/core/types';
+import type { MCPServerConfig } from '@wrongstack/contracts/types';
 
 export type LaunchMcpServers = Record<string, Partial<MCPServerConfig>>;
 

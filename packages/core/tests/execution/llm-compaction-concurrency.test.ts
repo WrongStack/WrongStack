@@ -1,3 +1,6 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { MessageSelector } from '@wrongstack/contracts/types/selector';
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ConversationState } from '../../src/core/conversation-state.js';
@@ -7,9 +10,6 @@ import { HybridCompactor } from '../../src/execution/compactor.js';
 import { IntelligentCompactor } from '../../src/execution/intelligent-compactor.js';
 import { SelectiveCompactor } from '../../src/execution/selective-compactor.js';
 import type { SessionEventBridge } from '../../src/storage/session-event-bridge.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Provider } from '../../src/types/provider.js';
-import type { MessageSelector } from '../../src/types/selector.js';
 
 function turns(prefix: string): Message[] {
   return Array.from({ length: 40 }, (_, i) => ({

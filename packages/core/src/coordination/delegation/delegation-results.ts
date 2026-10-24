@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { activeLimits, positiveLimit } from '../../types/config/limits.js';
-import type { TaskResult } from '../../types/multi-agent.js';
+import { activeLimits, positiveLimit } from '@wrongstack/contracts/types/config/limits';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import { safeParse } from '../../utils/safe-json.js';
 import { formatSubagentStructuredReport } from '../subagent-result-tool.js';
 import type {

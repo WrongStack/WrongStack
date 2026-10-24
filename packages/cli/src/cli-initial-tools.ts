@@ -1,4 +1,4 @@
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import { isRestrictedMode, withRestrictedTools } from './boot/restricted-mode.js';
 import { isSafeMode } from './boot/safe-mode.js';
 import { resolveToolRestriction } from './boot/tool-restriction-flags.js';
@@ -7,29 +7,29 @@ import { setupCliPromptAndTools } from './wiring/cli-prompt-and-tools-setup.js';
 import { registerCliManagementTools } from './wiring/management-tools.js';
 
 interface SetupInitialCliToolsInput {
-  container: import('@wrongstack/core/kernel').Container;
+  container: import('@wrongstack/contracts/kernel').Container;
   flags: Record<string, string | boolean>;
   renderer: import('./renderer.js').TerminalRenderer;
-  modeStore: import('@wrongstack/core/types').ModeStore;
-  memoryStore: import('@wrongstack/core/types').MemoryPort;
+  modeStore: import('@wrongstack/contracts/types').ModeStore;
+  memoryStore: import('@wrongstack/contracts/types').MemoryPort;
   modeId: string;
   modePrompt: string;
   modelCapabilitiesRef: {
     current: import('./boot/system-prompt.js').ModelCapabilities | undefined;
   };
-  getConfig: () => import('@wrongstack/core/types').Config;
+  getConfig: () => import('@wrongstack/contracts/types').Config;
   wpaths: import('@wrongstack/core/utils').WstackPaths;
   projectRoot: string;
-  events: import('@wrongstack/core/kernel').EventBus;
+  events: import('@wrongstack/contracts/kernel').EventBus;
   vectorMemoryStore: import('@wrongstack/vector-memory').VectorMemoryStore | undefined;
-  configStore: import('@wrongstack/core/types').ConfigStore;
+  configStore: import('@wrongstack/contracts/types').ConfigStore;
   profileConfigPath: string;
-  modelsRegistry: import('@wrongstack/core/types').ModelsRegistry;
+  modelsRegistry: import('@wrongstack/contracts/types').ModelsRegistry;
   logger: import('@wrongstack/core/infrastructure').DefaultLogger;
   teardownHandlers: (() => void)[];
-  activeMode: import('@wrongstack/core/types').Mode | null;
+  activeMode: import('@wrongstack/contracts/types').Mode | null;
   cwd: string;
-  provider: import('@wrongstack/core/types').Provider;
+  provider: import('@wrongstack/contracts/types').Provider;
 }
 
 export async function setupInitialCliTools({
@@ -59,7 +59,7 @@ export async function setupInitialCliTools({
 
   const skillLoader = container.resolve(TOKENS.SkillLoader);
   const promptLoader = container.resolve(TOKENS.PromptLoader);
-  const sessionRef: { current: import('@wrongstack/core/types').SessionWriter | undefined } = {
+  const sessionRef: { current: import('@wrongstack/contracts/types').SessionWriter | undefined } = {
     current: undefined,
   };
   const autonomyModeRef: {
@@ -90,7 +90,7 @@ export async function setupInitialCliTools({
 
   const stdinInteractive = process.stdin.isTTY;
   const hookRunnerRef: {
-    current: import('@wrongstack/core/tools').PluginManagerHookRunner | null;
+    current: import('@wrongstack/tools/management').PluginManagerHookRunner | null;
   } = { current: null };
   const switchProviderAndModelRef: {
     current: ((providerId: string, modelId: string) => Promise<string | null>) | null;

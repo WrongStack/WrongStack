@@ -1,7 +1,7 @@
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import type { Tool } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { createLiveBrowserAccess } from './live-access.js';
 import { BrowserSessionManager, browserInstallationDiagnostics } from './manager.js';

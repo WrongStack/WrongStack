@@ -57,8 +57,8 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { basename } from 'node:path';
+import { type Logger, type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import type { NotificationMessage, NotificationResult } from '@wrongstack/core/notifications';
-import { type Logger, type Plugin, ToolValidationError } from '@wrongstack/core/types';
 import { isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils';
 import { safeJsonStringify } from '../runtime/index.js';
 import { DesktopNotifier } from './desktop-notifier.js';

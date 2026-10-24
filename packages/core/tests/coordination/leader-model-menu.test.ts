@@ -1,9 +1,9 @@
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import { createDelegateTool } from '../../src/coordination/delegate-tool.js';
 import { FLEET_ROSTER } from '../../src/coordination/fleet.js';
 import { renderLeaderModelMenu } from '../../src/coordination/leader-model-menu.js';
 import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
-import type { Config } from '../../src/types/config.js';
 
 const SESSION = { provider: 'leader-co', model: 'leader-1' };
 

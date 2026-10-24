@@ -1,5 +1,5 @@
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import { mailboxSessionTag } from '@wrongstack/core/coordination';
-import { TOKENS } from '@wrongstack/core/kernel';
 import { createPolicySandboxApprover, setSandboxExpansionApprover } from '@wrongstack/core/sandbox';
 import { resolveExecutionMode } from './boot/execution-mode.js';
 import { isSafeMode } from './boot/safe-mode.js';

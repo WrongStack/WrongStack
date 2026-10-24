@@ -10,7 +10,7 @@ import {
   type MailboxMessage,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
+import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/hq';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 

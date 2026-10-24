@@ -26,25 +26,25 @@ import {
   type BrainArbiter,
   type BrainDecision,
   type BrainDecisionRequest,
-} from '../coordination/brain.js';
+} from '../brain/brain.js';
 
 import {
   type BrainAutoRisk,
   brainTierEligibility,
   resolveRiskCeiling,
-} from '../coordination/brain-risk.js';
+} from '../brain/brain-risk.js';
 
-export { type BrainAutoRisk, resolveRiskCeiling } from '../coordination/brain-risk.js';
+export { type BrainAutoRisk, resolveRiskCeiling } from '../brain/brain-risk.js';
 
-import type { BrainHeuristicsConfig } from '../coordination/brain-heuristics.js';
-import { evaluateQuickBrainDecision } from '../coordination/brain-quick-decision.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { BrainHeuristicsConfig } from '../brain/brain-heuristics.js';
+import { evaluateQuickBrainDecision } from '../brain/brain-quick-decision.js';
 import {
   type BrainDecisionTier,
   markDecisionTier,
   readDecisionTier,
-} from '../coordination/brain-telemetry.js';
-import type { EventBus } from '../kernel/events.js';
-import type { Provider } from '../types/provider.js';
+} from '../brain/brain-telemetry.js';
 import {
   type BrainLlmTarget,
   buildBrainUserMessage,

@@ -1,5 +1,5 @@
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import type { DirectorStateCheckpoint, DirectorStateSnapshot } from '../storage/director-state.js';
-import type { TaskResult } from '../types/multi-agent.js';
 import type { DirectorBtwNotes } from './director/director-btw-notes.js';
 import type { DirectorTaskRegistry } from './director/director-task-registry.js';
 import type { FleetBus } from './fleet-bus.js';

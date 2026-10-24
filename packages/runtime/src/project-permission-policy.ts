@@ -1,12 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { Config, DirectoryPolicy, Tool } from '@wrongstack/contracts/types';
 import {
   DefaultPermissionPolicy,
   DirectoryPermissionPolicy,
   resolveYoloConfirmKinds,
   validateDirectoryPolicy,
 } from '@wrongstack/core/security';
-import type { Config, DirectoryPolicy, Tool } from '@wrongstack/core/types';
 
 export interface ProjectPermissionOptions {
   yolo?: boolean | undefined;

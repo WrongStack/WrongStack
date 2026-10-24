@@ -93,7 +93,7 @@ interface IConfigIo {
   readonly desktopConfigPaths: {
     readonly bootstrapConfigPath: string;
     readonly profileConfigPath: string;
-    readonly vault: import('@wrongstack/core/types').SecretVault;
+    readonly vault: import('@wrongstack/contracts/types').SecretVault;
   };
 }
 

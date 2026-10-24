@@ -13,7 +13,7 @@
  * Extracted from `index.ts`; transforms mutate the passed record in place, the
  * same way the original handlers did before calling `saveProviders`.
  */
-import type { ProviderApiKey, ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderApiKey, ProviderConfig } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import {
   authProfileAliasError,

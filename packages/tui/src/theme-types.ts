@@ -1,4 +1,4 @@
-import type { ThemePresetId } from '@wrongstack/core/types';
+import type { ThemePresetId } from '@wrongstack/contracts/types';
 
 export type SyntaxRole =
   | 'keyword'

@@ -15,7 +15,7 @@
  * @module coordination/delegation/leader-delivery-hub
  */
 
-import type { EventBus } from '../../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 
 export interface DelegationDeliveryPayload {
   delegationId: string;

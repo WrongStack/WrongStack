@@ -7,10 +7,8 @@ import { expectDefined } from '../utils/expect-defined.js';
  * one bad extension can't take down the agent.
  */
 
-import type { TextBlock } from '../types/blocks.js';
-import { ERROR_CODES, WrongStackError } from '../types/errors.js';
-import type { Logger } from '../types/logger.js';
-import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import { ERROR_CODES, WrongStackError } from '@wrongstack/contracts/types/errors';
 import type {
   AfterIterationHook,
   AfterRunHook,
@@ -20,9 +18,12 @@ import type {
   BeforeRunHook,
   BeforeToolExecutionHook,
   BeforeTurnEndHook,
+  ExtensionRegistryPort,
   OnErrorHook,
   ProviderRunnerFn,
-} from './extension-points.js';
+} from '@wrongstack/contracts/types/extension-points';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { SystemPromptContributor } from '@wrongstack/contracts/types/system-prompt-contributor';
 
 interface ExtensionRegistration {
   extension: AgentExtension;
@@ -30,7 +31,7 @@ interface ExtensionRegistration {
   previous?: ExtensionRegistration;
   removed?: boolean;
 }
-export class ExtensionRegistry {
+export class ExtensionRegistry implements ExtensionRegistryPort {
   private readonly extensions: AgentExtension[] = [];
   private readonly registrations = new Map<string, ExtensionRegistration>();
   private nextRegistrationOrder = 0;

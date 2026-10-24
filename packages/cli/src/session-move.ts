@@ -11,8 +11,8 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SessionMoveResult, SessionStore } from '@wrongstack/contracts/types';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import type { SessionMoveResult, SessionStore } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 
 export async function moveSessionTo(opts: {

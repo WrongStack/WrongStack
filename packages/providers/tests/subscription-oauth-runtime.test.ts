@@ -1,5 +1,10 @@
+import type {
+  ProviderApiKey,
+  ProviderConfig,
+  Request,
+  SecretVault,
+} from '@wrongstack/contracts/types';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
-import type { ProviderApiKey, ProviderConfig, Request, SecretVault } from '@wrongstack/core/types';
 import {
   __resetProxyConfigForTests,
   applyProxyConfig,

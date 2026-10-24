@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { LSP_CONSTANTS } from '../constants.js';
 import { formatLocations } from '../formatters/location.js';
 import { humanToLSP } from '../position.js';

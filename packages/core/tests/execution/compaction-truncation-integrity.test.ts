@@ -7,6 +7,8 @@
  *    surrogate pair, sending a lone surrogate (unpaired `\ud83d` JSON escape)
  *    to the provider.
  */
+
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { describe, expect, it } from 'vitest';
 import {
   buildSmartDigest,
@@ -15,7 +17,6 @@ import {
   headTailTruncate,
 } from '../../src/execution/compaction-core.js';
 import { sliceUtf16Safe } from '../../src/execution/compaction-scoring.js';
-import type { Message } from '../../src/types/messages.js';
 
 const LONE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 

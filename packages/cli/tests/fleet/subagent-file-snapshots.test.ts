@@ -12,9 +12,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import type { SessionEvent, SessionWriter } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   createParentSubagentSessionWriter,
   withParentFileSnapshots,

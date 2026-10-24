@@ -45,7 +45,7 @@
  * @public
  */
 import { existsSync, statSync } from 'node:fs';
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { clearLocalBinCache, releaseHandle, withinProject } from '../runtime/index.js';
 import { resolveAllowedCommand, runCommand } from './commands.js';
 

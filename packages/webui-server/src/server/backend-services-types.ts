@@ -1,3 +1,17 @@
+import type { Container, EventBus } from '@wrongstack/contracts/kernel';
+import type {
+  Compactor,
+  Config,
+  Logger,
+  MemoryPort,
+  ModelsRegistry,
+  PermissionPolicy,
+  Provider,
+  ProviderConfig,
+  SessionStore,
+  SkillLoader,
+  Tracer,
+} from '@wrongstack/contracts/types';
 import type { Agent, AgentPipelines, Context } from '@wrongstack/core/agent';
 import type {
   AgentFactory,
@@ -13,25 +27,11 @@ import type {
   ToolExecutor,
 } from '@wrongstack/core/execution';
 import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { DefaultModeStore } from '@wrongstack/core/models';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { SkillInstaller } from '@wrongstack/core/skills';
 import type { AnnotationsStore, SessionReader } from '@wrongstack/core/storage';
-import type {
-  Compactor,
-  Config,
-  Logger,
-  MemoryPort,
-  ModelsRegistry,
-  PermissionPolicy,
-  Provider,
-  ProviderConfig,
-  SessionStore,
-  SkillLoader,
-  Tracer,
-} from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
@@ -101,7 +101,7 @@ export interface AgentServicesInput {
    * live-only.
    */
   persistBrainConfig?:
-    | ((config: import('@wrongstack/core/types').BrainConfig) => Promise<void>)
+    | ((config: import('@wrongstack/contracts/types').BrainConfig) => Promise<void>)
     | undefined;
 }
 

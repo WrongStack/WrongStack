@@ -1,13 +1,13 @@
-import React from 'react';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { TokenCounter } from '@wrongstack/contracts/types';
 import { render } from 'ink-testing-library';
+import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { TokenCounter } from '@wrongstack/core/types';
-import { Text } from '../src/ink.js';
 import {
   snapshotTokenCounter,
   useTokenCounterRefresh,
 } from '../src/hooks/use-token-counter-refresh.js';
+import { Text } from '../src/ink.js';
 
 function fakeTokenCounter(): TokenCounter {
   return {

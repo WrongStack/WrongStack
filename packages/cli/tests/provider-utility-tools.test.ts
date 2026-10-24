@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   orchestratorResults: [] as Array<{ text: string }>,
 }));
 
-vi.mock('@wrongstack/core/tools', () => ({
+vi.mock('@wrongstack/tools/management', () => ({
   createOneShotLLMTool: mocks.createOneShotLLMTool,
   createCouncilTool: mocks.createCouncilTool,
 }));

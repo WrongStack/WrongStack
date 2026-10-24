@@ -19,8 +19,8 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import { THEME_PRESET_IDS, type ThemePresetId } from '@wrongstack/contracts/types';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
-import { THEME_PRESET_IDS, type ThemePresetId } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createThemeAdapter } from '../src/boot/tui-theme-adapter.js';
 import { buildThemeCommand } from '../src/slash-commands/theme.js';

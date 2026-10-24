@@ -11,9 +11,10 @@
  * aborted) so the caller assigns it to its `code` variable without a
  * closure mutation.
  */
+
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { JSONSchema, TokenCounter } from '@wrongstack/contracts/types';
 import type { Agent, RunResult } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { JSONSchema, TokenCounter } from '@wrongstack/core/types';
 import { color, writeOut } from '@wrongstack/core/utils';
 import { contextOverflowHint } from '../context-overflow-diagnostic.js';
 import type { TerminalRenderer } from '../renderer.js';

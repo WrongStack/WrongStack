@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { compilePathGlob, DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 import { mapWithConcurrency } from './_concurrency.js';
 import { expandBraceAlternation } from './_glob-braces.js';

@@ -3,6 +3,9 @@
   "references": [
     { "path": "./packages/persistence" },
     { "path": "./packages/primitives" },
+    { "path": "./packages/contracts" },
+    { "path": "./packages/hq" },
+    { "path": "./packages/goal" },
     { "path": "./packages/plugin-sdk" },
     { "path": "./packages/vector-memory" },
     { "path": "./packages/webui-protocol" },

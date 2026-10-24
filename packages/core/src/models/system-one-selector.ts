@@ -22,9 +22,9 @@
  * which is the LLM selector the compactor would have used anyway.
  */
 
-import { isTextBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
-import type { MessageSelector, SelectorResult } from '../types/selector.js';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { MessageSelector, SelectorResult } from '@wrongstack/contracts/types/selector';
 import type { TypeSafeQuestion } from '../typesafe/client.js';
 import type { TypeSafeJudge } from '../typesafe/judgments.js';
 import { buildCompactionPreview } from '../utils/compaction-preview.js';

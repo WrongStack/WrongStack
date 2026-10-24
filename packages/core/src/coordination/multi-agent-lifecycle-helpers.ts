@@ -1,5 +1,5 @@
 import type { EventEmitter } from 'node:events';
-import type { TaskSpec } from '../types/multi-agent.js';
+import type { TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 import type { FleetBus } from './fleet-bus.js';
 import type { SubagentEntry } from './multi-agent-queue-helpers.js';
 import { resolveGracefulFinish } from './subagent-finish.js';

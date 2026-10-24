@@ -666,7 +666,7 @@ effects:
 
 ```ts
 import { describe, it, expect, vi } from 'vitest';
-import { Container, EventBus } from '@wrongstack/core/kernel';
+import { Container, EventBus } from '@wrongstack/contracts/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import myPlugin from '../src/index.js';
 

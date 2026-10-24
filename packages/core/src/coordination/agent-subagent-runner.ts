@@ -1,15 +1,15 @@
-import type { Agent, AgentInput, RunResult } from '../core/agent.js';
-import { setBtwNote } from '../core/btw.js';
-import { isSealedAgent } from '../core/sealed-agent.js';
-import type { EventBus } from '../kernel/events.js';
-import { AgentError, ERROR_CODES } from '../types/errors.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import { AgentError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
 import type {
   SubagentConfig,
   SubagentRunContext,
   SubagentRunner,
   SubagentRunOutcome,
   TaskSpec,
-} from '../types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import type { Agent, AgentInput, RunResult } from '../core/agent.js';
+import { setBtwNote } from '../core/btw.js';
+import { isSealedAgent } from '../core/sealed-agent.js';
 import type { FleetBus } from './fleet-bus.js';
 import { BudgetExceededError, BudgetThresholdSignal } from './subagent-budget.js';
 import { resolveGracefulFinish } from './subagent-finish.js';

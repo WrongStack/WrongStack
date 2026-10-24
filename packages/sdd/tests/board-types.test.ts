@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types/task-graph';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { buildBoardSnapshot, buildBoardTasks } from '../src/board-types.js';
 import { SddBoardStore } from '../src/sdd-board-store.js';

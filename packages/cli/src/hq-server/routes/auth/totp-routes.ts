@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type * as http from 'node:http';
-import { mutateHqAuthFile, verifyHqPassword } from '@wrongstack/core/hq';
+import { mutateHqAuthFile, verifyHqPassword } from '@wrongstack/hq';
 import {
   buildOtpAuthUri,
   generateRecoveryCodes,

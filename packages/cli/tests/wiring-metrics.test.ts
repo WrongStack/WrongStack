@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { InMemoryMetricsSink } from '@wrongstack/core/observability';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerMcpHealthCheck, registerMcpMetrics, setupMetrics } from '../src/wiring/metrics.js';

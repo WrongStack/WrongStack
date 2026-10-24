@@ -14,8 +14,8 @@
  * the sweep's `CASES` entry.
  */
 
-import type { WorktreeTimelineEvent } from '@wrongstack/core/types/worktree-timeline';
-import type { ContextBreakdown } from '@wrongstack/core/utils';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
+import type { ContextBreakdown } from '@wrongstack/core/agent';
 import { render } from 'ink-testing-library';
 import type { ReactElement } from 'react';
 import type { GoalSummary } from '../../src/app-state.js';

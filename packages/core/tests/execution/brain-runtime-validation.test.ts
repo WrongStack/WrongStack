@@ -3,11 +3,12 @@
  * mergePatch() that throw on invalid patch inputs. Exercises the error
  * paths through apply() with persist:false.
  */
+
+import type { BrainConfig } from '@wrongstack/contracts/types/config';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { BrainRuntimeOptions } from '../../src/execution/brain-runtime.js';
 import { createBrainRuntime } from '../../src/execution/brain-runtime.js';
-import type { BrainConfig } from '../../src/types/config.js';
-import type { Provider } from '../../src/types/provider.js';
 
 function fakeProvider(text: string): Provider {
   return {

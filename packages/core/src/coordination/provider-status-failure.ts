@@ -3,7 +3,12 @@
  * ProviderModelStatusTracker.recordFailure. Split out of
  * provider-status-tracker.ts; the tracker owns emission and fan-out.
  */
-import { MAX_RESET_HINT_MS, type ProviderErrorKind, parseResetHintMs } from '../types/provider.js';
+import {
+  MAX_RESET_HINT_MS,
+  type ProviderErrorKind,
+  parseResetHintMs,
+} from '@wrongstack/contracts/types/provider';
+import type { ProviderFailureMeta } from '@wrongstack/contracts/types/provider-status';
 import {
   type ErrorHistoryEntry,
   type MutableProviderModelStatus,
@@ -12,11 +17,7 @@ import {
   type ProviderStatusTrackerConfig,
 } from './provider-status-tracker-types.js';
 
-export interface ProviderFailureMeta {
-  sessionId?: string | undefined;
-  agentId?: string | undefined;
-  retryAfterMs?: number | undefined;
-}
+export type { ProviderFailureMeta };
 
 /** Bump the per-pair failure counters and last-error fields. */
 export function countFailure(

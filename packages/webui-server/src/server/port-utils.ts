@@ -19,7 +19,7 @@
  */
 
 import * as net from 'node:net';
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 
 /**
  * Surface-specific default single port.

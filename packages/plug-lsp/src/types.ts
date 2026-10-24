@@ -85,7 +85,7 @@ export class LSPError extends Error {
   }
 }
 
-declare module '@wrongstack/core/kernel' {
+declare module '@wrongstack/contracts/kernel' {
   interface EventMap {
     'lsp.server.starting': { name: string; command: string };
     'lsp.server.ready': { name: string; languages: string[] };

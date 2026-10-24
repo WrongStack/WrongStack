@@ -1,4 +1,4 @@
-import type { Config, Provider, Response } from '@wrongstack/core/types';
+import type { Config, Provider, Response } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   refineGoalHeuristic,

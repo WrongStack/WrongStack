@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MCPTool } from '../src/client.js';

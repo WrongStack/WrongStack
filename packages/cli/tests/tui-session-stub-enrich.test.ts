@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { SessionSummary } from '@wrongstack/core/types';
+import type { SessionSummary } from '@wrongstack/contracts/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   containedJsonlPath,

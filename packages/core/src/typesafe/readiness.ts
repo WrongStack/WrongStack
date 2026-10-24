@@ -1,4 +1,4 @@
-import type { Config } from '../types/config/root.js';
+import type { Config } from '@wrongstack/contracts/types/config/root';
 
 export type JevReadiness = 'disabled' | 'account-required' | 'blocked' | 'conditional';
 export interface JevFeatureReadiness {

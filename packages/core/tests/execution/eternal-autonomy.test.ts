@@ -1,12 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { createBoard, getBoard, listBoards, removeBoard } from '@wrongstack/kanban';
 import { addTask, updateTask } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent } from '../../src/core/agent.js';
 import { EternalAutonomyEngine } from '../../src/execution/eternal-autonomy.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { setBoardStorePort } from '../../src/storage/board-store-port.js';
 import { createGoalKanbanBoard, findGoalKanbanBoard } from '../../src/storage/goal-kanban.js';
 import { emptyGoal, goalFilePath, loadGoal, saveGoal } from '../../src/storage/goal-store.js';

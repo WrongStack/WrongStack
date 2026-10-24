@@ -16,6 +16,7 @@
  * because the point is to ask it now.
  */
 
+import type { Config, Message, SkillLoader } from '@wrongstack/contracts/types';
 import type { BrainDecisionRequest } from '@wrongstack/core/coordination';
 import {
   createSystemOneTierSuggester,
@@ -28,8 +29,7 @@ import {
 } from '@wrongstack/core/execution';
 import { SystemOneSelector } from '@wrongstack/core/models';
 import { createSkillSuggester } from '@wrongstack/core/skills';
-import { evaluateJevQuestions } from '@wrongstack/core/tools';
-import type { Config, Message, SkillLoader } from '@wrongstack/core/types';
+import { evaluateJevQuestions } from '@wrongstack/tools/management';
 import {
   BUILT_IN_SEMANTIC_LINT_RULES,
   createTypeSafeCriterionJudge,

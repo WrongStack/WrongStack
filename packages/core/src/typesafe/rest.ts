@@ -36,7 +36,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { FetchError } from '../types/errors.js';
+import { FetchError } from '@wrongstack/contracts/types/errors';
 import type { SystemOneRequest, SystemOneResult, TypeSafeClient } from './client.js';
 
 /** Thrown while the gate is resting. Distinguishable from a live transport failure. */

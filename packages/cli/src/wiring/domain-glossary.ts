@@ -29,7 +29,7 @@
  * surface is reserved for out-of-process clients (Claude Desktop, other
  * agent runtimes).
  */
-import type { MemoryEntry, MemoryPort } from '@wrongstack/core/types';
+import type { MemoryEntry, MemoryPort } from '@wrongstack/contracts/types';
 import { getSageService } from '@wrongstack/sage';
 
 /** Default number of rows scanned when the caller passes no limit. */

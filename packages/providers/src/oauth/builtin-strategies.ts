@@ -1,10 +1,10 @@
-import { ProviderAuthRegistry } from '@wrongstack/core/registry';
 import type {
   ProviderAuthOutcome,
   ProviderAuthSession,
   ProviderAuthStrategy,
   WireFamily,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderAuthRegistry } from '@wrongstack/core/registry';
 import { createAntigravityAuthStrategy } from './antigravity.js';
 import { createChatGPTDirectAuthStrategy } from './chatgpt-direct.js';
 import { beginOAuthLogin } from './legacy.js';

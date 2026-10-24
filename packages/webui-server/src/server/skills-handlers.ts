@@ -20,13 +20,13 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import type { SkillLoader } from '@wrongstack/contracts/types';
 import {
   collectSkillFiles,
   generateSkillSkeleton,
   type SkillInstaller,
   writeSkeletonSkill,
 } from '@wrongstack/core/skills';
-import type { SkillLoader } from '@wrongstack/core/types';
 import { atomicWrite, resolveWstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { validateSkillsCreatePayload, validateSkillsEditPayload } from './ws-payload-validation.js';

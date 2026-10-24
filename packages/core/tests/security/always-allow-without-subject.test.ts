@@ -23,13 +23,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Context } from '../../src/core/context.js';
 import {
   alwaysAllowUnavailableReason,
   DefaultPermissionPolicy,
 } from '../../src/security/permission-policy.js';
-import type { Context } from '../../src/core/context.js';
-import type { Tool } from '../../src/types/index.js';
 
 function tool(name: string, subjectKey?: string): Tool {
   return {

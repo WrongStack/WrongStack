@@ -1,6 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
 import * as path from 'node:path';
+import { EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type {
+  Config,
+  Provider,
+  SessionWriter,
+  SubagentConfig,
+  TaskSpec,
+  TextBlock,
+  Tool,
+} from '@wrongstack/contracts/types';
 import {
   Agent,
   Context,
@@ -31,19 +41,9 @@ import {
   ToolExecutor,
 } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy, subagentYoloPlus } from '@wrongstack/core/security';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
-import type {
-  Config,
-  Provider,
-  SessionWriter,
-  SubagentConfig,
-  TaskSpec,
-  TextBlock,
-  Tool,
-} from '@wrongstack/core/types';
 import {
   constrainExploreCompanion,
   EXPLORE_COMPANION_OUTPUT_CAP_BYTES,

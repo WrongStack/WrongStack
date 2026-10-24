@@ -4,7 +4,7 @@ import {
   resolveAcpAgentCommand,
   runEnsemble,
 } from '@wrongstack/acp';
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { loadCachedAcpRegistry } from '../acp-registry-cache.js';
 import type { SlashCommandContext } from './command-context.js';

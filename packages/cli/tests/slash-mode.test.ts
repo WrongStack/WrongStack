@@ -1,4 +1,4 @@
-import type { Mode, ModeStore } from '@wrongstack/core/types';
+import type { Mode, ModeStore } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildModeCommand } from '../src/slash-commands/mode.js';

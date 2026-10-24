@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EventBus } from '../../src/kernel/events.js';
 import { QUEUE_MAX_BYTES, QUEUE_MAX_ITEMS, QueueStore } from '../../src/storage/queue-store.js';
 
 // vi.mock is hoisted above imports.  We use vi.importActual inside the factory

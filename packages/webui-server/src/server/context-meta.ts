@@ -12,10 +12,10 @@
  * Pure config → meta projection. No behaviour change.
  */
 
+import { type Config, resolveNextStepsMode } from '@wrongstack/contracts/types';
 import { FallbackProfileManager } from '@wrongstack/core/agent';
 import { resolvePluginEnablement } from '@wrongstack/core/plugin';
 import { ALL_DESTRUCTIVE_KINDS, resolveYoloConfirmKinds } from '@wrongstack/core/security';
-import { type Config, resolveNextStepsMode } from '@wrongstack/core/types';
 import { FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
 
 /**

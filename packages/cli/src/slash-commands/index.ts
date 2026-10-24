@@ -1,9 +1,9 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { loadStatuslineConfig, saveStatuslineConfig } from '../services/statusline-config.js';
 import type { SlashCommandContext } from './command-context.js';
 
+export type { TokenCounter } from '@wrongstack/contracts/types';
 export type { ToolRegistry } from '@wrongstack/core/registry';
-export type { TokenCounter } from '@wrongstack/core/types';
 export type { SlashCommandContext } from './command-context.js';
 
 // Re-export helpers for external consumers (pre-launch.ts)

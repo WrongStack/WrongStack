@@ -13,7 +13,7 @@
  * brand-new session is empty by definition), and any session with a live run,
  * whose journal is empty only because its first turn has not landed yet.
  */
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runWebUI } from '../../src/webui-server.js';
 import { openWs } from '../_ws-client.js';

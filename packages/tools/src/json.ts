@@ -1,8 +1,8 @@
 import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { deepMerge as deepMergeCore, toErrorMessage } from '@wrongstack/core/utils';
 import { safeResolveReal } from './_util.js';
 import { formatOutput } from './json-format.js';

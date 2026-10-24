@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, SubagentConfig } from '@wrongstack/contracts/types';
 import {
   type Director,
   dispatchAgent,
@@ -6,8 +8,6 @@ import {
   mailboxSessionTag,
   postSessionNote,
 } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config, SubagentConfig } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import type { MultiAgentHostOptions } from './host-types.js';
 import { setActiveFleetSupervisor } from './supervisor-registry.js';

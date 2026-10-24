@@ -6,14 +6,14 @@
  * (`mode: 'off'`) preserves current behavior exactly — hosts opt in.
  */
 
-/** Sandbox enforcement mode. `off` (the default) preserves current behavior exactly. */
-export type SandboxMode = 'off' | 'enforced';
+import type {
+  SandboxBackendId,
+  SandboxConfig,
+  SandboxMode,
+  SandboxTier,
+} from '@wrongstack/contracts/types/sandbox';
 
-/** Containment level. T2 ships the contract; `container` / `windows-native` backends (T4/T5) enforce it. */
-export type SandboxTier = 'read-only' | 'workspace-write' | 'full-access';
-
-/** Backend selection. Only `policy-only` is implemented in T2 (never denies). */
-export type SandboxBackendId = 'policy-only' | 'container' | 'windows-native';
+export type { SandboxBackendId, SandboxConfig, SandboxMode, SandboxTier };
 
 export const SANDBOX_MODES: readonly SandboxMode[] = ['off', 'enforced'];
 export const SANDBOX_TIERS: readonly SandboxTier[] = [
@@ -26,16 +26,6 @@ export const SANDBOX_BACKEND_IDS: readonly SandboxBackendId[] = [
   'container',
   'windows-native',
 ];
-
-export interface SandboxConfig {
-  mode: SandboxMode;
-  tier: SandboxTier;
-  /** Additional paths (absolute or project-relative) writable in `workspace-write` tier. */
-  writableRoots: string[];
-  backend: SandboxBackendId;
-  /** Container image for the `container` backend (T4). In-project-denied (RCE class). */
-  image?: string | undefined;
-}
 
 /** Frozen defaults: `mode: 'off'` means no behavioral change for any host. */
 export const DEFAULT_SANDBOX_CONFIG: Readonly<SandboxConfig> = Object.freeze({

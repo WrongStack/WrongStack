@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionWriteBuffer } from '../../src/storage/session-write-buffer.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const now = () => new Date().toISOString();
 

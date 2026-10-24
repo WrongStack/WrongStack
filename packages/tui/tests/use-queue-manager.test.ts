@@ -1,6 +1,6 @@
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { QueueStore } from '@wrongstack/core/storage';
-import type { ContentBlock } from '@wrongstack/core/types';
 import { render } from 'ink-testing-library';
 import React, { act } from 'react';
 import { afterEach, describe, expect, it, type Mock, vi } from 'vitest';

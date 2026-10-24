@@ -3,10 +3,10 @@
  * to confirm which tool properties cause instability.
  */
 
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { hashRequest, stableStringify } from '../../src/replay/hash.js';
-import type { Request } from '../../src/types/provider.js';
-import type { Tool } from '../../src/types/tool.js';
 import { compactToolDefinitionForWire } from '../../src/utils/tool-wire-compact.js';
 
 function makeBaseRequest(): Request {

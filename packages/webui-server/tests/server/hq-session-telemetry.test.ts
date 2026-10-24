@@ -34,7 +34,7 @@ const startSessionTelemetryBridge = vi.fn((opts: { sessionId: string; writer?: u
     record.stopped = true;
   };
 });
-vi.mock('@wrongstack/core/hq', () => ({ startSessionTelemetryBridge }));
+vi.mock('@wrongstack/hq', () => ({ startSessionTelemetryBridge }));
 
 const { startWebuiHqSessionTelemetry } = await import('../../src/server/hq-session-telemetry.js');
 

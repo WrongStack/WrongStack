@@ -1,4 +1,4 @@
-import type { Usage } from '@wrongstack/core/types';
+import type { Usage } from '@wrongstack/contracts/types';
 import type { BugHuntLimit, BugHuntMode } from '@/lib/bug-hunt-message';
 import type { PerfRunMetric, PerfRunMode } from '@/lib/perf-run-message';
 

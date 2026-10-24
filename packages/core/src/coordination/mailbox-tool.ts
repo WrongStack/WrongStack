@@ -11,25 +11,25 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import type { Context } from '../core/context.js';
-import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { ToolValidationError } from '../types/errors.js';
 import { toErrorMessage } from '../utils/error.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
 import { resolveProjectDir } from './global-mailbox-paths.js';
-import { getSharedProjectMailbox } from './remote-mailbox.js';
 import { resolveSendTypeSafe } from './mailbox-message-codec.js';
 import {
   acceptMailboxMessageForSession,
   isMailboxMessageVisibleTo,
-  normalizeRecipient,
   type Mailbox,
   type MailboxAudience,
   type MailboxMessage,
   type MailboxMessageType,
+  normalizeRecipient,
 } from './mailbox-types.js';
+import { getSharedProjectMailbox } from './remote-mailbox.js';
 
 export type MailboxResolver = (ctx: Context) => Mailbox;
 

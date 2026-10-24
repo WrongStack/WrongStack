@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "description": "Dependency direction for packages/core/src areas. An area may import its own layer or any lower rank; importing a higher rank is an upward edge. Existing upward edges are baselined in upwardEdges and may only shrink.",
+  "layers": {
+    "contracts": {
+      "rank": 0,
+      "areas": [],
+      "note": "types + kernel moved to @wrongstack/contracts (packages/contracts) on 2026-10-24 and the core re-export shims were removed; core imports contracts as a package dependency, which sits below every core area."
+    },
+    "primitives": {
+      "rank": 1,
+      "areas": [
+        "utils",
+        "vcs",
+        "performance"
+      ]
+    },
+    "services": {
+      "rank": 2,
+      "areas": [
+        "brain",
+        "security",
+        "sandbox",
+        "registry",
+        "hooks",
+        "notifications",
+        "extension",
+        "observability",
+        "infrastructure",
+        "tasking",
+        "prompts",
+        "typesafe",
+        "models",
+        "quota",
+        "storage",
+        "session-catalog",
+        "replay",
+        "chronicle",
+        "worktree",
+        "skills",
+        "statusline",
+        "wiring"
+      ]
+    },
+    "agent": {
+      "rank": 3,
+      "areas": [
+        "core",
+        "execution",
+        "plugin",
+        "plugins"
+      ]
+    },
+    "features": {
+      "rank": 4,
+      "areas": [
+        "coordination",
+        "design"
+      ]
+    },
+    "composition": {
+      "rank": 5,
+      "areas": [
+        "<root>"
+      ]
+    }
+  },
+  "upwardEdges": {}
+}

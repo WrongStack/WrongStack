@@ -1,13 +1,13 @@
+import type { BrainConfig } from '@wrongstack/contracts/types/config';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
-import type { BrainDecisionRequest } from '../../src/coordination/brain.js';
+import type { BrainDecisionRequest } from '../../src/brain/brain.js';
 import {
   type BrainRuntimeLedgerHost,
   type BrainRuntimeOptions,
   createBrainRuntime,
   resolveBrainConfigDefaults,
 } from '../../src/execution/brain-runtime.js';
-import type { BrainConfig } from '../../src/types/config.js';
-import type { Provider } from '../../src/types/provider.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'r1',
@@ -686,7 +686,7 @@ describe('createBrainRuntime — config round-trip (brain-config-roundtrip)', ()
   });
 
   it('tracks decision tier statistics across runtime resolutions', async () => {
-    const { EventBus } = await import('../../src/kernel/events.js');
+    const { EventBus } = await import('@wrongstack/contracts/kernel/events');
     const events = new EventBus();
     const rt = createBrainRuntime(
       baseOpts(

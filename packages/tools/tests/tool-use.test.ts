@@ -1,4 +1,7 @@
-import { GOVERNED_TOOL_EXECUTOR_META_KEY, type GovernedToolExecutor } from '@wrongstack/core/types';
+import {
+  GOVERNED_TOOL_EXECUTOR_META_KEY,
+  type GovernedToolExecutor,
+} from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { toolUseTool } from '../src/tool-use.js';
 

@@ -1,6 +1,6 @@
+import type { Middleware } from '@wrongstack/contracts/kernel';
+import type { Response, TextBlock } from '@wrongstack/contracts/types';
 import type { AgentPipelines, UserInputPayload } from '@wrongstack/core/agent';
-import type { Middleware } from '@wrongstack/core/kernel';
-import type { Response, TextBlock } from '@wrongstack/core/types';
 import { hasVibeTag } from '@wrongstack/requirement-intake';
 import {
   auditVibeExecution,

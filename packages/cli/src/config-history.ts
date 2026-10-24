@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { ERROR_CODES, FsError } from '@wrongstack/contracts/types';
 import { isSecretField } from '@wrongstack/core/security';
-import { ERROR_CODES, FsError } from '@wrongstack/core/types';
 import { atomicWrite, toErrorMessage, withFileLock, writeErr } from '@wrongstack/core/utils';
 import type { HomeDirFn } from './config-history-support.js';
 import {

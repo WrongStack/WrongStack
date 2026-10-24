@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { projectSavedProviders, type SavedProviderView } from '@wrongstack/webui-server';
 import { describe, expect, it } from 'vitest';
 

@@ -13,7 +13,7 @@
  * lock operators out of their own HQ.
  */
 import type * as http from 'node:http';
-import { HQ_AUTH_FILE_VERSION, type HqAuthFile, hqTokenVerifier } from '@wrongstack/core/hq';
+import { HQ_AUTH_FILE_VERSION, type HqAuthFile, hqTokenVerifier } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { authenticateBrowserRequest } from '../src/hq-server/auth.js';
 import { createHqAuthState } from '../src/hq-server/auth-state.js';

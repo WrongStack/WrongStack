@@ -1,5 +1,5 @@
 import type { Context } from '@wrongstack/core/agent';
-import type { Provider, SlashCommand } from '@wrongstack/core/types';
+import type { Provider, SlashCommand } from '@wrongstack/contracts/types';
 import { createSecuritySlashCommand } from '@wrongstack/security-scanner';
 
 export interface SecurityCommandHost {

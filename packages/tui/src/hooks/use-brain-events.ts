@@ -1,5 +1,5 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { BrainDecision } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import { useEffect } from 'react';
 import type { Action, State } from '../app-reducer.js';
 import type { HistoryEntry } from '../components/history.js';

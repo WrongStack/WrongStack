@@ -1,4 +1,4 @@
-import type { Config, SessionStore } from '@wrongstack/core/types';
+import type { Config, SessionStore } from '@wrongstack/contracts/types';
 import type { WebSocket } from 'ws';
 import type { ConfigWriteLockHolder } from './pref-helpers.js';
 import type { WebuiMutableState } from './routes.js';

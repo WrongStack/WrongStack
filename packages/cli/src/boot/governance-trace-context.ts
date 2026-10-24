@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { WorkspaceCheckpointRef } from '@wrongstack/core/types';
+import type { WorkspaceCheckpointRef } from '@wrongstack/contracts/types';
 
 export const MAX_GOVERNANCE_PLAN_BYTES = 1024 * 1024;
 const MAX_GOVERNANCE_ACTIVE_STEP_IDS = 128;

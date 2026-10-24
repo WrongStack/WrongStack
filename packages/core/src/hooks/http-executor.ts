@@ -1,5 +1,5 @@
-import type { AnyHookOutcome, HookInput } from '../types/hooks.js';
-import type { Logger } from '../types/logger.js';
+import type { AnyHookOutcome, HookInput } from '@wrongstack/contracts/types/hooks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import { toErrorMessage } from '../utils/error.js';
 import { assertNotPrivateHost } from '../utils/ip-guard.js';
 import {

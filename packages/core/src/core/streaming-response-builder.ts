@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { EventBus } from '../kernel/events.js';
-import type { ContentBlock, ThinkingBlock, ToolUseBlock } from '../types/blocks.js';
-import type { AgentContext } from '../types/context.js';
-import type { Logger } from '../types/logger.js';
-import type { Provider, Request, Response } from '../types/provider.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { ContentBlock, ThinkingBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
 import { completePartialObject } from '../utils/json-repair.js';
 import { resolveEventSessionId } from './context.js';
 

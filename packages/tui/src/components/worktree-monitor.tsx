@@ -7,7 +7,7 @@ import {
   type WorktreeLanePhase,
   type WorktreeTimelineEvent,
   worktreeTimelineTicks,
-} from '@wrongstack/core/types/worktree-timeline';
+} from '@wrongstack/contracts/types/worktree-timeline';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Text } from '../ink.js';

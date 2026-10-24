@@ -1,9 +1,9 @@
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { MiddlewareHandler } from '@wrongstack/contracts/kernel/pipeline';
+import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
+import type { ContextWindowAggressiveOn, ContextWindowPolicy } from '@wrongstack/contracts/types';
 import type { Context } from '../core/context.js';
-import type { EventBus } from '../kernel/events.js';
-import type { MiddlewareHandler } from '../kernel/pipeline.js';
 import type { SessionEventBridge } from '../storage/session-event-bridge.js';
-import type { Compactor, CompactReport } from '../types/compactor.js';
-import type { ContextWindowAggressiveOn, ContextWindowPolicy } from '../types/context-window.js';
 import type { ContextWindowBudgetSnapshot } from '../utils/context-budget.js';
 import { repeatedReadPressure } from '../utils/context-evidence.js';
 import {

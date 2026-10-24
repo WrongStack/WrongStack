@@ -1,4 +1,4 @@
-import type { MemoryEntry, MemoryStore } from '@wrongstack/core/types';
+import type { MemoryEntry, MemoryStore } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { forgetTool, relatedMemoryTool, rememberTool, searchMemoryTool } from '../src/memory.js';
 import { mkSandbox, newSignal } from './fixtures.js';

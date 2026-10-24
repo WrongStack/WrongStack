@@ -1,10 +1,10 @@
-import { sealedSubagentRefusal } from '../core/sealed-agent.js';
 import type {
   SubagentConfig,
   SubagentContext,
   TaskResult,
   TaskSpec,
-} from '../types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import { sealedSubagentRefusal } from '../core/sealed-agent.js';
 import type { SubagentBudget } from './subagent-budget.js';
 
 export type SubagentStatus = 'running' | 'idle' | 'stopped' | 'error';

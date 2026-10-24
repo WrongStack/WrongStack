@@ -6,8 +6,8 @@
  * how full the agent's window is. The agent's own report does, and it is the
  * one number the context bar, `/context` and `ctx.pct` show for that route.
  */
-import type { AgentContext } from '../types/context.js';
-import type { AgentContextUsage, Provider } from '../types/provider.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { AgentContextUsage, Provider } from '@wrongstack/contracts/types/provider';
 
 /** In memory only: a resumed session starts a fresh agent, so a stored reading would be stale. */
 const reported = new WeakMap<object, AgentContextUsage>();

@@ -1,8 +1,8 @@
 /** Strict merge + validation of a Brain config patch (the `apply()` path). */
 
-import type { BrainHeuristicsConfig } from '../coordination/brain-heuristics.js';
-import { compileBrainRules } from '../coordination/brain-rules.js';
-import type { BrainConfig } from '../types/config.js';
+import type { BrainConfig } from '@wrongstack/contracts/types/config';
+import type { BrainHeuristicsConfig } from '../brain/brain-heuristics.js';
+import { compileBrainRules } from '../brain/brain-rules.js';
 import {
   AUTO_RISK_LEVELS,
   COUNCIL_DISTINCTNESS,

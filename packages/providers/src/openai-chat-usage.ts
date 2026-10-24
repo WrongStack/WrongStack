@@ -1,4 +1,4 @@
-import type { Usage } from '@wrongstack/core/types';
+import type { Usage } from '@wrongstack/contracts/types';
 
 /**
  * The `usage` object of an OpenAI-shaped chat completion, as the many

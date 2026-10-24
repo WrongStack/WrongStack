@@ -1,15 +1,5 @@
 import { join } from 'node:path';
-import type { AgentPipelines } from '@wrongstack/core/agent';
-import type { ExtensionRegistry } from '@wrongstack/core/extension';
-import type { Container, EventBus } from '@wrongstack/core/kernel';
-import type { PluginAPIInit, PluginHostHandle } from '@wrongstack/core/plugin';
-import { loadPlugins, resolvePluginConfig, resolvePluginEnablement } from '@wrongstack/core/plugin';
-import type {
-  ProviderAuthRegistry,
-  ProviderRegistry,
-  SlashCommandRegistry,
-  ToolRegistry,
-} from '@wrongstack/core/registry';
+import type { Container, EventBus } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   ConfigStore,
@@ -22,7 +12,17 @@ import type {
   PromptLoader,
   SessionWriter,
   SkillLoader,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { AgentPipelines } from '@wrongstack/core/agent';
+import type { ExtensionRegistry } from '@wrongstack/core/extension';
+import type { PluginAPIInit, PluginHostHandle } from '@wrongstack/core/plugin';
+import { loadPlugins, resolvePluginConfig, resolvePluginEnablement } from '@wrongstack/core/plugin';
+import type {
+  ProviderAuthRegistry,
+  ProviderRegistry,
+  SlashCommandRegistry,
+  ToolRegistry,
+} from '@wrongstack/core/registry';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import {
   OFFICIAL_PLUGIN_FACTORIES,

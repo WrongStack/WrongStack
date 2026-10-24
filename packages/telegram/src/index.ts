@@ -1,5 +1,5 @@
+import type { Logger, Plugin, SlashCommand } from '@wrongstack/contracts/types';
 import type { PluginAPI } from '@wrongstack/core/plugin';
-import type { Logger, Plugin, SlashCommand } from '@wrongstack/core/types';
 import type { TelegramIncomingMessage } from './bot.js';
 import { TelegramBot } from './bot.js';
 import { TelegramBotOutbound } from './bot-queue.js';

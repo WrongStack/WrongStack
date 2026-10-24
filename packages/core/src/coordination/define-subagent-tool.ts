@@ -1,6 +1,6 @@
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
+import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
 import { ToolCapabilities } from '../security/capabilities.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
-import type { JSONSchema, Tool } from '../types/tool.js';
 import { defaultSubagentBudget } from './agents/types.js';
 
 export interface DefineSubagentInput {
@@ -49,7 +49,7 @@ export interface DefineSubagentOutput {
 export interface CreateDefineSubagentToolOptions {
   roster?: Record<string, SubagentConfig> | undefined;
   projectRoot?: string | undefined;
-  events?: import('../kernel/events.js').EventBus | undefined;
+  events?: import('@wrongstack/contracts/kernel/events').EventBus | undefined;
 }
 
 export function createDefineSubagentTool(

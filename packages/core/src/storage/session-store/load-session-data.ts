@@ -1,16 +1,16 @@
 import { stat as fspStat } from 'node:fs/promises';
-import { normalizeSessionPermissionOverrides } from '../../security/session-permission-overrides.js';
-import type { ContentBlock } from '../../types/blocks.js';
-import type { Message } from '../../types/messages.js';
-import type { Usage } from '../../types/provider.js';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Usage } from '@wrongstack/contracts/types/provider';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type {
   SessionData,
   SessionEvent,
   SessionLoadProgress,
   SessionMetadata,
-} from '../../types/session.js';
-import type { SessionPermissionOverride } from '../../types/session-permission-override.js';
+} from '@wrongstack/contracts/types/session';
+import type { SessionPermissionOverride } from '@wrongstack/contracts/types/session-permission-override';
+import { normalizeSessionPermissionOverrides } from '../../security/session-permission-overrides.js';
 import { repairToolUseAdjacency } from '../../utils/message-invariants.js';
 import type { EventBus } from '../event-bus-port.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';

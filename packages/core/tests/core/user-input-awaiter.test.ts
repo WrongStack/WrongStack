@@ -1,10 +1,10 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createEventUserInputAwaiter,
   isUnattendedAutonomy,
 } from '../../src/core/user-input-awaiter.js';
-import { createApprovalRegistry } from '../../src/hq/approval-bridge.js';
-import { EventBus } from '../../src/kernel/events.js';
+import { createApprovalRegistry } from '../../../hq/src/approval-bridge.js';
 
 const request = {
   id: 'request-1',

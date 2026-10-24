@@ -33,7 +33,9 @@ export interface TuiSlashCommandOptions {
    * are optional: without them the command still opens the picker, it just
    * cannot persist an immediate apply.
    */
-  configStore?: import('@wrongstack/core/types').ConfigStore | undefined;
+  configStore?: import('@wrongstack/contracts/types').ConfigStore | undefined;
   saveThemePreset?: AppProps['saveThemePreset'];
-  applyThemePreset?: ((preset: import('@wrongstack/core/types').ThemePresetId) => void) | undefined;
+  applyThemePreset?:
+    | ((preset: import('@wrongstack/contracts/types').ThemePresetId) => void)
+    | undefined;
 }

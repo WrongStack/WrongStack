@@ -1,17 +1,17 @@
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider, Request } from '@wrongstack/contracts/types/provider';
 import type { Context } from '../core/context.js';
-import { contextHistoryVersion } from '../core/context-history-version.js';
 import { noOpLogger } from '../infrastructure/logger.js';
-import type { TextBlock } from '../types/blocks.js';
-import { isTextBlock } from '../types/blocks.js';
-import type { Compactor, CompactReport } from '../types/compactor.js';
-import type { Logger } from '../types/logger.js';
-import type { Message } from '../types/messages.js';
-import type { Provider, Request } from '../types/provider.js';
 import {
   buildContextEvidenceDigest,
   checkCompactionQuality,
   injectEvidenceFloor,
 } from '../utils/context-evidence.js';
+import { contextHistoryVersion } from '../utils/context-history-version.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
 import { repairToolUseAdjacency } from '../utils/message-invariants.js';
 import { estimateRequestTokens } from '../utils/token-estimate.js';

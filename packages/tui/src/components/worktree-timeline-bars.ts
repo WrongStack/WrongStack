@@ -1,6 +1,6 @@
 /**
  * Character-cell rendering of the shared worktree timeline (see
- * `@wrongstack/core/types/worktree-timeline`) for the TUI monitor. Pure: maps
+ * `@wrongstack/contracts/types/worktree-timeline`) for the TUI monitor. Pure: maps
  * time onto `width` columns and returns colourable runs, so the Ink component
  * only picks colours.
  */
@@ -8,7 +8,7 @@ import type {
   WorktreeLane,
   WorktreeLanePhase,
   WorktreeTimeline,
-} from '@wrongstack/core/types/worktree-timeline';
+} from '@wrongstack/contracts/types/worktree-timeline';
 
 export const WORKTREE_PHASE_CHAR: Record<WorktreeLanePhase, string> = {
   working: '▓',

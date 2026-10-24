@@ -3,8 +3,8 @@ import type { WebSocket } from 'ws';
 
 const captures = vi.hoisted(() => ({ orchestratorOpts: null as Record<string, unknown> | null }));
 
-vi.mock('@wrongstack/core/goal', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@wrongstack/core/goal')>();
+vi.mock('@wrongstack/goal', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wrongstack/goal')>();
   class PhaseOrchestrator {
     constructor(opts: Record<string, unknown>) {
       captures.orchestratorOpts = opts;

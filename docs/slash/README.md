@@ -189,7 +189,7 @@ interface SlashCommand {
 ```typescript
 // packages/cli/src/slash-commands/mycommand.ts
 import { color } from '@wrongstack/core/utils';
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { SlashCommandContext } from './index.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 
@@ -265,7 +265,7 @@ describe('buildMyCommand', () => {
 | Import | From | Purpose |
 |---|---|---|
 | `color`, `noOpVault`, `dispatchAgent` | `@wrongstack/core/utils` | Core utilities |
-| `type SlashCommand` | `@wrongstack/core/types` | Return type |
+| `type SlashCommand` | `@wrongstack/contracts/types` | Return type |
 | `type SlashCommandContext` | `./index.js` | DI context |
 | `parseSubcommand`, `unknownSubcommand` | `./helpers.js` | Arg parsing + error messages |
 

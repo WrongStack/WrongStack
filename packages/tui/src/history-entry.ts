@@ -89,7 +89,7 @@ export interface MemoryActivationItem {
 /**
  * Shipped memory-gate thresholds. Used as a fallback for legacy emitters and
  * for session replays whose `memory.injector_run` payloads predate the
- * thresholds field. Must agree with `@wrongstack/core/kernel/events`
+ * thresholds field. Must agree with `@wrongstack/contracts/kernel/events`
  * default gating — drift here produces a card that mis-states what the
  * gates actually were at injection time.
  */

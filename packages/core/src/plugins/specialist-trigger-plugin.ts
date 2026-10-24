@@ -10,10 +10,10 @@
  * unit test with no fleet, and a host without a Director simply never listens.
  */
 
-import { areSubagentsAllowed } from '../coordination/session-subagent-policy.js';
-import type { EventMap } from '../kernel/events.js';
-import type { Plugin } from '../types/plugin.js';
-import type { SlashCommand } from '../types/slash-command.js';
+import type { EventMap } from '@wrongstack/contracts/kernel/events';
+import type { Plugin } from '@wrongstack/contracts/types/plugin';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
+import { areSubagentsAllowed } from '../security/session-subagent-policy.js';
 import { isGitRepo, runGit } from './auto-review-git.js';
 import { parsePorcelainStatusZ } from './review-context-builder.js';
 import {

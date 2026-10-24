@@ -1,4 +1,7 @@
-import type { WorkspaceCheckpointRef, WorkspaceMaterializationResult } from '../types/session.js';
+import type {
+  WorkspaceCheckpointRef,
+  WorkspaceMaterializationResult,
+} from '@wrongstack/contracts/types/session';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
 
 function requiredCheckpointCas(

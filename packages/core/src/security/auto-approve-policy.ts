@@ -22,8 +22,12 @@
  */
 
 import * as fs from 'node:fs/promises';
-import type { PermissionDecision, PermissionPolicy, PermissionTrace } from '../types/permission.js';
-import type { Tool } from '../types/tool.js';
+import type {
+  PermissionDecision,
+  PermissionPolicy,
+  PermissionTrace,
+} from '@wrongstack/contracts/types/permission';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { matchGlob } from '../utils/glob-match.js';
 import { safeParse } from '../utils/safe-json.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';

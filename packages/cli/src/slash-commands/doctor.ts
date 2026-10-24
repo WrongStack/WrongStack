@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { atomicWrite, color, toErrorMessage, withFileLock } from '@wrongstack/core/utils';
 import { type DoctorFinding, diagnoseConfig, type PluginSchemaInfo } from '../config-doctor.js';
 import { appendHistory } from '../config-history.js';

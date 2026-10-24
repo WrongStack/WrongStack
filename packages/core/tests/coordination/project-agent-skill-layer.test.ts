@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   buildProjectContextualizedPrompt,
@@ -22,14 +23,13 @@ import {
   renderLearnedInstructions,
   resetCaptureWindows,
   routeDirectiveToSkill,
+  SKILL_AUGMENTATION_MAX_BYTES,
   saveProjectAgentConsolidated,
   saveProjectSkillAugmentation,
   setSkillPinned,
-  SKILL_AUGMENTATION_MAX_BYTES,
   splitLearnedEntries,
   updateProjectAgentLearned,
 } from '../../src/coordination/agents/index.js';
-import type { Provider, Request, Response } from '../../src/types/index.js';
 
 let projectRoot: string;
 

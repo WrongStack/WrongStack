@@ -279,7 +279,7 @@ export interface AuthFlags {
   positional: string[];
   alias?: string | undefined;
   label?: string | undefined;
-  family?: import('@wrongstack/core/types').WireFamily | undefined;
+  family?: import('@wrongstack/contracts/types').WireFamily | undefined;
   baseUrl?: string | undefined;
   envVars?: string[] | undefined;
   /**

@@ -9,9 +9,9 @@
  * PR 11 of Issue #30: extracted from `webui-server.ts`.
  */
 import * as path from 'node:path';
+import type { Config, ModelsRegistry } from '@wrongstack/contracts/types';
+import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Config, ModelsRegistry } from '@wrongstack/core/types';
-import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 import { protocolAdvertisement } from '@wrongstack/webui-protocol';
 import type { UpdateInfo } from '../update-check.js';

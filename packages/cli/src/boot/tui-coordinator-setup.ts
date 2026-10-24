@@ -17,11 +17,11 @@
  * `state.coordinatorEvents` (both on the shared TuiRuntimeState).
  */
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Context } from '@wrongstack/core/agent';
 import type { BrainArbiter, LLMProvider } from '@wrongstack/core/coordination';
 import { AutonomousCoordinator, type Director, type Mailbox } from '@wrongstack/core/coordination';
 import { completeBrainLlm, parseOptionDecision } from '@wrongstack/core/execution';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 

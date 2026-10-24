@@ -8,11 +8,12 @@
  *
  * @module core/system-prompt-memory-skills
  */
-import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
-import type { ConcreteTokenSavingTier } from '../types/config.js';
-import type { MemoryStore } from '../types/memory.js';
-import type { SkillLoader } from '../types/skill.js';
-import type { Tool } from '../types/tool.js';
+
+import type { ConcreteTokenSavingTier } from '@wrongstack/contracts/types/config';
+import type { MailboxAgentStatus } from '@wrongstack/contracts/types/mailbox';
+import type { MemoryStore } from '@wrongstack/contracts/types/memory';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { agentsFingerprint, shortSessionId } from './system-prompt-blocks.js';
 import {
   buildCompactSkillBodiesText,

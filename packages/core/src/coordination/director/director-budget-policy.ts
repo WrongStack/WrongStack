@@ -1,4 +1,4 @@
-import type { BrainArbiter } from '../brain.js';
+import type { BrainArbiter } from '../../brain/brain.js';
 import type { FleetBus, FleetUsageAggregator } from '../fleet-bus.js';
 
 type BudgetKind = 'timeout' | 'idle_timeout' | 'iterations' | 'tool_calls' | 'tokens' | 'cost';

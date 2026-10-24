@@ -1,5 +1,5 @@
 /** Cockpit data: health + alert polling, the alert digest, fleet roll-ups and the quick-action dispatcher. */
-import type { HqAlert, HqAlertMessage, HqSnapshot } from '@wrongstack/core/hq';
+import type { HqAlert, HqAlertMessage, HqSnapshot } from '@wrongstack/hq';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchJson, postCommand } from '../data/api.js';
 import type { MailboxGatewayHealth, SystemHealth } from './cockpit-health.js';

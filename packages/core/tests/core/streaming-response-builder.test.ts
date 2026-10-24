@@ -1,3 +1,5 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Provider, Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import {
@@ -18,8 +20,6 @@ import {
   safeJsonOrRaw,
   streamProviderToResponse,
 } from '../../src/core/streaming-response-builder.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Provider, Request } from '../../src/types/provider.js';
 
 // Every agent event carries the session that owns the run; a context without
 // one is rejected at emit time.

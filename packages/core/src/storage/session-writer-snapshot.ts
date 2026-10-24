@@ -1,5 +1,5 @@
 import type * as fsp from 'node:fs/promises';
-import type { SessionEvent, WorkspaceCheckpointRef } from '../types/session.js';
+import type { SessionEvent, WorkspaceCheckpointRef } from '@wrongstack/contracts/types/session';
 import { toErrorMessage } from '../utils/index.js';
 import type { EventBus } from './event-bus-port.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';

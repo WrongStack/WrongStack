@@ -1,7 +1,7 @@
 import { spawn as spawnChild } from 'node:child_process';
 import { createRequire } from 'node:module';
+import type { Logger } from '@wrongstack/contracts/types';
 import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
-import type { Logger } from '@wrongstack/core/types';
 import { buildChildEnv, isStandaloneBinary, toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { repairNodePtySpawnHelper, spawnHelperFailureHint } from './node-pty-spawn-helper.js';

@@ -1,11 +1,11 @@
+import type { PromptLoader } from '@wrongstack/contracts/types/prompt';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
+import type { Context } from '../core/context.js';
 import {
   areSubagentsAllowed,
   setSessionSubagentPolicy,
-} from '../coordination/session-subagent-policy.js';
-import type { Context } from '../core/context.js';
+} from '../security/session-subagent-policy.js';
 import type { PromptUsageStore } from '../storage/prompt-usage-store.js';
-import type { PromptLoader } from '../types/prompt.js';
-import type { SlashCommand } from '../types/slash-command.js';
 
 interface ProofDrivenHuntSpec {
   /** Primary slash command name, e.g. 'bughunt', 'sechunt', 'debloat'. */

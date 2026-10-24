@@ -1,5 +1,5 @@
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { resolveNativeCloudSettings } from '@wrongstack/core/cloud-provider';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import { endpointCredentialsSuppressed } from './endpoint-credentials.js';
 
 export interface ProviderPreflightCheck {

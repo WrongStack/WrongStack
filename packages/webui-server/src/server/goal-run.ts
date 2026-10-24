@@ -1,3 +1,5 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import {
   type GoalRunPersistence,
@@ -9,9 +11,7 @@ import {
   type PhaseTemplate,
   prepareGoalWorkspace,
   verifyGoalProject,
-} from '@wrongstack/core/goal';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+} from '@wrongstack/goal';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import { isGitWorkTree } from './git-process.js';
@@ -55,13 +55,13 @@ export interface GoalRunHost {
     env?: { cwd?: string | undefined; branch?: string | undefined },
   ): Promise<void>;
   executeTaskWithAgent(
-    task: import('@wrongstack/core/types').TaskNode,
+    task: import('@wrongstack/contracts/types').TaskNode,
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
   ): Promise<unknown>;
   runChimeraReview(
-    task: import('@wrongstack/core/types').TaskNode,
+    task: import('@wrongstack/contracts/types').TaskNode,
     phaseId: string,
     result: unknown,
     cwd?: string | undefined,

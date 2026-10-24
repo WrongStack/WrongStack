@@ -1,4 +1,4 @@
-import type { AttachmentStore } from '@wrongstack/core/types';
+import type { AttachmentStore } from '@wrongstack/contracts/types';
 import { INLINE_TOKEN_SRC } from './input-tokens.js';
 
 /** Maximum number of retained attachment previews. */

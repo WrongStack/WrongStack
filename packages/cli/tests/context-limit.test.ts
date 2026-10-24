@@ -1,4 +1,4 @@
-import type { ModelsRegistry, Provider } from '@wrongstack/core/types';
+import type { ModelsRegistry, Provider } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   describeMaxContextChange,

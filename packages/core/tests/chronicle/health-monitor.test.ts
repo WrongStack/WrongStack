@@ -1,8 +1,8 @@
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChronicleContext } from '../../src/chronicle/context.js';
 import { startChronicleHealthMonitor } from '../../src/chronicle/health-monitor.js';
 import type { ChronicleEventSink } from '../../src/chronicle/sink.js';
-import type { EventBus } from '../../src/kernel/events.js';
 
 function context(sessionId: string): ChronicleContext {
   return {

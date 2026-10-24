@@ -4,8 +4,9 @@
  * the CLI subcommand handler (packages/cli/src/subcommands/handlers/mcp.ts)
  * and the slash-command wiring in index.ts.
  */
+
+import type { Config, MCPServerConfig } from '@wrongstack/contracts/types';
 import { resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
-import type { Config, MCPServerConfig } from '@wrongstack/core/types';
 import {
   color,
   expectDefined,

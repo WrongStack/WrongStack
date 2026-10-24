@@ -1,6 +1,6 @@
+import type { EventBus, Middleware } from '@wrongstack/contracts/kernel';
+import { activeLimits, positiveLimit } from '@wrongstack/contracts/types';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import type { EventBus, Middleware } from '@wrongstack/core/kernel';
-import { activeLimits, positiveLimit } from '@wrongstack/core/types';
 import { formatMemoryHintsDetailed } from '../retrieval/format.js';
 import { checkInjectionValidity } from '../retrieval/validity-checks.js';
 import type { InjectionTracker } from './injection-tracker.js';

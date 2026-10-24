@@ -17,15 +17,15 @@
 // exercised both here and in packages/telegram/tests/unit/api-client.test.ts.
 // ---------------------------------------------------------------------------
 
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   classifyRetry,
+  type TelegramApiMessage,
   TelegramBotApiError,
+  type TelegramBotResponse,
   TelegramHttpError,
   TelegramNetworkError,
-  type TelegramApiMessage,
-  type TelegramBotResponse,
 } from '../../src/api-client.js';
 import { TelegramBot } from '../../src/bot.js';
 import { TelegramBotOutbound } from '../../src/bot-queue.js';

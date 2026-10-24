@@ -1,6 +1,6 @@
+import type { ProviderAuthStrategy } from '@wrongstack/contracts/types/provider-auth';
 import { describe, expect, it, vi } from 'vitest';
 import { ProviderAuthRegistry } from '../../src/registry/provider-auth-registry.js';
-import type { ProviderAuthStrategy } from '../../src/types/provider-auth.js';
 
 function strategy(
   id: string,

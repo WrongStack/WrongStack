@@ -1,6 +1,6 @@
+import type { Specification, SpecRequirement } from '@wrongstack/contracts/types/spec';
+import type { TaskGraph } from '@wrongstack/contracts/types/task-graph';
 import { DefaultTaskStore } from '@wrongstack/core/tasking';
-import type { Specification, SpecRequirement } from '@wrongstack/core/types/spec.js';
-import type { TaskGraph } from '@wrongstack/core/types/task-graph.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { extractVerificationCommand, TaskGenerator } from '../src/task-generator.js';
 import type { TaskStore } from '../src/task-tracker.js';
@@ -152,7 +152,6 @@ describe('TaskGenerator', () => {
             path: '/users',
             description: 'Get users',
             auth: false,
-            request: undefined,
             response: {},
           },
           {
@@ -181,7 +180,6 @@ describe('TaskGenerator', () => {
             path: '/public',
             description: 'Public',
             auth: false,
-            request: undefined,
             response: {},
           },
           {

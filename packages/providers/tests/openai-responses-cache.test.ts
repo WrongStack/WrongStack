@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { markVolatileSystemBlock, type Request } from '@wrongstack/core/types';
+import { markVolatileSystemBlock, type Request } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { OpenAIResponsesProvider } from '../src/openai-responses.js';
 import { resetCacheProbeState } from '../src/prompt-cache-probe.js';

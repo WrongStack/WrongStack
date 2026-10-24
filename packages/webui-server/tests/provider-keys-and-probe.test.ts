@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { createKeyHandlers, createProviderCrudHandlers } from '../src/server/provider/keys.js';
@@ -7,7 +7,7 @@ import { createProbeHandlers } from '../src/server/provider/probe.js';
 import { probeModelDescriptors, projectSavedProviders } from '../src/server/provider/projection.js';
 
 // Mock validateProviderBaseUrl
-vi.mock('@wrongstack/core/tools', () => ({
+vi.mock('@wrongstack/tools/management', () => ({
   validateProviderBaseUrl: vi.fn(async (url: string) => {
     if (url.includes('evil.com') || url.includes('invalid')) {
       return 'Disallowed base URL';

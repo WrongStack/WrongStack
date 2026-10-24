@@ -4,15 +4,16 @@
  * middleware runs after it is attached. That text is steering context the host
  * wrote, not something the user said: skill routing must not be keyed off it.
  */
+
+import type { Config } from '@wrongstack/contracts/types/config/root';
+import { authoredText } from '@wrongstack/contracts/types/live-context';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { SkillLoader, SkillManifest } from '@wrongstack/contracts/types/skill';
 import { describe, expect, it, vi } from 'vitest';
 import { createSkillMentionMiddleware } from '../../src/skills/mention-middleware.js';
 import { createLocalSkillSuggestionSetup } from '../../src/skills/suggest/local.js';
 import { LOCAL_SKILL_RULES } from '../../src/skills/suggest/local-rules.js';
-import type { Config } from '../../src/types/config/root.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Request } from '../../src/types/provider.js';
-import type { SkillLoader, SkillManifest } from '../../src/types/skill.js';
-import { authoredText } from '../../src/utils/live-context.js';
 
 const catalog: SkillManifest[] = LOCAL_SKILL_RULES.map((rule) => ({
   name: rule.name,

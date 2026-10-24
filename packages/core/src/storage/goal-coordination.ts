@@ -1,5 +1,5 @@
-import type { BrainArbiter } from '../coordination/brain.js';
-import { completionPercent } from '../types/task-graph.js';
+import { completionPercent } from '@wrongstack/contracts/types/task-graph';
+import type { BrainArbiter } from '../brain/brain.js';
 import { boardStore } from './board-store-port.js';
 import type { EventBus } from './event-bus-port.js';
 import { findGoalBoardByTag, findGoalKanbanBoard, type GoalFileWithKanban } from './goal-kanban.js';

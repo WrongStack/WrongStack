@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, realpath, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import {
   createBoard,
   evaluateContractGraphReadiness,
@@ -14,7 +15,6 @@ import { afterEach, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { evaluateToolKanbanBoundary } from '../../src/security/kanban-boundary.js';
 import { setKanbanGovernance } from '../../src/security/kanban-governance-port.js';
-import type { Tool } from '../../src/types/tool.js';
 
 // The project root may itself be a junction/symlink. A tool path written
 // through the real root names an in-project file and must be judged like the

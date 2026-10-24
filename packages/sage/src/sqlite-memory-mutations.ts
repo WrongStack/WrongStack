@@ -1,5 +1,5 @@
-import type { HqSageRecord } from '@wrongstack/core/hq';
-import type { MemoryScope } from '@wrongstack/core/types';
+import type { MemoryScope } from '@wrongstack/contracts/types';
+import type { HqSageRecord } from '@wrongstack/hq';
 import { recordSqliteInjection, recordSqliteUse } from './sqlite-store-counters.js';
 import { clearLegacySqliteMemory } from './sqlite-store-legacy-clear.js';
 import { consolidateLegacySqliteMemory } from './sqlite-store-legacy-consolidate.js';
@@ -19,7 +19,7 @@ export interface SqliteMemoryMutationsHost {
   upsertMemory: (m: import('./memory-model.js').Sage) => void;
   cascadeDeleteEdges: (nodeId: string) => void;
   audit: (event: string, data?: Record<string, unknown> | undefined) => void;
-  events: import('@wrongstack/core/kernel').EventBus | undefined;
+  events: import('@wrongstack/contracts/kernel').EventBus | undefined;
   syncAnchorEdges: (memory: import('./memory-model.js').Sage) => void;
   db: import('node:sqlite').DatabaseSync;
   projectRoot: string;

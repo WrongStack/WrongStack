@@ -1,5 +1,9 @@
-import type { ContentBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
+import type {
+  ContentBlock,
+  ToolResultBlock,
+  ToolUseBlock,
+} from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { expectDefined } from './expect-defined.js';
 export interface MessageRepairReport {
   changed: boolean;

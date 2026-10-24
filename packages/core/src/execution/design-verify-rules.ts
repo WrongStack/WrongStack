@@ -16,7 +16,7 @@
  * `*` waives every rule at that scope.
  */
 
-import type { DesignKitTokens } from '../types/design-kit.js';
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { classifyTokenValue } from './design-color.js';
 
 export type DesignSeverity = 'FAIL' | 'WARN';

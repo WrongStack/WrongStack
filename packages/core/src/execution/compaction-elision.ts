@@ -1,6 +1,10 @@
-import type { ContentBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Logger } from '../types/logger.js';
-import type { Message } from '../types/messages.js';
+import type {
+  ContentBlock,
+  ToolResultBlock,
+  ToolUseBlock,
+} from '@wrongstack/contracts/types/blocks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { isElidedResultContent, isElidedToolInput } from '../utils/elision-markers.js';
 import { hasMeaningfulContent } from '../utils/message-invariants.js';
 import {

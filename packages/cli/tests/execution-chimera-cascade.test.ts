@@ -1,8 +1,8 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EventBus } from '@wrongstack/core/kernel';
 import { installChimeraCascadeHandler } from '../src/execution-chimera-cascade.js';
 
 const roots: string[] = [];

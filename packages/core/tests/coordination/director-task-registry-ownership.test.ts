@@ -1,7 +1,7 @@
+import type { TaskResult, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it, vi } from 'vitest';
 import { DirectorTaskRegistry } from '../../src/coordination/director/director-task-registry.js';
 import type { DirectorStateCheckpoint } from '../../src/storage/director-state.js';
-import type { TaskResult, TaskSpec } from '../../src/types/multi-agent.js';
 
 function result(taskId: string, status: TaskResult['status'] = 'success'): TaskResult {
   return { taskId, subagentId: 'sub-1', status, iterations: 1, toolCalls: 2, durationMs: 3 };

@@ -1,6 +1,6 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createConnectionsSlashCommand } from '../src/connections-slash.js';
 

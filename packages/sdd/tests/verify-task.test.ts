@@ -1,8 +1,8 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { TaskResult } from '@wrongstack/core/types/multi-agent.js';
-import type { TaskNode } from '@wrongstack/core/types/task-graph.js';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
+import type { TaskNode } from '@wrongstack/contracts/types/task-graph';
 import { describe, expect, it } from 'vitest';
 import {
   makeAcceptanceCriteriaVerifier,

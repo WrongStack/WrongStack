@@ -11,8 +11,9 @@
  * Fix: For critical events, flushBuffer errors now propagate (are NOT caught).
  *      Non-critical events retain the best-effort silent-sweep behavior.
  */
+
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EventBus } from '../../src/kernel/events.js';
 import { FileSessionWriter } from '../../src/storage/file-session-writer.js';
 
 // ---------------------------------------------------------------------------

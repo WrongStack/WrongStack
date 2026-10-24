@@ -1,6 +1,6 @@
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { MetricsSinkView, PluginJev } from '@wrongstack/contracts/types/plugin';
 import { callWithDeadline } from '../execution/llm-call-deadline.js';
-import type { Config } from '../types/config.js';
-import type { MetricsSinkView, PluginJev } from '../types/plugin.js';
 
 const DEFAULT_TIMEOUT_MS = 12_000;
 const MAX_TIMEOUT_MS = 30_000;
@@ -24,7 +24,7 @@ export function makePluginJev(
       }
       const [{ resolveTypeSafeJudge }, { evaluateJevQuestions }] = await Promise.all([
         import('../typesafe/judgments.js'),
-        import('../tools/jev-tool.js'),
+        import('../typesafe/jev-tool.js'),
       ]);
       const judge = resolveTypeSafeJudge({ config: getConfig(), feature: 'tool' });
       if (!judge || judge.unavailableReason) {

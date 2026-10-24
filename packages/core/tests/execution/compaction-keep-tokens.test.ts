@@ -3,13 +3,14 @@
  * `preserveK` pair floor. It only ever keeps MORE, is capped so a pass can
  * still make room, and never reaches the hard-budget emergency trim.
  */
+
+import { resolveContextWindowPolicy } from '@wrongstack/contracts/types/context-window';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { widenTailCut } from '../../src/execution/compaction-tail.js';
 import { HybridCompactor } from '../../src/execution/compactor.js';
 import { validateConfigBehavior } from '../../src/storage/config-loader/validation.js';
-import { resolveContextWindowPolicy } from '../../src/types/context-window.js';
-import type { Message } from '../../src/types/messages.js';
 import { estimateMessageTokens } from '../../src/utils/token-estimate.js';
 
 function fakeContext(messages: Message[], meta: Record<string, unknown> = {}): Context {

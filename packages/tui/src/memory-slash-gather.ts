@@ -1,4 +1,4 @@
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { getSageSurface } from '@wrongstack/sage';
 import { KIND_EMOJI } from './memory-slash-format.js';
 import { memErr } from './memory-slash-renderers.js';

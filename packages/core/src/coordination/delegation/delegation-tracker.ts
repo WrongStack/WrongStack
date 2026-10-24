@@ -22,8 +22,8 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { EventBus } from '../../kernel/events.js';
-import type { SessionEvent } from '../../types/session.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import {
   type DelegationLookupSource,
   registerDelegationLookupSource,

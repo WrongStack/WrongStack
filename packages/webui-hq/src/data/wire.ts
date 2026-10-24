@@ -7,7 +7,7 @@
  *  2. Own the authoritative-refresh gate: exactly one `/api/snapshot` fetch
  *     per reconnect that the server could not gap-fill.
  */
-import type { HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSnapshot } from '@wrongstack/hq';
 import {
   projectHqAlertMessage,
   projectHqCommandStatusMessage,

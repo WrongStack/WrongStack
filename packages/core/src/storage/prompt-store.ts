@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { PromptEntry, PromptVariable } from '../types/prompt.js';
+import type { PromptEntry, PromptVariable } from '@wrongstack/contracts/types/prompt';
 import { atomicWrite, ensureDir } from '../utils/atomic-write.js';
 import { slugify } from '../utils/slug.js';
 import { ulid } from '../utils/ulid.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 
-export type { PromptEntry } from '../types/prompt.js';
+export type { PromptEntry } from '@wrongstack/contracts/types/prompt';
 
 export interface PromptStore {
   list(): Promise<PromptEntry[]>;

@@ -1,4 +1,4 @@
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Drive guardedLookup (the undici dispatcher's DNS callback) and the

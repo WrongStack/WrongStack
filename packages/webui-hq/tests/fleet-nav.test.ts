@@ -1,4 +1,4 @@
-import type { HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSnapshot } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { buildNav, buildNavFromTopology } from '../src/domain/fleet-nav-tree.js';
 import type { FleetTopology } from '../src/domain/fleet-topology.js';

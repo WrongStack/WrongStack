@@ -1,5 +1,5 @@
 /** Options for {@link makeACPSubagentRunner} (split out to keep the runner file small). */
-import type { SubagentRunContext, TaskSpec } from '@wrongstack/core/types';
+import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import type { ACPProgressEvent, ACPProgressHandler } from '../client/acp-session.js';
 import type { AcpSteerOutcome } from '../client/acp-session-ops.js';
 import type { PermissionPolicy } from '../client/permission.js';

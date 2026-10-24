@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   startWorktreeTelemetryBridge: vi.fn(),
 }));
 
-vi.mock('@wrongstack/core/hq', () => ({
+vi.mock('@wrongstack/hq', () => ({
   createApprovalRegistry: mocks.createApprovalRegistry,
   startApprovalTelemetryBridge: mocks.startApprovalTelemetryBridge,
   startBrainTelemetryBridge: mocks.startBrainTelemetryBridge,

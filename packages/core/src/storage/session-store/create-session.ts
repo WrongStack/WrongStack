@@ -1,7 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type {
   SessionArchiveIdleResult,
   SessionEvent,
@@ -9,7 +8,8 @@ import type {
   SessionStoragePolicy,
   SessionSummary,
   SessionWriter,
-} from '../../types/session.js';
+} from '@wrongstack/contracts/types/session';
+import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
 import { withFileLock } from '../../utils/atomic-write.js';
 import { toErrorMessage } from '../../utils/index.js';
 import type { EventBus } from '../event-bus-port.js';

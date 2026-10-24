@@ -3,14 +3,15 @@
  * its host assigns: not by unpinned dispatch, a foreign pin, a retarget, a
  * delegated message, or a budget extension.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
 import { DirectorTaskRegistry } from '../../src/coordination/director/director-task-registry.js';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { SEALED_AGENT_META_KEY } from '../../src/core/sealed-agent.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { TaskResult } from '../../src/types/multi-agent.js';
 
 const SESSION = 'sess_sealed';
 

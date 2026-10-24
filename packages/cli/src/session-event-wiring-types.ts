@@ -1,6 +1,6 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { ChronicleEventJournalHandle, ChronicleEventSink } from '@wrongstack/core/chronicle';
 import { createChronicleEventJournal } from '@wrongstack/core/chronicle';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { toErrorMessage } from '@wrongstack/core/utils';
 

@@ -1,4 +1,4 @@
-import type { Provider, Request } from '../types/provider.js';
+import type { Provider, Request } from '@wrongstack/contracts/types/provider';
 
 /**
  * Provider identity owned by one concrete LLM request.

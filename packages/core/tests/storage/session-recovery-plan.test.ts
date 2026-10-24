@@ -1,6 +1,6 @@
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { extractInterruptedTools, SessionRecovery } from '../../src/storage/session-recovery.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const ev = (partial: Record<string, unknown>, ts = '2026-08-21T00:00:00.000Z'): SessionEvent =>
   ({ ts, ...partial }) as SessionEvent;

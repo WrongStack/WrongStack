@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { PhaseGraphBuilder, PhaseStore } from '@wrongstack/core/goal';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import { PhaseGraphBuilder, PhaseStore } from '@wrongstack/goal';
 import { expect, it, vi } from 'vitest';
-import { deferred, goalGitFixture } from '../../core/tests/goal/helpers/goal-git-fixture.js';
+import { deferred, goalGitFixture } from '../../goal/tests/helpers/goal-git-fixture.js';
 import { GoalWebSocketHandler } from '../src/server/goal-ws-handler.js';
 
 const phase = (title: string) => [

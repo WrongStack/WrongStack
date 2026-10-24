@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { SessionStore } from '../types/session.js';
+import type { SessionStore } from '@wrongstack/contracts/types/session';
 import { ensureDir } from '../utils/atomic-write.js';
 import { isPidAlive } from '../utils/pid.js';
 import { sessionContentPreview, userInputTitle } from './session-helpers.js';

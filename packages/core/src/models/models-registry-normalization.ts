@@ -5,8 +5,8 @@ import type {
   ModelsDevPayload,
   ModelsDevProvider,
   WireFamily,
-} from '../types/models-registry.js';
-import type { ReasoningConfig, ReasoningEffort } from '../types/provider.js';
+} from '@wrongstack/contracts/types/models-registry';
+import type { ReasoningConfig, ReasoningEffort } from '@wrongstack/contracts/types/provider';
 
 /** Fields an account snapshot may borrow from a same-id catalog model when it is silent. */
 export const ACCOUNT_GAP_FIELDS = [

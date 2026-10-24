@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { loadConfigProviders } from '../provider-config-utils.js';
 import type { AuthMenuDeps } from './types.js';
 

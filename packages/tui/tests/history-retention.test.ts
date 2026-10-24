@@ -1,4 +1,4 @@
-import type { Message } from '@wrongstack/core/types';
+import type { Message } from '@wrongstack/contracts/types';
 import { DEFAULT_MIN_IMPORTANCE, DEFAULT_MIN_SCORE, MIN_RELATION_STRENGTH } from '@wrongstack/sage';
 import { describe, expect, it } from 'vitest';
 import { buildRestoredEntries, createInitialState } from '../src/app-initial-state.js';

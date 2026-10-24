@@ -15,8 +15,8 @@
  */
 
 import { execFile } from 'node:child_process';
+import type { HookInput, PluginAPI } from '@wrongstack/contracts/types';
 import { shellCommandLinesFromInput } from '@wrongstack/core/security';
-import type { HookInput, PluginAPI } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 

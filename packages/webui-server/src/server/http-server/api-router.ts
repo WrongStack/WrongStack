@@ -75,7 +75,9 @@ export interface ApiRouterDeps {
   watcherMetrics?: import('../setup-events.js').FileWatcherMetrics | undefined;
   onTechStackEvent?: ((event: TechStackEvent) => void) | undefined;
   getLlm?:
-    | (() => { provider: import('@wrongstack/core/types').Provider; model: string } | undefined)
+    | (() =>
+        | { provider: import('@wrongstack/contracts/types').Provider; model: string }
+        | undefined)
     | undefined;
   executePackageOperation?: import('../techstack-handlers.js').TechStackHandlerDeps['executePackageOperation'];
   /**
@@ -94,7 +96,7 @@ export interface ApiRouterDeps {
    * strict opt-in contract as the vector memory store — non-CLI hosts
    * that don't wire a memory store stay on their existing surface.
    */
-  getMemoryStore?: (() => import('@wrongstack/core/types').MemoryPort | undefined) | undefined;
+  getMemoryStore?: (() => import('@wrongstack/contracts/types').MemoryPort | undefined) | undefined;
 }
 
 /** Answer 401 for a route whose access-token gate failed; `true` = handled. */

@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { describe, expect, it, vi } from 'vitest';
 import { DocumentTracker } from '../../src/document-tracker.js';
 import { LSPRegistry } from '../../src/registry.js';

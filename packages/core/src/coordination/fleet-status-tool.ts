@@ -15,18 +15,18 @@
  * @module fleet-status-tool
  */
 
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import type { Context } from '../core/context.js';
-import type { AgentEntry } from '../session-catalog/session-registry.js';
-import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { getSharedProjectMailbox } from './remote-mailbox.js';
+import type { AgentEntry } from '../session-catalog/session-registry.js';
 import {
   defaultResolveProjectDir,
-  resolveMailboxIdentity,
   type MailboxResolver,
+  resolveMailboxIdentity,
 } from './mailbox-tool.js';
 import type { Mailbox } from './mailbox-types.js';
+import { getSharedProjectMailbox } from './remote-mailbox.js';
 
 export interface FleetStatusToolOptions {
   /** How to obtain a Mailbox given the execution Context (tests). */

@@ -18,7 +18,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { HQ_AUTH_FILE_VERSION, hqTokenKey, writeHqAuthFile } from '@wrongstack/core/hq';
+import { HQ_AUTH_FILE_VERSION, hqTokenKey, writeHqAuthFile } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { handleApiTokenUpgrade } from '../src/hq-server/routes/auth-handlers.js';
 import type { HqSessionEntry } from '../src/hq-server/types.js';

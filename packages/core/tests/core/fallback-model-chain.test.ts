@@ -2,13 +2,14 @@
  * Tests for core/fallback-model.ts — pure chain resolution functions.
  * Covers: effectiveFallbackChain, smartDefaultFallbackChain, fallbackProfileChain.
  */
+
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import {
   effectiveFallbackChain,
   fallbackProfileChain,
   smartDefaultFallbackChain,
 } from '../../src/core/fallback-model.js';
-import type { Config } from '../../src/types/config.js';
 
 function makeConfig(overrides: Record<string, unknown> = {}): Config {
   return {

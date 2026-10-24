@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SessionWriter } from '../../src/types/session.js';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSessionEventBridge } from '../../src/storage/session-event-bridge.js';
 
 function makeMockWriter() {

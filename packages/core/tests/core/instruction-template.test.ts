@@ -1,16 +1,16 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  isDeprecatedRuntimeToolAlias,
+  normalizeRuntimeToolName,
+} from '@wrongstack/contracts/types/runtime-capability-manifest';
 import { describe, expect, it } from 'vitest';
 import { RUNTIME_CAPABILITY_MANIFEST } from '../../src/coordination/agents/capability-manifest.js';
 import {
   type InstructionTemplateContext,
   renderInstructionLayer,
 } from '../../src/core/instruction-template.js';
-import {
-  isDeprecatedRuntimeToolAlias,
-  normalizeRuntimeToolName,
-} from '../../src/types/runtime-capability-manifest.js';
 import { expandSharedSystemInstructions } from '../../src/utils/instruction-file.js';
 
 function ctx(

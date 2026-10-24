@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
+import { Container, TOKENS } from '@wrongstack/contracts/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultConfigStore } from '@wrongstack/core/storage';

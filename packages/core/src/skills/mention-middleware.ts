@@ -1,8 +1,8 @@
-import type { Middleware } from '../kernel/pipeline.js';
-import { markVolatileSystemBlock } from '../types/blocks.js';
-import type { Request } from '../types/provider.js';
-import type { SkillLoader } from '../types/skill.js';
-import { authoredText } from '../utils/live-context.js';
+import type { Middleware } from '@wrongstack/contracts/kernel/pipeline';
+import { markVolatileSystemBlock } from '@wrongstack/contracts/types/blocks';
+import { authoredText } from '@wrongstack/contracts/types/live-context';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
 import { extractSkillMentions } from './mentions.js';
 
 /** Explicit selections are local and independent of the optional skill recommender. */

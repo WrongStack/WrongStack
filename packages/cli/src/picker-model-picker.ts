@@ -1,4 +1,4 @@
-import type { ModelsDevModel, ResolvedProvider } from '@wrongstack/core/types';
+import type { ModelsDevModel, ResolvedProvider } from '@wrongstack/contracts/types';
 import {
   color,
   expectDefined,

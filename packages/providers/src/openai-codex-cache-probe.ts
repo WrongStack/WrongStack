@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { Request, StreamEvent } from '@wrongstack/core/types';
+import type { Request, StreamEvent } from '@wrongstack/contracts/types';
 import {
   isCacheProbeEnabled,
   recordCacheProbeRequest,

@@ -15,17 +15,17 @@ vi.mock('@wrongstack/providers', () => ({
   capabilitiesFor: vi.fn(async () => ({ maxContext: 128_000 })),
 }));
 
-import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
-import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
-import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import type {
   ConfigStore,
   SessionWriter,
   SystemPromptBuilder,
   TokenCounter,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
+import { DefaultLogger } from '@wrongstack/core/infrastructure';
+import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { MultiAgentDeps } from '../src/multi-agent.js';
 import { MultiAgentHost } from '../src/multi-agent.js';
 

@@ -30,7 +30,7 @@ vi.mock('@wrongstack/core/coordination', () => ({
   startPackageOutdatedWatcher: mocks.startPackageOutdatedWatcher,
 }));
 
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { setupDepWatcherConsumers } from '../src/wiring/dep-watcher.js';
 
 interface HarnessOptions {

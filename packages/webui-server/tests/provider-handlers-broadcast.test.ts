@@ -3,7 +3,7 @@ import type {
   ProviderConfig,
   ResolvedProvider,
   SecretVault,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { createProviderHandlers } from '../src/server/provider-handlers.js';

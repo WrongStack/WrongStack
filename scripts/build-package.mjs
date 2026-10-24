@@ -37,13 +37,23 @@ function outputName(source) {
   return withoutSrc.slice(0, -extname(withoutSrc).length).replaceAll('\\', '/');
 }
 
+/** Every `.ts` source under `dir` (relative to the package root), POSIX-separated. */
+function listSources(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const rel = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) out.push(...listSources(rel));
+    else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) out.push(rel);
+  }
+  return out;
+}
+
 function entryMap(sources) {
   return Object.fromEntries(sources.map((source) => [outputName(source), source]));
 }
 
 const coreEntries = entryMap([
   'src/index.ts',
-  'src/kernel/index.ts',
   'src/core/index.ts',
   'src/execution/refine-decisions.ts',
   'src/statusline/index.ts',
@@ -58,19 +68,19 @@ const coreEntries = entryMap([
   'src/quota/index.ts',
   // Narrow, dependency-free entries so browser bundles (webui, webui-hq,
   // simpleui) can import these helpers without dragging the `types` / `core`
-  // barrels — those reach `types/mode-prompts.ts`, which reads instruction
-  // files with `node:fs` at module scope and made Vite externalize Node
-  // built-ins into the browser graph.
+  // barrels — those used to reach `types/mode-prompts.ts`, which reads
+  // instruction files with `node:fs` at module scope and made Vite externalize
+  // Node built-ins into the browser graph. (`types/` + `kernel/` moved to
+  // `@wrongstack/contracts` on 2026-10-24; import contracts from there.)
   'src/core/model-ref.ts',
   'src/core/request-conversation-binding.ts',
-  'src/types/index.ts',
-  // Limit bounds, dependency-free, so the browser Settings panel validates
-  // against the same table as the server.
-  'src/types/config/limits.ts',
   'src/cloud-provider.ts',
-  'src/types/session-markers.ts',
-  'src/types/session-timeline.ts',
-  'src/types/worktree-timeline.ts',
+  // Config boot (bootConfig / flagsToConfigPatch). Composition-root module,
+  // so it is its own subpath instead of riding the `infrastructure` barrel.
+  'src/boot.ts',
+  // Default AgentCoordinationPort (composition root). `@wrongstack/runtime`
+  // binds it to AGENT_COORDINATION; the agent loop never imports it.
+  'src/agent-coordination-default.ts',
   'src/utils/index.ts',
   'src/utils/expect-defined.ts',
   'src/utils/next-steps.ts',
@@ -114,9 +124,6 @@ const coreEntries = entryMap([
   'src/infrastructure/index.ts',
   'src/observability/index.ts',
   'src/notifications/index.ts',
-  'src/tools/index.ts',
-  'src/hq/index.ts',
-  'src/hq/protocol.ts',
   'src/skills/index.ts',
   'src/skills/mentions.ts',
   'src/typesafe/index.ts',
@@ -124,7 +131,6 @@ const coreEntries = entryMap([
   'src/prompts/index.ts',
   'src/performance/index.ts',
   'src/worktree/index.ts',
-  'src/goal/index.ts',
   'src/hooks/index.ts',
   'src/replay/index.ts',
   // WrongProxy / WrongTrace rewriter. Listed here so esbuild emits
@@ -142,6 +148,9 @@ const toolEntries = entryMap([
   'src/index.ts',
   'src/builtin.ts',
   'src/browser/index.ts',
+  // Agent-facing management tools (council, fallback, MCP control, plugin
+  // manager, Jev), moved here from core/src/tools on 2026-10-24.
+  'src/management/index.ts',
   'src/pack.ts',
   'src/tool-tier.ts',
   'src/read.ts',
@@ -289,7 +298,37 @@ const profiles = {
   '@wrongstack/persistence': standard(),
   // Dependency leaf (card #5): kanban sits below core/tools, so the shared
   // regex guard lives here where every tier can import it.
-  '@wrongstack/primitives': standard(),
+  '@wrongstack/contracts': {
+    // Every module is an entry: the package exports `./types/*` and
+    // `./kernel/*` so core (and anyone else) can import a single contract
+    // module by path. Computed on access so other packages' builds never walk
+    // this tree.
+    get entries() {
+      return entryMap(listSources('src').filter((file) => !file.includes('/__tests__/')));
+    },
+    // One shared chunk: the error classes, `EventBus` and `Container` must
+    // keep a single identity across the per-module entries.
+    splitting: true,
+    chunkNames: '[name]-[hash]',
+    external: [],
+  },
+  '@wrongstack/primitives': {
+    // The narrow subpaths are browser-safe (no `node:*` import reachable):
+    // webui imports `@wrongstack/core/utils/error` / `utils/expect-defined`,
+    // which re-export them, and the main entry pulls `node:child_process`.
+    entries: {
+      index: 'src/index.ts',
+      error: 'src/error.ts',
+      'expect-defined': 'src/expect-defined.ts',
+      redaction: 'src/redaction.ts',
+      string: 'src/string.ts',
+    },
+    // One shared chunk, so `DefaultSecretScrubber` and the redaction
+    // singleton keep a single identity across the entries.
+    splitting: true,
+    chunkNames: '[name]-[hash]',
+    external: [],
+  },
   '@wrongstack/vector-memory': standard(['@wrongstack/core', '@wrongstack/sage']),
   '@wrongstack/governance': {
     entries: {
@@ -361,6 +400,19 @@ const profiles = {
       '@wrongstack/sage',
       '@wrongstack/tools',
     ],
+  },
+  // HQ control plane, extracted from core (src/hq) on 2026-10-24. The protocol
+  // entry stays separate and dependency-light: the HQ dashboard bundles it
+  // into the browser.
+  '@wrongstack/hq': {
+    entries: { index: 'src/index.ts', protocol: 'src/protocol.ts' },
+    // Shared chunk, so protocol constants and guards keep one identity.
+    splitting: true,
+    chunkNames: '[name]-[hash]',
+  },
+  // Goal / phase orchestration, extracted from core (src/goal) on 2026-10-24.
+  '@wrongstack/goal': {
+    entries: { index: 'src/index.ts' },
   },
   '@wrongstack/sage': {
     entries: {

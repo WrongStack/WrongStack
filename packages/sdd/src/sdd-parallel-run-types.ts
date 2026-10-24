@@ -1,8 +1,8 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { TaskGraph, TaskNode, TaskProgress, TaskResult } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import type { AgentFactory } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import type { TaskGraph, TaskNode, TaskProgress, TaskResult } from '@wrongstack/core/types';
 import type { WorktreeManager } from '@wrongstack/core/worktree';
 import type { TaskBatch } from './sdd-task-decomposer.js';
 /** A sub-task produced by splitting a parent task (see `splitTask`). */

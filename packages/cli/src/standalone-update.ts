@@ -15,7 +15,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { FetchError } from '@wrongstack/core/types';
+import { FetchError } from '@wrongstack/contracts/types';
 import { downloadReleaseAsset } from './release-asset-download.js';
 import { RELEASES_REPO, verifyReleaseAttestation } from './release-attestation.js';
 import type { TerminalRenderer } from './renderer.js';

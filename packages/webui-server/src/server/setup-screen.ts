@@ -11,8 +11,9 @@
  * `needsSetup` flag, and the stub provider's exact shape are preserved
  * verbatim. The function throws on the same failures the inline code did.
  */
+
+import type { Config, Provider, ProviderConfig } from '@wrongstack/contracts/types';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
-import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
 import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import { createSetupProviderFactory, makeProviderFromConfig } from '@wrongstack/providers';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';

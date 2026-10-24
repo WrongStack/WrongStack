@@ -6,7 +6,7 @@ import {
   type PhaseStore,
   prepareGoalGraphForResume,
   prepareGoalWorkspace,
-} from '@wrongstack/core/goal';
+} from '@wrongstack/goal';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import { isGitWorkTree } from './git-process.js';

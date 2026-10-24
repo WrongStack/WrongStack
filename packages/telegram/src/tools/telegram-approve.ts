@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Logger, Tool } from '@wrongstack/core/types';
+import type { Logger, Tool } from '@wrongstack/contracts/types';
 import type { TelegramBot } from '../bot.js';
 import { truncateForTelegram } from '../bot.js';
 import {

@@ -1,3 +1,4 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   addPlanItem,
   clearPlan,
@@ -14,7 +15,6 @@ import {
   removePlanItem,
   setPlanItemStatus,
 } from '@wrongstack/core/storage';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { formatTaskList, formatTodosList } from '@wrongstack/core/utils';
 import { todoTool } from '@wrongstack/tools';
 import type { SlashCommandContext } from './command-context.js';

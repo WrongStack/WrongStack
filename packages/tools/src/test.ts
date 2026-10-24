@@ -1,6 +1,6 @@
 import * as path from 'node:path';
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { stripAnsi } from '@wrongstack/core/utils';
 import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';

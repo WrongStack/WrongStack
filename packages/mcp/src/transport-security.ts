@@ -1,6 +1,6 @@
 import * as dns from 'node:dns/promises';
 import * as net from 'node:net';
-import { ConfigError } from '@wrongstack/core/types';
+import { ConfigError } from '@wrongstack/contracts/types';
 import { embeddedIPv4, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils';
 
 export function isTlsUnsafeAllowed(): boolean {

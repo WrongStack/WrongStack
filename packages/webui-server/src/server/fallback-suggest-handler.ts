@@ -10,6 +10,7 @@
  * result with the error reported — never to an empty card.
  */
 
+import type { Provider, Request } from '@wrongstack/contracts/types';
 import {
   buildFallbackSuggestPrompt,
   excludeListedModels,
@@ -21,7 +22,6 @@ import {
   selectLlmCandidatePool,
   suggestFallbackProfiles,
 } from '@wrongstack/core/models';
-import type { Provider, Request } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';

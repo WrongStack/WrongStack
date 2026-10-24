@@ -1,5 +1,5 @@
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { isIndexing, runStartupIndex } from './background-indexer.js';
 import { indexCircuitBreaker } from './circuit-breaker.js';
 import { INDEXABLE_LANG_IDS } from './codebase-search-tool.js';

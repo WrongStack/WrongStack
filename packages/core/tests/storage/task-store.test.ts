@@ -1,9 +1,9 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import { isSessionError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it, vi } from 'vitest';
-import type { EventBus } from '../../src/kernel/events.js';
 import { emptyTaskFile, loadTasks, mutateTasks, saveTasks } from '../../src/storage/task-store.js';
-import { isSessionError } from '../../src/types/errors.js';
 
 // vi.mock is hoisted above imports.  We use vi.importActual inside the factory
 // to lazily get the real module, avoiding TDZ issues.  The returned plain object

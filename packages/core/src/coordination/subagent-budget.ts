@@ -1,5 +1,5 @@
-import type { EventBus } from '../kernel/events.js';
-import type { Usage } from '../types/provider.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Usage } from '@wrongstack/contracts/types/provider';
 import {
   BudgetExceededError,
   type BudgetKind,
@@ -11,7 +11,8 @@ import {
   BudgetThresholdSignal,
   type BudgetUsage,
   type SubagentBudgetOptions,
-} from './subagent-budget-contracts.js';
+  type SubagentBudgetPort,
+} from '@wrongstack/contracts/types/subagent-budget';
 import { collectExceededBudgets } from './subagent-budget-limits.js';
 import {
   buildSubagentFinishNotice,
@@ -29,7 +30,7 @@ export {
   type BudgetThresholdHandler,
   BudgetThresholdSignal,
   type BudgetUsage,
-} from './subagent-budget-contracts.js';
+} from '@wrongstack/contracts/types/subagent-budget';
 
 /**
  * Fraction of the wall-clock `timeoutMs` window at which a PROACTIVE extension
@@ -69,7 +70,7 @@ export const DECISION_TIMEOUT_MS = 60_000;
  * behavior explicit and means tests can use `expect().toThrow()` even without
  * a fully-wired EventBus.
  */
-export class SubagentBudget {
+export class SubagentBudget implements SubagentBudgetPort {
   readonly limits: Readonly<BudgetLimits>;
 
   /** Patch one or more budget limits in-place after construction.

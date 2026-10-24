@@ -1,3 +1,4 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   CHIP_DESCRIPTIONS,
   clampLine,
@@ -8,7 +9,6 @@ import {
   type StatuslineDensity,
   type StatuslineLine,
 } from '@wrongstack/core/statusline';
-import type { SlashCommand } from '@wrongstack/core/types';
 import {
   DEFAULTS,
   STATUSLINE_CONFIG_KEYS,

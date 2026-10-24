@@ -22,7 +22,7 @@ vi.mock('../src/hq-server/snapshot.js', () => ({
 
 // Import after the mock.
 const { detectLeaderLoss } = await import('../src/hq-server/ws.js');
-const { HQ_PROTOCOL_VERSION } = await import('@wrongstack/core/hq');
+const { HQ_PROTOCOL_VERSION } = await import('@wrongstack/hq');
 
 import type { ConnectedClient } from '../src/hq-server/types.js';
 

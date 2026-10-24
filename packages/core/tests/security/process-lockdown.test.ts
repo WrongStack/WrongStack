@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
@@ -9,7 +10,6 @@ import {
   lockToProjectRoot,
   lockYoloOff,
 } from '../../src/security/process-lockdown.js';
-import type { Tool } from '../../src/types/tool.js';
 
 const write: Tool = {
   name: 'write',

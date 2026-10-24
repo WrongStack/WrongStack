@@ -7,7 +7,7 @@
 // environment is not configured to support act(...)" on every act() call.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-import type { HqEventEnvelope, HqWorktreeEventPayload } from '@wrongstack/core/hq';
+import type { HqEventEnvelope, HqWorktreeEventPayload } from '@wrongstack/hq';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

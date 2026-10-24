@@ -15,13 +15,14 @@
  * `TOKENS.RetryPolicy` and register the same fallback extension — one contract,
  * not three.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import { createFallbackModelExtension } from '../../src/core/fallback-model.js';
 import { runProviderWithRetry } from '../../src/core/provider-runner.js';
 import { DefaultRetryPolicy, MODEL_RETRIES } from '../../src/execution/retry-policy.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Config } from '../../src/types/config.js';
-import { ProviderError } from '../../src/types/provider.js';
 
 const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() } as never;
 

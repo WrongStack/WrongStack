@@ -1,7 +1,7 @@
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { expect, it } from 'vitest';
 import { DelegationTracker } from '../../src/coordination/delegation/delegation-tracker.js';
 import { LeaderDeliveryHub } from '../../src/coordination/delegation/leader-delivery-hub.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const journal = (id: string): SessionEvent[] => [
   {

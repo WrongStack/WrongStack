@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { MemoryCapability, MemoryStore } from '@wrongstack/core/types';
+import type { MemoryCapability, MemoryStore } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createProjectSageMemoryPort,

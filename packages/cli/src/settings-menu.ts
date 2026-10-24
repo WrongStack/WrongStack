@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { ConfigStore } from '@wrongstack/contracts/types';
+import { ConfigError, ERROR_CODES, FsError, type SecretVault } from '@wrongstack/contracts/types';
 import { decryptConfigSecretsForRewrite, encryptConfigSecrets } from '@wrongstack/core/security';
 import { listInProjectDeniedPaths } from '@wrongstack/core/storage';
-import type { ConfigStore } from '@wrongstack/core/types';
-import { ConfigError, ERROR_CODES, FsError, type SecretVault } from '@wrongstack/core/types';
 import { atomicWrite, deepMerge, withFileLock } from '@wrongstack/core/utils';
 import { appendHistory, backupCurrent } from './config-history.js';
 

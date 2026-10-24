@@ -27,7 +27,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { isLoopbackHost } from '../hq/exposure.js';
+import { isLoopbackHost } from '../utils/ip-guard.js';
 import { isPidAlive } from '../utils/pid.js';
 
 const INSTANCES_FILE = 'webui-instances.json';

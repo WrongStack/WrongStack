@@ -1,7 +1,7 @@
 import * as path from 'node:path';
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import { resolveTokenSavingTier } from '@wrongstack/contracts/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { resolveTokenSavingTier } from '@wrongstack/core/types';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import { bindSystemPromptBuilder } from '../boot/system-prompt-builder.js';
 import { registerBuiltinTools } from '../boot/tool-registry.js';
@@ -20,7 +20,7 @@ export async function setupCliPromptAndTools(params: {
   modeStore: AnyObj;
   memoryStore: AnyObj;
   skillLoader: AnyObj;
-  sessionRef: { current: import('@wrongstack/core/types').SessionWriter | undefined };
+  sessionRef: { current: import('@wrongstack/contracts/types').SessionWriter | undefined };
   autonomyModeRef: { current: import('../services/autonomy-mode.js').AutonomyMode };
   modeId: string;
   modePrompt?: string | undefined;

@@ -7,6 +7,14 @@
  */
 
 export type { BrowserElementSelection } from './browser-selection.js';
+export { rawErrorMessage, toErrorMessage } from './error.js';
+export {
+  ERROR_DETAIL_MAX,
+  sanitizeApiError,
+  scrubErrorDetail,
+  scrubErrorText,
+} from './error-sanitize.js';
+export { expectDefined } from './expect-defined.js';
 export {
   type GitIsolationOptions,
   gitConfigEnv,
@@ -23,6 +31,14 @@ export {
   redactCommandArgs,
   redactSecrets,
 } from './redact-command.js';
+export {
+  DefaultSecretScrubber,
+  isOpaqueMediaStringField,
+  isStandardBase64Payload,
+  redactText,
+  redactValue,
+  type SecretScrubber,
+} from './redaction.js';
 export {
   type CompileFail,
   type CompileResult,
@@ -45,5 +61,6 @@ export {
   SYSTEM_SESSION_PREFIX,
   systemSessionId,
 } from './session-id.js';
+export { truncate } from './string.js';
 export { nowIso } from './time.js';
 export { timingSafeTokenEqual } from './timing-safe.js';

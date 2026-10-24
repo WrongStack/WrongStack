@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
+import type { Message } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Message } from '@wrongstack/core/types';
 import {
   rehydrateContextEvidenceFromMessages,
   repairToolUseAdjacency,

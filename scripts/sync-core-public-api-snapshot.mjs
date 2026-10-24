@@ -94,10 +94,13 @@ export function changedSnapshotInputs(files, readSource = readSourceFromDisk) {
  *              committed artifacts. Refuse and ask for a clean tree.
  *   generate — staged inputs exist and nothing else dirty touches an input.
  */
-export function decideSnapshotAction({ staged, unstaged, untracked }) {
-  const stagedInputs = changedSnapshotInputs(staged ?? []);
+export function decideSnapshotAction({ staged, unstaged, untracked, readSource }) {
+  const stagedInputs = changedSnapshotInputs(staged ?? [], readSource);
   if (stagedInputs.length === 0) return { action: 'skip', stagedInputs };
-  const unsafeInputs = changedSnapshotInputs([...(unstaged ?? []), ...(untracked ?? [])]);
+  const unsafeInputs = changedSnapshotInputs(
+    [...(unstaged ?? []), ...(untracked ?? [])],
+    readSource,
+  );
   if (unsafeInputs.length > 0) return { action: 'fail', stagedInputs, unsafeInputs };
   return { action: 'generate', stagedInputs };
 }

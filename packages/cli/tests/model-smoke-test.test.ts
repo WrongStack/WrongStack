@@ -5,7 +5,7 @@ import type {
   ProviderConfig,
   ResolvedProvider,
   Response,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildModelSmokeTargets,

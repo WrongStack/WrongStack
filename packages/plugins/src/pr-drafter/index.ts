@@ -31,7 +31,7 @@
 import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
-import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/contracts/types';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import { releaseHandle } from '../runtime/index.js';
 

@@ -1,7 +1,7 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { MetricsSink } from '@wrongstack/contracts/types/observability';
 import { describe, expect, it, vi } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { wireMetricsToEvents } from '../../src/observability/event-bridge.js';
-import type { MetricsSink } from '../../src/types/observability.js';
 
 const makeSink = () => {
   const counter = vi.fn();

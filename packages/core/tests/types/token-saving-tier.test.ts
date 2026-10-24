@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
 import {
   normalizeTokenSavingTier,
   resolveTokenSavingTier,
   type TokenSavingTier,
-} from '../../src/types/config.js';
+} from '@wrongstack/contracts/types/config';
+import { describe, expect, it } from 'vitest';
 
 describe('normalizeTokenSavingTier', () => {
   describe('boolean input (backward compatibility)', () => {

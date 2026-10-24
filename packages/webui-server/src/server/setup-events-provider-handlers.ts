@@ -1,4 +1,4 @@
-import type { EventName, Listener } from '@wrongstack/core/kernel';
+import type { EventName, Listener } from '@wrongstack/contracts/kernel';
 import type { WebSocket } from 'ws';
 import type { SetupEventProjection } from './setup-event-projection.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';

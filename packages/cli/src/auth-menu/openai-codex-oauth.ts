@@ -29,7 +29,7 @@
  * working against this module unchanged.
  */
 
-import type { ProviderApiKey, ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderApiKey, ProviderConfig } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import {
   buildCodexAuthorizeUrl,

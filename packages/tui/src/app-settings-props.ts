@@ -1,4 +1,4 @@
-import type { ConfigStore } from '@wrongstack/core/types';
+import type { ConfigStore } from '@wrongstack/contracts/types';
 import type { Settings } from './app-reducer.js';
 import type { AuthPanelHost } from './auth-panel-model.js';
 import type { BrainRiskLevel } from './brain-contracts.js';
@@ -35,7 +35,7 @@ export interface TuiSettingsProps {
   saveSettings?: ((s: Settings) => string | null | Promise<string | null>) | undefined;
   /** Persist the active theme preset to disk so the next boot starts with it. */
   saveThemePreset?:
-    | ((preset: import('@wrongstack/core/types').ThemePresetId) => Promise<void>)
+    | ((preset: import('@wrongstack/contracts/types').ThemePresetId) => Promise<void>)
     | undefined;
   /** Load toggleable plugin rows for the interactive plugin picker. */
   getPluginItems?: (() => PluginPickerItem[]) | undefined;

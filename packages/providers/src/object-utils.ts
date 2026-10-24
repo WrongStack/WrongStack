@@ -1,4 +1,4 @@
-import type { Request } from '@wrongstack/core/types';
+import type { Request } from '@wrongstack/contracts/types';
 
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

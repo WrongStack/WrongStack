@@ -1,4 +1,4 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { OffsetStore } from './offset-store.js';
 import type { PollLock } from './poll-lock.js';
 

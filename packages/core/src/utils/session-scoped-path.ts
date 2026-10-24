@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { ERROR_CODES, FsError } from '../types/errors.js';
+import { ERROR_CODES, FsError } from '@wrongstack/contracts/types/errors';
 
 /**
  * Resolve `<dir>/<sessionId><suffix>` for per-session sidecar files

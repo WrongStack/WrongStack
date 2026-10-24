@@ -1,11 +1,11 @@
-import type { ToolRegistry } from '@wrongstack/core/registry';
 import type {
   Config,
   ModelsRegistry,
   SecretVault,
   SessionStore,
   SkillLoader,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { ReadlineInputReader } from '../input-reader.js';
 import type { TerminalRenderer } from '../renderer.js';
@@ -33,5 +33,5 @@ export interface SubcommandDeps {
    * runs in a fresh process and has none — the handler then omits the
    * listener-pressure line instead of fabricating counts.
    */
-  events?: import('@wrongstack/core/kernel').EventBus | undefined;
+  events?: import('@wrongstack/contracts/kernel').EventBus | undefined;
 }

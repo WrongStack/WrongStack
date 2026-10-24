@@ -1,4 +1,4 @@
-import type { TrustPolicy } from '../types/permission.js';
+import type { TrustPolicy } from '@wrongstack/contracts/types/permission';
 
 export const TRUST_POLICY_SCHEMA_VERSION = 1 as const;
 

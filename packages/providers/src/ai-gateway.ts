@@ -1,4 +1,3 @@
-import type { ProviderFactory } from '@wrongstack/core/registry';
 import {
   type Capabilities,
   ConfigError,
@@ -7,7 +6,8 @@ import {
   type Request,
   type Response,
   type StreamEvent,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { ProviderFactory } from '@wrongstack/core/registry';
 import {
   createGateway,
   type LanguageModel,

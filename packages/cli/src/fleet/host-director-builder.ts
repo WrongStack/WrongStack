@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
+import type { Config } from '@wrongstack/contracts/types';
 import {
   DEFAULT_MAX_FLEET_SPAWNS,
   FleetManager,
   type FleetWorktreePolicy,
   HARD_MAX_SPAWN_DEPTH,
 } from '@wrongstack/core/coordination';
-import type { Config } from '@wrongstack/core/types';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 
 import { resolveFleetWorktreePolicy } from './host-helpers.js';

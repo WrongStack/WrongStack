@@ -1,3 +1,4 @@
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import {
   ENHANCE_MIN_RETRY_TIMEOUT_MS,
@@ -5,7 +6,6 @@ import {
   resolveConfiguredRefinerRef,
   resolveEnhanceFallbackRef,
 } from '../../src/execution/enhance-recovery.js';
-import type { Config } from '../../src/types/config.js';
 
 function cfg(over: Partial<Config> = {}): Config {
   return {

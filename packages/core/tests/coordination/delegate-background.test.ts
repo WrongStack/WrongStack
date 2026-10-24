@@ -1,3 +1,11 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type {
+  SubagentRunContext,
+  SubagentRunOutcome,
+  TaskSpec,
+} from '@wrongstack/contracts/types/multi-agent';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDelegateTool, type DelegateHost } from '../../src/coordination/delegate-tool.js';
 import { findDelegationForTask } from '../../src/coordination/delegation/delegation-lookup.js';
@@ -17,14 +25,6 @@ import { Director } from '../../src/coordination/director.js';
 import { makeAwaitTasksTool } from '../../src/coordination/director-basic-tools.js';
 import type { DirectorOptions } from '../../src/coordination/director-options.js';
 import { FLEET_ROSTER } from '../../src/coordination/fleet.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { AgentContext } from '../../src/types/context.js';
-import type {
-  SubagentRunContext,
-  SubagentRunOutcome,
-  TaskSpec,
-} from '../../src/types/multi-agent.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const SESSION = 'sess-bg';
 /** The delegate tool only reads `ctx.session.id` to resolve the owning session. */

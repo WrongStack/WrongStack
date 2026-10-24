@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { ERROR_CODES, FsError } from '@wrongstack/contracts/types';
 import {
   clampLine,
   defaultChipEnabledMap,
@@ -13,7 +14,6 @@ import {
   type StatuslineLines,
   type StatuslineOrder,
 } from '@wrongstack/core/statusline';
-import { ERROR_CODES, FsError } from '@wrongstack/core/types';
 import { atomicWrite, resolveWstackPaths, toErrorMessage } from '@wrongstack/core/utils';
 
 const CONFIG_ENV = 'WRONGSTACK_STATUSLINE_CONFIG';

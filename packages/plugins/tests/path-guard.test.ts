@@ -1,6 +1,6 @@
+import type { Tool, ToolResultBlock } from '@wrongstack/contracts/types';
 import { ToolExecutor } from '@wrongstack/core/execution';
 import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
-import type { Tool, ToolResultBlock } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const pathGuardPlugin = (await import('../src/path-guard/index.js')).default;

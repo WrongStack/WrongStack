@@ -3,8 +3,9 @@
  * winning source label (issue #323). Priority matches director-setup:
  * CLI flag → env → profile/config → built-in default.
  */
+
+import type { Config } from '@wrongstack/contracts/types';
 import { DEFAULT_MAX_FLEET_SPAWNS } from '@wrongstack/core/coordination';
-import type { Config } from '@wrongstack/core/types';
 
 export type FleetBudgetSource = 'cli-flag' | 'env' | 'profile' | 'default';
 

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, open, readdir, readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
-import type { JSONSchema } from '@wrongstack/core/types';
+import type { JSONSchema } from '@wrongstack/contracts/types';
 import { assertValue, checkSchema, withDefaults } from './schema.js';
 
 export const KIT_DIRECTORY = '.wrongstack/project-kit';

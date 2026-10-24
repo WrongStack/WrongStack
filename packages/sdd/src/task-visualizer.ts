@@ -1,5 +1,5 @@
+import type { Specification, TaskGraph, TaskNode, TaskProgress } from '@wrongstack/contracts/types';
 import { computeTaskProgress } from '@wrongstack/core/tasking';
-import type { Specification, TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
 import { expectDefined, truncate } from '@wrongstack/core/utils';
 
 const STATUS_ICON: Record<TaskNode['status'], string> = {

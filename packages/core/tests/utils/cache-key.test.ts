@@ -1,8 +1,8 @@
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { applyModelRuntime } from '../../src/execution/model-runtime.js';
-import type { TextBlock } from '../../src/types/blocks.js';
-import type { Request } from '../../src/types/provider.js';
-import type { Tool } from '../../src/types/tool.js';
 import { deriveCachePrefixKey } from '../../src/utils/cache-key.js';
 
 const block = (text: string): TextBlock => ({ type: 'text', text });

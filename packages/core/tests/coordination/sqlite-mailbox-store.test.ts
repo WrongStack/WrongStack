@@ -11,10 +11,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveProjectDir } from '../../src/coordination/global-mailbox-paths.js';
 import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
-import type { EventBus } from '../../src/kernel/events.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

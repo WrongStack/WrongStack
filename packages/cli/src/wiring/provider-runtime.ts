@@ -1,5 +1,5 @@
+import type { Config, Provider, ProviderConfig } from '@wrongstack/contracts/types';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
-import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
 import {
   getProxyConfig,
   isProxyEligible,

@@ -1,5 +1,5 @@
+import type { EventName, Listener } from '@wrongstack/contracts/kernel';
 import type { Context } from '@wrongstack/core/agent';
-import type { EventName, Listener } from '@wrongstack/core/kernel';
 import type { WebSocket } from 'ws';
 import { extractCodeMapFileTargets } from './codemap-telemetry.js';
 import type { SetupEventProjection } from './setup-event-projection.js';

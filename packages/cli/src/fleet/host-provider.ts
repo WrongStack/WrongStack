@@ -1,4 +1,9 @@
-import type { Config, Provider, ReasoningConfig, SubagentConfig } from '@wrongstack/core/types';
+import type {
+  Config,
+  Provider,
+  ReasoningConfig,
+  SubagentConfig,
+} from '@wrongstack/contracts/types';
 import {
   getProxyConfig,
   rewriteBaseUrl,

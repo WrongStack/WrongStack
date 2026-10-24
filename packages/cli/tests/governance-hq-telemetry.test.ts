@@ -1,4 +1,4 @@
-import type { HqGovernanceSnapshotPayload } from '@wrongstack/core/hq';
+import type { HqGovernanceSnapshotPayload } from '@wrongstack/hq';
 import { describe, expect, it, vi } from 'vitest';
 import {
   projectGovernanceHqSnapshot,

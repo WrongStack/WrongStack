@@ -762,7 +762,7 @@ describe('AnthropicProvider', () => {
 
   // ── maxTools ───────────────────────────────────────────────
 
-  function toolList(names: string[]): import('@wrongstack/core/types').Tool[] {
+  function toolList(names: string[]): import('@wrongstack/contracts/types').Tool[] {
     return names.map((name) => ({
       name,
       description: `Tool ${name}`,

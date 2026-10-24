@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SyncConfig } from '@wrongstack/contracts/types/config';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloudSync } from '../../src/storage/cloud-sync.js';
-import type { SyncConfig } from '../../src/types/config.js';
 import type { WstackPaths } from '../../src/utils/wstack-paths.js';
 
 /**

@@ -1,6 +1,6 @@
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { cloudFieldsForProvider, parseNativeCloudSettings } from '@wrongstack/core/cloud-provider';
-import { validateProviderBaseUrl } from '@wrongstack/core/tools';
-import type { ProviderConfig } from '@wrongstack/core/types';
+import { validateProviderBaseUrl } from '@wrongstack/tools/management';
 import type { WebSocket } from 'ws';
 import { errMessage } from '../ws-utils.js';
 import {

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as zlib from 'node:zlib';
 
-import type { Request } from '@wrongstack/core/types';
+import type { Request } from '@wrongstack/contracts/types';
 
 import { CODEX_BASE_URL, codexModelsUrl, codexResponsesUrl } from './oauth/codex-protocol.js';
 

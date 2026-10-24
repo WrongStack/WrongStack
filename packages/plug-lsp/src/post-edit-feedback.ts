@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import type { InProcessHook } from '@wrongstack/core/types';
+import type { InProcessHook } from '@wrongstack/contracts/types';
 import type { Diagnostic } from 'vscode-languageserver-protocol';
 import { formatDiagnostics } from './formatters/diagnostics.js';
 import { supportsPullDiagnostics } from './server/capabilities.js';

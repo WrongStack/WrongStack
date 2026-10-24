@@ -1,6 +1,6 @@
+import type { Tool, ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { ToolExecutor } from '@wrongstack/core/execution';
-import type { Tool, ToolResultBlock, ToolUseBlock } from '@wrongstack/core/types';
 import { toolUseTool } from '@wrongstack/tools/tool-use';
 import { describe, expect, it, vi } from 'vitest';
 import { AnthropicProvider } from '../src/anthropic.js';

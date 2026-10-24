@@ -15,8 +15,8 @@ export type {
   PreToolUseOutcome,
   PreToolUseStage,
   ShellHook,
-} from '../types/hooks.js';
-export { HOOK_EVENTS, isHookEvent } from '../types/hooks.js';
+} from '@wrongstack/contracts/types/hooks';
+export { HOOK_EVENTS, isHookEvent } from '@wrongstack/contracts/types/hooks';
 export type { HttpHookSpec } from './http-executor.js';
 export { runHttpHookDetailed } from './http-executor.js';
 export { bridgeLifecycleHooks, type LifecycleHookBridgeOptions } from './lifecycle-bridge.js';

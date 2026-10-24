@@ -48,7 +48,7 @@ vi.mock('node:child_process', async (orig) => {
   };
 });
 
-import { hasModifiedPaths } from '@wrongstack/core/types';
+import { hasModifiedPaths } from '@wrongstack/contracts/types';
 import { patchTool } from '../src/patch.js';
 
 let tmpDir: string;

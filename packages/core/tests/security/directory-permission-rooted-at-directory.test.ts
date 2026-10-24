@@ -1,12 +1,12 @@
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
+import type { DirectoryRule, PermissionPolicy } from '@wrongstack/contracts/types/permission';
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import {
   DirectoryPermissionPolicy,
   matchRule,
 } from '../../src/security/directory-permission-policy.js';
-import type { Tool } from '../../src/types/index.js';
-import type { DirectoryRule, PermissionPolicy } from '../../src/types/permission.js';
 
 /**
  * A call ROOTED AT a denied directory (a shell cwd, a recursive grep/glob

@@ -1,5 +1,5 @@
 import * as fsp from 'node:fs/promises';
-import { SessionError } from '../types/errors.js';
+import { SessionError } from '@wrongstack/contracts/types/errors';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import type { TaskItem } from '../utils/task-format.js';

@@ -1,3 +1,4 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { describe, expect, it } from 'vitest';
 import {
   isSkillRecommendable,
@@ -7,7 +8,6 @@ import {
   recommendSkills,
   skillSpeedBump,
 } from '../../src/skills/skill-speed-bump.js';
-import type { Message } from '../../src/types/messages.js';
 
 function holder(sessionId = 's1', messages: Message[] = []) {
   return { meta: {} as Record<string, unknown>, messages, session: { id: sessionId } };

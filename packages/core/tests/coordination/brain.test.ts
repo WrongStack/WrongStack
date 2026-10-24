@@ -1,13 +1,13 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it } from 'vitest';
+import type { BrainDecisionRequest } from '../../src/brain/brain.js';
 import {
   BrainDecisionQueue,
   DefaultBrainArbiter,
+  formatHumanPrompt,
   HumanEscalatingBrainArbiter,
   ObservableBrainArbiter,
-  formatHumanPrompt,
-} from '../../src/coordination/brain.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { BrainDecisionRequest } from '../../src/coordination/brain.js';
+} from '../../src/brain/brain.js';
 
 function request(overrides: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest {
   return {

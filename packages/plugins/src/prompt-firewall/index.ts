@@ -59,7 +59,7 @@ export {
  *
  * @public
  */
-import type { Plugin, PluginAPI } from '@wrongstack/core/types';
+import type { Plugin, PluginAPI } from '@wrongstack/contracts/types';
 import { createHostStates, providerSignal } from '../runtime/host-state.js';
 
 /** Detect secret matches in text. Returns per-kind counts (no values). */

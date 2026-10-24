@@ -1,5 +1,5 @@
 import * as fs from 'node:fs/promises';
-import type { MemoryEntry, MemoryScope } from '../types/memory.js';
+import type { MemoryEntry, MemoryScope } from '@wrongstack/contracts/types/memory';
 import type { MemoryBackend } from './memory-backend.js';
 import { FileMemoryBackend, type FileMemoryBackendOptions } from './memory-backend.js';
 

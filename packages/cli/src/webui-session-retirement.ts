@@ -1,7 +1,7 @@
 import { resolvePendingConfirmsForSession } from '@wrongstack/webui-server';
 export function createWebuiSessionRetirement(inputs: {
   opts: import('./webui-server-options.js').CliWebUIOptions;
-  getForegroundSession: () => import('@wrongstack/core/types').SessionWriter;
+  getForegroundSession: () => import('@wrongstack/contracts/types').SessionWriter;
   pendingConfirms: Map<string, import('@wrongstack/webui-server').PendingConfirm>;
   abortControllers: Map<string, AbortController>;
   sessionAgents: import('@wrongstack/webui-server').SessionAgentRegistry;

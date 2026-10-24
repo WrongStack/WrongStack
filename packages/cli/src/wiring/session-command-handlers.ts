@@ -1,10 +1,10 @@
 /** Session/runtime slash-command adapters for the CLI command host. */
 import { spawn } from 'node:child_process';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, ConfigStore, TokenCounter } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { allServers } from '@wrongstack/core/infrastructure';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Config, ConfigStore, TokenCounter } from '@wrongstack/core/types';
 import { color, writeOut } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { gitIsolationEnv } from '@wrongstack/primitives';

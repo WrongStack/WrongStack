@@ -1,4 +1,6 @@
 import { join } from 'node:path';
+import { type Container, type EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config, Logger, Provider } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import {
   BrainDecisionLedger,
@@ -17,9 +19,7 @@ import {
   createBrainRuntime,
   resolveBrainConfigDefaults,
 } from '@wrongstack/core/execution';
-import { type Container, type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
-import type { Config, Logger, Provider } from '@wrongstack/core/types';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import type { WstackPaths } from '@wrongstack/core/utils';
 
@@ -99,7 +99,7 @@ export function createBackendBrain({
     sessionProvider: () => provider,
     sessionModel: () => context.model,
     resolveProvider: (providerId) => {
-      const savedCfg: Partial<import('@wrongstack/core/types').ProviderConfig> =
+      const savedCfg: Partial<import('@wrongstack/contracts/types').ProviderConfig> =
         config.providers?.[providerId] ?? {};
       // The legacy top-level key/baseUrl belong to the primary only (same rule
       // as the CLI's resolveRawProviderConnection). Handing them to every

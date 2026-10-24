@@ -1,6 +1,11 @@
+import type {
+  MemoryPort,
+  Provider,
+  ReasoningRequest,
+  TokenCounter,
+} from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { MemoryPort, Provider, ReasoningRequest, TokenCounter } from '@wrongstack/core/types';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { Action, Settings } from './app-reducer.js';
 

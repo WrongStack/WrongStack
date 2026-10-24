@@ -23,6 +23,9 @@ vi.mock('@wrongstack/core/execution', () => ({
       mocks.eternalInstances.push(this);
     }
   },
+}));
+
+vi.mock('@wrongstack/core/coordination', () => ({
   ParallelEternalEngine: class {
     prime = vi.fn();
     stop = vi.fn();

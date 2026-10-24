@@ -21,8 +21,8 @@
  * @module provider-fanout
  */
 
+import type { Provider } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Provider } from '@wrongstack/core/types';
 
 interface ProviderFanoutInput {
   /** Conversations holding a live agent; absent on single-conversation hosts. */

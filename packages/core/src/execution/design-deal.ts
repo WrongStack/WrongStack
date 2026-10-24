@@ -13,7 +13,11 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { DesignKitEntry, DesignKitLoader, DesignStack } from '../types/design-kit.js';
+import type {
+  DesignKitEntry,
+  DesignKitLoader,
+  DesignStack,
+} from '@wrongstack/contracts/types/design-kit';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 
 export interface DesignDeal {

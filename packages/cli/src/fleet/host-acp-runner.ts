@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config } from '@wrongstack/contracts/types';
 import {
   AutoApprovePermissionPolicy,
   subagentYoloPlus,
   ToolCapabilities,
 } from '@wrongstack/core/security';
-import type { Config } from '@wrongstack/core/types';
 import { isRestrictedMode } from '../boot/restricted-mode.js';
 import { publishAcpLiveProgress } from './acp-live-progress.js';
 import { wrongstackAcpPermissionPolicy } from './acp-permission-bridge.js';
@@ -15,9 +15,11 @@ import type { BuildAcpSubagentRunnerOptions } from './host-acp.js';
 export interface HostAcpRunnerHost {
   deps: import('./host-types.js').MultiAgentDeps;
   getDirector: () => import('@wrongstack/core/coordination').Director | undefined;
-  ensureCoordinator: (_config: import('@wrongstack/core/types').Config) => Promise<void>;
+  ensureCoordinator: (_config: import('@wrongstack/contracts/types').Config) => Promise<void>;
   getCoordinator: () => import('@wrongstack/core/coordination').DefaultMultiAgentCoordinator;
-  buildACPRunner: (subagentId: string) => Promise<import('@wrongstack/core/types').SubagentRunner>;
+  buildACPRunner: (
+    subagentId: string,
+  ) => Promise<import('@wrongstack/contracts/types').SubagentRunner>;
   recordLearningRole: (subagentId: string, role: string, skills?: readonly string[]) => void;
   directorRunnerSet: boolean;
   sessionForSubagent: (subagentId: string) => string;

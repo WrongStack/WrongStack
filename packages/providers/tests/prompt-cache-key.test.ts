@@ -1,4 +1,4 @@
-import type { Capabilities, Request } from '@wrongstack/core/types';
+import type { Capabilities, Request } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { anthropicWireFormat } from '../src/presets/anthropic.js';
 import { googleWireFormat } from '../src/presets/google.js';

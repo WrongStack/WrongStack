@@ -4,14 +4,15 @@
  * inside an error `tool_result`, indistinguishable from a tool that ran and
  * broke.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Tool, ToolSettlement } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it, vi } from 'vitest';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { HookRegistry } from '../../src/hooks/registry.js';
 import { HookRunner } from '../../src/hooks/runner.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { ToolCapabilities } from '../../src/security/capabilities.js';
-import type { ToolUseBlock } from '../../src/types/blocks.js';
-import type { Tool, ToolSettlement } from '../../src/types/tool.js';
 import { createMockTool } from '../helpers/test-harness.js';
 
 const scrubber = { scrub: (s: string) => s, scrubObject: <T>(v: T): T => v };

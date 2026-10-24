@@ -1,9 +1,9 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   UserInputQuestion,
   UserInputRequest,
   UserInputResponse,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';

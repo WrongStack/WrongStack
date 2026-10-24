@@ -32,7 +32,7 @@
  * `docs/skills-suggestion.md` for how to evaluate them on real turns.
  */
 
-import type { SkillLoader } from '../../types/skill.js';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
 import type {
   ChoiceAnswer,
   NoulAnswer,

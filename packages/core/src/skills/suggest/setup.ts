@@ -10,11 +10,11 @@
  * did before rather than warn on every boot.
  */
 
-import type { Middleware } from '../../kernel/pipeline.js';
-import type { Config } from '../../types/config/root.js';
-import type { Logger } from '../../types/logger.js';
-import type { Request } from '../../types/provider.js';
-import type { SkillLoader } from '../../types/skill.js';
+import type { Middleware } from '@wrongstack/contracts/kernel/pipeline';
+import type { Config } from '@wrongstack/contracts/types/config/root';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
 import { resolveTypeSafeAccount, TYPESAFE_API_KEY_ENV } from '../../typesafe/index.js';
 import { warnFeatureUnusable, warnOnce } from '../../typesafe/notify.js';
 import {

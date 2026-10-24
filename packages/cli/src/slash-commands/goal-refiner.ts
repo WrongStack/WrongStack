@@ -1,3 +1,4 @@
+import type { Provider, Usage } from '@wrongstack/contracts/types';
 import type { OneShotOrchestrator } from '@wrongstack/core/execution';
 import {
   buildGoalRefinementPrompt,
@@ -5,10 +6,9 @@ import {
   type RefinedMission,
   refineGoalHeuristic,
   refineGoalWithProvider,
-} from '@wrongstack/core/goal';
-import type { Provider, Usage } from '@wrongstack/core/types';
+} from '@wrongstack/goal';
 
-export { refineGoalHeuristic, resolveRefinerTarget } from '@wrongstack/core/goal';
+export { refineGoalHeuristic, resolveRefinerTarget } from '@wrongstack/goal';
 
 /**
  * Result of refining a user's raw goal into a clear, actionable mission.

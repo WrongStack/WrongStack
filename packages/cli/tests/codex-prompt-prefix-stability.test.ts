@@ -20,6 +20,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { zstdDecompressSync } from 'node:zlib';
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import {
+  type Capabilities,
+  markVolatileSystemBlock,
+  type Provider,
+  type Request,
+  type Response,
+} from '@wrongstack/contracts/types';
 import {
   Agent,
   Context,
@@ -28,17 +36,9 @@ import {
 } from '@wrongstack/core/agent';
 import { DefaultErrorHandler, DefaultRetryPolicy, ToolExecutor } from '@wrongstack/core/execution';
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import {
-  type Capabilities,
-  markVolatileSystemBlock,
-  type Provider,
-  type Request,
-  type Response,
-} from '@wrongstack/core/types';
 import { diffCacheProbe, fingerprintCacheProbe, OpenAICodexProvider } from '@wrongstack/providers';
 import { afterEach, describe, expect, it } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';

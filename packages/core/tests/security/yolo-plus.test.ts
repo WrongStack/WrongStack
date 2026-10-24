@@ -6,6 +6,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { AutoApprovePermissionPolicy } from '../../src/security/auto-approve-policy.js';
@@ -16,7 +17,6 @@ import {
   lockYoloOff,
 } from '../../src/security/process-lockdown.js';
 import { userRuleAnswer } from '../../src/security/scoped-approval.js';
-import type { Tool } from '../../src/types/index.js';
 import { wstackGlobalRoot } from '../../src/utils/wstack-paths.js';
 
 function tool(

@@ -1,6 +1,6 @@
 import { closeSync, fsyncSync, openSync, writeSync } from 'node:fs';
 import * as fsp from 'node:fs/promises';
-import type { SessionEvent } from '../types/session.js';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { toErrorMessage } from '../utils/index.js';
 import type { EventBus } from './event-bus-port.js';
 

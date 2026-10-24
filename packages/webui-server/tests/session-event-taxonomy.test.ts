@@ -15,13 +15,13 @@
  * has detail-bearing fields).
  */
 
-import { describe, expect, it } from 'vitest';
 import type {
   ContentBlock,
   FileSnapshot,
   SessionEvent,
   SessionSummary,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { describe, expect, it } from 'vitest';
 import { buildInspectPayload } from '../src/server/session-history.js';
 
 const FALLBACK = {

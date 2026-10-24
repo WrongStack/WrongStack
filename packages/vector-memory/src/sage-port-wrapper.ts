@@ -43,7 +43,7 @@
  * capabilities (write-side, hygiene, audit) pass through unchanged so the
  * wrapper never widens the trust boundary.
  */
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import {
   augmentLexicalWithVectorRecall,
   isSageVisibleForSearch,

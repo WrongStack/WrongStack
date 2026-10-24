@@ -1,5 +1,5 @@
-import type { CouncilQuestion, CouncilVoteResult } from '../types/council.js';
-import type { OneShotLLMResult } from '../types/one-shot-llm.js';
+import type { CouncilQuestion, CouncilVoteResult } from '@wrongstack/contracts/types/council';
+import type { OneShotLLMResult } from '@wrongstack/contracts/types/one-shot-llm';
 
 export interface ParsedVote {
   optionId?: string | undefined;

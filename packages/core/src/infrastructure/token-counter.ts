@@ -1,7 +1,7 @@
-import type { EventBus } from '../kernel/events.js';
-import type { ModelsRegistry, ResolvedModel } from '../types/models-registry.js';
-import { promptCacheHitRatio, type Usage } from '../types/provider.js';
-import type { CacheStats, TokenCounter } from '../types/token-counter.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { ModelsRegistry, ResolvedModel } from '@wrongstack/contracts/types/models-registry';
+import { promptCacheHitRatio, type Usage } from '@wrongstack/contracts/types/provider';
+import type { CacheStats, TokenCounter } from '@wrongstack/contracts/types/token-counter';
 
 interface PriceEntry {
   input?: number | undefined;

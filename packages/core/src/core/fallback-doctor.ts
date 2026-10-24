@@ -9,9 +9,9 @@
  * - Step-by-step failover simulation for hypothetical errors (429, quota, etc.)
  */
 
-import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
-import type { Config } from '../types/config.js';
-import { isFallbackWorthy, type ProviderErrorKind } from '../types/provider.js';
+import type { Config } from '@wrongstack/contracts/types/config';
+import { isFallbackWorthy, type ProviderErrorKind } from '@wrongstack/contracts/types/provider';
+import type { ProviderStatusTrackerPort } from '@wrongstack/contracts/types/provider-status';
 import { configuredProviderIdentities } from '../utils/provider-catalog-binding.js';
 import { FallbackProfileManager } from './fallback-profile-manager.js';
 import { evaluateModelCalendar } from './model-availability-calendar.js';
@@ -65,7 +65,7 @@ export interface FallbackSimulationResult {
  */
 export function diagnoseFallbackConfig(
   config: Config,
-  tracker?: ProviderModelStatusTracker | undefined,
+  tracker?: ProviderStatusTrackerPort | undefined,
   opts?: { modelContextLimitMap?: Record<string, number> | undefined } | undefined,
 ): FallbackDiagnosticReport {
   // Diagnose the CONFIGURED chain, not the runnable one. The manager already
@@ -240,7 +240,7 @@ export function simulateFallbackFailover(
   opts: {
     errorKind?: ProviderErrorKind | undefined;
     currentTokens?: number | undefined;
-    statusTracker?: ProviderModelStatusTracker | undefined;
+    statusTracker?: ProviderStatusTrackerPort | undefined;
     modelContextLimitMap?: Record<string, number> | undefined;
   } = {},
 ): FallbackSimulationResult {

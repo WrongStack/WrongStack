@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { estimateMessageTokens, getHistoryRetention, type Message } from '../../src/index.js';
+import { getHistoryRetention } from '../../src/execution/history-retention.js';
+import { estimateMessageTokens, type Message } from '../../src/index.js';
 
 const user = (text: string): Message => ({ role: 'user', content: text });
 const assistant = (text: string): Message => ({ role: 'assistant', content: text });

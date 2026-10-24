@@ -7,8 +7,8 @@
  * reasoning profile comes from the model each request goes to, and a setting
  * changed at runtime applies to the next one.
  */
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Config, ModelsRegistry, Provider, Request } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, ModelsRegistry, Provider, Request } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 // The binding is core-internal; tests resolve core from source, so this is
 // the same module the middleware reads.

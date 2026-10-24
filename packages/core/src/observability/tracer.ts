@@ -1,4 +1,4 @@
-import type { Span, Tracer } from '../types/observability.js';
+import type { Span, Tracer } from '@wrongstack/contracts/types/observability';
 
 /**
  * Default tracer is a noop — zero overhead when observability is not wired up.

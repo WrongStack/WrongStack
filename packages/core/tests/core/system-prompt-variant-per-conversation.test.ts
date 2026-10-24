@@ -14,12 +14,12 @@
  * The variant is now a per-build input read from `ctx.meta`, and the bundle is
  * cached per variant, so one builder serves three different identities at once.
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
-import type { BuildContext } from '@wrongstack/core/types';
+import type { BuildContext } from '@wrongstack/contracts/types';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
 
 let bundledDir: string;
 

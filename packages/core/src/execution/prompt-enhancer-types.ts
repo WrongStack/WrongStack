@@ -1,6 +1,6 @@
 /** Option, result and telemetry shapes of the prompt refiner (prompt-enhancer.ts). */
 
-import type { Provider, ReasoningRequest, Usage } from '../types/provider.js';
+import type { Provider, ReasoningRequest, Usage } from '@wrongstack/contracts/types/provider';
 import type { OneShotOrchestrator } from './one-shot-llm.js';
 
 /** A single text-only conversation turn used as refiner context. */

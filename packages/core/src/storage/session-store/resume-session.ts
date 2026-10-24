@@ -1,14 +1,14 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { ContentBlock } from '../../types/blocks.js';
-import type { Message } from '../../types/messages.js';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type {
   ResumedSession,
   SessionData,
   SessionEvent,
   SessionSummary,
-} from '../../types/session.js';
+} from '@wrongstack/contracts/types/session';
 import { toErrorMessage } from '../../utils/index.js';
 import type { EventBus } from '../event-bus-port.js';
 import { FileSessionWriter } from '../file-session-writer.js';
@@ -124,7 +124,7 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
   if (synthesizedResults.length > 0) data.events.push(...synthesizedResults);
 
   const noticeMessages: Message[] = [];
-  let resumeValidation: import('../../types/session.js').ResumeValidation | undefined;
+  let resumeValidation: import('@wrongstack/contracts/types/session').ResumeValidation | undefined;
   if (projectRoot) {
     try {
       const validationEvents =

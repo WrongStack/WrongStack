@@ -1,8 +1,8 @@
+import type { MemoryStore, Message } from '@wrongstack/contracts/types';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
 import { HybridCompactor } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import type { MemoryStore, Message } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildBuiltinSlashCommands,

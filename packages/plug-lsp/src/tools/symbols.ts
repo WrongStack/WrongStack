@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import type { DocumentSymbol, SymbolInformation } from 'vscode-languageserver-protocol';
 import { LSP_CONSTANTS } from '../constants.js';
 import { supportsDocumentSymbol } from '../server/capabilities.js';

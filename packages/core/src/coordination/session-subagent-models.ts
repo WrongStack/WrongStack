@@ -22,13 +22,13 @@
  * and produce a reference that resolves to nothing. With the lock off the plan
  * only fills fields the leader left unset, exactly like the matrix.
  *
- * Storage mirrors `session-subagent-policy.ts`: an in-memory registry keyed by
+ * Storage mirrors `security/session-subagent-policy.ts`: an in-memory registry keyed by
  * session id, written through to the session journal as a `subagent_model_plan`
  * event so `/resume` restores the plan with the session.
  */
 
-import type { ModelMatrixEntry } from '../types/config.js';
-import type { SessionEvent, SessionWriter } from '../types/session.js';
+import type { ModelMatrixEntry } from '@wrongstack/contracts/types/config';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
 
 /** Hard ceiling on lanes. The UIs default to {@link DEFAULT_SUBAGENT_SLOT_COUNT}. */
 export const MAX_SUBAGENT_SLOTS = 16;

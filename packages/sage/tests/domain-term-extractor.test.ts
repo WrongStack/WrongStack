@@ -25,7 +25,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import {
   DOMAIN_TERM_LOOKUP_TAG,

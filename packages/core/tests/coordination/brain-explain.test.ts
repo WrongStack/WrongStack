@@ -1,13 +1,10 @@
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
-import type { BrainDecisionRequest } from '../../src/coordination/brain.js';
-import { BrainDecisionCache } from '../../src/coordination/brain-cache.js';
-import {
-  type BrainExplainContext,
-  explainBrainDecision,
-} from '../../src/coordination/brain-explain.js';
-import { compileBrainRules } from '../../src/coordination/brain-rules.js';
+import type { BrainDecisionRequest } from '../../src/brain/brain.js';
+import { BrainDecisionCache } from '../../src/brain/brain-cache.js';
+import { type BrainExplainContext, explainBrainDecision } from '../../src/brain/brain-explain.js';
+import { compileBrainRules } from '../../src/brain/brain-rules.js';
 import { createBrainRuntime } from '../../src/execution/brain-runtime.js';
-import type { Provider } from '../../src/types/provider.js';
 
 function makeRequest(partial: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest {
   return {

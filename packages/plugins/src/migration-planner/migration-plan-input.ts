@@ -1,4 +1,4 @@
-import { ToolValidationError } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 
 // ---------------------------------------------------------------------------
 // migration_plan input contract: schema (with accepted aliases) and the

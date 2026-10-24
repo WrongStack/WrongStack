@@ -1,5 +1,5 @@
-import { isTextBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
 
 // A hint starts only at a run boundary and segments are bounded to a
 // filename's length (255): otherwise every start offset inside a long

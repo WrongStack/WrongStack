@@ -2,14 +2,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { RUNTIME_CAPABILITY_MANIFEST } from '@wrongstack/contracts/types/runtime-capability-manifest';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   DefaultSkillLoader,
   DefaultSystemPromptBuilder,
   resolveWstackPaths,
 } from '../../src/index.js';
-import { RUNTIME_CAPABILITY_MANIFEST } from '../../src/types/runtime-capability-manifest.js';
-import type { Tool } from '../../src/types/tool.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const bundledDir = path.resolve(here, '..', '..', 'skills');

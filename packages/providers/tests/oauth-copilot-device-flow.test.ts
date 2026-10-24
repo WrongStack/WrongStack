@@ -1,4 +1,4 @@
-import { FetchError, ParseError } from '@wrongstack/core/types';
+import { FetchError, ParseError } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/github-copilot-token.js', async (importOriginal) => {

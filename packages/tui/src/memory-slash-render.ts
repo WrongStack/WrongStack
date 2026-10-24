@@ -1,5 +1,10 @@
-import type { MemoryEntry, MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/core/types';
-import { MEMORY_TYPE_LABELS } from '@wrongstack/core/types';
+import type {
+  MemoryEntry,
+  MemoryPriority,
+  MemoryScope,
+  MemoryType,
+} from '@wrongstack/contracts/types';
+import { MEMORY_TYPE_LABELS } from '@wrongstack/contracts/types';
 import {
   daysAgo,
   fmtDate,

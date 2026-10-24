@@ -22,7 +22,7 @@
  * test against an in-process fake passes either way.
  */
 
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import {
   SAGE_RETRIEVAL_CAPABILITY,
   SAGE_SURFACE_CAPABILITY,

@@ -1,4 +1,4 @@
-import type { ProviderAuthSession } from '@wrongstack/core/types';
+import type { ProviderAuthSession } from '@wrongstack/contracts/types';
 import {
   applyProviderAuthOutcome,
   createBuiltinProviderAuthRegistry,
@@ -39,7 +39,7 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
 
   /** Persist a successful login by upserting the OAuth credential. */
   async function persistOAuthOutcome(
-    outcome: import('@wrongstack/core/types').ProviderAuthOutcome,
+    outcome: import('@wrongstack/contracts/types').ProviderAuthOutcome,
     customProviderId?: string,
     live: () => boolean = () => true,
   ): Promise<boolean> {
@@ -56,7 +56,7 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
   async function finishOAuth(
     ws: WebSocket,
     kind: string,
-    outcome: import('@wrongstack/core/types').ProviderAuthOutcome | null,
+    outcome: import('@wrongstack/contracts/types').ProviderAuthOutcome | null,
     customProviderId?: string,
     session?: ProviderAuthSession,
   ): Promise<void> {

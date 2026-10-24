@@ -1,5 +1,14 @@
 /** Registers provider-neutral one-shot, council, and context-summary tools. */
 
+import type {
+  Config,
+  CouncilProfileConfig,
+  CouncilToolConfig,
+  ModelsRegistry,
+  OneShotModelRouter,
+  Provider,
+  ResolvedProvider,
+} from '@wrongstack/contracts/types';
 import type { FallbackProfileManager } from '@wrongstack/core/agent';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import {
@@ -12,16 +21,7 @@ import {
 import { createContextManagerTool } from '@wrongstack/core/infrastructure';
 import { ModelRouter } from '@wrongstack/core/models';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import { createCouncilTool, createOneShotLLMTool } from '@wrongstack/core/tools';
-import type {
-  Config,
-  CouncilProfileConfig,
-  CouncilToolConfig,
-  ModelsRegistry,
-  OneShotModelRouter,
-  Provider,
-  ResolvedProvider,
-} from '@wrongstack/core/types';
+import { createCouncilTool, createOneShotLLMTool } from '@wrongstack/tools/management';
 import { createImageGenerateTool, imageTargetsFromCatalog } from '@wrongstack/tools';
 
 interface ProviderUtilityToolsInput {
@@ -31,7 +31,7 @@ interface ProviderUtilityToolsInput {
   fallbackProfileManager: FallbackProfileManager;
   statusTracker: ProviderModelStatusTracker;
   wrapProviderCall: NonNullable<
-    import('@wrongstack/core/types').OneShotOrchestratorOptions['wrapProviderCall']
+    import('@wrongstack/contracts/types').OneShotOrchestratorOptions['wrapProviderCall']
   >;
   compactor: NonNullable<Parameters<typeof createContextManagerTool>[0]>['compactor'];
   /** Catalog the image tool reads image models from. */

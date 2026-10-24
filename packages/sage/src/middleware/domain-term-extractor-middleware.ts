@@ -37,8 +37,8 @@
  * refreshes the mirror from derived SAGE state when a project root exists.
  */
 
-import type { Middleware } from '@wrongstack/core/kernel';
-import type { MemoryPort, Request } from '@wrongstack/core/types';
+import type { Middleware } from '@wrongstack/contracts/kernel';
+import type { MemoryPort, Request } from '@wrongstack/contracts/types';
 import { LIVE_CONTEXT_MARKER, writeErr } from '@wrongstack/core/utils';
 import { SageDomainTermExtractor } from '../domain-term-extractor.js';
 

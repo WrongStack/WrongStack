@@ -1,4 +1,4 @@
-import type { ProviderConfig, ResolvedProvider, WireFamily } from '@wrongstack/core/types';
+import type { ProviderConfig, ResolvedProvider, WireFamily } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import {
   authProfileAliasError,

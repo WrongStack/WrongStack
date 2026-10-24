@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  SPEC_TEMPLATES,
   getTemplate,
   listTemplates,
+  SPEC_TEMPLATES,
   templateToMarkdown,
 } from '../src/spec-templates.js';
 

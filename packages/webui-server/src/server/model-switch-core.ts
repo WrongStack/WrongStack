@@ -1,5 +1,5 @@
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
 import { patchConfig } from './boot.js';
 import { loadSavedProviders } from './provider-config-io.js';

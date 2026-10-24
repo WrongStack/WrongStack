@@ -1,6 +1,7 @@
-import { bootConfig as coreBootConfig, type DefaultLogger } from '@wrongstack/core/infrastructure';
+import type { Config } from '@wrongstack/contracts/types';
+import { bootConfig as coreBootConfig } from '@wrongstack/core/boot';
+import type { DefaultLogger } from '@wrongstack/core/infrastructure';
 import type { DefaultSecretVault } from '@wrongstack/core/security';
-import type { Config } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 
 interface BootResult {

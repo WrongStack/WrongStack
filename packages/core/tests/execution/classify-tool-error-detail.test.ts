@@ -20,10 +20,11 @@
  * assertion that would have caught it was the one nobody wrote — so this file
  * pins `detail` for both validation paths and for the unclassified fallback.
  */
+
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import { ToolErrorCategory } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { classifyToolError } from '../../src/execution/tool-executor-support.js';
-import { ToolValidationError } from '../../src/types/errors.js';
-import { ToolErrorCategory } from '../../src/types/tool.js';
 
 const SECRET = 'sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 

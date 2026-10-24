@@ -1,6 +1,6 @@
-import { Container, EventBus } from '@wrongstack/core/kernel';
+import { Container, EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger, SlashCommand, Tool } from '@wrongstack/contracts/types';
 import type { PluginAPI } from '@wrongstack/core/plugin';
-import type { Logger, SlashCommand, Tool } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PLUGIN_NAME } from '../../src/config.js';
 import plugin from '../../src/index.js';

@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { basename, join, resolve, sep } from 'node:path';
+import type { WorktreeManagerPort } from '@wrongstack/contracts/types/worktree';
 import { toErrorMessage } from '../utils/error.js';
 import { NOTHING_TO_COMMIT } from './worktree-conflict-resolution-contracts.js';
 import { parseConflictPaths } from './worktree-git.js';
@@ -30,7 +31,7 @@ export type {
  * worktree directories without the tool's permission gate or `findGitDir`
  * resolution, and so `@wrongstack/core` keeps no dependency on `@wrongstack/tools`.
  */
-export class WorktreeManager extends WorktreeManagerCore {
+export class WorktreeManager extends WorktreeManagerCore implements WorktreeManagerPort {
   /** Create a fresh worktree + branch forked from the current base branch. */
   async allocate(ownerId: string, opts: AllocateOpts = {}): Promise<WorktreeHandle> {
     const existing = this.handles.get(ownerId);

@@ -19,8 +19,8 @@
  */
 
 import * as fs from 'node:fs/promises';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color, resolveWstackPaths } from '@wrongstack/core/utils';
 
 export function buildProviderStatusCommand(tracker: ProviderModelStatusTracker): SlashCommand {

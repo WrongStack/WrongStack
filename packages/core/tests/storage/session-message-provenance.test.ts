@@ -1,9 +1,9 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { applyContextSnapshot, replayableMessage } from '../../src/storage/session-store/replay.js';
 import { scrubSessionWriterEvent } from '../../src/storage/session-writer-scrubber.js';
-import type { Message } from '../../src/types/messages.js';
-import type { SecretScrubber } from '../../src/types/secret-scrubber.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const markerScrubber: SecretScrubber = {
   scrub: (text) => text.replaceAll('SECRET_VALUE', '[REDACTED]'),

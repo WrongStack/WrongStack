@@ -1,8 +1,8 @@
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
+import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { ToolValidationError } from '../types/errors.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
-import type { JSONSchema, Tool } from '../types/tool.js';
 import { snapshotConversationEffort } from '../utils/leader-effort-override.js';
 import { DelegationTracker } from './delegation/delegation-tracker.js';
 import {

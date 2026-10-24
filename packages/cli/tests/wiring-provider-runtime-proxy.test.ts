@@ -1,4 +1,4 @@
-import type { Config, Provider } from '@wrongstack/core/types';
+import type { Config, Provider } from '@wrongstack/contracts/types';
 import {
   __resetProxyConfigForTests,
   applyProxyConfig,

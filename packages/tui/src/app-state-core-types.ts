@@ -1,4 +1,4 @@
-import type { ContentBlock } from '@wrongstack/core/types';
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import type { HistoryEntry } from './history-entry.js';
 
 export interface QueueItem {

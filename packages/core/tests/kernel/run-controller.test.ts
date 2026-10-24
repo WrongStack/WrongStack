@@ -1,5 +1,5 @@
+import { RunController } from '@wrongstack/contracts/kernel/run-controller';
 import { describe, expect, it } from 'vitest';
-import { RunController } from '../../src/kernel/run-controller.js';
 
 describe('RunController', () => {
   it('signal aborts when abort() is called', () => {

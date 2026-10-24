@@ -15,8 +15,8 @@
 
 import { randomUUID } from 'node:crypto';
 import type * as http from 'node:http';
+import type { Provider } from '@wrongstack/contracts/types';
 import { sanitizeApiError } from '@wrongstack/core/security';
-import type { Provider } from '@wrongstack/core/types';
 import type {
   AnalyzeDepth,
   PackageOperation,

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { DocumentTracker } from '../document-tracker.js';
 import type { LineTextReader } from '../formatters/location.js';
 import { splitLines } from '../position.js';

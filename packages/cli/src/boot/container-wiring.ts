@@ -37,10 +37,10 @@
 //     container's services. It will land in a follow-up PR
 //     (system-prompt.ts or similar).
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import { EventBus as CoreEventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config, Logger, ModelsRegistry, Renderer } from '@wrongstack/contracts/types';
 import { DefaultPathResolver } from '@wrongstack/core/infrastructure';
-import type { EventBus } from '@wrongstack/core/kernel';
-import { EventBus as CoreEventBus, TOKENS } from '@wrongstack/core/kernel';
-import type { Config, Logger, ModelsRegistry, Renderer } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { createDefaultContainer } from '@wrongstack/runtime';
 import { resolveBundledPromptsDir } from '../cli-bundled-prompts.js';

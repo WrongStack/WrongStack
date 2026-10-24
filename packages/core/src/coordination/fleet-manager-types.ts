@@ -1,4 +1,4 @@
-import type { SessionWriter } from '../types/session.js';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 
 /** Options for constructing a FleetManager. */
 export interface FleetManagerOptions {

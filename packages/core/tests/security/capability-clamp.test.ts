@@ -13,14 +13,15 @@
  *   2. Model output, through the un-enum'd `allowedCapabilities: string[]` on
  *      the kanban/director tool schemas.
  */
+
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
+import { applyProjectAgentConfig } from '../../src/coordination/agents/project-agent-identity.js';
 import {
   clampSubagentCapabilities,
   ToolCapabilities,
   WIDE_SUBAGENT_CAPABILITIES,
 } from '../../src/security/capabilities.js';
-import { applyProjectAgentConfig } from '../../src/coordination/agents/project-agent-identity.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 describe('clampSubagentCapabilities', () => {
   it('drops every capability the wide ceiling deliberately withholds', () => {

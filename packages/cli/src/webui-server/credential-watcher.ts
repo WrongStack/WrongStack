@@ -6,7 +6,7 @@
  * @module webui-server/credential-watcher
  */
 
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import { watchProviderConfig } from '@wrongstack/core/storage';
 import type { CliWebUIOptions } from '../webui-server-options.js';
 import type { WSServerMessage } from './contracts.js';
@@ -70,7 +70,7 @@ export function startWebuiCredentialWatcher({
         snapshot.fallbackAuto !== undefined;
       if (routingChanged) {
         const configStore = opts.agent.container?.safeResolve?.(TOKENS.ConfigStore) as
-          | import('@wrongstack/core/types').ConfigStore
+          | import('@wrongstack/contracts/types').ConfigStore
           | undefined;
         configStore?.update({
           ...(snapshot.fallbackModels !== undefined

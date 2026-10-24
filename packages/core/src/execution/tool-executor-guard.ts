@@ -1,10 +1,10 @@
 import { isDeepStrictEqual } from 'node:util';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Tool, ToolSettlement } from '@wrongstack/contracts/types/tool';
 import type { Context } from '../core/context.js';
 import { evaluateToolKanbanBoundary } from '../security/kanban-boundary.js';
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Tool, ToolSettlement } from '../types/tool.js';
-import type { ToolExecutorOptions } from '../types/tool-executor.js';
 import { coerceAgainstSchema, validateAgainstSchema } from '../utils/json-schema-validate.js';
+import type { ToolExecutorOptions } from './tool-executor-options.js';
 import {
   blockedByHookResult,
   malformedInputResult,

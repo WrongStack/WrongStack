@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { NOTHING_TO_COMMIT } from './worktree-conflict-resolution-contracts.js';
 import type {
   MergeOpts,

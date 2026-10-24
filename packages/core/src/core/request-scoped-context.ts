@@ -1,4 +1,4 @@
-import type { TextBlock } from '../types/blocks.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
 import type { RequestLayoutTailEntry } from '../utils/request-layout.js';
 
 /**

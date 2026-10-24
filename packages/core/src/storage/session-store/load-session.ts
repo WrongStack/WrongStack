@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
-import type { SessionData, SessionLoadProgress } from '../../types/session.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { SessionData, SessionLoadProgress } from '@wrongstack/contracts/types/session';
 import { toErrorMessage } from '../../utils/index.js';
 import type { EventBus } from '../event-bus-port.js';
 import { emitSessionStoreRead } from './events.js';

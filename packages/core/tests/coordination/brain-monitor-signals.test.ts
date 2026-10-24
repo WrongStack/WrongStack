@@ -1,11 +1,11 @@
+import { EventBus, type EventMap } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter, BrainDecision } from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecision } from '../../src/brain/brain.js';
 import {
   BrainDecisionLedger,
   createLedgerGuardBrainArbiter,
-} from '../../src/coordination/brain-ledger.js';
-import { type BrainInterventionInput, BrainMonitor } from '../../src/coordination/brain-monitor.js';
-import { EventBus, type EventMap } from '../../src/kernel/events.js';
+} from '../../src/brain/brain-ledger.js';
+import { type BrainInterventionInput, BrainMonitor } from '../../src/brain/brain-monitor.js';
 
 const STEER: BrainDecision = {
   type: 'answer',

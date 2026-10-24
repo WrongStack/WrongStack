@@ -1,4 +1,4 @@
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import {
   DEFAULT_CONFIG,
@@ -74,7 +74,7 @@ export function inboundAllowlist(cfg: {
  * unaffected by deep copy.
  *
  * Return type widens to `Record<string, unknown>` to align with the
- * `Plugin.defaultConfig` interface (see `packages/core/src/types/plugin.ts`).
+ * `Plugin.defaultConfig` interface (see `packages/contracts/src/types/plugin.ts`).
  * The narrower `DEFAULT_CONFIG` shape is still enforced by
  * `telegramConfigSchema` validation downstream.
  */

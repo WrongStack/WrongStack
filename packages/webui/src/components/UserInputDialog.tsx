@@ -1,4 +1,8 @@
-import type { UserInputAnswer, UserInputQuestion, UserInputRequest } from '@wrongstack/core/types';
+import type {
+  UserInputAnswer,
+  UserInputQuestion,
+  UserInputRequest,
+} from '@wrongstack/contracts/types';
 import { Check, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';

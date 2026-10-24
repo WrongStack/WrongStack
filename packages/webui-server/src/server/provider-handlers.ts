@@ -1,4 +1,4 @@
-import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core/types';
+import type { ModelsRegistry, ProviderConfig } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { createCatalogHandlers } from './provider/catalog.js';
@@ -60,7 +60,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
 interface ProviderHandlerDeps {
   /** Path to the active profile config; the only provider mutation target. */
   profileConfigPath: string;
-  vault: import('@wrongstack/core/types').SecretVault;
+  vault: import('@wrongstack/contracts/types').SecretVault;
   /** Shared config write lock — serialized via chained promises */
   setConfigWriteLock: (lock: Promise<void>) => void;
   getConfigWriteLock: () => Promise<void>;

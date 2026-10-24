@@ -26,6 +26,7 @@ const apiPolicy = JSON.parse(
 );
 
 const ownership = {
+  brain: ['agent-domain service', 'Core decision arbiter, exported via the coordination subpath'],
   chronicle: ['storage/repository implementation', 'focused repository or runtime subsystem'],
   coordination: [
     'coordination implementation',

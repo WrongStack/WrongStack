@@ -1,4 +1,4 @@
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { describe, expect, it } from 'vitest';
 import { createFallbackGate } from '../src/wiring/fallback-gate.js';
 

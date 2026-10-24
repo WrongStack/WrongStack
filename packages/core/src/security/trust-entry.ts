@@ -1,4 +1,4 @@
-import type { TrustPolicy } from '../types/permission.js';
+import type { TrustPolicy } from '@wrongstack/contracts/types/permission';
 
 /**
  * Combine an exact-name trust entry with the wildcard entry that also matched.

@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { serverConfigPath } from '../config-persist.js';
 import type { DocumentTracker } from '../document-tracker.js';
 import { formatDiagnostics } from '../formatters/diagnostics.js';

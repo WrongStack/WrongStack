@@ -1,4 +1,4 @@
-import type { SessionEvent, SessionSummary } from '../types/session.js';
+import type { SessionEvent, SessionSummary } from '@wrongstack/contracts/types/session';
 
 /**
  * The single definition of `SessionSummary.outcome`.

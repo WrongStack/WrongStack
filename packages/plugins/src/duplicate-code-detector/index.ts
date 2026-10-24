@@ -44,7 +44,7 @@ export { hashFingerprint, hookIndexBudgets } from './duplicate-code-analysis.js'
 
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { extname, isAbsolute, resolve } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { collectSourceFilesAsync, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';

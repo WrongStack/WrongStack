@@ -1,4 +1,4 @@
-import type { Request, StreamEvent } from '@wrongstack/core/types';
+import type { Request, StreamEvent } from '@wrongstack/contracts/types';
 
 /**
  * Response metadata surfaced by a Codex Responses stream.

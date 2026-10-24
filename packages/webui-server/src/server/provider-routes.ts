@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { parseNativeCloudSettings } from '@wrongstack/core/cloud-provider';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import { modelsDevModelSchema } from '@wrongstack/core/models';
 import { getAllProviderQuota, withQuotaPace } from '@wrongstack/core/quota';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';
 import { runWithOperationRequest, send, sendResult } from './ws-utils.js';

@@ -1,5 +1,5 @@
 import type { EventEmitter } from 'node:events';
-import type { AwaitAnyResult, TaskResult, TaskSpec } from '../types/multi-agent.js';
+import type { AwaitAnyResult, TaskResult, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 
 export interface AwaitTasksParams {
   emitter: EventEmitter;

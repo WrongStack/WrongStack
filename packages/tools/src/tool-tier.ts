@@ -1,5 +1,5 @@
+import type { ConcreteTokenSavingTier, Tool } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { ConcreteTokenSavingTier, Tool } from '@wrongstack/core/types';
 import { TIER1_TOOLS, TIER2_TOOLS } from './builtin.js';
 import { builtinToolsPack } from './pack.js';
 

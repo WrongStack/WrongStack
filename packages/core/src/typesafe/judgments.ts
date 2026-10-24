@@ -30,9 +30,9 @@
  */
 
 import { createHash } from 'node:crypto';
-import { TOKENS } from '../kernel/tokens.js';
-import type { Config } from '../types/config/root.js';
-import type { TypeSafeJudgmentsConfig } from '../types/config/typesafe.js';
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import type { Config } from '@wrongstack/contracts/types/config/root';
+import type { TypeSafeJudgmentsConfig } from '@wrongstack/contracts/types/config/typesafe';
 import type { TypeSafeClient } from './client.js';
 import { type WarnSink, warnOnce } from './notify.js';
 import { typeSafeAllowed, typeSafePolicyScope } from './policy.js';

@@ -1,4 +1,4 @@
-import type { Request } from '@wrongstack/core/types';
+import type { Request } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetSharedOAuthRefreshState } from '../src/oauth-refresh-coordinator.js';
 

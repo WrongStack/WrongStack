@@ -1,5 +1,5 @@
+import type { ModelsDevPayload } from '@wrongstack/contracts/types';
 import { DefaultModelsRegistry } from '@wrongstack/core/models';
-import type { ModelsDevPayload } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { capabilitiesFor } from '../src/capabilities.js';
 import { capabilitiesForFamily } from '../src/family-capabilities.js';

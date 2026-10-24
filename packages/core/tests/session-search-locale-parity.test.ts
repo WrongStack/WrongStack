@@ -31,6 +31,7 @@ import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/per
 const DatabaseSync = loadTestDatabaseSync();
 type DatabaseSync = InstanceType<typeof DatabaseSync>;
 
+import type { SessionStore, SessionSummary } from '@wrongstack/contracts/types/session';
 import { initializeSqliteTextIndex } from '@wrongstack/persistence';
 import { describe, expect, it } from 'vitest';
 import type { CatalogSessionRecord } from '../src/session-catalog/protocol.js';
@@ -38,7 +39,6 @@ import { listCatalogRecords } from '../src/session-catalog/store-maintenance.js'
 import { catalogTitleIndex } from '../src/session-catalog/store-text-index.js';
 import { DefaultSessionReader } from '../src/storage/session-reader.js';
 import { matchesSessionFilter } from '../src/storage/session-summary.js';
-import type { SessionStore, SessionSummary } from '../src/types/session.js';
 
 const SESSION_ID = 'sess_01LOCALEPARITY0000000000';
 const TITLE = 'İstanbul deploy notes'; // U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE

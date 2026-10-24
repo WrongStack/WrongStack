@@ -21,9 +21,9 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { EventBus } from '../kernel/events.js';
-import type { Logger } from '../types/logger.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { defaultSubagentBudget } from './agents/types.js';
 import { AutonomousBrain } from './autonomous-brain.js';
 import { type PendingChangeGate, voteOnPendingChange } from './autonomous-coordinator-consensus.js';

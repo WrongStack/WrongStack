@@ -8,12 +8,13 @@
  * (20/100), negative -> 0 (empty page, matching the catalog RPC's bounded
  * limit), otherwise floor.
  */
+
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import {
   executeListSessions,
   type ListSessionsHost,
 } from '../../src/storage/session-store/list-sessions.js';
-import type { SessionSummary } from '../../src/types/session.js';
 
 const TOTAL = 25;
 const POOL_PAGE = 20;

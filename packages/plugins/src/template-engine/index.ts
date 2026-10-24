@@ -10,7 +10,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { releaseHandle, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';

@@ -5,7 +5,7 @@ import type {
   HqPeerLostPayload,
   HqPeerRehydratePayload,
   HqSnapshot,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 
 /** The HQ surfaces. The router, the nav and the palette all key on this. */
 export type HqViewId =

@@ -9,18 +9,26 @@
  * `allowOutsideProjectRootByContext`).
  */
 
-import { isProjectRootLocked } from '../security/process-lockdown.js';
-import type { TextBlock } from '../types/blocks.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
 // Roadmap 10A: TodoItem's canonical home is the types/context.ts leaf
 // (single source of truth, acyclic); re-exported here for existing import paths.
-import type { ConversationJournalQueueApi, NestedToolCaller, TodoItem } from '../types/context.js';
-import type { ContextEvidenceState } from '../types/context-evidence.js';
-import type { Message } from '../types/messages.js';
-import type { Provider, Usage } from '../types/provider.js';
-import type { SessionEvent, SessionWriter } from '../types/session.js';
-import type { TokenCounter } from '../types/token-counter.js';
-import type { Tool } from '../types/tool.js';
-import type { UserInputAwaiter, UserInputRequest, UserInputResponse } from '../types/user-input.js';
+import type {
+  ConversationJournalQueueApi,
+  NestedToolCaller,
+  TodoItem,
+} from '@wrongstack/contracts/types/context';
+import type { ContextEvidenceState } from '@wrongstack/contracts/types/context-evidence';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider, Usage } from '@wrongstack/contracts/types/provider';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
+import type { TokenCounter } from '@wrongstack/contracts/types/token-counter';
+import type { Tool } from '@wrongstack/contracts/types/tool';
+import type {
+  UserInputAwaiter,
+  UserInputRequest,
+  UserInputResponse,
+} from '@wrongstack/contracts/types/user-input';
+import { isProjectRootLocked } from '../security/process-lockdown.js';
 import { createContextEvidenceState } from '../utils/context-evidence.js';
 import { ConversationJournalQueue } from './context-conversation-journal.js';
 import {

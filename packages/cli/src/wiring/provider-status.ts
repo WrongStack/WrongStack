@@ -1,10 +1,11 @@
 /** Persistent provider/model waiting-room state for the CLI runtime. */
+
+import * as fs from 'node:fs/promises';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { FallbackProfileManager } from '@wrongstack/core/agent';
 import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { atomicWrite, toErrorMessage, withFileLock } from '@wrongstack/core/utils';
-import * as fs from 'node:fs/promises';
 
 interface ProviderStatusInput {
   events: EventBus;

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, rename, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { FetchError } from '../types/errors.js';
+import { FetchError } from '@wrongstack/contracts/types/errors';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 import type { TypeSafeBreaker } from './breaker.js';
 

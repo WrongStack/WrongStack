@@ -8,7 +8,7 @@
  * request whose matching `resolved` fell outside the fetched window would
  * strand a card offering an answer that can never land.
  */
-import type { HqEventEnvelope } from '@wrongstack/core/hq';
+import type { HqEventEnvelope } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { derivePendingApprovals } from '../../src/domain/use-pending-approvals.js';
 

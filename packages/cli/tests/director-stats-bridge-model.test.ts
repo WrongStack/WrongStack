@@ -8,8 +8,9 @@
  * pair from the Director and falls back to usage when the Director has no
  * answer (a worker that never reached the spawn bookkeeping).
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { FleetBus } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { describe, expect, it } from 'vitest';
 import { registerDirectorStatsBridge } from '../src/fleet/host-director-event-bridges.js';
 

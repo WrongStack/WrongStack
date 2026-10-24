@@ -1,5 +1,5 @@
+import type { JSONSchema } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
-import type { JSONSchema } from '../../src/types/tool.js';
 import {
   coerceAgainstSchema,
   validateAgainstSchema,

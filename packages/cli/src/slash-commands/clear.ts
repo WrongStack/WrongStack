@@ -1,3 +1,4 @@
+import type { SessionWriter, SlashCommand } from '@wrongstack/contracts/types';
 import { resetCaptureWindows } from '@wrongstack/core/agent-catalog';
 import {
   resetSessionSubagentPolicy,
@@ -5,7 +6,6 @@ import {
 } from '@wrongstack/core/coordination';
 import { restoreSessionPermissionOverrides } from '@wrongstack/core/security';
 import { restoreRequiredSkillsFromEvents } from '@wrongstack/core/skills';
-import type { SessionWriter, SlashCommand } from '@wrongstack/core/types';
 import {
   clearLeaderEffortOverride,
   createContextEvidenceState,

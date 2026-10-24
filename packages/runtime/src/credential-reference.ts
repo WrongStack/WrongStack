@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 
 /** A pointer to an existing profile credential. No credential values are persisted here. */
 export interface CredentialReference {

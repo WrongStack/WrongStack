@@ -2,7 +2,7 @@ import {
   type CustomModelDefinition,
   type SlashCommand,
   ToolValidationError,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { color, toErrorMessage, updateJsonObjectFile } from '@wrongstack/core/utils';
 import { backupCurrent } from '../config-history.js';
 import type { SlashCommandContext } from './command-context.js';

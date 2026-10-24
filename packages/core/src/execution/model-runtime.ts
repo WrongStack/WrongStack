@@ -12,13 +12,11 @@
  * request.
  */
 
-import {
-  conversationBoundToRequest,
-  inheritRequestConversation,
-} from '../core/request-conversation-binding.js';
-import { providerBoundToRequest } from '../core/request-provider-binding.js';
-import type { Middleware } from '../kernel/pipeline.js';
-import type { ModelRuntimeConfig, ModelRuntimeParametersConfig } from '../types/config.js';
+import type { Middleware } from '@wrongstack/contracts/kernel/pipeline';
+import type {
+  ModelRuntimeConfig,
+  ModelRuntimeParametersConfig,
+} from '@wrongstack/contracts/types/config';
 import type {
   Capabilities,
   Provider,
@@ -27,7 +25,12 @@ import type {
   ReasoningRequest,
   Request,
   RequestCacheControl,
-} from '../types/provider.js';
+} from '@wrongstack/contracts/types/provider';
+import {
+  conversationBoundToRequest,
+  inheritRequestConversation,
+} from '../core/request-conversation-binding.js';
+import { providerBoundToRequest } from '../core/request-provider-binding.js';
 import { activeLeaderEffort } from '../utils/leader-effort-override.js';
 
 export interface ResolvedModelRuntime {

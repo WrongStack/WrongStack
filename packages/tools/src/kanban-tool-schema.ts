@@ -1,4 +1,4 @@
-import type { JSONSchema } from '@wrongstack/core/types';
+import type { JSONSchema } from '@wrongstack/contracts/types';
 
 export const KANBAN_TOOL_DESCRIPTION =
   'Durable project task boards: create and move cards, record checks, notes, links and assignments. The board is a record of the work, not a permit for it — nothing here gates other tools. Managed boards additionally enforce ordered Backlog → Todo → Running → Review → Done transitions; release_managed_lifecycle turns that off.';

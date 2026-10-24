@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { ContentBlock, ToolUseBlock } from '@wrongstack/core/types';
+import type { ContentBlock, ToolUseBlock } from '@wrongstack/contracts/types';
 import { sanitizeJsonString } from '@wrongstack/core/utils';
 import type { OpenAIToolCall } from './to-openai.js';
 

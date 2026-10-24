@@ -1,11 +1,11 @@
-import type { ContentBlock } from '../../src/types/blocks.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
 import type {
   Capabilities,
   Provider,
   Request,
   Response,
   StreamEvent,
-} from '../../src/types/provider.js';
+} from '@wrongstack/contracts/types/provider';
 
 export interface ScriptedResponse {
   content: ContentBlock[];

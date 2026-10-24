@@ -5,8 +5,8 @@ import type {
   HookInput,
   HookInvocationContext,
   ObservationalHookEvent,
-} from '../types/hooks.js';
-import type { Logger } from '../types/logger.js';
+} from '@wrongstack/contracts/types/hooks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import { toErrorMessage } from '../utils/error.js';
 import { runHttpHookDetailed } from './http-executor.js';
 import { type HookRegistry, hookMatcherMatches } from './registry.js';

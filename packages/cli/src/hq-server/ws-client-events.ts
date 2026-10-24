@@ -19,7 +19,7 @@ import type {
   HqToken,
   HqTranscriptAppendPayload,
   HqTranscriptEntry,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import {
   chunkHqSageRecords,
   HQ_TRANSCRIPT_TEXT_CAP,
@@ -29,7 +29,7 @@ import {
   redactHqEvent,
   tightenHqRedactionPolicy,
   tokenHasCapability,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { broadcastEvent, sendGuarded } from './snapshot.js';

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types/task-graph';
 import { TaskTracker } from '@wrongstack/core/tasking';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
 import { describe, expect, it } from 'vitest';
 import { analyzeCriticalPath } from '../src/critical-path.js';
 import { splitGraphNode } from '../src/graph-split.js';
@@ -229,7 +229,7 @@ describe('Critical Path Analysis', () => {
       ],
     });
     graph.edges.push(
-      { id: 'related', from: 'a', to: 'b', type: 'related_to' },
+      { id: 'related', from: 'a', to: 'b', type: 'relates_to' },
       { id: 'dangling-task', from: 'missing', to: 'a', type: 'depends_on' },
       { id: 'dangling-blocker', from: 'b', to: 'absent', type: 'depends_on' },
       { id: 'second-blocker', from: 'c', to: 'b', type: 'depends_on' },

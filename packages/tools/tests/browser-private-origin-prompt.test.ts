@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { UserInputRequest, UserInputResponse } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { UserInputRequest, UserInputResponse } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { browserPrivateOrigins } from '../src/browser/policy.js';
 import { promptForPrivateOrigin } from '../src/browser/private-origin-prompt.js';

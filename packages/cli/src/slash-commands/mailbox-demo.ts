@@ -14,6 +14,7 @@
  *   /mailbox-demo clear           — clear all messages for the demo agent
  */
 
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   getSharedProjectMailbox,
   type MailboxAgentStatus,
@@ -21,7 +22,6 @@ import {
   type RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';

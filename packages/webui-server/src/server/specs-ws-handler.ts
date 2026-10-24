@@ -1,5 +1,5 @@
+import type { Specification, TaskGraph, TaskNode } from '@wrongstack/contracts/types';
 import { computeTaskProgress } from '@wrongstack/core/tasking';
-import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { SpecStore, TaskGraphStore } from '@wrongstack/sdd';
 import type { WebSocket } from 'ws';
 import { errMessage, sendSerialized } from './ws-utils.js';

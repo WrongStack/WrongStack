@@ -1,7 +1,7 @@
+import type { TaskStatus } from '@wrongstack/contracts/types';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
 import { getSharedProjectMailbox } from '@wrongstack/core/coordination';
 import { mutatePlan, mutateTasks, type PlanFile, type TaskFile } from '@wrongstack/core/storage';
-import type { TaskStatus } from '@wrongstack/core/types';
 import { formatTodosForModel, resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   getDependencyReadinessIssues,

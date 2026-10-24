@@ -21,7 +21,7 @@ vi.mock('../src/webui-server.js', () => ({
   runWebUI: surfaceMocks.runWebUI,
 }));
 
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { runSingleShotDispatch } from '../src/boot/dispatch-singleshot.js';
 import { runTuiDispatch } from '../src/boot/dispatch-tui.js';
 import { runWebUIDispatch } from '../src/boot/dispatch-webui.js';

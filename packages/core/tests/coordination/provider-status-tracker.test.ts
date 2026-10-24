@@ -11,9 +11,9 @@
  */
 
 import { deepStrictEqual, ok, strictEqual } from 'node:assert';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { beforeEach, describe, it, vi } from 'vitest';
 import { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
-import { ProviderError } from '../../src/types/provider.js';
 
 /** Fresh tracker with all thresholds set to minimal values for fast testing. */
 function createTestTracker(): ProviderModelStatusTracker {
@@ -502,7 +502,7 @@ describe('ProviderModelStatusTracker', () => {
         emit: (_event: string, payload: { model?: string }) => {
           if (payload.model) bump(payload.model);
         },
-      } as unknown as import('../../src/kernel/events.js').EventBus,
+      } as unknown as import('@wrongstack/contracts/kernel/events').EventBus,
     });
     eventTracker.recordSuccess('openai', 'gpt-4o-mini');
 
@@ -539,7 +539,7 @@ describe('ProviderModelStatusTracker', () => {
         emit: (_event: string, p: unknown) => {
           payload = p as Record<string, unknown>;
         },
-      } as unknown as import('../../src/kernel/events.js').EventBus,
+      } as unknown as import('@wrongstack/contracts/kernel/events').EventBus,
     });
 
     auditTracker.recordFailure('openai', 'gpt-4o', 'rate_limit', 429, 'Too many requests', {

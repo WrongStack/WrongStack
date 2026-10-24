@@ -2,7 +2,7 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { ProviderApiKey } from '@wrongstack/core/types';
+import type { ProviderApiKey } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createChatGPTDirectAuthStrategy,

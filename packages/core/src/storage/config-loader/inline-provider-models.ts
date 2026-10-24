@@ -1,6 +1,6 @@
-import type { CustomModelDefinition } from '../../types/config.js';
-import type { Capabilities } from '../../types/provider.js';
-import type { ModelsDevModel } from '../../types/models-registry.js';
+import type { CustomModelDefinition } from '@wrongstack/contracts/types/config';
+import type { ModelsDevModel } from '@wrongstack/contracts/types/models-registry';
+import type { Capabilities } from '@wrongstack/contracts/types/provider';
 import { FORBIDDEN_PROTO_KEYS } from '../../utils/deep-merge.js';
 
 export type InlineProviderModelWarning = (

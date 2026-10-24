@@ -1,10 +1,10 @@
-import { recordPromptJournalEntry } from '../prompts/prompt-journal.js';
 import {
   AgentError,
   ERROR_CODES,
   toWrongStackError,
   type WrongStackError,
-} from '../types/errors.js';
+} from '@wrongstack/contracts/types/errors';
+import { recordPromptJournalEntry } from '../prompts/prompt-journal.js';
 import { toErrorMessage } from '../utils/error.js';
 import { type Context, resolveEventSessionId } from './context.js';
 

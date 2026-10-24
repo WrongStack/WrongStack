@@ -1,8 +1,8 @@
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { describe, expect, it } from 'vitest';
 import { materializeTokens } from '../../src/execution/design-materialize.js';
 import { applyTokenOverrides } from '../../src/execution/design-project-store.js';
 import { resolveSemanticTune } from '../../src/execution/design-tune.js';
-import type { DesignKitTokens } from '../../src/types/design-kit.js';
 
 const tokens: DesignKitTokens = {
   light: {

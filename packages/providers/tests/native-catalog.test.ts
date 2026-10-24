@@ -1,4 +1,4 @@
-import type { Capabilities, Request } from '@wrongstack/core/types';
+import type { Capabilities, Request } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { createNativeCatalogProvider, isNativeCatalogNpm } from '../src/native-catalog.js';
 

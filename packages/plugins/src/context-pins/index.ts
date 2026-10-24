@@ -34,7 +34,7 @@
 
 import * as fs from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
 
 // ---------------------------------------------------------------------------

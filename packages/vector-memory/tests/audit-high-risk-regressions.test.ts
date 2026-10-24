@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { SAGE_SURFACE_CAPABILITY } from '@wrongstack/sage';
 import { afterEach, describe, expect, it } from 'vitest';
 import { subscribeVectorMemoryToSage } from '../src/sage-event-mirror.js';

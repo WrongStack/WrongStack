@@ -1,10 +1,10 @@
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { TaskResult } from '@wrongstack/contracts/types';
 import {
   captureLearnedFromAgentOutputDetailed,
   recordDirectiveOutcomes,
   recordSkillOutcome,
 } from '@wrongstack/core/agent-catalog';
-import { TOKENS } from '@wrongstack/core/kernel';
-import type { TaskResult } from '@wrongstack/core/types';
 import type { MultiAgentDeps } from './host-types.js';
 
 /** What a spawn recorded about the agent that will produce this result. */

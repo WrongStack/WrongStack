@@ -1,5 +1,5 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { fmtRatioPct } from './components/status-bar-format.js';
 
 interface ContextSlashDeps {

@@ -10,7 +10,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { JSONSchema } from '@wrongstack/core/types';
+import type { JSONSchema } from '@wrongstack/contracts/types';
 import { type ValidationError, validateAgainstSchema } from '@wrongstack/core/utils';
 
 /** Inline JSON when the value starts with `{`, otherwise a path relative to `cwd`. */

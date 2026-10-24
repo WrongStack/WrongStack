@@ -1,7 +1,7 @@
-import type { TextBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
-import type { Provider } from '../types/provider.js';
-import { LIVE_CONTEXT_MARKER } from '../utils/live-context.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import { LIVE_CONTEXT_MARKER } from '@wrongstack/contracts/types/live-context';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 
 /** Request-only live state must retain its original position in an automatic-cache prefix. */
 export class RequestContextReplay {

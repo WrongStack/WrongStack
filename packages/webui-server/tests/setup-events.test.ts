@@ -1,6 +1,6 @@
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type { Context } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { describe, expect, it, vi } from 'vitest';
 import { setupEvents } from '../src/server/setup-events.js';

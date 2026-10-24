@@ -20,7 +20,7 @@ export {
  *   case 'memory.sage.list': return handleSageList(ws, memoryStore);
  */
 
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { getSageSurface, type SageStatus } from '@wrongstack/sage';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';

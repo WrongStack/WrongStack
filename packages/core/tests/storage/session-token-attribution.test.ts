@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { totalUsageTokens } from '@wrongstack/contracts/types/provider';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionEvent, SessionSummary } from '../../src/index.js';
 import { DefaultSessionStore } from '../../src/index.js';
-import { totalUsageTokens } from '../../src/types/provider.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

@@ -1,4 +1,4 @@
-import type { MemoryEntry } from '@wrongstack/core/types';
+import type { MemoryEntry } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runStats } from '../../src/slash-commands/memory-stats.js';
 

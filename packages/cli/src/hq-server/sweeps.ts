@@ -1,4 +1,4 @@
-import type { createHqPersistence, HqCommandAuditLog, HqEventEnvelope } from '@wrongstack/core/hq';
+import type { createHqPersistence, HqCommandAuditLog, HqEventEnvelope } from '@wrongstack/hq';
 import type { WebSocket } from '../ws-runtime.js';
 import type { LoginAttemptStore } from './login-attempt-store.js';
 import type { ConnectedClient, HqSessionEntry } from './types.js';

@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import { createPreContextServices } from './pre-context-services.js';
 import { touchProjectEntry } from './start-webui-project.js';

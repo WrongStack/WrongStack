@@ -1,4 +1,4 @@
-import type { ConfigStore, ThemePresetId } from '@wrongstack/core/types';
+import type { ConfigStore, ThemePresetId } from '@wrongstack/contracts/types';
 import { useCallback } from 'react';
 import type { Action } from '../app-reducer.js';
 import { getActiveThemeName, setActiveTheme, THEME_OPTIONS, type ThemeName } from '../theme.js';

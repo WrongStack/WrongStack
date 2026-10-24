@@ -1,5 +1,5 @@
+import type { EventName, Listener } from '@wrongstack/contracts/kernel';
 import type { Context } from '@wrongstack/core/agent';
-import type { EventName, Listener } from '@wrongstack/core/kernel';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { recordTaskFileActivity } from '@wrongstack/kanban';
 import type { WebSocket } from 'ws';

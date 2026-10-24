@@ -407,7 +407,7 @@ describe('start-webui.ts source-text sync wiring', () => {
  */
 function makeEmptySageMemoryStore(surfaceCapability: {
   id: string;
-}): import('@wrongstack/core/types').MemoryPort {
+}): import('@wrongstack/contracts/types').MemoryPort {
   // `createSageSurfaceSyncSource` calls `listSagePage` (see
   // packages/vector-memory/src/sage-sync-source.ts:52), not
   // `listActiveMemories`. The shape mirrors what `SqliteMemoryPort`
@@ -424,5 +424,5 @@ function makeEmptySageMemoryStore(surfaceCapability: {
       cap === surfaceCapability || cap.id === surfaceCapability.id ? surface : undefined,
     withTraceId: () => makeEmptySageMemoryStore(surfaceCapability),
     dispose: async () => undefined,
-  } as unknown as import('@wrongstack/core/types').MemoryPort;
+  } as unknown as import('@wrongstack/contracts/types').MemoryPort;
 }

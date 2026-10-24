@@ -1,4 +1,4 @@
-import { ToolError } from '@wrongstack/core/types';
+import { ToolError } from '@wrongstack/contracts/types';
 
 /**
  * Hard cap on a buffered HTTP response body, matching the stdio transport's

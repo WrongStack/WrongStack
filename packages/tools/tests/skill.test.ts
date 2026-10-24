@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SkillLoader, SkillManifest } from '@wrongstack/contracts/types';
 import {
   armRequiredSkills,
   pendingRequiredSkills,
   readRequiredSkillsState,
   SKILL_LIMITS,
 } from '@wrongstack/core/skills';
-import type { SkillLoader, SkillManifest } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeSkillTool } from '../src/skill.js';
 

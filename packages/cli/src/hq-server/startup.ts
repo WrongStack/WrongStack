@@ -9,7 +9,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { writeHqRuntimeFile } from '@wrongstack/core/hq';
+import { writeHqRuntimeFile } from '@wrongstack/hq';
 import { terminalLink, terminalText } from '../terminal-format.js';
 import * as HqServerUtils from './utils.js';
 

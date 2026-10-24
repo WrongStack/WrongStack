@@ -1,6 +1,10 @@
-import type { Logger } from '../../types/logger.js';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
-import type { SessionData, SessionEvent, SessionSummary } from '../../types/session.js';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type {
+  SessionData,
+  SessionEvent,
+  SessionSummary,
+} from '@wrongstack/contracts/types/session';
 import type { EventBus } from '../event-bus-port.js';
 
 export interface SessionStoreOptions {

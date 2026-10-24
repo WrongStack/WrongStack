@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { PluginConfig } from '@wrongstack/core/types';
+import type { PluginConfig } from '@wrongstack/contracts/types';
 import { updateJsonObjectFile } from '@wrongstack/core/utils';
 import { backupCurrent } from './config-history.js';
 import type { PluginManagementDeps, PluginManagementResult } from './plugin-management-types.js';

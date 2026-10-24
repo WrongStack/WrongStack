@@ -1,4 +1,8 @@
-import { formatLimitRange, LIMIT_BOUNDS, limitValueError } from '@wrongstack/core/types/limits';
+import {
+  formatLimitRange,
+  LIMIT_BOUNDS,
+  limitValueError,
+} from '@wrongstack/contracts/types/config/limits';
 import { Gauge } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { type LocalPrefs, useLocalPrefs } from '@/stores/local-prefs';

@@ -22,7 +22,7 @@ import {
   type Request,
   type Response,
   type StreamEvent,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { capabilitiesForFamily } from './family-capabilities.js';
 
 /** Kept within `ProviderError.describe()`'s 240-char detail so it is never cut. */

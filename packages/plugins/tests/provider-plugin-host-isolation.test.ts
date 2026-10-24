@@ -1,4 +1,4 @@
-import type { Plugin, PluginAPI, Tool } from '@wrongstack/core/types';
+import type { Plugin, PluginAPI, Tool } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import escalate from '../src/auto-escalate/index.js';
 import cache from '../src/llm-cache/index.js';

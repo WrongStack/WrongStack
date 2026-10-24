@@ -1,5 +1,8 @@
-import type { ToolResultRenderMode, ToolResultRenderModeConfig } from '../types/config.js';
-import type { Tool } from '../types/tool.js';
+import type {
+  ToolResultRenderMode,
+  ToolResultRenderModeConfig,
+} from '@wrongstack/contracts/types/config';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 
 export const DEFAULT_TOOL_RESULT_RENDER_MODE: ToolResultRenderMode = 'extend';
 

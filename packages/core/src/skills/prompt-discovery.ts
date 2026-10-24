@@ -1,8 +1,8 @@
 import {
   missingRequiredRuntimeTools,
   missingRuntimeCapabilities,
-} from '../types/runtime-capability-manifest.js';
-import type { SkillManifest } from '../types/skill.js';
+} from '@wrongstack/contracts/types/runtime-capability-manifest';
+import type { SkillManifest } from '@wrongstack/contracts/types/skill';
 
 const HIDDEN_AUDIENCES = new Set(['roster', 'external']);
 

@@ -1,8 +1,8 @@
+import type { ToolOutputMetadata } from '@wrongstack/contracts/types/context-evidence';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, test } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
-import type { ToolOutputMetadata } from '../../src/types/context-evidence.js';
-import type { Tool } from '../../src/types/tool.js';
 import {
   createContextEvidenceState,
   markAssistantReferencedEvidence,

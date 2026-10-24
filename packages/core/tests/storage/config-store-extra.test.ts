@@ -1,6 +1,6 @@
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import { DefaultConfigStore } from '../../src/storage/config-store.js';
-import type { Config } from '../../src/types/config.js';
 
 // Covers stripEphemeralFields() — env-sourced fields are dropped on update so
 // secrets derived from env vars never persist into the on-disk config.

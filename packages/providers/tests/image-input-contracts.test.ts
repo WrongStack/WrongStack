@@ -1,4 +1,4 @@
-import type { Capabilities, Message, Request } from '@wrongstack/core/types';
+import type { Capabilities, Message, Request } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { convertMessages } from '../src/ai-gateway.js';
 import { OpenAIResponsesProvider } from '../src/openai-responses.js';

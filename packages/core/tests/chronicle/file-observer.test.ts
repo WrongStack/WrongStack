@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rename, rm, unlink, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   ChronicleJournal,
@@ -11,7 +12,6 @@ import type { ChronicleJournalStats } from '../../src/chronicle/journal.js';
 import type { ChronicleEventSink } from '../../src/chronicle/sink.js';
 import type { ChronicleEvent, ChronicleEventInput } from '../../src/chronicle/types.js';
 import { CHRONICLE_SCHEMA_VERSION } from '../../src/chronicle/types.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 const tempDirs: string[] = [];
 

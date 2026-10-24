@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import { StringDecoder } from 'node:string_decoder';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
-import type { SessionEvent } from '../../types/session.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 import { createTranscriptLineReader, isGzipTranscriptPath } from './transcript-io.js';
 

@@ -1,4 +1,4 @@
-import type { Config, SessionWriter } from '@wrongstack/core/types';
+import type { Config, SessionWriter } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setupDirectorAndAutonomy } from '../src/wiring/director-setup.js';
 

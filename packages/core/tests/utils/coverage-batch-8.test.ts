@@ -1,3 +1,5 @@
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { describe, expect, it, vi } from 'vitest';
 import { HARD_MAX_SPAWN_DEPTH, resolveMaxSpawnDepth } from '../../src/coordination/spawn-budget.js';
 import { NETWORK_ERR_RE } from '../../src/execution/regex-patterns.js';
@@ -8,8 +10,6 @@ import {
   matchesSessionFilter,
 } from '../../src/storage/session-summary.js';
 import { mapWithConcurrency } from '../../src/storage/storage-concurrency.js';
-import type { ContentBlock } from '../../src/types/blocks.js';
-import type { SessionSummary } from '../../src/types/session.js';
 
 // ── session-id ──────────────────────────────────────────────────────────
 

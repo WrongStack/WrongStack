@@ -1,4 +1,4 @@
-import type { PhaseTemplate } from '@wrongstack/core/goal';
+import type { PhaseTemplate } from '@wrongstack/goal';
 import {
   planPhases as delegatePlanPhases,
   runChimeraReview as delegateRunChimeraReview,
@@ -173,7 +173,7 @@ export async function planGoalPhases(
 /** Run a lightweight chimera-style review before the task is settled. */
 export async function runGoalChimeraReview(
   self: GoalWsHandlerInternals,
-  task: import('@wrongstack/core/types').TaskNode,
+  task: import('@wrongstack/contracts/types').TaskNode,
   phaseId: string,
   result: unknown,
   cwd?: string | undefined,

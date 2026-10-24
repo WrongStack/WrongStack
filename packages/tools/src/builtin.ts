@@ -1,5 +1,5 @@
+import type { Tool } from '@wrongstack/contracts/types';
 import { createSandboxBrowserTierGate, createSandboxExecWrapper } from '@wrongstack/core/sandbox';
-import type { Tool } from '@wrongstack/core/types';
 import { auditTool } from './audit.js';
 import { bashTool } from './bash.js';
 import { browserTools } from './browser/tools.js';

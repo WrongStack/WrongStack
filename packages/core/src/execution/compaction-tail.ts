@@ -1,5 +1,5 @@
-import type { ContextWindowPolicy } from '../types/context-window.js';
-import type { Message } from '../types/messages.js';
+import type { ContextWindowPolicy } from '@wrongstack/contracts/types/context-window';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { estimateMessageTokens } from '../utils/token-estimate.js';
 
 /** The slice of a run context the kept-tail rule reads. */

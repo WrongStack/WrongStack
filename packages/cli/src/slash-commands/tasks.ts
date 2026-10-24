@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { SlashCommand, TaskPriority, TaskStatus, TaskType } from '@wrongstack/contracts/types';
 import type { TodoItem } from '@wrongstack/core/agent';
 import {
   addPlanItem,
@@ -8,7 +9,6 @@ import {
   mutateTasks,
   saveCompletedWorkCheckpoint,
 } from '@wrongstack/core/storage';
-import type { SlashCommand, TaskPriority, TaskStatus, TaskType } from '@wrongstack/core/types';
 import type { TaskItem } from '@wrongstack/core/utils';
 import {
   formatTaskList,

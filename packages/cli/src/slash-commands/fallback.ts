@@ -1,10 +1,10 @@
+import type { ProviderErrorKind, SlashCommand } from '@wrongstack/contracts/types';
 import {
   diagnoseFallbackConfig,
   normalizeModelRef,
   parseModelRef,
   simulateFallbackFailover,
 } from '@wrongstack/core/agent';
-import type { ProviderErrorKind, SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage, updateJsonObjectFile } from '@wrongstack/core/utils';
 import { backupCurrent } from '../config-history.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';

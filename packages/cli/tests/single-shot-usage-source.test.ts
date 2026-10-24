@@ -1,4 +1,4 @@
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const output = vi.hoisted(() => ({ write: vi.fn() }));

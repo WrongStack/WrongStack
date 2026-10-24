@@ -1,6 +1,6 @@
+import type { ToolResultBlock } from '@wrongstack/contracts/types/blocks';
 import { describe, expect, it, vi } from 'vitest';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
-import type { ToolResultBlock } from '../../src/types/blocks.js';
 import {
   prepareProgrammaticOutput,
   programmaticOutput,

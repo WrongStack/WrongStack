@@ -25,7 +25,7 @@
  */
 
 import { basename } from 'node:path';
-import type { Message } from '../types/messages.js';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { isElidedResultContent, isElidedToolInput } from '../utils/elision-markers.js';
 import { REQUIRED_SKILLS_LOADER_TOOL } from './required-skill-gate.js';
 import { declaredPathMatch, MAX_GLOBS_PER_SKILL } from './skill-path-rules.js';

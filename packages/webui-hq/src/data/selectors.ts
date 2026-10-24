@@ -4,7 +4,7 @@
  * Pure functions of a snapshot + the live rings, so they can be unit-tested
  * and so no component re-implements "what counts as needing attention".
  */
-import type { HqAlertMessage, HqCommandAuditEntry, HqSnapshot } from '@wrongstack/core/hq';
+import type { HqAlertMessage, HqCommandAuditEntry, HqSnapshot } from '@wrongstack/hq';
 
 /** Alerts an operator should act on. `info` is history, not a signal. */
 export function actionableAlertCount(alerts: readonly HqAlertMessage[]): number {

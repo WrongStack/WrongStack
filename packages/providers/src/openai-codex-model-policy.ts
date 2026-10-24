@@ -1,4 +1,4 @@
-import type { ReasoningEffort } from '@wrongstack/core/types';
+import type { ReasoningEffort } from '@wrongstack/contracts/types';
 import type { CodexTruncationPolicy } from './openai-codex-truncation.js';
 
 export { parseCodexTruncationPolicy } from './openai-codex-truncation.js';

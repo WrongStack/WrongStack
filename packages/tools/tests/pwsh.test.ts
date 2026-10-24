@@ -1,4 +1,4 @@
-import type { ToolStreamEvent } from '@wrongstack/core/types';
+import type { ToolStreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { _resetProcessRegistry, getProcessRegistry } from '../src/process-registry.js';
 import { pwshTool } from '../src/pwsh.js';

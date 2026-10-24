@@ -4,7 +4,7 @@ import type {
   MemoryPort,
   MemoryScope,
   MemoryStore,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import {
   LegacyMemoryPortAdapter,
   SAGE_SURFACE_CAPABILITY,

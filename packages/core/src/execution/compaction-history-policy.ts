@@ -1,5 +1,5 @@
+import type { CompactReport } from '@wrongstack/contracts/types/compactor';
 import type { Context } from '../core/context.js';
-import type { CompactReport } from '../types/compactor.js';
 import type { PressureLevel } from './compaction-thresholds.js';
 import { effectiveMaxContext, LEVEL_RANK } from './compaction-thresholds.js';
 

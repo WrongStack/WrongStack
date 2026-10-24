@@ -1,12 +1,12 @@
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type {
   ModelsDevModel,
   Provider,
   ProviderConfig,
   ProviderErrorKind,
   Response,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   buildProviderFactoriesFromRegistry,

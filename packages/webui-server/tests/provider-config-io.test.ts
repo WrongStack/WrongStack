@@ -12,7 +12,7 @@ vi.mock('@wrongstack/core/security', () => ({
   encryptConfigSecrets: mockEncrypt,
 }));
 
-vi.mock('@wrongstack/core/types', () => ({
+vi.mock('@wrongstack/contracts/types', () => ({
   ConfigError: class extends Error {
     constructor(opts: any) {
       super(opts.message);

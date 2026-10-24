@@ -1,5 +1,6 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import {
   clearSandboxAuditLog,
   configureSandboxPolicy,
@@ -11,7 +12,6 @@ import {
   setSandboxExpansionApprover,
 } from '../../src/sandbox/index.js';
 import { type SandboxBackend, SandboxDeniedError } from '../../src/sandbox/types.js';
-import type { Tool } from '../../src/types/tool.js';
 
 interface EchoInput {
   v: number;

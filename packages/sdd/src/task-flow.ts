@@ -1,13 +1,13 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import { DefaultTaskStore, TaskTracker } from '@wrongstack/core/tasking';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   DoneCondition,
   SpecAnalysis,
   Specification,
   TaskGraph,
   TaskNode,
-} from '@wrongstack/core/types';
-import { ERROR_CODES, SddError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ERROR_CODES, SddError } from '@wrongstack/contracts/types';
+import { DefaultTaskStore, TaskTracker } from '@wrongstack/core/tasking';
 import { expectDefined } from '@wrongstack/core/utils';
 import { SpecParser } from './spec-parser.js';
 import { TaskGenerator } from './task-generator.js';

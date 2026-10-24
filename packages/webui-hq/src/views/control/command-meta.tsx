@@ -1,4 +1,4 @@
-import type { HqCommandAuditEntry } from '@wrongstack/core/hq';
+import type { HqCommandAuditEntry } from '@wrongstack/hq';
 import {
   Bot,
   ListPlus,

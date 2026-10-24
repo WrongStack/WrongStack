@@ -1,5 +1,5 @@
-import type { EventBus, EventMap } from '../../kernel/events.js';
-import type { SubagentConfig, TaskResult } from '../../types/multi-agent.js';
+import type { EventBus, EventMap } from '@wrongstack/contracts/kernel/events';
+import type { SubagentConfig, TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import type { Director } from '../director.js';
 
 /**

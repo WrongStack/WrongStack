@@ -1,6 +1,6 @@
+import type { AttachmentStore, TokenCounter } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { AttachmentStore, TokenCounter } from '@wrongstack/core/types';
 import type { VisionAdapters } from '@wrongstack/runtime';
 
 import type { ReadlineInputReader } from './input-reader.js';
@@ -32,17 +32,17 @@ export interface ReplOptions {
     | (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null)
     | undefined;
   getParallelEngine?:
-    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | (() => import('@wrongstack/core/coordination').ParallelEternalEngine | null)
     | undefined;
   getSddRun?: (() => import('@wrongstack/sdd').SddRunControl | null) | undefined;
   effectiveMaxContext?: number | undefined;
   getEffectiveMaxContext?: (() => number | undefined) | undefined;
   projectName?: string | undefined;
   projectRoot?: string | undefined;
-  appConfig?: import('@wrongstack/core/types').Config | undefined;
+  appConfig?: import('@wrongstack/contracts/types').Config | undefined;
   getSessionId?: (() => string | undefined) | undefined;
   supportsVision?: (() => boolean | Promise<boolean>) | undefined;
-  skillLoader?: import('@wrongstack/core/types').SkillLoader | undefined;
+  skillLoader?: import('@wrongstack/contracts/types').SkillLoader | undefined;
   agentsMonitorController?:
     | {
         visible: boolean;
@@ -51,8 +51,8 @@ export interface ReplOptions {
     | undefined;
   fleetStreamController?:
     | {
-        mode: import('@wrongstack/core/types').FleetChatVerbosity;
-        setMode: (mode: import('@wrongstack/core/types').FleetChatVerbosity) => void;
+        mode: import('@wrongstack/contracts/types').FleetChatVerbosity;
+        setMode: (mode: import('@wrongstack/contracts/types').FleetChatVerbosity) => void;
       }
     | undefined;
   interruptController?:

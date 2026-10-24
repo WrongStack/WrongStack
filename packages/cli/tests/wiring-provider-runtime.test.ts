@@ -1,5 +1,5 @@
+import type { Config, Provider } from '@wrongstack/contracts/types';
 import { ProviderRegistry } from '@wrongstack/core/registry';
-import type { Config, Provider } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildProviderForId, resolveProviderCfg } from '../src/wiring/provider-runtime.js';
 import { serializeProviderRuntimeSnapshot } from '../src/wiring/provider-runtime-setup.js';

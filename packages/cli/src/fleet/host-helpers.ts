@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import type { Config, SubagentConfig, TaskSpec, Tool } from '@wrongstack/contracts/types';
 import {
   type FleetWorktreePolicy,
   makeSessionNoteTool,
@@ -9,7 +10,6 @@ import {
   ToolCapabilities,
   WIDE_SUBAGENT_CAPABILITIES,
 } from '@wrongstack/core/security';
-import type { Config, SubagentConfig, TaskSpec, Tool } from '@wrongstack/core/types';
 import { makePreferSideConflictResolver } from '@wrongstack/sdd';
 
 type AgentAvailability = NonNullable<SubagentConfig['availability']>;

@@ -5,7 +5,7 @@ import {
   HqInsecureExposureError,
   isTokenExpired,
   resolveHqDataDir,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { resolveAuditActor } from './audit-actor.js';
 
 interface HqPreflightOptions {

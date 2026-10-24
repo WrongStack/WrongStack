@@ -5,8 +5,8 @@ import type {
   CouncilVoteResult,
   ResolvedCouncilProfile,
   ResolvedCouncilSeat,
-} from '../types/council.js';
-import type { OneShotLLMResult } from '../types/one-shot-llm.js';
+} from '@wrongstack/contracts/types/council';
+import type { OneShotLLMResult } from '@wrongstack/contracts/types/one-shot-llm';
 
 export const COUNCIL_REFUSAL_OPTION_ID = 'council_refuse';
 export const DEFAULT_COUNCIL_MAX_CONCURRENCY = 3;

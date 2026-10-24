@@ -1,12 +1,12 @@
 import { basename, join, resolve, sep } from 'node:path';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import {
   normalizeWorktreeEvent,
   WORKTREE_CLEANUP_ALL_HANDLE,
   WORKTREE_EVENT_NAMES,
   type WorktreeTimelineEvent,
-} from '@wrongstack/core/types/worktree-timeline';
+} from '@wrongstack/contracts/types/worktree-timeline';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import { cleanupStaleSddWorktrees } from '@wrongstack/sdd';

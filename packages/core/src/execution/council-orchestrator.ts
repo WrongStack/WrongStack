@@ -4,7 +4,7 @@ import type {
   CouncilVoteResult,
   ResolvedCouncilProfile,
   ResolvedCouncilSeat,
-} from '../types/council.js';
+} from '@wrongstack/contracts/types/council';
 import { CouncilOrchestratorCore } from './council-orchestrator-core.js';
 import {
   CALL_CANCELLED_REASON,

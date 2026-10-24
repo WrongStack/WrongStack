@@ -1,9 +1,9 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import type { LeaderWakePort } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { ContentBlock } from '@wrongstack/core/types';
 import { useEffect, useRef } from 'react';
-import type { Action, State } from '../app-reducer.js';
 import type { TuiLeaderAutoWake } from '../app-props.js';
+import type { Action, State } from '../app-reducer.js';
 import type { RunBlocksOptions } from '../tui-host-capabilities.js';
 
 interface Cell<T> {

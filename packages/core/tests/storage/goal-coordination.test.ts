@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { createBoard, getBoard, listBoards, removeBoard } from '@wrongstack/kanban';
 import { addTask, updateTask } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter, BrainDecisionRequest } from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecisionRequest } from '../../src/brain/brain.js';
 import { setBoardStorePort } from '../../src/storage/board-store-port.js';
 import {
   applyGoalDeliverableCompletions,

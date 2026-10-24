@@ -1,5 +1,5 @@
+import type { JSONSchema, Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { JSONSchema, Tool } from '@wrongstack/core/types';
 import {
   MCPServer,
   type MCPServerCallResult,

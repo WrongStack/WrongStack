@@ -1,8 +1,8 @@
 import type * as http from 'node:http';
 import * as path from 'node:path';
+import type { Logger, MemoryPort } from '@wrongstack/contracts/types';
 import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import type { DefaultSessionStore } from '@wrongstack/core/storage';
-import type { Logger, MemoryPort } from '@wrongstack/core/types';
 import { addFatalSalvageHook, toErrorMessage } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { WebSocket, WebSocketServer } from 'ws';

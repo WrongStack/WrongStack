@@ -2,7 +2,7 @@
  * Catalog projections used by spec-linker and public discovery APIs.
  * Plugin identity and source paths are owned by the typed manifest.
  */
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { OFFICIAL_PLUGIN_MANIFEST } from './manifest/index.js';
 
 export interface CatalogEntry {

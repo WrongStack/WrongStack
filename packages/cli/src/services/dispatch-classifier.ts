@@ -14,9 +14,9 @@
  * heuristic is ambiguous, so this runs on a minority of dispatches.
  */
 
+import type { Config } from '@wrongstack/contracts/types';
 import type { DispatchClassifier } from '@wrongstack/core/coordination';
 import { makeLLMClassifier, makeTypeSafeDispatchClassifier } from '@wrongstack/core/coordination';
-import type { Config } from '@wrongstack/core/types';
 import {
   resolveTypeSafeAccount,
   type WarnSink,

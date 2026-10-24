@@ -36,7 +36,7 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { errMessage } from './ws-utils.js';
 
 export type ShellOpenTarget = 'terminal' | 'file-manager';

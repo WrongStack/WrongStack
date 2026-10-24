@@ -1,4 +1,4 @@
-import type { ContentBlock, Message } from '@wrongstack/core/types';
+import type { ContentBlock, Message } from '@wrongstack/contracts/types';
 import type { HistoryEntry } from './components/history/types.js';
 
 export function contentBlocksText(content: unknown): string {

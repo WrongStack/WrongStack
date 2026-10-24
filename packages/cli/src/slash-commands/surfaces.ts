@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 
 const DESKTOP_MESSAGE = [
   'WrongStack Desktop',

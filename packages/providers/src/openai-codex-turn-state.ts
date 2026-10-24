@@ -1,5 +1,5 @@
+import type { Request } from '@wrongstack/contracts/types';
 import { recordProviderQuota } from '@wrongstack/core/quota';
-import type { Request } from '@wrongstack/core/types';
 import { extractPlanType } from './openai-codex-account.js';
 import type { HeadersLike } from './openai-codex-errors.js';
 import { parseCodexRateLimitHeaders } from './openai-codex-rate-limits.js';

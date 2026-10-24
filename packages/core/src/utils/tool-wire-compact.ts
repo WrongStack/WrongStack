@@ -1,4 +1,4 @@
-import type { JSONSchema } from '../types/tool.js';
+import type { JSONSchema } from '@wrongstack/contracts/types/tool';
 
 export interface ToolWireDefinitionLike {
   name: string;

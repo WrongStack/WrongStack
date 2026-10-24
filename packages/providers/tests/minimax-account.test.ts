@@ -5,8 +5,8 @@
  * and on quota failures, and region-aware auth errors.
  */
 
+import { ProviderError, type Request } from '@wrongstack/contracts/types';
 import { getProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import { ProviderError, type Request } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isMiniMaxHost, isMiniMaxProviderId, MiniMaxProvider } from '../src/minimax.js';
 

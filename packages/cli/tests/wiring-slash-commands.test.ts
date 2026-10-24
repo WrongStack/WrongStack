@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { DefaultModeStore } from '@wrongstack/core/models';
 import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { noOpVault } from '@wrongstack/core/security';

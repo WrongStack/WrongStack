@@ -3,7 +3,7 @@
  * These functions have no side effects and no dependency on the store instance.
  */
 
-import type { MemoryScope } from '@wrongstack/core/types';
+import type { MemoryScope } from '@wrongstack/contracts/types';
 import { normalizeProjectPath, normalizeSlashes } from './paths.js';
 import { legacyToSageScope, type MemoryAnchor, type Sage, type SageScope } from './types.js';
 

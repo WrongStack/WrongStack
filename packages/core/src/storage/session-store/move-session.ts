@@ -24,7 +24,7 @@ import type {
   SessionMoveResult,
   SessionMoveTarget,
   SessionSummary,
-} from '../../types/index.js';
+} from '@wrongstack/contracts/types';
 import { sessionScopedPath } from '../../utils/session-scoped-path.js';
 import { clearRedoStash } from '../session-writer-redo.js';
 import { SESSION_SIDECAR_SUFFIXES } from './delete-session-artifacts.js';

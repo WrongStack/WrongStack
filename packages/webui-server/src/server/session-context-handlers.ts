@@ -2,14 +2,13 @@
  * Session context route handlers: clear, debug, compact, repair, and context editor.
  */
 
+import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/contracts/types';
 import {
   resetSessionSubagentPolicy,
   unlockSessionSubagentPolicyForSession,
 } from '@wrongstack/core/coordination';
-import { compactionReportStillCurrent } from '@wrongstack/core/execution';
-import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
+import { compactionReportStillCurrent, getHistoryRetention } from '@wrongstack/core/execution';
 import {
-  getHistoryRetention,
   getRequestResidency,
   type HistoryRetention,
   type RequestResidency,

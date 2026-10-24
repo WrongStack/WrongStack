@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { compareHqSageRecords, type HqSageRecord, isHqSageRecord } from '@wrongstack/core/hq';
+import { compareHqSageRecords, type HqSageRecord, isHqSageRecord } from '@wrongstack/hq';
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
 import type { Sage } from './types.js';

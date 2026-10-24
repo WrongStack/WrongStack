@@ -1,7 +1,7 @@
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { TaskResult, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
+import type { SessionEvent } from '@wrongstack/contracts/types/session-events';
 import type { DirectorStateCheckpoint } from '../storage/director-state.js';
-import type { Logger } from '../types/logger.js';
-import type { TaskResult, TaskSpec } from '../types/multi-agent.js';
-import type { SessionEvent } from '../types/session-events.js';
 import { safeStringify } from '../utils/safe-json.js';
 import type { DirectorTaskRegistry } from './director/director-task-registry.js';
 import type { DirectorOptions } from './director-options.js';

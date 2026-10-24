@@ -30,7 +30,7 @@
  *
  * @public
  */
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { readCostTrackerConfig } from './cost-config.js';
 import {

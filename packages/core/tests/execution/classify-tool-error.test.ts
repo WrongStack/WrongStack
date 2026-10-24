@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import {
   AgentError,
   ConfigError,
@@ -6,12 +5,13 @@ import {
   FsError,
   ParseError,
   PluginError,
-  SessionError,
   SddError,
+  SessionError,
   ToolError,
   ToolValidationError,
-} from '../../src/types/errors.js';
-import { ToolErrorCategory } from '../../src/types/tool.js';
+} from '@wrongstack/contracts/types/errors';
+import { ToolErrorCategory } from '@wrongstack/contracts/types/tool';
+import { describe, expect, it } from 'vitest';
 import { classifyToolError } from '../../src/execution/tool-executor.js';
 
 /**

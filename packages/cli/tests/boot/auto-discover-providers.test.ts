@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Config, ModelsDevPayload } from '@wrongstack/core/types';
+import type { Config, ModelsDevPayload } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { discoverAndMergeProviders } from '../../src/boot/auto-discover-providers.js';
 

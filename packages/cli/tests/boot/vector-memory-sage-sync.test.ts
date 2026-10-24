@@ -17,20 +17,18 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import type { SageSurface } from '@wrongstack/sage';
 import { SAGE_SURFACE_CAPABILITY } from '@wrongstack/sage';
-import { VectorMemoryStore } from '@wrongstack/vector-memory';
-
 import type { VectorMemoryStoreOptions } from '@wrongstack/vector-memory';
-import { FakeEmbeddingProvider } from './fake-vector-embedding-provider.js';
 import {
-  SAGE_SYNC_MARKER_FILENAME,
   decideWhetherToSync,
+  SAGE_SYNC_MARKER_FILENAME,
   startFirstBootSageSync,
+  VectorMemoryStore,
 } from '@wrongstack/vector-memory';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { FakeEmbeddingProvider } from './fake-vector-embedding-provider.js';
 
 function tmpProjectRoot(): string {
   return path.join(

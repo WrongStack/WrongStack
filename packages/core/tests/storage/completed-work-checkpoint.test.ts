@@ -1,12 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { CompletedWorkEvidence } from '@wrongstack/contracts/types/context-evidence';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   loadCompletedWorkCheckpoint,
   saveCompletedWorkCheckpoint,
 } from '../../src/storage/completed-work-checkpoint.js';
-import type { CompletedWorkEvidence } from '../../src/types/context-evidence.js';
 
 let dir: string;
 

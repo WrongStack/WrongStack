@@ -9,7 +9,7 @@
  * Route-level validation does not cover this: `requiredString` accepts any
  * non-empty string, so a prototype key arrives as a perfectly legal payload.
  */
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
 import { createCatalogHandlers } from '../src/server/provider/catalog.js';

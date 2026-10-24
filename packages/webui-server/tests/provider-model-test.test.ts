@@ -1,5 +1,5 @@
-import type { Provider, Response } from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+import type { Provider, Response } from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   diagnoseProviderModelTestFailure,

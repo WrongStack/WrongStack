@@ -23,7 +23,7 @@ export { determineBump, parseConventional } from './semver-operations.js';
  * - semver_current: Show the current version from package.json
  * - semver_changelog: Generate a changelog between two versions
  */
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { scriptSpawnArgs, toErrorMessage } from '@wrongstack/core/utils';
 
 const API_VERSION = '^0.1.10';

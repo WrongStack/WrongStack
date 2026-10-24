@@ -1,4 +1,4 @@
-import { ERROR_CODES, WrongStackError } from '../types/errors.js';
+import { ERROR_CODES, WrongStackError } from '@wrongstack/contracts/types/errors';
 
 /**
  * GitHub git-data API calls Cloud Sync pushes and pulls through. Each takes a

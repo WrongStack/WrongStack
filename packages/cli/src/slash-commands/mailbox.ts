@@ -24,6 +24,7 @@
  *   /mailbox history [n]                      — last n messages on the project (default 20)
  */
 
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   getSharedProjectMailbox,
   type MailboxAgentStatus,
@@ -35,7 +36,6 @@ import {
   resolveMailboxIdentity,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color, wstackGlobalRoot } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

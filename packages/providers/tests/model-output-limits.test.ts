@@ -1,12 +1,12 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import {
   type Capabilities,
   type Config,
   installLimitsSource,
   type ModelsDevPayload,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { afterEach, describe, expect, it } from 'vitest';
 import { capabilitiesForFamily } from '../src/family-capabilities.js';
 import {

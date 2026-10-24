@@ -3,8 +3,8 @@ import type {
   Provider,
   ProviderConfig,
   ResolvedProvider,
-} from '@wrongstack/core/types';
-import { ConfigError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ConfigError } from '@wrongstack/contracts/types';
 import { CatalogRoutedProvider, type CatalogWireNpm, isCatalogWireNpm } from './catalog-routed.js';
 import type { CompatibilityQuirks } from './compatibility-quirks.js';
 import { endpointCredentialsSuppressed } from './endpoint-credentials.js';

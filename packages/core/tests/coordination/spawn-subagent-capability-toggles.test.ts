@@ -7,10 +7,10 @@
  * shell — it could edit but not run a single test.
  */
 
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import type * as Host from '../../src/coordination/director-host-contracts.js';
 import { makeSpawnTool } from '../../src/coordination/director-spawn-tool.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 const ROSTER: Record<string, SubagentConfig> = {
   executor: { name: 'executor', role: 'executor' },

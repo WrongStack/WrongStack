@@ -1,4 +1,7 @@
-import type { MailboxMessage } from './mailbox-message-types.js';
+import type {
+  MailboxMessage,
+  MailboxSessionAffinityContext,
+} from '@wrongstack/contracts/types/mailbox';
 
 function isAffectedBySessionAffinity(message: Pick<MailboxMessage, 'sessionAffinity'>): boolean {
   return message.sessionAffinity !== undefined;
@@ -25,12 +28,7 @@ function maybeSyncResolveChimeraReportSessionId(
   return undefined;
 }
 
-export interface MailboxSessionAffinityContext {
-  resolveChimeraReportSessionId?:
-    | ((reportId: string) => string | undefined | Promise<string | undefined>)
-    | undefined;
-  allowUnscoped?: boolean | undefined;
-}
+export type { MailboxSessionAffinityContext };
 
 export async function acceptMailboxMessageForSession(
   message: Pick<MailboxMessage, 'type' | 'sessionAffinity'>,

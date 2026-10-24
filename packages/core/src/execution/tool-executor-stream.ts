@@ -1,7 +1,7 @@
+import { ToolError } from '@wrongstack/contracts/types/errors';
+import type { Tool, ToolProgressEvent } from '@wrongstack/contracts/types/tool';
 import { type Context, resolveEventSessionId } from '../core/context.js';
-import { ToolError } from '../types/errors.js';
-import type { Tool, ToolProgressEvent } from '../types/tool.js';
-import type { ToolExecutorOptions } from '../types/tool-executor.js';
+import type { ToolExecutorOptions } from './tool-executor-options.js';
 
 interface StreamedToolExecutionOptions {
   tool: Tool;

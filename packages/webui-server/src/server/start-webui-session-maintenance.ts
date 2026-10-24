@@ -8,7 +8,7 @@ interface SetupStandaloneSessionMaintenanceInput {
   clients: Map<import('ws').default, import('./types.js').ConnectedClient>;
   collabHandler: import('./collaboration-ws-handler.js').CollaborationWebSocketHandler;
   logger: import('@wrongstack/core/infrastructure').DefaultLogger;
-  events: import('@wrongstack/core/kernel').EventBus;
+  events: import('@wrongstack/contracts/kernel').EventBus;
 }
 
 export function setupStandaloneSessionMaintenance({

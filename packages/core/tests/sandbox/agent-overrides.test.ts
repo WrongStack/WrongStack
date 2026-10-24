@@ -1,3 +1,4 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   clearSandboxAgentOverrides,
@@ -12,7 +13,6 @@ import {
   setSandboxAgentOverride,
 } from '../../src/sandbox/index.js';
 import { type SandboxBackend, SandboxDeniedError } from '../../src/sandbox/types.js';
-import type { Tool } from '../../src/types/tool.js';
 
 // Plan 28 T7 — per-agent sandbox overrides: ctx.agentId-keyed resolution at
 // the choke point, AC5 inheritance (no override ⇒ leader tier), and the

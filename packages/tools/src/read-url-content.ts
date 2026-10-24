@@ -4,7 +4,7 @@ import {
   TOOL_MEMORY_GUARD_BYTES,
   type Tool,
   ToolValidationError,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { guardedFetch } from './_fetch-guard.js';
 import { getTurndown } from './_turndown.js';
 import { capBytesWithNotice } from './_util.js';

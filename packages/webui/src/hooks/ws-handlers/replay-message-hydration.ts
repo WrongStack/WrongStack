@@ -3,8 +3,8 @@ import type {
   SessionMarker,
   SessionTimelineImage,
   SessionToolMeta,
-} from '@wrongstack/core/types';
-import { projectSessionTimeline } from '@wrongstack/core/types/session-timeline';
+} from '@wrongstack/contracts/types';
+import { projectSessionTimeline } from '@wrongstack/contracts/types/session-timeline';
 import { autoWakeNoticeText } from '@wrongstack/webui-protocol';
 import { parseBugHuntMessage } from '@/lib/bug-hunt-message';
 import { parsePerfRunMessage } from '@/lib/perf-run-message';

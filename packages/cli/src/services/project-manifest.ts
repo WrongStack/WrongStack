@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { ConfigError } from '@wrongstack/core/types';
+import { ConfigError } from '@wrongstack/contracts/types';
 import {
   atomicWrite,
   readProjectIdentity,

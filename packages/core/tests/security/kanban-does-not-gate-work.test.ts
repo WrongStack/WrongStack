@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import {
   createBoard,
   evaluateContractGraphReadiness,
@@ -14,7 +15,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { evaluateToolKanbanBoundary } from '../../src/security/kanban-boundary.js';
 import { setKanbanGovernance } from '../../src/security/kanban-governance-port.js';
-import type { Tool } from '../../src/types/tool.js';
 
 setKanbanGovernance({
   readBoard,

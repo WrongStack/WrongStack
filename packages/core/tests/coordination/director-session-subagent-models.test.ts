@@ -1,3 +1,4 @@
+import type { SubagentRunner } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
 import {
@@ -7,7 +8,6 @@ import {
   type SubagentSlot,
   setSessionSubagentModelPlanForSession,
 } from '../../src/coordination/session-subagent-models.js';
-import type { SubagentRunner } from '../../src/types/multi-agent.js';
 
 const TEST_SESSION_ID = 'sess_plan_director';
 

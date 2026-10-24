@@ -1,16 +1,16 @@
-import type { Config } from '../types/config.js';
-import type { Logger } from '../types/logger.js';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import type {
   MultiAgentConfig,
   SubagentConfig,
   SubagentRunner,
   TaskResult,
   TaskSpec,
-} from '../types/multi-agent.js';
-import type { SessionWriter } from '../types/session.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
+import type { BrainArbiter } from '../brain/brain.js';
 import type { WorktreeManager } from '../worktree/worktree-manager.js';
 import type { DispatchLogEntry } from './agents/dispatch-log.js';
-import type { BrainArbiter } from './brain.js';
 import type { DispatchClassifier } from './dispatcher.js';
 import type { FleetManager } from './fleet-manager.js';
 import type { ModelMatrixSource } from './model-matrix.js';

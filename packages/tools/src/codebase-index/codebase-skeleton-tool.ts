@@ -16,7 +16,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { safeResolveProjectPath } from '../_util.js';
 import { extractDirectorySkeleton } from './directory-skeleton.js';

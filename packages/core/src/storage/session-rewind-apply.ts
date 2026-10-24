@@ -1,6 +1,6 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
 import { restoreSessionPermissionOverrides } from '../security/session-permission-overrides.js';
-import type { Message } from '../types/messages.js';
-import type { SessionEvent, SessionWriter } from '../types/session.js';
 import { reapplySnapshots } from './session-rewinder.js';
 import { DefaultSessionStore } from './session-store.js';
 

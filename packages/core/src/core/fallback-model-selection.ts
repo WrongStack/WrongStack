@@ -1,11 +1,11 @@
-import { isTextBlock, isToolUseBlock } from '../types/blocks.js';
-import type { Config } from '../types/config.js';
+import { isTextBlock, isToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Config } from '@wrongstack/contracts/types/config';
 import {
   isFallbackWorthy,
   type Provider,
   ProviderError,
   type Response,
-} from '../types/provider.js';
+} from '@wrongstack/contracts/types/provider';
 import type { FallbackChain } from './fallback-profile-manager.js';
 import { FallbackProfileManager } from './fallback-profile-manager.js';
 

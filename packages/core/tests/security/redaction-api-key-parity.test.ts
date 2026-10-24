@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { stripSecretMaterial } from '../../src/storage/cloud-config-sync/sanitize.js';
-import { redactHqValue } from '../../src/hq/redaction.js';
+import { redactHqValue } from '../../../hq/src/redaction.js';
 import { isSecretField } from '../../src/security/config-secrets.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 

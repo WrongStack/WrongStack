@@ -8,9 +8,9 @@
  * metadataWeight, full hygiene option set, 1h auto-hygiene throttle).
  */
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, Logger, MemoryPort } from '@wrongstack/contracts/types';
 import type { AgentPipelines } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config, Logger, MemoryPort } from '@wrongstack/core/types';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import { getSageRetrieval, getSageSurface } from './memory-port.js';
 import { createSageContextMonitorMiddleware } from './middleware/context-monitor.js';

@@ -1,5 +1,5 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, describe, expect, it } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import {
   runWithNetworkTelemetry,
   startNetworkTelemetryMonitor,

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { redactText } from '../utils/redaction.js';
 import type { ChronicleContext } from './context.js';
 import { fileToolStats } from './file-tool-stats.js';

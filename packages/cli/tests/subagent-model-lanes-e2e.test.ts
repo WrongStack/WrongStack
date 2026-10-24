@@ -25,6 +25,15 @@ vi.mock('@wrongstack/providers', () => ({
   withCatalogCapabilities: vi.fn(async (_registry, _providerId, provider) => provider),
 }));
 
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type {
+  Config,
+  ConfigStore,
+  SessionWriter,
+  SystemPromptBuilder,
+  TokenCounter,
+  Tool,
+} from '@wrongstack/contracts/types';
 import {
   emptySubagentModelPlan,
   resetSessionSubagentModelPlan,
@@ -34,17 +43,8 @@ import {
 } from '@wrongstack/core/coordination';
 import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import type {
-  Config,
-  ConfigStore,
-  SessionWriter,
-  SystemPromptBuilder,
-  TokenCounter,
-  Tool,
-} from '@wrongstack/core/types';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { type MultiAgentDeps, MultiAgentHost } from '../src/multi-agent.js';
 

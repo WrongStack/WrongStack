@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Mode, ModeConfig, ModeManifest, ModeStore } from '@wrongstack/contracts/types/mode';
 import { atomicWrite } from '../utils/atomic-write.js';
-import type { Mode, ModeConfig, ModeManifest, ModeStore } from '../types/mode.js';
-import { DEFAULT_MODES } from '../types/mode.js';
+import { DEFAULT_MODES } from './default-modes.js';
 
 export class DefaultModeStore implements ModeStore {
   private activeModeId: string | null = null;

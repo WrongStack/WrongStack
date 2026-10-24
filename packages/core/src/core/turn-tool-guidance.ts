@@ -1,5 +1,5 @@
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Tool, ToolSettlement } from '../types/tool.js';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Tool, ToolSettlement } from '@wrongstack/contracts/types/tool';
 
 type Advice = Awaited<ReturnType<NonNullable<Tool['turnGuidance']>['create']>>;
 const MAX_NOTE_CHARS = 2400;

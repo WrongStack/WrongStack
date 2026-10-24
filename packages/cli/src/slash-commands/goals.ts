@@ -1,5 +1,5 @@
-import { type GoalSummary, PhaseStore } from '@wrongstack/core/goal';
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
+import { type GoalSummary, PhaseStore } from '@wrongstack/goal';
 import type { SlashCommandContext } from './command-context.js';
 
 export function formatGoalSummary(goal: GoalSummary): string {

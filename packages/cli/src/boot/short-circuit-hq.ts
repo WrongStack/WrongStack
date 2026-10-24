@@ -14,7 +14,7 @@ import {
   isLoopbackHost,
   readHqRuntimeFileSync,
   resolveHqDataDir,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { color, isPidAlive } from '@wrongstack/core/utils';
 import { parseHqIpAllowlist } from '../hq-server/ip-allowlist.js';
 import { resolveHqPasswordInput } from '../hq-server/secret-input.js';

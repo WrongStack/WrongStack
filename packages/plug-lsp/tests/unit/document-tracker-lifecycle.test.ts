@@ -1,4 +1,4 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const files = vi.hoisted(() => ({ stat: vi.fn(), readFile: vi.fn() }));

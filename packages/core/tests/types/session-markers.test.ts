@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import {
   CHAT_MARKER_SOURCES,
   projectSessionMarkers,
   SESSION_MARKER_EVENT_TYPES,
   sessionEventToMarker,
-} from '../../src/types/session-markers.js';
-import type { SessionEvent } from '../../src/types/session.js';
+} from '@wrongstack/contracts/types/session-markers';
+import { describe, expect, it } from 'vitest';
 
 const TS = '2026-07-25T10:00:00.000Z';
 

@@ -1,4 +1,4 @@
-import type { CouncilPersona } from '../types/council.js';
+import type { CouncilPersona } from '@wrongstack/contracts/types/council';
 
 const PERSONA_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

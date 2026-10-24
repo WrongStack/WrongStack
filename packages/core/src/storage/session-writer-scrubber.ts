@@ -1,6 +1,6 @@
-import type { Message } from '../types/messages.js';
-import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type { FileSnapshot, SessionEvent } from '../types/session.js';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type { FileSnapshot, SessionEvent } from '@wrongstack/contracts/types/session';
 
 export function scrubSessionWriterEvent(
   event: SessionEvent,

@@ -1,7 +1,7 @@
 import { watch as fsWatch } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventName, Listener } from '@wrongstack/core/kernel';
+import type { EventName, Listener } from '@wrongstack/contracts/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import {

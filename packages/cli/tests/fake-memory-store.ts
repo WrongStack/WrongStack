@@ -4,7 +4,7 @@ import type {
   MemoryPort,
   MemoryRelevanceContext,
   ScoredEntry,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 
 /**
  * Minimal in-memory {@link MemoryStore} for tests. Replaces the deleted

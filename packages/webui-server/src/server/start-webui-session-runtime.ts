@@ -1,6 +1,6 @@
-﻿import type { Context } from '@wrongstack/core/agent';
+﻿import type { SessionWriter } from '@wrongstack/contracts/types';
+import type { Context } from '@wrongstack/core/agent';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
-import type { SessionWriter } from '@wrongstack/core/types';
 import { errMessage } from './ws-utils.js';
 
 /** Exactly the config slice the session-logging resolver reads. */

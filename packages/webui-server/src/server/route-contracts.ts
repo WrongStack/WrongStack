@@ -1,16 +1,4 @@
-import type { Agent, AgentPipelines, Context } from '@wrongstack/core/agent';
-import type { ObservableBrainArbiter } from '@wrongstack/core/coordination';
-import type {
-  AutoCompactionMiddleware,
-  BrainAutoRisk,
-  BrainRuntime,
-} from '@wrongstack/core/execution';
-import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import type { Container, EventBus } from '@wrongstack/core/kernel';
-import type { AgentFactory } from '@wrongstack/core/coordination';
-import type { DefaultModeStore } from '@wrongstack/core/models';
-import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import type { SkillInstaller } from '@wrongstack/core/skills';
+import type { Container, EventBus } from '@wrongstack/contracts/kernel';
 import type {
   Compactor,
   Config,
@@ -24,7 +12,18 @@ import type {
   SecretVault,
   SessionStore,
   SkillLoader,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Agent, AgentPipelines, Context } from '@wrongstack/core/agent';
+import type { AgentFactory, ObservableBrainArbiter } from '@wrongstack/core/coordination';
+import type {
+  AutoCompactionMiddleware,
+  BrainAutoRisk,
+  BrainRuntime,
+} from '@wrongstack/core/execution';
+import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import type { DefaultModeStore } from '@wrongstack/core/models';
+import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { SkillInstaller } from '@wrongstack/core/skills';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { WebSocket, WebSocketServer } from 'ws';
 import type { AutonomyRouteHandlers } from './autonomy-routes.js';

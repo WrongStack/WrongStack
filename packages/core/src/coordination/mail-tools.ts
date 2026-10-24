@@ -19,32 +19,32 @@
  * @module mail-tools
  */
 
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import type { Context } from '../core/context.js';
-import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { ToolValidationError } from '../types/errors.js';
-import { getSharedProjectMailbox } from './remote-mailbox.js';
 import {
   filterMailboxSendPayload,
-  parseMailboxSendInput,
   type ParsedSendInput,
+  parseMailboxSendInput,
 } from './mailbox-codecs.js';
-import { isMailboxMessageVisibleTo, normalizeRecipient } from './mailbox-types.js';
+import { resolveSendType } from './mailbox-message-codec.js';
+import {
+  applyMailboxSendPolicy,
+  defaultResolveProjectDir,
+  type MailboxResolver,
+  queryMailboxTargets,
+  resolveMailboxIdentity,
+} from './mailbox-tool.js';
 import type {
   Mailbox,
   MailboxActorContext,
   MailboxCapability,
   MailboxMessageType,
 } from './mailbox-types.js';
-import { resolveSendType } from './mailbox-message-codec.js';
-import {
-  applyMailboxSendPolicy,
-  defaultResolveProjectDir,
-  queryMailboxTargets,
-  resolveMailboxIdentity,
-  type MailboxResolver,
-} from './mailbox-tool.js';
+import { isMailboxMessageVisibleTo, normalizeRecipient } from './mailbox-types.js';
+import { getSharedProjectMailbox } from './remote-mailbox.js';
 
 export interface MailToolsOptions {
   /** How to obtain a Mailbox given the execution Context (tests). */

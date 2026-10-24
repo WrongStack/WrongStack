@@ -1,3 +1,8 @@
+import { isVolatileSystemBlock } from '@wrongstack/contracts/types/blocks';
+import type { Config } from '@wrongstack/contracts/types/config/root';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createSkillSuggestionMiddleware,
@@ -10,11 +15,6 @@ import {
   type SkillSuggestion,
   type SkillSuggestionTrace,
 } from '../../src/skills/suggest/skill-suggester.js';
-import { isVolatileSystemBlock } from '../../src/types/blocks.js';
-import type { Config } from '../../src/types/config/root.js';
-import type { Message } from '../../src/types/messages.js';
-import type { Request } from '../../src/types/provider.js';
-import type { SkillLoader } from '../../src/types/skill.js';
 
 function userRequest(text: string, extra: Message[] = []): Request {
   return {

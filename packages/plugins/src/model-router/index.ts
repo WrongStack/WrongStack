@@ -42,7 +42,7 @@
  *
  * @public
  */
-import type { Plugin, PluginAPI } from '@wrongstack/core/types';
+import type { Plugin, PluginAPI } from '@wrongstack/contracts/types';
 import { createHostStates, providerSignal } from '../runtime/host-state.js';
 import { safeJsonStringify } from '../runtime/index.js';
 

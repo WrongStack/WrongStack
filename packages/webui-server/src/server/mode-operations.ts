@@ -1,5 +1,5 @@
-import type { ModeStore } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { ModeStore } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';

@@ -1,4 +1,4 @@
-import type { HqClientRecord, HqSnapshot } from '@wrongstack/core/hq';
+import type { HqClientRecord, HqSnapshot } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { controlClientLabel, relativeTime } from '../src/domain/control-format.js';
 

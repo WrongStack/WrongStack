@@ -9,9 +9,10 @@
  *   /shadow model <provider/model>
  *   /shadow interval <ms>
  */
+
+import type { SlashCommand } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { SlashCommand } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

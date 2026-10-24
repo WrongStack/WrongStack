@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import * as fs from 'node:fs';
-import { ConfigError, ERROR_CODES } from '../types/errors.js';
+import { ConfigError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
 
 export const KEY_BYTES = 32;
 

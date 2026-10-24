@@ -11,7 +11,7 @@ import {
   runEnsemble,
   runOneAcpTask,
 } from '@wrongstack/acp';
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { formatAcpAgentList } from '../acp-agent-list.js';
 import {

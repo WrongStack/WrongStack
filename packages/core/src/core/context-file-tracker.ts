@@ -1,6 +1,6 @@
-import type { FileEventRecord } from '../types/file-event-record.js';
-import type { SessionWriter } from '../types/session.js';
-import type { SideEffect } from '../types/side-effect.js';
+import type { FileEventRecord } from '@wrongstack/contracts/types/file-event-record';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
+import type { SideEffect } from '@wrongstack/contracts/types/side-effect';
 
 export function trimSet(set: Set<string>, max: number): void {
   while (set.size > max) {

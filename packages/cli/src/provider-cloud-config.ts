@@ -1,9 +1,9 @@
+import type { SecretVault } from '@wrongstack/contracts/types';
 import {
   cloudFieldsForProvider,
   type NativeCloudSettings,
   parseNativeCloudSettings,
 } from '@wrongstack/core/cloud-provider';
-import type { SecretVault } from '@wrongstack/core/types';
 import { loadConfigProviders, mutateConfigProviders } from './provider-config-utils.js';
 
 export async function providerCloudConfig(

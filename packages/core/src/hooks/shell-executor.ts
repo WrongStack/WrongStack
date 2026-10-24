@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import type { AnyHookOutcome, HookInput, HookOutcome } from '../types/hooks.js';
-import type { Logger } from '../types/logger.js';
+import type { AnyHookOutcome, HookInput, HookOutcome } from '@wrongstack/contracts/types/hooks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import { buildChildEnv } from '../utils/child-env.js';
 import { toErrorMessage } from '../utils/error.js';
 import { settleWin32Kill } from '../utils/tree-kill.js';

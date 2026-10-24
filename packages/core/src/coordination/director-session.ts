@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SessionStore, SessionWriter } from '@wrongstack/contracts/types/session';
 import { DefaultSessionStore } from '../storage/session-store.js';
-import type { SessionStore, SessionWriter } from '../types/session.js';
 import { safeParse } from '../utils/safe-json.js';
 
 export interface DirectorSubagentSessionSummary {

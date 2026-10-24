@@ -1,5 +1,5 @@
+import { completionPercent } from '@wrongstack/contracts/types/task-graph';
 import { describe, expect, it } from 'vitest';
-import { completionPercent } from '../../src/types/task-graph.js';
 import {
   computeTaskItemProgress,
   formatTaskList,

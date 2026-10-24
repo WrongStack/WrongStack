@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { buildSlashCommandMatches, selectedSlashCommandLine } from '../src/slash-command-search.js';
 

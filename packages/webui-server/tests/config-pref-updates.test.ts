@@ -23,7 +23,7 @@
  * succeeded, silently mutating the live config's nested object in place.
  */
 
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { patchConfig } from '../src/server/boot.js';
 import { computeConfigPrefUpdates } from '../src/server/routes.js';

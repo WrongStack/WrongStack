@@ -1,4 +1,8 @@
-import type { ContextSnapshot, DesignKitEntry, FleetChatVerbosity } from '@wrongstack/core/types';
+import type {
+  ContextSnapshot,
+  DesignKitEntry,
+  FleetChatVerbosity,
+} from '@wrongstack/contracts/types';
 import type { State } from './app-state.js';
 import type {
   DraftEntry,

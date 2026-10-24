@@ -4,7 +4,7 @@ import type {
   SpecRequirement,
   SpecSection,
   SpecValidationResult,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 
 export class SpecParser {
   parse(content: string): Specification {

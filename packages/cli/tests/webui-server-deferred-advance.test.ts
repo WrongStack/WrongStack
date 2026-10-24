@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Force the TOCTOU race deterministically: `findFreePort` claims the

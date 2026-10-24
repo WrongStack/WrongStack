@@ -1,12 +1,12 @@
-import { ToolCapabilities } from '../security/capabilities.js';
-import type { FleetConfig } from '../types/config.js';
+import type { FleetConfig } from '@wrongstack/contracts/types/config';
 import type {
   SubagentConfig,
   SubagentRunContext,
   SubagentRunner,
   SubagentRunOutcome,
   TaskSpec,
-} from '../types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import { ToolCapabilities } from '../security/capabilities.js';
 import { toErrorMessage } from '../utils/error.js';
 import type { WorktreeHandle, WorktreeManager } from '../worktree/worktree-manager.js';
 import { isExternalAgentProvider } from './external-agent-provider.js';

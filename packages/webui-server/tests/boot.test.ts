@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 const mockBootConfig = vi.hoisted(() => vi.fn());
-vi.mock('@wrongstack/core/infrastructure', () => ({
+vi.mock('@wrongstack/core/boot', () => ({
   bootConfig: mockBootConfig,
 }));
 

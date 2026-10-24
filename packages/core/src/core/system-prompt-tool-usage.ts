@@ -1,6 +1,6 @@
-import type { BuildContext, ModelCapabilities } from '../types/system-prompt.js';
+import type { BuildContext, ModelCapabilities } from '@wrongstack/contracts/types/system-prompt';
 
-import type { Tool } from '../types/tool.js';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 
 import type { InstructionBundle, SystemInstructionVariant } from './instruction-bundle.js';
 
@@ -318,4 +318,4 @@ export async function buildToolUsage(
   return text;
 }
 
-import type { ConcreteTokenSavingTier } from '../types/config.js';
+import type { ConcreteTokenSavingTier } from '@wrongstack/contracts/types/config';

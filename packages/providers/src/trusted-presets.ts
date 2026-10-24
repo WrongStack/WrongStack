@@ -20,7 +20,7 @@
  * (omniroute, LiteLLM, etc.) still rely on user-supplied baseUrl/models.
  */
 
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 
 import { TRUSTED_PROVIDER_PRESETS, type TrustedProviderPreset } from './trusted-preset-table.js';
 

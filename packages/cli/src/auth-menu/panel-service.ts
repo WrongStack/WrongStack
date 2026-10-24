@@ -18,7 +18,7 @@
  * Secrets never cross into the TUI: key values are masked here, and the
  * modal prompt sends the plaintext only INTO the flow (never back out).
  */
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type {
   AuthCatalogRow,

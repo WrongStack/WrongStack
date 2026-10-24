@@ -1,4 +1,4 @@
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import { errorResult, isRecord, readConfig } from './plugin-config.js';
 import type { PluginManagementDeps, PluginManagementResult } from './plugin-management-types.js';

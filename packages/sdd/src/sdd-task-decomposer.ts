@@ -24,7 +24,7 @@
  * ```
  */
 
-import type { TaskNode, TaskGraph } from '@wrongstack/core/types';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types';
 import type { TaskTracker } from '@wrongstack/core/tasking';
 
 export interface SddTaskDecomposerOptions {

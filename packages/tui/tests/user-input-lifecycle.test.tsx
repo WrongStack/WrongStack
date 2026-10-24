@@ -1,5 +1,5 @@
-import { EventBus } from '@wrongstack/core/kernel';
-import type { UserInputRequest } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { UserInputRequest } from '@wrongstack/contracts/types';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 import { UserInputPrompt, usePendingUserInput } from '../src/components/user-input-prompt.js';

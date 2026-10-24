@@ -4,7 +4,7 @@ import type {
   ModelsRegistry,
   ReasoningEffort,
   ResolvedProvider,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { color, expectDefined, toErrorMessage, withFileLock } from '@wrongstack/core/utils';
 import { appendHistory, backupCurrent } from './config-history.js';
 import type { ReadlineInputReader } from './input-reader.js';

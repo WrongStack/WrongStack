@@ -1,7 +1,9 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SlashCommand, Usage } from '@wrongstack/contracts/types';
+import { ConfigError } from '@wrongstack/contracts/types';
 import { buildGoalPreamble } from '@wrongstack/core/execution';
-import type { GoalFile, PhaseGraph, PhaseProgress } from '@wrongstack/core/goal';
+import type { GoalFile, PhaseGraph, PhaseProgress } from '@wrongstack/goal';
 import {
   formatGoal,
   loadGoal,
@@ -9,9 +11,7 @@ import {
   replaceGoalMission,
   saveGoal,
   updateGoal,
-} from '@wrongstack/core/goal';
-import type { SlashCommand, Usage } from '@wrongstack/core/types';
-import { ConfigError } from '@wrongstack/core/types';
+} from '@wrongstack/goal';
 import type { SlashCommandContext } from './command-context.js';
 import { refineGoalWithFallback, resolveRefinerTarget } from './goal-refiner.js';
 import { buildGoalsCommand } from './goals.js';

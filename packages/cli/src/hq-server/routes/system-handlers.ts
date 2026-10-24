@@ -11,7 +11,7 @@ import type {
   HqCommandAuditLog,
   HqEventEnvelope,
   HqPersistence,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 import type { HqMailboxGatewayHealth } from '../mailbox-gateway-health.js';
 import type { ConnectedClient } from '../types.js';

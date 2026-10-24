@@ -2,8 +2,8 @@
  * Parsing of AI output for `AISpecBuilder`: locating a JSON object / array in
  * free text and validating + normalizing a specification object.
  */
-import type { Specification, SpecRequirement, SpecSection } from '@wrongstack/core/types';
-import { ERROR_CODES, SddError } from '@wrongstack/core/types';
+import type { Specification, SpecRequirement, SpecSection } from '@wrongstack/contracts/types';
+import { ERROR_CODES, SddError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
 /**

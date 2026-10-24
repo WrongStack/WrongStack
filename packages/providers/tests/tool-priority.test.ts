@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { filterToolsByMaxCount, scoreTool } from '../src/tool-priority.js';
 

@@ -1,8 +1,8 @@
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { expect, it, vi } from 'vitest';
 
-vi.mock('@wrongstack/core/goal', async (original) => {
-  const actual = await original<typeof import('@wrongstack/core/goal')>();
+vi.mock('@wrongstack/goal', async (original) => {
+  const actual = await original<typeof import('@wrongstack/goal')>();
   class Store {
     save = vi.fn(async () => {});
     acquireRunLease = vi.fn(async () => async () => {});
@@ -15,7 +15,7 @@ vi.mock('@wrongstack/core/goal', async (original) => {
       graph.workspace.dir,
   };
 });
-const { PhaseGraphBuilder } = await import('@wrongstack/core/goal');
+const { PhaseGraphBuilder } = await import('@wrongstack/goal');
 const { createGoalHost } = await import('../src/goal-host.js');
 
 it('resumes a goal without phase worktrees in the owned goal checkout', async () => {

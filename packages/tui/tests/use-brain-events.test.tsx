@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook } from '@testing-library/react';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useBrainEvents } from '../src/hooks/use-brain-events.js';
 

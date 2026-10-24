@@ -32,8 +32,12 @@ import type {
   ModelsRegistry,
   ProviderConfig,
   Request,
-} from '@wrongstack/core/types';
-import { activeLimits, positiveLimit, providerReportedMaxOutput } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import {
+  activeLimits,
+  positiveLimit,
+  providerReportedMaxOutput,
+} from '@wrongstack/contracts/types';
 import {
   CATALOG_ALIAS_BY_PROVIDER_TYPE,
   FAMILY_BY_PROVIDER_ID,

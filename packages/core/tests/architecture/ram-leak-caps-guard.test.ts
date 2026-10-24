@@ -59,6 +59,7 @@ function loadPackage(packagePath: string): Map<string, string> {
 
 const PACKAGES = {
   core: 'packages/core',
+  contracts: 'packages/contracts',
   tools: 'packages/tools',
   webui: 'packages/webui-server',
   kanban: 'packages/kanban',
@@ -68,6 +69,7 @@ const PACKAGES = {
 
 const PKG_FILES: Record<keyof typeof PACKAGES, Map<string, string>> = {
   core: loadPackage(PACKAGES.core),
+  contracts: loadPackage(PACKAGES.contracts),
   tools: loadPackage(PACKAGES.tools),
   webui: loadPackage(PACKAGES.webui),
   kanban: loadPackage(PACKAGES.kanban),
@@ -117,7 +119,7 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   // ── core ────────────────────────────────────────────────────────────────
 
   it('core/events: MAX_NAMED_LISTENERS = 2000', () => {
-    const { value, file } = readConst('core', 'kernel/events.ts:MAX_NAMED_LISTENERS');
+    const { value, file } = readConst('contracts', 'kernel/events.ts:MAX_NAMED_LISTENERS');
     expect(value, file).toBe('2000');
   });
 

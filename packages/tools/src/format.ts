@@ -1,6 +1,6 @@
 import * as path from 'node:path';
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { spawnStream } from './_spawn-stream.js';
 import { ensureInsideRoot, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';

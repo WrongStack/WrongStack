@@ -10,12 +10,12 @@
  * user has to do.
  */
 
+import type { ProviderError, ProviderErrorBody } from '@wrongstack/contracts/types';
 import {
   type ProviderQuotaSnapshot,
   quotaResetInMs,
   recordProviderQuota,
 } from '@wrongstack/core/quota';
-import type { ProviderError, ProviderErrorBody } from '@wrongstack/core/types';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import { isPlainObject } from './object-utils.js';
 import { codexBlockingWindow, parseCodexRateLimitHeaders } from './openai-codex-rate-limits.js';

@@ -3,8 +3,9 @@
  * These can be passed to `MultiAgentHost.spawn()` or used as templates
  * for the director's roster.
  */
+
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { ToolCapabilities } from '../security/capabilities.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
 import { cloneWithLazyPrompt, defineLazyAgentPrompt } from './agents/agent-prompts.js';
 import {
   ALL_AGENT_DEFINITIONS,

@@ -10,7 +10,7 @@
  * - empty/invalid allTools array is handled gracefully
  */
 
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '../src/tool-tier.js';
 

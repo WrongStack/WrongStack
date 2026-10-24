@@ -9,6 +9,7 @@
  * rather than "this is the window that would bite first".
  */
 
+import type { Request } from '@wrongstack/contracts/types';
 import {
   getProviderQuota,
   type ProviderQuotaSnapshot,
@@ -17,7 +18,6 @@ import {
   resetProviderQuota,
   worstProviderQuotaWindow,
 } from '@wrongstack/core/quota';
-import type { Request } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AnthropicProvider } from '../src/anthropic.js';
 import { parseAnthropicRateLimitHeaders } from '../src/anthropic-rate-limits.js';

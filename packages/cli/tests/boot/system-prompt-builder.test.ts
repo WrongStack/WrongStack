@@ -31,7 +31,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 const { bindSystemPromptBuilder } = await import('../../src/boot/system-prompt-builder.js');
 
-import type { TokenSavingTier } from '@wrongstack/core/types';
+import type { TokenSavingTier } from '@wrongstack/contracts/types';
 
 type SystemInstructionVariant = 'default' | 'lite' | 'pro';
 

@@ -13,7 +13,7 @@
 import { randomBytes } from 'node:crypto';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import {
   compactToolDefinitionForWire,
   subjectForToolInput,

@@ -1,8 +1,8 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { SubagentRunner, TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it, vi } from 'vitest';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { BudgetExceededError } from '../../src/coordination/subagent-budget.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { SubagentRunner, TaskResult } from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

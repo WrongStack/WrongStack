@@ -3,9 +3,10 @@
  * memory, initial tools, session establishment, governance, session runtime,
  * lifecycle/plugins and the provider runtime.
  */
+
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import { createEventUserInputAwaiter, isUnattendedAutonomy } from '@wrongstack/core/agent';
-import { flagsToConfigPatch } from '@wrongstack/core/infrastructure';
-import { TOKENS } from '@wrongstack/core/kernel';
+import { flagsToConfigPatch } from '@wrongstack/core/boot';
 import { DefaultConfigLoader } from '@wrongstack/core/storage';
 import { writeErr } from '@wrongstack/core/utils';
 import { setProxyTransitionLogger } from '@wrongstack/core/wiring/proxy-rewrite';
@@ -373,7 +374,7 @@ export async function bootCliRuntime(cliCtx: CliContext, state: CliConfigState) 
     statusTracker,
     wrapProviderCall: (request, inner) =>
       agent.extensions.wrapProviderRunner(
-        (_ctx: typeof agent.ctx, wrappedRequest: import('@wrongstack/core/types').Request) =>
+        (_ctx: typeof agent.ctx, wrappedRequest: import('@wrongstack/contracts/types').Request) =>
           inner(wrappedRequest),
         { exclude: ['fallback-model'] },
       )(agent.ctx, request),

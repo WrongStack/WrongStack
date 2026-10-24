@@ -1,5 +1,5 @@
-import type { InputReader, SlashCommand, ThemePresetId } from '@wrongstack/core/types';
-import { THEME_PRESET_IDS, THEME_PRESET_META } from '@wrongstack/core/types';
+import type { InputReader, SlashCommand, ThemePresetId } from '@wrongstack/contracts/types';
+import { THEME_PRESET_IDS, THEME_PRESET_META } from '@wrongstack/contracts/types';
 import { color, writeOut } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

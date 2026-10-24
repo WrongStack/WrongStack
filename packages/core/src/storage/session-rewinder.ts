@@ -2,14 +2,14 @@ import { createReadStream } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
-import { ERROR_CODES, SessionError } from '../types/errors.js';
-import type { FileSnapshot, SessionEvent } from '../types/session.js';
+import { ERROR_CODES, SessionError } from '@wrongstack/contracts/types/errors';
+import type { FileSnapshot, SessionEvent } from '@wrongstack/contracts/types/session';
 import type {
   CheckpointInfo,
   RewindResult,
   RewindResultExtended,
   SessionRewinder,
-} from '../types/session-rewinder.js';
+} from '@wrongstack/contracts/types/session-rewinder';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { sessionScopedPath } from '../utils/session-scoped-path.js';

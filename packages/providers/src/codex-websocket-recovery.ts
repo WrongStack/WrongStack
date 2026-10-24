@@ -1,4 +1,4 @@
-import type { ProviderError } from '@wrongstack/core/types';
+import type { ProviderError } from '@wrongstack/contracts/types';
 import { isPlainObject } from './object-utils.js';
 
 /** A pre-output WS failure is safe to retry over SSE without duplicate output. */

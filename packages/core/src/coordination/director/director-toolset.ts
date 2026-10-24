@@ -1,5 +1,6 @@
-import type { SubagentConfig } from '../../types/multi-agent.js';
-import type { Tool } from '../../types/tool.js';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
+import type { Tool } from '@wrongstack/contracts/types/tool';
+import { createDefineSubagentTool } from '../define-subagent-tool.js';
 import {
   makeAskResultTool,
   makeAskTool,
@@ -17,7 +18,6 @@ import {
   makeTerminateTool,
   makeWorkCompleteTool,
 } from '../director-tools.js';
-import { createDefineSubagentTool } from '../define-subagent-tool.js';
 
 type DirectorToolsetHost = Parameters<typeof makeSpawnTool>[0] &
   Parameters<typeof makeAssignTool>[0] &

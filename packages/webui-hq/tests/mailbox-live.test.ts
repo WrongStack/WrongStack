@@ -16,7 +16,7 @@ import type {
   HqMailboxMessageSummary,
   HqMailboxSnapshotPayload,
   HqMailboxSummary,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import type { FlatMessage } from '../src/domain/mailbox-grouping.js';
 import { buildLiveFeed, buildLiveFeedFromHq } from '../src/domain/mailbox-live.js';

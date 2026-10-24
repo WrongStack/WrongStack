@@ -1,7 +1,7 @@
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
 import { loadPlan, loadTasks, savePlan, saveTasks } from '@wrongstack/core/storage';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { toErrorMessage, withFileLock } from '@wrongstack/core/utils';
 import { getBoard, type KanbanTask } from '@wrongstack/kanban';
 import {

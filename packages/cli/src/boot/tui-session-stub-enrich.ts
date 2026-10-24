@@ -17,7 +17,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SessionSummary } from '@wrongstack/core/types';
+import type { SessionSummary } from '@wrongstack/contracts/types';
 
 /** Head/tail slice size for JSONL scans. Large transcripts are common; 256 KiB
  * covers thousands of lines without reading multi-hundred-MB files. */

@@ -16,9 +16,9 @@
  * input as an ordinary user turn.
  */
 
+import type { PromptEntry, PromptLoader, PromptVariable } from '@wrongstack/contracts/types';
 import { getPromptJournalEntries, type PromptJournalFilter } from '@wrongstack/core/prompts';
 import type { PromptUsageStore } from '@wrongstack/core/storage';
-import type { PromptEntry, PromptLoader, PromptVariable } from '@wrongstack/core/types';
 import { errMessage, send, withRequestId } from './ws-utils.js';
 
 /**

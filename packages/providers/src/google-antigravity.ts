@@ -27,7 +27,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { ProviderError, type Request, type StreamEvent } from '@wrongstack/core/types';
+import { ProviderError, type Request, type StreamEvent } from '@wrongstack/contracts/types';
 import { bootstrapAntigravityProject } from './google-antigravity-bootstrap.js';
 import { buildAntigravityEnvelope, GOOGLE_TOKEN_URL } from './google-antigravity-protocol.js';
 import { reportAntigravityQuota } from './google-antigravity-quota.js';

@@ -9,9 +9,10 @@ import {
   isTextBlock,
   isVolatileSystemBlock,
   type TextBlock,
-} from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
-import type { Provider, Request, Response } from '../types/provider.js';
+} from '@wrongstack/contracts/types/blocks';
+import { LIVE_CONTEXT_MARKER } from '@wrongstack/contracts/types/live-context';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
 import { deriveCachePrefixKey } from '../utils/cache-key.js';
 import {
   buildCompletedWorkLedgerBlock,
@@ -19,14 +20,16 @@ import {
   buildMissionAnchorBlock,
   markAssistantReferencedEvidence,
 } from '../utils/context-evidence.js';
+import {
+  bindRequestHistoryVersion,
+  contextHistoryVersion,
+} from '../utils/context-history-version.js';
 import { toErrorMessage } from '../utils/error.js';
-import { LIVE_CONTEXT_MARKER } from '../utils/live-context.js';
 import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-invariants.js';
 import type { AgentInternals } from './agent-internals.js';
 import { recordAgentContext } from './agent-owned-context.js';
 import { refreshAgentToolSurface } from './agent-tool-surface.js';
 import { type RunOptions, resolveEventSessionId } from './context.js';
-import { bindRequestHistoryVersion, contextHistoryVersion } from './context-history-version.js';
 import { bindRequestPromptBasis, captureRequestPromptBasis } from './context-usage-anchor.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
 import { buildLiveNextStepsGateBlock, hasLeaderNextStepsPolicy } from './next-steps-gate.js';

@@ -1,6 +1,6 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
-import { describe, expect, it } from 'vitest';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { projectSavedProviders } from '@wrongstack/webui-server';
+import { describe, expect, it } from 'vitest';
 
 /**
  * ME-3 regression tests: providers.saved wire shape now carries

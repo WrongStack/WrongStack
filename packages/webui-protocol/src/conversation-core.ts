@@ -7,7 +7,7 @@
  * cannot drift apart. Every other message type is listed by name in
  * registry.ts, with its payload typed only inside the WebUI.
  */
-import type { SessionMarker, SessionToolMeta, Usage } from '@wrongstack/core/types';
+import type { SessionMarker, SessionToolMeta, Usage } from '@wrongstack/contracts/types';
 
 export interface WSSessionStart {
   type: 'session.start';

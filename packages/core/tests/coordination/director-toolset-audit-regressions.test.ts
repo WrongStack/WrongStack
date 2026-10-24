@@ -1,7 +1,7 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { buildDirectorToolset } from '../../src/coordination/director/director-toolset.js';
 import { Director } from '../../src/coordination/director.js';
-import type { Tool } from '../../src/types/tool.js';
 
 /**
  * Behaviour found by driving the director toolset against a real Director

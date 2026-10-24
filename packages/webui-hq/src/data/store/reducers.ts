@@ -11,12 +11,12 @@ import type {
   HqCommandAuditEntry,
   HqEventEnvelope,
   HqSnapshot,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import {
   HQ_BROWSER_PEER_RESUME_CLIENT_ID,
   isHqPeerLostPayload,
   isHqPeerRehydratePayload,
-} from '@wrongstack/core/hq/protocol';
+} from '@wrongstack/hq/protocol';
 import type { HqFleetState, HqPeerEnvelope, HqSelectionState } from './types.js';
 
 /**

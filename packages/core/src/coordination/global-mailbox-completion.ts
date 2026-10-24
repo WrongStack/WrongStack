@@ -1,5 +1,5 @@
-import type { MailboxMessage } from './mailbox-types.js';
 import type { MailboxMessageProjection } from './mailbox-receipt-folding.js';
+import type { MailboxMessage } from './mailbox-types.js';
 
 export function isMailboxMessageProjection(msg: MailboxMessage): msg is MailboxMessageProjection {
   if (!('recipientState' in msg)) return false;

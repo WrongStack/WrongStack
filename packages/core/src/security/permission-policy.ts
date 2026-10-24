@@ -1,6 +1,10 @@
-import type { Context } from '../core/context.js';
-import type { PermissionDecision, PermissionPolicy, PermissionTrace } from '../types/permission.js';
-import type { Tool } from '../types/tool.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type {
+  PermissionDecision,
+  PermissionPolicy,
+  PermissionTrace,
+} from '@wrongstack/contracts/types/permission';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { subjectForToolInput } from '../utils/tool-subject.js';
 import { isAgentStateWriteTarget } from './agent-state-sensitivity.js';
 import { hasCapability, ToolCapabilities } from './capabilities.js';
@@ -48,7 +52,7 @@ export { mergeTrustEntries } from './trust-entry.js';
 export { DEFAULT_ALWAYS_TRUST_TTL_MS };
 
 export class DefaultPermissionPolicy extends PermissionPolicyState implements PermissionPolicy {
-  async evaluate(tool: Tool, input: unknown, ctx: Context): Promise<PermissionDecision> {
+  async evaluate(tool: Tool, input: unknown, ctx: AgentContext): Promise<PermissionDecision> {
     if (!this.loaded) await this.reload();
 
     if (this.policyInvalid) {
@@ -404,7 +408,7 @@ export class DefaultPermissionPolicy extends PermissionPolicyState implements Pe
     return { permission: 'confirm', source: 'default' };
   }
 
-  async explain(tool: Tool, input: unknown, ctx: Context): Promise<PermissionTrace> {
+  async explain(tool: Tool, input: unknown, ctx: AgentContext): Promise<PermissionTrace> {
     if (!this.loaded) await this.reload();
     return explainPermissionTrace(
       {
@@ -428,7 +432,7 @@ export class DefaultPermissionPolicy extends PermissionPolicyState implements Pe
     );
   }
 
-  async listRules(ctx?: Context | undefined): Promise<UnnumberedPermissionRule[]> {
+  async listRules(ctx?: AgentContext | undefined): Promise<UnnumberedPermissionRule[]> {
     if (!this.loaded) await this.reload();
     return listTrustPolicyRules({
       policy: this.policy,

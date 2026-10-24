@@ -5,8 +5,8 @@ import type {
   HqCommandAuditEntry,
   HqCommandAuditLog,
   HqQueuedCommand,
-} from '@wrongstack/core/hq';
-import { tokenHasCapability, validateHqCommand } from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
+import { tokenHasCapability, validateHqCommand } from '@wrongstack/hq';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { WebSocket } from 'ws';
 import { authenticateBrowserRequest, hqAuthRequired, isCookieAuth, isTokenAuth } from '../auth.js';

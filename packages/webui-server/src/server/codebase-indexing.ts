@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { IndexingConfig, Logger } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { IndexingConfig, Logger } from '@wrongstack/core/types';
 import {
   DEFAULT_WALK_IGNORE_SET,
   type ProjectWatchSubscription,

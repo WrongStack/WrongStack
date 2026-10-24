@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 const REPO_ROOT = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
 
 describe('Core types public boundary', () => {
-  it('does not re-export implementation modules from outside src/types', async () => {
-    const entry = path.join(REPO_ROOT, 'packages/core/src/types/index.ts');
+  it('does not re-export implementation modules from outside the contracts types tree', async () => {
+    const entry = path.join(REPO_ROOT, 'packages/contracts/src/types/index.ts');
     const source = await fs.readFile(entry, 'utf8');
     const violations = source
       .split(/\r?\n/u)

@@ -1,5 +1,5 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { getResolvedSandboxConfig, getSandboxAuditLog } from '@wrongstack/core/sandbox';
-import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 
 /** CLI active-tier indicator (plan 28 T3; TUI/WebUI panels remain T9). */

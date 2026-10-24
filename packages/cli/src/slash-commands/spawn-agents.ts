@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { parseSpawnFlags } from '../arg-parser.js';
 import type { SlashCommandContext } from './command-context.js';

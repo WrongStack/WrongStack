@@ -1,17 +1,3 @@
-export {
-  type AgentFactory,
-  type AgentFactoryResult,
-  type AgentRunnerOptions,
-  makeAgentSubagentRunner,
-} from './coordination/agent-subagent-runner.js';
-export {
-  AGENT_CATALOG,
-  AGENTS_BY_PHASE,
-  type AgentDefinition,
-  type AgentPhase,
-  ALL_AGENT_DEFINITIONS,
-  getAgentDefinition,
-} from './coordination/agents/index.js';
 // ---- Coordination (fleet/multi-agent tools) ----
 export {
   type BrainArbiter,
@@ -31,7 +17,7 @@ export {
   HumanEscalatingBrainArbiter,
   ObservableBrainArbiter,
   terminalPolicyDecision,
-} from './coordination/brain.js';
+} from './brain/brain.js';
 export {
   type BrainCacheStats,
   BrainDecisionCache,
@@ -39,7 +25,7 @@ export {
   brainCacheKey,
   type CachingBrainArbiterOptions,
   createCachingBrainArbiter,
-} from './coordination/brain-cache.js';
+} from './brain/brain-cache.js';
 export {
   type BrainDecisionExplanation,
   type BrainDecisionStepExplanation,
@@ -47,7 +33,7 @@ export {
   type BrainExplainContext,
   type BrainExplainLedgerHost,
   explainBrainDecision,
-} from './coordination/brain-explain.js';
+} from './brain/brain-explain.js';
 export {
   BLOCKED_RESOLVED_MARKERS,
   type BrainHeuristicsConfig,
@@ -56,7 +42,7 @@ export {
   isBlockedResolved,
   type ResolvedBrainHeuristics,
   resolveBrainHeuristics,
-} from './coordination/brain-heuristics.js';
+} from './brain/brain-heuristics.js';
 export {
   BrainDecisionLedger,
   type BrainDecisionLedgerOptions,
@@ -64,7 +50,7 @@ export {
   brainDecisionKey,
   createLedgerGuardBrainArbiter,
   type LedgerGuardBrainArbiterOptions,
-} from './coordination/brain-ledger.js';
+} from './brain/brain-ledger.js';
 export {
   type BrainInterventionInput,
   BrainMonitor,
@@ -72,7 +58,7 @@ export {
   type BrainMonitorPolicy,
   type BrainMonitorSignalToggles,
   DEFAULT_FILE_EDIT_TOOLS,
-} from './coordination/brain-monitor.js';
+} from './brain/brain-monitor.js';
 export {
   applyRule,
   BRAIN_RULE_PATTERN_MAX,
@@ -87,7 +73,7 @@ export {
   evaluateBrainRules,
   type RuleBrainArbiterOptions,
   ruleMatches,
-} from './coordination/brain-rules.js';
+} from './brain/brain-rules.js';
 export {
   type BrainDecisionTier,
   BrainTierCounter,
@@ -97,7 +83,7 @@ export {
   isDeterministicTier,
   markDecisionTier,
   readDecisionTier,
-} from './coordination/brain-telemetry.js';
+} from './brain/brain-telemetry.js';
 export {
   applyContentMode,
   BRAIN_TRACE_REDACTED_MAX,
@@ -113,7 +99,21 @@ export {
   readBrainTrace,
   sanitizeDecision,
   sanitizeRequest,
-} from './coordination/brain-trace.js';
+} from './brain/brain-trace.js';
+export {
+  type AgentFactory,
+  type AgentFactoryResult,
+  type AgentRunnerOptions,
+  makeAgentSubagentRunner,
+} from './coordination/agent-subagent-runner.js';
+export {
+  AGENT_CATALOG,
+  AGENTS_BY_PHASE,
+  type AgentDefinition,
+  type AgentPhase,
+  ALL_AGENT_DEFINITIONS,
+  getAgentDefinition,
+} from './coordination/agents/index.js';
 export {
   type CollabBusState,
   CollaborationBus,

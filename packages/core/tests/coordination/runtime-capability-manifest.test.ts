@@ -3,14 +3,16 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
-  ALL_AGENT_DEFINITIONS,
-  BUNDLED_AGENT_SKILLS,
-  inferRuntimeCapabilities,
   isDeprecatedRuntimeToolAlias,
   isKnownRuntimeCapability,
   normalizeRuntimeToolName,
-  RUNTIME_CAPABILITY_MANIFEST,
   runtimeCapabilityForTool,
+} from '@wrongstack/contracts/types/runtime-capability-manifest';
+import {
+  ALL_AGENT_DEFINITIONS,
+  BUNDLED_AGENT_SKILLS,
+  inferRuntimeCapabilities,
+  RUNTIME_CAPABILITY_MANIFEST,
   toolsForRuntimeCapabilities,
 } from '../../src/coordination/agents/index.js';
 import { parseSkillFrontmatter } from '../../src/skills/frontmatter.js';

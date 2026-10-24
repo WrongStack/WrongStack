@@ -1,4 +1,4 @@
-import type { ScoredEntry } from '@wrongstack/core/types';
+import type { ScoredEntry } from '@wrongstack/contracts/types';
 import type { CompleteSageStore } from './project-server-options.js';
 import {
   assertDispatchArgs,

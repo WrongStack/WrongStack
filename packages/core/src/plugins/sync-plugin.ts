@@ -1,9 +1,9 @@
 import * as path from 'node:path';
+import type { ConfigStore, SyncCategory, SyncConfig } from '@wrongstack/contracts/types/config';
+import type { Plugin } from '@wrongstack/contracts/types/plugin';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import type { Context } from '../core/context.js';
 import { ALL_SYNC_CATEGORIES, CloudSync } from '../storage/cloud-sync.js';
-import type { ConfigStore, SyncCategory, SyncConfig } from '../types/config.js';
-import type { Plugin } from '../types/plugin.js';
-import type { SlashCommand } from '../types/slash-command.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { expectDefined } from '../utils/expect-defined.js';

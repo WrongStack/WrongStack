@@ -19,9 +19,9 @@
  * the tool, so neither has to reach into the other.
  */
 
-import type { ReasoningEffort } from '../types/provider.js';
-import { isReasoningEffort } from '../types/provider.js';
-import type { SessionEvent } from '../types/session.js';
+import type { ReasoningEffort } from '@wrongstack/contracts/types/provider';
+import { isReasoningEffort } from '@wrongstack/contracts/types/provider';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 
 /** Conversation-meta key holding the {@link LeaderEffortOverride} record. */
 export const LEADER_EFFORT_META_KEY = 'leaderReasoningEffort';

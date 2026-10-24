@@ -3,7 +3,7 @@ import type {
   MetricSeries,
   MetricsSink,
   MetricsSnapshot,
-} from '../types/observability.js';
+} from '@wrongstack/contracts/types/observability';
 
 interface CounterState {
   value: number;

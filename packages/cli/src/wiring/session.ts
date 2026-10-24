@@ -1,5 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import * as path from 'node:path';
+import {
+  DEFAULT_SESSION_PRUNE_DAYS,
+  type SessionPermissionOverride,
+  type SessionStore,
+  type SessionWriter,
+} from '@wrongstack/contracts/types';
+import { projectLastRequestTokens } from '@wrongstack/contracts/types/session-timeline';
 import { Context } from '@wrongstack/core/agent';
 import {
   restoreSessionSubagentModelPlan,
@@ -18,13 +25,6 @@ import {
   loadTodosCheckpoint,
   QueueStore,
 } from '@wrongstack/core/storage';
-import {
-  DEFAULT_SESSION_PRUNE_DAYS,
-  type SessionPermissionOverride,
-  type SessionStore,
-  type SessionWriter,
-} from '@wrongstack/core/types';
-import { projectLastRequestTokens } from '@wrongstack/core/types/session-timeline';
 import {
   expectDefined,
   rehydrateContextEvidenceFromMessages,
@@ -46,7 +46,7 @@ export interface SessionResult {
   /** 32-char hex trace ID for correlating storage events with agent iterations. */
   traceId: string;
   context: Context;
-  restoredMessages: import('@wrongstack/core/types').Message[];
+  restoredMessages: import('@wrongstack/contracts/types').Message[];
   attachments: DefaultAttachmentStore;
   queueStore: QueueStore;
   planPath: string;
@@ -71,7 +71,7 @@ export interface SessionResult {
    * interleaved audit markers (mode/compaction/checkpoint/skill/…) — matching
    * the in-session resume picker instead of meta-only tool chips.
    */
-  restoredEvents: import('@wrongstack/core/types').SessionEvent[];
+  restoredEvents: import('@wrongstack/contracts/types').SessionEvent[];
   /**
    * Model/provider recorded in the resumed session. Undefined when not
    * resuming. The boot path applies these via switchProviderAndModel once the
@@ -102,9 +102,9 @@ export async function setupSession(params: {
   projectRoot: string;
   cwd: string;
   sessionStore: SessionStore;
-  systemPrompt: import('@wrongstack/core/types').TextBlock[];
-  provider: import('@wrongstack/core/types').Provider;
-  tokenCounter: import('@wrongstack/core/types').TokenCounter;
+  systemPrompt: import('@wrongstack/contracts/types').TextBlock[];
+  provider: import('@wrongstack/contracts/types').Provider;
+  tokenCounter: import('@wrongstack/contracts/types').TokenCounter;
   renderer: { writeInfo(msg: string): void; writeError(msg: string): void };
   flags: Record<string, unknown>;
   /**
@@ -115,9 +115,9 @@ export async function setupSession(params: {
     | ((sessionId: string) => Promise<SessionClaimHandle | (() => Promise<void>)>)
     | undefined;
   /** Optional EventBus for emitting storage.* events from todo/queue/task stores. */
-  events?: import('@wrongstack/core/kernel').EventBus;
+  events?: import('@wrongstack/contracts/kernel').EventBus;
   /** Logger for structured storage warnings. */
-  logger?: import('@wrongstack/core/types').Logger | undefined;
+  logger?: import('@wrongstack/contracts/types').Logger | undefined;
 }): Promise<SessionResult> {
   const {
     config,
@@ -219,7 +219,7 @@ export async function setupSession(params: {
   }
 
   let session: SessionWriter | undefined;
-  let restoredMessages: import('@wrongstack/core/types').Message[] = [];
+  let restoredMessages: import('@wrongstack/contracts/types').Message[] = [];
   let restoredToolCalls: SessionResult['restoredToolCalls'] = [];
   let restoredEvents: SessionResult['restoredEvents'] = [];
   let restoredSubagentsAllowed: boolean | undefined;

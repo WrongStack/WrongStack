@@ -35,8 +35,8 @@ import type {
   Request,
   StreamEvent,
   ThinkingBlock,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { ANTHROPIC_REDACTED_THINKING_META } from './presets/anthropic.js';
 import { upstreamHost } from './proxy-upstream.js';
 

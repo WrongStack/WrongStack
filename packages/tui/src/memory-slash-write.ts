@@ -1,4 +1,4 @@
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { SAGE_MEMORY_KINDS } from '@wrongstack/core/utils/sage-kinds';
 import { getSageSurface } from '@wrongstack/sage';
 import type { MemoryAnchorLike } from './memory-slash-render.js';

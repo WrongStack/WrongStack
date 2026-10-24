@@ -1,6 +1,6 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, test } from 'vitest';
 import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
-import type { Tool } from '../../src/types/tool.js';
 
 /**
  * V0-B: the system prompt is rebuilt on every iteration. With memory +

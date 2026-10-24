@@ -18,7 +18,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
-import type { MCPHealthConfig, MCPServerConfig, Permission } from '@wrongstack/core/types';
+import type { MCPHealthConfig, MCPServerConfig, Permission } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import type { MCPRegistry } from './registry.js';
 

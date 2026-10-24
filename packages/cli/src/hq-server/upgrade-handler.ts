@@ -6,7 +6,7 @@
 
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { type HqToken, hqTokenVerifier, isLoopbackHost, isTokenExpired } from '@wrongstack/core/hq';
+import { type HqToken, hqTokenVerifier, isLoopbackHost, isTokenExpired } from '@wrongstack/hq';
 import type { WebSocket, WebSocketServer } from 'ws';
 import * as HqServerAuth from './auth.js';
 import type { HqAuthState } from './auth-state.js';
@@ -37,11 +37,11 @@ interface HqUpgradeHandlerDeps {
   /** Browser-token verifier behind each bare `?token=` browser socket (H-3). */
   browserSocketTokenKeys?: Map<WebSocket, string> | undefined;
   browsers: Set<WebSocket>;
-  eventLog: import('@wrongstack/core/hq').HqEventEnvelope[];
+  eventLog: import('@wrongstack/hq').HqEventEnvelope[];
   transcripts: Map<string, TranscriptRing>;
-  agentMessages: Map<string, import('@wrongstack/core/hq').HqTranscriptEntry[]>;
-  persistence: import('@wrongstack/core/hq').HqPersistence;
-  auditLog: import('@wrongstack/core/hq').HqCommandAuditLog;
+  agentMessages: Map<string, import('@wrongstack/hq').HqTranscriptEntry[]>;
+  persistence: import('@wrongstack/hq').HqPersistence;
+  auditLog: import('@wrongstack/hq').HqCommandAuditLog;
   snapshotBroadcaster: ReturnType<typeof import('./snapshot.js').createSnapshotBroadcaster>;
   wss: WebSocketServer;
   ipAllowlist?: HqIpAllowlist | undefined;

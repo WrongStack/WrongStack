@@ -1,5 +1,5 @@
+import type { SkillLoader } from '@wrongstack/contracts/types';
 import { detectSkillMention, matchSkillMentions } from '@wrongstack/core/skill-mentions';
-import type { SkillLoader } from '@wrongstack/core/types';
 import { type Dispatch, useEffect, useRef } from 'react';
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';

@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelsRegistry } from '@wrongstack/contracts/types';
 import { DefaultSecretScrubber, DefaultSecretVault } from '@wrongstack/core/security';
-import type { ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type AuthAuditEvent,
@@ -289,7 +289,7 @@ describe('createAuthAuditLogger', () => {
 
   it('scrubs credential-shaped values before writing', () => {
     // The DefaultSecretScrubber recognizes the OpenAI key
-    // pattern (per packages/core/src/security/secret-scrubber.ts).
+    // pattern (per packages/primitives/src/secret-scrubber-patterns.ts).
     // Build the values programmatically so the test source
     // itself doesn't carry anything that looks like a real key.
     const sink = memAuthAuditSink();

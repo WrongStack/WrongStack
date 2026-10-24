@@ -8,7 +8,7 @@ import type {
   GeneratedImage,
   ImageGenerationRequest,
   ImageGenerationResult,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 
 /** Images one request may ask for; the tool caps lower still. */
 const MAX_IMAGES = 4;

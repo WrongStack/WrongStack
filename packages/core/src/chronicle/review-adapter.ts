@@ -1,8 +1,26 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { ChimeraReviewCompletePayload } from '../plugins/review-types.js';
 import type { ChronicleContext } from './context.js';
 import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput } from './types.js';
+
+/**
+ * The slice of the `chimera.review_complete` payload this adapter reads. The
+ * full type (`ChimeraReviewCompletePayload`) lives with the review plugin,
+ * above chronicle in the core layering, and is structurally assignable here.
+ */
+interface ReviewCompletePayloadView {
+  reviewText?: string;
+  status?: string;
+  sessionId?: string | undefined;
+  bundle?: {
+    cwd?: string;
+    cascadeDepth?: number | undefined;
+    fileProvenance?: ReadonlyArray<{ agentId?: string | undefined }>;
+    kanbanCard?: { id?: string } | undefined;
+    config?: { provider?: string | undefined; model?: string | undefined } | undefined;
+    files?: ReadonlyArray<{ path: string }>;
+  };
+}
 
 export interface ChronicleReviewAdapterOptions {
   events: {
@@ -27,7 +45,7 @@ export function wireReviewFindingsToChronicle(options: ChronicleReviewAdapterOpt
   const unsubscribe = options.events.onPattern(
     'chimera.review_complete',
     (_event: unknown, raw: unknown) => {
-      const payload = raw as ChimeraReviewCompletePayload;
+      const payload = raw as ReviewCompletePayloadView;
       if (!payload?.reviewText) return;
       if (payload.status !== 'success') return;
 

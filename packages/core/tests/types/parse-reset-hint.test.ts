@@ -5,8 +5,8 @@
  */
 
 import { strictEqual } from 'node:assert';
+import { MAX_RESET_HINT_MS, parseResetHintMs } from '@wrongstack/contracts/types/provider';
 import { describe, it } from 'vitest';
-import { MAX_RESET_HINT_MS, parseResetHintMs } from '../../src/types/provider.js';
 
 describe('parseResetHintMs', () => {
   it('parses OpenAI-style Go durations', () => {

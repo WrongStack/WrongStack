@@ -1,4 +1,4 @@
-import type { InputReader } from '@wrongstack/core/types';
+import type { InputReader } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makePromptDelegate } from '../src/permission-prompt.js';
 

@@ -1,4 +1,4 @@
-import type { ToolStreamEvent } from '@wrongstack/core/types';
+import type { ToolStreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { auditTool } from '../src/audit.js';
 import { fetchTool } from '../src/fetch.js';

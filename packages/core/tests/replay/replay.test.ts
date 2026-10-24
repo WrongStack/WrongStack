@@ -1,9 +1,9 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Request, Response } from '@wrongstack/contracts/types/provider';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashRequest, stableStringify } from '../../src/replay/hash.js';
 import { ReplayLogStore } from '../../src/storage/replay-log-store.js';
-import type { Request, Response } from '../../src/types/provider.js';
 
 // vi.mock is hoisted above imports.  The factory uses vi.importActual to lazily
 // get the real module, avoiding TDZ issues.  The returned plain object replaces

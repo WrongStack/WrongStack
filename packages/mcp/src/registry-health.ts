@@ -1,4 +1,4 @@
-import type { MCPServerConfig } from '@wrongstack/core/types';
+import type { MCPServerConfig } from '@wrongstack/contracts/types';
 import {
   applyHealthThresholds,
   createMCPServerOperationState,

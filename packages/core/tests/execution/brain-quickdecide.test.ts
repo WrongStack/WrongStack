@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { BrainDecisionRequest } from '../../src/brain/brain.js';
 import { quickDecide } from '../../src/execution/autonomy-brain.js';
-import type { BrainDecisionRequest } from '../../src/coordination/brain.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'r1',

@@ -1,9 +1,9 @@
 import { realpath } from 'node:fs/promises';
 import * as path from 'node:path';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import type { KanbanBoundaryEvaluation, KanbanContractReadinessIssue } from '@wrongstack/kanban';
 import { kanbanGovernance } from './kanban-governance-port.js';
-import type { Context } from '../core/context.js';
-import type { Tool } from '../types/tool.js';
 
 export interface ToolKanbanBoundaryEvaluation extends KanbanBoundaryEvaluation {
   boardId?: string | undefined;
@@ -49,7 +49,7 @@ const TOOL_PATH_KEYS: Readonly<Record<string, readonly string[]>> = {
 export async function evaluateToolKanbanBoundary(
   tool: Tool,
   input: Record<string, unknown>,
-  ctx: Context,
+  ctx: AgentContext,
   options: ToolKanbanGovernanceOptions = {},
 ): Promise<ToolKanbanBoundaryEvaluation> {
   // The Kanban control plane must remain reachable so an agent can record
@@ -263,7 +263,7 @@ function isGovernedMutation(tool: Tool, input: Record<string, unknown>): boolean
   );
 }
 
-function resolveKanbanIdentity(ctx: Context): {
+function resolveKanbanIdentity(ctx: AgentContext): {
   boardId?: string;
   taskId?: string;
   policyRoot?: string;
@@ -294,7 +294,7 @@ function resolveKanbanIdentity(ctx: Context): {
 async function extractCandidatePaths(
   toolName: string,
   input: Record<string, unknown>,
-  ctx: Context,
+  ctx: AgentContext,
 ): Promise<string[]> {
   if (toolName === 'patch' && typeof input['patch'] === 'string') {
     const directoryInput = stringValue(input['directory']) ?? ctx.workingDir;
@@ -322,7 +322,7 @@ async function extractCandidatePaths(
   return Promise.all(candidates.map((candidate) => canonicalizeCandidatePath(candidate, ctx)));
 }
 
-async function canonicalizeCandidatePath(candidate: string, ctx: Context): Promise<string> {
+async function canonicalizeCandidatePath(candidate: string, ctx: AgentContext): Promise<string> {
   // Absolute candidates too: one written through the real (symlink-resolved)
   // root is in-project once both sides are canonical.
   const absolute = path.resolve(ctx.projectRoot, candidate);
@@ -371,7 +371,7 @@ function splitPathList(value: string): string[] {
     .filter(Boolean);
 }
 
-function resolveInputPath(value: string, ctx: Context): string {
+function resolveInputPath(value: string, ctx: AgentContext): string {
   const absolute = path.isAbsolute(value) ? value : path.resolve(ctx.workingDir, value);
   return relativeToProject(absolute, ctx.projectRoot);
 }

@@ -8,7 +8,7 @@
  *   docs/plans/cli-main-executiondeps-refactor.md
  */
 
-import type { Config, FleetChatVerbosity } from '@wrongstack/core/types';
+import type { Config, FleetChatVerbosity } from '@wrongstack/contracts/types';
 import type { StatuslineConfigKey, StatuslineDocument } from '../services/statusline-config.js';
 import {
   DEFAULTS,

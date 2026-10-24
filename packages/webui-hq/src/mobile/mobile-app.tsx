@@ -1,4 +1,4 @@
-import type { HqSessionSnapshotPayload } from '@wrongstack/core/hq';
+import type { HqSessionSnapshotPayload } from '@wrongstack/hq';
 import {
   ArrowDownToLine,
   Columns3,

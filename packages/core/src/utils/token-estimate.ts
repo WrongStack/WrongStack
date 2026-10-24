@@ -1,4 +1,4 @@
-import type { Message } from '../types/messages.js';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { compactToolDefinitionForWire } from './tool-wire-compact.js';
 
 /**

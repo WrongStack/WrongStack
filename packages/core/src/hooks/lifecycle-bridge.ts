@@ -1,9 +1,9 @@
-import { markUserInputObserver } from '../core/user-input-observers.js';
-import type { EventBus } from '../kernel/events.js';
-import type { CompactionTrigger, Compactor } from '../types/compactor.js';
-import type { Logger } from '../types/logger.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { CompactionTrigger, Compactor } from '@wrongstack/contracts/types/compactor';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import { toErrorMessage } from '../utils/error.js';
 import type { HookRunEnv, HookRunner } from './runner.js';
+import { markUserInputObserver } from './user-input-observers.js';
 
 export interface LifecycleHookBridgeOptions {
   hookRunner: HookRunner;

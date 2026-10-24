@@ -11,7 +11,7 @@
 import { existsSync } from 'node:fs';
 
 import * as path from 'node:path';
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { ATLAS_DIR, ensureAtlasDir, writeAtlasFile } from './atlas-projection.js';
 import {
   discoverEntryPoints,

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import type { SubagentRunner } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
 import { spawn as fleetSpawn } from '../../src/coordination/fleet-spawn.js';
@@ -8,7 +9,6 @@ import {
   emptySubagentModelPlan,
   setSessionSubagentModelPlanForSession,
 } from '../../src/coordination/session-subagent-models.js';
-import type { SubagentRunner } from '../../src/types/multi-agent.js';
 
 /**
  * One resolver, one precedence order.

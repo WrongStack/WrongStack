@@ -16,7 +16,7 @@ export async function handleApiBootstrap(
   mutableAuth: HqRouterMutableAuth,
   sessions: Map<string, HqSessionEntry>,
   secureCookies: boolean | undefined,
-  bootstrapStore: import('@wrongstack/core/hq').HqBootstrapCodeStore,
+  bootstrapStore: import('@wrongstack/hq').HqBootstrapCodeStore,
 ): Promise<void> {
   if (!mutableAuth.cookieSecret) {
     res.writeHead(503, { 'Content-Type': 'application/json' });

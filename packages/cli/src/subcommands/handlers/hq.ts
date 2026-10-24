@@ -24,7 +24,7 @@ import {
   HQ_CLI_DEFAULT_HOST,
   HqInsecureExposureError,
   isLoopbackHost,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type { HqServerHandle } from '../../hq-server/handle-types.js';
 import { parseHqIpAllowlist } from '../../hq-server/ip-allowlist.js';
 import { resolveHqPasswordInput } from '../../hq-server/secret-input.js';

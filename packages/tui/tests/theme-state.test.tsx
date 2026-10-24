@@ -1,4 +1,4 @@
-import type { Config, ConfigStore } from '@wrongstack/core/types';
+import type { Config, ConfigStore } from '@wrongstack/contracts/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';

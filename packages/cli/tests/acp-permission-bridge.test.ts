@@ -1,5 +1,5 @@
 import type { PermissionRequest } from '@wrongstack/acp';
-import type { PermissionDecision, Tool } from '@wrongstack/core/types';
+import type { PermissionDecision, Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { wrongstackAcpPermissionPolicy } from '../src/fleet/acp-permission-bridge.js';
 

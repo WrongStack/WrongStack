@@ -1,17 +1,17 @@
 import { randomUUID } from 'node:crypto';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type {
+  MultiAgentConfig,
+  SubagentConfig,
+  TaskNode,
+  TaskResult,
+} from '@wrongstack/contracts/types';
 import type { AgentFactory } from '@wrongstack/core/coordination';
 import {
   DefaultMultiAgentCoordinator,
   makeAgentSubagentRunner,
   withDisabledToolFiltering,
 } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type {
-  MultiAgentConfig,
-  SubagentConfig,
-  TaskNode,
-  TaskResult,
-} from '@wrongstack/core/types';
 import type { WorktreeHandle } from '@wrongstack/core/worktree';
 import { requireSessionId } from '@wrongstack/primitives';
 import type { SddParallelControlsHost } from './sdd-parallel-controls.js';
@@ -144,15 +144,15 @@ export abstract class SddParallelRunState {
   }
 
   /** Type-safe emit on the optional EventBus (no-op when unwired). */
-  protected emit<K extends keyof import('@wrongstack/core/kernel').EventMap>(
+  protected emit<K extends keyof import('@wrongstack/contracts/kernel').EventMap>(
     event: K,
-    payload: import('@wrongstack/core/kernel').EventMap[K],
+    payload: import('@wrongstack/contracts/kernel').EventMap[K],
   ): void {
     const sessionId = this.currentSessionId();
     this.events?.emit(event, {
       ...payload,
       sessionId,
-    } as import('@wrongstack/core/kernel').EventMap[K]);
+    } as import('@wrongstack/contracts/kernel').EventMap[K]);
   }
 
   protected currentSessionId(): string {

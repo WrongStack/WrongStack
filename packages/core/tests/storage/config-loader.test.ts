@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { DefaultConfigLoader, repairConfigDefaults } from '../../src/storage/config-loader.js';
 import { resolveWstackPaths } from '../../src/utils/wstack-paths.js';
 

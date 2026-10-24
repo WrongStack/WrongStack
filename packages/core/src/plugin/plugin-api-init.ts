@@ -1,17 +1,11 @@
-import type { Mailbox } from '../coordination/mailbox-types.js';
-import type { ExtensionRegistry } from '../extension/registry.js';
-import type { HookRegistry } from '../hooks/registry.js';
-import type { Container } from '../kernel/container.js';
-import type { EventBus } from '../kernel/events.js';
-import type { ProviderAuthRegistry } from '../registry/provider-auth-registry.js';
-import type { ProviderRegistry } from '../registry/provider-registry.js';
-import type { SlashCommandRegistry } from '../registry/slash-command-registry.js';
-import type { ToolRegistry } from '../registry/tool-registry.js';
-import type { Config } from '../types/config.js';
-import type { CouncilQuestion, CouncilResult } from '../types/council.js';
-import type { Logger } from '../types/logger.js';
-import type { ModelsRegistry } from '../types/models-registry.js';
-import type { OneShotLLMInput, OneShotLLMResult } from '../types/one-shot-llm.js';
+import type { Container } from '@wrongstack/contracts/kernel/container';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { CouncilQuestion, CouncilResult } from '@wrongstack/contracts/types/council';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Mailbox } from '@wrongstack/contracts/types/mailbox';
+import type { ModelsRegistry } from '@wrongstack/contracts/types/models-registry';
+import type { OneShotLLMInput, OneShotLLMResult } from '@wrongstack/contracts/types/one-shot-llm';
 import type {
   MCPRegistryView,
   MetricsSinkView,
@@ -19,8 +13,14 @@ import type {
   PluginCapabilities,
   PluginPipelines,
   SessionWriterView,
-} from '../types/plugin.js';
-import type { Provider } from '../types/provider.js';
+} from '@wrongstack/contracts/types/plugin';
+import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { ExtensionRegistry } from '../extension/registry.js';
+import type { HookRegistry } from '../hooks/registry.js';
+import type { ProviderAuthRegistry } from '../registry/provider-auth-registry.js';
+import type { ProviderRegistry } from '../registry/provider-registry.js';
+import type { SlashCommandRegistry } from '../registry/slash-command-registry.js';
+import type { ToolRegistry } from '../registry/tool-registry.js';
 
 export interface PluginAPIInit {
   ownerName: string;

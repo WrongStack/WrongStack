@@ -1,4 +1,4 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { TelegramNotificationChannel } from '../../src/notification-channel.js';
 

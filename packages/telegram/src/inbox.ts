@@ -1,4 +1,4 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { TelegramApiMessage } from './api-client.js';
 import type { TelegramIncomingMessage } from './bot-types.js';
 

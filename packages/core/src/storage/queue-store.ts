@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { ContentBlock } from '../types/blocks.js';
-import type { Logger } from '../types/logger.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import type { EventBus } from './event-bus-port.js';

@@ -1,7 +1,6 @@
-import type { Context } from '../core/context.js';
-import { contextHistoryVersion } from '../core/context-history-version.js';
-import type { CompactReport } from '../types/compactor.js';
-import type { AgentContext } from '../types/context.js';
+import type { CompactReport } from '@wrongstack/contracts/types/compactor';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import { contextHistoryVersion } from './context-history-version.js';
 
 interface ReportState {
   historyVersion: number;
@@ -15,7 +14,7 @@ interface ReportState {
 const states = new WeakMap<object, ReportState>();
 const staleResults = new WeakSet<object>();
 
-export function stampCompactionReport<T extends CompactReport>(report: T, ctx: Context): T {
+export function stampCompactionReport<T extends CompactReport>(report: T, ctx: AgentContext): T {
   states.set(report, {
     historyVersion: contextHistoryVersion(ctx),
     sessionId: ctx.session?.id,

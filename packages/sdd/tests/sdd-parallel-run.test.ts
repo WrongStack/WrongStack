@@ -1,6 +1,7 @@
-import { EventBus } from '@wrongstack/core/kernel/events.js';
-import type { TaskResult } from '@wrongstack/core/types/multi-agent.js';
-import type { TaskGraph, TaskNode, TaskStore } from '@wrongstack/core/types/task-graph.js';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types/task-graph';
+import type { TaskStore } from '@wrongstack/core/tasking';
 import { describe, expect, it, vi } from 'vitest';
 import type { Agent } from '../../src/core/agent.js';
 import { SddParallelRun } from '../src/sdd-parallel-run.js';
@@ -261,7 +262,9 @@ describe('SddParallelRun.executeWave', () => {
     const { run, tracker, t1 } = await makeHarness({ maxRetries: 0 });
     const coord = fakeCoordinator({
       awaitTasks: vi.fn(async (ids: string[]) =>
-        ids.map((id) => failResult(id, { kind: 'timeout', message: 'too slow', retryable: false })),
+        ids.map((id) =>
+          failResult(id, { kind: 'provider_timeout', message: 'too slow', retryable: false }),
+        ),
       ),
     });
     (run as never as { coordinator: unknown }).coordinator = coord;
@@ -1563,7 +1566,9 @@ describe('SddParallelRun — coverage edge paths', () => {
   it('covers public control refusals and session-id emission variants', async () => {
     const events = new EventBus();
     const sessionIds: Array<string | undefined> = [];
-    events.on('sdd.wave', (event: { sessionId?: string }) => sessionIds.push(event.sessionId));
+    events.on('sdd.wave', (event: { sessionId?: string | undefined }) =>
+      sessionIds.push(event.sessionId),
+    );
     const staticSession = await makeHarness({ events, sessionId: 'session-static' });
 
     expect(await staticSession.run.cleanupWorktrees()).toBe(0);

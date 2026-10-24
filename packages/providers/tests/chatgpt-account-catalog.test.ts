@@ -11,8 +11,8 @@
  */
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Config, ModelsDevPayload } from '@wrongstack/contracts/types';
 import { DefaultModelsRegistry, resolveProviderModelList } from '@wrongstack/core/models';
-import type { Config, ModelsDevPayload } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {
   CHATGPT_ACCOUNT_METADATA_CATALOG,

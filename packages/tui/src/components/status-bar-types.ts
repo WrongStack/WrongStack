@@ -1,11 +1,11 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/contracts/types';
 import type {
   StatuslineDensities,
   StatuslineLine,
   StatuslineLines,
   StatuslineOrder,
 } from '@wrongstack/core/statusline';
-import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
 import type { GitInfo } from '../git-info.js';
 import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
 import type { ChipMeta, StatuslineItem } from '../ui-contracts.js';

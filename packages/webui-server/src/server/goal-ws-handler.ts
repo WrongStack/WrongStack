@@ -1,3 +1,5 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { Agent, Context } from '@wrongstack/core/agent';
 import type { AgentFactory } from '@wrongstack/core/coordination';
 import {
@@ -7,9 +9,7 @@ import {
   type PhaseOrchestrator,
   PhaseStore,
   type PhaseTemplate,
-} from '@wrongstack/core/goal';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+} from '@wrongstack/goal';
 import type { WorktreeManager } from '@wrongstack/core/worktree';
 import type { WebSocket } from 'ws';
 import { type GoalRunHost, startGoalRun } from './goal-run.js';
@@ -245,7 +245,7 @@ export class GoalWebSocketHandler {
   }
 
   private async executeTaskWithAgent(
-    task: import('@wrongstack/core/types').TaskNode,
+    task: import('@wrongstack/contracts/types').TaskNode,
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
@@ -264,7 +264,7 @@ export class GoalWebSocketHandler {
 
   /** Run a lightweight chimera-style review before the task is settled. */
   private async runChimeraReview(
-    task: import('@wrongstack/core/types').TaskNode,
+    task: import('@wrongstack/contracts/types').TaskNode,
     phaseId: string,
     result: unknown,
     cwd?: string | undefined,

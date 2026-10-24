@@ -1,4 +1,4 @@
-import type { HqKanbanSnapshotPayload } from '@wrongstack/core/hq';
+import type { HqKanbanSnapshotPayload } from '@wrongstack/hq';
 
 const TASK_PRIORITIES = new Set(['low', 'medium', 'high', 'critical']);
 const TASK_STATUSES = new Set([

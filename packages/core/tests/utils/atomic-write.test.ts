@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { isFsError } from '@wrongstack/contracts/types/errors';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { isFsError } from '../../src/types/errors.js';
 import { atomicWrite, ensureDir, withFileLock } from '../../src/utils/atomic-write.js';
 
 describe('atomicWrite', () => {

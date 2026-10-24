@@ -2,9 +2,9 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SlashCommand } from '../../src/index.js';
-import { EventBus } from '../../src/kernel/events.js';
 import {
   CHIMERA_REVIEW_PROMPT,
   createChimeraPlugin,

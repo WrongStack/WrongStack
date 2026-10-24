@@ -25,8 +25,8 @@
  * round-trip tests keep the renderer aligned with that same parser.
  */
 
-import { isTextBlock } from '../types/blocks.js';
-import type { Response } from '../types/provider.js';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Response } from '@wrongstack/contracts/types/provider';
 import { closingCodeFence, parseNextSteps } from '../utils/next-steps.js';
 import { hasOpenTodos } from '../utils/todos-format.js';
 import type { Context } from './context.js';

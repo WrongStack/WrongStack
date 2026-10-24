@@ -1,5 +1,5 @@
-import type { ProviderErrorBody } from '@wrongstack/core/types';
-import { ProviderError, SAFETY_POLICY_GUIDANCE } from '@wrongstack/core/types';
+import type { ProviderErrorBody } from '@wrongstack/contracts/types';
+import { ProviderError, SAFETY_POLICY_GUIDANCE } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type HeadersLike,

@@ -23,10 +23,10 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Middleware } from '@wrongstack/contracts/kernel/pipeline';
+import type { AgentExtension } from '@wrongstack/contracts/types/extension-points';
 import type { ToolCallPipelinePayload } from '../core/agent-types.js';
 import type { Context } from '../core/context.js';
-import type { AgentExtension } from '../extension/extension-points.js';
-import type { Middleware } from '../kernel/pipeline.js';
 import { detectFrontendFile } from './design-detect.js';
 import { designProjectDir } from './design-project-store.js';
 

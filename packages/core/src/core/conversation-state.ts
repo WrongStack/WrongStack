@@ -1,13 +1,13 @@
-import type { ContentBlock } from '../types/blocks.js';
-import type { AgentContext, TodoItem } from '../types/context.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { AgentContext, TodoItem } from '@wrongstack/contracts/types/context';
 import type {
   ConversationStateApi,
   ReadonlyConversationState,
   StateChange,
-} from '../types/conversation-state.js';
-import type { Message } from '../types/messages.js';
+} from '@wrongstack/contracts/types/conversation-state';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import { bumpContextHistoryVersion } from '../utils/context-history-version.js';
 import { computeMessageTokens } from '../utils/token-estimate.js';
-import { bumpContextHistoryVersion } from './context-history-version.js';
 
 // Roadmap 10A: the type surface lives in the types/conversation-state.ts leaf
 // (dependency-safe for AgentContext); re-exported here for existing import paths.

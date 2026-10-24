@@ -1,4 +1,4 @@
-import type { ModelProvenance } from '@wrongstack/core/types';
+import type { ModelProvenance } from '@wrongstack/contracts/types';
 import type { SessionScopedPayload } from './protocol-core.js';
 
 /** Moved to webui-protocol (conversation-core.ts), the single source the SDK shares. */

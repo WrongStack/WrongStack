@@ -3,11 +3,11 @@ import {
   isContextWindowModeSelectionId,
   listContextWindowModes,
   normalizeContextWindowModeId,
-} from '../../types/context-window.js';
-import { ConfigError, ERROR_CODES } from '../../types/errors.js';
-import { HOOK_EVENTS, isHookEvent } from '../../types/hooks.js';
+} from '@wrongstack/contracts/types/context-window';
+import { ConfigError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
+import { HOOK_EVENTS, isHookEvent } from '@wrongstack/contracts/types/hooks';
+import { parseNativeCloudSettings } from '@wrongstack/contracts/types/native-cloud';
 import type { PartialConfig } from './env-overrides.js';
-import { parseNativeCloudSettings } from '../../cloud-provider.js';
 
 type LogWarn = (msg: string, ctx?: Record<string, unknown>) => void;
 

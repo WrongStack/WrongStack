@@ -1,8 +1,8 @@
-import type { EventBus } from '../event-bus-port.js';
-import type { Config } from '../../types/config.js';
-import type { Logger } from '../../types/logger.js';
-import type { SecretVault } from '../../types/secret-vault.js';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { SecretVault } from '@wrongstack/contracts/types/secret-vault';
 import type { WstackPaths } from '../../utils/wstack-paths.js';
+import type { EventBus } from '../event-bus-port.js';
 import type { PartialConfig } from './env-overrides.js';
 
 /**

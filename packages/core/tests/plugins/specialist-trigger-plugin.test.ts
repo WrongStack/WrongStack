@@ -2,13 +2,13 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import {
   createSpecialistTriggerPlugin,
   type SpecialistNeededPayload,
 } from '../../src/plugins/specialist-trigger-plugin.js';
-import type { SlashCommand } from '../../src/types/slash-command.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

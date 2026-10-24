@@ -7,8 +7,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { HqPublisher } from '@wrongstack/core/hq';
-import { readHqAuthFile } from '@wrongstack/core/hq';
+import type { HqPublisher } from '@wrongstack/hq';
+import { readHqAuthFile } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createCliHqPublisher } from '../src/hq-publisher.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';

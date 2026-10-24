@@ -1,4 +1,4 @@
-import type { SessionEvent } from '@wrongstack/core/types';
+import type { SessionEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { buildRestoredCheckpoints, createInitialState } from '../src/app-initial-state.js';
 import { reducer } from '../src/app-reducer.js';

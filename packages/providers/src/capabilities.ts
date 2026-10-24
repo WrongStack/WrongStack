@@ -1,11 +1,11 @@
-import { classifyFamily } from '@wrongstack/core/models';
 import type {
   Capabilities,
   CustomModelDefinition,
   ModelsRegistry,
   ResolvedProvider,
   WireFamily,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { classifyFamily } from '@wrongstack/core/models';
 import { capabilitiesForFamily } from './family-capabilities.js';
 
 /**

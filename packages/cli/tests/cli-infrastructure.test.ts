@@ -1,5 +1,5 @@
-import { TOKENS } from '@wrongstack/core/kernel';
-import type { Config } from '@wrongstack/core/types';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@wrongstack/core/agent', () => ({
   providerToolsForVariant: mocks.providerToolsForVariant,
 }));
-vi.mock('@wrongstack/core/tools', () => ({ registerJevTools: mocks.registerJevTools }));
+vi.mock('@wrongstack/tools/management', () => ({ registerJevTools: mocks.registerJevTools }));
 vi.mock('../src/wiring/metrics.js', () => ({ setupMetrics: mocks.setupMetrics }));
 vi.mock('../src/wiring/teardown-registrar.js', () => ({
   setupTeardownRegistrar: mocks.setupTeardownRegistrar,

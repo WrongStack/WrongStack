@@ -1,5 +1,5 @@
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { getAllProviderQuota, withQuotaPace } from '@wrongstack/core/quota';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import {
   type AccountQuotaVendor,
   readConfiguredProviderAccountQuota,

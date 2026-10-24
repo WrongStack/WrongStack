@@ -1,4 +1,4 @@
-import type { MessageRole, Request } from '@wrongstack/core/types';
+import type { MessageRole, Request } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createSageDomainTermExtractorMiddleware,

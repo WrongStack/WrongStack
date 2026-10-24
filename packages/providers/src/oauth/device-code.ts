@@ -3,7 +3,7 @@ import type {
   ProviderAuthOutcome,
   ProviderAuthSession,
   ProviderAuthStrategy,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { oauthFailure, oauthForm, oauthSignal, oauthSleep, requiredOAuthString } from './http.js';
 import { fetchSubscriptionModels } from './subscription-models.js';
 

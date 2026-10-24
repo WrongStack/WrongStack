@@ -3,58 +3,16 @@
  * Extracted to keep provider-status-tracker.ts strictly below 800 lines.
  */
 
-import type { ProviderErrorKind } from '../types/provider.js';
-import { QUOTA_EXHAUSTED_RE } from '../types/quota-regex.js';
+import type { ProviderErrorKind } from '@wrongstack/contracts/types/provider';
+import type {
+  ErrorHistoryEntry,
+  ProviderModelState,
+  ProviderModelStatus,
+  ProviderStatusSnapshot,
+} from '@wrongstack/contracts/types/provider-status';
+import { QUOTA_EXHAUSTED_RE } from '@wrongstack/contracts/types/quota-regex';
 
-export type ProviderModelState = 'healthy' | 'degraded' | 'blocked';
-
-export interface ErrorHistoryEntry {
-  readonly timestamp: number;
-  readonly kind: ProviderErrorKind;
-  readonly status: number;
-  readonly message: string;
-  readonly sessionId?: string | undefined;
-  readonly agentId?: string | undefined;
-  readonly retryAfterMs?: number | undefined;
-}
-
-export interface ProviderModelStatus {
-  readonly providerId: string;
-  readonly model: string;
-
-  /** Current state in the state machine. */
-  readonly state: ProviderModelState;
-
-  // ── Failure counters ──
-  readonly consecutiveFailures: number;
-  readonly totalFailures: number;
-  readonly rateLimitHits: number;
-  readonly overloadedHits: number;
-  readonly serverErrors: number;
-  readonly otherErrors: number;
-
-  // ── Success counters ──
-  readonly consecutiveSuccesses: number;
-  readonly totalSuccesses: number;
-  readonly lastSuccessAt: number | null;
-
-  // ── Timing ──
-  readonly firstFailureAt: number | null;
-  readonly lastFailureAt: number | null;
-  /** When the current degraded or blocked state expires (ms epoch), or null. */
-  readonly stateExpiresAt: number | null;
-
-  // ── Last-error detail (for WebUI / `/provider-status`) ──
-  readonly lastErrorKind: ProviderErrorKind | null;
-  readonly lastErrorMessage: string | null;
-  readonly lastErrorStatus: number | null;
-  readonly lastSessionId: string | null;
-  readonly lastAgentId: string | null;
-
-  /** Recent error history (newest-first, capped to `maxErrorHistory`). */
-  readonly recentErrors: readonly ErrorHistoryEntry[];
-}
-
+export type { ErrorHistoryEntry, ProviderModelState, ProviderModelStatus };
 export interface ProviderStatusTrackerConfig {
   /**
    * Consecutive failures before entering `degraded`. Default: 2.
@@ -172,16 +130,7 @@ export interface MutableProviderModelStatus {
 
 // ── Snapshot type ───────────────────────────────────────────────────────────
 
-export interface ProviderStatusSnapshot {
-  readonly totalPairs: number;
-  readonly healthy: number;
-  readonly degraded: number;
-  readonly blocked: number;
-  readonly totalFailures: number;
-  readonly totalRateLimits: number;
-  readonly statuses: readonly ProviderModelStatus[];
-}
-
+export type { ProviderStatusSnapshot };
 // ── Key helpers ─────────────────────────────────────────────────────────────
 
 export const KEY_SEP = '\x00';

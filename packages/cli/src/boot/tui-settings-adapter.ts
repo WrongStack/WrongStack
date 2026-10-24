@@ -10,13 +10,19 @@
  * reverse: read → modify → encrypt → atomic-write for every section,
  * then syncs the in-memory store and applies live runtime effects.
  */
+
+import type {
+  Config,
+  ConfigStore,
+  FleetChatVerbosity,
+  SecretVault,
+} from '@wrongstack/contracts/types';
 import {
   isSystemInstructionVariant,
   persistSystemPromptVariant,
   readSavedSystemPromptVariant,
   type SystemInstructionVariant,
 } from '@wrongstack/core/agent';
-import type { Config, ConfigStore, FleetChatVerbosity, SecretVault } from '@wrongstack/core/types';
 
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';

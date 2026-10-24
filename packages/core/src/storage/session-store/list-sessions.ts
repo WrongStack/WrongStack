@@ -1,5 +1,5 @@
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
-import type { SessionSummary } from '../../types/session.js';
 import { compareSessionSummaries, matchesSessionFilter } from '../session-summary.js';
 
 /** Upper bound for filtered-listing candidate pools (bounds pathological dirs). */

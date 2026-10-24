@@ -1,5 +1,5 @@
+import type { Specification } from '@wrongstack/contracts/types';
 import { DefaultTaskStore, TaskTracker } from '@wrongstack/core/tasking';
-import type { Specification } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {
   assertSpecTaskGraphCoverage,

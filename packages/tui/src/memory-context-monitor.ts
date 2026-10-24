@@ -118,7 +118,7 @@ export async function readMemoryRecordTotal(store: unknown): Promise<number | un
   if (typeof (store as { getCapability?: unknown }).getCapability === 'function') {
     try {
       const { getSageSurface } = await import('@wrongstack/sage');
-      const surface = getSageSurface(store as import('@wrongstack/core/types').MemoryPort);
+      const surface = getSageSurface(store as import('@wrongstack/contracts/types').MemoryPort);
       if (surface && typeof surface.stats === 'function') {
         const result = await surface.stats();
         return typeof result.total === 'number' &&

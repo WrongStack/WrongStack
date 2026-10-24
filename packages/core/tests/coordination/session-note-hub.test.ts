@@ -1,10 +1,10 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { SessionNoteHub } from '../../src/coordination/session-note-hub.js';
 import { makeSessionNoteTool } from '../../src/coordination/session-note-tool.js';
 import { Context } from '../../src/core/context.js';
 import { consumeSessionNotes, enqueueSessionNote } from '../../src/core/session-notes.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { SessionWriter } from '../../src/types/session.js';
 
 function makeWriter(id: string): SessionWriter {
   return {

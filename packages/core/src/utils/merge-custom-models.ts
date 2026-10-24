@@ -1,4 +1,4 @@
-import type { CustomModelDefinition } from '../types/config.js';
+import type { CustomModelDefinition } from '@wrongstack/contracts/types/config';
 
 /**
  * Merge per-provider `customModels` into top-level `configModels`.

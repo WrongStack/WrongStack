@@ -4,8 +4,8 @@
  * paste-accumulator, rehydrate-history, terminal-title, theme, app-initial-state.
  */
 
+import type { Message } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
-import type { Message } from '@wrongstack/core/types';
 
 // ────────────────────────────────────────────────────────────────────────────
 // input-tokens.ts — remaining branch gaps

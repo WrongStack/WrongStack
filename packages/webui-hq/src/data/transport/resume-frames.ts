@@ -5,8 +5,8 @@
  * Pure and side-effect free so the framing rules (normalisation, ordering,
  * the frame cap, the peer-cursor reservation) are testable without a socket.
  */
-import type { HqClientResumeMessage } from '@wrongstack/core/hq';
-import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from '@wrongstack/core/hq/protocol';
+import type { HqClientResumeMessage } from '@wrongstack/hq';
+import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from '@wrongstack/hq/protocol';
 
 export type HqResumeCursor = ReadonlyMap<string, number> | Readonly<Record<string, number>>;
 

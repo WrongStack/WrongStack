@@ -1,4 +1,4 @@
-import type { ProviderApiKey, ProviderConfig, WireFamily } from '@wrongstack/core/types';
+import type { ProviderApiKey, ProviderConfig, WireFamily } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 import { activeLabel, maskedKey, normalizeKeys } from '../provider-config-utils.js';
 import type { AuthMenuDeps } from './types.js';

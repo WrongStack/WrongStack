@@ -4,7 +4,7 @@ import type {
   ProviderConfig,
   ResolvedModel,
   ResolvedProvider,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { capabilitiesFor } from '@wrongstack/providers';
 
 export const SIBLING_CATALOG: Record<string, string> = {

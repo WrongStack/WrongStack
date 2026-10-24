@@ -90,7 +90,7 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   'core/src/coordination/collab-director-host.ts': REASON_AGENT_CHILD,
   'core/src/coordination/director-host-contracts.ts': REASON_AGENT_CHILD,
   'core/src/coordination/icoordinator.ts': REASON_AGENT_CHILD,
-  'core/src/types/multi-agent.ts': REASON_AGENT_CHILD,
+  'contracts/src/types/multi-agent.ts': REASON_AGENT_CHILD,
   'sdd/src/verify-task.ts': REASON_AGENT_CHILD,
   // ── CLI self-relaunch / bundled UI ──
   'cli/src/boot-provider-selection.ts': REASON_SELF_RELAUNCH,

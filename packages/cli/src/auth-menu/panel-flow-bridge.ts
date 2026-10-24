@@ -3,7 +3,7 @@ import type {
   ProviderConfig,
   SecretScrubber,
   SecretVault,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { AuthFlowIo, AuthFlowResult } from '@wrongstack/tui';
 import type { AuthMenuDeps } from './types.js';

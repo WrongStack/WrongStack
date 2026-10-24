@@ -1,8 +1,8 @@
+import type { BrainConfig } from '@wrongstack/contracts/types/config';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
-import type { BrainDecisionRequest } from '../../src/coordination/brain.js';
+import type { BrainDecisionRequest } from '../../src/brain/brain.js';
 import { assembleBrainTiers } from '../../src/execution/brain-chain.js';
-import type { BrainConfig } from '../../src/types/config.js';
-import type { Provider } from '../../src/types/provider.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'a1',

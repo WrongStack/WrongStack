@@ -4,8 +4,8 @@ import type {
   MemoryPriority,
   MemoryScope,
   MemoryType,
-} from '@wrongstack/core/types';
-import { MEMORY_TYPE_LABELS } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { MEMORY_TYPE_LABELS } from '@wrongstack/contracts/types';
 import { getSageSurface } from '@wrongstack/sage';
 import {
   daysAgo,

@@ -12,7 +12,7 @@
 // before touching the filesystem.
 
 import { renderHook, waitFor } from '@testing-library/react';
-import type { TokenCounter } from '@wrongstack/core/types';
+import type { TokenCounter } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppProps } from '../src/app-props.js';
 import type { State } from '../src/app-state.js';

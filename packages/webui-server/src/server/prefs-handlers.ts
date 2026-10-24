@@ -1,3 +1,4 @@
+import type { ConfigStore } from '@wrongstack/contracts/types';
 import {
   activateSystemPromptPreset,
   bundledPromptText,
@@ -12,7 +13,6 @@ import {
   saveSystemPromptPreset,
   validateSystemPromptPreset,
 } from '@wrongstack/core/agent';
-import type { ConfigStore } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';

@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { requireSessionId } from '@wrongstack/primitives';
-import type { AgentBridge, BridgeMessage } from '../types/agent-bridge.js';
+import type { AgentBridge, BridgeMessage } from '@wrongstack/contracts/types/agent-bridge';
 import type {
   AwaitAnyResult,
   CoordinatorStatus,
@@ -13,7 +12,8 @@ import type {
   SubagentRunner,
   TaskResult,
   TaskSpec,
-} from '../types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import { requireSessionId } from '@wrongstack/primitives';
 import { classifySubagentError } from './coordinator/error-classifier.js';
 import { applyRosterBudget } from './fleet.js';
 import {

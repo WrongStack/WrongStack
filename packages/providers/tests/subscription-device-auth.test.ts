@@ -1,4 +1,4 @@
-import type { ProviderApiKey } from '@wrongstack/core/types';
+import type { ProviderApiKey } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyProviderAuthOutcome, createBuiltinProviderAuthRegistry } from '../src/oauth/index.js';
 import {

@@ -1,5 +1,5 @@
 import * as fsp from 'node:fs/promises';
-import type { SessionSummary } from '../../types/session.js';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { atomicWrite } from '../../utils/atomic-write.js';
 import { compareSessionSummaries } from '../session-summary.js';
 import { mapWithConcurrency } from '../storage-concurrency.js';

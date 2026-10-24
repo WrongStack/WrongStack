@@ -1,11 +1,11 @@
-import type { TaskNode, TaskResult } from '@wrongstack/core/types';
+import type { TaskNode, TaskResult } from '@wrongstack/contracts/types';
 import type { SddSupervisorVerdict, TaskOutcome, WaveResult } from './sdd-parallel-run-types.js';
 import type { TaskBatch } from './sdd-task-decomposer.js';
 import { executeSddTask } from './sdd-task-execution.js';
 
 export interface SddTaskDispatchHost {
   executeOne: (
-    task: import('@wrongstack/core/types').TaskNode,
+    task: import('@wrongstack/contracts/types').TaskNode,
   ) => Promise<import('./sdd-parallel-run-types.js').TaskOutcome>;
   stopRequested: boolean;
   opts: import('./sdd-parallel-run-types.js').SddParallelRunOptions;
@@ -15,19 +15,19 @@ export interface SddTaskDispatchHost {
   timeoutMs: number | undefined;
   runId: string;
   dispatchSeq: number;
-  emit: <K extends keyof import('@wrongstack/core/kernel').EventMap>(
+  emit: <K extends keyof import('@wrongstack/contracts/kernel').EventMap>(
     event: K,
-    payload: import('@wrongstack/core/kernel').EventMap[K],
+    payload: import('@wrongstack/contracts/kernel').EventMap[K],
   ) => void;
   taskCwds: Map<string, string>;
   taskBranches: Map<string, string>;
   taskSubagents: Map<string, string>;
   cancelledTasks: Set<string>;
-  allocateWorktrees: (tasks: import('@wrongstack/core/types').TaskNode[]) => Promise<void>;
-  resolveWorktrees: (tasks: import('@wrongstack/core/types').TaskNode[]) => Promise<void>;
+  allocateWorktrees: (tasks: import('@wrongstack/contracts/types').TaskNode[]) => Promise<void>;
+  resolveWorktrees: (tasks: import('@wrongstack/contracts/types').TaskNode[]) => Promise<void>;
   integrateWorktree: (
-    task: import('@wrongstack/core/types').TaskNode,
-    result?: import('@wrongstack/core/types').TaskResult<unknown> | undefined,
+    task: import('@wrongstack/contracts/types').TaskNode,
+    result?: import('@wrongstack/contracts/types').TaskResult<unknown> | undefined,
   ) => Promise<{ ok: boolean; conflictFiles?: string[]; reason?: string; fatal?: boolean }>;
   applyTaskFailure: (taskId: string, subagentId: string, errMsg: string) => Promise<void>;
   retryMap: Map<string, number>;

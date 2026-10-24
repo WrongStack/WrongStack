@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { HQ_PROTOCOL_VERSION } from '@wrongstack/core/hq';
+import { HQ_PROTOCOL_VERSION } from '@wrongstack/hq';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import {

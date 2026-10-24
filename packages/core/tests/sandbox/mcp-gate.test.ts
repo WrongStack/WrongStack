@@ -1,3 +1,4 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   configureSandboxPolicy,
@@ -7,7 +8,6 @@ import {
   SandboxDeniedError,
   setSandboxExpansionApprover,
 } from '../../src/sandbox/index.js';
-import type { Tool } from '../../src/types/tool.js';
 
 interface EchoInput {
   v?: string;

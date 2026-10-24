@@ -1,4 +1,4 @@
-import type { GoalSummary } from '@wrongstack/core/goal';
+import type { GoalSummary } from '@wrongstack/goal';
 import { create } from 'zustand';
 
 interface GoalCatalogState {

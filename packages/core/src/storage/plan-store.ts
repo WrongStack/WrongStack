@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
-import type { ConversationState } from '../core/conversation-state.js';
-import { SessionError } from '../types/errors.js';
+import type { ConversationStateApi } from '@wrongstack/contracts/types/conversation-state';
+import { SessionError } from '@wrongstack/contracts/types/errors';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { sanitizeTerminalText } from '../utils/terminal-sanitize.js';
@@ -399,7 +399,7 @@ export async function mutatePlan(
  * checkpoint so future refactors can flip plans into Context if needed.
  */
 export function attachPlanCheckpoint(
-  _state: ConversationState,
+  _state: ConversationStateApi,
   _filePath: string,
   _sessionId: string,
 ): () => void {

@@ -6,8 +6,8 @@
  * it does in production.
  */
 
+import { type Provider, ProviderError, type Request } from '@wrongstack/contracts/types';
 import { getProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import { type Provider, ProviderError, type Request } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OpenAICompatibleProvider } from '../src/openai-compatible.js';
 import {

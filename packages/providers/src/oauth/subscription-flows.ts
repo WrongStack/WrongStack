@@ -1,4 +1,4 @@
-import type { ProviderApiKey, ProviderAuthStrategy } from '@wrongstack/core/types';
+import type { ProviderApiKey, ProviderAuthStrategy } from '@wrongstack/contracts/types';
 import { createDeviceSubscriptionStrategy } from './device-code.js';
 import {
   oauthExpiry,

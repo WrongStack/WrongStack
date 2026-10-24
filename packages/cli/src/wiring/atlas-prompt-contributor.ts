@@ -24,8 +24,8 @@
  * map is not a memory, it is a fact about the checkout.
  */
 
-import type { SystemPromptContributor, TokenSavingTier } from '@wrongstack/core/types';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+import type { SystemPromptContributor, TokenSavingTier } from '@wrongstack/contracts/types';
+import { normalizeTokenSavingTier } from '@wrongstack/contracts/types';
 import { estimateTextTokens } from '@wrongstack/core/utils';
 import { type AtlasBrief, buildProjectAtlasBrief } from '@wrongstack/tools';
 

@@ -41,12 +41,7 @@ vi.mock('@wrongstack/providers', () => ({
   }),
 }));
 
-import { createProjectAgent } from '@wrongstack/core/coordination';
-import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
-import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
-import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   ConfigStore,
@@ -55,7 +50,14 @@ import type {
   SystemPromptBuilder,
   TokenCounter,
   Tool,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { AGENT_COORDINATION } from '@wrongstack/core/agent';
+import { defaultAgentCoordination } from '@wrongstack/core/agent-coordination';
+import { createProjectAgent } from '@wrongstack/core/coordination';
+import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
+import { DefaultLogger } from '@wrongstack/core/infrastructure';
+import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { capabilitiesFor } from '@wrongstack/providers';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import { type MultiAgentDeps, MultiAgentHost } from '../src/multi-agent.js';
@@ -119,6 +121,8 @@ function makeDeps(): MultiAgentDeps {
   } as never as TokenCounter;
 
   const container = new Container();
+  // Host wiring (createDefaultContainer) binds the production coordination.
+  container.bind(AGENT_COORDINATION, () => defaultAgentCoordination);
   container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
   container.bind(TOKENS.ErrorHandler, () => new DefaultErrorHandler());
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());

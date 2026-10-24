@@ -1,5 +1,5 @@
+import type { Provider, SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Provider, SlashCommand } from '@wrongstack/core/types';
 import { createSecuritySlashCommand } from '@wrongstack/security-scanner';
 import type { SlashCommandContext } from './command-context.js';
 import { unknownSubcommand } from './helpers.js';

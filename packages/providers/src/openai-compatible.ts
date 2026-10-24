@@ -1,4 +1,4 @@
-import type { Capabilities, ReasoningEffort, Request } from '@wrongstack/core/types';
+import type { Capabilities, ReasoningEffort, Request } from '@wrongstack/contracts/types';
 import type { CompatibilityQuirks } from './compatibility-quirks.js';
 import { isEffortRejected } from './effort-support.js';
 import { capabilitiesForFamily } from './family-capabilities.js';

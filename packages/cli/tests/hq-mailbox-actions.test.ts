@@ -19,7 +19,7 @@ import {
   type RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
+import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { disposeProjectMailbox, removeMailboxTempRoot } from './helpers/mailbox-daemon.js';

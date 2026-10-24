@@ -1,5 +1,5 @@
+import { resolveFleetChatVerbosity } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
-import { resolveFleetChatVerbosity } from '../src/types/config.js';
 
 describe('resolveFleetChatVerbosity', () => {
   it('defaults to off when nothing is set', () => {

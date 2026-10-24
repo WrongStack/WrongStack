@@ -1,5 +1,10 @@
 // Storage domain: sessions, memory, attachments, config, recovery, session analysis
 
+export type { SyncCategory, SyncConfig } from '@wrongstack/contracts/types/config';
+export type {
+  DefaultSessionReaderOptions,
+  SessionReader,
+} from '@wrongstack/contracts/types/session-reader';
 export {
   type CatalogSessionRecord,
   type MaintenanceLease,
@@ -33,8 +38,6 @@ export type {
  * migrates to the canonical subpath import (tracked for the 0.320 major).
  */
 export { SessionRegistry as LegacySessionRegistry } from '../session-catalog/session-registry.js';
-export type { SyncCategory, SyncConfig } from '../types/config.js';
-export type { DefaultSessionReaderOptions, SessionReader } from '../types/session-reader.js';
 export type { VcsAdapter, VcsKind, VcsOptions } from '../vcs/vcs-adapter.js';
 export type { VcsRunner, VcsRunResult } from '../vcs/vcs-runner.js';
 export {
@@ -135,9 +138,11 @@ export {
   type ProgressSnapshot,
   parseProgressFromText,
   recordProgress,
+  replaceGoalMission,
   saveGoal,
   setProgress,
   summarizeUsage,
+  updateGoal,
 } from './goal-store.js';
 export {
   INPUT_HISTORY_DEFAULT_MAX,

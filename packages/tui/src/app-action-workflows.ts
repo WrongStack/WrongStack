@@ -1,5 +1,5 @@
-import type { AutonomyStage } from '@wrongstack/core/types';
-import type { WorktreeTimelineEvent } from '@wrongstack/core/types/worktree-timeline';
+import type { AutonomyStage } from '@wrongstack/contracts/types';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
 import type { State } from './app-state.js';
 import type { GoalSummary } from './app-state-core-types.js';

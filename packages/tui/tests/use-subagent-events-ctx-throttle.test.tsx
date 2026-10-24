@@ -11,7 +11,7 @@
 // older, lower reading until some later turn happened to emit outside a window.
 
 import { renderHook } from '@testing-library/react';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from '../src/app-reducer.js';
 import {

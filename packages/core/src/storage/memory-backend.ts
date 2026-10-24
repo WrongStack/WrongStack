@@ -1,9 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { MemoryEntry, MemoryScope } from '@wrongstack/contracts/types/memory';
+import {
+  MEMORY_TYPE_LABELS,
+  type MemoryPriority,
+  type MemoryType,
+} from '@wrongstack/contracts/types/memory';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
-import type { MemoryEntry, MemoryScope } from '../types/memory.js';
-import { MEMORY_TYPE_LABELS, type MemoryPriority, type MemoryType } from '../types/memory.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 

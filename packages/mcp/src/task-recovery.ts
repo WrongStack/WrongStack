@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { Logger, Tool } from '@wrongstack/contracts/types';
 import { createSandboxMcpGate } from '@wrongstack/core/sandbox';
-import type { Logger, Tool } from '@wrongstack/core/types';
 import type { MCPClient } from './client.js';
 import type { MCPTool, ToolCallResult } from './contracts.js';
 import { MODERN_PROTOCOL_VERSION } from './modern-protocol.js';

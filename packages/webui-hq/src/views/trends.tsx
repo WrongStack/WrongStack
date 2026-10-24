@@ -6,7 +6,7 @@
  * would make any pair look correlated. When the server reports per-model or
  * per-provider cost, those roll up into share tables underneath.
  */
-import type { HqTimeseriesBreakdownEntry, HqTimeseriesSample } from '@wrongstack/core/hq';
+import type { HqTimeseriesBreakdownEntry, HqTimeseriesSample } from '@wrongstack/hq';
 import { ChartNoAxesCombined } from 'lucide-react';
 import type * as React from 'react';
 import { useEffect, useMemo, useState } from 'react';

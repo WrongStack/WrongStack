@@ -1,10 +1,10 @@
 import * as path from 'node:path';
-import type { RunResult } from '../core/agent-types.js';
-import type { Context } from '../core/context.js';
-import type { OneShotOrchestrator } from '../execution/one-shot-llm.js';
-import type { AfterRunHook, AgentExtension } from '../extension/extension-points.js';
-import type { MemoryEntry, MemoryStore } from '../types/memory.js';
-import type { Provider } from '../types/provider.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { AfterRunHook, AgentExtension } from '@wrongstack/contracts/types/extension-points';
+import type { MemoryEntry, MemoryStore } from '@wrongstack/contracts/types/memory';
+import type { OneShotLLMCaller } from '@wrongstack/contracts/types/one-shot-llm';
+import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { RunResult } from '@wrongstack/contracts/types/run-result';
 import {
   readBundledInstructionText,
   renderInstructionTemplate,
@@ -187,7 +187,7 @@ export interface MemoryConsolidatorOptions {
    * it instead of the direct provider.complete() path, gaining fallback
    * chain support and cheap-model defaulting.
    */
-  oneShotOrchestrator?: OneShotOrchestrator | undefined;
+  oneShotOrchestrator?: OneShotLLMCaller | undefined;
 }
 
 // ── Prompt ──────────────────────────────────────────────────────────────
@@ -236,7 +236,7 @@ function safeCommandEvidence(value: unknown): string | undefined {
   return command;
 }
 
-function buildSessionEvidence(ctx: Context): string {
+function buildSessionEvidence(ctx: AgentContext): string {
   const projectRoot = ctx.projectRoot ?? ctx.cwd ?? '';
   const read = [...(ctx.readFiles ?? [])]
     .slice(-20)
@@ -322,7 +322,7 @@ export class SessionMemoryConsolidator implements AgentExtension {
   private readonly model?: string | undefined;
   private readonly minIterations: number;
   private readonly maxExistingEntries: number;
-  private readonly oneShotOrchestrator?: OneShotOrchestrator | undefined;
+  private readonly oneShotOrchestrator?: OneShotLLMCaller | undefined;
 
   constructor(opts: MemoryConsolidatorOptions) {
     this.memoryStore = opts.memoryStore;
@@ -336,7 +336,7 @@ export class SessionMemoryConsolidator implements AgentExtension {
     this.oneShotOrchestrator = opts.oneShotOrchestrator;
   }
 
-  afterRun: AfterRunHook = async (ctx: Context, result: RunResult) => {
+  afterRun: AfterRunHook = async (ctx: AgentContext, result: RunResult) => {
     // Only consolidate successful sessions with meaningful output
     if (result.status !== 'done') return;
     if (!result.finalText || result.finalText.trim().length < 20) return;

@@ -1,10 +1,10 @@
+import type { ConcreteTokenSavingTier } from '@wrongstack/contracts/types';
 import {
   type InstructionTemplateContext,
   loadInstructionBundle,
   renderInstructionLayer,
   type SystemInstructionVariant,
 } from '@wrongstack/core/agent';
-import type { ConcreteTokenSavingTier } from '@wrongstack/core/types';
 import { builtinTools, TIER1_TOOLS } from '@wrongstack/tools';
 import { describe, expect, it } from 'vitest';
 

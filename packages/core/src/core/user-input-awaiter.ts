@@ -1,7 +1,7 @@
-import type { EventBus } from '../kernel/events.js';
-import type { UserInputAwaiter, UserInputResponse } from '../types/user-input.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { UserInputAwaiter, UserInputResponse } from '@wrongstack/contracts/types/user-input';
+import { userInputObserverCount } from '../hooks/user-input-observers.js';
 import { HUMAN_APPROVAL_TIMEOUT_MS } from './agent-tools.js';
-import { userInputObserverCount } from './user-input-observers.js';
 
 /**
  * Autonomy modes in which nobody is expected at the keyboard. The

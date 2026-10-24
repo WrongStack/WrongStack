@@ -1,5 +1,5 @@
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
-import type { SessionSummary } from '../../src/types/session.js';
 import {
   compareSessionSummaries,
   matchesSessionFilter,

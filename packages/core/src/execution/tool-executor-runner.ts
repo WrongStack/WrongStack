@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import type { Context } from '../core/context.js';
 import { resolveEventSessionId } from '../core/context.js';
 import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
 import { runWithProcessTelemetry } from '../observability/process-telemetry.js';
 import { isYoloLockedOff } from '../security/process-lockdown.js';
-import type { Tool } from '../types/tool.js';
-import type { ToolExecutorOptions } from '../types/tool-executor.js';
+import type { ToolExecutorOptions } from './tool-executor-options.js';
 import { executeStreamedTool } from './tool-executor-stream.js';
 import { abortReasonToError, clampTimeoutMs } from './tool-executor-support.js';
 

@@ -1,5 +1,5 @@
-import type { TextBlock } from '../types/blocks.js';
-import type { NextStepsMode } from '../types/config/autonomy.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { NextStepsMode } from '@wrongstack/contracts/types/config/autonomy';
 import { NEXT_STEPS_COMPLETE_MARKER } from '../utils/next-steps.js';
 import { formatTodoForModel, hasKanbanBoundTodos } from '../utils/todos-format.js';
 import type { Context } from './context.js';

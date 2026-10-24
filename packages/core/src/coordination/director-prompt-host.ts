@@ -1,5 +1,5 @@
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { renderInstructionLayer } from '../core/instruction-template.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
 import {
   composeDirectorPrompt,
   composeSubagentPrompt,

@@ -1,5 +1,5 @@
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Message, SessionEvent } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Message, SessionEvent } from '@wrongstack/contracts/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

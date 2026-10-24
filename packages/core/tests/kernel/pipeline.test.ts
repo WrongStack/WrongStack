@@ -1,5 +1,5 @@
+import { type Middleware, Pipeline } from '@wrongstack/contracts/kernel/pipeline';
 import { describe, expect, it } from 'vitest';
-import { type Middleware, Pipeline } from '../../src/kernel/pipeline.js';
 
 function useMiddleware<T>(pipeline: Pipeline<T>, middleware: Middleware<T>): void {
   pipeline.use(middleware);

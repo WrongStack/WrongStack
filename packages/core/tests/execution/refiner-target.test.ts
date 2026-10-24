@@ -1,10 +1,10 @@
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import { resolveConfiguredRefinerRef } from '../../src/execution/enhance-recovery.js';
 import {
   resolveRefinerTargetSpec,
   resolveRefinerTargetSpecs,
 } from '../../src/execution/refiner-target.js';
-import type { Config } from '../../src/types/config.js';
 
 function cfg(over: Partial<Config> = {}): Config {
   return {

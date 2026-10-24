@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { expect, it } from 'vitest';
 import { createCustomModelHandlers } from '../src/server/provider/custom-models.js';
 import type { ProviderServiceContext } from '../src/server/provider/mutations.js';

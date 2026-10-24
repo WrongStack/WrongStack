@@ -15,8 +15,8 @@
  * the caller pins one, and both the token ceiling and the timeout are small.
  */
 
+import type { Config } from '@wrongstack/contracts/types';
 import { OneShotOrchestrator } from '@wrongstack/core/execution';
-import type { Config } from '@wrongstack/core/types';
 import type {
   SummarizeFileInput,
   SummarizeFileResult,

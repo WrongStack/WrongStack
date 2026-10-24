@@ -1,11 +1,11 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { HookEvent, HookInput } from '@wrongstack/contracts/types/hooks';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEventUserInputAwaiter } from '../../src/core/user-input-awaiter.js';
 import { createStrategyCompactor } from '../../src/execution/strategy-compactor.js';
 import { bridgeLifecycleHooks } from '../../src/hooks/lifecycle-bridge.js';
 import { HookRegistry } from '../../src/hooks/registry.js';
 import { HookRunner } from '../../src/hooks/runner.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { HookEvent, HookInput } from '../../src/types/hooks.js';
 
 let seq = 0;
 

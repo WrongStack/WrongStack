@@ -6,6 +6,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionPermissionOverride, Tool } from '@wrongstack/contracts/types';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { DefaultSessionRewinder, DefaultSessionStore } from '../../src/index.js';
@@ -29,8 +31,6 @@ import {
   redoLastRewind,
 } from '../../src/storage/session-rewind-apply.js';
 import { inheritsIntoFork } from '../../src/storage/session-store/replay.js';
-import type { SessionPermissionOverride, Tool } from '../../src/types/index.js';
-import type { SessionWriter } from '../../src/types/session.js';
 
 let dir: string;
 

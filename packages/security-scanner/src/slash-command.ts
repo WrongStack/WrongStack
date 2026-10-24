@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { Provider, SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Provider, SlashCommand } from '@wrongstack/core/types';
 import { defaultOrchestrator } from './orchestrator.js';
 import type { PackageAuditResult, PackageAuditRunner } from './package-audit.js';
 import { defaultPackageAuditRunner } from './package-audit.js';

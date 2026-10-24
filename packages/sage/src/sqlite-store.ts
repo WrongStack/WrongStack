@@ -13,8 +13,8 @@
  * the store migrates records automatically (one-time cost).
  */
 import * as path from 'node:path';
-import type { HqSageRecord } from '@wrongstack/core/hq';
-import type { MemoryEntry, MemoryScope, MemoryStore } from '@wrongstack/core/types';
+import type { MemoryEntry, MemoryScope, MemoryStore } from '@wrongstack/contracts/types';
+import type { HqSageRecord } from '@wrongstack/hq';
 import type { SageDoctorOptions, SageDoctorReport } from './memory-doctor-types.js';
 import type { VectorAugmentHit } from './retrieval/vector-augment.js';
 import type { SearchOptions, SearchQuery, SearchResult } from './service-contract.js';

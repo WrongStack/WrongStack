@@ -1,9 +1,9 @@
+import type { Tool } from '@wrongstack/contracts/types';
 import {
   MAX_PENDING_NEXT_STEPS,
   type PendingNextStep,
   writePendingNextSteps,
 } from '@wrongstack/core/agent';
-import type { Tool } from '@wrongstack/core/types';
 
 /**
  * Structured alternative to typing a `<nextsteps>` block into the final message.

@@ -1,4 +1,4 @@
-import type { MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/core/types';
+import type { MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/contracts/types';
 
 export const SCOPE_LABEL: Record<MemoryScope, string> = {
   'project-agents': '🤖 Project AGENTS.md',

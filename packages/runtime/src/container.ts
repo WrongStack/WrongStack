@@ -1,8 +1,19 @@
+import { Container, type EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import {
+  type Config,
+  installLimitsSource,
+  type Logger,
+  type ModelsRegistry,
+} from '@wrongstack/contracts/types';
+import {
+  AGENT_COORDINATION,
   DefaultSystemPromptBuilder,
   type DefaultSystemPromptBuilderOptions,
   FallbackProfileManager,
+  HQ_MAILBOX_PUBLISHER_FACTORY,
 } from '@wrongstack/core/agent';
+import { defaultAgentCoordination } from '@wrongstack/core/agent-coordination';
+import { createHqPublisherFromEnv } from '@wrongstack/hq';
 import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 // PR-C1 (66c4eb68): execution/ and infrastructure/ symbols come from the
 // published subpaths now that types/index.ts no longer re-exports them.
@@ -15,7 +26,6 @@ import {
   DefaultSkillLoader,
 } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { Container, type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultModeStore } from '@wrongstack/core/models';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import {
@@ -24,12 +34,6 @@ import {
   getSessionRegistry,
   resolveSessionLoggingConfig,
 } from '@wrongstack/core/storage';
-import {
-  type Config,
-  installLimitsSource,
-  type Logger,
-  type ModelsRegistry,
-} from '@wrongstack/core/types';
 import { createTypeSafeCriterionJudge, resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import { toErrorMessage, type WstackPaths } from '@wrongstack/core/utils';
 import { setKanbanCriterionJudge } from '@wrongstack/kanban';
@@ -87,6 +91,11 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
   // 01KYSCC8A49TS9ENCVCS2J3WJ8 for the parallel gap to the CLI factory.
   container.bind(TOKENS.ProviderModelStatusTracker, () => new ProviderModelStatusTracker());
   container.bind(TOKENS.Logger, () => logger);
+  // Mailbox inbox, session notes, fleet pulse and leader deliveries for every
+  // Agent built on this container. The agent loop only resolves the port.
+  container.bind(AGENT_COORDINATION, () => defaultAgentCoordination);
+  // HQ mirror of the project mailbox; returns undefined while HQ is off.
+  container.bind(HQ_MAILBOX_PUBLISHER_FACTORY, () => createHqPublisherFromEnv);
   container.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());
   // Wire the compactor into the recovery chain so a 413 / context-overflow

@@ -1,6 +1,6 @@
+import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import { ToolErrorCategory } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
-import type { ToolUseBlock } from '../../src/types/blocks.js';
-import { ToolErrorCategory } from '../../src/types/tool.js';
 import {
   classifiedToolErrorResult,
   getToolErrorInfo,

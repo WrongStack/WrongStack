@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { bootstrapProfileName, resolveWstackPaths } from '@wrongstack/core/utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { activeProfileConfigPath } from '../src/profile-config-path.js';

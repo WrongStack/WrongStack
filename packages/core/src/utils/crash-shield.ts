@@ -1,4 +1,4 @@
-import { scrubErrorText } from '../security/error-sanitize.js';
+import { scrubErrorText } from '@wrongstack/primitives';
 import { writeErr } from './term.js';
 
 /**

@@ -9,18 +9,18 @@
  * `DelegationTracker`.
  */
 
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type {
+  SubagentRunContext,
+  SubagentRunOutcome,
+  TaskSpec,
+} from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDelegateTool, type DelegateHost } from '../../src/coordination/delegate-tool.js';
 import { leaderDeliveryHub } from '../../src/coordination/delegation/leader-delivery-hub.js';
 import { Director } from '../../src/coordination/director.js';
 import { FLEET_ROSTER } from '../../src/coordination/fleet.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { AgentContext } from '../../src/types/context.js';
-import type {
-  SubagentRunContext,
-  SubagentRunOutcome,
-  TaskSpec,
-} from '../../src/types/multi-agent.js';
 
 const BOUNDARY = {
   scope: 'The named target only — read, verify, report.',

@@ -1,5 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import type { StopReason } from '@wrongstack/contracts/types';
 import type {
   CascadeAgentKind,
   CascadeEvidenceCheckResult,
@@ -8,11 +9,10 @@ import type {
   ChimeraReviewNeededPayload,
 } from '@wrongstack/core/plugin';
 import { emitReviewIfChanged } from '@wrongstack/core/plugin';
-import type { StopReason } from '@wrongstack/core/types';
 import {
   CASCADE_EVIDENCE_COMMAND_TIMEOUT_MS,
-  extractCascadeEvidence,
   type CascadeEvidence,
+  extractCascadeEvidence,
   verifyCascadeEvidence,
 } from './chimera-cascade-evidence.js';
 import { buildChimeraCascadeTaskDescription } from './chimera-review-task.js';

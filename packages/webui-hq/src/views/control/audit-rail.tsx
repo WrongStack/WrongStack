@@ -5,7 +5,7 @@
  * Rows for other clients are dimmed rather than hidden: an operator switching
  * targets still needs to see that a command they sent a minute ago is stuck.
  */
-import type { HqCommandAuditEntry } from '@wrongstack/core/hq';
+import type { HqCommandAuditEntry } from '@wrongstack/hq';
 import type * as React from 'react';
 import { EmptyState, Mono } from '../../components/hq/primitives.js';
 import { Badge } from '../../components/ui/badge.js';

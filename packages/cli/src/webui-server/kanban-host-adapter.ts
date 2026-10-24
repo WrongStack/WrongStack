@@ -1,9 +1,9 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, SkillLoader } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import type { AgentFactory, BrainArbiter } from '@wrongstack/core/coordination';
-import type { PhaseTemplate } from '@wrongstack/core/goal';
-import { PhaseGraphBuilder } from '@wrongstack/core/goal';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config, SkillLoader } from '@wrongstack/core/types';
+import type { PhaseTemplate } from '@wrongstack/goal';
+import { PhaseGraphBuilder } from '@wrongstack/goal';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { exportBoardToTaskGraph } from '@wrongstack/kanban';
 import { TaskGraphStore } from '@wrongstack/sdd';

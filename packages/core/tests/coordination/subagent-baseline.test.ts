@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { MultiAgentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
 import { DEFAULT_SUBAGENT_BASELINE } from '../../src/coordination/director-prompts.js';
 import { renderInstructionLayer } from '../../src/core/instruction-template.js';
-import type { MultiAgentConfig } from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

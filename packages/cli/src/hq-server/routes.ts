@@ -22,7 +22,7 @@ import type {
   HqEventEnvelope,
   HqSnapshot,
   HqTranscriptEntry,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { WebSocket } from 'ws';
 import { HQ_HTML } from '../hq-recovery-html.js';
@@ -163,7 +163,7 @@ export interface HqRouterDeps {
   /** Aggregate token-expiry stats for snapshot totals + alert engine. */
   getTokenStats?: (() => HqSnapshot['totals']['tokenStats'] | undefined) | undefined;
   /** One-time bootstrap code store for token-to-cookie exchange. */
-  bootstrapStore?: import('@wrongstack/core/hq').HqBootstrapCodeStore | undefined;
+  bootstrapStore?: import('@wrongstack/hq').HqBootstrapCodeStore | undefined;
   /**
    * Applies a freshly-persisted `auth.json` to live server state. Bound to
    * `HqAuthState.apply` so the in-process mutation routes share one projection

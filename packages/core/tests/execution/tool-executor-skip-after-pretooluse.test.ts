@@ -7,13 +7,14 @@
  * its TTL, denying peer sessions. The guard now reports `preToolUseRan` and
  * the executor runs the skip cleanup for exactly those refusals.
  */
+
+import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { HookRegistry } from '../../src/hooks/registry.js';
 import { HookRunner } from '../../src/hooks/runner.js';
-import type { ToolUseBlock } from '../../src/types/blocks.js';
-import type { Tool } from '../../src/types/tool.js';
 
 function makeCtx(): Context {
   return {

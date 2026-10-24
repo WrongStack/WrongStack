@@ -3,13 +3,13 @@ import type {
   HqKanbanSnapshotPayload,
   HqKanbanTombstone,
   HqPublisher,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import {
   deriveHqProjectId,
   MAX_HQ_KANBAN_BOARD_BYTES,
   MAX_HQ_KANBAN_BOARDS,
   redactHqEventPayload,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import {
   bridgeKanbanSupervisor,
   deleteBoard,

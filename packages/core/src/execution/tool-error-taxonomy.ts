@@ -1,6 +1,6 @@
-import type { ToolErrorCategory, ToolErrorInfo } from '../types/tool.js';
-import { ToolErrorCategory as Cat } from '../types/tool.js';
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { ToolErrorCategory, ToolErrorInfo } from '@wrongstack/contracts/types/tool';
+import { ToolErrorCategory as Cat } from '@wrongstack/contracts/types/tool';
 import { classifyToolError } from './tool-executor-support.js';
 
 /**

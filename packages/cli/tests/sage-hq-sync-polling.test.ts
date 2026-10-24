@@ -1,4 +1,4 @@
-import type { HqPublisher, HqSageRecord } from '@wrongstack/core/hq';
+import type { HqPublisher, HqSageRecord } from '@wrongstack/hq';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createSageHqSync } from '../src/sage-hq-sync.js';
 

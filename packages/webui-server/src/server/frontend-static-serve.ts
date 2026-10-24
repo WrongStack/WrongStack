@@ -155,7 +155,9 @@ export interface StaticServeOptions {
    * loses LLM analysis while the standalone one has it.
    */
   getLlm?:
-    | (() => { provider: import('@wrongstack/core/types').Provider; model: string } | undefined)
+    | (() =>
+        | { provider: import('@wrongstack/contracts/types').Provider; model: string }
+        | undefined)
     | undefined;
   /** Active target project root for TechStack and CodeMap APIs. */
   projectRoot?: string | undefined;

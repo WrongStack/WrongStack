@@ -7,9 +7,9 @@
 import { unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MCPRegistry } from '../src/registry.js';
 import { renderStructuredResult } from '../src/structured-result.js';

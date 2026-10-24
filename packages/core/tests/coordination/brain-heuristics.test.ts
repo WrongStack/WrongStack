@@ -5,7 +5,7 @@ import {
   isDeadlockWithFailedWork,
   isRetryExhausted,
   resolveBrainHeuristics,
-} from '../../src/coordination/brain-heuristics.js';
+} from '../../src/brain/brain-heuristics.js';
 
 describe('brain-heuristics predicates', () => {
   describe('isDeadlockWithFailedWork', () => {

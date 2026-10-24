@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
+import type { ToolProgressEvent, ToolStreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { bashTool } from '../src/bash.js';
 import { executeBashStream } from '../src/bash-stream.js';

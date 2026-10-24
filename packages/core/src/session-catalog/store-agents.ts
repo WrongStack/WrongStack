@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { gunzipSync } from 'node:zlib';
-import type { SessionEvent } from '../types/session.js';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { deriveSessionAgents, type SessionAgentRecord } from './session-agents.js';
 import { assertId, parseJson, type SessionAgentRow } from './store-schema.js';
 

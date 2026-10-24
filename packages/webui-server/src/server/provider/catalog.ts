@@ -1,10 +1,10 @@
+import type { ModelsRegistry, ProviderConfig } from '@wrongstack/contracts/types';
 import {
   type FallbackSuggestCandidate,
   hasProviderCredential,
   isModelRefListed,
   resolveProviderModelList,
 } from '@wrongstack/core/models';
-import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import {
   resolveProviderCatalogForModels,

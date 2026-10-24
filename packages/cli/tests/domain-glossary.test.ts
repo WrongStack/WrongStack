@@ -1,4 +1,4 @@
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomainGlossaryAdapter } from '../src/wiring/domain-glossary.js';
 

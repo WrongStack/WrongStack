@@ -1,4 +1,4 @@
-import type { MemoryScope } from '@wrongstack/core/types';
+import type { MemoryScope } from '@wrongstack/contracts/types';
 
 export type SageScope = 'project' | 'user' | 'session' | 'file' | 'symbol';
 

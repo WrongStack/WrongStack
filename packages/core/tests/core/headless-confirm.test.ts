@@ -1,26 +1,26 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Container } from '@wrongstack/contracts/kernel/container';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter } from '../../src/coordination/brain.js';
+import type { BrainArbiter } from '../../src/brain/brain.js';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import { HUMAN_APPROVAL_TIMEOUT_MS } from '../../src/core/agent-tools.js';
 import { Context } from '../../src/core/context.js';
 import { DefaultErrorHandler } from '../../src/execution/error-handler.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
-import { createApprovalRegistry } from '../../src/hq/approval-bridge.js';
+import { createApprovalRegistry } from '../../../hq/src/approval-bridge.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { Container } from '../../src/kernel/container.js';
-import { EventBus } from '../../src/kernel/events.js';
-import { TOKENS } from '../../src/kernel/tokens.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type { Tool } from '../../src/types/tool.js';
 import { MockProvider } from '../helpers/mock-provider.js';
 
 /**

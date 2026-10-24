@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
-import { isLoopbackHost } from '../hq/exposure.js';
+import type { Config, ConfigStore } from '@wrongstack/contracts/types/config/root';
+import type { SecretVault } from '@wrongstack/contracts/types/secret-vault';
 import { encryptConfigSecrets } from '../security/config-secrets.js';
-import type { Config, ConfigStore } from '../types/config/root.js';
-import type { SecretVault } from '../types/secret-vault.js';
 import { atomicWrite, withFileLock } from '../utils/index.js';
+import { isLoopbackHost } from '../utils/ip-guard.js';
 import { TYPESAFE_JUDGMENT_FEATURES } from './judgments.js';
 import { jevFeatureReadiness } from './readiness.js';
 import { resolveTypeSafeAccount, resolveTypeSafeRoute } from './resolve.js';

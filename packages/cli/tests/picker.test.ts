@@ -3,7 +3,7 @@ import {
   type ModelsDevModel,
   REASONING_EFFORT_LEVELS,
   type ResolvedProvider,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyPickerKey,

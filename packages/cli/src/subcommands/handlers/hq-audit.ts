@@ -1,10 +1,5 @@
 import * as fs from 'node:fs/promises';
-import {
-  hqAuthAuditPath,
-  hqAuthContentHash,
-  hqAuthFilePath,
-  readHqAuthFile,
-} from '@wrongstack/core/hq';
+import { hqAuthAuditPath, hqAuthContentHash, hqAuthFilePath, readHqAuthFile } from '@wrongstack/hq';
 import type { SubcommandDeps } from '../contracts.js';
 
 // ── --ttl parsing ──────────────────────────────────────────────────────────

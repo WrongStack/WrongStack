@@ -1,26 +1,6 @@
 // Coordination domain: multi-agent orchestration, director, fleet bus, agents
 
 export {
-  createMessage,
-  InMemoryAgentBridge,
-  InMemoryBridgeTransport,
-} from './agent-bridge.js';
-export * from './agent-catalog-exports.js';
-export {
-  type AgentFactory,
-  type AgentFactoryResult,
-  type AgentRunnerOptions,
-  makeAgentSubagentRunner,
-  withDisabledToolFiltering,
-} from './agent-subagent-runner.js';
-
-export {
-  type AutoExtendCeiling,
-  type AutoExtendPolicy,
-  attachAutoExtend,
-} from './auto-extend.js';
-export * from './autonomy-exports.js';
-export {
   type BrainArbiter,
   type BrainDecision,
   type BrainDecisionOption,
@@ -37,7 +17,7 @@ export {
   HumanEscalatingBrainArbiter,
   ObservableBrainArbiter,
   terminalPolicyDecision,
-} from './brain.js';
+} from '../brain/brain.js';
 export {
   BrainDecisionLedger,
   type BrainDecisionLedgerOptions,
@@ -45,12 +25,12 @@ export {
   brainDecisionKey,
   createLedgerGuardBrainArbiter,
   type LedgerGuardBrainArbiterOptions,
-} from './brain-ledger.js';
+} from '../brain/brain-ledger.js';
 export {
   type BrainInterventionInput,
   BrainMonitor,
   type BrainMonitorOptions,
-} from './brain-monitor.js';
+} from '../brain/brain-monitor.js';
 export {
   type BrainDecisionTier,
   BrainTierCounter,
@@ -60,8 +40,48 @@ export {
   isDeterministicTier,
   markDecisionTier,
   readDecisionTier,
-} from './brain-telemetry.js';
-export { BrainTraceRecorder, type BrainTraceRecorderOptions } from './brain-trace.js';
+} from '../brain/brain-telemetry.js';
+export { BrainTraceRecorder, type BrainTraceRecorderOptions } from '../brain/brain-trace.js';
+export {
+  areSubagentCompanionsAllowed,
+  areSubagentCompanionsAllowedForSession,
+  areSubagentsAllowed,
+  areSubagentsAllowedForSession,
+  isSubagentPolicyLocked,
+  lockSessionSubagentPolicy,
+  lockSessionSubagentPolicyForSession,
+  resetSessionSubagentPolicy,
+  restoreSessionSubagentPolicy,
+  SUBAGENT_COMPANIONS_ALLOWED_META_KEY,
+  SUBAGENTS_ALLOWED_META_KEY,
+  SUBAGENTS_POLICY_LOCKED_META_KEY,
+  type SubagentPolicyMode,
+  seedSessionSubagentPolicy,
+  setSessionSubagentPolicy,
+  setSessionSubagentsAllowed,
+  subagentPolicyMode,
+  subagentPolicyModeFrom,
+  unlockSessionSubagentPolicyForSession,
+} from '../security/session-subagent-policy.js';
+export {
+  createMessage,
+  InMemoryAgentBridge,
+  InMemoryBridgeTransport,
+} from './agent-bridge.js';
+export * from './agent-catalog-exports.js';
+export {
+  type AgentFactory,
+  type AgentFactoryResult,
+  type AgentRunnerOptions,
+  makeAgentSubagentRunner,
+  withDisabledToolFiltering,
+} from './agent-subagent-runner.js';
+export {
+  type AutoExtendCeiling,
+  type AutoExtendPolicy,
+  attachAutoExtend,
+} from './auto-extend.js';
+export * from './autonomy-exports.js';
 export {
   type BugFinding,
   type CollabBudgetConfig,
@@ -343,6 +363,12 @@ export {
   type PackageOutdatedWatcherOptions,
   startPackageOutdatedWatcher,
 } from './package-outdated-watcher.js';
+export {
+  type ParallelEngineState,
+  ParallelEternalEngine,
+  type ParallelEternalOptions,
+  type ParallelIterationStage,
+} from './parallel-eternal-engine.js';
 // ── Provider/Model Status Tracker ───────────────────────────────────────────
 export {
   type ErrorHistoryEntry,
@@ -388,27 +414,6 @@ export {
   setSessionSubagentModelPlanForSession,
   subagentSlotOccupancy,
 } from './session-subagent-models.js';
-export {
-  areSubagentCompanionsAllowed,
-  areSubagentCompanionsAllowedForSession,
-  areSubagentsAllowed,
-  areSubagentsAllowedForSession,
-  isSubagentPolicyLocked,
-  lockSessionSubagentPolicy,
-  lockSessionSubagentPolicyForSession,
-  resetSessionSubagentPolicy,
-  restoreSessionSubagentPolicy,
-  SUBAGENT_COMPANIONS_ALLOWED_META_KEY,
-  SUBAGENTS_ALLOWED_META_KEY,
-  SUBAGENTS_POLICY_LOCKED_META_KEY,
-  type SubagentPolicyMode,
-  seedSessionSubagentPolicy,
-  setSessionSubagentPolicy,
-  setSessionSubagentsAllowed,
-  subagentPolicyMode,
-  subagentPolicyModeFrom,
-  unlockSessionSubagentPolicyForSession,
-} from './session-subagent-policy.js';
 // ── Mailbox bridge lock — per-project single-instance contract ─────────
 // The HTTP bridge (`wstack mailbox serve`) writes a per-project lock +
 // token file at `<projectDir>/.mailbox-bridge.{lock,token}`. Core owns

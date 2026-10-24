@@ -1,6 +1,6 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { WorkspaceCheckpointRef } from '@wrongstack/contracts/types';
 import { createDefaultPipelines, type ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { WorkspaceCheckpointRef } from '@wrongstack/core/types';
 import { createGovernanceMutationSnapshotBridge } from '@wrongstack/runtime/governance-mutation-snapshot-bridge';
 import { describe, expect, it, vi } from 'vitest';
 

@@ -78,6 +78,7 @@ const SOURCES: Record<string, string> = {
   'packages/cli/src/cli-main.ts': "import { run } from '@wrongstack/runtime';\n",
   'packages/tui/src/app-view.tsx': "import { Panel } from '@wrongstack/tui/components';\n",
   'packages/tui/src/components/history/banner.tsx': 'export function Banner() { return null; }\n',
+  'packages/techstack/src/adapters/npm.ts': "import { readFile } from 'node:fs/promises';\n",
   'packages/tui/tests/banner-formation.test.tsx': "import { formatBanner } from '../banner';\n",
 };
 

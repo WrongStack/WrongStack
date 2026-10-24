@@ -1,5 +1,5 @@
-import type { EventMap } from '@wrongstack/core/kernel';
-import type { TaskNode, TaskResult } from '@wrongstack/core/types';
+import type { EventMap } from '@wrongstack/contracts/kernel';
+import type { TaskNode, TaskResult } from '@wrongstack/contracts/types';
 import type { WorktreeHandle } from '@wrongstack/core/worktree';
 import type { SddParallelRunOptions } from './sdd-parallel-run-types.js';
 

@@ -1,12 +1,11 @@
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { makeMailSendTool } from '../../src/coordination/mail-tools.js';
+import type { Mailbox, MailboxMessage } from '../../src/coordination/mailbox-types.js';
 import { sessionNoteHub } from '../../src/coordination/session-note-hub.js';
 import { makeSessionNoteTool } from '../../src/coordination/session-note-tool.js';
-import type { Mailbox, MailboxMessage } from '../../src/coordination/mailbox-types.js';
-import { Context } from '../../src/core/context.js';
-import { resolveOwningSessionId } from '../../src/core/context.js';
+import { Context, resolveOwningSessionId } from '../../src/core/context.js';
 import { consumeSessionNotes, enqueueSessionNote } from '../../src/core/session-notes.js';
-import type { SessionWriter } from '../../src/types/session.js';
 
 /**
  * A worker belongs to the conversation that spawned it, not to its journal.

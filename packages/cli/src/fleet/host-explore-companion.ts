@@ -22,6 +22,13 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type {
+  FleetConfig,
+  SubagentConfig,
+  SubagentStructuredReport,
+  TaskResult,
+} from '@wrongstack/contracts/types';
 import {
   buildProbeTaskText,
   DEFAULT_EXPLORE_COMPANION_AGENT_ID,
@@ -33,13 +40,6 @@ import {
   mailboxSessionTag,
   postSessionNote,
 } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type {
-  FleetConfig,
-  SubagentConfig,
-  SubagentStructuredReport,
-  TaskResult,
-} from '@wrongstack/core/types';
 
 interface HostExploreCompanionInput {
   director: Director;

@@ -1,7 +1,7 @@
-import type { Message } from '@wrongstack/core/types';
+import type { Message } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
-import { rehydrateHistory } from '../src/rehydrate-history.js';
 import type { HistoryEntry } from '../src/components/history/types.js';
+import { rehydrateHistory } from '../src/rehydrate-history.js';
 
 /**
  * Session recovery MUST render assistant messages and tool executions in

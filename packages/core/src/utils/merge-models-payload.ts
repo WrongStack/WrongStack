@@ -4,7 +4,7 @@ import type {
   ModelsDevModel,
   ModelsDevPayload,
   ModelsDevProvider,
-} from '../types/models-registry.js';
+} from '@wrongstack/contracts/types/models-registry';
 
 // Magic keys in the overlay payload that signal deletions rather than additions.
 const REMOVE_PROVIDERS_KEY = '_removeProviders';

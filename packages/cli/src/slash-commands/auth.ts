@@ -1,5 +1,5 @@
+import type { ProviderConfig, SlashCommand } from '@wrongstack/contracts/types';
 import { CLOUD_FIELDS, type NativeCloudSettings } from '@wrongstack/core/cloud-provider';
-import type { ProviderConfig, SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { providerCloudConfig } from '../provider-cloud-config.js';

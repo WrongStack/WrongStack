@@ -1,8 +1,8 @@
+import type { ShellHook } from '@wrongstack/contracts/types/hooks';
 import { describe, expect, it, vi } from 'vitest';
 import { HookRegistry, hookMatcherMatches } from '../../src/hooks/registry.js';
 import { HookRunner } from '../../src/hooks/runner.js';
 import { countShellHooks, shellHooksEqual } from '../../src/hooks/shell-hooks-equal.js';
-import type { ShellHook } from '../../src/types/hooks.js';
 
 const env = { cwd: '/work' };
 

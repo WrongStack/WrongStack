@@ -1,11 +1,11 @@
+import type { AutoThinConfig, DisabledToolMeta, ToolsConfig } from '@wrongstack/contracts/types';
 import { noOpVault } from '@wrongstack/core/security';
-import type { AutoThinConfig, DisabledToolMeta, ToolsConfig } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
 
 interface CreateToolAutoThinCommandsInput {
-  getCurrentTools: () => import('@wrongstack/core/types').ToolsConfig;
+  getCurrentTools: () => import('@wrongstack/contracts/types').ToolsConfig;
   opts: import('./command-context.js').SlashCommandContext;
 }
 

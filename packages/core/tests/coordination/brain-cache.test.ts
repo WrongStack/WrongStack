@@ -1,16 +1,12 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  BrainArbiter,
-  BrainDecision,
-  BrainDecisionRequest,
-} from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../../src/brain/brain.js';
 import {
   BrainDecisionCache,
   brainCacheKey,
   createCachingBrainArbiter,
-} from '../../src/coordination/brain-cache.js';
-import { markDecisionTier } from '../../src/coordination/brain-telemetry.js';
-import { EventBus } from '../../src/kernel/events.js';
+} from '../../src/brain/brain-cache.js';
+import { markDecisionTier } from '../../src/brain/brain-telemetry.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'r1',

@@ -1,4 +1,4 @@
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 
 interface RequestLimitExtensionOptions {
   events: EventBus;

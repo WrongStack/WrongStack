@@ -16,8 +16,8 @@
  * slow this tool down but can never freeze the terminal.
  */
 
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { codebaseIndexStats, getIndexState, searchCodebaseIndex } from './background-indexer.js';
 import { EXT_TO_LANG } from './languages.js';

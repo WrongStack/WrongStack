@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ExploreCompanion,
@@ -11,7 +12,6 @@ import type {
   MailboxMessage,
   MailboxQuery,
 } from '../../src/coordination/mailbox-types.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 const live: ExploreCompanion[] = [];
 afterEach(() => {

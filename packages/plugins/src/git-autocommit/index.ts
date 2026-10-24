@@ -26,7 +26,7 @@
  */
 
 import { resolve } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { createHostStates } from '../runtime/host-state.js';
 import type { ConventionalType } from './commit-message.js';
 import { generateCommitFromDiff, generateCommitMessage } from './commit-message.js';

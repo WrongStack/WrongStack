@@ -1,4 +1,12 @@
 import type {
+  ConfigStore,
+  ContextSnapshot,
+  FleetChatVerbosity,
+  Message,
+  SessionLoadProgress,
+  ThemePresetId,
+} from '@wrongstack/contracts/types';
+import type {
   AutonomousCoordinator,
   CoordinatorEvent,
   Director,
@@ -8,14 +16,6 @@ import type {
   StatuslineLines,
   StatuslineOrder,
 } from '@wrongstack/core/statusline';
-import type {
-  ConfigStore,
-  ContextSnapshot,
-  FleetChatVerbosity,
-  Message,
-  SessionLoadProgress,
-  ThemePresetId,
-} from '@wrongstack/core/types';
 import type { AgentTranscriptReader } from './components/agents-monitor.js';
 import type { McpPickerItem } from './components/mcp-picker.js';
 import type { PluginPickerItem } from './components/plugin-picker.js';
@@ -108,9 +108,9 @@ export interface RunTuiSurfaceOptions {
         providerId?: string,
         modelId?: string,
       ) =>
-        | import('@wrongstack/core/types').ReasoningRequest
+        | import('@wrongstack/contracts/types').ReasoningRequest
         | undefined
-        | Promise<import('@wrongstack/core/types').ReasoningRequest | undefined>)
+        | Promise<import('@wrongstack/contracts/types').ReasoningRequest | undefined>)
     | undefined;
   /**
    * Effort levels the ACTIVE model documents (models.dev reasoningConfig),
@@ -123,7 +123,7 @@ export interface RunTuiSurfaceOptions {
     | ((
         providerId: string,
         modelId: string,
-      ) => Promise<import('@wrongstack/core/types').Provider | undefined>)
+      ) => Promise<import('@wrongstack/contracts/types').Provider | undefined>)
     | undefined;
   /** Resolve the one-key "retry with another model" fallback ref on a refine failure. */
   getEnhanceFallbackRef?: (() => string | undefined) | undefined;
@@ -384,7 +384,7 @@ export interface RunTuiSurfaceOptions {
    * is rebuilt with the canonical renderer (tool I/O + interleaved audit
    * markers) instead of meta-only tool chips. Omitted → legacy fallback.
    */
-  restoredEvents?: import('@wrongstack/core/types').SessionEvent[] | undefined;
+  restoredEvents?: import('@wrongstack/contracts/types').SessionEvent[] | undefined;
 
   /**
    * List recent session summaries for the /resume picker. The CLI reads
@@ -525,5 +525,5 @@ export interface RunTuiSurfaceOptions {
       } | null>)
     | undefined;
   /** Access the persistent memory store for listing and inspecting memories. */
-  memoryStore?: import('@wrongstack/core/types').MemoryPort | undefined;
+  memoryStore?: import('@wrongstack/contracts/types').MemoryPort | undefined;
 }

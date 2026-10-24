@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { cp, mkdtemp, realpath, rm } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type {
   EnvironmentImages,

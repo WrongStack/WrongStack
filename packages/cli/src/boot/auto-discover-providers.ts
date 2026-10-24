@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Config, Logger, ModelsDevProvider } from '@wrongstack/contracts/types';
 import type { DefaultModelsRegistry } from '@wrongstack/core/models';
-import type { Config, Logger, ModelsDevProvider } from '@wrongstack/core/types';
 import {
   discoverOpenAICompatibleModels,
   discoveryOverlay,

@@ -3,8 +3,8 @@
  * checks go to that session's own agent (a WebUI tab's), and a call the policy
  * wants confirmed runs once the user approved it — asked once, not twice.
  */
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Config, Tool } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, Tool } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setAcpLeaderSessionAgents } from '../src/acp-leader/acp-leader-host.js';
 import { createAcpLeaderHost } from '../src/acp-leader/acp-leader-host-binding.js';

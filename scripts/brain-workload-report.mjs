@@ -34,10 +34,10 @@
  */
 
 import {
-  createAutonomyBrain,
-  createTieredBrainArbiter,
-  createRuleBrainArbiter,
   compileBrainRules,
+  createAutonomyBrain,
+  createRuleBrainArbiter,
+  createTieredBrainArbiter,
   DefaultBrainArbiter,
   readDecisionTier,
 } from '../packages/core/dist/index.js';
@@ -133,7 +133,7 @@ const WORKLOAD = [
     },
   },
   ...['tool_failure_streak', 'error_storm', 'agent_stall', 'file_churn'].map((kind) => ({
-    site: `coordination/brain-monitor.ts — ${kind}`,
+    site: `brain/brain-monitor.ts — ${kind}`,
     request: {
       id: `brainmon-${kind}`,
       source: 'system',

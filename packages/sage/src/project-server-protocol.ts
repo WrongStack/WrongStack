@@ -1,11 +1,11 @@
-import type { HqSageRecord } from '@wrongstack/core/hq';
 import type {
   MemoryEntry,
   MemoryHealth,
   MemoryRelevanceContext,
   MemoryScope,
   ScoredEntry,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { HqSageRecord } from '@wrongstack/hq';
 import type {
   SageDoctorOptions,
   SageDoctorReport,

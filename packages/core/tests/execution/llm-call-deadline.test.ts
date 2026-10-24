@@ -1,7 +1,7 @@
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import { completeBrainLlmDetailed } from '../../src/execution/autonomy-brain-llm.js';
 import { callWithDeadline } from '../../src/execution/llm-call-deadline.js';
-import type { Provider } from '../../src/types/provider.js';
 
 describe('Brain LLM deadlines', () => {
   it('releases a caller even if its provider ignores the abort signal', async () => {

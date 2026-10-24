@@ -1,15 +1,15 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  DEFAULT_TOOL_DESCRIPTION_MODE,
-  applyToolDescriptionModeToTool,
   applyToolDescriptionModes,
+  applyToolDescriptionModeToTool,
+  DEFAULT_TOOL_DESCRIPTION_MODE,
   getToolDescriptionMode,
   normalizeToolDescriptionMode,
   resolveToolDescriptionMode,
   setToolDescriptionMode,
   simplifyToolDescription,
 } from '../../src/utils/tool-description-mode.js';
-import type { Tool } from '../../src/types/tool.js';
 
 function makeTool(over: Partial<Tool> = {}): Tool {
   return {

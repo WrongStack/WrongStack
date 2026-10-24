@@ -8,8 +8,8 @@ import * as fs from 'node:fs/promises';
 import type * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { HqEventEnvelope, HqPersistence, HqTranscriptEntry } from '@wrongstack/core/hq';
-import { resolveHqDataDir } from '@wrongstack/core/hq';
+import type { HqEventEnvelope, HqPersistence, HqTranscriptEntry } from '@wrongstack/hq';
+import { resolveHqDataDir } from '@wrongstack/hq';
 import { isSafeSessionId as coreIsSafeSessionId } from '@wrongstack/core/utils';
 
 // ── Constants ──────────────────────────────────────────────────────────────

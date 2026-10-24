@@ -1,6 +1,6 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
-import { BrainMonitor, type BrainInterventionInput } from '../../src/coordination/brain-monitor.js';
-import { EventBus } from '../../src/kernel/events.js';
+import { type BrainInterventionInput, BrainMonitor } from '../../src/brain/brain-monitor.js';
 
 /**
  * The Brain is project-wide; a Brain DECISION is not.

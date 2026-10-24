@@ -1,12 +1,12 @@
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
+import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
 import { useEffect, useMemo, useReducer } from 'react';
 import {
   buildRestoredCheckpoints,
   buildRestoredEntries,
   createInitialState,
 } from '../app-initial-state.js';
-import { reducer } from '../app-reducer.js';
 import type { AppProps } from '../app-props.js';
+import { reducer } from '../app-reducer.js';
 import { LayoutStore } from '../layout-store.js';
 
 interface AppSessionStateOptions {

@@ -1,5 +1,5 @@
 import * as fsp from 'node:fs/promises';
-import type { SessionSummary } from '../../types/session.js';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 
 type SessionIndexEntry = {
   action?: string | undefined;

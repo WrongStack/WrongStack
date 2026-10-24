@@ -1,4 +1,4 @@
-import type { SpecTemplate } from '@wrongstack/core/types';
+import type { SpecTemplate } from '@wrongstack/contracts/types';
 
 /**
  * Built-in spec templates for common development scenarios.

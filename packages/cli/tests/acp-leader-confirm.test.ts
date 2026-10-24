@@ -4,9 +4,9 @@
  * in the session's tab), never answered by default, and `acp` is offered in
  * the WebUI pickers and built from the CLI's provider registry.
  */
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, Tool } from '@wrongstack/contracts/types';
 import { scopedApprovalPattern } from '@wrongstack/core/security';
-import type { Config, Tool } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/fleet/acp-wrongstack-bridge.js', () => ({

@@ -1,5 +1,5 @@
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { LSPServer } from '../../src/server/lsp-server.js';
 

@@ -1,5 +1,5 @@
-import type { Request, StreamEvent, Tool } from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+import type { Request, StreamEvent, Tool } from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createWireFormatFactory,

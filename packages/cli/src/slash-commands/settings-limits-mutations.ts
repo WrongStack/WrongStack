@@ -8,7 +8,7 @@ import {
   type LimitsConfig,
   type LimitsScalarKey,
   limitValueError,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
 
 import { persistConfigSetting } from '../settings-menu.js';

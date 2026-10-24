@@ -1,5 +1,5 @@
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
 import { skillPromptExclusionReasons } from '../skills/prompt-discovery.js';
-import type { SkillLoader } from '../types/skill.js';
 
 /** Explain progressive prompt eligibility; body/tool activation is still checked on load. */
 export async function skillDiscoveryReport(loader: SkillLoader, toolNames?: readonly string[]) {

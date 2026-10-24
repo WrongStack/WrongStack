@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter, BrainDecisionRequest } from '../../src/coordination/brain.js';
-import { DefaultBrainArbiter } from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecisionRequest } from '../../src/brain/brain.js';
+import { DefaultBrainArbiter } from '../../src/brain/brain.js';
 import {
   BRAIN_EVALUATION_CASE_VERSION,
   runBrainEvaluation,

@@ -10,7 +10,7 @@ export type ModeCatalogEntry = {
 };
 
 /**
- * Mirrors packages/core/src/types/mode.ts. website/vite.config.ts compares the
+ * Mirrors packages/core/src/models/default-modes.ts. website/vite.config.ts compares the
  * ids during every build so additions in core cannot silently disappear here.
  */
 export const modeCatalog = [

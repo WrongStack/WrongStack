@@ -1,5 +1,5 @@
+import type { Message, Provider } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Message, Provider } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { validateAction } from '../src/input-validation.js';
 import { startFreshTopicContext, TopicShiftAdvisor } from '../src/topic-shift-advisor.js';

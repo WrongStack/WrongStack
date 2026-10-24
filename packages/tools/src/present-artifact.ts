@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { open, realpath } from 'node:fs/promises';
 import * as path from 'node:path';
+import { type Tool, ToolValidationError } from '@wrongstack/contracts/types';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import { type Tool, ToolValidationError } from '@wrongstack/core/types';
 import { isBinaryBuffer } from './_util.js';
 import type { ArtifactPresentation } from './artifact-presentation.js';
 import { liveBrowser } from './browser/tools.js';

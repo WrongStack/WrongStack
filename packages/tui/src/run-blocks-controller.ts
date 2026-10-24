@@ -1,6 +1,6 @@
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import { detectContinueIntent } from '@wrongstack/core/agent';
 import { PROMPT_JOURNAL_RAW_MARKER } from '@wrongstack/core/prompts';
-import type { ContentBlock } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { routeImagesForModel } from '@wrongstack/runtime/vision';
 import type { Action, State } from './app-reducer.js';

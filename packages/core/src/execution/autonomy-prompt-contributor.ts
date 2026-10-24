@@ -15,9 +15,9 @@
  * cache.
  */
 
-import type { TextBlock } from '../types/blocks.js';
-import type { BuildContext } from '../types/system-prompt.js';
-import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { BuildContext } from '@wrongstack/contracts/types/system-prompt';
+import type { SystemPromptContributor } from '@wrongstack/contracts/types/system-prompt-contributor';
 import { loadGoal } from '../storage/goal-store.js';
 import {
   readBundledInstructionText,

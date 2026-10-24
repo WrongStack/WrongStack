@@ -80,7 +80,9 @@ export interface SlashFleetCommandContext {
   /**
    * Get live coordinator status for /fleet. Returns null when no fleet is active.
    */
-  onFleetStatus?: (() => import('@wrongstack/core/types').CoordinatorStatus | null) | undefined;
+  onFleetStatus?:
+    | (() => import('@wrongstack/contracts/types').CoordinatorStatus | null)
+    | undefined;
   /**
    * Read-only concurrency + lifetime spawn budget for `/fleet status`.
    * Returns null when no fleet host is available.
@@ -166,9 +168,9 @@ export interface SlashFleetCommandContext {
   fleetStreamController?:
     | {
         /** Fleet-chat verbosity (off | compact | full). */
-        mode: import('@wrongstack/core/types').FleetChatVerbosity;
+        mode: import('@wrongstack/contracts/types').FleetChatVerbosity;
         /** Replaced by the TUI on mount with a dispatch-backed setter. */
-        setMode: (mode: import('@wrongstack/core/types').FleetChatVerbosity) => void;
+        setMode: (mode: import('@wrongstack/contracts/types').FleetChatVerbosity) => void;
       }
     | undefined;
   /**

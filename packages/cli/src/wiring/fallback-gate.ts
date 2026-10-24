@@ -21,8 +21,9 @@
  * hangs indefinitely even if neither signal arrives (headless mode, no UI
  * listener, etc.).
  */
+
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { FallbackGateFn } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
 
 /**
  * Create a fallback gate that emits `provider.fallback_pending` and waits

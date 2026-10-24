@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { PromptEntry, PromptLoader } from '@wrongstack/contracts/types/prompt';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/index.js';
 import { PERF_MODES } from '../../src/performance/perf-modes.js';
@@ -10,7 +11,6 @@ import {
   parsePerfArgs,
 } from '../../src/plugins/perf-command.js';
 import type { PromptUsageStore } from '../../src/storage/prompt-usage-store.js';
-import type { PromptEntry, PromptLoader } from '../../src/types/prompt.js';
 
 let dir: string;
 

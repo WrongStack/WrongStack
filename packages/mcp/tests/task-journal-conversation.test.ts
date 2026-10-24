@@ -1,15 +1,15 @@
 import { strict as assert } from 'node:assert';
+import * as fs from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import { Context } from '@wrongstack/core/agent';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { expect, it } from 'vitest';
 import { MCPRegistry } from '../src/registry.js';
 

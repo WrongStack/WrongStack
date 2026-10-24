@@ -1,4 +1,4 @@
-import { THEME_PRESET_IDS, THEME_PRESET_META } from '@wrongstack/core/types';
+import { THEME_PRESET_IDS, THEME_PRESET_META } from '@wrongstack/contracts/types';
 import type { ThemePickerOption } from '../theme-types.js';
 
 /**

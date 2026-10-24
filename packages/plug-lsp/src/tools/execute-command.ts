@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { LSP_CONSTANTS } from '../constants.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { requireServer, resolveInputPath, type ToolDeps, toToolError } from './shared.js';

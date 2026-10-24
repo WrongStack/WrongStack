@@ -6,12 +6,13 @@
  *
  * @module hq-fleet-control
  */
+
+import { AgentError } from '@wrongstack/contracts/types';
 import {
   areSubagentsAllowedForSession,
   type Director,
   FLEET_ROSTER,
 } from '@wrongstack/core/coordination';
-import { AgentError } from '@wrongstack/core/types';
 
 export interface HqFleetScope {
   /**

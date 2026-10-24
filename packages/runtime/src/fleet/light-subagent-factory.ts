@@ -17,6 +17,16 @@
 // shell, …) — the user authorised the work when they pressed "Start Run".
 
 import { randomUUID } from 'node:crypto';
+import { type Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type {
+  Config,
+  ModelsRegistry,
+  ReasoningConfig,
+  SessionWriter,
+  SubagentConfig,
+  TextBlock,
+  Tool,
+} from '@wrongstack/contracts/types';
 import {
   Agent,
   Context,
@@ -36,22 +46,12 @@ import {
   mergeModelRuntime,
   ToolExecutor,
 } from '@wrongstack/core/execution';
-import { type Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { type ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import {
   AutoApprovePermissionPolicy,
   subagentYoloPlus,
   WIDE_SUBAGENT_CAPABILITIES,
 } from '@wrongstack/core/security';
-import type {
-  Config,
-  ModelsRegistry,
-  ReasoningConfig,
-  SessionWriter,
-  SubagentConfig,
-  TextBlock,
-  Tool,
-} from '@wrongstack/core/types';
 import {
   getProxyConfig,
   rewriteBaseUrl,

@@ -1,12 +1,12 @@
+import type { Permission, Tool } from '@wrongstack/contracts/types';
 import { createSandboxMcpGate } from '@wrongstack/core/sandbox';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import type { Permission, Tool } from '@wrongstack/core/types';
-import type { MCPTaskContext as AgentContext } from './task-identity.js';
 import { mcpQualifiedToolName } from '@wrongstack/core/utils';
 import type { MCPClient } from './client.js';
 import type { MCPTool, ToolCallResult } from './contracts.js';
 import type { ElicitationRequester } from './elicitation.js';
 import { renderStructuredResult } from './structured-result.js';
+import type { MCPTaskContext as AgentContext } from './task-identity.js';
 
 /**
  * Keywords that indicate a mutating operation.

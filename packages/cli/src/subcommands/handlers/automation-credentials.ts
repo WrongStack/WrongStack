@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import type { Config, ProviderConfig, SecretVault } from '@wrongstack/contracts/types';
 import { decryptConfigSecrets, isSecretField } from '@wrongstack/core/security';
-import type { Config, ProviderConfig, SecretVault } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import {
   type CredentialReference,

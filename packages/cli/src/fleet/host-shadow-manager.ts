@@ -38,8 +38,8 @@
  * @module fleet/host-shadow-manager
  */
 
+import type { Config, SubagentConfig } from '@wrongstack/contracts/types';
 import { areSubagentsAllowedForSession, type Director } from '@wrongstack/core/coordination';
-import type { Config, SubagentConfig } from '@wrongstack/core/types';
 import { runHostShadowPass, stopHostShadowAfterTask } from './host-shadow-pass.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 

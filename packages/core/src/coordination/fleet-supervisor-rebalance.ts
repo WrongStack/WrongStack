@@ -1,6 +1,5 @@
-import type { TaskSpec } from '../types/multi-agent.js';
-
-import type { BrainDecision, BrainDecisionOption } from './brain.js';
+import type { TaskSpec } from '@wrongstack/contracts/types/multi-agent';
+import type { BrainDecision, BrainDecisionOption } from '../brain/brain.js';
 
 import type {
   FleetSupervisorOptions,

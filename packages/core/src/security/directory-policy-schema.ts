@@ -1,4 +1,4 @@
-import type { DirectoryPolicy, DirectoryRule } from '../types/permission.js';
+import type { DirectoryPolicy, DirectoryRule } from '@wrongstack/contracts/types/permission';
 
 export const DIRECTORY_POLICY_SCHEMA_VERSION = 1 as const;
 

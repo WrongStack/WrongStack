@@ -13,8 +13,8 @@
  * before close() is allowed to proceed.
  */
 
-import { EventBus } from '@wrongstack/core/kernel';
-import type { SessionEvent, SessionWriter } from '@wrongstack/core/types';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface ChimeraReviewNeededPayload {

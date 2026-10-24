@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import type { DirectorStateCheckpoint } from '../../storage/director-state.js';
 import type {
   AwaitAnyResult,
   MultiAgentCoordinator,
   TaskResult,
   TaskSpec,
-} from '../../types/multi-agent.js';
-import type { SessionWriter } from '../../types/session.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
+import type { DirectorStateCheckpoint } from '../../storage/director-state.js';
 import { formatSubagentStructuredReport } from '../subagent-result-tool.js';
 
 type TaskCoordinator = Pick<

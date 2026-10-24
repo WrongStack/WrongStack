@@ -1,5 +1,5 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import type { TrustBoundary } from '@wrongstack/core/security';
-import type { Logger } from '@wrongstack/core/types';
 import { authorizeWebUIAction } from '../privileged-actions.js';
 import { errMessage } from '../ws-utils.js';
 import { collectConnectionsHealth } from './collector.js';

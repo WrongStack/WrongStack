@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 
 /**
  * Arguments passed to `createExitSlashCommand`. The handler runs inside the

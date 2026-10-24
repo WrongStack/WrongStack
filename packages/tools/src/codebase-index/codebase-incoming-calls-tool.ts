@@ -14,8 +14,8 @@
  * result carries the caller's full metadata so no second lookup is needed.
  */
 
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { codebaseIndexStats, getIndexState, incomingCallsService } from './background-indexer.js';
 import { serializeCallSites } from './call-site-serializer.js';

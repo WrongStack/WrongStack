@@ -1,7 +1,7 @@
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { TaskResult, TaskSpec } from '@wrongstack/contracts/types/multi-agent';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import type { DirectorStateCheckpoint } from '../storage/director-state.js';
-import type { Logger } from '../types/logger.js';
-import type { TaskResult, TaskSpec } from '../types/multi-agent.js';
-import type { SessionWriter } from '../types/session.js';
 import type { InMemoryAgentBridge } from './agent-bridge.js';
 import type { DirectorBudgetPolicy } from './director/director-budget-policy.js';
 import type { DirectorTaskRegistry } from './director/director-task-registry.js';

@@ -16,7 +16,7 @@
 import { spawn } from 'node:child_process';
 import { accessSync } from 'node:fs';
 import * as path from 'node:path';
-import type { TaskNode, TaskResult } from '@wrongstack/core/types';
+import type { TaskNode, TaskResult } from '@wrongstack/contracts/types';
 import { buildWin32CmdShimInvocation } from '@wrongstack/core/utils';
 import { treeKill } from '@wrongstack/core/utils/tree-kill';
 

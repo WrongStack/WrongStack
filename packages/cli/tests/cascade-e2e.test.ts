@@ -13,7 +13,7 @@
  * mocked so no real LLM calls happen.
  */
 
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   ChimeraCascadeNeededPayload,
   ChimeraReviewCompletePayload,

@@ -1,12 +1,12 @@
-import { isKeylessLocalProvider } from '@wrongstack/core/models';
 import type {
   Provider,
   ProviderApiKey,
   ProviderConfig,
   ResolvedProvider,
   WireFamily,
-} from '@wrongstack/core/types';
-import { ConfigError, ERROR_CODES, WrongStackError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ConfigError, ERROR_CODES, WrongStackError } from '@wrongstack/contracts/types';
+import { isKeylessLocalProvider } from '@wrongstack/core/models';
 import { expectDefined } from '@wrongstack/core/utils';
 import { AnthropicProvider } from './anthropic.js';
 import { RetiredAnthropicOAuthProvider } from './anthropic-oauth.js';

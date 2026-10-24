@@ -23,7 +23,7 @@
  */
 
 import { execFile } from 'node:child_process';
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { runOptionalPluginLlm, stripOuterMarkdownFence } from '../runtime/llm.js';
 
 const API_VERSION = '^0.1.10';

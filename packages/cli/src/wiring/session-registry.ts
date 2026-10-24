@@ -11,7 +11,7 @@
  */
 import { execFile } from 'node:child_process';
 import * as path from 'node:path';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { createGracefulShutdown } from '../shutdown-cleanup.js';
 
 interface SetupSessionRegistryDeps {

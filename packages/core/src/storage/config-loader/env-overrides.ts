@@ -1,4 +1,4 @@
-import type { Config } from '../../types/config.js';
+import type { Config } from '@wrongstack/contracts/types/config';
 
 function envBool(v: string): boolean {
   return !/^(0|false|no|off)$/i.test(v.trim());

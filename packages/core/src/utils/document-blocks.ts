@@ -1,5 +1,5 @@
-import { type ContentBlock, documentAsText } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
+import { type ContentBlock, documentAsText } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
 
 /**
  * The messages a model receives: documents stay native where the model takes

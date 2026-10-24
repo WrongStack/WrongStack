@@ -6,7 +6,7 @@ import type {
   SessionForkOptions,
   SessionMetadata,
   SessionWriter,
-} from '../../types/session.js';
+} from '@wrongstack/contracts/types/session';
 import { inheritsIntoFork } from './replay.js';
 
 export interface SessionForkHost {

@@ -1,4 +1,4 @@
-import type { SessionStore } from '@wrongstack/core/types';
+import type { SessionStore } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanupOwnerlessEmptySessions,

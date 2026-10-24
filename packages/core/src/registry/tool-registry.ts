@@ -1,11 +1,11 @@
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type {
   DisabledToolMeta,
   ToolDescriptionMode,
   ToolDescriptionModeConfig,
-} from '../types/config.js';
-import { ERROR_CODES, WrongStackError } from '../types/errors.js';
-import type { Tool } from '../types/tool.js';
+} from '@wrongstack/contracts/types/config';
+import { ERROR_CODES, WrongStackError } from '@wrongstack/contracts/types/errors';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { estimateToolDefTokens } from '../utils/token-estimate.js';
 import {
   applyToolDescriptionModeToTool,

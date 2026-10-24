@@ -11,7 +11,7 @@
  * It does NOT know about snapshots, alerts or views — message interpretation
  * lives in `src/data/wire.ts`.
  */
-import type { HqBrowserMessage, HqResumeMessage } from '@wrongstack/core/hq';
+import type { HqBrowserMessage, HqResumeMessage } from '@wrongstack/hq';
 import {
   createSurfaceConnectionState,
   DEFAULT_SURFACE_CONNECTION_CONFIG,

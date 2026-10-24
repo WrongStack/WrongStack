@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, it } from 'vitest';
 import {
   activeLimits,
   clampLimit,
@@ -10,7 +9,8 @@ import {
   limitValueError,
   positiveLimit,
   TOOL_MEMORY_GUARD_BYTES,
-} from '../../src/types/config/limits.js';
+} from '@wrongstack/contracts/types/config/limits';
+import { afterEach, describe, expect, it } from 'vitest';
 
 let uninstall: (() => void) | undefined;
 

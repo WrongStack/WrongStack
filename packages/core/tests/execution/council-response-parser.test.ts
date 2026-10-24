@@ -6,9 +6,10 @@
  * of the envelope keys is now treated like any other prose answer; option
  * questions keep the strict contract.
  */
+
+import type { CouncilQuestion } from '@wrongstack/contracts/types/council';
 import { describe, expect, it } from 'vitest';
 import { parseJudge, parseVote } from '../../src/execution/council-response-parser.js';
-import type { CouncilQuestion } from '../../src/types/council.js';
 
 const open = { id: 'q', prompt: 'How should we handle flaky calls?' } as unknown as CouncilQuestion;
 const withOptions = {

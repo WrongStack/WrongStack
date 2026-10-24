@@ -1,5 +1,5 @@
+import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
 import type { Director, FleetEvent } from '@wrongstack/core/coordination';
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
 import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 import { useEffect, useRef } from 'react';
 import type { Action, State } from '../app-reducer.js';

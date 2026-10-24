@@ -3,12 +3,12 @@
  * Extracted from session-handlers.ts to keep handler modules focused and manageable.
  */
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { SessionLoadProgress, SessionStore, TokenCounter } from '@wrongstack/contracts/types';
 import type { Agent, Context, TodoItem } from '@wrongstack/core/agent';
 import type { createStrategyCompactor } from '@wrongstack/core/execution';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { restoreRequiredSkillsFromEvents } from '@wrongstack/core/skills';
-import type { SessionLoadProgress, SessionStore, TokenCounter } from '@wrongstack/core/types';
 import {
   rehydrateContextEvidenceFromMessages,
   resolveWstackPaths,

@@ -18,7 +18,7 @@
  * shipped before embeddings existed.
  */
 
-import type { IndexingEmbeddingsConfig } from '@wrongstack/core/types';
+import type { IndexingEmbeddingsConfig } from '@wrongstack/contracts/types';
 import type { EmbeddingPort } from '@wrongstack/tools';
 
 /** Vector width `file_vectors` stores; a provider must match it exactly. */

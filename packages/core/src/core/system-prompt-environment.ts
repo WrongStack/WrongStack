@@ -9,8 +9,8 @@
  * @module core/system-prompt-environment
  */
 import * as os from 'node:os';
-import type { ConcreteTokenSavingTier } from '../types/config.js';
-import type { BuildContext, ModelCapabilities } from '../types/system-prompt.js';
+import type { ConcreteTokenSavingTier } from '@wrongstack/contracts/types/config';
+import type { BuildContext, ModelCapabilities } from '@wrongstack/contracts/types/system-prompt';
 import { detectVcs } from '../vcs/vcs-adapter.js';
 import { detectLanguages, gitStatus, otherVcsStatus } from './system-prompt-environment-probes.js';
 import { effectiveShell, SHELL_DISPLAY, shellGuidanceBlock } from './system-prompt-shell.js';

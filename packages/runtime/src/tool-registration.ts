@@ -1,5 +1,4 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   AutoThinConfig,
   ConcreteTokenSavingTier,
@@ -9,7 +8,8 @@ import type {
   Tool,
   ToolDescriptionModeConfig,
   ToolResultRenderModeConfig,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import { applyToolDescriptionModes, applyToolResultRenderModes } from '@wrongstack/core/utils';
 import { createSageTools, getSageService } from '@wrongstack/sage';
 import { BROWSER_TOOL_NAMES, makeSkillTool, nextStepsTool } from '@wrongstack/tools';

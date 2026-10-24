@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types';
 import {
   listProjectSkillAugmentations,
   loadConsolidationMetadata,
@@ -8,7 +9,6 @@ import {
   resetCaptureWindows,
 } from '@wrongstack/core/agent-catalog';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { Provider, Request, Response } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildAgentImproveCommand } from '../src/slash-commands/agent-improve.js';
 

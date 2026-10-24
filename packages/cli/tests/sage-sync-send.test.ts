@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { HqSageRecord } from '@wrongstack/core/hq';
+import type { HqSageRecord } from '@wrongstack/hq';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { sendSageSnapshot } from '../src/hq-server/sage-sync-send.js';

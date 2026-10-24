@@ -1,4 +1,4 @@
-import type { MCPServerConfig } from '@wrongstack/core/types';
+import type { MCPServerConfig } from '@wrongstack/contracts/types';
 import type { ConnectionState, MCPToolAnnotations } from './contracts.js';
 import type { ServerSlot } from './registry-slots.js';
 

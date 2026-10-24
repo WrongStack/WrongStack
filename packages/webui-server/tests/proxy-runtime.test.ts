@@ -16,7 +16,7 @@
  * active=true/false gate coverage is the unit-level proxy of those sites.
  */
 
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import {
   __resetProxyConfigForTests,
   applyProxyConfig,

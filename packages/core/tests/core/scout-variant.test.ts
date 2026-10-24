@@ -6,18 +6,18 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import type { BuildContext } from '@wrongstack/contracts/types/system-prompt';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { loadInstructionBundle } from '../../src/core/instruction-bundle.js';
+import { renderInstructionLayer } from '../../src/core/instruction-template.js';
+import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
+import { providerToolsForVariant } from '../../src/registry/scout-tool-surface.js';
+import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import {
   areSubagentsAllowed,
   SUBAGENTS_ALLOWED_META_KEY,
-} from '../../src/coordination/session-subagent-policy.js';
-import { loadInstructionBundle } from '../../src/core/instruction-bundle.js';
-import { renderInstructionLayer } from '../../src/core/instruction-template.js';
-import { providerToolsForVariant } from '../../src/core/scout-tool-surface.js';
-import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
-import { ToolRegistry } from '../../src/registry/tool-registry.js';
-import type { BuildContext } from '../../src/types/system-prompt.js';
-import type { Tool } from '../../src/types/tool.js';
+} from '../../src/security/session-subagent-policy.js';
 
 const tool = (name: string): Tool => ({
   name,

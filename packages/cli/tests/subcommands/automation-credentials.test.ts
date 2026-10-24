@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { SecretVault } from '@wrongstack/core/types';
+import type { SecretVault } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { resolveAutomationCredentials } from '../../src/subcommands/handlers/automation-credentials.js';
 

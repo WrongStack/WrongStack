@@ -3,13 +3,14 @@
  * build an actual subagent through `createHostSubagentFactory` and inspect the
  * system prompt the worker would send.
  */
+
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config, SubagentConfig, Tool } from '@wrongstack/contracts/types';
 import { DEFAULT_EXPLORE_COMPANION_AGENT_ID, FLEET_ROSTER } from '@wrongstack/core/coordination';
 import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { Config, SubagentConfig, Tool } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@wrongstack/core/coordination', async (importOriginal) => {

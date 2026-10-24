@@ -1,4 +1,4 @@
-import type { UserInputRequest, UserInputResponse } from '@wrongstack/core/types';
+import type { UserInputRequest, UserInputResponse } from '@wrongstack/contracts/types';
 import type { HistoryRetention, RequestResidency } from '@wrongstack/core/utils/residency-labels';
 import type { SessionScopedPayload } from './protocol-core.js';
 

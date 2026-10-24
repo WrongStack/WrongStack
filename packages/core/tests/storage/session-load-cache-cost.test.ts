@@ -1,7 +1,7 @@
+import type { SessionData } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import { SessionLoadCache } from '../../src/storage/session-store/load-cache.js';
 import type { LoadCacheEntry } from '../../src/storage/session-store/types.js';
-import type { SessionData } from '../../src/types/session.js';
 
 /**
  * What the load cache charges itself for an entry.

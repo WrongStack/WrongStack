@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { recordProviderQuota } from '@wrongstack/core/quota';
 import type {
   Capabilities,
   ImageGenerationRequest,
@@ -8,8 +7,9 @@ import type {
   ReasoningEffort,
   Request,
   StreamEvent,
-} from '@wrongstack/core/types';
-import { isVolatileSystemBlock } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { isVolatileSystemBlock } from '@wrongstack/contracts/types';
+import { recordProviderQuota } from '@wrongstack/core/quota';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { openAIImagesBody, openAIImagesUrl, parseOpenAIImages } from './image-generation.js';

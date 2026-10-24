@@ -16,7 +16,7 @@
  * @module fleet-pulse
  */
 
-import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
+import type { MailboxAgentStatus } from '@wrongstack/contracts/types/mailbox';
 
 interface FleetPulseOptions {
   /** This agent's own mailbox id — excluded from the digest. */

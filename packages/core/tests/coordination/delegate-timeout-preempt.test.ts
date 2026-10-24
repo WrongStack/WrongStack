@@ -11,13 +11,14 @@
  * records each negotiation's (used, limit) so we can prove `used < limit` —
  * i.e. the ask happened before the deadline.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { TIMEOUT_PREEMPT_FRACTION } from '../../src/coordination/subagent-budget.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { TaskResult } from '../../src/types/multi-agent.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

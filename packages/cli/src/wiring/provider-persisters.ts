@@ -1,4 +1,4 @@
-import type { Config, Logger, SecretVault } from '@wrongstack/core/types';
+import type { Config, Logger, SecretVault } from '@wrongstack/contracts/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import {
   applyProviderOAuthRefresh,

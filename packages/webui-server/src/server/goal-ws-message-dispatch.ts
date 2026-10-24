@@ -1,4 +1,4 @@
-import { PhaseOrchestrator } from '@wrongstack/core/goal';
+import { PhaseOrchestrator } from '@wrongstack/goal';
 import type { WebSocket } from 'ws';
 import type { GoalWSMessage, GoalWsHandlerInternals } from './goal-ws-handler-internals.js';
 
@@ -100,8 +100,8 @@ export async function dispatchGoalMessage(
         phaseId: string;
         title: string;
         description?: string;
-        type?: import('@wrongstack/core/types').TaskNode['type'];
-        priority?: import('@wrongstack/core/types').TaskNode['priority'];
+        type?: import('@wrongstack/contracts/types').TaskNode['type'];
+        priority?: import('@wrongstack/contracts/types').TaskNode['priority'];
       };
       if (
         title?.trim() &&
@@ -211,7 +211,7 @@ async function handleTaskStatusChange(
   for (const phase of host.graph.phases.values()) {
     const task = phase.taskGraph.nodes.get(taskId);
     if (task) {
-      task.status = status as import('@wrongstack/core/types').TaskStatus;
+      task.status = status as import('@wrongstack/contracts/types').TaskStatus;
       task.updatedAt = Date.now();
       host.graph.updatedAt = Date.now();
       await host.persistence.save(host.graph);

@@ -23,8 +23,8 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { activeLimits, positiveLimit } from '../types/config/limits.js';
-import type { Tool } from '../types/tool.js';
+import { activeLimits, positiveLimit } from '@wrongstack/contracts/types/config/limits';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { atomicWrite, ensureDir } from '../utils/atomic-write.js';
 import {
   formatProjectSuppliedBlock,

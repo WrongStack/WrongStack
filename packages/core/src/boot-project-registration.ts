@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from './kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { atomicWrite, withFileLock } from './utils/atomic-write.js';
 import { toErrorMessage } from './utils/error.js';
 import type { WstackPaths } from './utils/wstack-paths.js';

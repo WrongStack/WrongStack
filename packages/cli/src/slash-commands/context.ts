@@ -1,18 +1,14 @@
-import type { Context, SystemBlockSource } from '@wrongstack/core/agent';
-import { noOpVault } from '@wrongstack/core/security';
-import type { Config, ContextWindowPolicy, SlashCommand } from '@wrongstack/core/types';
+import type { Config, ContextWindowPolicy, SlashCommand } from '@wrongstack/contracts/types';
 import {
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   formatContextWindowModeList,
   getContextWindowMode,
   resolveContextWindowPolicy,
-} from '@wrongstack/core/types';
-import {
-  type ContextBreakdown,
-  color,
-  getContextBreakdown,
-  repairToolUseAdjacency,
-} from '@wrongstack/core/utils';
+} from '@wrongstack/contracts/types';
+import type { Context, SystemBlockSource } from '@wrongstack/core/agent';
+import { type ContextBreakdown, getContextBreakdown } from '@wrongstack/core/agent';
+import { noOpVault } from '@wrongstack/core/security';
+import { color, repairToolUseAdjacency } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
 import type { SlashCommandContext } from './command-context.js';

@@ -5,8 +5,9 @@
  * with a timeout / 5xx (weight 1 of limit 2) left the gate closed and the next
  * caller paid another full request against the failing host.
  */
+
+import { FetchError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it } from 'vitest';
-import { FetchError } from '../src/types/errors.js';
 import { createTypeSafeRestGate } from '../src/typesafe/rest.js';
 
 const fetchError = (status: number) => new FetchError({ message: `HTTP ${status}`, status });

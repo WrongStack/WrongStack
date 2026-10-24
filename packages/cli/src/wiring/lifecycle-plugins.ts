@@ -1,25 +1,5 @@
 import * as path from 'node:path';
-import { getSharedProjectMailbox, type RemoteMailbox } from '@wrongstack/core/coordination';
-import { installDesignTurnGate } from '@wrongstack/core/design';
-import { CouncilOrchestrator, OneShotOrchestrator } from '@wrongstack/core/execution';
-import {
-  bridgeLifecycleHooks,
-  countShellHooks,
-  HookRegistry,
-  HookRunner,
-  shellHooksEqual,
-} from '@wrongstack/core/hooks';
-import { resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
-import { TOKENS } from '@wrongstack/core/kernel';
-import { NotifierImpl } from '@wrongstack/core/notifications';
-import type { PluginHostHandle } from '@wrongstack/core/plugin';
-import {
-  type ProviderAuthRegistry,
-  type ProviderRegistry,
-  type SlashCommandNotice,
-  SlashCommandRegistry,
-  type ToolRegistry,
-} from '@wrongstack/core/registry';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   HealthRegistry,
@@ -33,12 +13,32 @@ import type {
   SessionWriter,
   SkillLoader,
   Tracer,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import {
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   normalizeTokenSavingTier,
   resolveContextWindowPolicy,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { getSharedProjectMailbox, type RemoteMailbox } from '@wrongstack/core/coordination';
+import { installDesignTurnGate } from '@wrongstack/core/design';
+import { CouncilOrchestrator, OneShotOrchestrator } from '@wrongstack/core/execution';
+import {
+  bridgeLifecycleHooks,
+  countShellHooks,
+  HookRegistry,
+  HookRunner,
+  shellHooksEqual,
+} from '@wrongstack/core/hooks';
+import { resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
+import { NotifierImpl } from '@wrongstack/core/notifications';
+import type { PluginHostHandle } from '@wrongstack/core/plugin';
+import {
+  type ProviderAuthRegistry,
+  type ProviderRegistry,
+  type SlashCommandNotice,
+  SlashCommandRegistry,
+  type ToolRegistry,
+} from '@wrongstack/core/registry';
 import { toErrorMessage, type WstackPaths } from '@wrongstack/core/utils';
 import {
   createVaultBackedMcpAuthorizationProviderFactory,

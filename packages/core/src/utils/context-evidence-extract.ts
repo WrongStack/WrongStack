@@ -1,6 +1,9 @@
 import * as path from 'node:path';
-import type { AgentContext } from '../types/context.js';
-import type { ContextEvidenceState, ToolOutputMetadata } from '../types/context-evidence.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type {
+  ContextEvidenceState,
+  ToolOutputMetadata,
+} from '@wrongstack/contracts/types/context-evidence';
 
 /** Only scan the last N lines for error patterns — errors surface at the bottom. */
 const EXTRACT_ERROR_TAIL_LINES = 200;

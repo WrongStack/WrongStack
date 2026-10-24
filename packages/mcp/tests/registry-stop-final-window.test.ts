@@ -18,9 +18,9 @@
  * client and released BY INDEX (no snapshot loop that can miss a later gate), and
  * each wake is awaited so no wake is coalesced by the fast path.
  */
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { createMCPServerOperationState } from '../src/operations.js';
 import { MCPRegistry } from '../src/registry.js';

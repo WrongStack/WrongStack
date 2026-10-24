@@ -10,12 +10,12 @@
  * both the React TUI and the Node WebSocket servers.
  */
 
+import type { Config } from '@wrongstack/contracts/types/config';
 import {
   effectiveFallbackChain,
   normalizeModelRef,
   parseModelRef,
 } from '../core/fallback-model.js';
-import type { Config } from '../types/config.js';
 import { resolveRefinerTargetSpec } from './refiner-target.js';
 
 /** Default first-attempt refine window (mirrors `enhanceUserPrompt`'s default). */

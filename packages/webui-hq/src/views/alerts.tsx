@@ -7,7 +7,7 @@
  * to the surface that can actually resolve it — a count you cannot act on is
  * just anxiety.
  */
-import type { HqAlert } from '@wrongstack/core/hq';
+import type { HqAlert } from '@wrongstack/hq';
 import {
   Bot,
   CircleAlert,

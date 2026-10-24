@@ -13,9 +13,9 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Config } from '@wrongstack/contracts/types/config/root';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DefaultConfigStore } from '../src/storage/config-store.js';
-import type { Config } from '../src/types/config/root.js';
 import { resetTypeSafeJudgesForTests, resolveTypeSafeJudge } from '../src/typesafe/judgments.js';
 import { resetSharedTypeSafeRestGatesForTests } from '../src/typesafe/rest.js';
 

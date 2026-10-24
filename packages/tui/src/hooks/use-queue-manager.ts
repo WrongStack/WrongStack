@@ -1,6 +1,6 @@
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { PersistedQueueItem, QueueStore } from '@wrongstack/core/storage';
-import type { ContentBlock } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { useEffect, useRef } from 'react';
 import type { Action, State } from '../app-reducer.js';

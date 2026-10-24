@@ -10,7 +10,7 @@
  */
 
 import * as path from 'node:path';
-import { type Tool, ToolValidationError } from '@wrongstack/core/types';
+import { type Tool, ToolValidationError } from '@wrongstack/contracts/types';
 import { safeResolveProjectPath } from '../_util.js';
 import { type MutateSymbolOptions, replaceSymbolInFile } from './ast-symbol-mutator.js';
 

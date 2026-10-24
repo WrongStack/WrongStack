@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { PluginAPI, Tool } from '@wrongstack/core/types';
+import type { PluginAPI, Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import plugin from '../src/git-autocommit/index.js';

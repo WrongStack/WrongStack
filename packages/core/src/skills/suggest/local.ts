@@ -1,10 +1,10 @@
-import type { Middleware } from '../../kernel/pipeline.js';
-import { isVolatileSystemBlock, markVolatileSystemBlock } from '../../types/blocks.js';
-import type { Config } from '../../types/config/root.js';
-import type { Logger } from '../../types/logger.js';
-import type { Request } from '../../types/provider.js';
-import type { SkillLoader, SkillManifest } from '../../types/skill.js';
-import { authoredText } from '../../utils/live-context.js';
+import type { Middleware } from '@wrongstack/contracts/kernel/pipeline';
+import { isVolatileSystemBlock, markVolatileSystemBlock } from '@wrongstack/contracts/types/blocks';
+import type { Config } from '@wrongstack/contracts/types/config/root';
+import { authoredText } from '@wrongstack/contracts/types/live-context';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { SkillLoader, SkillManifest } from '@wrongstack/contracts/types/skill';
 import { extractSkillMentions } from '../mentions.js';
 import { skillPromptExclusionReasons } from '../prompt-discovery.js';
 import { LOCAL_SKILL_RULES } from './local-rules.js';

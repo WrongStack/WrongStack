@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { loadDatabaseSync } from '../coordination/sqlite-mailbox-schema.js';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
-import type { SessionSummary } from '../types/session.js';
+import { loadDatabaseSync } from '../utils/sqlite-database.js';
 import type {
   CatalogSessionRecord,
   MaintenanceLease,

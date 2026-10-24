@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook } from '@testing-library/react';
-import type { ContentBlock } from '@wrongstack/core/types';
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useInitialPrompt } from '../src/hooks/use-initial-prompt.js';
 

@@ -21,11 +21,7 @@
  * See SAGE memory `01KYSCC8A49TS9ENCVCS2J3WJ8` for the gap analysis.
  */
 
-import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
-import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import { DefaultConfigStore } from '@wrongstack/core/storage';
+import { Container, TOKENS } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   ModelsRegistry,
@@ -36,8 +32,12 @@ import type {
   SessionWriter,
   SubagentConfig,
   Tool,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
+import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { DefaultConfigStore } from '@wrongstack/core/storage';
 import { describe, expect, it } from 'vitest';
 import { makeLightSubagentFactory } from '../src/index.js';
 

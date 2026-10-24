@@ -1,4 +1,4 @@
-import type { Capabilities, ProviderApiKey, ReasoningEffort } from '@wrongstack/core/types';
+import type { Capabilities, ProviderApiKey, ReasoningEffort } from '@wrongstack/contracts/types';
 import type { CodexResponseMetadata, CodexWebSocketFactory } from './codex-websocket.js';
 import type { CodexTokens } from './oauth/codex-protocol.js';
 import type { CodexLiveModel } from './openai-codex-model-policy.js';

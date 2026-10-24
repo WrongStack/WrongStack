@@ -1,5 +1,10 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type {
+  SubagentRunContext,
+  SubagentRunOutcome,
+  TaskSpec,
+} from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it, vi } from 'vitest';
 import {
   resolveSubagentWorktreeDecision,
@@ -7,11 +12,6 @@ import {
   WorktreeIntegrationError,
   wrapSubagentRunnerWithWorktrees,
 } from '../../src/coordination/worktree-task-runner.js';
-import type {
-  SubagentRunContext,
-  SubagentRunOutcome,
-  TaskSpec,
-} from '../../src/types/multi-agent.js';
 import type { RunResult } from '../../src/worktree/worktree-manager.js';
 import { WorktreeManager } from '../../src/worktree/worktree-manager.js';
 

@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Config, ModelsRegistry } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry } from '@wrongstack/contracts/types';
 import {
   color,
   moduleUrlFor,

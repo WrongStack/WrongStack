@@ -1,4 +1,4 @@
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRuntimeLifecycleDeps } from '../src/wiring/runtime-lifecycle-deps.js';
 

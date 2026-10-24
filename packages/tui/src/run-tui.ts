@@ -15,7 +15,7 @@ import { createRunTuiTitleController } from './run-tui-title-controller.js';
 import { BRACKETED_PASTE_ON } from './terminal-modes.js';
 
 // Re-export autonomy stage types from core for backward compatibility
-export type { AutonomyStage } from '@wrongstack/core/types';
+export type { AutonomyStage } from '@wrongstack/contracts/types';
 export type { RunTuiOptions } from './run-tui-options.js';
 export { silenceTerminal, unsilenceTerminal } from './terminal-silence.js';
 

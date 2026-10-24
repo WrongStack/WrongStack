@@ -1,8 +1,8 @@
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { SubagentStructuredReport } from '@wrongstack/contracts/types/multi-agent';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import type { Context } from '../core/context.js';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { ToolValidationError } from '../types/errors.js';
-import type { SubagentStructuredReport } from '../types/multi-agent.js';
-import type { Tool } from '../types/tool.js';
 
 /** Context metadata key used to hand the submitted report to the task runner. */
 export const SUBAGENT_STRUCTURED_REPORT_META_KEY = 'subagentStructuredReport';

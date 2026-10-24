@@ -1,5 +1,5 @@
-import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../coordination/brain.js';
-import type { BrainTraceRecord } from '../coordination/brain-trace.js';
+import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../brain/brain.js';
+import type { BrainTraceRecord } from '../brain/brain-trace.js';
 
 export const BRAIN_EVALUATION_CASE_VERSION = 1 as const;
 

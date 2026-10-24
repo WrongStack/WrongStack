@@ -1,4 +1,4 @@
-import { ProviderError, type Request } from '@wrongstack/core/types';
+import { ProviderError, type Request } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { MiniMaxProvider } from '../src/minimax.js';
 

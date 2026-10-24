@@ -4,7 +4,7 @@ import type {
   HqProjectRecord,
   HqSessionSnapshotPayload,
   HqSnapshot,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type {
   FleetTopology,
   FleetTopologyEdge,

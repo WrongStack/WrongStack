@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { Director } from '../../src/coordination/director.js';
-import { BudgetThresholdSignal, SubagentBudget } from '../../src/coordination/subagent-budget.js';
-import { EventBus } from '../../src/kernel/events.js';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import type {
   SubagentRunContext,
   SubagentRunOutcome,
   TaskSpec,
-} from '../../src/types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import { describe, expect, it } from 'vitest';
+import { Director } from '../../src/coordination/director.js';
+import { BudgetThresholdSignal, SubagentBudget } from '../../src/coordination/subagent-budget.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

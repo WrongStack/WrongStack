@@ -1,17 +1,17 @@
+import { Container } from '@wrongstack/contracts/kernel/container';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { ProviderAuthStrategy } from '@wrongstack/contracts/types/provider-auth';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it, vi } from 'vitest';
 import { ExtensionRegistry } from '../../src/extension/registry.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
-import { Container } from '../../src/kernel/container.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { DefaultPluginAPI, type PluginAPIInit } from '../../src/plugin/api.js';
 import { loadPlugins } from '../../src/plugin/loader.js';
 import { ProviderAuthRegistry } from '../../src/registry/provider-auth-registry.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
 import { SlashCommandRegistry } from '../../src/registry/slash-command-registry.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
-import type { ProviderAuthStrategy } from '../../src/types/provider-auth.js';
-import type { SlashCommand } from '../../src/types/slash-command.js';
-import type { Tool } from '../../src/types/tool.js';
 
 function tool(name: string): Tool {
   return {

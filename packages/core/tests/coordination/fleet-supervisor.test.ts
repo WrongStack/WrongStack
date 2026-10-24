@@ -15,8 +15,11 @@
  *     collab exclusion, workComplete dormancy, kill switch
  *   - non-interference: nothing ever touches budget negotiation
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TaskSpec } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter, BrainDecision } from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecision } from '../../src/brain/brain.js';
 import { FleetBus } from '../../src/coordination/fleet-bus.js';
 import {
   FleetSupervisor,
@@ -24,8 +27,6 @@ import {
   type FleetSupervisorSource,
   type SupervisedSubagent,
 } from '../../src/coordination/fleet-supervisor.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { TaskSpec } from '../../src/types/multi-agent.js';
 
 function approveBrain(): BrainArbiter & { calls: number } {
   const b = {

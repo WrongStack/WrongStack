@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { UpdateSageInput } from '@wrongstack/sage';
 import { getSageSurface } from '@wrongstack/sage';

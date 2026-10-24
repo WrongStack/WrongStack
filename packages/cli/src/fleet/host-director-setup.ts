@@ -1,3 +1,11 @@
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type {
+  Config,
+  SubagentConfig,
+  SubagentRunner,
+  TaskResult,
+  Tool,
+} from '@wrongstack/contracts/types';
 import {
   AdaptiveConcurrencyController,
   areSubagentCompanionsAllowedForSession,
@@ -11,14 +19,6 @@ import {
   postSessionNote,
   type TaskResultNotification,
 } from '@wrongstack/core/coordination';
-import { TOKENS } from '@wrongstack/core/kernel';
-import type {
-  Config,
-  SubagentConfig,
-  SubagentRunner,
-  TaskResult,
-  Tool,
-} from '@wrongstack/core/types';
 import { formatMemoryEvidenceBlock } from '@wrongstack/core/utils';
 import { getSageSurface } from '@wrongstack/sage';
 import { createHostFleetManager, prepareHostDirectorRuntime } from './host-director-builder.js';
@@ -68,7 +68,7 @@ export interface HostDirectorSetupHost {
   sessionForSubagent(subagentId: string): string;
   getCoordinator(): DefaultMultiAgentCoordinator;
   coordinatorOffHandle: (() => void) | null;
-  fleetEmitTool: import('@wrongstack/core/types').Tool | undefined;
+  fleetEmitTool: import('@wrongstack/contracts/types').Tool | undefined;
   directorToolsByName: Map<string, Tool<unknown, unknown>>;
   adaptiveConcurrencyController: AdaptiveConcurrencyController | undefined;
   getMaxConcurrent(): number;

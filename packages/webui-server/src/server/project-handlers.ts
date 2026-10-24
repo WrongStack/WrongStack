@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SessionStore, TokenCounter } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
 import { activateProjectStateGuard, resolveWstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { resolveWorkingDirInsideProject } from './path-containment.js';

@@ -1,5 +1,5 @@
+import { FetchError, isFetchError, WrongStackError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it } from 'vitest';
-import { FetchError, WrongStackError, isFetchError } from '../../src/types/errors.js';
 
 /**
  * P3 #18 (before-release.md): classifyToolError() detected HTTP errors via

@@ -1,7 +1,7 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { PluginAPI, Provider, Tool } from '@wrongstack/contracts/types';
 import { ExtensionRegistry } from '@wrongstack/core/extension';
-import { EventBus } from '@wrongstack/core/kernel';
 import { ProviderRegistry, SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import type { PluginAPI, Provider, Tool } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyWrongStackPack,

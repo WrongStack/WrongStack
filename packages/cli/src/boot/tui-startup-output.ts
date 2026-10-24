@@ -1,5 +1,5 @@
 import { format, stripVTControlCharacters } from 'node:util';
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 
 const LEVELS = ['log', 'info', 'debug', 'warn'] as const;
 type ConsoleLevel = (typeof LEVELS)[number];

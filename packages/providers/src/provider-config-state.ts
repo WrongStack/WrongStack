@@ -258,7 +258,7 @@ export function removeProviderFallbackReferences(
   }
 }
 
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { isSetupProvider as isSetupProviderId } from './setup-provider.js';
 
 function resolveActiveApiKey(cfg: ProviderConfig): string | undefined {

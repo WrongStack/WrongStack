@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Logger, LogLevel } from '../types/logger.js';
+import type { Logger, LogLevel } from '@wrongstack/contracts/types/logger';
 import { color } from '../utils/color.js';
 import { redactText, redactValue } from '../utils/redaction.js';
 import { writeErr } from '../utils/term.js';

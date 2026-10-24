@@ -6,7 +6,7 @@ import {
   mutateHqAuthFile,
   hqPasswordNeedsUpgrade,
   verifyHqPassword,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import {
   authenticateBrowserRequest,
   clearHqSessionCookie,

@@ -1,4 +1,4 @@
-import type { ContentBlock } from '@wrongstack/core/types';
+import type { ContentBlock } from '@wrongstack/contracts/types';
 import { IncomingImageError, type IncomingPdf } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { preparePdfAttachment } from '@wrongstack/tools';

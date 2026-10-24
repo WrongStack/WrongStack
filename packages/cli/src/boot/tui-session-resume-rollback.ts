@@ -1,6 +1,6 @@
+import type { SessionWriter } from '@wrongstack/contracts/types';
 import type { TodoItem } from '@wrongstack/core/agent';
 import type { SessionResumeClaim } from '@wrongstack/core/storage';
-import type { SessionWriter } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { SessionResumeContext } from './tui-session-resume-contracts.js';
 

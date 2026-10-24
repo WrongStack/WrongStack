@@ -60,8 +60,8 @@ rewrite(
   resolveRoleSkillCandidates,
   runtimeToolReferencesFromText,
 } from '@wrongstack/core/agent-catalog';
-import { TOKENS } from '@wrongstack/core/kernel';
-import type { SubagentConfig } from '@wrongstack/core/types';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { SubagentConfig } from '@wrongstack/contracts/types';
 import { getSageRetrieval } from '@wrongstack/sage';
 
 import type { MultiAgentDeps } from './host-types.js';
@@ -248,8 +248,8 @@ rewrite(
   captureLearnedFromAgentOutputDetailed,
   recordSkillOutcome,
 } from '@wrongstack/core/agent-catalog';
-import { TOKENS } from '@wrongstack/core/kernel';
-import type { TaskResult } from '@wrongstack/core/types';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { TaskResult } from '@wrongstack/contracts/types';
 import type { MultiAgentDeps } from './host-types.js';
 
 /** What a spawn recorded about the agent that will produce this result. */
@@ -316,7 +316,7 @@ function describe(error: unknown): string {
 rewrite(
   'packages/cli/src/fleet/host-learning-tracker.ts',
   'LearningSubject',
-  `import type { TaskResult } from '@wrongstack/core/types';
+  `import type { TaskResult } from '@wrongstack/contracts/types';
 import { setBoundedLruEntry } from './host-helpers.js';
 import { captureCompletedTaskLearningForHost, type LearningSubject } from './host-learning.js';
 import type { MultiAgentDeps } from './host-types.js';

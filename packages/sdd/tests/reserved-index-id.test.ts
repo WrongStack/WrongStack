@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Specification, TaskGraph } from '@wrongstack/core/types';
+import type { Specification, TaskGraph } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { SpecStore } from '../src/spec-store.js';
 import { TaskGraphStore } from '../src/task-graph-store.js';

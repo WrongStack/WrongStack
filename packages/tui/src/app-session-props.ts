@@ -1,4 +1,4 @@
-import type { ContextSnapshot, SessionLoadProgress } from '@wrongstack/core/types';
+import type { ContextSnapshot, SessionLoadProgress } from '@wrongstack/contracts/types';
 import type { ResumeSessionEntry } from './app-reducer.js';
 import type { HistoryEntry } from './history-entry.js';
 export interface TuiSessionProps {

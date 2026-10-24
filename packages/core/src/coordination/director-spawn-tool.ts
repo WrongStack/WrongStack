@@ -1,7 +1,7 @@
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
+import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { ToolValidationError } from '../types/errors.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
-import type { JSONSchema, Tool } from '../types/tool.js';
 import { snapshotConversationEffort } from '../utils/leader-effort-override.js';
 import type { DispatchLogEntry } from './agents/dispatch-log.js';
 import type * as Host from './director-host-contracts.js';

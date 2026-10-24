@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types/task-graph';
 import { TaskTracker } from '@wrongstack/core/tasking';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { TaskGraphStore } from '../src/task-graph-store.js';
 

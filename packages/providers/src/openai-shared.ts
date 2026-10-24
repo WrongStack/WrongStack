@@ -1,4 +1,4 @@
-import type { ReasoningEffort, Request } from '@wrongstack/core/types';
+import type { ReasoningEffort, Request } from '@wrongstack/contracts/types';
 
 /**
  * EXHAUSTIVE acceptance table for the Chat Completions `reasoning_effort`

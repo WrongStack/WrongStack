@@ -1,4 +1,4 @@
-import { FsError } from '@wrongstack/core/types';
+import { FsError } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 
 export { expectDefined };
@@ -11,12 +11,12 @@ export { expectDefined };
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { ProviderApiKey, ProviderConfig, SecretVault } from '@wrongstack/contracts/types';
 import {
   decryptConfigSecrets,
   decryptConfigSecretsForRewrite,
   encryptConfigSecrets,
 } from '@wrongstack/core/security';
-import type { ProviderApiKey, ProviderConfig, SecretVault } from '@wrongstack/core/types';
 import { atomicWrite, backupConfigFile, color, withFileLock } from '@wrongstack/core/utils';
 import {
   clearStaleProviderDefaults,

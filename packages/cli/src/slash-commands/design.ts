@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   applyTokenOverrides,
   clearActiveKit,
@@ -16,7 +17,6 @@ import {
   setActiveKit,
   setDesignOverrides,
 } from '@wrongstack/core/design';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

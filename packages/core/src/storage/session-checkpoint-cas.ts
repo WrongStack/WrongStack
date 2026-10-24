@@ -5,7 +5,7 @@ import type {
   WorkspaceCheckpointCoverage,
   WorkspaceCheckpointRef,
   WorkspaceMaterializationResult,
-} from '../types/session.js';
+} from '@wrongstack/contracts/types/session';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { openVcs, type VcsKind, type VcsOptions } from '../vcs/vcs-adapter.js';

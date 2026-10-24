@@ -29,8 +29,8 @@
 
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { shellCommandLinesFromInput } from '@wrongstack/core/security';
-import type { Plugin } from '@wrongstack/core/types';
 import { parseInstallCommands } from '../dep-guard/index.js';
 
 const API_VERSION = '^0.1.10';

@@ -6,7 +6,7 @@
  */
 
 import { join, resolve } from 'node:path';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import {
   conflictMarkedFiles as conflictMarkedFilesFromHost,
   diffSummary as diffSummaryFromHost,

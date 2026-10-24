@@ -1,13 +1,13 @@
-import type { Config } from '../types/config.js';
-import { ToolValidationError } from '../types/errors.js';
-import type { Logger } from '../types/logger.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
+import type { Config } from '@wrongstack/contracts/types/config';
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import {
   isReasoningEffort,
   REASONING_EFFORT_LEVELS,
   type ReasoningEffort,
-} from '../types/provider.js';
-import type { JSONSchema } from '../types/tool.js';
+} from '@wrongstack/contracts/types/provider';
+import type { JSONSchema } from '@wrongstack/contracts/types/tool';
 import { conversationEffort } from '../utils/leader-effort-override.js';
 import { isExternalAgentProvider } from './external-agent-provider.js';
 import type { ModelMatrixSource } from './model-matrix.js';

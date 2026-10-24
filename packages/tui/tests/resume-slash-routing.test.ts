@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { useSessionSlashCommands } from '../src/hooks/use-session-slash-commands.js';
 

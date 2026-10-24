@@ -4,8 +4,8 @@ import type {
   AgentBridgeConfig,
   BridgeMessage,
   BridgeTransport,
-} from '../types/agent-bridge.js';
-import { AgentError, ERROR_CODES } from '../types/errors.js';
+} from '@wrongstack/contracts/types/agent-bridge';
+import { AgentError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
 import { InMemoryBridgeTransport } from './in-memory-transport.js';
 
 // Re-export for backwards compatibility

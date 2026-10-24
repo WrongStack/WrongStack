@@ -8,12 +8,12 @@
 // runtime light factory) and whether git worktrees are available — both are
 // passed in, keeping this helper free of CLI/host coupling.
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { SecretScrubber, TaskGraph } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import type { AgentFactory } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import { TOKENS } from '@wrongstack/core/kernel';
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import type { SecretScrubber, TaskGraph } from '@wrongstack/core/types';
 import type { WorktreeManager } from '@wrongstack/core/worktree';
 import {
   drainKanbanWorkflowCommands,

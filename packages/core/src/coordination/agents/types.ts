@@ -12,8 +12,8 @@
  * `fleet.ts` derives `FLEET_ROSTER` + `FLEET_ROSTER_BUDGETS` from the catalog.
  */
 
-import { activeLimits, positiveLimit } from '../../types/config/limits.js';
-import type { SubagentConfig } from '../../types/multi-agent.js';
+import { activeLimits, positiveLimit } from '@wrongstack/contracts/types/config/limits';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { toolsForRuntimeCapabilities } from './capability-manifest.js';
 
 /** Lifecycle phase grouping. Drives statusline labels + dispatcher tie-breaks. */

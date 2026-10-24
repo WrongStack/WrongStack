@@ -1,7 +1,10 @@
+import type { Response } from '@wrongstack/contracts/types/provider';
+import type {
+  ProviderRunner,
+  RunProviderOptions,
+} from '@wrongstack/contracts/types/provider-runner';
 import { describe, expect, it, vi } from 'vitest';
 import { ReplayProviderRunner } from '../../src/replay/replay-provider-runner.js';
-import type { ProviderRunner, RunProviderOptions } from '../../src/types/provider-runner.js';
-import type { Response } from '../../src/types/provider.js';
 
 const REQUEST = {
   model: 'm',

@@ -4,7 +4,7 @@ import type {
   ProviderAuthOutcome,
   ProviderAuthSession,
   ProviderAuthStrategy,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { chatGPTHostId } from './chatgpt-host.js';
 import { verifyChatGPTIdentity } from './chatgpt-identity.js';
 import { oauthExpiry, oauthFailure, oauthForm, oauthSignal, requiredOAuthString } from './http.js';

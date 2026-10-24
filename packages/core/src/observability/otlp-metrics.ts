@@ -1,4 +1,4 @@
-import type { MetricSeries, MetricsSink } from '../types/observability.js';
+import type { MetricSeries, MetricsSink } from '@wrongstack/contracts/types/observability';
 
 /**
  * V2-A: OTLP/JSON metrics push exporter.

@@ -1,4 +1,4 @@
-import type { SessionSummary } from '../types/session.js';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 
 export interface SessionFilterCriteria {
   since?: string | undefined;

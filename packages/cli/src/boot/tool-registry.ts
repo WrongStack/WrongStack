@@ -1,15 +1,6 @@
 /** CLI boot adapter for canonical runtime tool registration and host policies. */
 
-import {
-  makeFleetStatusTool,
-  makeMailboxTool,
-  makeMailInboxTool,
-  makeMailSendTool,
-  makeSessionNoteTool,
-} from '@wrongstack/core/coordination';
-import { createContextManagerTool } from '@wrongstack/core/infrastructure';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   AutoThinConfig,
   ConcreteTokenSavingTier,
@@ -19,8 +10,17 @@ import type {
   TokenSavingTier,
   ToolDescriptionModeConfig,
   ToolResultRenderModeConfig,
-} from '@wrongstack/core/types';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { normalizeTokenSavingTier } from '@wrongstack/contracts/types';
+import {
+  makeFleetStatusTool,
+  makeMailboxTool,
+  makeMailInboxTool,
+  makeMailSendTool,
+  makeSessionNoteTool,
+} from '@wrongstack/core/coordination';
+import { createContextManagerTool } from '@wrongstack/core/infrastructure';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { configureChildEnvGitIdentity } from '@wrongstack/core/utils';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';

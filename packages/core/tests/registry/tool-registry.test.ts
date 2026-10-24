@@ -1,6 +1,6 @@
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
-import type { Tool } from '../../src/types/tool.js';
 
 const t = (name: string, category?: string): Tool => ({
   name,

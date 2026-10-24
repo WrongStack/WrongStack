@@ -1,3 +1,5 @@
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resolveDirectorSpawnModel } from '../../src/coordination/director-spawn-model.js';
 import {
@@ -16,8 +18,6 @@ import {
   setSessionSubagentModelPlanForSession,
   subagentSlotOccupancy,
 } from '../../src/coordination/session-subagent-models.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 const SESSION = 'sess_plan';
 

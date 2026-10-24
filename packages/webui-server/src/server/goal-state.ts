@@ -1,4 +1,4 @@
-import type { PhaseGraph } from '@wrongstack/core/goal';
+import type { PhaseGraph } from '@wrongstack/goal';
 
 export function buildGoalState(
   graph: PhaseGraph | null,
@@ -43,7 +43,7 @@ export function buildGoalState(
 
   // Shared task → board-card mapper. Carries assignee/timestamps so the kanban
   // can show who is on each card and how long it has been running.
-  const mapTask = (t: import('@wrongstack/core/types').TaskNode) => ({
+  const mapTask = (t: import('@wrongstack/contracts/types').TaskNode) => ({
     id: t.id,
     title: t.title,
     description: t.description,

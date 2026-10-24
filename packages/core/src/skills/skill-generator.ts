@@ -17,8 +17,8 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { ERROR_CODES, WrongStackError } from '../types/errors.js';
-import type { SkillEntry, SkillLoader } from '../types/skill.js';
+import { ERROR_CODES, WrongStackError } from '@wrongstack/contracts/types/errors';
+import type { SkillEntry, SkillLoader } from '@wrongstack/contracts/types/skill';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { buildWin32CmdShimInvocation } from '../utils/win32-cmd.js';
 import {

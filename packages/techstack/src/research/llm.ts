@@ -10,7 +10,7 @@
  * @see docs/archive/specs/techstack-sdd.md §4.2
  */
 
-import type { Provider, Request } from '@wrongstack/core/types';
+import type { Provider, Request } from '@wrongstack/contracts/types';
 import type { ResearchLlm, ResearchLlmRequest } from './types.js';
 
 /** How the caller reaches a live provider. A getter, not a captured value —

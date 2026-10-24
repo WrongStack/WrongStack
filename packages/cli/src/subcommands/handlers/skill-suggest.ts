@@ -17,6 +17,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Config } from '@wrongstack/contracts/types';
 import {
   buildSuggesterFromConfig,
   parseEvalJsonl,
@@ -28,7 +29,6 @@ import {
   sweepThresholds,
   unknownGoldLabels,
 } from '@wrongstack/core/skills';
-import type { Config } from '@wrongstack/core/types';
 import { estimateTypeSafeCostUsd } from '@wrongstack/core/typesafe';
 import { color } from '@wrongstack/core/utils';
 import type { SubcommandHandler } from '../contracts.js';

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   MemoryCapability,
   MemoryEntry,
@@ -8,7 +8,7 @@ import type {
   MemoryRelevanceContext,
   MemoryScope,
   ScoredEntry,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import type { SageRetrieverLike } from './middleware/tool-call-memory.js';
 import {
   SageProjectServerConnection,

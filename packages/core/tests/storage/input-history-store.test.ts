@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import {
   INPUT_HISTORY_DEFAULT_MAX,
   InputHistoryStore,
 } from '../../src/storage/input-history-store.js';
-import type { SecretScrubber } from '../../src/types/secret-scrubber.js';
 
 /**
  * A minimal SecretScrubber stand-in for tests. The real DefaultSecretScrubber

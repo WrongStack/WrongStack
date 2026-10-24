@@ -1,4 +1,4 @@
-import type { Tool } from '../types/tool.js';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { resolveSandboxConfigForAgent } from './agent-overrides.js';
 import {
   emitSandboxDenied,

@@ -10,6 +10,8 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { type EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config, MemoryPort, ModeStore, SkillLoader } from '@wrongstack/contracts/types';
 import {
   type Agent,
   type Context,
@@ -17,11 +19,9 @@ import {
   setQueuedMessagesSnapshot,
 } from '@wrongstack/core/agent';
 import { resetSessionSubagentPolicy } from '@wrongstack/core/coordination';
-import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { restoreSessionPermissionOverrides } from '@wrongstack/core/security';
 import { restoreRequiredSkillsFromEvents } from '@wrongstack/core/skills';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import type { Config, MemoryPort, ModeStore, SkillLoader } from '@wrongstack/core/types';
 import {
   activateProjectStateGuard,
   clearLeaderEffortOverride,
@@ -36,7 +36,7 @@ export interface ProjectSwitchContext {
   events: EventBus;
   agent: Agent;
   config: Config;
-  tokenCounter: import('@wrongstack/core/types').TokenCounter;
+  tokenCounter: import('@wrongstack/contracts/types').TokenCounter;
   modeId: string | undefined;
   modeStore: ModeStore | undefined;
   memoryStore: MemoryPort | undefined;

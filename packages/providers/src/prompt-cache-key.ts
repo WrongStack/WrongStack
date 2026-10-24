@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Capabilities, Request } from '@wrongstack/core/types';
+import type { Capabilities, Request } from '@wrongstack/contracts/types';
 
 const PROMPT_CACHE_KEY_MAX_LENGTH = 64;
 

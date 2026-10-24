@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Message, SessionStore, SessionWriter } from '@wrongstack/core/types';
+import type { Message, SessionStore, SessionWriter } from '@wrongstack/contracts/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { settleSessionKanbanBackgroundWork } from '@wrongstack/tools/session-kanban';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

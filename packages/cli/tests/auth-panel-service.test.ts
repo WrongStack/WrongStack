@@ -7,8 +7,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelsRegistry, ResolvedModel, ResolvedProvider } from '@wrongstack/contracts/types';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import type { ModelsRegistry, ResolvedModel, ResolvedProvider } from '@wrongstack/core/types';
 import type { AuthFlowIo } from '@wrongstack/tui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 

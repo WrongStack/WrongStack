@@ -1,7 +1,7 @@
+import type { AttachmentStore, TokenCounter } from '@wrongstack/contracts/types';
+import { AgentError } from '@wrongstack/contracts/types';
 import type { Agent, Context, RunResult, TodoItem } from '@wrongstack/core/agent';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { AttachmentStore, TokenCounter } from '@wrongstack/core/types';
-import { AgentError } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReadlineInputReader } from '../src/input-reader.js';
 import type { TerminalRenderer } from '../src/renderer.js';

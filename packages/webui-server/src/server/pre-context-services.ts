@@ -22,6 +22,20 @@
 
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { type Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import {
+  type Config,
+  type ConfigStore,
+  DEFAULT_SESSION_PRUNE_DAYS,
+  type Logger,
+  type MemoryPort,
+  type ModelsRegistry,
+  type Provider,
+  resolveContextWindowPolicy,
+  resolveTokenSavingTier,
+  type SecretVault,
+  type SessionStore,
+} from '@wrongstack/contracts/types';
 import {
   Context,
   DefaultSystemPromptBuilder,
@@ -38,7 +52,6 @@ import {
 } from '@wrongstack/core/coordination';
 import { DefaultPromptLoader, DefaultSkillLoader } from '@wrongstack/core/execution';
 import { DefaultTokenCounter, resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
-import { type Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultModelsRegistry, DefaultModeStore, startCatalog } from '@wrongstack/core/models';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { SkillInstaller } from '@wrongstack/core/skills';
@@ -56,20 +69,7 @@ import {
   createMcpUseTool,
   createSessionRenameTool,
   SESSION_RENAME_TOOL_NAME,
-} from '@wrongstack/core/tools';
-import {
-  type Config,
-  type ConfigStore,
-  DEFAULT_SESSION_PRUNE_DAYS,
-  type Logger,
-  type MemoryPort,
-  type ModelsRegistry,
-  type Provider,
-  resolveContextWindowPolicy,
-  resolveTokenSavingTier,
-  type SecretVault,
-  type SessionStore,
-} from '@wrongstack/core/types';
+} from '@wrongstack/tools/management';
 import {
   configureChildEnvGitIdentity,
   sessionScopedPath,

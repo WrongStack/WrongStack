@@ -3,10 +3,10 @@
  * deliveries, queue awareness) and the iteration-limit check for the agent
  * loop. Split out of agent-loop.ts; bound to one agent's internals.
  */
-import type { EventBus } from '../kernel/events.js';
-import { drainLeaderDeliveries } from '../leader-delivery-attach.js';
-import type { TextBlock } from '../types/blocks.js';
-import type { Logger } from '../types/logger.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { AgentCoordinationPort } from './agent-coordination.js';
 import { buildBtwBlock, consumeBtwNotes } from './btw.js';
 import { type Context, resolveEventSessionId, resolveOwningSessionId } from './context.js';
 import { requestLimitExtension } from './iteration-limit.js';
@@ -15,8 +15,8 @@ import { buildSessionNoteBlock, consumeSessionNotes } from './session-notes.js';
 
 /**
  * The agent fields the injectors read. Structural on purpose: importing
- * AgentInternals or agent-types would pull this module into the agent-loop
- * type cycle (architecture/exceptions.json TYPE-11).
+ * AgentInternals or agent-types would tie this module to the agent-loop
+ * type graph (the architecture gate fails on new type cycles).
  */
 export interface AgentLoopInjectorHost {
   readonly ctx: Context;
@@ -33,7 +33,11 @@ export interface IterationLimitExit {
   delegateSummaries: Array<{ summary: string; ok: boolean }>;
 }
 
-export function createAgentLoopInjectors(a: AgentLoopInjectorHost) {
+export function createAgentLoopInjectors(
+  a: AgentLoopInjectorHost,
+  /** Host-bound coordination; leader deliveries drain only when present. */
+  coordination?: AgentCoordinationPort | undefined,
+) {
   function foldBlockIntoConversation(block: TextBlock): void {
     if (!a.ctx.state.appendBlockToLastUserMessage(block)) {
       a.ctx.state.appendMessage({
@@ -93,7 +97,7 @@ export function createAgentLoopInjectors(a: AgentLoopInjectorHost) {
    * leader's results. Bounded per iteration; the rest wait for the next one.
    */
   async function injectPendingDeliveries(): Promise<void> {
-    await drainLeaderDeliveries(a, ownSessionIds(), foldBlockIntoConversation);
+    await coordination?.drainLeaderDeliveries(a, ownSessionIds(), foldBlockIntoConversation);
   }
 
   function injectQueueAwareness(): void {

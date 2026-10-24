@@ -1,4 +1,4 @@
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { BROWSER_POLICY_HELP, runBrowserPolicyCommand } from '@wrongstack/tools/browser';
 
 export function buildBrowserCommand(): SlashCommand {

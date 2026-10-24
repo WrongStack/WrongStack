@@ -5,7 +5,7 @@
  * result-parsing helpers those subscriptions rely on.
  */
 
-import type { TaskResult } from '../types/multi-agent.js';
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import type {
   BugFinding,
   BugFoundPayload,

@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { TaskStatus, Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import type { TaskFile } from '@wrongstack/core/storage';
 import {
   addPlanItem,
@@ -7,8 +9,6 @@ import {
   mutatePlan,
   mutateTasks,
 } from '@wrongstack/core/storage';
-import type { TaskStatus, Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { computeTaskItemProgress, formatTaskList, type TaskItem } from '@wrongstack/core/utils';
 import { mirrorSessionTasksToKanban } from './session-kanban.js';
 import { todoTool } from './todo.js';

@@ -1,4 +1,4 @@
-import type { MemoryScope } from '@wrongstack/core/types';
+import type { MemoryScope } from '@wrongstack/contracts/types';
 import type { MemoryAnchor, SageKind, SageScope, SageStatus } from '../types.js';
 
 export function validitySchema() {

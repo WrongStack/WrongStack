@@ -1,3 +1,4 @@
+import type { Provider, ReasoningRequest } from '@wrongstack/contracts/types';
 import { parseModelRef } from '@wrongstack/core/agent';
 import {
   buildRefinerContextSections,
@@ -11,7 +12,6 @@ import {
   resolvePreviewAction,
   shouldEnhance,
 } from '@wrongstack/core/execution';
-import type { Provider, ReasoningRequest } from '@wrongstack/core/types';
 import type { Action, State } from './app-reducer.js';
 import type {
   RefineFailureDecision,

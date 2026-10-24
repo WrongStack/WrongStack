@@ -12,7 +12,7 @@
  * AFTER the live-run check, because a background run outlives the tab that
  * started it and still deserves its helpers.
  */
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runWebUI } from '../../src/webui-server.js';
 import { openWs } from '../_ws-client.js';

@@ -1,4 +1,4 @@
-import type { HqGovernanceSnapshotPayload, HqPublisher } from '@wrongstack/core/hq';
+import type { HqGovernanceSnapshotPayload, HqPublisher } from '@wrongstack/hq';
 import {
   type GovernanceDaemonOperatorStatusReadResult,
   readGovernanceDaemonOperatorStatus,

@@ -1,4 +1,4 @@
-import { summarizeGoal } from '@wrongstack/core/goal';
+import { summarizeGoal } from '@wrongstack/goal';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import type { GoalWSMessage, GoalWsHandlerInternals } from './goal-ws-handler-internals.js';

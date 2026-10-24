@@ -1,7 +1,7 @@
+import type { Config, MemoryPort, SkillLoader } from '@wrongstack/contracts/types';
 import type { Context, DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
 import type { DefaultModeStore } from '@wrongstack/core/models';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Config, MemoryPort, SkillLoader } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import { createModeRouteHandlers } from './mode-routes.js';
 import { rebuildSystemPrompt } from './system-prompt-rebuild.js';

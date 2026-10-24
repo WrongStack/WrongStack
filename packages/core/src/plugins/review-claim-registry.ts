@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '../kernel/events.js';
-import type { PluginAPI } from '../types/plugin.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { PluginAPI } from '@wrongstack/contracts/types/plugin';
 import {
   CLAIM_STORE_LOCK_TIMEOUT,
   claimsFilePath,

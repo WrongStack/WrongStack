@@ -8,7 +8,7 @@
  * they're covered by the existing auth-menu integration tests.
  */
 
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderOAuthLoginOptions, resolveOAuthKind } from '../src/auth-menu/oauth-menu.js';
 import { plainMaskedKey } from '../src/auth-menu/panel-service.js';

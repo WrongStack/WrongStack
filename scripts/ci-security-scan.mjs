@@ -36,8 +36,9 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '..');
 // noise by construction. Add entries here only with a stated reason; this
 // list is the scan's own drift control.
 const EXCLUDES = [
-  // The scrubber's PATTERN table (token regexes) would self-match.
-  'packages/core/src/security/secret-scrubber.ts',
+  // The scrubber and its PATTERN table (token regexes) would self-match.
+  'packages/primitives/src/secret-scrubber.ts',
+  'packages/primitives/src/secret-scrubber-patterns.ts',
   // Detection patterns — the WS-034 port source of the scrubber table.
   'packages/plugin-sdk/src/runtime/credential-patterns.ts',
   // The scanner package itself: pattern tables for every provider token.

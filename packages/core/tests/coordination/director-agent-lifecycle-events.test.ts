@@ -4,14 +4,15 @@
  * had no producer at all, so a resumed session replayed every subagent starting
  * and none of them finishing — a crash looked exactly like a run still going.
  */
-import { describe, expect, it, vi } from 'vitest';
-import { Director } from '../../src/coordination/director.js';
+
 import type {
   SubagentRunContext,
   SubagentRunOutcome,
   TaskSpec,
-} from '../../src/types/multi-agent.js';
-import type { SessionEvent } from '../../src/types/session.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
+import { describe, expect, it, vi } from 'vitest';
+import { Director } from '../../src/coordination/director.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import * as path from 'node:path';
+import { ERROR_CODES, FsError } from '@wrongstack/contracts/types';
 import { isSecretField } from '@wrongstack/core/security';
-import { ERROR_CODES, FsError } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 
 // ── UID ownership ──────────────────────────────────────────────────────────

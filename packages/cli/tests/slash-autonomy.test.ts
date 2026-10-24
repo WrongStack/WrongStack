@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { HybridCompactor } from '@wrongstack/core/execution';
-import { appendJournal, emptyGoal, goalFilePath, saveGoal } from '@wrongstack/core/goal';
+import { appendJournal, emptyGoal, goalFilePath, saveGoal } from '@wrongstack/goal';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

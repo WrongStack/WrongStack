@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { THEME_PRESET_IDS } from '@wrongstack/contracts/types';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
-import { THEME_PRESET_IDS } from '@wrongstack/core/types';
+import { describe, expect, it } from 'vitest';
 import { buildThemeCommand, computeWindow, truncateDesc } from '../src/slash-commands/theme.js';
 
 describe('/theme slash command', () => {

@@ -1,12 +1,12 @@
-import { type Config, DEFAULT_TUI_THINKING_WORD } from '../../types/config.js';
-import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '../../types/context-window.js';
+import { type Config, DEFAULT_TUI_THINKING_WORD } from '@wrongstack/contracts/types/config';
+import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/contracts/types/context-window';
 import {
   DEFAULT_AUTONOMY_CONFIG,
   DEFAULT_CIRCUIT_BREAKER_CONFIG,
   DEFAULT_CONTEXT_CONFIG,
   DEFAULT_SESSION_LOGGING_CONFIG,
   DEFAULT_TOOLS_CONFIG,
-} from '../../types/default-config.js';
+} from '@wrongstack/contracts/types/default-config';
 
 /**
  * Defaults express *behavior*, not identity. Provider and model are NOT

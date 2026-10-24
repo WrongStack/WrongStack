@@ -17,7 +17,7 @@
  * with the same trap.
  */
 
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { subjectForToolInput } from '@wrongstack/core/utils';
 import { describe, expect, it } from 'vitest';
 import { matchesCommandTrust } from '../../core/src/security/permission-helpers.js';

@@ -1,9 +1,9 @@
+import type { TaskNode } from '@wrongstack/contracts/types/task-graph';
 import {
   type BrainArbiter,
   type BrainDecision,
   DefaultBrainArbiter,
-} from '@wrongstack/core/coordination/brain.js';
-import type { TaskNode } from '@wrongstack/core/types/task-graph.js';
+} from '@wrongstack/core/coordination';
 import { describe, expect, it } from 'vitest';
 import { SddSupervisor } from '../src/sdd-supervisor.js';
 

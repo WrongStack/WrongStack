@@ -1,8 +1,9 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TaskGraph } from '@wrongstack/contracts/types/task-graph';
 import type { AgentFactory } from '@wrongstack/core/coordination/agent-subagent-runner.js';
-import { EventBus } from '@wrongstack/core/kernel/events.js';
-import type { TaskGraph, TaskStore } from '@wrongstack/core/types/task-graph.js';
+import type { TaskStore } from '@wrongstack/core/tasking';
 import { describe, expect, it, vi } from 'vitest';
 import type { Agent } from '../../src/core/agent.js';
 import { SddBoardStore } from '../src/sdd-board-store.js';

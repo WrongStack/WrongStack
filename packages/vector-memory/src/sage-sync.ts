@@ -32,7 +32,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { getSageSurface } from '@wrongstack/sage';
 
 import { createSageSurfaceSyncSource } from './sage-sync-source.js';

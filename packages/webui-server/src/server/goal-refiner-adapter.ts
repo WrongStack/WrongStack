@@ -1,10 +1,10 @@
+import type { Config, Provider, Usage } from '@wrongstack/contracts/types';
 import type { EnhanceFailureKind } from '@wrongstack/core/execution';
 import {
   type RefinedMission,
   refineGoalWithProvider,
   resolveRefinerTarget,
-} from '@wrongstack/core/goal';
-import type { Config, Provider, Usage } from '@wrongstack/core/types';
+} from '@wrongstack/goal';
 
 /** Goal-path refinement outcome, enriched for the emitting surface:
  * failures carry the EnhanceFailureKind and the refiner's reason text. */

@@ -20,7 +20,6 @@
  * path share one definition instead of three that had to be kept in step by hand.
  */
 import { randomUUID } from 'node:crypto';
-import { recordProviderQuota } from '@wrongstack/core/quota';
 import {
   type Capabilities,
   type ProviderApiKey,
@@ -28,7 +27,8 @@ import {
   type ReasoningEffort,
   type Request,
   type StreamEvent,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { recordProviderQuota } from '@wrongstack/core/quota';
 import { readChatGPTQuota } from './chatgpt-account-quota.js';
 import type { CodexAccountCatalogHost } from './codex-account-catalog.js';
 import {

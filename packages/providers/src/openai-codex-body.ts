@@ -3,7 +3,7 @@ import {
   isVolatileSystemBlock,
   type ReasoningEffort,
   type Request,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { type CodexModelPolicy, clampReasoningEffort } from './openai-codex-model-policy.js';
 import {
   appendVolatileSystem,

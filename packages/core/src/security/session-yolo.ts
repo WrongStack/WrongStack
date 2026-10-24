@@ -14,7 +14,7 @@
  * and the WebUI host can be bundled separately, and a module-level variable
  * would give each bundle its own empty copy.
  */
-import type { PermissionPolicy } from '../types/permission.js';
+import type { PermissionPolicy } from '@wrongstack/contracts/types/permission';
 
 type LeaderMetaResolver = (sessionId: string) => Record<string, unknown> | undefined;
 

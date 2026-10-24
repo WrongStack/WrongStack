@@ -4,10 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const VERIFIER_SOURCE = readFileSync(
-  resolve(here, '../../core/src/goal/project-verifier.ts'),
-  'utf8',
-);
+const VERIFIER_SOURCE = readFileSync(resolve(here, '../../goal/src/project-verifier.ts'), 'utf8');
 const HANDLER_SOURCE = readFileSync(resolve(here, '../src/server/goal-ws-handler.ts'), 'utf8');
 const RUN_SOURCE = readFileSync(resolve(here, '../src/server/goal-run.ts'), 'utf8');
 

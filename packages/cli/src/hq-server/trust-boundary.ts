@@ -1,4 +1,4 @@
-import type { HqCommand } from '@wrongstack/core/hq';
+import type { HqCommand } from '@wrongstack/hq';
 import {
   isTrustDecisionAllowed,
   type TrustBoundary,

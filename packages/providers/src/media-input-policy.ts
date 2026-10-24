@@ -1,4 +1,4 @@
-import { type DocumentBlock, documentAsText, type ImageBlock } from '@wrongstack/core/types';
+import { type DocumentBlock, documentAsText, type ImageBlock } from '@wrongstack/contracts/types';
 import { isStandardBase64Payload } from '@wrongstack/core/utils';
 
 export const IMAGE_OMITTED_TEXT_ONLY = '[image omitted: model accepts text only]';

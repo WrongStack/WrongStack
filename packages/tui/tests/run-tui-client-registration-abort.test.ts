@@ -48,7 +48,7 @@ vi.mock('@wrongstack/core/coordination', () => ({
   },
 }));
 
-vi.mock('@wrongstack/core/hq', () => ({
+vi.mock('@wrongstack/hq', () => ({
   createHqPublisherFromEnv: () => undefined,
   startBrainTelemetryBridge: () => () => {},
   startCostTelemetryBridge: () => () => {},

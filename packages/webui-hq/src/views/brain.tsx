@@ -6,7 +6,7 @@
  * source, its risk and the decision that came out of it. Seeded from the
  * persisted log so a fresh browser sees history immediately.
  */
-import type { HqBrainEventPayload } from '@wrongstack/core/hq';
+import type { HqBrainEventPayload } from '@wrongstack/hq';
 import {
   BrainCircuit,
   CircleCheck,

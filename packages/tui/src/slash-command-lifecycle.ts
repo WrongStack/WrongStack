@@ -1,5 +1,5 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { SlashCommand } from '@wrongstack/core/types';
 
 interface SlashCommandRegistrationOptions {
   owner?: string | undefined;

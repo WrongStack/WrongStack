@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import type { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import { isCanonicalTranscriptRelativePath } from '../storage/session-store/transcript-location.js';
-import type { SessionSummary } from '../types/session.js';
 import type { CatalogSessionRecord } from './protocol.js';
 import { assertId, type CatalogRow, parseJson } from './store-schema.js';
 

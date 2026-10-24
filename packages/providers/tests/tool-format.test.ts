@@ -1,4 +1,4 @@
-import type { Message, Tool } from '@wrongstack/core/types';
+import type { Message, Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { contentFromAnthropic } from '../src/tool-format/from-anthropic.js';
 import { contentFromOpenAI } from '../src/tool-format/from-openai.js';

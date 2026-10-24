@@ -1,6 +1,6 @@
-import { AgentError } from '../../types/errors.js';
-import type { SubagentError, SubagentErrorKind } from '../../types/multi-agent.js';
-import { ProviderError } from '../../types/provider.js';
+import { AgentError } from '@wrongstack/contracts/types/errors';
+import type { SubagentError, SubagentErrorKind } from '@wrongstack/contracts/types/multi-agent';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { toErrorMessage } from '../../utils/error.js';
 import { BudgetExceededError } from '../subagent-budget.js';
 

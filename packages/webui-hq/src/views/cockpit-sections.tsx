@@ -1,5 +1,5 @@
 /** Cockpit header sections: the operational hero, the attention strip and the command strip. */
-import type { HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSnapshot } from '@wrongstack/hq';
 import {
   Activity,
   ArrowUpRight,

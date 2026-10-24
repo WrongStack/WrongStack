@@ -1,6 +1,6 @@
+import type { MemoryEntry } from '@wrongstack/contracts/types/memory';
 import { describe, test } from 'vitest';
 import { buildInvertedIndex, searchIndex } from '../../src/storage/memory-backend.js';
-import type { MemoryEntry } from '../../src/types/memory.js';
 
 /**
  * Locks in the O(1) exact-lookup fast path in `searchIndex`.

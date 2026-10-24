@@ -3,7 +3,7 @@
  * credential gate, the "continue with these?" summary and the picker.
  */
 
-import type { Config, ModelsRegistry } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry } from '@wrongstack/contracts/types';
 import { color, isStdinTTY, toErrorMessage, writeErr } from '@wrongstack/core/utils';
 import { isSetupProvider, SETUP_MODEL_ID, SETUP_PROVIDER_ID } from '@wrongstack/providers';
 import { type BootConfigResult, bootConfig } from './boot-config.js';

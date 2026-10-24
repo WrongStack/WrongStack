@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Logger } from '../types/logger.js';
-import type { RotatableSecretVault, SecretVault } from '../types/secret-vault.js';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { RotatableSecretVault, SecretVault } from '@wrongstack/contracts/types/secret-vault';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { deepMerge } from '../utils/deep-merge.js';
 import { encryptConfigSecrets, isSecretField } from './config-secrets.js';

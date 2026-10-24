@@ -1,3 +1,4 @@
+import type { SkillLoader, SkillManifest } from '@wrongstack/contracts/types/skill';
 import { describe, expect, it } from 'vitest';
 import {
   buildCompactSkillBodiesText,
@@ -7,7 +8,6 @@ import {
   newSkillFragmentCache,
 } from '../../src/core/system-prompt-skill-bodies.js';
 import { SKILL_LIMITS } from '../../src/skills/limits.js';
-import type { SkillLoader, SkillManifest } from '../../src/types/skill.js';
 
 /** In-memory loader whose compact body is a fixed string per skill. */
 function fakeLoader(names: string[], body: string): SkillLoader {

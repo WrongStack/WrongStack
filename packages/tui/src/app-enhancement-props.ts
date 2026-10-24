@@ -37,9 +37,9 @@ export interface TuiEnhancementProps {
         providerId?: string,
         modelId?: string,
       ) =>
-        | import('@wrongstack/core/types').ReasoningRequest
+        | import('@wrongstack/contracts/types').ReasoningRequest
         | undefined
-        | Promise<import('@wrongstack/core/types').ReasoningRequest | undefined>)
+        | Promise<import('@wrongstack/contracts/types').ReasoningRequest | undefined>)
     | undefined;
   /**
    * Effort levels the ACTIVE model documents (models.dev reasoningConfig),
@@ -57,7 +57,7 @@ export interface TuiEnhancementProps {
     | ((
         providerId: string,
         modelId: string,
-      ) => Promise<import('@wrongstack/core/types').Provider | undefined>)
+      ) => Promise<import('@wrongstack/contracts/types').Provider | undefined>)
     | undefined;
   /**
    * Resolve the one-key "retry with another model" fallback ref

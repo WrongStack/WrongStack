@@ -1,14 +1,10 @@
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  BrainArbiter,
-  BrainDecision,
-  BrainDecisionRequest,
-} from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../../src/brain/brain.js';
 import {
   createAutonomyBrain,
   createTieredBrainArbiter,
 } from '../../src/execution/autonomy-brain.js';
-import type { Provider } from '../../src/types/provider.js';
 
 // A question the quickDecide heuristics pass through to the LLM tier.
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({

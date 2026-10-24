@@ -42,9 +42,9 @@
  * // returning to the caller.
  * ```
  */
+
+import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
 import type { Context } from './context.js';
-import type { JSONSchema } from '../types/tool.js';
-import type { Tool } from '../types/tool.js';
 
 /**
  * Directive emitted by the model to control the autonomous loop.

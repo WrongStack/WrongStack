@@ -11,7 +11,7 @@
  * surfaces likely drift to steer a correction pass.
  */
 
-import type { DesignKitTokens } from '../types/design-kit.js';
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { colorToHex, contrastRatio, isColorToken } from './design-color.js';
 import {
   type DesignSeverity,

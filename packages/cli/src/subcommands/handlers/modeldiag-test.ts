@@ -4,14 +4,14 @@
  * @module subcommands/handlers/modeldiag-test
  */
 
-import type { DefaultModelsRegistry } from '@wrongstack/core/models';
 import type {
   Config,
   ModelsRegistry,
   Provider,
   ProviderConfig,
   ProviderFactory,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import {
   buildProviderFactoriesFromRegistry,

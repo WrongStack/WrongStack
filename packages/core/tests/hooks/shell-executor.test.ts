@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { HookInput } from '@wrongstack/contracts/types/hooks';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runShellHook, runShellHookDetailed } from '../../src/hooks/shell-executor.js';
-import type { HookInput } from '../../src/types/hooks.js';
 
 // Temp scripts run via `node` (on PATH) so we avoid inline cross-shell quoting.
 let dir: string;

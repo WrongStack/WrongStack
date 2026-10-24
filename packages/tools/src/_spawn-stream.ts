@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
+import type { ToolProgressEvent } from '@wrongstack/contracts/types';
 import {
   emitProcessCompleted,
   emitProcessOutput,
   emitProcessStarted,
 } from '@wrongstack/core/observability';
-import type { ToolProgressEvent } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { commandOutputPreviewBytes } from './_util.js';

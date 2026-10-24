@@ -109,7 +109,7 @@ this registry. Bench experiment actions are nested actions of `bench`.
 
 ## Modes and bundled skills
 
-19 mode definitions in [packages/core/src/types/mode.ts](../packages/core/src/types/mode.ts):
+19 mode definitions in [packages/core/src/models/default-modes.ts](../packages/core/src/models/default-modes.ts):
 
 `default`, `brief`, `review-lite`, `audit-lite`, `plan-lite`, `debug-lite`, `test-lite`, `refactor-lite`, `research-lite`, `code-reviewer`, `code-auditor`, `architect`, `debugger`, `tester`, `devops`, `refactorer`, `ui-design`, `teach`, `research-web`
 

@@ -25,7 +25,7 @@
  * `run-command` (the only `critical` capability here) and keep `enqueue`
  * (`high`).
  */
-import type { HqCommand } from '@wrongstack/core/hq';
+import type { HqCommand } from '@wrongstack/hq';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
 import { describe, expect, it, vi } from 'vitest';
 import { authorizeHqCommand } from '../src/hq-server/trust-boundary.js';

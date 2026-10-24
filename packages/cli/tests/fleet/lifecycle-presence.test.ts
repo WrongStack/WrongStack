@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { AgentStatusTracker, Director, mailboxSessionTag } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SqliteMailbox } from '../../../core/src/coordination/sqlite-mailbox.js';
 import {

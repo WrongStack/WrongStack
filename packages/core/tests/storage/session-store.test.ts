@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
 
 let tmpDir: string;

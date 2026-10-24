@@ -1,20 +1,20 @@
-import type { MemoryPort, MemoryScope } from '@wrongstack/core/types';
+import type { MemoryPort, MemoryScope } from '@wrongstack/contracts/types';
 import { getSageSurface } from '@wrongstack/sage';
 import { KIND_EMOJI, SCOPE_LABEL } from './memory-slash-format.js';
 import {
   computeStats,
-  type SageLike,
-  renderSageStats,
-  renderSageEntries,
-  renderLegacySummary,
   renderLegacyCompactList,
   renderLegacyScopeSection,
+  renderLegacySummary,
+  renderSageEntries,
+  renderSageStats,
+  type SageLike,
 } from './memory-slash-render.js';
 import {
   handleMemoryWrite,
-  MEMORY_WRITE_SUBS,
   MEMORY_KIND_VALUES,
   MEMORY_STATUS_VALUES,
+  MEMORY_WRITE_SUBS,
   memErr,
 } from './memory-slash-write.js';
 

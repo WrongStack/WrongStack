@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { realpath } from 'node:fs/promises';
+import type { Tool } from '@wrongstack/contracts/types';
 import type { MCPClientOptions } from './client-types.js';
-import type { Tool } from '@wrongstack/core/types';
 
 export type MCPTaskContext = Parameters<Tool['execute']>[1];
 

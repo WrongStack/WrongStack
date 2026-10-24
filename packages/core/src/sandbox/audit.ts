@@ -1,4 +1,4 @@
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { SandboxDenyDecision, SandboxExecCall } from './types.js';
 
 /** One audit record — denial, expansion request, or expansion outcome. */

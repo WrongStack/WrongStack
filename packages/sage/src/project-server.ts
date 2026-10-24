@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { restrictFilePermissions } from '@wrongstack/core/security';
 import {
   atomicWrite,

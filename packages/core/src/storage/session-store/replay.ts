@@ -1,5 +1,5 @@
-import type { Message } from '../../types/messages.js';
-import type { SessionEvent } from '../../types/session.js';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 
 export function isReplayableMessage(value: unknown): value is Message {
   if (!value || typeof value !== 'object') return false;

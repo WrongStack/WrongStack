@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { MemoryPort, MemoryStore } from '@wrongstack/core/types';
+import type { MemoryPort, MemoryStore } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   getSageRetrieval,

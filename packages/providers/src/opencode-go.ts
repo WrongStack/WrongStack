@@ -1,4 +1,3 @@
-import { conversationBoundToRequest } from '@wrongstack/core/request-conversation';
 import type {
   Capabilities,
   ModelsDevModel,
@@ -6,7 +5,8 @@ import type {
   Request,
   Response,
   StreamEvent,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { conversationBoundToRequest } from '@wrongstack/core/request-conversation';
 import { AnthropicProvider } from './anthropic.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import type { BuildBodyContext } from './model-output-limits.js';

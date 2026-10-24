@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { open, readdir, stat } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
-import type { JSONSchema, Plugin, PluginAPI } from '@wrongstack/core/types';
+import type { JSONSchema, Plugin, PluginAPI } from '@wrongstack/contracts/types';
 import { validateAgainstSchema } from '@wrongstack/core/utils';
 import { safePath } from '@wrongstack/plugin-sdk/runtime/sandbox';
 import { runRunnerCommand } from '../runtime/index.js';

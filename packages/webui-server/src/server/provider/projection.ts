@@ -1,6 +1,6 @@
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { parseNativeCloudSettings } from '@wrongstack/core/cloud-provider';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import { probeLocalLlm } from '@wrongstack/runtime/probe';
 import { maskedKey, normalizeKeys } from './keys-records.js';
 

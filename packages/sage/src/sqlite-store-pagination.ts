@@ -1,4 +1,4 @@
-import type { MemoryEntry } from '@wrongstack/core/types';
+import type { MemoryEntry } from '@wrongstack/contracts/types';
 
 /**
  * Escape GLOB metacharacters (`*`, `?`, `[`, `]`) so a path fragment is treated

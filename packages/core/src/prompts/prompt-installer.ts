@@ -1,10 +1,10 @@
+import { FetchError, ParseError } from '@wrongstack/contracts/types/errors';
 import {
   diffRegistry,
   type PromptRegistryManifest,
   type RegistryDiff,
   validateRegistryManifest,
-} from '../types/prompt-registry.js';
-import { FetchError, ParseError } from '../types/errors.js';
+} from '@wrongstack/contracts/types/prompt-registry';
 
 /**
  * Fetch a JSON document. Injectable so the installer is testable without

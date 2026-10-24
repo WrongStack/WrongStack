@@ -48,7 +48,7 @@ interface FakeApprovals {
 const approvalRegistries: FakeApprovals[] = [];
 const approvalBridges: { sessionId: string; projectRoot: string; stopped: boolean }[] = [];
 
-vi.mock('@wrongstack/core/hq', () => ({
+vi.mock('@wrongstack/hq', () => ({
   startSessionTelemetryBridge: (opts: {
     sessionId: string;
     projectRoot: string;

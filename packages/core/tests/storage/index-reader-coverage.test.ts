@@ -1,12 +1,12 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   applySessionIndexLines,
   readFileRange,
 } from '../../src/storage/session-store/index-reader.js';
-import type { SessionSummary } from '../../src/types/session.js';
 
 let tmp: string;
 

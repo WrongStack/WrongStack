@@ -20,12 +20,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelsRegistry, ResolvedProvider } from '@wrongstack/contracts/types';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import type { ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { addKeyForProvider } from '../src/auth-menu/add-provider.js';
-import { mutateConfigProviders } from '../src/provider-config-utils.js';
 import type { AuthMenuDeps } from '../src/auth-menu/types.js';
+import { mutateConfigProviders } from '../src/provider-config-utils.js';
 
 function silentRenderer(): AuthMenuDeps['renderer'] {
   return { write() {}, writeInfo() {}, writeWarning() {}, writeError() {} };

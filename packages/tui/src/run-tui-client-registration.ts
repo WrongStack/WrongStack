@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config } from '@wrongstack/contracts/types';
 import { RemoteMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import {
   createHqPublisherFromEnv,
@@ -9,9 +11,7 @@ import {
   startSessionTelemetryBridge,
   startToolTelemetryBridge,
   startWorktreeTelemetryBridge,
-} from '@wrongstack/core/hq';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config } from '@wrongstack/core/types';
+} from '@wrongstack/hq';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import type { TuiMailboxSnapshot } from './mailbox-view-model-types.js';
 

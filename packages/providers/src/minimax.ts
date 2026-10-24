@@ -1,4 +1,3 @@
-import type { ProviderQuotaSnapshot } from '@wrongstack/core/quota';
 import {
   type Capabilities,
   type Provider,
@@ -6,7 +5,8 @@ import {
   type Request,
   type Response,
   type StreamEvent,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { ProviderQuotaSnapshot } from '@wrongstack/core/quota';
 import { AnthropicProvider } from './anthropic.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import {

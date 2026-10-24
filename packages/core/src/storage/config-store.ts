@@ -1,5 +1,5 @@
-import type { Config, ConfigStore } from '../types/config.js';
-import { ConfigError, ERROR_CODES } from '../types/errors.js';
+import type { Config, ConfigStore } from '@wrongstack/contracts/types/config';
+import { ConfigError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
 import { createTypeSafePolicy } from '../typesafe/policy.js';
 import { toErrorMessage } from '../utils/error.js';
 

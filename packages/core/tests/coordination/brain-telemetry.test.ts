@@ -1,21 +1,21 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  DefaultBrainArbiter,
-  EscalationRoutingBrainArbiter,
-  ObservableBrainArbiter,
   type BrainArbiter,
   type BrainDecision,
   type BrainDecisionRequest,
-} from '../../src/coordination/brain.js';
-import { createLedgerGuardBrainArbiter } from '../../src/coordination/brain-ledger.js';
+  DefaultBrainArbiter,
+  EscalationRoutingBrainArbiter,
+  ObservableBrainArbiter,
+} from '../../src/brain/brain.js';
+import { createLedgerGuardBrainArbiter } from '../../src/brain/brain-ledger.js';
 import {
   BrainTierCounter,
   isDeterministicTier,
   markDecisionTier,
   readDecisionTier,
-} from '../../src/coordination/brain-telemetry.js';
+} from '../../src/brain/brain-telemetry.js';
 import { createTieredBrainArbiter } from '../../src/execution/autonomy-brain.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'r1',

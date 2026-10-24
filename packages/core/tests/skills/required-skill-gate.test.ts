@@ -1,3 +1,7 @@
+import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SessionEvent } from '@wrongstack/contracts/types/session-events';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it, vi } from 'vitest';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import {
@@ -10,10 +14,6 @@ import {
   readRequiredSkillsState,
   restoreRequiredSkillsFromEvents,
 } from '../../src/skills/required-skill-gate.js';
-import type { ToolUseBlock } from '../../src/types/blocks.js';
-import type { Message } from '../../src/types/messages.js';
-import type { SessionEvent } from '../../src/types/session-events.js';
-import type { Tool } from '../../src/types/tool.js';
 import { createMockTool } from '../helpers/test-harness.js';
 
 const MARKER = '<!-- wrongstack:required-skills bug-hunter testing -->';

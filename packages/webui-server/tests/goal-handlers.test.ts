@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockReadFile = vi.hoisted(() => vi.fn());
 const mockUpdateGoal = vi.hoisted(() => vi.fn());
 
-vi.mock('@wrongstack/core/goal', async (importOriginal) => ({
+vi.mock('@wrongstack/goal', async (importOriginal) => ({
   ...(await importOriginal()),
   updateGoal: mockUpdateGoal,
 }));

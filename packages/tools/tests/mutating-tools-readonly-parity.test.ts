@@ -22,9 +22,9 @@
  * writes and forgot to say so.
  */
 
+import type { PermissionDecision, PermissionPolicy, Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { ReadOnlyPermissionPolicy } from '@wrongstack/core/security';
-import type { PermissionDecision, PermissionPolicy, Tool } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { builtinToolsPack } from '../src/pack.js';
 

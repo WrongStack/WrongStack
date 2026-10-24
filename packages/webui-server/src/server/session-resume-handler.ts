@@ -3,11 +3,11 @@
  * process holds, or reopen one from the store and replay it to the tab.
  */
 
+import { projectLastRequestTokens } from '@wrongstack/contracts/types/session-timeline';
 import { restoreSessionSubagentPolicy } from '@wrongstack/core/coordination';
 import { restoreSessionPermissionOverrides } from '@wrongstack/core/security';
 import { restoreRequiredSkillsFromEvents } from '@wrongstack/core/skills';
 import { loadTodosCheckpoint } from '@wrongstack/core/storage';
-import { projectLastRequestTokens } from '@wrongstack/core/types/session-timeline';
 import {
   clearLeaderEffortOverride,
   restoreLeaderEffortOverride,

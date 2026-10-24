@@ -2,7 +2,7 @@ import type {
   ModelProvenance,
   ModelsDevModel,
   ResolvedProvider,
-} from '../types/models-registry.js';
+} from '@wrongstack/contracts/types/models-registry';
 
 /**
  * A model descriptor shaped for the WebUI `provider.models` message. All

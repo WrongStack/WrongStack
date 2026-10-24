@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
+import type { Config, SecretVault } from '@wrongstack/contracts/types';
 import { decryptConfigSecrets } from '@wrongstack/core/security';
 import { type ConfigDefaultRepairReport, repairConfigDefaults } from '@wrongstack/core/storage';
-import type { Config, SecretVault } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { errMessage, send } from './ws-utils.js';

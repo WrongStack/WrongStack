@@ -25,8 +25,8 @@
  * @module notifications
  */
 
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { NotifierImpl } from '../../src/notifications/notifier-impl.js';
 import type {
   NotificationChannel,

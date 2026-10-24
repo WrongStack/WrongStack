@@ -1,5 +1,10 @@
+import type {
+  Capabilities,
+  ProviderError,
+  Request,
+  StreamEvent,
+} from '@wrongstack/contracts/types';
 import { recordProviderQuota } from '@wrongstack/core/quota';
-import type { Capabilities, ProviderError, Request, StreamEvent } from '@wrongstack/core/types';
 import { parseAnthropicRateLimitHeaders } from './anthropic-rate-limits.js';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import type { AnthropicStreamState } from './presets/anthropic.js';

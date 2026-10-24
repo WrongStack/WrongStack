@@ -18,7 +18,7 @@ import type {
   SubagentRunner,
   SubagentRunOutcome,
   TaskSpec,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import type { ACPSessionErrorKind } from '../client/acp-session.js';
 import {
   type ACPProgressEvent,

@@ -11,14 +11,15 @@
  * per request from the provider and model the request goes to, not from the
  * process's boot model.
  */
+
+import type { EventBus, Middleware } from '@wrongstack/contracts/kernel';
+import type { Config, ModelsRegistry, Provider, Request } from '@wrongstack/contracts/types';
 import {
   type AgentPipelines,
   createDefaultPipelines,
   installPipelineErrorBoundaries,
 } from '@wrongstack/core/agent';
 import { createModelRuntimeMiddleware } from '@wrongstack/core/execution';
-import type { EventBus, Middleware } from '@wrongstack/core/kernel';
-import type { Config, ModelsRegistry, Provider, Request } from '@wrongstack/core/types';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 
 interface StandalonePipelineDeps {

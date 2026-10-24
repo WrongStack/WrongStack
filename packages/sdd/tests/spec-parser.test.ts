@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { SpecParser } from '../src/spec-parser.js';
 
 function makeSpec(
-  overrides: Partial<import('@wrongstack/core/types/spec.js').Specification> = {},
-): import('@wrongstack/core/types/spec.js').Specification {
+  overrides: Partial<import('@wrongstack/contracts/types/spec').Specification> = {},
+): import('@wrongstack/contracts/types/spec').Specification {
   return {
     id: 'test-id',
     title: 'Test Spec',
@@ -19,8 +19,8 @@ function makeSpec(
 }
 
 function makeReq(
-  overrides: Partial<import('@wrongstack/core/types/spec.js').SpecRequirement> = {},
-): import('@wrongstack/core/types/spec.js').SpecRequirement {
+  overrides: Partial<import('@wrongstack/contracts/types/spec').SpecRequirement> = {},
+): import('@wrongstack/contracts/types/spec').SpecRequirement {
   return {
     id: 'REQ-1',
     type: 'functional',

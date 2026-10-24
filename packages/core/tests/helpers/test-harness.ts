@@ -12,20 +12,20 @@
  *   restore(); // cleanup
  */
 
-import { vi } from 'vitest';
-import { EventBus, type EventName } from '../../src/kernel/events.js';
+import { EventBus, type EventName } from '@wrongstack/contracts/kernel/events';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import type {
   Provider,
-  StreamEvent,
   Request,
   Response,
   StopReason,
-} from '../../src/types/provider.js';
-import type { Tool, Permission } from '../../src/types/tool.js';
+  StreamEvent,
+  Usage,
+} from '@wrongstack/contracts/types/provider';
+import type { Permission, Tool } from '@wrongstack/contracts/types/tool';
+import { vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
-import type { Usage } from '../../src/types/provider.js';
-import type { ContentBlock } from '../../src/types/blocks.js';
-import type { Message } from '../../src/types/messages.js';
 
 // ── EventBus ─────────────────────────────────────────────────────────────
 

@@ -3,6 +3,10 @@
  * failures. Each case here is a path that previously either threw instead of
  * hopping, or silently resolved to a different model than the one configured.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createFallbackModelExtension,
@@ -10,9 +14,6 @@ import {
 } from '../../src/core/fallback-model.js';
 import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Config } from '../../src/types/config.js';
-import { ProviderError } from '../../src/types/provider.js';
 
 // Deliberately `Record<string, unknown>` and not `Partial<Config>`: several
 // cases below inject values the config type forbids (`null`, `0`,

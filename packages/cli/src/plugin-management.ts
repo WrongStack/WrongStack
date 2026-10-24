@@ -1,5 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/contracts/types';
 import {
   defaultPluginTrustPath,
   discoverExternalPlugins,
@@ -12,7 +13,6 @@ import {
   resolvePluginTarget,
   unpinPluginTrust,
 } from '@wrongstack/core/plugin';
-import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import {
   PLUGIN_AUDIT_ENTRIES,

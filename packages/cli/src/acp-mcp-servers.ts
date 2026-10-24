@@ -19,9 +19,9 @@
  */
 
 import type { McpServer } from '@wrongstack/acp/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger, MCPServerConfig } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger, MCPServerConfig } from '@wrongstack/core/types';
 import { MCPRegistry } from '@wrongstack/mcp';
 
 /** ACP sends env vars and headers as `{name, value}[]`; config wants a record. */

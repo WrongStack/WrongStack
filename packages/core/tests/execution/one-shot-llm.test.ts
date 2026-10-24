@@ -1,3 +1,12 @@
+import type { Config } from '@wrongstack/contracts/types/config';
+import type {
+  Capabilities,
+  Provider,
+  ProviderErrorKind,
+  Request,
+  Response,
+} from '@wrongstack/contracts/types/provider';
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
 import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
@@ -6,15 +15,6 @@ import {
   PROVIDER_FAILURE_TRACKED,
 } from '../../src/core/provider-runner.js';
 import { OneShotOrchestrator } from '../../src/execution/one-shot-llm.js';
-import type { Config } from '../../src/types/config.js';
-import type {
-  Capabilities,
-  Provider,
-  ProviderErrorKind,
-  Request,
-  Response,
-} from '../../src/types/provider.js';
-import { ProviderError } from '../../src/types/provider.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 

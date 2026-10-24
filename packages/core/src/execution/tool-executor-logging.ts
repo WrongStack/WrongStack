@@ -1,7 +1,7 @@
+import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import { hasModifiedPaths, isWrongStackError } from '@wrongstack/contracts/types/errors';
 import type { Context } from '../core/context.js';
-import type { ToolUseBlock } from '../types/blocks.js';
-import { hasModifiedPaths, isWrongStackError } from '../types/errors.js';
-import type { ToolExecutorOptions } from '../types/tool-executor.js';
+import type { ToolExecutorOptions } from './tool-executor-options.js';
 import { classifyToolError } from './tool-executor-support.js';
 
 function toolLogBase(

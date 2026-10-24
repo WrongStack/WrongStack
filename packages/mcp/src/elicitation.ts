@@ -1,4 +1,4 @@
-import type { UserInputRequest, UserInputResponse } from '@wrongstack/core/types';
+import type { UserInputRequest, UserInputResponse } from '@wrongstack/contracts/types';
 import { sanitizeTerminalText } from '@wrongstack/core/utils';
 import type { UrlElicitation } from './contracts.js';
 import { INVALID_PARAMS } from './server-dispatch.js';

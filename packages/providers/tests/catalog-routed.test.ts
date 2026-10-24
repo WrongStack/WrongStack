@@ -1,4 +1,4 @@
-import type { Request } from '@wrongstack/core/types';
+import type { Request } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { CatalogRoutedProvider } from '../src/catalog-routed.js';
 

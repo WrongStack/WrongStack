@@ -1,10 +1,10 @@
-import { normalizeSubagentModelPlan } from '@wrongstack/core/coordination';
 import {
   type ContentBlock,
   type SessionEvent,
   type SessionSummary,
   totalUsageTokens,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { normalizeSubagentModelPlan } from '@wrongstack/core/coordination';
 import { LEADER_EFFORT_META_KEY, readLeaderEffortOverride } from '@wrongstack/core/utils';
 
 /**

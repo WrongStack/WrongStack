@@ -69,6 +69,13 @@ export function coreAliases(corePackageDir) {
     aliases[key] = value;
   }
 
+  // `@wrongstack/contracts` (types + kernel, extracted from core) resolves
+  // from source the same way; core's own files import it by package name.
+  aliases['@wrongstack/contracts'] = resolve(corePackageDir, '../contracts/src');
+  // `@wrongstack/hq` (extracted from core/src/hq) likewise.
+  aliases['@wrongstack/hq'] = resolve(corePackageDir, '../hq/src');
+  aliases['@wrongstack/goal'] = resolve(corePackageDir, '../goal/src');
+
   // Bare alias LAST: prefix-matching means '@wrongstack/core' catches any
   // sub-path that wasn't explicitly aliased above, resolving to
   // src/<sub-path> which Vite resolves to the .ts file.

@@ -4,10 +4,10 @@
  * cannot decide.
  */
 
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { MessageSelector } from '@wrongstack/contracts/types/selector';
 import { describe, expect, it, vi } from 'vitest';
 import { SystemOneSelector } from '../src/models/system-one-selector.js';
-import type { Message } from '../src/types/messages.js';
-import type { MessageSelector } from '../src/types/selector.js';
 import type { TypeSafeJudge } from '../src/typesafe/index.js';
 
 function turns(n: number): Message[] {

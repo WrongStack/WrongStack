@@ -8,9 +8,14 @@ import {
   makeACPSubagentRunner,
   resolveAcpAgentCommand,
 } from '@wrongstack/acp';
+import type {
+  Config,
+  SubagentRunContext,
+  SubagentRunner,
+  TaskSpec,
+} from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { getSharedProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
-import type { Config, SubagentRunContext, SubagentRunner, TaskSpec } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { registerAcpSteerInbox } from './acp-live-steer.js';
 import { startAcpTurnReminders } from './acp-turn-reminders.js';

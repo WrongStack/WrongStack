@@ -1,15 +1,15 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrainDecision, BrainDecisionRequest } from '../../src/coordination/brain.js';
+import type { BrainDecision, BrainDecisionRequest } from '../../src/brain/brain.js';
 import {
   BrainDecisionLedger,
   type BrainLedgerEntry,
   brainDecisionKey,
   createLedgerGuardBrainArbiter,
-} from '../../src/coordination/brain-ledger.js';
-import { EventBus } from '../../src/kernel/events.js';
+} from '../../src/brain/brain-ledger.js';
 
 let dir: string;
 let events: EventBus;

@@ -1,10 +1,10 @@
-import type { AgentPipelines } from '../core/agent-types.js';
-import type { Context } from '../core/context.js';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import {
   type ContextWindowConfigLike,
   resolveContextWindowPolicy,
-} from '../types/context-window.js';
+} from '@wrongstack/contracts/types/context-window';
+import type { AgentPipelines } from '../core/agent-types.js';
+import type { Context } from '../core/context.js';
 import { AutoCompactionMiddleware } from './auto-compaction-middleware.js';
 import { HybridCompactor } from './compactor.js';
 

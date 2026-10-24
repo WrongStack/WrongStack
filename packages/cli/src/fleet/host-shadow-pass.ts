@@ -1,4 +1,4 @@
-import type { Config, SubagentConfig } from '@wrongstack/core/types';
+import type { Config, SubagentConfig } from '@wrongstack/contracts/types';
 import { buildShadowAgentTaskDescription } from './host-helpers.js';
 
 interface HostShadowPassContext {

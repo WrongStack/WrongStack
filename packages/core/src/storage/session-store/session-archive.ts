@@ -1,14 +1,14 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
-import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
-import type { MaintenanceLease } from '../../session-catalog/protocol.js';
-import type { SecretScrubber } from '../../types/secret-scrubber.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type {
   SessionArchiveIdleResult,
   SessionArchiveResult,
   SessionStoragePolicy,
   SessionSummary,
-} from '../../types/session.js';
+} from '@wrongstack/contracts/types/session';
+import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
+import type { MaintenanceLease } from '../../session-catalog/protocol.js';
 import { atomicWrite } from '../../utils/atomic-write.js';
 import { toErrorMessage } from '../../utils/index.js';
 import { isColdSessionTranscriptFileName } from '../../utils/session-scoped-path.js';

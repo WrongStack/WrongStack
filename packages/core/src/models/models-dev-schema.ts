@@ -18,8 +18,12 @@
  * modality values don't break parsing; MODELS_DEV_MODALITY_VALUES documents
  * the known set for UI/editor use.
  */
+
+import type {
+  ModelsDevModel,
+  ModelsDevProvider,
+} from '@wrongstack/contracts/types/models-registry';
 import { z } from 'zod';
-import type { ModelsDevModel, ModelsDevProvider } from '../types/models-registry.js';
 import { FORBIDDEN_PROTO_KEYS } from '../utils/deep-merge.js';
 
 /**

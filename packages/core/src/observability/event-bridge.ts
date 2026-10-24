@@ -1,5 +1,5 @@
-import type { EventBus } from '../kernel/events.js';
-import type { MetricsSink } from '../types/observability.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { MetricsSink } from '@wrongstack/contracts/types/observability';
 
 /** Per-tool usage record maintained by the event-bridge for the auto-thinning
  *  pipeline's in-process fallback. The Chronicle rollup is the cross-session

@@ -5,6 +5,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseMailboxFile } from '../../src/coordination/mailbox-parse-state.js';
 import {
@@ -19,7 +20,6 @@ import type {
 } from '../../src/coordination/mailbox-types.js';
 import { isMailboxReceiptRecordV2 } from '../../src/coordination/mailbox-types.js';
 import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
-import type { EventBus } from '../../src/kernel/events.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

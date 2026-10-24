@@ -27,7 +27,7 @@ vi.mock('../src/cli-update-notice.js', () => ({
 // setDebugStreamEnabled(true)`; we just assert the boolean
 // returned by runPreflight.
 
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { applyNodeEnvDefault, applySessionShellDefault, runPreflight } from '../src/preflight.js';
 
 function makeConfig(overrides: Partial<Config> = {}): Config {

@@ -3,13 +3,14 @@
  * and subcommands. Keeps provider key detection and alias resolution in
  * one place so the logic doesn't drift between call sites.
  */
-import { hasProviderCredential, isKeylessLocalProvider } from '@wrongstack/core/models';
+
 import type {
   Config,
   ModelsRegistry,
   ProviderConfig,
   ResolvedProvider,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { hasProviderCredential, isKeylessLocalProvider } from '@wrongstack/core/models';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 
 // Shared with the provider factory, which must agree on what needs no key.

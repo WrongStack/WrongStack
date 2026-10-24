@@ -13,8 +13,8 @@
  * carry a non-leader `agentId` and are dropped, so a delegating run does not
  * interleave several conversations on one stream.
  */
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { ContentBlock } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { ContentBlock } from '@wrongstack/contracts/types';
 
 export type OutputFormat = 'text' | 'json' | 'stream-json';
 

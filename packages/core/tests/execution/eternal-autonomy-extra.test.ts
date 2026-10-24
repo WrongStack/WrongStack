@@ -2,10 +2,10 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent } from '../../src/core/agent.js';
 import { EternalAutonomyEngine } from '../../src/execution/eternal-autonomy.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { emptyGoal, goalFilePath, loadGoal, saveGoal } from '../../src/storage/goal-store.js';
 
 type RunResult = { status: string; iterations: number; finalText?: string; error?: unknown };

@@ -1,4 +1,4 @@
-import type { MemoryEntry, MemoryScope } from '@wrongstack/core/types';
+import type { MemoryEntry, MemoryScope } from '@wrongstack/contracts/types';
 import type {
   MemoryCandidate,
   MemoryGraphEdge,

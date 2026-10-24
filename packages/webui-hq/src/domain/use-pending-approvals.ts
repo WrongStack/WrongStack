@@ -19,7 +19,7 @@ import type {
   HqApprovalRequestedPayload,
   HqApprovalResolvedPayload,
   HqEventEnvelope,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { postCommand } from '../data/api.js';
 import { useToastStore } from '../data/toast-store.js';

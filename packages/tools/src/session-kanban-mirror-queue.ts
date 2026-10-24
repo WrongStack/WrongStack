@@ -1,5 +1,5 @@
+import type { SerializedTaskGraph } from '@wrongstack/contracts/types';
 import { deserializeTaskGraph } from '@wrongstack/core/tasking';
-import type { SerializedTaskGraph } from '@wrongstack/core/types';
 import { rawErrorMessage } from '@wrongstack/core/utils';
 import {
   compactSessionMirrorBoard,

@@ -1,4 +1,4 @@
-import type { DesignKitEntry } from '@wrongstack/core/types';
+import type { DesignKitEntry } from '@wrongstack/contracts/types';
 import type React from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { useWindowedPicker } from '../hooks/use-windowed-picker.js';

@@ -1,6 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type {
+  SessionEvent,
+  SessionMoveTarget,
+  SessionSummary,
+} from '@wrongstack/contracts/types/session';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SessionCatalogStore } from '../../src/session-catalog/store.js';
 import type { SessionMoveHost } from '../../src/storage/session-store/move-session.js';
@@ -8,7 +13,6 @@ import { executeMoveSession } from '../../src/storage/session-store/move-session
 import { inheritsIntoFork } from '../../src/storage/session-store/replay.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
 import { SessionSummaryTracker } from '../../src/storage/session-summary-tracker.js';
-import type { SessionEvent, SessionMoveTarget, SessionSummary } from '../../src/types/session.js';
 
 let tmp: string;
 let sourceDir: string;

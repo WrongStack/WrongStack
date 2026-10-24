@@ -1,3 +1,4 @@
+import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import {
@@ -5,7 +6,6 @@ import {
   DefaultErrorHandler,
   type RecoveryStrategy,
 } from '../../src/execution/error-handler.js';
-import { ProviderError } from '../../src/types/provider.js';
 
 // ---------------------------------------------------------------------------
 // DefaultErrorHandler.classify — additional edge cases

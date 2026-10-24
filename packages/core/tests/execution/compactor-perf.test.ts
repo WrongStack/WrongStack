@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { describe, expect, it } from 'vitest';
 import { buildSmartDigest, scoreMessage } from '../../src/execution/compaction-core.js';
-import type { Message } from '../../src/types/messages.js';
 
 /**
  * Performance regression guard for `scoreMessage` / `buildSmartDigest`.

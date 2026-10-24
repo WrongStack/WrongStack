@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { EventBus } from '@wrongstack/core/kernel';
 import { stripAnsi } from '@wrongstack/core/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TerminalRenderer } from '../src/renderer.js';

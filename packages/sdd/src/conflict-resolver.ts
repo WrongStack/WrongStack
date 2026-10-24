@@ -16,7 +16,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
-import type { TaskNode } from '@wrongstack/core/types';
+import type { TaskNode } from '@wrongstack/contracts/types';
 import { readBundledInstructionText, renderInstructionTemplate } from '@wrongstack/core/utils';
 
 export type ConflictSide = 'incoming' | 'base';

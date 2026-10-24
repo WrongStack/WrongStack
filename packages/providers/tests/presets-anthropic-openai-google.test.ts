@@ -1,4 +1,4 @@
-import { ProviderError, type Request, type StreamEvent } from '@wrongstack/core/types';
+import { ProviderError, type Request, type StreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { anthropicWireFormat } from '../src/presets/anthropic.js';
 import { googleWireFormat } from '../src/presets/google.js';

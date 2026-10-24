@@ -1,8 +1,8 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ModelsDevPayload } from '@wrongstack/contracts/types';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultModelsRegistry } from '@wrongstack/core/models';
-import type { ModelsDevPayload } from '@wrongstack/core/types';
 import { providerIdentities } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {

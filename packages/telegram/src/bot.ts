@@ -1,4 +1,4 @@
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import { TelegramApiClient } from './api-client.js';
 import {
   ApprovalFlow,
@@ -7,9 +7,9 @@ import {
 } from './approval-flow.js';
 import type { TelegramBotOptions } from './bot-types.js';
 import { TelegramInbox } from './inbox.js';
+import { TelegramOutbox } from './outbox.js';
 import type { PollLock } from './poll-lock.js';
 import { Poller } from './poller.js';
-import { TelegramOutbox } from './outbox.js';
 
 export type {
   TelegramBotResponse,

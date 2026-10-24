@@ -1,8 +1,8 @@
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, Logger } from '@wrongstack/contracts/types';
 import { AgentStatusTracker, FleetNotifier } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import { getSessionRegistry, type SessionResumeClaim } from '@wrongstack/core/storage';
-import type { Config, Logger } from '@wrongstack/core/types';
 import { WebSocket } from '../ws-runtime.js';
 import { errMessage } from './ws-utils.js';
 
@@ -138,7 +138,7 @@ export async function createStandaloneSessionIdentityLifecycle(
   let restartHqBridges = (_sessionId: string): void => {};
   if (opts.enableHqTelemetry !== false) {
     try {
-      const core = await import('@wrongstack/core/hq');
+      const core = await import('@wrongstack/hq');
       type HqPublisher = NonNullable<ReturnType<typeof core.createHqPublisherFromEnv>>;
       let publisher: HqPublisher | undefined;
 
@@ -151,7 +151,7 @@ export async function createStandaloneSessionIdentityLifecycle(
             typeof core.createHqPublisherFromEnv
           >[0]['appConfig'],
           socketFactory: (url: string) =>
-            new WebSocket(url) as unknown as import('@wrongstack/core/hq').HqSocketLike,
+            new WebSocket(url) as unknown as import('@wrongstack/hq').HqSocketLike,
         });
         next?.connect();
         return next;

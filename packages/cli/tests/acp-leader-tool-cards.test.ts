@@ -4,7 +4,7 @@
  * carries the result text: the TUI used to wait for that tool_result and
  * never rendered the card.
  */
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { describe, expect, it } from 'vitest';
 import { ToolCardRelay } from '../src/acp-leader/acp-leader-stream.js';
 

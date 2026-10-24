@@ -1,8 +1,8 @@
-import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
-import type { EventBus } from '../kernel/events.js';
-import type { Config } from '../types/config.js';
-import type { Logger } from '../types/logger.js';
-import type { Provider } from '../types/provider.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { ProviderStatusTrackerPort } from '@wrongstack/contracts/types/provider-status';
 import type { FallbackProfileManager } from './fallback-profile-manager.js';
 
 export interface FallbackModelDeps {
@@ -71,7 +71,7 @@ export interface FallbackModelDeps {
    * failures and successes in the tracker, and skips blocked entries in
    * the fallback chain.
    */
-  statusTracker?: ProviderModelStatusTracker | undefined;
+  statusTracker?: ProviderStatusTrackerPort | undefined;
   /**
    * When set, the fallback chain pauses BEFORE attempting any fallback entry
    * and emits `provider.fallback_pending`. The gate waits for a choice

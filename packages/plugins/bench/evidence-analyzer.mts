@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
-import type { PluginAPI, Tool } from '@wrongstack/core/types';
+import type { PluginAPI, Tool } from '@wrongstack/contracts/types';
 import { createEvidenceAnalyzerPlugin } from '../src/evidence-analyzer/index.js';
 
 // Near-limit multiline CI evidence, with findings concentrated at the end.

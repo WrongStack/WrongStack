@@ -13,7 +13,7 @@
 // per-task `maxSupervisorEscalations` guard already caps how often this runs, so
 // recursive splitting can't run away.
 
-import type { TaskNode, TaskPriority, TaskType } from '@wrongstack/core/types';
+import type { TaskNode, TaskPriority, TaskType } from '@wrongstack/contracts/types';
 import { readBundledInstructionText, renderInstructionTemplate } from '@wrongstack/core/utils';
 import type { SddSubtaskSpec } from './sdd-parallel-run.js';
 

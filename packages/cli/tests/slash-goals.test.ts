@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { PhaseGraphBuilder, PhaseStore } from '@wrongstack/core/goal';
+import { PhaseGraphBuilder, PhaseStore } from '@wrongstack/goal';
 import { expect, it } from 'vitest';
 import { buildGoalsCommand } from '../src/slash-commands/goals.js';
 

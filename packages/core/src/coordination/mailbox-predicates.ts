@@ -1,3 +1,4 @@
+import { SESSION_RECIPIENT_PREFIX } from '@wrongstack/contracts/types/mailbox';
 import { MAILBOX_TYPE_PROPERTIES, type MailboxMessageType } from './mailbox-type-properties.js';
 import type {
   ActorMailboxMessage,
@@ -46,7 +47,7 @@ export function validateSendType(type: MailboxMessageType, to: string): void {
   }
 }
 
-export const SESSION_RECIPIENT_PREFIX = '@session:';
+export { SESSION_RECIPIENT_PREFIX };
 
 export function sessionRecipient(sessionId: string): string {
   const normalizedSessionId = sessionId.trim().replace(/\\/g, '/');

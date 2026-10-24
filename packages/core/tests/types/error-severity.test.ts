@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import {
   AgentError,
   ConfigError,
@@ -7,12 +6,13 @@ import {
   FsError,
   ParseError,
   PluginError,
-  SessionError,
   SddError,
+  SessionError,
   ToolError,
   ToolValidationError,
   WrongStackError,
-} from '../../src/types/errors.js';
+} from '@wrongstack/contracts/types/errors';
+import { describe, expect, it } from 'vitest';
 
 /**
  * Integration test that verifies every WrongStackError subclass declares

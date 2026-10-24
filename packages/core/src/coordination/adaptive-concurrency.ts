@@ -8,8 +8,8 @@
  * This provides automatic backpressure without manual tuning.
  */
 
-import type { AdaptiveConcurrencyConfig } from '../types/config.js';
-import type { Logger } from '../types/logger.js';
+import type { AdaptiveConcurrencyConfig } from '@wrongstack/contracts/types/config';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 import type { FleetBus, FleetEvent } from './fleet-bus.js';
 
 export interface AdaptiveConcurrencyState {

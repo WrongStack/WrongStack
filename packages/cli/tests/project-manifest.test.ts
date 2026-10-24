@@ -72,7 +72,7 @@ describe('loadManifest / saveManifest', () => {
   });
 
   it('rejects corrupt or structurally invalid manifests instead of treating them as empty', async () => {
-    const { ConfigError } = await import('@wrongstack/core/types');
+    const { ConfigError } = await import('@wrongstack/contracts/types');
     await fs.writeFile(path.join(dir, 'projects.json'), '{ not json');
     await expect(loadManifest(cfgPath)).rejects.toMatchObject({
       name: 'ConfigError',
@@ -167,7 +167,7 @@ describe('touchProjectInManifest', () => {
     // A withFileLock that skips the callback means `entry` stays undefined —
     // the defensive expectEntry throw at line 165 fires.
     h.withFileLock.mockImplementation(async () => undefined);
-    const { ConfigError } = await import('@wrongstack/core/types');
+    const { ConfigError } = await import('@wrongstack/contracts/types');
     await expect(
       touchProjectInManifest({ projectRoot: path.join(dir, 'x'), globalConfigPath: cfgPath }),
     ).rejects.toBeInstanceOf(ConfigError);

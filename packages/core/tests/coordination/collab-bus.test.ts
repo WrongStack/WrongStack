@@ -1,3 +1,4 @@
+import { Pipeline } from '@wrongstack/contracts/kernel';
 import { describe, expect, it, vi } from 'vitest';
 import type { ToolCallPipelinePayload } from '../../src/core/agent-types.js';
 import {
@@ -5,7 +6,6 @@ import {
   collabInjectMiddleware,
   collabPauseMiddleware,
 } from '../../src/index.js';
-import { Pipeline } from '../../src/kernel/index.js';
 
 describe('CollaborationBus', () => {
   it('starts in the running state', () => {

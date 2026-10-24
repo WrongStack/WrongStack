@@ -1,5 +1,5 @@
 import type * as http from 'node:http';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { getSageSurface, isSageVisibleForSearch, type Sage } from '@wrongstack/sage';
 import { decodeSessionId } from './security-helpers.js';
 

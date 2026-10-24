@@ -1,4 +1,4 @@
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
 import {
   activeLimits,
   FetchError,
@@ -6,7 +6,7 @@ import {
   TOOL_MEMORY_GUARD_BYTES,
   ToolError,
   ToolValidationError,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { ALLOW_PRIVATE, assertNotPrivate, guardedFetch } from './_fetch-guard.js';
 import { getTurndown } from './_turndown.js';
 import { capBytesWithNotice } from './_util.js';

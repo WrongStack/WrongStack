@@ -1,13 +1,14 @@
 /**
  * Coverage for core/src/storage/config-loader/validation.ts
  */
+
+import type { ContextConfig } from '@wrongstack/contracts/types/config/context';
+import { ConfigError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it } from 'vitest';
 import {
   validateConfigBehavior,
   validateConfigIdentity,
 } from '../../src/storage/config-loader/validation.js';
-import type { ContextConfig } from '../../src/types/config/context.js';
-import { ConfigError } from '../../src/types/errors.js';
 
 function validConfig(): { version: 1; context: ContextConfig } {
   return {

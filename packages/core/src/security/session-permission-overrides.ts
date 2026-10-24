@@ -23,9 +23,9 @@
  * entirely (WS-2026-09-26-04).
  */
 
-import type { SessionEvent, SessionWriter } from '../types/session.js';
-import type { SessionPermissionOverride } from '../types/session-permission-override.js';
-import type { Tool } from '../types/tool.js';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
+import type { SessionPermissionOverride } from '@wrongstack/contracts/types/session-permission-override';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { matchGlob } from '../utils/glob-match.js';
 import { hasShellSubject, matchesCommandTrust, matchesTrust } from './permission-helpers.js';
 

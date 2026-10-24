@@ -3,9 +3,10 @@
  * to one persistent agent session per conversation and stream back as text;
  * side requests and WrongStack subagents never reach the agent.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, Provider, StreamEvent } from '@wrongstack/contracts/types';
 import { pendingBtwCount, setBtwNote } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { Config, Provider, StreamEvent } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const acp = vi.hoisted(() => ({

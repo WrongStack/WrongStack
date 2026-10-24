@@ -13,7 +13,10 @@ export function useControllerPanelHooks(inputs: {
   projectRoot: string;
   dispatch: React.ActionDispatch<[action: import('./app-action-type.js').Action]>;
   getModes:
-    | (() => Promise<{ modes: import('@wrongstack/core/types').Mode[]; activeId: string | null }>)
+    | (() => Promise<{
+        modes: import('@wrongstack/contracts/types').Mode[];
+        activeId: string | null;
+      }>)
     | undefined;
   getPickableProviders: (() => Promise<import('./ui-contracts.js').ProviderOption[]>) | undefined;
   state: import('./app-state.js').State;
@@ -42,7 +45,7 @@ export function useControllerPanelHooks(inputs: {
       ) => () => void)
     | undefined;
   submitRef: React.RefObject<(text?: string | undefined) => void>;
-  events: import('@wrongstack/core/kernel').EventBus;
+  events: import('@wrongstack/contracts/kernel').EventBus;
 }) {
   const {
     projectRoot,

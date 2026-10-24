@@ -6,7 +6,7 @@
  * unit under test, with no child processes involved.
  */
 
-import type { SubagentError, SubagentRunContext, TaskSpec } from '@wrongstack/core/types';
+import type { SubagentError, SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface MockSession {

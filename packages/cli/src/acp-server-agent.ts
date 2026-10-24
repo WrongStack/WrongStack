@@ -17,19 +17,19 @@
  */
 
 import type { McpServer, RunTurnApi } from '@wrongstack/acp/agent';
-import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
-import { ToolExecutor } from '@wrongstack/core/execution';
-import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { EventBus, TOKENS } from '@wrongstack/core/kernel';
-import { ToolRegistry } from '@wrongstack/core/registry';
-import { AutoApprovePermissionPolicy, ToolCapabilities } from '@wrongstack/core/security';
+import { EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import {
   type Logger,
   type PermissionDecision,
   type PermissionPolicy,
   type Tool,
   ToolValidationError,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
+import { ToolExecutor } from '@wrongstack/core/execution';
+import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { ToolRegistry } from '@wrongstack/core/registry';
+import { AutoApprovePermissionPolicy, ToolCapabilities } from '@wrongstack/core/security';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { createDefaultContainer, wireKanbanPorts } from '@wrongstack/runtime';

@@ -33,7 +33,7 @@ import {
   shouldCloseBrowserSocket,
   toAlertMessage,
   watchHqAuthFile,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
 import { isPidAlive } from '@wrongstack/core/utils';
 import { HQ_HTML } from './hq-recovery-html.js';
@@ -67,7 +67,7 @@ import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './hq-serve
 import { handleHqConnection, handleHqUpgrade } from './hq-server/upgrade-handler.js';
 import { WebSocket, WebSocketServer } from './ws-runtime.js';
 
-export { HqInsecureExposureError } from '@wrongstack/core/hq';
+export { HqInsecureExposureError } from '@wrongstack/hq';
 export type { ConnectedClient, TranscriptRing };
 
 // ── Re-exports for backward compatibility ──────────────────────────────────

@@ -1,4 +1,4 @@
-import type { Usage } from '@wrongstack/core/types';
+import type { Usage } from '@wrongstack/contracts/types';
 import type { SessionScopedPayload, WSCodeMapFileTarget } from '@wrongstack/webui-protocol';
 
 /** Moved to webui-protocol (conversation-core.ts), the single source the SDK shares. */

@@ -1,10 +1,9 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { DoneCondition } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Agent } from '../../src/core/agent.js';
-import type { RunResult } from '../../src/core/agent.js';
+import type { Agent, RunResult } from '../../src/core/agent.js';
 import type { Context } from '../../src/core/context.js';
 import { AutonomousRunner, DoneConditionChecker } from '../../src/execution/autonomous-runner.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { DoneCondition } from '../../src/types/multi-agent.js';
 
 function mockAgent(overrides: Partial<Agent> = {}): Agent {
   // Real EventBus so AutonomousRunner can subscribe to `tool.executed`

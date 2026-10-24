@@ -20,8 +20,8 @@
  * `arguments.no_auto_audience = true` so MCP callers must opt in explicitly.
  */
 
+import type { JSONSchema, MemoryPort, Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { JSONSchema, MemoryPort, Tool } from '@wrongstack/core/types';
 import { coerceAgainstSchema, validateAgainstSchema } from '@wrongstack/core/utils';
 import {
   MCPServer,

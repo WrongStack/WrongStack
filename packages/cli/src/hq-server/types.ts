@@ -22,7 +22,7 @@ import type {
   HqSessionSnapshotPayload,
   HqToken,
   HqTranscriptEntry,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 
 export type {

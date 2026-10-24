@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
-import { ERROR_CODES, FetchError, WrongStackError } from '../types/errors.js';
+import { ERROR_CODES, FetchError, WrongStackError } from '@wrongstack/contracts/types/errors';
 import { expectDefined } from '../utils/expect-defined.js';
 import { SKILL_LIMITS } from './limits.js';
 

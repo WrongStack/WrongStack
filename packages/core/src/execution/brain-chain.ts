@@ -13,11 +13,11 @@
  * @module brain-chain
  */
 
-import type { BrainArbiter, BrainDecisionRequest } from '../coordination/brain.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { BrainConfig, BrainModelEntry } from '@wrongstack/contracts/types/config';
+import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { BrainArbiter, BrainDecisionRequest } from '../brain/brain.js';
 import { parseModelRef } from '../core/fallback-model.js';
-import type { EventBus } from '../kernel/events.js';
-import type { BrainConfig, BrainModelEntry } from '../types/config.js';
-import type { Provider } from '../types/provider.js';
 import { type BrainLlmTarget, createAutonomyBrain } from './autonomy-brain.js';
 import type { BrainCircuitBreaker } from './brain-circuit.js';
 import { type CouncilVoter, createCouncilBrainArbiter } from './council-brain.js';

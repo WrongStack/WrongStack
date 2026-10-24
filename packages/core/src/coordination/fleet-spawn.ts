@@ -7,8 +7,8 @@
  * lifecycle concern.
  */
 
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import type { DirectorStateCheckpoint } from '../storage/director-state.js';
-import type { SubagentConfig } from '../types/multi-agent.js';
 import { InMemoryAgentBridge } from './agent-bridge.js';
 import {
   FleetContextOverflowError,

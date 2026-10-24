@@ -8,7 +8,7 @@
  */
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import { getSageSurface, isSqliteAvailable, SqliteMemoryPort } from '@wrongstack/sage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

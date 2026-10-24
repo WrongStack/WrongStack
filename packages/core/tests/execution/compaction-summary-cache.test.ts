@@ -1,10 +1,10 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CompactionSummaryCache,
   compactionSummaryKey,
   defaultCompactionSummaryCache,
 } from '../../src/execution/compaction-summary-cache.js';
-import type { Message } from '../../src/types/messages.js';
 
 describe('CompactionSummaryCache', () => {
   beforeEach(() => {

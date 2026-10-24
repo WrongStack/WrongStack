@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SessionEvent } from '../types/session.js';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { toErrorMessage } from '../utils/index.js';
 import type { EventBus } from './event-bus-port.js';
 import type { SessionSummaryTracker } from './session-summary-tracker.js';

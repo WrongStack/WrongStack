@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
+import type { Message, SessionEvent, Usage } from '@wrongstack/contracts/types';
 import { deriveSessionAgents } from '@wrongstack/core/storage';
-import type { Message, SessionEvent, Usage } from '@wrongstack/core/types';
 import { buildReplayPayload, decodeProtocolFrame } from '@wrongstack/webui-protocol';
 import type {
   GoalWebSocketHandler,

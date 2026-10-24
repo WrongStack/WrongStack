@@ -1,10 +1,10 @@
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import type { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
 import {
   diagnoseFallbackConfig,
   simulateFallbackFailover,
 } from '../../src/core/fallback-doctor.js';
-import type { Config } from '../../src/types/config.js';
 
 describe('FallbackDoctor', () => {
   it('detects empty fallback chains and flags as critical', () => {

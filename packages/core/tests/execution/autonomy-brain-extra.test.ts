@@ -1,5 +1,7 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
-import type { BrainDecision, BrainDecisionRequest } from '../../src/coordination/brain.js';
+import type { BrainDecision, BrainDecisionRequest } from '../../src/brain/brain.js';
 import {
   createAutonomyBrain,
   extractConfidence,
@@ -9,8 +11,6 @@ import {
   readLlmDenyKind,
   resolveRiskCeiling,
 } from '../../src/execution/autonomy-brain.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Provider } from '../../src/types/provider.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'r1',

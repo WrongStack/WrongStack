@@ -4,8 +4,12 @@
  * live responses (2026-09-30), identities removed.
  */
 
+import type {
+  Provider,
+  Response as ProviderResponse,
+  StreamEvent,
+} from '@wrongstack/contracts/types';
 import { getProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import type { Provider, Response as ProviderResponse, StreamEvent } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   attachAccountQuotaReporting,

@@ -16,6 +16,11 @@
  * @module mailbox-attach
  */
 
+import type { FleetConfig } from '@wrongstack/contracts/types/config';
+import type {
+  MailboxHqPublisherFactory,
+  MailboxHqPublisherPort,
+} from '@wrongstack/contracts/types/hq-mailbox-publisher';
 import { resolveProjectDir } from './coordination/global-mailbox-paths.js';
 import {
   MAILBOX_AWARENESS_INTERVAL_MS,
@@ -30,13 +35,12 @@ import {
   type MailboxSessionAffinityContext,
 } from './coordination/mailbox-types.js';
 import { getSharedProjectMailbox } from './coordination/remote-mailbox.js';
+import { resolveHqMailboxPublisherFactory } from './core/agent-coordination.js';
 import type { AgentInternals } from './core/agent-internals.js';
 import { setBtwNote } from './core/btw.js';
 import { buildFleetPulseBlock, fleetPulseSignature } from './core/fleet-pulse.js';
 import { buildMailboxBtwAwarenessBlock, createMailboxChecker } from './core/mailbox-loop.js';
-import { createHqPublisherFromEnv } from './hq/factory.js';
 import { JsonlReportStore } from './plugins/review-report-store.js';
-import type { FleetConfig } from './types/config.js';
 import { toErrorMessage } from './utils/error.js';
 import { wstackGlobalRoot } from './utils/wstack-paths.js';
 
@@ -51,7 +55,7 @@ import { wstackGlobalRoot } from './utils/wstack-paths.js';
  */
 const mailboxHqPublishers = new Map<
   string,
-  { publisher: ReturnType<typeof createHqPublisherFromEnv>; refs: number }
+  { publisher: MailboxHqPublisherPort | undefined; refs: number }
 >();
 
 function mailboxHqPublisherKey(projectRoot: string, source: 'cli' | 'webui'): string {
@@ -62,14 +66,15 @@ function acquireMailboxHqPublisher(
   projectRoot: string,
   source: 'cli' | 'webui',
   logger: AgentInternals['logger'],
-): ReturnType<typeof createHqPublisherFromEnv> {
+  createPublisher: MailboxHqPublisherFactory | undefined,
+): MailboxHqPublisherPort | undefined {
   const key = mailboxHqPublisherKey(projectRoot, source);
   const existing = mailboxHqPublishers.get(key);
   if (existing !== undefined) {
     existing.refs += 1;
     return existing.publisher;
   }
-  const publisher = createHqPublisherFromEnv({
+  const publisher = createPublisher?.({
     clientKind: source,
     projectRoot,
     logger,
@@ -143,7 +148,12 @@ function attachMailboxCheckerInner(
   // agents still held by value.
   const acquiredRoot = a.ctx.projectRoot;
   const acquiredSource = source ?? 'cli';
-  const hqPublisher = acquireMailboxHqPublisher(acquiredRoot, acquiredSource, a.logger);
+  const hqPublisher = acquireMailboxHqPublisher(
+    acquiredRoot,
+    acquiredSource,
+    a.logger,
+    resolveHqMailboxPublisherFactory(a.container),
+  );
   if (hqPublisher) {
     // Agent-level hook: the HQ publisher lives across runs, not per-run.
     a.ctx.registerAgentHook(() => releaseMailboxHqPublisher(acquiredRoot, acquiredSource));

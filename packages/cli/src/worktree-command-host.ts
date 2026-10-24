@@ -11,7 +11,7 @@
  *     a run cannot start mid-clean either);
  *   - a live SDD run in any process (the SDD board liveness guard).
  */
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import { gitText, isGitRepo } from './goal-commands.js';

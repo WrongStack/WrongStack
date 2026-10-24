@@ -6,7 +6,7 @@ export {
 
 // Security domain: secret scrubbing, vault encryption, permission policies
 
-export { noOpVault } from '../types/secret-vault.js';
+export { noOpVault } from '@wrongstack/contracts/types/secret-vault';
 export {
   capabilityDowngradesToConfirm,
   clampSubagentCapabilities,

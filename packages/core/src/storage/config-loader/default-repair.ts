@@ -1,4 +1,4 @@
-import { ConfigError, ERROR_CODES } from '../../types/errors.js';
+import { ConfigError, ERROR_CODES } from '@wrongstack/contracts/types/errors';
 import { CONFIG_BEHAVIOR_DEFAULTS } from './defaults.js';
 
 export function isPlainRecord(value: unknown): value is Record<string, unknown> {

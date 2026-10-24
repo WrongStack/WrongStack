@@ -1,4 +1,4 @@
-import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
+import type { Config, Provider, ProviderConfig } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveProviderCfg } from '../src/wiring/provider-runtime.js';
 import {

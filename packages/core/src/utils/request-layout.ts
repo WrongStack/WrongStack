@@ -1,7 +1,7 @@
-import type { TextBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
-import { effectiveInputTokens, type Usage } from '../types/provider.js';
-import type { Tool } from '../types/tool.js';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import { effectiveInputTokens, type Usage } from '@wrongstack/contracts/types/provider';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import {
   estimateMessageTokens,
   estimateTextTokens,

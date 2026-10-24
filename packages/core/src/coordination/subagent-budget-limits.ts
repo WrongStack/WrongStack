@@ -1,4 +1,4 @@
-import type { BudgetKind, BudgetLimits } from './subagent-budget-contracts.js';
+import type { BudgetKind, BudgetLimits } from '@wrongstack/contracts/types/subagent-budget';
 
 /** One budget kind over its limit. */
 export interface ExceededBudget {

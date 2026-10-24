@@ -1,4 +1,4 @@
-import type { ThemePresetId } from '@wrongstack/core/types';
+import type { ThemePresetId } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { useCallback } from 'react';
 import type { AppProps } from './app-props.js';

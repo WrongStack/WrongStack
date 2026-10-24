@@ -6,10 +6,10 @@
  * only tightened the budget — the reverse of what the caller asked for.
  */
 
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import { resolveDirectorSpawnModel } from '../../src/coordination/director-spawn-model.js';
-import type { Config } from '../../src/types/config.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 const CONFIG = {
   modelTiers: {

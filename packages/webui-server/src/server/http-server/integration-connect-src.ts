@@ -1,4 +1,4 @@
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 
 /**
  * The cross-origin endpoints the WebUI page itself is allowed to reach.

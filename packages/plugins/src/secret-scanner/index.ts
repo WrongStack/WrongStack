@@ -26,7 +26,7 @@
  * They share the same threat model but act at different points in the
  * pipeline.
  */
-import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/contracts/types';
 import { releaseHandle } from '../runtime/index.js';
 import {
   BASE_PATTERNS,

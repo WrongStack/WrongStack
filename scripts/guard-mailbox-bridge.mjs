@@ -47,7 +47,7 @@ const _MAILBOX_BRIDGE_FILES = [
   'packages/core/src/coordination/mailbox-http-router.ts',
   'packages/core/src/coordination/mailbox-types.ts',
   'packages/core/src/coordination/index.ts',
-  'packages/core/src/hq/protocol.ts',
+  'packages/hq/src/protocol.ts',
 ];
 
 const REQUIRED_ROUTES = [
@@ -88,7 +88,7 @@ const REQUIRED_SOURCE_LITERALS = [
   // Moved from hq/protocol.ts into the hq/protocol/ domain split (R12): the
   // HQ mailbox source union now lives with the HqMailbox* types in mailbox.ts.
   {
-    file: 'packages/core/src/hq/protocol/mailbox.ts',
+    file: 'packages/hq/src/protocol/mailbox.ts',
     literal: "'cli' | 'webui' | 'mcp' | 'acp' | 'http'",
   },
 ];

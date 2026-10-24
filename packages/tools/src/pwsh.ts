@@ -1,5 +1,5 @@
+import type { Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Tool } from '@wrongstack/core/types';
 import { getProcessRegistry } from './process-registry.js';
 import { executePwshStream } from './pwsh-stream.js';
 import type { PwshInput, PwshOutput } from './pwsh-types.js';

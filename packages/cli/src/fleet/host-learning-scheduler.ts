@@ -4,6 +4,7 @@
  * @module fleet/host-learning-scheduler
  */
 
+import type { Config } from '@wrongstack/contracts/types';
 import {
   LearningOptimizationScheduler,
   type LearningOptimizerLlm,
@@ -11,7 +12,6 @@ import {
   resolveAutoOptimizePolicy,
 } from '@wrongstack/core/agent-catalog';
 import { resolveSubagentModelTarget } from '@wrongstack/core/coordination';
-import type { Config } from '@wrongstack/core/types';
 import { makeDispatchClassifier } from '../services/dispatch-classifier.js';
 import { buildHostSubagentProvider } from './host-provider.js';
 import type { MultiAgentDeps } from './host-types.js';

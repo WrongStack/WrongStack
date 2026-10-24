@@ -18,10 +18,10 @@ import { mkdtemp, readdir, readFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { afterEach, expect, it } from 'vitest';
 import { SessionRecovery } from '../../src/storage/session-recovery.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type { SessionEvent } from '../../src/types/session.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

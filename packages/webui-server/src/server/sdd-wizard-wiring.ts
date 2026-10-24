@@ -1,10 +1,10 @@
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { TaskGraph } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import type { AgentFactory, BrainArbiter } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import { DefaultTaskStore, type TaskStore, TaskTracker } from '@wrongstack/core/tasking';
-import type { TaskGraph } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import {
   cleanupStaleSddWorktrees,

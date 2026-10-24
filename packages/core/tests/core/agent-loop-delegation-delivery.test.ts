@@ -10,7 +10,18 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Container } from '@wrongstack/contracts/kernel/container';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import type {
+  SubagentRunContext,
+  SubagentRunOutcome,
+  TaskSpec,
+} from '@wrongstack/contracts/types/multi-agent';
+import type { Request } from '@wrongstack/contracts/types/provider';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defaultAgentCoordination } from '../../src/agent-coordination-default.js';
 import { createDelegateTool } from '../../src/coordination/delegate-tool.js';
 import { DelegationTracker } from '../../src/coordination/delegation/delegation-tracker.js';
 import {
@@ -25,27 +36,18 @@ import {
 } from '../../src/coordination/delegation/leader-delivery-hub.js';
 import { Director } from '../../src/coordination/director.js';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
+import { AGENT_COORDINATION } from '../../src/core/agent-coordination.js';
 import { Context } from '../../src/core/context.js';
 import { DefaultErrorHandler } from '../../src/execution/error-handler.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { Container } from '../../src/kernel/container.js';
-import { EventBus } from '../../src/kernel/events.js';
-import { TOKENS } from '../../src/kernel/tokens.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import type {
-  SubagentRunContext,
-  SubagentRunOutcome,
-  TaskSpec,
-} from '../../src/types/multi-agent.js';
-import type { Request } from '../../src/types/provider.js';
-import type { Tool } from '../../src/types/tool.js';
 import { MockProvider } from '../helpers/mock-provider.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
@@ -69,6 +71,8 @@ async function buildAgent(
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-delivery-'));
   dirs.push(tmp);
   const container = new Container();
+  // Host wiring (createDefaultContainer) binds the production coordination.
+  container.bind(AGENT_COORDINATION, () => defaultAgentCoordination);
   container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());
   container.bind(TOKENS.ErrorHandler, () => new DefaultErrorHandler());

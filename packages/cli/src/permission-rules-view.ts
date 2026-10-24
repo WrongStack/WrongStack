@@ -3,18 +3,18 @@
  * `wstack permissions` and the in-session `/permissions` command.
  */
 
+import type {
+  PermissionPolicy,
+  PermissionRule,
+  PermissionTrace,
+  Tool,
+} from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import {
   compilePermissionRules,
   matchedPermissionRule,
   withExecutorGate,
 } from '@wrongstack/core/security';
-import type {
-  PermissionPolicy,
-  PermissionRule,
-  PermissionTrace,
-  Tool,
-} from '@wrongstack/core/types';
 
 export interface ExplainedCall {
   trace: PermissionTrace;

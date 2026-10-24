@@ -1,6 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { DesignKitLoader } from '@wrongstack/contracts/types/design-kit';
+import type { Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import {
@@ -17,8 +19,6 @@ import {
   setActiveKit,
 } from '../../src/execution/design-detect.js';
 import { recordKitChoice, saveCapturedTokens } from '../../src/execution/design-project-store.js';
-import type { DesignKitLoader } from '../../src/types/design-kit.js';
-import type { Request } from '../../src/types/provider.js';
 
 function fakeCtx(): { meta: Record<string, unknown> } {
   return { meta: {} };

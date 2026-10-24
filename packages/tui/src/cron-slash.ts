@@ -5,8 +5,9 @@
  * `cron_list` tool at registration time. Renders a formatted table of
  * job names, intervals, actions, run counts, and overdue status.
  */
+
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-import type { SlashCommand } from '@wrongstack/core/types';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

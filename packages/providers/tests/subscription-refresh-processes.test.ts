@@ -3,12 +3,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import type { ProviderApiKey } from '@wrongstack/contracts/types';
 import {
   DefaultSecretVault,
   decryptConfigSecrets,
   encryptConfigSecrets,
 } from '@wrongstack/core/security';
-import type { ProviderApiKey } from '@wrongstack/core/types';
 import { expect, it } from 'vitest';
 
 const exec = promisify(execFile);

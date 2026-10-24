@@ -1,4 +1,4 @@
-import type { ResolvedProvider } from '@wrongstack/core/types';
+import type { ResolvedProvider } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { createEmbeddedProviderRoutes } from '../src/server/embedded-provider-routes.js';

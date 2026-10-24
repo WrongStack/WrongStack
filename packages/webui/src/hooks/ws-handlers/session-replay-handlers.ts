@@ -1,4 +1,4 @@
-import type { SessionMarker, SessionToolMeta } from '@wrongstack/core/types';
+import type { SessionMarker, SessionToolMeta } from '@wrongstack/contracts/types';
 import { isMobileViewport } from '@/hooks/useViewport';
 import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
 import { isDesktopShell } from '@/lib/desktop-shell';
@@ -406,6 +406,7 @@ export function handleSessionStart(msg: WSServerMessage) {
         scope: latestBugHunt.scope,
         totalRounds: latestBugHunt.maxBugs,
         currentRound: latestBugHunt.currentRound,
+        ...(latestBugHunt.mode ? { mode: latestBugHunt.mode } : {}),
       });
     }
   }

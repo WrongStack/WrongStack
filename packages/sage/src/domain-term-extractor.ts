@@ -94,7 +94,7 @@ export { DOMAIN_TERMS_FILENAME, normalizeTerm } from './domain-term-candidates.j
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 
 const execFileAsync = promisify(execFile);
 

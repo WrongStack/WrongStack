@@ -1,3 +1,4 @@
+import type { MCPServerConfig } from '@wrongstack/contracts/types/config';
 import { describe, expect, it } from 'vitest';
 import {
   allServers,
@@ -32,7 +33,6 @@ import {
   zaiWebReaderServer,
   zaiWebSearchServer,
 } from '../../src/infrastructure/mcp-servers.js';
-import type { MCPServerConfig } from '../../src/types/config.js';
 
 /**
  * V0-D: every built-in MCP preset returns a config that passes the

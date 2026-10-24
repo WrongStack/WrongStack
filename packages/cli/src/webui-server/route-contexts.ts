@@ -5,6 +5,8 @@
  */
 
 import * as path from 'node:path';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import { resolveTokenSavingTier, type SessionWriter } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import {
   normalizeSubagentModelPlan,
@@ -13,10 +15,8 @@ import {
   setSessionSubagentPolicy,
   subagentPolicyModeFrom,
 } from '@wrongstack/core/coordination';
-import { TOKENS } from '@wrongstack/core/kernel';
 import { SkillInstaller } from '@wrongstack/core/skills';
 import { PromptUsageStore } from '@wrongstack/core/storage';
-import { resolveTokenSavingTier, type SessionWriter } from '@wrongstack/core/types';
 import { isOutsideProject, resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   type BrainHandlerContext,

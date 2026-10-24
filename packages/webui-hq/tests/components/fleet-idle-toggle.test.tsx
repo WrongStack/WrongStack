@@ -9,7 +9,7 @@
  */
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { HqSessionAgentSummary, HqSnapshot } from '@wrongstack/core/hq';
+import type { HqSessionAgentSummary, HqSnapshot } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/data/api.js', () => ({

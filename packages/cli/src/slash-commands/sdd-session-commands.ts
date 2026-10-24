@@ -1,5 +1,5 @@
 import * as fsp from 'node:fs/promises';
-import type { SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { AISpecBuilder, TaskGraphStore, TaskTracker } from '@wrongstack/sdd';
 import { gatherProjectContext } from '../services/sdd/project-context.js';

@@ -1,3 +1,11 @@
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type {
+  Provider,
+  ReasoningConfig,
+  Request,
+  Response,
+  Usage,
+} from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { EnhanceOutcome, EnhancePassInfo } from '../../src/execution/prompt-enhancer.js';
 import {
@@ -12,14 +20,6 @@ import {
   recentTextTurns,
   shouldEnhance,
 } from '../../src/execution/prompt-enhancer.js';
-import type { Message } from '../../src/types/messages.js';
-import type {
-  Provider,
-  ReasoningConfig,
-  Request,
-  Response,
-  Usage,
-} from '../../src/types/provider.js';
 
 function makeProvider(
   impl: (req: Request, opts: { signal: AbortSignal }) => Promise<Response>,

@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FleetManager } from '../../src/coordination/fleet-manager.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 let tmp: string;
 beforeEach(async () => {

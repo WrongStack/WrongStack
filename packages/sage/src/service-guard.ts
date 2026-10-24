@@ -1,4 +1,4 @@
-import type { MemoryStore } from '@wrongstack/core/types';
+import type { MemoryStore } from '@wrongstack/contracts/types';
 import type { SageServiceLike } from './service-contract.js';
 
 const SAGE_METHODS = [

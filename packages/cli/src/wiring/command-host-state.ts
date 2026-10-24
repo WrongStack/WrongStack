@@ -1,5 +1,13 @@
 /** Mutable command-host state created after the runtime fleet is available. */
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import {
+  AgentError,
+  type Config,
+  type ConfigStore,
+  resolveFleetChatVerbosity,
+  type SessionWriter,
+} from '@wrongstack/contracts/types';
 import {
   areSubagentsAllowedForSession,
   type BrainArbiter,
@@ -7,7 +15,6 @@ import {
   mailboxSessionTag,
   makeKanbanQueueTool,
 } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import {
   ALL_DESTRUCTIVE_KINDS,
   type DestructiveKind,
@@ -19,13 +26,6 @@ import type {
   StatuslineLines,
   StatuslineOrder,
 } from '@wrongstack/core/statusline';
-import {
-  AgentError,
-  type Config,
-  type ConfigStore,
-  resolveFleetChatVerbosity,
-  type SessionWriter,
-} from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { SddRunRegistry } from '@wrongstack/sdd';
 import { createGoalHost } from '../goal-host.js';

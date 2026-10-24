@@ -26,9 +26,9 @@
  * as `SessionEventBridge` would. `session_end` is a core reconstruct event and
  * is always written.
  */
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { SessionWriter, TokenCounter } from '@wrongstack/contracts/types';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
-import type { SessionWriter, TokenCounter } from '@wrongstack/core/types';
 
 interface SubagentSessionAudit {
   /**

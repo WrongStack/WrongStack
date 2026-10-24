@@ -7,7 +7,7 @@
  * a default window); delegations in between fail at once with the same
  * classified error, so the leader routes the work elsewhere.
  */
-import type { SubagentError } from '@wrongstack/core/types';
+import type { SubagentError } from '@wrongstack/contracts/types';
 
 /** Without a reset time from the agent, hold it this long. */
 const DEFAULT_HOLD_MS = 15 * 60_000;

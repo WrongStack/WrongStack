@@ -19,7 +19,7 @@
  * into fresh workers for free).
  */
 
-import type { JSONSchema } from '../types/tool.js';
+import type { JSONSchema } from '@wrongstack/contracts/types/tool';
 
 export interface TaskBoundary {
   /** What the work covers — the in-bounds statement. */

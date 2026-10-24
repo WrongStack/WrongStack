@@ -35,9 +35,16 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type {
+  FleetConfig,
+  SkillLoader,
+  SkillManifest,
+  SubagentConfig,
+  TaskResult,
+} from '@wrongstack/contracts/types';
 import { type Context, keepsOwnContext } from '@wrongstack/core/agent';
 import type { Director } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
 import {
   armSkillPathRules,
   declaredPathMatch,
@@ -52,13 +59,6 @@ import {
   type SkillRecommendation,
   skillPromptExclusionReasons,
 } from '@wrongstack/core/skills';
-import type {
-  FleetConfig,
-  SkillLoader,
-  SkillManifest,
-  SubagentConfig,
-  TaskResult,
-} from '@wrongstack/core/types';
 import {
   isSkillSuppressed,
   loadSkillOutcomes,

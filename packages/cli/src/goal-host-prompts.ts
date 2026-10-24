@@ -1,4 +1,4 @@
-import type { TaskNode } from '@wrongstack/core/types';
+import type { TaskNode } from '@wrongstack/contracts/types';
 
 export function buildTaskPrompt(task: TaskNode, phaseName: string, goal: string): string {
   return [

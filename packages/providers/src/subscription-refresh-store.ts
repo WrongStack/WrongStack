@@ -1,5 +1,5 @@
-import type { ProviderApiKey, ProviderConfig } from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+import type { ProviderApiKey, ProviderConfig } from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 
 type Renewal = (credential: ProviderApiKey) => Promise<ProviderApiKey>;
 export type SubscriptionRefreshTransaction = (

@@ -1,4 +1,4 @@
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { getSageSurface } from '@wrongstack/sage';
 import type { WebSocket } from 'ws';
 import { errMessage, send, withRequestId } from './ws-utils.js';

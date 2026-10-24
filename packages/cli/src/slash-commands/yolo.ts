@@ -1,10 +1,10 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   ALL_DESTRUCTIVE_KINDS,
   type DestructiveKind,
   isDestructiveKind,
   LOCKED_DESTRUCTIVE_KINDS,
 } from '@wrongstack/core/security';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

@@ -17,8 +17,9 @@
  * the way the orchestrator's inline `let` did when `runCliExecution` read it
  * by value at call time.
  */
+
+import type { Provider } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Provider } from '@wrongstack/core/types';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 import type { CliContext } from '../cli-context.js';
 import { WRONGFORGE_REASONING } from '../fleet/wrongforge-runtime.js';
@@ -85,7 +86,7 @@ export function setupSessionRuntime(args: SessionRuntimeArgs) {
 
   const stats = new SessionStats(events, tokenCounter);
 
-  let activeReasoningConfig: import('@wrongstack/core/types').ReasoningConfig | undefined;
+  let activeReasoningConfig: import('@wrongstack/contracts/types').ReasoningConfig | undefined;
   const warnedRuntimeMessages = new Set<string>();
   // An alias (`work` → `type: "anthropic"`) reads its facts from the catalog entry.
   const catalogIdOf = (providerId: string): string =>

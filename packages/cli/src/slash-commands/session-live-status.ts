@@ -84,7 +84,7 @@ export function isSafeSessionKillPid(pid: number): boolean {
  * (cap = 12 lines) — the recovery is informational, not a re-execution.
  */
 export function summarizePending(
-  events: import('@wrongstack/core/types').SessionEvent[],
+  events: import('@wrongstack/contracts/types').SessionEvent[],
 ): string[] {
   const lines: string[] = [];
   const cap = 12;
@@ -99,7 +99,7 @@ export function summarizePending(
   return lines;
 }
 
-function summariseEvent(ev: import('@wrongstack/core/types').SessionEvent): string {
+function summariseEvent(ev: import('@wrongstack/contracts/types').SessionEvent): string {
   switch (ev.type) {
     case 'user_input': {
       const text =

@@ -1,12 +1,12 @@
-import { ERROR_CODES, SddError } from '../types/errors.js';
+import { ERROR_CODES, SddError } from '@wrongstack/contracts/types/errors';
 import type {
   TaskFilter,
   TaskGraph,
   TaskNode,
   TaskProgress,
   TaskSort,
-} from '../types/task-graph.js';
-import { computeTaskProgress } from '../types/task-graph.js';
+} from '@wrongstack/contracts/types/task-graph';
+import { computeTaskProgress } from '@wrongstack/contracts/types/task-graph';
 import { toErrorMessage } from '../utils/error.js';
 
 export interface TaskStore {

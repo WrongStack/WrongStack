@@ -18,22 +18,22 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
+import type { Middleware } from '@wrongstack/contracts/kernel/pipeline';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import type {
+  DesignKitLoader,
+  DesignKitTokens,
+  DesignStack,
+  DesignStudioState,
+} from '@wrongstack/contracts/types/design-kit';
+import { isDesignStack } from '@wrongstack/contracts/types/design-kit';
+import type { Request } from '@wrongstack/contracts/types/provider';
 import type {
   AgentPipelines,
   ToolCallPipelinePayload,
   UserInputPayload,
 } from '../core/agent-types.js';
 import type { Context } from '../core/context.js';
-import type { Middleware } from '../kernel/pipeline.js';
-import type { TextBlock } from '../types/blocks.js';
-import type {
-  DesignKitLoader,
-  DesignKitTokens,
-  DesignStack,
-  DesignStudioState,
-} from '../types/design-kit.js';
-import { isDesignStack } from '../types/design-kit.js';
-import type { Request } from '../types/provider.js';
 import { detectEstablishedDesignSystem, type EstablishedDesignSystem } from './design-capture.js';
 import { classifyTokenValue } from './design-color.js';
 import { ensureDesignDeal, renderDesignDeal } from './design-deal.js';

@@ -3,7 +3,7 @@ import type {
   Renderer,
   TextBlock,
   ToolResultRenderMode,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { color, sanitizeTerminalText } from '@wrongstack/core/utils';
 import { renderDiff } from './diff-renderer.js';
 import { theme } from './theme.js';

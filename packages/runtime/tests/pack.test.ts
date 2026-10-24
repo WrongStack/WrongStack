@@ -1,7 +1,7 @@
+import type { SlashCommand, Tool } from '@wrongstack/contracts/types';
 import type { AgentExtension } from '@wrongstack/core/extension';
 import type { PluginAPI } from '@wrongstack/core/plugin';
 import type { ProviderFactory } from '@wrongstack/core/registry';
-import type { SlashCommand, Tool } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import type { WrongStackPack } from '../src/pack.js';
 

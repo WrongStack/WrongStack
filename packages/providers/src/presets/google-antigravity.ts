@@ -15,8 +15,8 @@
  * @module presets/google-antigravity
  */
 
+import type { StreamEvent } from '@wrongstack/contracts/types';
 import { recordProviderQuota } from '@wrongstack/core/quota';
-import type { StreamEvent } from '@wrongstack/core/types';
 import { capabilitiesForFamily } from '../family-capabilities.js';
 import {
   ANTIGRAVITY_DEFAULT_HOST,

@@ -1,23 +1,17 @@
-import { callWithDeadline } from '../execution/llm-call-deadline.js';
-import type { ProviderRegistry } from '../registry/provider-registry.js';
-
-import type { Config } from '../types/config.js';
-
-import type { CouncilQuestion, CouncilResult } from '../types/council.js';
-
-import type { Logger } from '../types/logger.js';
-
-import type { OneShotLLMInput, OneShotLLMResult } from '../types/one-shot-llm.js';
-
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { CouncilQuestion, CouncilResult } from '@wrongstack/contracts/types/council';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { OneShotLLMInput, OneShotLLMResult } from '@wrongstack/contracts/types/one-shot-llm';
 import type {
   MetricsSinkView,
   PluginCouncilOptions,
   PluginLLM,
   PluginLLMOptions,
   PluginLLMResult,
-} from '../types/plugin.js';
-
-import type { Provider, Request } from '../types/provider.js';
+} from '@wrongstack/contracts/types/plugin';
+import type { Provider, Request } from '@wrongstack/contracts/types/provider';
+import { callWithDeadline } from '../execution/llm-call-deadline.js';
+import type { ProviderRegistry } from '../registry/provider-registry.js';
 
 /**
  * Build the `api.llm` facade for one plugin.

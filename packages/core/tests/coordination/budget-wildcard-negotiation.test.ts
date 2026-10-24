@@ -1,6 +1,6 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
-import { SubagentBudget, BudgetThresholdSignal } from '../../src/coordination/subagent-budget.js';
+import { BudgetThresholdSignal, SubagentBudget } from '../../src/coordination/subagent-budget.js';
 
 /**
  * Regression: a delegated subagent's budget is observed by the FleetBus via

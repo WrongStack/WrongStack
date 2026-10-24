@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { TodoItem } from '@wrongstack/contracts/types/context';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   attachTodosCheckpoint,
   loadTodosCheckpoint,
   saveTodosCheckpoint,
 } from '../../src/storage/todos-checkpoint.js';
-import type { TodoItem } from '../../src/types/todos.js';
 
 // Covers loadTodosCheckpoint's parse-failure branch (valid read, invalid JSON).
 

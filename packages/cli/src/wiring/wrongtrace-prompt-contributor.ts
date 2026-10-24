@@ -15,8 +15,8 @@
  *     the ETERNAL AUTONOMY contributor (registration order is preserved).
  */
 
-import type { SystemPromptContributor, TokenSavingTier } from '@wrongstack/core/types';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+import type { SystemPromptContributor, TokenSavingTier } from '@wrongstack/contracts/types';
+import { normalizeTokenSavingTier } from '@wrongstack/contracts/types';
 import { digestAtlas, summarizeFriction } from '@wrongstack/wrongtrace';
 
 import { getWrongTrace } from './wrongtrace-gate.js';

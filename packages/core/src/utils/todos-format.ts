@@ -1,4 +1,4 @@
-import type { TodoItem } from '../types/context.js';
+import type { TodoItem } from '@wrongstack/contracts/types/context';
 import { color } from './color.js';
 import { sanitizeTerminalText } from './terminal-sanitize.js';
 

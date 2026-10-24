@@ -1,5 +1,5 @@
 /** skills.sh search adapter. Uses /api/search and accepts legacy custom registry responses. */
-import { FetchError, ParseError } from '../../types/errors.js';
+import { FetchError, ParseError } from '@wrongstack/contracts/types/errors';
 import type {
   RegistrySearchOptions,
   RegistrySearchResult,

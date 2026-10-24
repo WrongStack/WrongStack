@@ -21,7 +21,7 @@
  * @public
  */
 
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import type {
   NotificationChannel,
   NotificationLevel,
@@ -29,8 +29,8 @@ import type {
   NotificationResult,
 } from '@wrongstack/core/notifications';
 import type { TelegramBot } from './bot.js';
-import { scrubTelegramOutboundText } from './security/outbound.js';
 import { truncateForTelegram } from './bot.js';
+import { scrubTelegramOutboundText } from './security/outbound.js';
 
 // ---------------------------------------------------------------------------
 // Level → emoji mapping for Telegram preview

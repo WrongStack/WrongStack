@@ -14,9 +14,9 @@
  * main() needs, or a numeric exit code when a short-circuit fires.
  */
 
-import type { EventBus } from '@wrongstack/core/kernel';
-import { TOKENS } from '@wrongstack/core/kernel';
-import type { ConfigStore } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { ConfigStore } from '@wrongstack/contracts/types';
 import { writeErr } from '@wrongstack/core/utils';
 import { parseArgs } from './arg-parser.js';
 import { applyAsciiMode } from './boot/ascii-mode.js';

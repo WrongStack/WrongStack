@@ -44,5 +44,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@wrongstack/contracts": "workspace:*"
   }
 }

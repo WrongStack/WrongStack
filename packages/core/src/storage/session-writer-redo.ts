@@ -17,7 +17,7 @@
 import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SessionEvent } from '../types/session.js';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 
 interface RedoEntry {
   /** Journal bytes the rewind kept. */

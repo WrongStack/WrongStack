@@ -1,5 +1,5 @@
-import type { EventBus } from '../kernel/events.js';
-import { promptCacheHitRatio, type Usage } from '../types/provider.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import { promptCacheHitRatio, type Usage } from '@wrongstack/contracts/types/provider';
 
 export interface ProviderCacheEntry {
   provider: string;

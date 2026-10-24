@@ -30,7 +30,7 @@
  */
 
 import { execFile } from 'node:child_process';
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import { BoundedMap, releaseHandle, withinProject } from '../runtime/index.js';
 

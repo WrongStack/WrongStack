@@ -1,4 +1,4 @@
-import type { Message } from '@wrongstack/core/types';
+import type { Message } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { isCompatibilityQuirks, OpenAICompatibleProvider } from '../src/openai-compatible.js';
 import {

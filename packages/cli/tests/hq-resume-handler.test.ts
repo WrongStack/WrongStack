@@ -9,8 +9,8 @@
  *  4. Cursor=0: client first connects, no gap → `hq.resume_gap` with empty list.
  */
 
-import type { HqClientResumeMessage, HqEventEnvelope } from '@wrongstack/core/hq';
-import { HQ_PROTOCOL_VERSION } from '@wrongstack/core/hq';
+import type { HqClientResumeMessage, HqEventEnvelope } from '@wrongstack/hq';
+import { HQ_PROTOCOL_VERSION } from '@wrongstack/hq';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import type { ConnectedClient } from '../src/hq-server/types.js';

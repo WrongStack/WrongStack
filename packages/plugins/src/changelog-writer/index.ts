@@ -45,7 +45,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { BoundedSet } from '../runtime/index.js';
 import type { ChangelogEntry, Section } from './changelog-format.js';
 import { mergeIntoChangelog, renderUnreleasedBlock, SECTION_ORDER } from './changelog-format.js';

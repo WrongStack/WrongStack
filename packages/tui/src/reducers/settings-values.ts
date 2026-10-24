@@ -1,4 +1,4 @@
-import { MAX_WRONGPROXY_URL_LENGTH } from '@wrongstack/core/types';
+import { MAX_WRONGPROXY_URL_LENGTH } from '@wrongstack/contracts/types';
 import type { State } from '../app-state.js';
 import { MAX_TUI_THINKING_WORD_LENGTH, normalizeTuiThinkingWord } from '../thinking-word.js';
 import { hasPanelRoutedToSidebar } from '../ui-contracts.js';

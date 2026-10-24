@@ -21,11 +21,12 @@
  *     stops delaying retries);
  *   - the cap keeps a hung rebuild from hanging the turn.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import { runProviderWithRetry } from '../../src/core/provider-runner.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Request } from '../../src/types/provider.js';
 import {
   __resetProxyConfigForTests,
   applyProxyConfig,

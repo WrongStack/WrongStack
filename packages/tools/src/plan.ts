@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import {
   addPlanItem,
   clearPlan,
@@ -13,8 +15,6 @@ import {
   setPlanItemStatus,
   type TaskFile,
 } from '@wrongstack/core/storage';
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
 import { formatTaskList } from '@wrongstack/core/utils';
 import { projectSessionPlanToKanban } from './session-kanban.js';
 import { todoTool } from './todo.js';

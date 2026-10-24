@@ -7,8 +7,8 @@
  */
 
 import * as path from 'node:path';
+import type { Provider, Request, Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { Provider, Request, Tool } from '@wrongstack/core/types';
 import { type SearchResult, searchCodebaseIndex } from '@wrongstack/tools/codebase-index/index';
 import type { WebSocket } from 'ws';
 import { errMessage, send } from './ws-utils.js';

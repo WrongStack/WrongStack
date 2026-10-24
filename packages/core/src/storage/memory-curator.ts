@@ -1,10 +1,10 @@
 import * as path from 'node:path';
-import type { RunResult } from '../core/agent-types.js';
-import type { Context } from '../core/context.js';
-import type { OneShotOrchestrator } from '../execution/one-shot-llm.js';
-import type { AfterRunHook, AgentExtension } from '../extension/extension-points.js';
-import type { MemoryStore } from '../types/memory.js';
-import type { Provider } from '../types/provider.js';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { AfterRunHook, AgentExtension } from '@wrongstack/contracts/types/extension-points';
+import type { MemoryStore } from '@wrongstack/contracts/types/memory';
+import type { OneShotLLMCaller } from '@wrongstack/contracts/types/one-shot-llm';
+import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { RunResult } from '@wrongstack/contracts/types/run-result';
 import {
   readBundledInstructionText,
   renderInstructionTemplate,
@@ -135,7 +135,7 @@ export interface SessionMemoryCuratorOptions {
   provider?: Provider | undefined;
   model?: string | undefined;
   maxTargetMemories?: number | undefined;
-  oneShotOrchestrator?: OneShotOrchestrator | undefined;
+  oneShotOrchestrator?: OneShotLLMCaller | undefined;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ export class SessionMemoryCurator implements AgentExtension {
   private readonly provider?: Provider | undefined;
   private readonly model?: string | undefined;
   private readonly maxTargetMemories: number;
-  private readonly oneShotOrchestrator?: OneShotOrchestrator | undefined;
+  private readonly oneShotOrchestrator?: OneShotLLMCaller | undefined;
 
   constructor(opts: SessionMemoryCuratorOptions) {
     this.Sage = opts.Sage;
@@ -213,7 +213,7 @@ export class SessionMemoryCurator implements AgentExtension {
     this.oneShotOrchestrator = opts.oneShotOrchestrator;
   }
 
-  afterRun: AfterRunHook = async (ctx: Context, result: RunResult) => {
+  afterRun: AfterRunHook = async (ctx: AgentContext, result: RunResult) => {
     // Only curate after successful runs with actual work done
     if (result.status !== 'done') return;
     if (!this.Sage?.updateSage) return;

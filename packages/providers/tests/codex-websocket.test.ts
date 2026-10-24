@@ -1,4 +1,4 @@
-import type { Request, StreamEvent } from '@wrongstack/core/types';
+import type { Request, StreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   CodexWebSocketFallbackError,

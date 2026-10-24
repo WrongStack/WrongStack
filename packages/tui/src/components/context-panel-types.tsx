@@ -1,4 +1,5 @@
-import type { ContextBreakdown, HistoryRetention, RequestResidency } from '@wrongstack/core/utils';
+import type { ContextBreakdown } from '@wrongstack/core/agent';
+import type { HistoryRetention, RequestResidency } from '@wrongstack/core/utils';
 import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
 // The bracket-style `[000o····]` meter is the statusline's context bar; reuse
 // it here so the panel's fill bars mirror the statusline instead of using a

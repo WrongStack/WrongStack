@@ -1,5 +1,9 @@
 import { timingSafeEqual } from 'node:crypto';
-import type { HealthRegistry, MetricsSink, MetricsSnapshot } from '../types/observability.js';
+import type {
+  HealthRegistry,
+  MetricsSink,
+  MetricsSnapshot,
+} from '@wrongstack/contracts/types/observability';
 import { toErrorMessage } from '../utils/error.js';
 
 /** TLS options for HTTPS metrics endpoint. */

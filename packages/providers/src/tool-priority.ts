@@ -13,7 +13,7 @@
  * `@wrongstack/tools/builtin`), with diagnostic/status tools assigned the
  * lowest priority since the model rarely needs to invoke them directly.
  */
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 
 // ─── Priority tiers (lower number = higher priority) ──────────────────────
 

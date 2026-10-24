@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   captureLearnedFromAgentOutputDetailed,
@@ -15,7 +16,6 @@ import {
   saveProjectAgentConsolidated,
   updateProjectAgentLearningPolicy,
 } from '../../src/coordination/agents/index.js';
-import type { Provider, Request, Response } from '../../src/types/index.js';
 
 let projectRoot: string;
 

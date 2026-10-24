@@ -12,14 +12,7 @@
  * the point: a second hand-written copy is how a surface quietly ends up with a
  * wider default than the other.
  */
-import { Context } from '@wrongstack/core/agent';
-import { ToolExecutor } from '@wrongstack/core/execution';
-import { ToolRegistry } from '@wrongstack/core/registry';
-import {
-  AutoApprovePermissionPolicy,
-  DefaultSecretScrubber,
-  ToolCapabilities,
-} from '@wrongstack/core/security';
+
 import type {
   Config,
   PermissionPolicy,
@@ -29,8 +22,16 @@ import type {
   Tool,
   ToolSettlement,
   ToolsConfig,
-} from '@wrongstack/core/types';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { normalizeTokenSavingTier } from '@wrongstack/contracts/types';
+import { Context } from '@wrongstack/core/agent';
+import { ToolExecutor } from '@wrongstack/core/execution';
+import { ToolRegistry } from '@wrongstack/core/registry';
+import {
+  AutoApprovePermissionPolicy,
+  DefaultSecretScrubber,
+  ToolCapabilities,
+} from '@wrongstack/core/security';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { systemSessionId } from '@wrongstack/primitives';
 import { wireKanbanPorts } from '@wrongstack/runtime';

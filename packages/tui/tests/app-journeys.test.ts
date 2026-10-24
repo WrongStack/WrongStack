@@ -1,4 +1,4 @@
-import type { Message } from '@wrongstack/core/types';
+import type { Message } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createAppJourney,

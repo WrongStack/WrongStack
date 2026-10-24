@@ -9,7 +9,7 @@
  * })
  */
 
-import { type Tool, ToolValidationError } from '@wrongstack/core/types';
+import { type Tool, ToolValidationError } from '@wrongstack/contracts/types';
 import { safeResolveProjectPath } from '../_util.js';
 import { readSymbolInFile } from './ast-symbol-reader.js';
 import { type AnchoredSageInsight, findAnchoredSageMemories } from './ecosystem-bridge.js';

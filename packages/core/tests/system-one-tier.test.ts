@@ -4,9 +4,9 @@
  * an unsure Choice or a failing host all leave the default in place.
  */
 
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it, vi } from 'vitest';
 import { createSystemOneTierSuggester } from '../src/coordination/system-one-tier.js';
-import type { Config } from '../src/types/config.js';
 import type { TypeSafeJudge } from '../src/typesafe/index.js';
 
 const config = (routing: Record<string, string> = {}): Config =>

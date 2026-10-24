@@ -11,10 +11,10 @@
  * filled to construct Context + Agent.
  */
 
+import type { Config, Provider, ResolvedProvider } from '@wrongstack/contracts/types';
 import { Agent } from '@wrongstack/core/agent';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
 import { ToolRegistry as RealToolRegistry } from '@wrongstack/core/registry';
-import type { Config, Provider, ResolvedProvider } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { builtinToolsPack } from '@wrongstack/tools';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,8 +41,8 @@ vi.mock('@wrongstack/runtime', () => ({
 }));
 
 import type { RunTurnApi } from '@wrongstack/acp/agent';
+import type { Tool } from '@wrongstack/contracts/types';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import type { Tool } from '@wrongstack/core/types';
 import {
   ACPClientPermissionPolicy,
   AcpServerConfigError,

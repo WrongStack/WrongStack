@@ -1,13 +1,13 @@
-import { isKeylessLocalProvider } from '@wrongstack/core/models';
-import type { ProviderFactory } from '@wrongstack/core/registry';
 import type {
   Logger,
   ModelsRegistry,
   Provider,
   ProviderConfig,
   ResolvedProvider,
-} from '@wrongstack/core/types';
-import { ConfigError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ConfigError } from '@wrongstack/contracts/types';
+import { isKeylessLocalProvider } from '@wrongstack/core/models';
+import type { ProviderFactory } from '@wrongstack/core/registry';
 import { bindProviderCatalogId } from '@wrongstack/core/utils';
 import { attachAccountQuotaReporting } from './account-quota.js';
 import { AiGatewayProvider, createAiGatewayProviderFactory } from './ai-gateway.js';

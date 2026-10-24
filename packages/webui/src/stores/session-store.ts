@@ -12,7 +12,7 @@
  * iteration to whichever tab happens to be on screen.
  */
 
-import type { Usage } from '@wrongstack/core/types';
+import type { Usage } from '@wrongstack/contracts/types';
 import { useStore } from 'zustand';
 import {
   adoptDefaultLane as adoptDefaultChatLane,

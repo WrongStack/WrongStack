@@ -1,6 +1,6 @@
-import * as fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import type { MCPServerConfig, SecretVault } from '@wrongstack/core/types';
+import * as fs from 'node:fs/promises';
+import type { MCPServerConfig, SecretVault } from '@wrongstack/contracts/types';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 import {
   authorizationHeaderForToken,

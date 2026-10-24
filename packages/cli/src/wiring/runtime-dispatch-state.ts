@@ -1,13 +1,14 @@
 /** Final runtime preparation before a CLI surface is dispatched. */
+
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, ConfigStore, MemoryPort, SkillLoader } from '@wrongstack/contracts/types';
 import type { Agent, Context } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import {
   createLocalSkillSuggestionSetup,
   createSkillMentionMiddleware,
   createSkillSuggestionSetup,
 } from '@wrongstack/core/skills';
-import type { Config, ConfigStore, MemoryPort, SkillLoader } from '@wrongstack/core/types';
 import { getToolDescriptionMode } from '@wrongstack/core/utils';
 import type { PluginPickerItem, ToolPickerItem } from '../execute-deps.js';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from '../plugin-management.js';

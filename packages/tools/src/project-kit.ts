@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { projectKitTurnGuidance } from './project-kit/advisor.js';
 import { assertKitId, KIT_DIRECTORY, listKits, loadKit } from './project-kit/catalog.js';
 import { executeKit, isKitVerified, kitHistory } from './project-kit/service.js';

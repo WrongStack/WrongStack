@@ -1,4 +1,4 @@
-import type { SecretVault } from '../types/secret-vault.js';
+import type { SecretVault } from '@wrongstack/contracts/types/secret-vault';
 
 /**
  * Config-walking secret helpers, split out of secret-vault.ts so that

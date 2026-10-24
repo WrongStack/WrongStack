@@ -1,5 +1,5 @@
-import type { ObservabilityConfig } from '../types/config/observability.js';
-import type { MetricsSink, Tracer } from '../types/observability.js';
+import type { ObservabilityConfig } from '@wrongstack/contracts/types/config/observability';
+import type { MetricsSink, Tracer } from '@wrongstack/contracts/types/observability';
 import { toErrorMessage } from '../utils/error.js';
 import { startOtlpMetricsExporter } from './otlp-metrics.js';
 import { startOtlpTraceExporter } from './otlp-traces.js';

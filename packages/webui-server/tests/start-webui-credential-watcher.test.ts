@@ -151,7 +151,7 @@ describe('setupWebuiCredentialWatcher', () => {
     await notify?.({ providers: {}, apiKey: 'legacy', snapshotHasProviders: true });
     expect(create).not.toHaveBeenCalled();
     expect(tab.provider).toBe(context.provider);
-    const blocked = context.provider as unknown as import('@wrongstack/core/types').Provider;
+    const blocked = context.provider as unknown as import('@wrongstack/contracts/types').Provider;
     await expect(
       blocked.complete({} as never, { signal: new AbortController().signal }),
     ).rejects.toThrow('auth profile');

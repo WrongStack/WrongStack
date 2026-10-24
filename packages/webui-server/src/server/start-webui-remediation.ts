@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { PermissionPolicy, ToolConfirmPendingResult } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { ToolExecutor } from '@wrongstack/core/execution';
-import type { EventBus } from '@wrongstack/core/kernel';
 import {
   DEFAULT_ALWAYS_TRUST_TTL_MS,
   isPersistentApproval,
   scopedApprovalPattern,
 } from '@wrongstack/core/security';
-import type { PermissionPolicy, ToolConfirmPendingResult } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { type PackageOperation, toLanguagePackageInput } from '@wrongstack/techstack';
 

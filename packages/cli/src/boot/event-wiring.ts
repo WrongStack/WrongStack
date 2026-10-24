@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { color, sanitizeTerminalText, writeErr } from '@wrongstack/core/utils';
 import { Spinner } from '../spinner.js';
 

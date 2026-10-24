@@ -1,5 +1,5 @@
+import type { ModelsRegistry, SecretScrubber, SecretVault } from '@wrongstack/contracts/types';
 import type { ProviderAuthRegistry } from '@wrongstack/core/registry';
-import type { ModelsRegistry, SecretScrubber, SecretVault } from '@wrongstack/core/types';
 
 /**
  * Minimal output surface the auth-menu flows need. `TerminalRenderer`

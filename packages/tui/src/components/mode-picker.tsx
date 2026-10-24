@@ -1,4 +1,4 @@
-import type { Mode } from '@wrongstack/core/types';
+import type { Mode } from '@wrongstack/contracts/types';
 import type React from 'react';
 import { useWindowedPicker } from '../hooks/use-windowed-picker.js';
 import { Box, Text } from '../ink.js';

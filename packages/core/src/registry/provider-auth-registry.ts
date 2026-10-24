@@ -3,7 +3,7 @@ import type {
   ProviderAuthSession,
   ProviderAuthStrategy,
   ProviderAuthStrategyMetadata,
-} from '../types/provider-auth.js';
+} from '@wrongstack/contracts/types/provider-auth';
 
 const AUTH_ID = /^[a-z0-9][a-z0-9._-]*$/;
 

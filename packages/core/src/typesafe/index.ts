@@ -97,3 +97,10 @@ export {
   testJevConnection,
   validateJevSettingsPatch,
 } from './settings.js';
+export {
+  createJevStatusTool,
+  createJevTool,
+  evaluateJevQuestions,
+  type JevToolInput,
+  jevToolStatus,
+} from './jev-tool.js';

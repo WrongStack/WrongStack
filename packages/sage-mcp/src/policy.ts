@@ -26,7 +26,7 @@
  * the source of truth for per-call safety checks such as `force: true` on
  * `memory_delete`. Policy only controls visibility.
  */
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 
 export interface SageMcpPolicyOptions {
   writable?: boolean;

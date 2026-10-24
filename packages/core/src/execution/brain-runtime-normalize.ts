@@ -3,8 +3,12 @@
  * lenient boot-time pass, and the compact persisted form (`getConfig`).
  */
 
+import type {
+  BrainConfig,
+  BrainCouncilVoterConfig,
+  BrainModelEntry,
+} from '@wrongstack/contracts/types/config';
 import { parseModelRef } from '../core/fallback-model.js';
-import type { BrainConfig, BrainCouncilVoterConfig, BrainModelEntry } from '../types/config.js';
 
 export function normalizeEntry(raw: string | BrainModelEntry): BrainModelEntry {
   const parsed =

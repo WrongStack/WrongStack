@@ -1,4 +1,4 @@
-import type { CacheStats } from '@wrongstack/core/types';
+import type { CacheStats } from '@wrongstack/contracts/types';
 import type React from 'react';
 import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';

@@ -16,12 +16,12 @@
  *   - dispose stops rebuilds.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Provider, ProviderConfig } from '@wrongstack/contracts/types';
 import {
-  applyProxyConfig,
   __resetProxyConfigForTests,
+  applyProxyConfig,
 } from '@wrongstack/core/wiring/proxy-rewrite';
-import type { Provider, ProviderConfig } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@wrongstack/providers', () => ({
   makeProviderFromConfig: vi.fn(
@@ -30,8 +30,8 @@ vi.mock('@wrongstack/providers', () => ({
   withCatalogCapabilities: vi.fn(async (_m: unknown, _id: string, provider: Provider) => provider),
 }));
 
-import { setupWebuiProxyInstantApply } from '../src/server/start-webui-proxy-apply.js';
 import type { WebuiDeps, WebuiMutableState } from '../src/server/routes.js';
+import { setupWebuiProxyInstantApply } from '../src/server/start-webui-proxy-apply.js';
 
 const RAW_URL = 'https://api.example.com/v1';
 const PROXY_URL = 'http://localhost:3444';

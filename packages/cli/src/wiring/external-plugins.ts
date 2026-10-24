@@ -27,6 +27,7 @@
 
 import { isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import type { Config, Logger, Plugin } from '@wrongstack/contracts/types';
 import {
   defaultPluginTrustPath,
   discoverExternalPlugins,
@@ -39,7 +40,6 @@ import {
   resolvePluginTarget,
   verifyPluginTrust,
 } from '@wrongstack/core/plugin';
-import type { Config, Logger, Plugin } from '@wrongstack/core/types';
 
 /** Policy for the external-plugin trust gate. See FeaturesConfig.pluginsTrust. */
 export type ExternalPluginTrustMode = 'off' | 'required' | 'tofu' | 'advisory';

@@ -3,7 +3,7 @@
  * for FleetSupervisor. Split out of fleet-supervisor.ts; driven through the
  * same FleetSupervisorRebalanceHost as the rebalance engagements.
  */
-import type { BrainDecisionOption } from './brain.js';
+import type { BrainDecisionOption } from '../brain/brain.js';
 import type { FleetSupervisorRebalanceHost } from './fleet-supervisor-rebalance.js';
 import type { SupervisedSubagent } from './fleet-supervisor-rebalance-types.js';
 

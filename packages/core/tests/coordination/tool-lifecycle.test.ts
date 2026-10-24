@@ -1,11 +1,11 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import { PartialWriteError } from '@wrongstack/contracts/types/errors';
+import type { PermissionDecision } from '@wrongstack/contracts/types/permission';
+import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { ToolUseBlock } from '../../src/types/blocks.js';
-import { PartialWriteError } from '../../src/types/errors.js';
-import type { PermissionDecision } from '../../src/types/permission.js';
-import type { Tool, ToolProgressEvent, ToolStreamEvent } from '../../src/types/tool.js';
 
 function makeCtx(): Context {
   const session = { id: 'test-session', append: vi.fn(), close: vi.fn() };

@@ -4,7 +4,7 @@ import type {
   CouncilProfileConfig,
   ResolvedCouncilProfile,
   ResolvedCouncilSeat,
-} from '../types/council.js';
+} from '@wrongstack/contracts/types/council';
 import {
   type CouncilPersonaRegistry,
   DEFAULT_COUNCIL_PERSONA_REGISTRY,

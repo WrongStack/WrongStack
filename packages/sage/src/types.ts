@@ -1,5 +1,5 @@
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/core/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/contracts/types';
 import type {
   MemoryAnchor,
   MemoryAudienceContext,

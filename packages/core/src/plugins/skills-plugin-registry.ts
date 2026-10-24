@@ -2,12 +2,12 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SkillLoader } from '@wrongstack/contracts/types/skill';
+import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import type { Context } from '../core/context.js';
 import { FOREIGN_SKILL_TOOLS, securityScoreToTier } from '../skills/foreign-sources.js';
 import type { SkillRegistryAdapter } from '../skills/registry/registry-adapter.js';
 import { SkillInstaller } from '../skills/skill-installer.js';
-import type { SkillLoader } from '../types/skill.js';
-import type { SlashCommand } from '../types/slash-command.js';
 import { color } from '../utils/color.js';
 import { toErrorMessage } from '../utils/error.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';

@@ -20,7 +20,7 @@ import {
   HqCommandAuditLog,
   mutateHqAuthFile,
   writeHqAuthFile,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from '../src/ws-runtime.js';
 import { credentialMayAnswer } from '../src/hq-server/routes/command-handlers.js';

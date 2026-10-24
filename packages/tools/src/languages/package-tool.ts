@@ -1,4 +1,4 @@
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
 import { safeResolveReal } from '../_util.js';
 import { executePackagePlan } from './execute.js';
 import { planLanguageOperation } from './plan.js';

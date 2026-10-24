@@ -1,14 +1,14 @@
+import type { Container } from '@wrongstack/contracts/kernel/container';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { ErrorHandler } from '@wrongstack/contracts/types/error-handler';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { PermissionPolicy } from '@wrongstack/contracts/types/permission';
+import type { Renderer } from '@wrongstack/contracts/types/renderer';
+import type { RetryPolicy } from '@wrongstack/contracts/types/retry-policy';
+import type { ToolExecutorLike } from '@wrongstack/contracts/types/tool-executor';
 import type { ExtensionRegistry } from '../extension/registry.js';
-import type { Container } from '../kernel/container.js';
-import type { EventBus } from '../kernel/events.js';
 import type { ProviderRegistry } from '../registry/provider-registry.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
-import type { ErrorHandler } from '../types/error-handler.js';
-import type { Logger } from '../types/logger.js';
-import type { PermissionPolicy } from '../types/permission.js';
-import type { Renderer } from '../types/renderer.js';
-import type { RetryPolicy } from '../types/retry-policy.js';
-import type { ToolExecutorLike } from '../types/tool-executor.js';
 import type { AgentPipelines, ResolvedLoopDetectionConfig } from './agent-types.js';
 import type { Context } from './context.js';
 
@@ -38,5 +38,5 @@ export interface AgentInternals {
   readonly errorHandler: ErrorHandler;
   readonly permission: PermissionPolicy;
   readonly renderer: Renderer | undefined;
-  readonly tracer: import('../types/observability.js').Tracer | undefined;
+  readonly tracer: import('@wrongstack/contracts/types/observability').Tracer | undefined;
 }

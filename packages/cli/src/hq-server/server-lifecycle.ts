@@ -5,7 +5,7 @@
  */
 
 import type { Server as HttpServer } from 'node:http';
-import type { HqPersistence } from '@wrongstack/core/hq';
+import type { HqPersistence } from '@wrongstack/hq';
 import type { WebSocket, WebSocketServer } from 'ws';
 import type { LoginAttemptStore } from './login-attempt-store.js';
 import type { MailboxGatewayManager } from './mailbox-gateway-manager.js';

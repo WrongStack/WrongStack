@@ -10,7 +10,7 @@
 // smaller `maxContext`.
 //
 // Source contract that this test enforces: per
-// `packages/core/src/types/token-counter.ts`, `currentRequestTokens()` is
+// `packages/contracts/src/types/token-counter.ts`, `currentRequestTokens()` is
 // "Disjoint token counts from the most recently-accounted request. Sum input +
 // cacheRead + cacheWrite for per-request context pressure tracking (e.g.
 // status bar ctx bar) — `tokenCounter.total()` is cumulative across all
@@ -18,7 +18,7 @@
 // maxContext ceiling."
 
 import { renderHook } from '@testing-library/react';
-import type { Message, TokenCounter } from '@wrongstack/core/types';
+import type { Message, TokenCounter } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import type { AppProps } from '../src/app-props.js';
 import type { State } from '../src/app-state.js';

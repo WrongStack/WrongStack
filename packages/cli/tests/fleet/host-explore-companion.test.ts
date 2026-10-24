@@ -1,3 +1,10 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type {
+  FleetConfig,
+  SubagentConfig,
+  TaskResult,
+  TaskSpec,
+} from '@wrongstack/contracts/types';
 import {
   Director,
   type ExploreCompanion,
@@ -5,8 +12,6 @@ import {
   getSharedProjectMailbox,
   postSessionNote,
 } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { FleetConfig, SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHostExploreCompanion } from '../../src/fleet/host-explore-companion.js';
 

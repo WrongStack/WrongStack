@@ -1,4 +1,4 @@
-import type { TaskResult } from '@wrongstack/core/types';
+import type { TaskResult } from '@wrongstack/contracts/types';
 import { setBoundedLruEntry } from './host-helpers.js';
 import { captureCompletedTaskLearningForHost, type LearningSubject } from './host-learning.js';
 import type { MultiAgentDeps } from './host-types.js';

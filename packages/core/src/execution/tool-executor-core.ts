@@ -3,6 +3,17 @@
  * {@link ToolExecutor} (tool-executor.ts), which runs batches through them.
  */
 
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type {
+  ToolResultRenderMode,
+  ToolResultRenderModeConfig,
+} from '@wrongstack/contracts/types/config';
+import type { HookInput } from '@wrongstack/contracts/types/hooks';
+import type { Tool } from '@wrongstack/contracts/types/tool';
+import type {
+  ToolConfirmPendingResult,
+  ToolExecutionOutput,
+} from '@wrongstack/contracts/types/tool-executor';
 import { type Context, resolveEventSessionId } from '../core/context.js';
 import { capabilityDowngradesToConfirm } from '../security/capabilities.js';
 import { describeWriteTargets } from '../security/permission-helpers.js';
@@ -12,15 +23,6 @@ import {
   isPersistentApproval,
   userRuleAnswer,
 } from '../security/scoped-approval.js';
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { ToolResultRenderMode, ToolResultRenderModeConfig } from '../types/config.js';
-import type { HookInput } from '../types/hooks.js';
-import type { Tool } from '../types/tool.js';
-import type {
-  ToolConfirmPendingResult,
-  ToolExecutionOutput,
-  ToolExecutorOptions,
-} from '../types/tool-executor.js';
 import { createToolOutputSerializer } from '../utils/tool-output-serializer.js';
 import { resolveToolResultRenderMode } from '../utils/tool-result-render-mode.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
@@ -29,6 +31,7 @@ import {
   logToolFailure as logToolFailureEvent,
   logToolSuccess as logToolSuccessEvent,
 } from './tool-executor-logging.js';
+import type { ToolExecutorOptions } from './tool-executor-options.js';
 import { deniedResult } from './tool-executor-results.js';
 import { hashPermissionInput } from './tool-executor-support.js';
 import {

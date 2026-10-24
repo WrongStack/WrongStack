@@ -1,8 +1,8 @@
-import type { Config } from '../types/config.js';
+import type { Config } from '@wrongstack/contracts/types/config';
 
-import type { Logger } from '../types/logger.js';
+import type { Logger } from '@wrongstack/contracts/types/logger';
 
-import type { SubagentConfig } from '../types/multi-agent.js';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 
 import { resolveDirectorSpawnModel } from './director-spawn-model.js';
 

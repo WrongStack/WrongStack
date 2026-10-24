@@ -8,7 +8,7 @@ import {
   mutateHqAuthFile,
   readHqAuthFile,
   writeHqAuthFile,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import {
   generateRecoveryCodes,
   generateTotp,

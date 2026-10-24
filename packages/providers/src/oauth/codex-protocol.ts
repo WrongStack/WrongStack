@@ -28,7 +28,7 @@
 
 import { createRequire } from 'node:module';
 import { arch as osArch, release as osRelease, type as osType } from 'node:os';
-import { FetchError, ParseError, ProviderError } from '@wrongstack/core/types';
+import { FetchError, ParseError, ProviderError } from '@wrongstack/contracts/types';
 
 /** OAuth error codes meaning the stored refresh token can never be used again. */
 const CODEX_DEAD_SESSION_CODES: ReadonlySet<string> = new Set([

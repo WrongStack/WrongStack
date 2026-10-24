@@ -1,4 +1,4 @@
-import { ProviderError } from '@wrongstack/core/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 
 export type OAuthJson = Record<string, unknown>;
 

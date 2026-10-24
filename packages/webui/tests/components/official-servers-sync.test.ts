@@ -7,8 +7,9 @@
  * playwright entry had missed the version pin core took in security-check
  * 2026-09-17. Whatever `npx -y` will execute must be identical on both sides.
  */
+
+import type { MCPServerConfig } from '@wrongstack/contracts/types';
 import * as corePresets from '@wrongstack/core/infrastructure';
-import type { MCPServerConfig } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { OFFICIAL_SERVERS } from '../../src/components/SettingsPanel/official-servers.js';
 

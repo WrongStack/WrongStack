@@ -1,11 +1,12 @@
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Config, SessionWriter } from '@wrongstack/contracts/types';
 import { FallbackProfileManager } from '@wrongstack/core/agent';
 import { sessionNoteHub } from '@wrongstack/core/coordination';
 import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import {
   DefaultSecretScrubber,
@@ -13,7 +14,6 @@ import {
   decryptConfigSecrets,
 } from '@wrongstack/core/security';
 import { CONFIG_BEHAVIOR_DEFAULTS, DefaultConfigStore } from '@wrongstack/core/storage';
-import type { Config, SessionWriter } from '@wrongstack/core/types';
 import { createSageTurnMiddleware, SqliteMemoryPort } from '@wrongstack/sage';
 import { expect, it } from 'vitest';
 import { type MultiAgentDeps, MultiAgentHost } from '../../src/multi-agent.js';

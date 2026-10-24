@@ -33,10 +33,9 @@
 import * as syncFs from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-
+import type { ProviderConfig } from '@wrongstack/contracts/types/config';
+import type { SecretVault } from '@wrongstack/contracts/types/secret-vault';
 import { decryptConfigSecrets } from '../security/config-secrets.js';
-import type { ProviderConfig } from '../types/config.js';
-import type { SecretVault } from '../types/secret-vault.js';
 import { normalizeInlineProviderModels } from './config-loader/inline-provider-models.js';
 
 /**
@@ -81,7 +80,7 @@ export interface ProviderConfigSnapshot {
   fallbackStickiness?: { primaryProbeInterval?: number; stickyFallbackTurns?: number };
   /** Last-resort append cap (Config.fallbackMaxLastResortCandidates). */
   fallbackMaxLastResortCandidates?: number;
-  modelAvailabilitySchedule?: import('../core/model-availability-calendar.js').ModelBlackoutRule[];
+  modelAvailabilitySchedule?: import('@wrongstack/contracts/types/model-availability').ModelBlackoutRule[];
 }
 
 export interface WatchProviderConfigOptions {
@@ -148,7 +147,7 @@ export async function readProviderSnapshot(
     fallbackAuto?: boolean;
     fallbackStickiness?: { primaryProbeInterval?: number; stickyFallbackTurns?: number };
     fallbackMaxLastResortCandidates?: number;
-    modelAvailabilitySchedule?: import('../core/model-availability-calendar.js').ModelBlackoutRule[];
+    modelAvailabilitySchedule?: import('@wrongstack/contracts/types/model-availability').ModelBlackoutRule[];
   };
   const snapshot: ProviderConfigSnapshot = {
     providers: decrypted.providers ?? {},

@@ -1,4 +1,4 @@
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 
 /**
  * The five feature flags the settings pane can toggle. Typed on purpose: these

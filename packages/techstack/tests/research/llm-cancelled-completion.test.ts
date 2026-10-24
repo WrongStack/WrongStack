@@ -1,4 +1,4 @@
-import type { Provider } from '@wrongstack/core/types';
+import type { Provider } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { createProviderLlm } from '../../src/research/llm.js';
 import type { ResearchLlmRequest } from '../../src/research/types.js';

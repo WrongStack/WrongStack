@@ -26,7 +26,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { ERROR_CODES, FsError } from '../types/errors.js';
+import { ERROR_CODES, FsError } from '@wrongstack/contracts/types/errors';
 import { withFileLock } from '../utils/atomic-write.js';
 
 export interface PluginTrustEntry {

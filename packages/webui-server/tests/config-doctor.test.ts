@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { handleConfigDoctor } from '@wrongstack/webui-server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

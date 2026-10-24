@@ -1,18 +1,18 @@
+export {
+  computeTaskProgress,
+  deserializeTaskGraph,
+  serializeTaskGraph,
+  type TaskGraph,
+  type TaskNode,
+  type TaskProgress,
+  topologicalSort,
+} from '@wrongstack/contracts/types/task-graph';
 export { DefaultTaskStore } from './task-store.js';
 export {
-  TaskTracker,
   type TaskStore,
+  TaskTracker,
   type TaskTrackerChange,
   type TaskTrackerListener,
   type TaskTrackerOptions,
   type TaskTransition,
 } from './task-tracker.js';
-export {
-  computeTaskProgress,
-  deserializeTaskGraph,
-  serializeTaskGraph,
-  topologicalSort,
-  type TaskGraph,
-  type TaskNode,
-  type TaskProgress,
-} from '../types/task-graph.js';

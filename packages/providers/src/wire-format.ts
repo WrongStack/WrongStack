@@ -5,8 +5,8 @@ import type {
   Request,
   StreamEvent,
   WireFamily,
-} from '@wrongstack/core/types';
-import { ConfigError, ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ConfigError, ProviderError } from '@wrongstack/contracts/types';
 import { isEffortRejected, isEffortRejection, rememberEffortRejected } from './effort-support.js';
 import {
   type HeadersLike,

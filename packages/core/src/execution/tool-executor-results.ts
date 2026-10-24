@@ -1,6 +1,6 @@
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
-import type { Tool } from '../types/tool.js';
+import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 
 /**
  * How far back an earlier copy of a tool's contract still counts as in view.

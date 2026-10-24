@@ -1,4 +1,4 @@
-import type { SessionStoragePolicy } from '../types/session.js';
+import type { SessionStoragePolicy } from '@wrongstack/contracts/types/session';
 
 /**
  * Finite ages only. `NaN` and negatives must not reach a cutoff: every

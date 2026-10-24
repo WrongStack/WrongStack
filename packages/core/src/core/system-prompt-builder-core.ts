@@ -4,11 +4,11 @@
  * assembles them into prompt regions.
  */
 
-import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
-import type { ConcreteTokenSavingTier } from '../types/config.js';
-import { resolveTokenSavingTier } from '../types/config.js';
-import type { BuildContext, ModelCapabilities } from '../types/system-prompt.js';
-import type { Tool } from '../types/tool.js';
+import type { ConcreteTokenSavingTier } from '@wrongstack/contracts/types/config';
+import { resolveTokenSavingTier } from '@wrongstack/contracts/types/config';
+import type { MailboxAgentStatus } from '@wrongstack/contracts/types/mailbox';
+import type { BuildContext, ModelCapabilities } from '@wrongstack/contracts/types/system-prompt';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import {
   formatProjectSuppliedBlock,
   PROJECT_SUPPLIED_INSTRUCTIONS_TAG,
@@ -25,12 +25,12 @@ import { RootInstructionsCache, UserInstructionsCache } from './project-instruct
 import type { DefaultSystemPromptBuilderOptions } from './system-prompt-builder-options.js';
 import { buildEnvironment } from './system-prompt-environment.js';
 import { buildMemoryAndSkills, renderOnlineAgents } from './system-prompt-memory-skills.js';
-import type { SkillFragmentCache } from './system-prompt-skill-bodies.js';
 import { type ActivePlanCache, readActivePlanBlock } from './system-prompt-plan.js';
 import {
   systemPromptPresetCacheKey,
   systemPromptPresetGeneration,
 } from './system-prompt-presets.js';
+import type { SkillFragmentCache } from './system-prompt-skill-bodies.js';
 import {
   buildToolUsage as delegateBuildToolUsage,
   type SystemPromptToolUsageHost,
@@ -204,7 +204,7 @@ export abstract class SystemPromptBuilderCore {
    * So the tier is latched: resolved once, and re-resolved only when the model
    * (or the configured mode) actually changes — which is when a different
    * prompt shape is genuinely wanted, and when the prefix is going to change
-   * anyway. See packages/core/src/types/config.ts.
+   * anyway. See packages/contracts/src/types/config.ts.
    */
   protected get tier(): ConcreteTokenSavingTier {
     return (

@@ -15,7 +15,7 @@
 import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { isStandaloneBinary, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { downloadReleaseAssetToFile } from './release-asset-download.js';
 import {

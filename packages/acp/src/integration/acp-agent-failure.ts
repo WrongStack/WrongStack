@@ -7,7 +7,7 @@
  * generic prompt failure, a spent subscription quota looked like a broken
  * tool: the leader retried a worker that could not run for hours.
  */
-import type { SubagentError } from '@wrongstack/core/types';
+import type { SubagentError } from '@wrongstack/contracts/types';
 
 /**
  * Leading text of the usage-limit messages Claude Code synthesises (the SDK's

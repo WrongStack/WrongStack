@@ -5,9 +5,10 @@
  * point owns phase ordering, while this module owns MCP/tool/Brain projection
  * and mutations.
  */
+
+import type { Config, ConfigStore } from '@wrongstack/contracts/types';
 import { allServers } from '@wrongstack/core/infrastructure';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Config, ConfigStore } from '@wrongstack/core/types';
 import { readJsonObjectFile } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { PickerDeps, PluginPickerItem, ToolPickerItem } from '../execute-deps.js';

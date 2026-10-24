@@ -1,6 +1,6 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import type { CollaborationBus } from '@wrongstack/core/coordination';
 import type { AnnotationsStore, SessionReader } from '@wrongstack/core/storage';
-import type { Logger } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSCollabState, WSServerMessage } from '../types.js';
 import type { CollabBroadcastScheduler } from './broadcast-scheduler.js';

@@ -23,7 +23,7 @@ vi.mock('@wrongstack/core/coordination', () => ({
   }),
 }));
 vi.mock('@wrongstack/core/utils', () => ({ wstackGlobalRoot: () => '/fixture-home' }));
-vi.mock('@wrongstack/core/hq', () => ({
+vi.mock('@wrongstack/hq', () => ({
   createApprovalRegistry: () => ({ dispose: vi.fn() }),
   startApprovalTelemetryBridge: () => () => {},
 }));

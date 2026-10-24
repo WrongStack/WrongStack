@@ -1,4 +1,4 @@
-import type { SessionEvent } from '../types/session.js';
+import type { SessionEvent } from '@wrongstack/contracts/types/session';
 
 export interface QueryFilter {
   eventTypes?: string[] | undefined;

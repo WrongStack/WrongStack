@@ -1,11 +1,11 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
+import { type Config, type Provider, ProviderError } from '@wrongstack/contracts/types';
 import {
   createFallbackModelExtension,
   effectiveFallbackChain,
   parseModelRef,
   smartDefaultFallbackChain,
 } from '@wrongstack/core/agent';
-import { EventBus } from '@wrongstack/core/kernel';
-import { type Config, type Provider, ProviderError } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 
 const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() } as never;

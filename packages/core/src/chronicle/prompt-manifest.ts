@@ -1,34 +1,10 @@
 import { createHash } from 'node:crypto';
-import type { ContentBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
-import type { Request } from '../types/provider.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { ChroniclePromptManifest } from '@wrongstack/contracts/types/chronicle-prompt-manifest';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Request } from '@wrongstack/contracts/types/provider';
 
-export interface ChroniclePromptManifest {
-  manifestId: string;
-  messageCount: number;
-  estimatedMessageTokens: number;
-  contentBytes: number;
-  roleCounts: Record<string, number>;
-  blockCounts: Record<string, number>;
-  system: { blockCount: number; bytes: number; hash: string };
-  messages: Array<{
-    index: number;
-    role: string;
-    bytes: number;
-    estimatedTokens?: number;
-    hash: string;
-    blocks: Record<string, number>;
-  }>;
-  tools: {
-    count: number;
-    estimatedDefinitionTokens: number;
-    manifestHash: string;
-    names: string[];
-    mutating: number;
-    destructive: number;
-  };
-  request: Record<string, unknown>;
-}
+export type { ChroniclePromptManifest };
 
 /** Content-addressed prompt composition manifest; raw prompt/tool prose never leaves this function. */
 export function createChroniclePromptManifest(request: Request): ChroniclePromptManifest {

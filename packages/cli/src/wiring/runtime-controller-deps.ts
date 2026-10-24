@@ -1,9 +1,10 @@
 /** Builds live controller callbacks for the running CLI session. */
+
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, LogLevel, Provider } from '@wrongstack/contracts/types';
 import type { Agent, Context } from '@wrongstack/core/agent';
 import { resolveConfiguredRefinerRef, resolveEnhanceFallbackRef } from '@wrongstack/core/execution';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { AuditLevel } from '@wrongstack/core/storage';
-import type { Config, LogLevel, Provider } from '@wrongstack/core/types';
 import type { ControllerDeps } from '../execute-deps.js';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 import { deriveFsAccessPair } from '../settings-menu.js';

@@ -1,6 +1,6 @@
+import type { Config } from '@wrongstack/contracts/types/config';
 import { describe, expect, it, vi } from 'vitest';
 import { DefaultConfigStore } from '../../src/storage/config-store.js';
-import type { Config } from '../../src/types/config.js';
 
 const baseConfig: Config = {
   version: 1,

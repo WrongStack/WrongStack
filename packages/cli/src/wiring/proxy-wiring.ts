@@ -16,7 +16,7 @@
  */
 
 import { applyProxyConfig, type ProxyConfig } from '@wrongstack/core/wiring/proxy-rewrite';
-import { startProxyProbe, type ProbeRunner } from './proxy-probe.js';
+import { type ProbeRunner, startProxyProbe } from './proxy-probe.js';
 
 let probeRunner: ProbeRunner | undefined;
 
@@ -77,7 +77,7 @@ export async function awaitFirstWrongProxyProbe(): Promise<void> {
  * to the flat `wrongProxyEnabled` / `wrongProxyUrl` keys the proxy
  * rewriter reads; any other keys in the snapshot are ignored. Callers
  * that hold a `WrongProxyToolConfig` (the typed schema in
- * `@wrongstack/core/types/config/tools.ts`) can pass it through without
+ * `@wrongstack/contracts/types/config/tools.ts`) can pass it through without
  * casting — the function never reads anything beyond `enabled` / `url`.
  */
 export function bootstrapWrongProxy(

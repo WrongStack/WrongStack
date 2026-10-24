@@ -25,7 +25,7 @@
  * @public
  */
 
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { matchesExtension, releaseHandle, withinProject } from '../runtime/index.js';
 import { auditPath, formatSummary, truncationWarning } from './a11y-audit.js';
 import { assertPathExists, DEFAULTS, normalizeExtensions, readConfig } from './a11y-config.js';

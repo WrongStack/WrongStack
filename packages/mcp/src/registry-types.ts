@@ -1,12 +1,12 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger, MCPServerConfig } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger, MCPServerConfig } from '@wrongstack/core/types';
-import type { MCPTaskContext as AgentContext } from './task-identity.js';
 import type { MCPAuthorizationProvider } from './authorization.js';
 import type { MCPAuthorizationManager } from './authorization-manager.js';
 import type { ConnectionState } from './contracts.js';
 import type { MCPElicitationHandler } from './elicitation.js';
 import type { MCPPrompt, MCPResource, MCPResourceTemplate, MCPServerMetadata } from './protocol.js';
+import type { MCPTaskContext as AgentContext } from './task-identity.js';
 
 export interface MCPRegistryOptions {
   toolRegistry: ToolRegistry;

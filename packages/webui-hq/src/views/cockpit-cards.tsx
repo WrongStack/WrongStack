@@ -1,5 +1,5 @@
 /** Cockpit building blocks: the jump-to card frame, hero metrics and the small read-out cards. */
-import type { HqCommandLatencySummary, HqSnapshot } from '@wrongstack/core/hq';
+import type { HqCommandLatencySummary, HqSnapshot } from '@wrongstack/hq';
 import { ArrowUpRight, type LucideIcon } from 'lucide-react';
 import type * as React from 'react';
 import { EmptyState, Mono, StatTile } from '../components/hq/primitives.js';

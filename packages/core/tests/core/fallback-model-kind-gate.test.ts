@@ -6,6 +6,11 @@
  * identically on any provider, or need a different remedy (compaction, key
  * fix, model reroute) owned by the recovery-strategy layer.
  */
+
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
+import { ProviderError, StreamHangError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { createFallbackModelExtension } from '../../src/core/fallback-model.js';
@@ -13,10 +18,6 @@ import {
   bindRequestProvider,
   providerBoundToRequest,
 } from '../../src/core/request-provider-binding.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Config } from '../../src/types/config.js';
-import type { Provider, Request, Response } from '../../src/types/provider.js';
-import { ProviderError, StreamHangError } from '../../src/types/provider.js';
 
 function makeProvider(id: string): Provider {
   return { id, capabilities: { streaming: false } } as never as Provider;

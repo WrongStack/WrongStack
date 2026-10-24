@@ -1,9 +1,9 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel/events.js';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TaskGraph, TaskNode } from '@wrongstack/contracts/types/task-graph';
 import { DefaultTaskStore } from '@wrongstack/core/tasking';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import { SddBoardProjector } from '../src/sdd-board-projector.js';
@@ -628,7 +628,8 @@ describe('SddBoardProjector', () => {
       model: 'model',
       toolName: 'write',
       toolUseId: 'tool',
-      scope: 'global',
+      // Deliberately invalid scope/timestamp: the projector must fall back.
+      scope: 'global' as never,
       timestamp: 'invalid',
       taskId: 'a',
       runId: 'fallback',

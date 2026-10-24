@@ -1,7 +1,7 @@
+import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
 import { describe, expect, it } from 'vitest';
 import { applyTokenOverrides } from '../../src/execution/design-project-store.js';
 import { kitContrastIssues, verifyFiles } from '../../src/execution/design-verify.js';
-import type { DesignKitTokens } from '../../src/types/design-kit.js';
 
 const tokens: DesignKitTokens = {
   light: { bg: 'oklch(100% 0 0)', primary: 'oklch(62.79% 0.2577 29.23)' }, // primary = #ff0000

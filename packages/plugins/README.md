@@ -153,7 +153,7 @@ between two refs.
 - `PostToolUse` with matcher `*` (configurable via `postToolUseMatcher`)
 
 **PreToolUse** (prevention — before the tool runs):
-Mirrors 21 simple patterns from `core/src/security/secret-scrubber.ts`
+Mirrors 21 simple patterns from `primitives/src/secret-scrubber-patterns.ts`
 (LLM provider keys, GitHub PATs v1+v2, AWS, GCP, Slack, Stripe,
 Twilio, Telegram, JWT, PEM private keys, HuggingFace/Replicate/
 Perplexity/Groq, Bearer tokens, mongo/postgres/mysql/redis URIs).
@@ -1077,7 +1077,7 @@ auto-load.
 
 For plugins that need host-level data not yet exposed in
 `PluginAPI` (e.g. `paths.projectDir`), extend the type in
-`packages/core/src/types/plugin.ts` and `PluginAPIInit` in
+`packages/contracts/src/types/plugin.ts` and `PluginAPIInit` in
 `packages/core/src/plugin/api.ts`, then thread it through
 `DefaultPluginAPI` and the wiring layer. See how `modelsRegistry`
 was added for `cost-tracker` (commit `9bed619f`).

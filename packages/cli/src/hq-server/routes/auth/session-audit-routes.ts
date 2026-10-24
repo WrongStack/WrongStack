@@ -1,5 +1,5 @@
 import type * as http from 'node:http';
-import { readHqAuthAuditTail } from '@wrongstack/core/hq';
+import { readHqAuthAuditTail } from '@wrongstack/hq';
 import * as HqServerAuthRef from '../../auth.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
 

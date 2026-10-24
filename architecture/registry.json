@@ -6,6 +6,7 @@
   },
   "sourceExtensions": [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"],
   "coreAreas": {
+    "brain": { "classification": "agent-domain", "targetOwner": "core" },
     "chronicle": { "classification": "feature", "targetOwner": "core-review-required" },
     "coordination": { "classification": "feature-runtime", "targetOwner": "coordination" },
     "core": { "classification": "agent-domain", "targetOwner": "core" },
@@ -15,11 +16,8 @@
       "targetOwner": "runtime-review-required"
     },
     "extension": { "classification": "contract", "targetOwner": "core" },
-    "goal": { "classification": "feature", "targetOwner": "core-review-required" },
     "hooks": { "classification": "extension-runtime", "targetOwner": "core-review-required" },
-    "hq": { "classification": "feature-runtime", "targetOwner": "hq" },
     "infrastructure": { "classification": "primitive", "targetOwner": "core" },
-    "kernel": { "classification": "primitive", "targetOwner": "core" },
     "models": { "classification": "agent-domain", "targetOwner": "core" },
     "notifications": {
       "classification": "feature-runtime",
@@ -46,8 +44,6 @@
     "statusline": { "classification": "feature-runtime", "targetOwner": "runtime-review-required" },
     "storage": { "classification": "persistence-runtime", "targetOwner": "storage" },
     "tasking": { "classification": "agent-domain", "targetOwner": "core-review-required" },
-    "tools": { "classification": "product-feature", "targetOwner": "tools" },
-    "types": { "classification": "contract", "targetOwner": "contracts-or-core" },
     "typesafe": { "classification": "infrastructure", "targetOwner": "core" },
     "utils": { "classification": "primitive-review-required", "targetOwner": "contracts-or-core" },
     "vcs": { "classification": "infrastructure", "targetOwner": "runtime-review-required" },

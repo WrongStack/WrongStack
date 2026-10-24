@@ -7,7 +7,7 @@
  * service construction (Phase 1c), route/dispatcher/connection wiring
  * (Phase 1b/1a), WS + HTTP server creation, and graceful shutdown.
  */
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import { ensureSessionShell } from '@wrongstack/tools';
 import { patchConfig } from './boot.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';

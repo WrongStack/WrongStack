@@ -8,20 +8,20 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type {
+  SessionArchiveIdleResult,
+  SessionEvent,
+  SessionStoragePolicy,
+  SessionSummary,
+} from '@wrongstack/contracts/types/session';
 import { isStandaloneBinary } from '@wrongstack/persistence';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import {
   resolveSessionCatalogProjectServerUrl,
   SessionCatalogProjectClient,
 } from '../session-catalog/client.js';
-import type { Logger } from '../types/logger.js';
-import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type {
-  SessionArchiveIdleResult,
-  SessionEvent,
-  SessionStoragePolicy,
-  SessionSummary,
-} from '../types/session.js';
 import { withFileLock } from '../utils/atomic-write.js';
 import type { EventBus } from './event-bus-port.js';
 import { SessionCheckpointCas } from './session-checkpoint-cas.js';

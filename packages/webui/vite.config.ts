@@ -35,12 +35,9 @@ export default defineConfig({
         replacement: path.resolve(__dirname, '../core/src/models/models-dev-schema.ts'),
       },
       {
-        find: /^@wrongstack\/core\/types\/limits$/,
-        replacement: path.resolve(__dirname, '../core/src/types/config/limits.ts'),
-      },
-      {
         find: /^@wrongstack\/core\/utils\/expect-defined$/,
-        replacement: path.resolve(__dirname, '../core/src/utils/expect-defined.ts'),
+        // core's subpath is a re-export of the browser-safe primitives module.
+        replacement: path.resolve(__dirname, '../primitives/src/expect-defined.ts'),
       },
       {
         // Residency display vocabulary — dependency-free (type-only imports).
@@ -58,7 +55,8 @@ export default defineConfig({
       },
       {
         find: /^@wrongstack\/core\/utils\/error$/,
-        replacement: path.resolve(__dirname, '../core/src/utils/error.ts'),
+        // core's subpath is a re-export of the browser-safe primitives module.
+        replacement: path.resolve(__dirname, '../primitives/src/error.ts'),
       },
       {
         find: /^@wrongstack\/tools\/next-steps$/,

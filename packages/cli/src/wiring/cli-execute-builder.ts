@@ -1,8 +1,8 @@
+import type { Container } from '@wrongstack/contracts/kernel';
+import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import { FLEET_ROSTER } from '@wrongstack/core/coordination';
 import { gatedEnhancerReasoning } from '@wrongstack/core/execution';
-import type { Container } from '@wrongstack/core/kernel';
-import { TOKENS } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
 import { createAuthPanelHost } from '../auth-menu/panel-service.js';
 import { isSafeMode } from '../boot/safe-mode.js';
 import type { CliGovernanceRuntimeHandle } from '../cli-main-helpers.js';
@@ -276,7 +276,7 @@ export async function runCliExecution(params: {
         sddSubagentFactory: multiAgentHost.makeSubagentFactory(config),
         modelsRegistry,
         savedProviderCfg: savedProviderCfg as
-          | import('@wrongstack/core/types').ProviderConfig
+          | import('@wrongstack/contracts/types').ProviderConfig
           | undefined,
         resolvedProvider: resolvedProvider ?? undefined,
         getPickableProviders: createPickableProvidersLoader({

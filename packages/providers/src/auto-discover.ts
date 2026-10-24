@@ -4,8 +4,8 @@ import type {
   ModelsDevModel,
   ModelsDevProvider,
   ProviderConfig,
-} from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import type { CompatibleModelEntry } from './auto-discover-model-map.js';
 import { mapCompatibleModel } from './auto-discover-model-map.js';
 import { fetchCopilotModels } from './github-copilot-models.js';

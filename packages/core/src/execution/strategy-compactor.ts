@@ -1,15 +1,15 @@
-import { keepsOwnContext } from '../core/agent-owned-context.js';
-import type { Context } from '../core/context.js';
-import { LLMSelector } from '../models/llm-selector.js';
-import { SystemOneSelector } from '../models/system-one-selector.js';
 import type {
   CompactionObserver,
   CompactOptions,
   Compactor,
   CompactReport,
-} from '../types/compactor.js';
-import type { ContextWindowPolicy } from '../types/context-window.js';
-import type { Message } from '../types/messages.js';
+} from '@wrongstack/contracts/types/compactor';
+import type { ContextWindowPolicy } from '@wrongstack/contracts/types/context-window';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import { keepsOwnContext } from '../core/agent-owned-context.js';
+import type { Context } from '../core/context.js';
+import { LLMSelector } from '../models/llm-selector.js';
+import { SystemOneSelector } from '../models/system-one-selector.js';
 import type { TypeSafeJudge } from '../typesafe/judgments.js';
 import { toErrorMessage } from '../utils/index.js';
 import { compactAgentOwnedContext } from './agent-context-compaction.js';

@@ -1,8 +1,8 @@
 import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';
+import { ToolValidationError } from '@wrongstack/contracts/types/errors';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { ToolValidationError } from '../types/errors.js';
-import type { Tool } from '../types/tool.js';
 import { toErrorMessage } from '../utils/error.js';
 import { expandGlob } from '../utils/glob-expand.js';
 import { type CollabSessionOptions, resolveCollabTargetInsideRoot } from './collab-debug.js';

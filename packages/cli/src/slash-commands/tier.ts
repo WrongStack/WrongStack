@@ -8,8 +8,8 @@
  * the WebUI editor and this command all read and write one place.
  */
 
+import type { Config, ModelTierLevel, SlashCommand } from '@wrongstack/contracts/types';
 import { leaderTierPolicy, listTierIds, resolveTier } from '@wrongstack/core/coordination';
-import type { Config, ModelTierLevel, SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage, updateJsonObjectFile } from '@wrongstack/core/utils';
 import { backupCurrent } from '../config-history.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';

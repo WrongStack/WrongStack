@@ -10,21 +10,21 @@
  * single memory channel.
  */
 
-import {
-  type Context,
-  DefaultSystemPromptBuilder,
-  providerToolsForVariant,
-  type SystemInstructionVariant,
-} from '@wrongstack/core/agent';
-import { type Container, TOKENS } from '@wrongstack/core/kernel';
-import type { ToolRegistry } from '@wrongstack/core/registry';
+import { type Container, TOKENS } from '@wrongstack/contracts/kernel';
 import {
   type Config,
   type MemoryPort,
   type ModeStore,
   resolveTokenSavingTier,
   type SkillLoader,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import {
+  type Context,
+  DefaultSystemPromptBuilder,
+  providerToolsForVariant,
+  type SystemInstructionVariant,
+} from '@wrongstack/core/agent';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 
 type ModelCapabilities = NonNullable<

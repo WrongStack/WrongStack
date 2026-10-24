@@ -1,6 +1,6 @@
+import type { HealthCheck } from '@wrongstack/contracts/types/observability';
 import { describe, expect, it } from 'vitest';
 import { DefaultHealthRegistry } from '../../src/observability/health.js';
-import type { HealthCheck } from '../../src/types/observability.js';
 
 const check = (name: string, impl: HealthCheck['check']): HealthCheck => ({ name, check: impl });
 

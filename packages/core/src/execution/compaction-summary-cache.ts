@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { ContentBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
+import type { ContentBlock } from '@wrongstack/contracts/types/blocks';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import { LruCache } from '../utils/lru-cache.js';
 
 interface CacheEntry {

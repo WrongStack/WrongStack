@@ -7,7 +7,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { JSONSchema } from '@wrongstack/core/types';
+import type { JSONSchema } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
 export class ToolsCliUsageError extends Error {}

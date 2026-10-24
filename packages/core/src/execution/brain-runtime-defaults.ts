@@ -1,4 +1,4 @@
-import type { BrainConfig } from '../types/config.js';
+import type { BrainConfig } from '@wrongstack/contracts/types/config';
 
 export interface BrainDefaultsContext {
   /** The session's fallback chain (`config.fallbackModels`) — seeds the default pool. */

@@ -9,6 +9,7 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentTimelineEntry } from '../../src/coordination/agent-monitor.js';
 import {
@@ -16,7 +17,6 @@ import {
   createAgentMonitorService,
 } from '../../src/coordination/agent-monitor.js';
 import { FleetBus } from '../../src/coordination/fleet-bus.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 import { removeProjectFixtureDirectory } from '../helpers/project-server-harness.js';
 

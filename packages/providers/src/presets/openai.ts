@@ -11,7 +11,7 @@ import type {
   StopReason,
   StreamEvent,
   Usage,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { isEffortRejected } from '../effort-support.js';

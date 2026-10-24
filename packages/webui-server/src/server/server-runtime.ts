@@ -15,7 +15,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Config, ModelsRegistry } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { protocolAdvertisement } from '@wrongstack/webui-protocol';
 import { type WebSocket, WebSocketServer } from '../ws-runtime.js';
@@ -512,7 +512,9 @@ export function startHttpServer(opts: {
     | undefined;
   /** Live provider access for TechStack's LLM research stage. */
   getLlm?:
-    | (() => { provider: import('@wrongstack/core/types').Provider; model: string } | undefined)
+    | (() =>
+        | { provider: import('@wrongstack/contracts/types').Provider; model: string }
+        | undefined)
     | undefined;
   executePackageOperation?: import('./techstack-handlers.js').TechStackHandlerDeps['executePackageOperation'];
   distDir?: string | undefined;

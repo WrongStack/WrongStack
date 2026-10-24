@@ -1,8 +1,8 @@
+import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
-import { FleetBus } from '../../src/coordination/fleet-bus.js';
-import { DirectorCollabController } from '../../src/coordination/director/director-collab.js';
 import type { CollabDirectorHost } from '../../src/coordination/collab-director-host.js';
-import type { TaskResult } from '../../src/types/multi-agent.js';
+import { DirectorCollabController } from '../../src/coordination/director/director-collab.js';
+import { FleetBus } from '../../src/coordination/fleet-bus.js';
 
 /**
  * Unit tests for DirectorCollabController lifecycle.

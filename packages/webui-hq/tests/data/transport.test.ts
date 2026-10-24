@@ -7,7 +7,7 @@
  *
  * @vitest-environment jsdom
  */
-import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from '@wrongstack/core/hq/protocol';
+import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from '@wrongstack/hq/protocol';
 import { afterEach, describe, expect, it } from 'vitest';
 import { clearHqToken, setHqToken } from '../../src/data/auth/token-storage.js';
 import { resolveHqSocketUrl } from '../../src/data/transport/hq-socket.js';

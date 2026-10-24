@@ -1,3 +1,5 @@
+import type { Config, ModelTiersConfig } from '@wrongstack/contracts/types/config';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { describe, expect, it } from 'vitest';
 import { AGENT_CATALOG } from '../../src/coordination/agents/index.js';
 import { phaseForRole } from '../../src/coordination/model-matrix.js';
@@ -10,8 +12,6 @@ import {
   resolveTier,
   tierBudget,
 } from '../../src/coordination/model-tier.js';
-import type { Config, ModelTiersConfig } from '../../src/types/config.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 // Pick a real role + its phase from the catalog so these stay valid as the
 // catalog evolves (no hardcoded role names to drift out of sync).

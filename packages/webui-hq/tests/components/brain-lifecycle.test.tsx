@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { HqBrainEventPayload } from '@wrongstack/core/hq';
+import type { HqBrainEventPayload } from '@wrongstack/hq';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';

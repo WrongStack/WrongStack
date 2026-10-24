@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { authProfileAliasError } from '@wrongstack/providers';
 import type { AuthModelEdit, AuthProviderEdit, AuthProviderSetup } from '@wrongstack/tui';
 import { normalizeKeys, nowIso, writeKeysBack } from '../provider-config-utils.js';
@@ -10,11 +10,13 @@ interface CreateProviderEditsInput {
   deps: AuthPanelServiceDeps;
   mutate: (
     mutator: (
-      providers: Record<string, import('@wrongstack/core/types').ProviderConfig>,
+      providers: Record<string, import('@wrongstack/contracts/types').ProviderConfig>,
       config: Record<string, unknown>,
     ) => string | null,
   ) => Promise<string | null>;
-  loadProviders: () => Promise<Record<string, import('@wrongstack/core/types').ProviderConfig>>;
+  loadProviders: () => Promise<
+    Record<string, import('@wrongstack/contracts/types').ProviderConfig>
+  >;
 }
 
 export function createProviderEdits({ deps, mutate, loadProviders }: CreateProviderEditsInput) {

@@ -31,7 +31,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { access, readFile, stat } from 'node:fs/promises';
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin } from '@wrongstack/contracts/types';
 import { treeKill } from '@wrongstack/core/utils/tree-kill';
 import {
   BoundedMap,

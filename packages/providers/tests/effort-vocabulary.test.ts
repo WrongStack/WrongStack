@@ -1,4 +1,4 @@
-import { REASONING_EFFORT_LEVELS } from '@wrongstack/core/types';
+import { REASONING_EFFORT_LEVELS } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import { GENERIC_EFFORT_FALLBACK, OPENAI_EFFORT_ACCEPT } from '../src/openai-shared.js';
 

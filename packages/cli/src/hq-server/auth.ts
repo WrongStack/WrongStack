@@ -7,7 +7,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type * as http from 'node:http';
 import { isIP } from 'node:net';
-import { hqTokenVerifier, isLoopbackHost, isTokenExpired } from '@wrongstack/core/hq';
+import { hqTokenVerifier, isLoopbackHost, isTokenExpired } from '@wrongstack/hq';
 import type { HqRouterMutableAuth, HqSessionEntry } from './types.js';
 
 // ── Cookie / session constants ─────────────────────────────────────────────

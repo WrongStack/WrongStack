@@ -1,6 +1,6 @@
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { SubagentConfig, TaskResult } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/core/coordination';
-import { EventBus } from '@wrongstack/core/kernel';
-import type { SubagentConfig, TaskResult } from '@wrongstack/core/types';
 import type { Sage, SageSurface } from '@wrongstack/sage';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HostMemoryCompanion } from '../../src/fleet/host-memory-companion.js';

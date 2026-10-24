@@ -1,4 +1,4 @@
-import type { GoalSummary } from '@wrongstack/core/goal';
+import type { GoalSummary } from '@wrongstack/goal';
 import type { PhaseItem } from '@/components/PhasePanel';
 import { toast } from '@/components/Toaster';
 import { i18n } from '@/i18n';

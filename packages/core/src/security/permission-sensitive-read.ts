@@ -1,7 +1,7 @@
 import { realpathSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Tool } from '../types/tool.js';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
 import { hasCapability, ToolCapabilities } from './capabilities.js';
 import { getInputString } from './yolo-risk.js';

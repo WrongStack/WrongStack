@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
+import type { InputReader, PromptOption, ReadKeyOptions } from '@wrongstack/contracts/types';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { InputReader, PromptOption, ReadKeyOptions } from '@wrongstack/core/types';
 import {
   resolveWstackPaths,
   setOutputLineGuard,

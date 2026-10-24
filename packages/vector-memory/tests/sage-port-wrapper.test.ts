@@ -17,8 +17,8 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import type { MemoryPort } from '@wrongstack/core/types';
 import {
   createSageToolCallMiddleware,
   SAGE_RETRIEVAL_CAPABILITY,

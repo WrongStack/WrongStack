@@ -1,8 +1,8 @@
+import { type Container, TOKENS } from '@wrongstack/contracts/kernel';
+import type { Logger, ProviderRunner } from '@wrongstack/contracts/types';
 import { runProviderWithRetry } from '@wrongstack/core/agent';
-import { type Container, TOKENS } from '@wrongstack/core/kernel';
 import { type ReplayMode, ReplayProviderRunner } from '@wrongstack/core/replay';
 import { ReplayLogStore } from '@wrongstack/core/storage';
-import type { Logger, ProviderRunner } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 
 /**

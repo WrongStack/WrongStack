@@ -17,7 +17,7 @@
  * and giving each lane a copy would only invent ways for them to disagree.
  */
 
-import type { Usage } from '@wrongstack/core/types';
+import type { Usage } from '@wrongstack/contracts/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { MAX_LANES, setActiveLane as setActiveChatLane } from './chat-lanes';

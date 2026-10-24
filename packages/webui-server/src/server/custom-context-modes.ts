@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { listContextWindowModes } from '@wrongstack/core/types';
+import { listContextWindowModes } from '@wrongstack/contracts/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 
 /**

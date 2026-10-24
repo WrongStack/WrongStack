@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ContentBlock, TextBlock } from '@wrongstack/core/types';
+import type { ContentBlock, TextBlock } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sessionsFleetCmd } from '../src/subcommands/handlers/sessions-fleet.js';
 import type { SubcommandDeps } from '../src/subcommands/index.js';

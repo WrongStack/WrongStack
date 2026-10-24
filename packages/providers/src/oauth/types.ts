@@ -8,7 +8,7 @@
  * provider stores), so the engine never touches config files.
  */
 
-import type { ModelsRegistry, ProviderApiKey } from '@wrongstack/core/types';
+import type { ModelsRegistry, ProviderApiKey } from '@wrongstack/contracts/types';
 
 /** Which subscription login to run. */
 export type OAuthKind = 'chatgpt' | 'copilot';

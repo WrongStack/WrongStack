@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { HqPublisher } from '@wrongstack/core/hq';
+import type { HqPublisher } from '@wrongstack/hq';
 import { deleteBoard, readBoard, writeBoard } from '@wrongstack/kanban';
 import { createBoardObject } from '@wrongstack/kanban/test-support';
 import { afterEach, describe, expect, it, vi } from 'vitest';

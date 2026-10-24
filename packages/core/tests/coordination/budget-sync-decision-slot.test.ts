@@ -1,6 +1,6 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it } from 'vitest';
 import { BudgetThresholdSignal, SubagentBudget } from '../../src/coordination/subagent-budget.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 /**
  * `_negotiateExtension` is async but returns without awaiting for a synchronous

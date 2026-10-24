@@ -1,4 +1,4 @@
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 import { LSP_CONSTANTS } from '../constants.js';
 import { formatDiagnostics } from '../formatters/diagnostics.js';
 import { supportsPullDiagnostics } from '../server/capabilities.js';

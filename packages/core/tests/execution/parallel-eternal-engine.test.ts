@@ -1,11 +1,11 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
+import { ParallelEternalEngine } from '../../src/coordination/parallel-eternal-engine.js';
 import type { Agent } from '../../src/core/agent.js';
-import { ParallelEternalEngine } from '../../src/execution/parallel-eternal-engine.js';
 import type { GoalFile, JournalEntry } from '../../src/storage/goal-store.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
 // ---------------------------------------------------------------------------
 // Mock helpers

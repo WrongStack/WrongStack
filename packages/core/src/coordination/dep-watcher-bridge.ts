@@ -13,7 +13,7 @@
  */
 
 import { existsSync, type FSWatcher, watch as fsWatch, statSync } from 'node:fs';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { makeDependencyWatcherConfig } from './dep-watcher.js';
 import type { Mailbox } from './mailbox-types.js';
 

@@ -1,4 +1,4 @@
-import type { Provider, Response } from '@wrongstack/core/types';
+import type { Provider, Response } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type ProviderModelTestResult,

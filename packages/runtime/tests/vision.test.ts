@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import type { Tool } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {
   createToolVisionAdapters,

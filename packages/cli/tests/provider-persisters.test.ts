@@ -7,8 +7,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import type { ProviderConfig } from '@wrongstack/core/types';
 import type { OAuthRefreshedTokens, ProviderCredentialSource } from '@wrongstack/providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

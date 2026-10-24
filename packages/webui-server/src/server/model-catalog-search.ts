@@ -1,4 +1,4 @@
-import type { ModelProvenance, ModelsDevModel, ModelsRegistry } from '@wrongstack/core/types';
+import type { ModelProvenance, ModelsDevModel, ModelsRegistry } from '@wrongstack/contracts/types';
 
 interface CatalogModelMatch {
   providerId: string;

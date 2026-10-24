@@ -1,8 +1,8 @@
+import { Container, EventBus } from '@wrongstack/contracts/kernel';
+import type { MemoryStore, Tool } from '@wrongstack/contracts/types';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { Container, EventBus } from '@wrongstack/core/kernel';
 import { DefaultPluginAPI } from '@wrongstack/core/plugin';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import type { MemoryStore, Tool } from '@wrongstack/core/types';
 import { LegacyMemoryPortAdapter } from '@wrongstack/sage';
 import { builtinToolsPack } from '@wrongstack/tools';
 import { toolSearchTool } from '@wrongstack/tools/tool-search';

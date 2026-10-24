@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { AnnotationsStore } from '../../src/storage/annotations-store.js';
 
 // vi.mock is hoisted above imports.  The factory uses vi.importActual to lazily

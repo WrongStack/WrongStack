@@ -1,5 +1,5 @@
+import type { InputReader, Mode, ModeStore, SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import type { InputReader, Mode, ModeStore, SlashCommand } from '@wrongstack/core/types';
 import { color, writeOut } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

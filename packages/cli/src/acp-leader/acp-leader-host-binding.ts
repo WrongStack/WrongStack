@@ -5,9 +5,9 @@
  * belong to that tab.
  */
 import { randomUUID } from 'node:crypto';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Config, ConfirmAwaiter, Tool, ToolSettlement } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config, ConfirmAwaiter, Tool, ToolSettlement } from '@wrongstack/core/types';
 import {
   type AcpLeaderHost,
   type AcpLeaderSessionAgent,

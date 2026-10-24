@@ -1,15 +1,11 @@
-import type { Mailbox } from '../coordination/mailbox-types.js';
-import { ExtensionRegistry } from '../extension/registry.js';
-import type { HookRegistry } from '../hooks/registry.js';
-import type { Container } from '../kernel/container.js';
-import type { EventBus, EventName, Listener } from '../kernel/events.js';
-import type { Pipeline } from '../kernel/pipeline.js';
-import { ProviderAuthRegistry } from '../registry/provider-auth-registry.js';
-import type { ToolWrapper } from '../registry/tool-registry.js';
-import type { Config } from '../types/config.js';
-import type { HookEvent, HookMatcher, InProcessHook } from '../types/hooks.js';
-import type { Logger } from '../types/logger.js';
-import type { ModelsRegistry } from '../types/models-registry.js';
+import type { Container } from '@wrongstack/contracts/kernel/container';
+import type { EventBus, EventName, Listener } from '@wrongstack/contracts/kernel/events';
+import type { Pipeline } from '@wrongstack/contracts/kernel/pipeline';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { HookEvent, HookMatcher, InProcessHook } from '@wrongstack/contracts/types/hooks';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Mailbox } from '@wrongstack/contracts/types/mailbox';
+import type { ModelsRegistry } from '@wrongstack/contracts/types/models-registry';
 import type {
   MCPRegistryView,
   MetricsSinkView,
@@ -26,9 +22,13 @@ import type {
   SessionWriterView,
   SlashCommandRegistryView,
   ToolRegistryView,
-} from '../types/plugin.js';
-import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
-import type { JSONSchema, Tool } from '../types/tool.js';
+} from '@wrongstack/contracts/types/plugin';
+import type { SystemPromptContributor } from '@wrongstack/contracts/types/system-prompt-contributor';
+import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
+import { ExtensionRegistry } from '../extension/registry.js';
+import type { HookRegistry } from '../hooks/registry.js';
+import { ProviderAuthRegistry } from '../registry/provider-auth-registry.js';
+import type { ToolWrapper } from '../registry/tool-registry.js';
 import { KERNEL_API_VERSION } from './loader.js';
 import type { PluginAPIInit } from './plugin-api-init.js';
 import { makePluginJev } from './plugin-jev.js';
@@ -499,7 +499,7 @@ export class DefaultPluginAPI implements PluginAPI {
     event: HookEvent,
     matcher: HookMatcher | undefined,
     hook: InProcessHook,
-    options?: import('../types/hooks.js').HookRegistrationOptions | undefined,
+    options?: import('@wrongstack/contracts/types/hooks').HookRegistrationOptions | undefined,
   ): () => void {
     this.assertActive();
     if (!this.hookRegistry) return () => {};

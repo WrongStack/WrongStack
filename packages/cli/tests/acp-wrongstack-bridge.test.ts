@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { SubagentRunContext, TaskSpec } from '@wrongstack/core/types';
+import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import {
   bridgeNote,

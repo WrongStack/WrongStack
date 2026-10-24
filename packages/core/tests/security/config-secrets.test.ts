@@ -1,3 +1,4 @@
+import type { SecretVault } from '@wrongstack/contracts/types/secret-vault';
 import { describe, expect, it, vi } from 'vitest';
 import { decryptConfigSecretsForRewrite } from '../../src/security/config-secrets.js';
 import {
@@ -5,7 +6,6 @@ import {
   encryptConfigSecrets,
   isSecretField,
 } from '../../src/security/secret-vault.js';
-import type { SecretVault } from '../../src/types/secret-vault.js';
 
 const makeVault = (): SecretVault => ({
   encrypt: (s) => `enc:${s}`,

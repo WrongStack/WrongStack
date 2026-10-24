@@ -1,6 +1,11 @@
+import type { ResolvedProvider } from '@wrongstack/contracts/types';
+import {
+  type Config,
+  ConfigError,
+  type Logger,
+  type ModelsRegistry,
+} from '@wrongstack/contracts/types';
 import { ProviderAuthRegistry, ProviderRegistry } from '@wrongstack/core/registry';
-import type { ResolvedProvider } from '@wrongstack/core/types';
-import { type Config, ConfigError, type Logger, type ModelsRegistry } from '@wrongstack/core/types';
 import {
   buildProviderFactoriesFromRegistry,
   createAiGatewayProviderFactory,

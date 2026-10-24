@@ -1,6 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
@@ -9,8 +11,6 @@ import {
   SENSITIVE_PATH_INPUT_KEYS,
 } from '../../src/security/permission-helpers.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
-import type { ToolUseBlock } from '../../src/types/blocks.js';
-import type { Tool } from '../../src/types/tool.js';
 import { wstackGlobalRoot } from '../../src/utils/wstack-paths.js';
 
 /**

@@ -1,4 +1,4 @@
-import type { TaskGraph } from '@wrongstack/core/types';
+import type { TaskGraph } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 /**
  * Enhanced critical path analysis with bottleneck detection,

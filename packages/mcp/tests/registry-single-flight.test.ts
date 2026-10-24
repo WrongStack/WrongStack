@@ -1,6 +1,6 @@
-import type { EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { createMCPServerOperationState } from '../src/operations.js';
 import { MCPRegistry } from '../src/registry.js';

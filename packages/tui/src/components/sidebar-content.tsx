@@ -19,9 +19,8 @@
 // computeMaxSidebarScroll() in reducers/workspace-panels.ts — keep the two in
 // sync when changing the layout.
 
-import type { TodoItem } from '@wrongstack/core/agent';
-import type { CacheStats } from '@wrongstack/core/types';
-import type { ContextBreakdown } from '@wrongstack/core/utils';
+import type { CacheStats } from '@wrongstack/contracts/types';
+import type { ContextBreakdown, TodoItem } from '@wrongstack/core/agent';
 import type React from 'react';
 import type { ResumeSessionEntry } from '../app-state.js';
 import type { FleetEntry } from '../app-state-fleet.js';

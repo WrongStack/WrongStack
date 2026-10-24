@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { MemoryPort } from '@wrongstack/core/types';
+import type { MemoryPort } from '@wrongstack/contracts/types';
 import { SAGE_SURFACE_CAPABILITY } from '@wrongstack/sage';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SAGE_SWEEP_MARKER_FILENAME, sweepStaleSageMirrors } from '../src/sage-event-mirror.js';

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateSync, gzipSync } from 'node:zlib';
-import type { Plugin, PluginAPI, Tool } from '@wrongstack/core/types';
+import type { Plugin, PluginAPI, Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as plugins from '../src/index.js';
 import { fingerprints, workflowPlugin } from '../src/workflow-runtime/index.js';

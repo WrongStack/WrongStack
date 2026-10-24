@@ -17,7 +17,7 @@
  *   - Returns a `ProbeResult` (never throws) so the caller can
  *     decide how to react to each `status`
  */
-import type { SecretScrubber } from '@wrongstack/core/types';
+import type { SecretScrubber } from '@wrongstack/contracts/types';
 
 /** Default probe timeout. Local servers should respond in < 100ms. */
 const PROBE_TIMEOUT_MS = 3_000;

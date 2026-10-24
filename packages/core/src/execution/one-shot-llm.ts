@@ -1,21 +1,21 @@
-import type { FallbackChain } from '../core/fallback-profile-manager.js';
-import { evaluateModelCalendar } from '../core/model-availability-calendar.js';
-import { shouldRecordProviderFailure } from '../core/provider-runner.js';
-import { isTextBlock } from '../types/blocks.js';
-import type { Config } from '../types/config.js';
-import type { Message } from '../types/messages.js';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { Message } from '@wrongstack/contracts/types/messages';
 import type {
   OneShotLLMInput,
   OneShotLLMResult,
   OneShotOrchestratorOptions,
-} from '../types/one-shot-llm.js';
+} from '@wrongstack/contracts/types/one-shot-llm';
 import {
   isFallbackWorthy,
   type Provider,
   ProviderError,
   type Request,
   type Response,
-} from '../types/provider.js';
+} from '@wrongstack/contracts/types/provider';
+import type { FallbackChain } from '../core/fallback-profile-manager.js';
+import { evaluateModelCalendar } from '../core/model-availability-calendar.js';
+import { shouldRecordProviderFailure } from '../core/provider-runner.js';
 import { estimateRequestTokens } from '../utils/token-estimate.js';
 
 /**
@@ -277,7 +277,7 @@ export class OneShotOrchestrator {
    */
   private resolveTarget(
     input: OneShotLLMInput,
-    config: import('../types/config.js').Config,
+    config: import('@wrongstack/contracts/types/config').Config,
   ): { providerId: string; model: string } | undefined {
     // Role-based routing via the ModelRouter.
     //
@@ -500,8 +500,8 @@ export class OneShotOrchestrator {
  * Normalize system prompt to TextBlock[].
  */
 function asTextBlocks(
-  system: string | import('../types/blocks.js').TextBlock[] | undefined,
-): import('../types/blocks.js').TextBlock[] {
+  system: string | import('@wrongstack/contracts/types/blocks').TextBlock[] | undefined,
+): import('@wrongstack/contracts/types/blocks').TextBlock[] {
   if (!system) return [];
   if (Array.isArray(system)) return system;
   return [{ type: 'text', text: system }];

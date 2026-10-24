@@ -1,5 +1,5 @@
 import type * as http from 'node:http';
-import type { createHqPersistence, HqEventEnvelope, HqTimeseriesSample } from '@wrongstack/core/hq';
+import type { createHqPersistence, HqEventEnvelope, HqTimeseriesSample } from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 import * as HqServerSnapshot from '../snapshot.js';
 import type { ConnectedClient } from '../types.js';

@@ -194,7 +194,7 @@ describe('Council profiles', () => {
 
   it('rejects invalid budget values', () => {
     const invalid: Array<
-      [Partial<import('../../src/types/council.js').CouncilProfileConfig>, RegExp]
+      [Partial<import('@wrongstack/contracts/types/council').CouncilProfileConfig>, RegExp]
     > = [
       [{ seats: [{ persona: 'executor' }], voterMaxTokens: 0 }, /voterMaxTokens/],
       [{ seats: [{ persona: 'executor' }], voterMaxTokens: 1.5 }, /voterMaxTokens/],

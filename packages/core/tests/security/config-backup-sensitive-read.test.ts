@@ -9,9 +9,9 @@
  */
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { isSensitiveReadCall } from '../../src/security/permission-helpers.js';
-import type { Tool } from '../../src/types/tool.js';
 
 const readTool: Tool = {
   name: 'read',

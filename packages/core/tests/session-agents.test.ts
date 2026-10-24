@@ -6,11 +6,11 @@ import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/per
 const DatabaseSync = loadTestDatabaseSync();
 
 import { gzipSync } from 'node:zlib';
+import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
 import { afterEach, describe, expect, it } from 'vitest';
 import { deriveSessionAgents } from '../src/session-catalog/session-agents.js';
 import { SessionCatalogStore } from '../src/session-catalog/store.js';
 import { withAgentAttribution } from '../src/storage/session-agent-attribution.js';
-import type { SessionEvent, SessionWriter } from '../src/types/session.js';
 
 const ts = (n: number) => new Date(Date.UTC(2026, 7, 26, 12, n)).toISOString();
 

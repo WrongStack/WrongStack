@@ -1,8 +1,6 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-
-import { GoalPlanner, type PhaseTemplate } from '@wrongstack/core/goal';
-
-import type { Logger } from '@wrongstack/core/types';
+import { GoalPlanner, type PhaseTemplate } from '@wrongstack/goal';
 
 import { toErrorMessage } from '@wrongstack/core/utils';
 
@@ -44,7 +42,7 @@ export async function planPhases(
 
 export async function runChimeraReview(
   host: GoalPhasePlanningHost,
-  task: import('@wrongstack/core/types').TaskNode,
+  task: import('@wrongstack/contracts/types').TaskNode,
   phaseId: string,
   result: unknown,
   cwd?: string | undefined,

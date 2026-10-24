@@ -1,4 +1,3 @@
-import { refreshCatalogIfStale } from '@wrongstack/core/models';
 import type {
   Capabilities,
   Config,
@@ -7,7 +6,8 @@ import type {
   ModelsRegistry,
   Provider,
   ProviderConfig,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import { refreshCatalogIfStale } from '@wrongstack/core/models';
 import { mergeCustomModelDefs, toErrorMessage } from '@wrongstack/core/utils';
 import { capabilitiesFor } from '@wrongstack/providers';
 

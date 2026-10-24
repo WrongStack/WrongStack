@@ -20,7 +20,7 @@
  * The tier can make the ladder faster; it can never make it answer less.
  */
 
-import type { BrainDecision, BrainDecisionRequest } from '../coordination/brain.js';
+import type { BrainDecision, BrainDecisionRequest } from '../brain/brain.js';
 import type { TypeSafeJudge, TypeSafeQuestion } from '../typesafe/index.js';
 
 const WHICH = 'which';

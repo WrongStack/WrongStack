@@ -1,18 +1,18 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DirectorTaskRegistry } from '../../src/coordination/director/director-task-registry.js';
-import { Director } from '../../src/coordination/director.js';
-import { FleetManager } from '../../src/coordination/fleet-manager.js';
-import type { WorktreeTaskStateUpdate } from '../../src/coordination/worktree-task-runner.js';
-import { EventBus } from '../../src/kernel/events.js';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
 import type {
   SubagentConfig,
   SubagentRunContext,
   SubagentRunOutcome,
   TaskSpec,
-} from '../../src/types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { DirectorTaskRegistry } from '../../src/coordination/director/director-task-registry.js';
+import { Director } from '../../src/coordination/director.js';
+import { FleetManager } from '../../src/coordination/fleet-manager.js';
+import type { WorktreeTaskStateUpdate } from '../../src/coordination/worktree-task-runner.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

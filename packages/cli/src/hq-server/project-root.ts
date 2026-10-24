@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { deriveHqProjectId } from '@wrongstack/core/hq';
+import { deriveHqProjectId } from '@wrongstack/hq';
 
 /**
  * Why this is not just `string | undefined`.

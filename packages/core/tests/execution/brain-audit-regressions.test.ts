@@ -1,17 +1,19 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AutonomousBrain } from '../../src/coordination/autonomous-brain.js';
 import {
   BrainDecisionQueue,
   type BrainDecisionRequest,
   DefaultBrainArbiter,
   EscalationRoutingBrainArbiter,
   ObservableBrainArbiter,
-} from '../../src/coordination/brain.js';
-import { brainCacheKey } from '../../src/coordination/brain-cache.js';
-import { BrainDecisionLedger } from '../../src/coordination/brain-ledger.js';
-import { BrainMonitor } from '../../src/coordination/brain-monitor.js';
-import { BrainTierCounter, readDecisionTier } from '../../src/coordination/brain-telemetry.js';
-import { BrainTraceRecorder, readBrainTrace } from '../../src/coordination/brain-trace.js';
+} from '../../src/brain/brain.js';
+import { brainCacheKey } from '../../src/brain/brain-cache.js';
+import { BrainDecisionLedger } from '../../src/brain/brain-ledger.js';
+import { BrainMonitor } from '../../src/brain/brain-monitor.js';
+import { BrainTierCounter, readDecisionTier } from '../../src/brain/brain-telemetry.js';
+import { BrainTraceRecorder, readBrainTrace } from '../../src/brain/brain-trace.js';
+import { AutonomousBrain } from '../../src/coordination/autonomous-brain.js';
 import type { KnowledgeGraph } from '../../src/coordination/knowledge-graph.js';
 import { createEventUserInputAwaiter } from '../../src/core/user-input-awaiter.js';
 import {
@@ -25,8 +27,6 @@ import {
   resolveBrainConfigDefaults,
 } from '../../src/execution/brain-runtime.js';
 import { createSystemOneBrainTier } from '../../src/execution/brain-system-one.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Provider } from '../../src/types/provider.js';
 
 // Permanent regressions for the October Brain architecture review.
 const request = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({

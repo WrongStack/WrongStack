@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import type { Config } from '@wrongstack/contracts/types';
 import { noOpVault } from '@wrongstack/core/security';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
-import type { Config } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { createSettingsAdapter } from '../src/boot/tui-settings-adapter.js';
 

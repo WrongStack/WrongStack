@@ -15,8 +15,15 @@
  * - Zero coupling: consumers only see `readonly FallbackChainEntry[]` —
  *   no awareness of profile names, config shape, or provider internals.
  */
-import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
-import type { Config } from '../types/config.js';
+
+import type { Config } from '@wrongstack/contracts/types/config';
+import type {
+  FallbackChain,
+  FallbackChainEntry,
+  FallbackProfileManagerPort,
+  ProviderHealth,
+} from '@wrongstack/contracts/types/fallback';
+import type { ProviderStatusTrackerPort } from '@wrongstack/contracts/types/provider-status';
 import {
   asProfileName,
   asRefList,
@@ -35,42 +42,22 @@ import { parseModelRef } from './model-ref.js';
 // ── Public types ────────────────────────────────────────────────────────────
 
 /** One resolved entry in a fallback chain. */
-export interface FallbackChainEntry {
-  /** Resolved provider id. */
-  readonly providerId: string;
-  /** Resolved model id. */
-  readonly model: string;
-  /** Whether this entry uses a different provider than the primary. */
-  readonly providerSwitched: boolean;
-}
-
-/** Immutable fallback chain returned by the manager. */
-export type FallbackChain = readonly FallbackChainEntry[];
-
-/**
- * Configuration-level provider health used while resolving fallback chains.
- *
- * This deliberately answers whether the runtime has enough configuration to
- * construct the provider; it does not perform a network probe. Keyless
- * self-hosted endpoints are usable when they declare a `baseUrl`.
- */
-export interface ProviderHealth {
-  readonly providerId: string;
-  readonly hasKey: boolean;
-  readonly hasEndpoint: boolean;
-  readonly hasModels: boolean;
-  readonly usable: boolean;
-}
+export type { FallbackChain, FallbackChainEntry, ProviderHealth };
 
 // ── Manager ─────────────────────────────────────────────────────────────────
 
-export class FallbackProfileManager {
+/**
+ * Exported as a VALUE (`FallbackProfileManager`, the constructor below) and as
+ * a TYPE alias of `FallbackProfileManagerPort`, so the kernel token and
+ * `types/one-shot-llm` name the structural port without importing this module.
+ */
+export class FallbackProfileManagerImpl implements FallbackProfileManagerPort {
   /** Immutable snapshot of config.fallbackProfiles for the active config. */
   private profiles: ReadonlyMap<string, readonly string[]>;
   /** Active frozen config snapshot for provider lookups. */
   private config: Config;
   /** Optional shared runtime status tracker. */
-  private statusTracker: ProviderModelStatusTracker | undefined;
+  private statusTracker: ProviderStatusTrackerPort | undefined;
   /**
    * Resolve the CONFIGURED chain rather than the runnable one: keep entries the
    * status tracker has quarantined and entries the availability calendar
@@ -87,7 +74,7 @@ export class FallbackProfileManager {
   constructor(
     config: Config,
     opts?: {
-      statusTracker?: ProviderModelStatusTracker | undefined;
+      statusTracker?: ProviderStatusTrackerPort | undefined;
       ignoreAvailability?: boolean | undefined;
     },
   ) {
@@ -108,7 +95,7 @@ export class FallbackProfileManager {
    * Bind (or replace) the shared runtime status tracker.
    * Called by the boot path after the tracker is created.
    */
-  setStatusTracker(tracker: ProviderModelStatusTracker | undefined): void {
+  setStatusTracker(tracker: ProviderStatusTrackerPort | undefined): void {
     this.statusTracker = tracker;
   }
 
@@ -658,3 +645,9 @@ export function dedupeChain(
     }),
   );
 }
+
+/** Instances are typed as the port so callers' inferred types never name the implementation class. */
+export const FallbackProfileManager: new (
+  ...args: ConstructorParameters<typeof FallbackProfileManagerImpl>
+) => FallbackProfileManagerPort = FallbackProfileManagerImpl;
+export type FallbackProfileManager = FallbackProfileManagerPort;

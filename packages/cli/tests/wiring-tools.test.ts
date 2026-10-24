@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Config, Tool } from '@wrongstack/core/types';
+import type { Config, Tool } from '@wrongstack/contracts/types';
 import { selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildCliToolSurface } from './cli-tool-surface.js';

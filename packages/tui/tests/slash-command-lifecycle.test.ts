@@ -1,5 +1,5 @@
+import type { SlashCommand } from '@wrongstack/contracts/types';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { registerSlashCommandLifecycle } from '../src/slash-command-lifecycle.js';
 import { createAppJourney, waitForJourney } from './helpers/app-journey-harness.js';

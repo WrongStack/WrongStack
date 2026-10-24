@@ -18,8 +18,8 @@ import {
 export type ModelDiagConfig = {
   provider: string;
   model?: string;
-  providers?: Record<string, import('@wrongstack/core/types').ProviderConfig>;
-  modelMatrix?: Record<string, import('@wrongstack/core/types').ModelMatrixEntry>;
+  providers?: Record<string, import('@wrongstack/contracts/types').ProviderConfig>;
+  modelMatrix?: Record<string, import('@wrongstack/contracts/types').ModelMatrixEntry>;
   apiKey?: string;
   baseUrl?: string;
 };
@@ -27,7 +27,7 @@ export type ModelDiagConfig = {
 export function createProviderForId(
   providerId: string,
   cfg: {
-    providers?: Record<string, import('@wrongstack/core/types').ProviderConfig>;
+    providers?: Record<string, import('@wrongstack/contracts/types').ProviderConfig>;
     apiKey?: string;
     baseUrl?: string;
   },

@@ -57,7 +57,7 @@
  */
 import { access, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { type Plugin, ToolValidationError } from '@wrongstack/core/types';
+import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { matchGitignorePattern, toForwardSlashes } from './gitignore-match.js';
 
 export { matchGitignorePattern } from './gitignore-match.js';

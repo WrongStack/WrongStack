@@ -32,7 +32,7 @@ import {
   prepareGoalGraphForResume,
   prepareGoalWorkspace,
   verifyGoalProject,
-} from '@wrongstack/core/goal';
+} from '@wrongstack/goal';
 
 import { WorktreeManager } from '@wrongstack/core/worktree';
 

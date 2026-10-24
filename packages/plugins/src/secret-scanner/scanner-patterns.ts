@@ -4,7 +4,7 @@ import { cloneCredentialPatterns } from '../runtime/credential-patterns.js';
 // Pattern set
 // ---------------------------------------------------------------------------
 //
-// Mirrors the simple patterns in `core/src/security/secret-scrubber.ts`,
+// Mirrors the simple patterns in `primitives/src/secret-scrubber-patterns.ts`,
 // minus the high-entropy-env detector (which is too slow + too
 // false-positive prone for a synchronous pre-tool gate). Adding a new
 // pattern here is cheap: each entry is a tuple of (id, regex). The

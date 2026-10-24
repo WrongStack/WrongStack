@@ -1,9 +1,9 @@
 import * as path from 'node:path';
-import type { Director } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { AutonomyStage, Config, SessionWriter } from '@wrongstack/contracts/types';
+import type { Director, ParallelEternalEngine } from '@wrongstack/core/coordination';
 import { type AgentMonitorService, createAgentMonitorService } from '@wrongstack/core/coordination';
-import type { EternalAutonomyEngine, ParallelEternalEngine } from '@wrongstack/core/execution';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { AutonomyStage, Config, SessionWriter } from '@wrongstack/core/types';
+import type { EternalAutonomyEngine } from '@wrongstack/core/execution';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { expectDefined, sessionScopedPath } from '@wrongstack/core/utils';
 import { resolveFleetBudgetSources } from '../fleet/budget-source.js';
@@ -42,8 +42,8 @@ export interface DirectorAutonomyResult {
   currentSuggestions: string[];
   eternalEngine: EternalAutonomyEngine | null;
   parallelEngine: ParallelEternalEngine | null;
-  eternalListeners: Set<(entry: import('@wrongstack/core/goal').JournalEntry) => void>;
-  broadcastEternalIteration: (entry: import('@wrongstack/core/goal').JournalEntry) => void;
+  eternalListeners: Set<(entry: import('@wrongstack/goal').JournalEntry) => void>;
+  broadcastEternalIteration: (entry: import('@wrongstack/goal').JournalEntry) => void;
   stageListeners: Set<(stage: AutonomyStage) => void>;
   broadcastAutonomyStage: (stage: AutonomyStage) => void;
   fleetRoot: string | undefined;
@@ -105,8 +105,8 @@ export function setupDirectorAndAutonomy(deps: DirectorAutonomyDeps): DirectorAu
   // ── Eternal / parallel engine scaffolding ──────────────────────────────
   const eternalEngine: EternalAutonomyEngine | null = null;
   const parallelEngine: ParallelEternalEngine | null = null;
-  const eternalListeners = new Set<(entry: import('@wrongstack/core/goal').JournalEntry) => void>();
-  const broadcastEternalIteration = (entry: import('@wrongstack/core/goal').JournalEntry): void => {
+  const eternalListeners = new Set<(entry: import('@wrongstack/goal').JournalEntry) => void>();
+  const broadcastEternalIteration = (entry: import('@wrongstack/goal').JournalEntry): void => {
     for (const fn of eternalListeners) {
       try {
         fn(entry);

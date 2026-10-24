@@ -1,11 +1,11 @@
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { DocumentBlock } from '@wrongstack/contracts/types/blocks';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
+import type { Logger } from '@wrongstack/contracts/types/logger';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import { runProviderWithRetry } from '../../src/core/provider-runner.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { DocumentBlock } from '../../src/types/blocks.js';
-import type { AgentContext } from '../../src/types/context.js';
-import type { Logger } from '../../src/types/logger.js';
-import type { Provider, Request, Response } from '../../src/types/provider.js';
 
 const silentLogger = { debug() {}, info() {}, warn() {}, error() {} } as unknown as Logger;
 

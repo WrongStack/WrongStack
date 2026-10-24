@@ -3,7 +3,7 @@
  * is never abandoned because one model blew up — it walks to the next model and
  * only stops on a deliberate stop or an exhausted budget.
  */
-import type { SubagentConfig, SubagentError, TaskResult } from '@wrongstack/core/types';
+import type { SubagentConfig, SubagentError, TaskResult } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildMutatingAgentLadder,

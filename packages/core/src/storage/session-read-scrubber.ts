@@ -1,5 +1,9 @@
-import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type { SessionData, SessionEvent, SessionSummary } from '../types/session.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import type {
+  SessionData,
+  SessionEvent,
+  SessionSummary,
+} from '@wrongstack/contracts/types/session';
 import { sessionContentText } from './session-helpers.js';
 
 /**

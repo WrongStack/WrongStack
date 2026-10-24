@@ -18,7 +18,7 @@
  * `executor` generalist rather than failing.
  */
 
-import type { SubagentConfig } from '../types/multi-agent.js';
+import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import {
   readBundledInstructionText,
   renderInstructionTemplate,

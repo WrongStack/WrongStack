@@ -31,7 +31,7 @@
  * @module coordination/delegation/leader-auto-wake
  */
 
-import type { EventBus } from '../../kernel/events.js';
+import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import {
   type LeaderDeliveryHub,
   type LeaderDeliveryPendingEvent,

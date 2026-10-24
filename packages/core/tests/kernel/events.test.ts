@@ -1,5 +1,5 @@
+import { EventBus, ScopedEventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
-import { EventBus, ScopedEventBus } from '../../src/kernel/events.js';
 
 describe('ScopedEventBus', () => {
   it('tracks listener count via scopedListenerCount', () => {

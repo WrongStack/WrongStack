@@ -1,15 +1,15 @@
+import {
+  missingRequiredRuntimeTools,
+  missingRuntimeCapabilities,
+  runtimeToolReferencesFromText,
+} from '@wrongstack/contracts/types/runtime-capability-manifest';
+import type { SkillLoader, SkillManifest } from '@wrongstack/contracts/types/skill';
 import { SKILL_LIMITS } from '../skills/limits.js';
 import {
   isSkillHiddenFromPrompt,
   skillPromptExclusionReasons,
   skillUseWhenText,
 } from '../skills/prompt-discovery.js';
-import {
-  missingRequiredRuntimeTools,
-  missingRuntimeCapabilities,
-  runtimeToolReferencesFromText,
-} from '../types/runtime-capability-manifest.js';
-import type { SkillLoader, SkillManifest } from '../types/skill.js';
 import { formatProjectSuppliedBlock } from '../utils/project-supplied-fence.js';
 import { capSkillBody, stripFrontmatter } from './system-prompt-skill-text.js';
 

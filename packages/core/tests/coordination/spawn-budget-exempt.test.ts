@@ -11,14 +11,15 @@
  * Covers both enforcement paths: FleetManager (default production path)
  * and the Director's inline fallback (no FleetManager).
  */
-import { describe, expect, it } from 'vitest';
-import { Director, FleetSpawnBudgetError } from '../../src/coordination/director.js';
-import { FleetManager } from '../../src/coordination/fleet-manager.js';
+
 import type {
   MultiAgentConfig,
   SubagentRunner,
   SubagentRunOutcome,
-} from '../../src/types/multi-agent.js';
+} from '@wrongstack/contracts/types/multi-agent';
+import { describe, expect, it } from 'vitest';
+import { Director, FleetSpawnBudgetError } from '../../src/coordination/director.js';
+import { FleetManager } from '../../src/coordination/fleet-manager.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

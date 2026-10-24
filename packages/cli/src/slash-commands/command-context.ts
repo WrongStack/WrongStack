@@ -1,6 +1,4 @@
-import type { Context } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   CompactOptions,
   CompactReport,
@@ -14,7 +12,9 @@ import type {
   SessionStore,
   SkillLoader,
   TokenCounter,
-} from '@wrongstack/core/types';
+} from '@wrongstack/contracts/types';
+import type { Context } from '@wrongstack/core/agent';
+import type { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { SummarizerPort } from '@wrongstack/tools';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
@@ -44,7 +44,9 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
     compact(ctx: Context, opts?: CompactOptions): Promise<CompactReport>;
   };
   sessionStore?: SessionStore | undefined;
-  sessionRef?: { current?: import('@wrongstack/core/types').SessionWriter | undefined } | undefined;
+  sessionRef?:
+    | { current?: import('@wrongstack/contracts/types').SessionWriter | undefined }
+    | undefined;
   skillLoader?: SkillLoader | undefined;
   tokenCounter: TokenCounter;
   renderer: Renderer;
@@ -74,7 +76,7 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
   metricsStatus?: MetricsRuntimeStatus | undefined;
   modeStore?: ModeStore | undefined;
   /** Input reader for interactive pickers (arrow key navigation etc.). */
-  inputReader?: import('@wrongstack/core/types').InputReader | undefined;
+  inputReader?: import('@wrongstack/contracts/types').InputReader | undefined;
   onExit?: (() => void | Promise<void>) | undefined;
   onBeforeExit?: () => Promise<{ abort?: boolean; message?: string | undefined } | void>;
   onClear?: (() => void) | undefined;
@@ -132,7 +134,7 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
    * `runOneIteration()` from its main loop when autonomy is 'eternal-parallel'.
    */
   getParallelEngine?:
-    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | (() => import('@wrongstack/core/coordination').ParallelEternalEngine | null)
     | undefined;
   /**
    * Start the eternal/parallel autonomy engine. Called after `/autonomy eternal`
@@ -228,7 +230,7 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
    */
   planPath?: string | undefined;
   /** Direct access to the session's LLM provider and model, available even before the first agent run. */
-  llmProvider?: import('@wrongstack/core/types').Provider | undefined;
+  llmProvider?: import('@wrongstack/contracts/types').Provider | undefined;
   llmModel?: string | undefined;
   /**
    * Create a Provider instance for any configured provider by its id.
@@ -239,7 +241,7 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
    * across multiple providers, not just the currently active one.
    */
   createProvider?:
-    | ((providerId: string) => import('@wrongstack/core/types').Provider | undefined)
+    | ((providerId: string) => import('@wrongstack/contracts/types').Provider | undefined)
     | undefined;
   /** StatusBar visibility config — loaded from the active profile/statusline.json */
   statuslineConfig?: {
@@ -347,7 +349,7 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
    */
   brainTierStats?: (() => import('@wrongstack/core/coordination').BrainTierStats) | undefined;
   /** Config store for reading/writing config sections at runtime (e.g. settings menu). */
-  configStore: import('@wrongstack/core/types').ConfigStore;
+  configStore: import('@wrongstack/contracts/types').ConfigStore;
   /**
    * Host hook that adopts the store's new merged config after an in-process
    * selection change (today only `/profile switch`). The host's own `config`
@@ -359,7 +361,9 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
    * keep in step. Surfaces that leave it unset still persist the selection to
    * the bootstrap and pick it up on their next start.
    */
-  onActiveProfileChange?: ((next: import('@wrongstack/core/types').Config) => void) | undefined;
+  onActiveProfileChange?:
+    | ((next: import('@wrongstack/contracts/types').Config) => void)
+    | undefined;
   /**
    * Optional accessor for the Chronicle metrics store. When wired, the
    * `/tool autothin candidates` and `apply` commands can read the
@@ -379,15 +383,15 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
     | (() => import('@wrongstack/core/observability').ToolUsageSnapshot | undefined)
     | undefined;
   /** Models registry for looking up provider/model capabilities. */
-  modelsRegistry?: import('@wrongstack/core/types').ModelsRegistry | undefined;
+  modelsRegistry?: import('@wrongstack/contracts/types').ModelsRegistry | undefined;
   /** Terminal reader for interactive user input (e.g. settings menu, auth menu). */
-  reader: import('@wrongstack/core/types').InputReader;
+  reader: import('@wrongstack/contracts/types').InputReader;
   /** Read a secret without echoing it or recording it in input history. */
   readSecret?: ((prompt: string) => Promise<string>) | undefined;
   /** Read visible text through the owning interactive surface. */
   readText?: ((prompt: string) => Promise<string>) | undefined;
   /** Real boot-time vault used for secret-bearing config writes. */
-  vault?: import('@wrongstack/core/types').SecretVault | undefined;
+  vault?: import('@wrongstack/contracts/types').SecretVault | undefined;
   /**
    * Mutable ref for opening a TUI panel by dispatching its action type.
    * The slash commands call `onPanelOpen.current(action)` to open panels.

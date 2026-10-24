@@ -17,7 +17,7 @@
 // burst 5) when the chat type is known.
 // ---------------------------------------------------------------------------
 
-import type { Logger } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/contracts/types';
 import type { TelegramApiMessage } from './api-client.js';
 import type { TelegramBot, TelegramBotResponse } from './bot.js';
 import { type OutboundEntry, OutboundQueue } from './outbound-queue.js';

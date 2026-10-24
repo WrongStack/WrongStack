@@ -1,6 +1,6 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { WorkspaceCheckpointRef } from '@wrongstack/contracts/types';
 import type { AgentPipelines, ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { WorkspaceCheckpointRef } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { GovernanceRuntimeWorkspaceSnapshotResult } from './governance-bootstrap.js';
 

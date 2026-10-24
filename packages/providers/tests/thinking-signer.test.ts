@@ -4,7 +4,7 @@
  * would reject them, and a signature rejection is repaired once.
  */
 
-import type { ContentBlock, Message, Request } from '@wrongstack/core/types';
+import type { ContentBlock, Message, Request } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { AnthropicProvider } from '../src/anthropic.js';
 

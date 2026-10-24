@@ -34,7 +34,7 @@ import {
   HQ_AUTH_FILE_VERSION,
   HqPublisher,
   writeHqAuthFile,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 import { createBoard, getBoard, writeBoard } from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';

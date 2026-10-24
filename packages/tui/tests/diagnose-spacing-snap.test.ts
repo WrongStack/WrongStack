@@ -1,4 +1,4 @@
-import type { TokenCounter } from '@wrongstack/core/types';
+import type { TokenCounter } from '@wrongstack/contracts/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';

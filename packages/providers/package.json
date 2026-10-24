@@ -50,6 +50,7 @@
     "@ai-sdk/openai": "4.0.99",
     "@ai-sdk/openai-compatible": "3.0.75",
     "@ai-sdk/provider": "4.0.31",
+    "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
     "ai": "7.0.148",
     "ws": "^8.22.0",

@@ -5,7 +5,7 @@
  */
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { Request, StreamEvent } from '@wrongstack/core/types';
+import type { Request, StreamEvent } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { normalizeOpenAIChatUsage } from '../src/openai-chat-usage.js';
 import { OpenAICompatibleProvider } from '../src/openai-compatible.js';

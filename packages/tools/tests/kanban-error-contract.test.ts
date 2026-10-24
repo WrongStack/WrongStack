@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import { ToolValidationError } from '@wrongstack/core/types';
 import {
   createBoard,
   getBoard,

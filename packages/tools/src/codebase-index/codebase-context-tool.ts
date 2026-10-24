@@ -16,8 +16,8 @@
  * they may not need.
  */
 
-import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { codebaseContext, codebaseVectorSearch } from './background-indexer.js';
 import type { ContextEntry } from './context-retrieval.js';

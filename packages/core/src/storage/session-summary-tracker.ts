@@ -1,8 +1,12 @@
 import { createReadStream } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import { createInterface } from 'node:readline';
-import { effectiveInputTokens, totalUsageTokens } from '../types/provider.js';
-import type { SessionEvent, SessionMetadata, SessionSummary } from '../types/session.js';
+import { effectiveInputTokens, totalUsageTokens } from '@wrongstack/contracts/types/provider';
+import type {
+  SessionEvent,
+  SessionMetadata,
+  SessionSummary,
+} from '@wrongstack/contracts/types/session';
 import { sessionContentPreview, userInputTitle } from './session-helpers.js';
 import { isSessionErrorEvent, resolveSessionOutcome } from './session-outcome.js';
 

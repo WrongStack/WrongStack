@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
+import { EventBus } from '@wrongstack/contracts/kernel';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
 import { afterEach, describe, expect, it } from 'vitest';

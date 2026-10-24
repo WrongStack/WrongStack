@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { TaskNode } from '@wrongstack/core/types';
+import type { TaskNode } from '@wrongstack/contracts/types';
 import { AISpecBuilder, DefaultTaskStore, SpecStore, TaskTracker } from '@wrongstack/sdd';
 import { sddState } from '../../src/services/sdd/state.js';
 

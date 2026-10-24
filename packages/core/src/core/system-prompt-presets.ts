@@ -1,15 +1,15 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { RUNTIME_CAPABILITY_MANIFEST } from '../types/runtime-capability-manifest.js';
+import { RUNTIME_CAPABILITY_MANIFEST } from '@wrongstack/contracts/types/runtime-capability-manifest';
+import type { SystemInstructionVariant } from '@wrongstack/contracts/types/system-prompt';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import {
   expandSharedSystemInstructions,
   readBundledInstructionText,
 } from '../utils/instruction-file.js';
 
-/** Which bundled system instruction a preset or session starts from. */
-export type SystemInstructionVariant = 'default' | 'lite' | 'pro' | 'scout';
+export type { SystemInstructionVariant };
 
 export interface SystemPromptPreset {
   id: string;

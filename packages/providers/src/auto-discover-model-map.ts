@@ -1,4 +1,4 @@
-import type { ModelsDevModel, ReasoningEffort } from '@wrongstack/core/types';
+import type { ModelsDevModel, ReasoningEffort } from '@wrongstack/contracts/types';
 
 /**
  * Auto-discovery of an OpenAI-compatible server's model catalog.

@@ -1,12 +1,14 @@
+import type { CompactReport } from '@wrongstack/contracts/types/compactor';
 import { type Context, resolveEventSessionId } from '../core/context.js';
-import type { CompactReport } from '../types/compactor.js';
 import type { ContextWindowBudgetSnapshot } from '../utils/context-budget.js';
 import { truncateDigest } from './compaction-reporting-support.js';
 import type { PressureLevel } from './compaction-thresholds.js';
 
 export interface CompactionReportingHost {
-  events: import('../kernel/events.js').EventBus | undefined;
-  onCompact: ((report: import('../types/compactor.js').CompactReport) => void) | undefined;
+  events: import('@wrongstack/contracts/kernel/events').EventBus | undefined;
+  onCompact:
+    | ((report: import('@wrongstack/contracts/types/compactor').CompactReport) => void)
+    | undefined;
   sessionBridge: import('../storage/session-event-bridge.js').SessionEventBridge | undefined;
 }
 

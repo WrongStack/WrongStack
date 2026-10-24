@@ -28,11 +28,11 @@
  * chose.
  */
 
-import type { Middleware } from '../../kernel/pipeline.js';
-import { markVolatileSystemBlock } from '../../types/blocks.js';
-import type { Message } from '../../types/messages.js';
-import type { Request } from '../../types/provider.js';
-import { authoredText } from '../../utils/live-context.js';
+import type { Middleware } from '@wrongstack/contracts/kernel/pipeline';
+import { markVolatileSystemBlock } from '@wrongstack/contracts/types/blocks';
+import { authoredText } from '@wrongstack/contracts/types/live-context';
+import type { Message } from '@wrongstack/contracts/types/messages';
+import type { Request } from '@wrongstack/contracts/types/provider';
 import type { SkillSuggester, SkillSuggestion } from './skill-suggester.js';
 
 export interface SkillSuggestionMiddlewareOptions {

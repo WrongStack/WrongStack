@@ -1,19 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import type { RunController } from '../kernel/run-controller.js';
-import { TOKENS } from '../kernel/tokens.js';
-import { attachFleetPulse, attachMailboxChecker } from '../mailbox-attach.js';
-import { attachSessionNotes } from '../session-note-attach.js';
+import type { RunController } from '@wrongstack/contracts/kernel/run-controller';
+import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
+import type { TextBlock } from '@wrongstack/contracts/types/blocks';
+import { isToolUseBlock } from '@wrongstack/contracts/types/blocks';
+import { toWrongStackError } from '@wrongstack/contracts/types/errors';
+import type { Request, Response } from '@wrongstack/contracts/types/provider';
+import { effectiveInputTokens } from '@wrongstack/contracts/types/provider';
 import { armRequiredSkills } from '../skills/required-skill-gate.js';
-import type { TextBlock } from '../types/blocks.js';
-import { isToolUseBlock } from '../types/blocks.js';
-import { toWrongStackError } from '../types/errors.js';
-import type { Request, Response } from '../types/provider.js';
-import { effectiveInputTokens } from '../types/provider.js';
 import { isRuntimeContextInput, recordUserIntentEvidence } from '../utils/context-evidence.js';
+import { contextHistoryVersion, requestHistoryVersion } from '../utils/context-history-version.js';
 import { toErrorMessage } from '../utils/error.js';
 import { commitRequestLayout, recordRequestLayoutUsage } from '../utils/request-layout.js';
 import { formatTodosForModel, hasKanbanBoundTodos, hasOpenTodos } from '../utils/todos-format.js';
 import { getCalibrationState, recordActualUsage } from '../utils/token-estimate.js';
+import { resolveAgentCoordination } from './agent-coordination.js';
 import type { AgentInternals } from './agent-internals.js';
 import { createAgentLoopContextManager } from './agent-loop-context.js';
 import { AgentLoopDetector } from './agent-loop-detector.js';
@@ -31,7 +31,6 @@ import type { AgentToolHandler } from './agent-tools.js';
 import type { RunResult, UserInputPayload } from './agent-types.js';
 import { type RunOptions, resolveEventSessionId } from './context.js';
 import { resolveRunInputOrigin } from './context-environment.js';
-import { contextHistoryVersion, requestHistoryVersion } from './context-history-version.js';
 import { recordContextUsageAnchor, requestPromptStillCurrent } from './context-usage-anchor.js';
 import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { injectPendingMailboxMessages } from './mailbox-loop.js';
@@ -66,8 +65,10 @@ export function createAgentLoopHandler(
 ): AgentLoopHandler {
   // A sealed companion takes input only from its host's task (sealed-agent.ts).
   const sealed = isSealedAgent(a.ctx);
-  const checkMailbox = sealed ? async () => [] : attachMailboxChecker(a);
-  if (!sealed) attachSessionNotes(a);
+  // Host-bound (see agent-coordination.ts); unbound means no coordination.
+  const coordination = sealed ? undefined : resolveAgentCoordination(a.container);
+  const checkMailbox = coordination ? coordination.attachMailboxChecker(a) : async () => [];
+  coordination?.attachSessionNotes(a);
 
   const fleetPulseCfg = (() => {
     try {
@@ -78,7 +79,9 @@ export function createAgentLoopHandler(
       return undefined;
     }
   })();
-  const getFleetPulse = sealed ? async () => null : attachFleetPulse(a, fleetPulseCfg);
+  const getFleetPulse = coordination
+    ? coordination.attachFleetPulse(a, fleetPulseCfg)
+    : async () => null;
   const pulseEveryN = Math.max(1, fleetPulseCfg?.everyNIterations ?? 5);
   const backgroundCoordination = () => a.ctx.meta['coordinationContextMode'] === 'background';
 
@@ -92,7 +95,7 @@ export function createAgentLoopHandler(
     injectQueueAwareness,
     ownSessionIds,
     checkIterationLimit,
-  } = createAgentLoopInjectors(a);
+  } = createAgentLoopInjectors(a, resolveAgentCoordination(a.container));
 
   async function runInner(
     inputPayload: UserInputPayload,

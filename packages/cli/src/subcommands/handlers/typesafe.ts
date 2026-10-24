@@ -22,7 +22,7 @@
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/contracts/types';
 import {
   BUILT_IN_ROUTES,
   BUILT_IN_SEMANTIC_LINT_RULES,

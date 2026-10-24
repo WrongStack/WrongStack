@@ -12,8 +12,9 @@
  * the same set without re-running the policy.
  */
 
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { AutoThinConfig, ConfigStore, DisabledToolMeta } from '@wrongstack/contracts/types';
 import type { ChronicleMetricsStore } from '@wrongstack/core/chronicle';
-import type { EventBus } from '@wrongstack/core/kernel';
 import {
   createToolUsageSource,
   filterUnderused,
@@ -23,7 +24,6 @@ import {
 } from '@wrongstack/core/observability';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { noOpVault } from '@wrongstack/core/security';
-import type { AutoThinConfig, ConfigStore, DisabledToolMeta } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';

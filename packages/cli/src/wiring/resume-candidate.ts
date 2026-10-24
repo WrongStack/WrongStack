@@ -19,8 +19,9 @@
  * new session", never an error: a boot that refuses to start because a scan
  * failed is worse than a boot that starts fresh.
  */
+
+import type { SessionStore } from '@wrongstack/contracts/types';
 import { getSessionRegistry, SessionRecovery } from '@wrongstack/core/storage';
-import type { SessionStore } from '@wrongstack/core/types';
 import { isPidAlive } from '@wrongstack/core/utils';
 
 /** How many unclosed candidates to examine before giving up on a free one. */

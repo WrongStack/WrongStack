@@ -1,7 +1,7 @@
-import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
+import type { Config } from '@wrongstack/contracts/types/config';
+import type { ProviderStatusTrackerPort } from '@wrongstack/contracts/types/provider-status';
 import { FallbackProfileManager } from '../core/fallback-profile-manager.js';
 import { parseModelRef } from '../core/model-ref.js';
-import type { Config } from '../types/config.js';
 import type { CascadeAgentKind } from './chimera-plugin.js';
 import type { ChimeraFinding } from './review-finding-types.js';
 
@@ -64,7 +64,7 @@ export function buildReviewerModelPool(
   provider: string,
   model: string,
   fallbackModels: readonly string[] = [],
-  statusTracker?: ProviderModelStatusTracker | undefined,
+  statusTracker?: ProviderStatusTrackerPort | undefined,
 ): string[] {
   const primaryProvider = provider.trim();
   const primaryModel = model.trim();
@@ -93,7 +93,7 @@ export function selectRoundRobinReviewerAssignment(
   cursor: number,
   fallbackProvider = '',
   fallbackModel = '',
-  statusTracker?: ProviderModelStatusTracker | undefined,
+  statusTracker?: ProviderStatusTrackerPort | undefined,
 ): ReviewerModelAssignment {
   const filteredPool = statusTracker
     ? pool.filter((ref) => {

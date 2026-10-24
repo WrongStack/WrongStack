@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
-import { ERROR_CODES, WrongStackError } from '../types/errors.js';
+import { ERROR_CODES, WrongStackError } from '@wrongstack/contracts/types/errors';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { expectDefined } from '../utils/expect-defined.js';
@@ -13,7 +13,7 @@ import type { EventBus } from './event-bus-port.js';
  * Why a sidecar file, not the session JSONL?
  *
  *   The session log is an event-sourced append-only journal
- *   (`packages/core/src/types/session.ts` invariant: events are
+ *   (`packages/contracts/src/types/session.ts` invariant: events are
  *   append-only, with `truncateToCheckpoint` only as an explicit
  *   rewind). Mixing in human-typed annotations would break that
  *   invariant — the user's note about "this rm looks dangerous"

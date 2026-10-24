@@ -3,7 +3,7 @@ import type {
   HqSessionAgentSummary,
   HqSessionSnapshotPayload,
   HqSnapshot,
-} from '@wrongstack/core/hq';
+} from '@wrongstack/hq';
 
 export interface ConsoleControlTarget {
   session: HqSessionSnapshotPayload;

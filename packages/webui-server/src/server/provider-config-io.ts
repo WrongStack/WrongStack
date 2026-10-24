@@ -9,12 +9,12 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { ConfigError, type ProviderConfig, type SecretVault } from '@wrongstack/contracts/types';
 import {
   decryptConfigSecrets,
   decryptConfigSecretsForRewrite,
   encryptConfigSecrets,
 } from '@wrongstack/core/security';
-import { ConfigError, type ProviderConfig, type SecretVault } from '@wrongstack/core/types';
 import { atomicWrite, backupConfigFile, withFileLock } from '@wrongstack/core/utils';
 import {
   clearStaleProviderDefaults,

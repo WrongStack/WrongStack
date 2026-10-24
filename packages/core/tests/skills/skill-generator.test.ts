@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { WrongStackError } from '@wrongstack/contracts/types/errors';
 import { describe, expect, it, vi } from 'vitest';
 import { parseSkillFrontmatter } from '../../src/skills/frontmatter.js';
 import {
@@ -10,7 +11,6 @@ import {
   validateSkillNameAvailable,
   writeSkeletonSkill,
 } from '../../src/skills/skill-generator.js';
-import { WrongStackError } from '../../src/types/errors.js';
 
 let tmpSeq = 0;
 async function tmpDir(): Promise<string> {

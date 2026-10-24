@@ -1,3 +1,5 @@
+import type { SubagentConfig, SubagentRunner } from '@wrongstack/contracts/types/multi-agent';
+import { REASONING_EFFORT_LEVELS } from '@wrongstack/contracts/types/provider';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
 import {
@@ -15,8 +17,6 @@ import {
   type SubagentSlot,
   setSessionSubagentModelPlanForSession,
 } from '../../src/coordination/session-subagent-models.js';
-import type { SubagentConfig, SubagentRunner } from '../../src/types/multi-agent.js';
-import { REASONING_EFFORT_LEVELS } from '../../src/types/provider.js';
 
 /**
  * The leader picks a worker's reasoning effort the same way it picks the

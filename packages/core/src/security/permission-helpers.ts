@@ -7,8 +7,8 @@
  * containment); everything else is pure string work.
  */
 import * as path from 'node:path';
-import type { PermissionDecision } from '../types/permission.js';
-import type { Tool } from '../types/tool.js';
+import type { PermissionDecision } from '@wrongstack/contracts/types/permission';
+import type { Tool } from '@wrongstack/contracts/types/tool';
 import { matchAny, matchAnyCommand } from '../utils/glob-match.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
 import {

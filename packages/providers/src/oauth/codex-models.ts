@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { ModelsRegistry } from '@wrongstack/core/types';
+import type { ModelsRegistry } from '@wrongstack/contracts/types';
 import { extractAccountId } from '../openai-codex-account.js';
 import {
   CODEX_ORIGINATOR,

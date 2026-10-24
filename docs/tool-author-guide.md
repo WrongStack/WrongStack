@@ -9,7 +9,7 @@ the result feeds back into the next turn.
 ## The minimum viable tool
 
 ```ts
-import type { Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/contracts/types';
 
 export const echoTool: Tool<{ text: string }, { echoed: string }> = {
   name: 'echo',

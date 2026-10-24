@@ -1,3 +1,5 @@
+import type { ModelRuntimeConfig } from '@wrongstack/contracts/types/config';
+import type { Capabilities, ReasoningConfig } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import {
   mergeModelRuntime,
@@ -6,8 +8,6 @@ import {
   resolveParametersForRequest,
   resolveReasoningForRequest,
 } from '../../src/execution/model-runtime.js';
-import type { ModelRuntimeConfig } from '../../src/types/config.js';
-import type { Capabilities, ReasoningConfig } from '../../src/types/provider.js';
 
 const capsOn: ReasoningConfig = {
   default: 'enabled',

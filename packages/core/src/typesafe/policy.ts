@@ -1,5 +1,5 @@
-import type { Config } from '../types/config/root.js';
-import type { TypeSafeJudgmentsConfig } from '../types/config/typesafe.js';
+import type { Config } from '@wrongstack/contracts/types/config/root';
+import type { TypeSafeJudgmentsConfig } from '@wrongstack/contracts/types/config/typesafe';
 
 // Clients can outlive the immutable snapshot from which they were built.
 // Keep their permission tied to the owning store, rather than the old flag.

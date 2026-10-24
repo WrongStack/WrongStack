@@ -16,7 +16,7 @@
 // tsc via `Record<ThemePresetId, Theme>`; this file covers what types cannot:
 // value ranges, per-preset override completeness, and palette membership.
 
-import { THEME_PRESET_IDS } from '@wrongstack/core/types';
+import { THEME_PRESET_IDS } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { STATUS } from '../src/components/agents-monitor-constants.js';
 import { applyWashTokens } from '../src/components/history/code-block.js';

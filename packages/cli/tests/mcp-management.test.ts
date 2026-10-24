@@ -36,7 +36,7 @@ vi.mock('@wrongstack/mcp', () => ({
   MCPRegistry: class {},
 }));
 
-import type { MCPServerConfig } from '@wrongstack/core/types';
+import type { MCPServerConfig } from '@wrongstack/contracts/types';
 import { parseMcpArgs, runMcpManagementCommand } from '../src/services/mcp-management.js';
 
 const preset: MCPServerConfig = {

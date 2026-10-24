@@ -50,13 +50,13 @@
 //     call site in main(). The unit test exercises the
 //     helper with fakes that satisfy the local interfaces.
 
+import type { TokenSavingTier } from '@wrongstack/contracts/types';
 import {
   DefaultSystemPromptBuilder,
   isUnattendedAutonomy,
   type SystemInstructionVariant,
 } from '@wrongstack/core/agent';
 import { makeAutonomyPromptContributor } from '@wrongstack/core/execution';
-import type { TokenSavingTier } from '@wrongstack/core/types';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 import { createAtlasPromptContributor } from '../wiring/atlas-prompt-contributor.js';

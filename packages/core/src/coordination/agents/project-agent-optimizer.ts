@@ -8,8 +8,8 @@
  * markdown and no state change; the WebUI had the only working pipeline.
  */
 
-import { isTextBlock } from '../../types/blocks.js';
-import type { Provider, Request } from '../../types/index.js';
+import type { Provider, Request } from '@wrongstack/contracts/types';
+import { isTextBlock } from '@wrongstack/contracts/types/blocks';
 import {
   buildConsolidationInstruction,
   readRawLearnedEntries,

@@ -6,8 +6,8 @@
  * exists before any turn.
  */
 
+import type { Provider, SlashCommand } from '@wrongstack/contracts/types';
 import { recordProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import type { Provider, SlashCommand } from '@wrongstack/core/types';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reportWrongForgeQuota } from '../src/fleet/wrongforge-quota.js';
