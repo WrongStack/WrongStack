@@ -3985,3 +3985,33 @@ one final native pass.
   PASS.
 - Native steps updated (`native-composer-resources.mjs`: whole file, range and quote of
   README.md sent together); **not run**.
+
+## Engine work under the approved --no-verify (2026-10-29)
+
+The user approved committing engine changes with `--no-verify` while another session's
+`packages/*` edits keep the Core API snapshot hook refusing. Only this session's files are
+staged; the other session's edits stay untouched.
+
+### Renamed and copied changes show their origin
+
+- Commit `91f74aa22`. `git.changes` now keeps the original path git reports after a rename or
+  copy (`origPath`) instead of discarding it. The Files change list shows "Renamed from …" or
+  "Copied from …" under such a file (the path is repository-relative, as git reports it).
+- Checks: RED then GREEN in `packages/webui-server/tests/git-handlers.test.ts` (staged
+  `git mv`); 57 git handler/route tests and the webui-server typecheck PASS; desktop typecheck
+  and Biome PASS.
+- No native step yet.
+
+### Retained images in session history
+
+- Commit `97b5688c4`. Transcript pages still never carry image bytes. `session.inspect` accepts
+  `transcriptImage: { messageIndex, blockIndex, expectedRevision }` and returns one image
+  stored in the session as a data URL, only for PNG, JPEG, GIF or WebP, at most about 4 MiB,
+  with valid base64 and an unchanged transcript revision. URL-sourced images are not fetched
+  and markup formats such as SVG are refused. The history view shows "Show image" on each image
+  attachment and renders it only after that read.
+- Checks: RED then GREEN in `packages/webui-server/tests/session-transcript.test.ts`; 13
+  related tests and the webui-server typecheck PASS; desktop suite **566 PASS**, typecheck and
+  Biome PASS.
+- Native step written (`native-project-history.mjs`: the fixture's placeholder bytes are
+  refused and never rendered); **not run**.
