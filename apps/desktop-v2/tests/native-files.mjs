@@ -202,6 +202,12 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Tab');
   assert.equal(await editor().inputValue(), '  function x() {\n    a\n    b\n  }');
+  // Ctrl+/ toggles TypeScript line comments over the selection, also undoably.
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Control+/');
+  assert.equal(await editor().inputValue(), '  // function x() {\n  //   a\n  //   b\n  // }');
+  await page.keyboard.press('Control+/');
+  assert.equal(await editor().inputValue(), '  function x() {\n    a\n    b\n  }');
   await editor().fill('export const unsaved = true;\n');
   await waitFor(async () => {
     const drafts = await page.evaluate(

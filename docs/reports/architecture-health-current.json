@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:23:52.574Z",
+  "generatedAt": "2026-10-29T19:26:52.966Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5479,
-    "testFiles": 4767,
-    "sourceLines": 1205038,
+    "sourceFiles": 5480,
+    "testFiles": 4768,
+    "sourceLines": 1205138,
     "workspaceEdges": 222,
-    "moduleEdges": 16443,
+    "moduleEdges": 16445,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 122,
+    "testsWithoutTypecheck": 123,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 984
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 291,
-      "testFiles": 122,
+      "sourceFiles": 292,
+      "testFiles": 123,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1439,6 +1439,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/draft-storage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/editor-comment.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30079,6 +30085,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/editor-comment.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/editor-find.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31402,8 +31415,8 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 1965,
-      "relativeImports": 28
+      "lines": 1977,
+      "relativeImports": 29
     },
     {
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
@@ -31484,8 +31497,8 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 1965,
-      "relativeImports": 28
+      "lines": 1977,
+      "relativeImports": 29
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",

@@ -29,6 +29,7 @@ import type { ComposerFileReference } from './composer-resources-model';
 import { DiffPreview } from './DiffPreview';
 import { DraftMergeChoices } from './DraftMergeChoices';
 import { EditorFindBar } from './EditorFindBar';
+import { lineCommentMarker, toggleLineComment } from './editor-comment';
 import { editorKeyEdit, replacementRange } from './editor-indent';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -1398,7 +1399,18 @@ export function FileWorkspace({
                           setFinding(true);
                           return;
                         }
-                        const edit = editorKeyEdit(event, document.content);
+                        const marker =
+                          (event.ctrlKey || event.metaKey) && event.key === '/'
+                            ? lineCommentMarker(active)
+                            : undefined;
+                        const edit = marker
+                          ? toggleLineComment(
+                              document.content,
+                              event.currentTarget.selectionStart,
+                              event.currentTarget.selectionEnd,
+                              marker,
+                            )
+                          : editorKeyEdit(event, document.content);
                         if (edit) {
                           event.preventDefault();
                           pendingSelection.current = { start: edit.start, end: edit.end };
