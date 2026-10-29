@@ -94,3 +94,42 @@ export function batchTerminationSummary(
   parts.push('Refresh verifies whether they are still tracked.');
   return parts.join(' ');
 }
+
+/** A process this window saw that the engine no longer tracks; its exit status is unknown. */
+export interface EndedProcess {
+  proc: SessionProcess;
+  /** Last list that still contained it. */
+  lastSeenAt: number;
+  /** First list without it. */
+  goneBy: number;
+}
+
+const MAX_ENDED = 50;
+
+/**
+ * Processes present in the previous list and missing from the current one, newest first and
+ * bounded. A reused PID with a new start time is a different run, so its old run ends here.
+ */
+export function endedProcesses(
+  ended: readonly EndedProcess[],
+  previous: readonly SessionProcess[],
+  current: readonly SessionProcess[],
+  previousAt: number,
+  now: number,
+): EndedProcess[] {
+  const gone = previous
+    .filter((proc) => !current.some((row) => processKey(row) === processKey(proc)))
+    .map((proc) => ({ proc, lastSeenAt: previousAt, goneBy: now }));
+  if (!gone.length) return ended as EndedProcess[];
+  const keys = new Set(gone.map((item) => processKey(item.proc)));
+  return [...gone, ...ended.filter((item) => !keys.has(processKey(item.proc)))].slice(0, MAX_ENDED);
+}
+
+/** "3 min 12 s" style duration between two epoch-millisecond times. */
+export function observedDuration(from: number, to: number): string {
+  const seconds = Math.max(0, Math.round((to - from) / 1000));
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ${seconds % 60} s`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}

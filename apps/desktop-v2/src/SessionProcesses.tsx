@@ -5,6 +5,9 @@ import { Modal } from './Modal';
 import {
   batchTermination,
   batchTerminationSummary,
+  type EndedProcess,
+  endedProcesses,
+  observedDuration,
   processKey,
   type SessionProcess,
   sameSessionProcess,
@@ -12,6 +15,12 @@ import {
   terminable,
 } from './session-process-model';
 import './session-processes.css';
+
+/** Ended runs seen by this window, per session; kept while the window stays open. */
+const endedBySession = new Map<
+  string,
+  { ended: EndedProcess[]; last: SessionProcess[]; at: number }
+>();
 
 export function SessionProcesses({
   sessionId,
@@ -38,7 +47,8 @@ export function SessionProcesses({
     [outputBusy, setOutputBusy] = useState(false),
     [lines, setLines] = useState(100),
     [picked, setPicked] = useState<string[]>([]),
-    [batchReview, setBatchReview] = useState(false);
+    [batchReview, setBatchReview] = useState(false),
+    [ended, setEnded] = useState<EndedProcess[]>(() => endedBySession.get(sessionId)?.ended ?? []);
   const alive = useRef(true),
     reading = useRef(false),
     operating = useRef(false),
@@ -57,7 +67,14 @@ export function SessionProcesses({
     setLoading(true);
     try {
       const rows = await read();
+      const now = Date.now();
+      const history = endedBySession.get(sessionId);
+      const next = history
+        ? endedProcesses(history.ended, history.last, rows, history.at, now)
+        : [];
+      endedBySession.set(sessionId, { ended: next, last: rows, at: now });
       if (alive.current) {
+        setEnded(next);
         setProcesses(rows);
         setLoaded(true);
         setError('');
@@ -353,6 +370,41 @@ export function SessionProcesses({
             </article>
           ))}
         </div>
+      )}
+      {ended.length > 0 && (
+        <details className="process-ended">
+          <summary>Recently ended · {ended.length}</summary>
+          <p className="field-help">
+            Runs this window saw that the engine no longer tracks. The engine does not report how
+            they ended or their exit code; times are when this window last saw them.
+          </p>
+          <ul aria-label="Recently ended processes">
+            {ended.map((item) => (
+              <li key={`${item.proc.pid}:${item.proc.startedAt}`}>
+                <code>PID {item.proc.pid}</code> {item.proc.tool}
+                {item.proc.background ? ' · Background' : ''}
+                <pre>{item.proc.command}</pre>
+                <small>
+                  Started {new Date(item.proc.startedAt).toLocaleString()} · last seen{' '}
+                  {new Date(item.lastSeenAt).toLocaleTimeString()} · gone by{' '}
+                  {new Date(item.goneBy).toLocaleTimeString()} · tracked for at least{' '}
+                  {observedDuration(item.proc.startedAt, item.lastSeenAt)}
+                </small>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="button secondary small"
+            onClick={() => {
+              const history = endedBySession.get(sessionId);
+              if (history) endedBySession.set(sessionId, { ...history, ended: [] });
+              setEnded([]);
+            }}
+          >
+            Clear ended list
+          </button>
+        </details>
       )}
       {selected && (
         <aside className="process-output" aria-label={`Output for PID ${selected.pid}`}>

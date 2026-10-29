@@ -160,3 +160,30 @@
   font-size: 11px;
   overflow-wrap: anywhere;
 }
+.process-ended {
+  margin-top: 14px;
+  font-size: 11px;
+}
+.process-ended summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.process-ended ul {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+.process-ended li {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.process-ended pre {
+  margin: 4px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.process-ended li > small {
+  color: var(--muted);
+}
