@@ -4109,3 +4109,14 @@ staged; the other session's edits stay untouched.
   typecheck PASS; desktop suite PASS, typecheck and Biome PASS.
 - Native step written (`native-agent-roster.mjs`: saved checklist read back from
   `knowledge.json`); **not run**.
+
+### Project usage from the session catalog
+
+- Commit `4e79ad234`. `sessions.list` with `usageSummary: true` reads up to the newest 5,000
+  conversations from the session catalog and totals their recorded `tokenTotal` per provider
+  and model, counting sessions without a finite total separately and saying when the scan bound
+  was reached. No price or cost is derived. Session history offers "Project usage" with a
+  "Summarize recorded usage" action and a table by model.
+- Checks: RED then GREEN in the new `session-usage-summary.test.ts`; webui-server typecheck
+  PASS; desktop suite **571 PASS**, typecheck and Biome PASS.
+- Native step written (`native-project-history.mjs`); **not run**.

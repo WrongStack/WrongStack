@@ -370,7 +370,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 - Session processes need stress proof (engine-reported exits, batch termination and
   a recently-ended list exist, 2026-10-29; printed local URLs open as previews). Browser
   selection, preview controls, watcher and batch-process integration remain incomplete.
-- Usage needs project/profile aggregation, persisted historical model/billing attribution,
+- Usage needs profile aggregation (project token totals by model exist, 2026-10-29), persisted historical model/billing attribution,
   auxiliary-worker inclusion, tier/TTL-aware pricing and broader restart/reconnect coverage.
   Last provider request, current context, cumulative usage and estimated pricing remain separate.
 
