@@ -13,7 +13,9 @@ import {
   type MailDraft,
   mailboxDuration,
   mailboxThreads,
+  oldestMailTimestamp,
   unreadMail,
+  withOlderMail,
 } from './mailbox-model';
 import { openExternal, projectFormDraftStorage } from './platform';
 import './project-mailbox.css';
@@ -41,6 +43,12 @@ export function ProjectMailbox({
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(100);
   const [loaded, setLoaded] = useState(false);
+  // Older pages read with an inclusive timestamp bound; a reload returns to the recent window.
+  const [older, setOlder] = useState<{ busy: boolean; done: boolean; note: string }>({
+    busy: false,
+    done: false,
+    note: '',
+  });
   const [localBusy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -97,11 +105,50 @@ export function ProjectMailbox({
     if (seq !== sequence.current) return;
     if (results[0].status === 'fulfilled') {
       setMessages(entries(results[0].value['messages']));
+      setOlder({ busy: false, done: false, note: '' });
       setLoaded(true);
     } else throw results[0].reason;
     if (results[1].status === 'fulfilled') setAgents(entries(results[1].value['agents']));
     else throw results[1].reason;
   }, [command, actor, filter, limit]);
+  const loadOlder = async () => {
+    const until = oldestMailTimestamp(messages);
+    if (!until || older.busy) return;
+    const seq = sequence.current;
+    setOlder((current) => ({ ...current, busy: true, note: '' }));
+    try {
+      const reply = await command(
+        'mailbox.messages',
+        {
+          limit,
+          until,
+          ...(actor.trim() ? { agentId: actor.trim() } : {}),
+          ...(filter === 'unread'
+            ? { unreadOnly: true }
+            : filter === 'open'
+              ? { incompleteOnly: true }
+              : {}),
+        },
+        ['mailbox.messages'],
+      );
+      if (seq !== sequence.current) return;
+      const page = entries(reply['messages']);
+      // An engine without the bound returns the recent window again: nothing new is added.
+      const next = withOlderMail(messages, page, limit);
+      setMessages(next.messages);
+      setOlder({
+        busy: false,
+        done: next.complete || next.stuck,
+        note: next.stuck
+          ? 'More messages share the oldest timestamp than one page holds, so older ones cannot be read here.'
+          : next.complete
+            ? 'No older messages in this view.'
+            : `${next.added} older messages loaded.`,
+      });
+    } catch (failure) {
+      setOlder({ busy: false, done: false, note: String(failure) });
+    }
+  };
   useEffect(() => {
     setLoaded(false);
     setSelected('');
@@ -363,6 +410,17 @@ export function ProjectMailbox({
           <small>
             {messages.length} messages · {threads.length} conversations
           </small>
+          {loaded && messages.length >= limit && !older.done && (
+            <button
+              type="button"
+              className="button secondary small"
+              disabled={busy || older.busy}
+              onClick={() => void loadOlder()}
+            >
+              {older.busy ? 'Loading…' : 'Load older messages'}
+            </button>
+          )}
+          {older.note && <small role="status">{older.note}</small>}
           {!loaded ? (
             <p>Loading correspondence…</p>
           ) : !shown.length ? (

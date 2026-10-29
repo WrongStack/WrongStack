@@ -76,3 +76,41 @@ export function mailboxDuration(hours: string, label: string) {
     throw Error(`${label} must be a non-negative number of hours.`);
   return ms;
 }
+
+/** The oldest loaded message's timestamp: the inclusive bound for reading older messages. */
+export function oldestMailTimestamp(messages: readonly Record<string, unknown>[]): string | null {
+  let oldest: string | null = null;
+  for (const message of messages) {
+    const ts = message['timestamp'];
+    if (
+      typeof ts === 'string' &&
+      Number.isFinite(Date.parse(ts)) &&
+      (oldest === null || ts < oldest)
+    )
+      oldest = ts;
+  }
+  return oldest;
+}
+
+/**
+ * Adds an older page to the loaded messages. The bound is inclusive, so messages already loaded
+ * come back and are skipped; `added` is how many were new, and a page shorter than requested
+ * means there is nothing older to read in this view.
+ */
+export function withOlderMail(
+  loaded: readonly Record<string, unknown>[],
+  page: readonly Record<string, unknown>[],
+  requested: number,
+): { messages: Record<string, unknown>[]; added: number; complete: boolean; stuck: boolean } {
+  const ids = new Set(loaded.map((message) => String(message['id'])));
+  const fresh = page.filter((message) => !ids.has(String(message['id'])));
+  // A full page of already-loaded messages: more than a page share the oldest timestamp, so a
+  // timestamp bound cannot move past them.
+  const stuck = fresh.length === 0 && page.length >= requested;
+  return {
+    messages: [...loaded, ...fresh],
+    added: fresh.length,
+    complete: !stuck && page.length < requested,
+    stuck,
+  };
+}

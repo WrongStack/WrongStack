@@ -201,6 +201,8 @@ export interface MailboxQuery {
   minPriority?: 'low' | 'normal' | 'high' | undefined;
   limit?: number | undefined;
   since?: string | undefined;
+  /** Inclusive upper bound on the timestamp, for paging toward older messages. */
+  until?: string | undefined;
   /** Filters by the message's SENDER session id (origin), not the reader's session. */
   sessionId?: string | undefined;
   /**

@@ -442,6 +442,7 @@ export function parseMailboxQueryInput(
   }
 
   query.since = optionalString(payload, 'since', 'query');
+  query.until = optionalString(payload, 'until', 'query');
   query.sessionId = optionalString(payload, 'sessionId', 'query');
   query.includeDeleted = optionalBoolean(payload, 'includeDeleted', 'query');
   query.replyTo = optionalString(payload, 'replyTo', 'query');

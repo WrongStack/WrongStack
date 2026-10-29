@@ -184,7 +184,14 @@ export async function handleMailboxMessages(
   ws: WebSocket,
   deps: MailboxHandlerDeps,
   payload:
-    | { limit?: number; agentId?: string; unreadOnly?: boolean; incompleteOnly?: boolean }
+    | {
+        limit?: number;
+        agentId?: string;
+        unreadOnly?: boolean;
+        incompleteOnly?: boolean;
+        /** Inclusive upper timestamp bound, for reading older messages. */
+        until?: string;
+      }
     | undefined,
 ): Promise<void> {
   const mb = getMailboxForDeps(deps);
@@ -229,6 +236,10 @@ export async function handleMailboxMessages(
     // legacy-completed messages, so they can occupy the LIMIT window and
     // the post-filter (isMessageUnreadForActor) would under-report.
     const queryLimit = payload?.unreadOnly === true ? Math.max(limit * 5, 100) : limit;
+    const until =
+      typeof payload?.until === 'string' && Number.isFinite(Date.parse(payload.until))
+        ? payload.until
+        : undefined;
     const messages = actorScope
       ? await queryMessagesForActor(mb, actorScope, {
           limit: queryLimit,
@@ -236,6 +247,7 @@ export async function handleMailboxMessages(
           unreadBy: payload?.unreadOnly === true ? actorScope.actorId : undefined,
           readerRole,
           incompleteOnly: payload?.incompleteOnly ?? false,
+          until,
           // The per-actor receipt projection (`recipientState`) is what the
           // actor-scoped fields below are derived from. Without it the server
           // would have to fall back to the message-GLOBAL completion flag, which
@@ -249,6 +261,7 @@ export async function handleMailboxMessages(
           readerRole: undefined,
           incompleteOnly: payload?.incompleteOnly ?? false,
           includeReceiptState: false,
+          until,
         });
     // The canonical unread rule applies per PATH: the aggregate no-agent
     // view uses the global rule (read by nobody), while the actor-scoped

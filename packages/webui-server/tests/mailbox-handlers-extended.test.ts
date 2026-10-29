@@ -109,6 +109,21 @@ describe('Mailbox handlers — model-controlled limits (S10)', () => {
       await handleMailboxMessages(wsDefault, { projectRoot: root, globalRoot: root }, undefined);
       const payloadDefault = (wsDefault.sent[0] as { payload: { messages: unknown[] } }).payload;
       expect(payloadDefault.messages.length).toBeLessThanOrEqual(30);
+
+      // Older messages beyond the 200 window are reachable with an inclusive `until` bound.
+      type Listed = { messages: Array<{ id: string; timestamp: string }> };
+      const newest = (ws.sent[0] as { payload: Listed }).payload.messages;
+      const oldestShown = newest.at(-1)!;
+      const wsOlder = createMockWs();
+      await handleMailboxMessages(
+        wsOlder,
+        { projectRoot: root, globalRoot: root },
+        { limit: 200, until: oldestShown.timestamp },
+      );
+      const older = (wsOlder.sent[0] as { payload: Listed }).payload.messages;
+      expect(older.every((m) => m.timestamp <= oldestShown.timestamp)).toBe(true);
+      const all = new Set([...newest, ...older].map((m) => m.id));
+      expect(all.size).toBe(250);
     } finally {
       // Cleanup must never mask the assertion result: close is async and the
       // SQLite handle can lag, so retry the rm and swallow its final failure.

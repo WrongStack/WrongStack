@@ -129,6 +129,24 @@ describe('SqliteMailbox messages', () => {
     expect(since.length).toBeGreaterThanOrEqual(0);
   });
 
+  it('pages older messages with an inclusive until bound compared as an instant', async () => {
+    const first = await send({ subject: 'first' });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = await send({ subject: 'second' });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await send({ subject: 'third' });
+    const older = await mb.query({ until: second.timestamp });
+    expect(older.map((m) => m.subject).sort()).toEqual(['first', 'second']);
+    expect((await mb.query({ until: first.timestamp })).map((m) => m.subject)).toEqual(['first']);
+    // An offset instant is normalized before the text comparison.
+    const at = Date.parse(second.timestamp) + 3 * 3_600_000;
+    const local = `${new Date(at).toISOString().slice(0, 23)}+03:00`;
+    expect((await mb.query({ until: local })).map((m) => m.subject).sort()).toEqual([
+      'first',
+      'second',
+    ]);
+  });
+
   it('compares since as an instant, not as text', async () => {
     // A valid ISO8601 instant with an offset sorts by its local clock as text:
     // one minute before the message, written in +03:00, dropped the message.

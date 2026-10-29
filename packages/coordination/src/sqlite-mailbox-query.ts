@@ -38,6 +38,8 @@ export async function query(
   // form first or it orders by its local clock and drops later messages.
   const sinceMs = query.since === undefined ? Number.NaN : Date.parse(query.since);
   const since = Number.isFinite(sinceMs) ? new Date(sinceMs).toISOString() : query.since;
+  const untilMs = query.until === undefined ? Number.NaN : Date.parse(query.until);
+  const until = Number.isFinite(untilMs) ? new Date(untilMs).toISOString() : query.until;
   // An explicit empty id set matches nothing — and `IN ()` is not valid
   // SQL, so this has to short-circuit before the statement is built.
   if (query.ids !== undefined && query.ids.length === 0) return [];
@@ -79,6 +81,10 @@ export async function query(
   if (since !== undefined) {
     where.push('timestamp > ?');
     params.push(since);
+  }
+  if (until !== undefined) {
+    where.push('timestamp <= ?');
+    params.push(until);
   }
   if (!query.includeDeleted) where.push('deleted_at IS NULL');
   if (query.replyTo !== undefined) {
@@ -164,6 +170,7 @@ export async function query(
     if (type !== undefined && message.type !== type) return false;
     if (priorityRank[message.priority] < minimumRank) return false;
     if (since !== undefined && message.timestamp <= since) return false;
+    if (until !== undefined && message.timestamp > until) return false;
     if (!query.includeDeleted && message.deletedAt !== undefined) return false;
     if (query.replyTo !== undefined && message.replyTo !== query.replyTo) return false;
     return true;
