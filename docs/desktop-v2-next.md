@@ -319,8 +319,8 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
   the original (2026-10-29); it still needs richer provenance, external-model quality and reconnect/cancellation/empty/timeout cases. Countdown or automatic submit is a new
   deliberate UX; current refinement must not acquire hidden auto-send.
 - Whole-message context editing is validated and applied through the engine (2026-10-29); text cuts
-  inside a message, a draft token estimate and context mode authoring exist (2026-10-30); add
-  richer compaction feedback. Residency/retention in the context panel are committed (`1b0902159`, 2026-10-29).
+  inside a message, a draft token estimate, context mode authoring and compaction feedback
+  (request tokens, reductions, quality check, digest) exist (2026-10-30). Residency/retention in the context panel are committed (`1b0902159`, 2026-10-29).
 - Extend selective merging to the remaining durable forms (file, mailbox and roster document drafts merge change by change, 2026-10-29); send-time races, abrupt termination during pending saves and the
   full focus/keyboard/screen-reader matrix. Existing tests protect acknowledged snapshots, not
   every unacknowledged last keystroke.

@@ -4416,3 +4416,16 @@ staged; the other session's edits stay untouched.
   typecheck and Biome PASS.
 - Native step written (`native-composer-resources.mjs`: create, use and delete a mode);
   **not run**.
+
+### Compaction feedback
+
+- Commit `5ad585af9`. `context.compacted` also carries what the compactor reported: full-request
+  tokens before and after, its own quality check (`ok` and issues), and the digest the collapsed
+  turns became (first 20,000 characters, with `digestTruncated`; the session log keeps all of
+  it). After "Compact context" the panel shows message and request tokens, each reduction by
+  kind (old tool output replaced with receipts, older turns summarized, turns selected and
+  collapsed), a flagged quality check as an alert, and the digest on request.
+- Checks: RED then GREEN in `session-handlers.gaps.test.ts` (38 tests); model test for the
+  reply; webui-server typecheck PASS; desktop suite **587 PASS**, typecheck and Biome PASS.
+- Native step written (`native-composer-resources.mjs`: compaction shows its result region);
+  **not run**.
