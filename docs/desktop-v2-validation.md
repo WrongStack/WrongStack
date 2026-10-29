@@ -3322,3 +3322,300 @@ Verification on the shared working snapshot:
 - Not covered: conflict and run-active refusals natively, protocol-repair cases with tool
   pairs, very large contexts, and the WebUI editor (its listeners are not request-correlated;
   the added `requestId` is additive).
+
+## Context residency and retention in the context panel (2026-10-29)
+
+- Status: implemented and natively verified, not yet committed. The Core API snapshot hook
+  refuses this commit while another session's `packages/cli` edits are unstaged; the files are
+  `context-residency-model.ts`, `ContextResidency.tsx`, the `SessionContextPanel.tsx` hook-up and
+  their tests.
+- The context panel shows two engine snapshots `context.debug` already returned: the last
+  request's cache layout (provider/model, verdict, estimated total, share the layout allows from
+  cache, one meter per cache lane, segments with lane and count, cache breakers, whether the next
+  request keeps the history prefix, and provider-reported cache reads only when they arrived) and
+  what the next compaction keeps (protected turns, elision candidates, compactable, elided and
+  digest classes with message/token counts). Labels come from Core's dependency-free
+  `@wrongstack/core/utils/residency-labels`, the same vocabulary as the CLI, TUI and WebUI.
+  Shapes the view cannot read are not drawn; it says the engine did not report them.
+- Checks: desktop **477 tests / 104 files PASS** (new `context-residency-model` tests); typecheck
+  **272 PASS**; Biome PASS on the changed files.
+- Native `--composer` on portable identity `88e762189658-5390544472ff`, bundled engine built from
+  the shared tree: **exit 0 / PASS** on the first run. After real turns the engine reports both
+  snapshots; the panel shows three lane meters and the reported provider/model, and the retention
+  section.
+- Not covered: providers without prompt caching natively, cache breakers natively, and the
+  screen-reader reading of the meters.
+
+## Unapplied automation environment edits kept per job (2026-10-29)
+
+- Commit `87f9f2a24`. The environment dialog writes its unapplied edits, together with the
+  environment they were made from, to a native project form keyed per job
+  (`automation-environment:<sha256 of project and job id or @new>`, new Rust hashed-key prefix),
+  so jobs never overwrite each other. Reopening the dialog restores them with a notice when the
+  job's environment and image are unchanged; edits made from a different environment are
+  offered ("Use unapplied edits" / "Discard them") rather than applied. Applying the environment
+  to the job draft or "Discard environment changes" removes the stored copy. The envelope is
+  versioned and bounded (512 KiB, 100 rows per list, fixed field types).
+- Checks: desktop **480 tests / 105 files PASS** (new `automation-environment-draft` tests:
+  round trip, malformed refusal, per-project/per-job keys); typecheck **274 PASS**; Biome PASS;
+  Rust fmt PASS; native Rust **21 tests PASS** (hashed key accepted, plain id refused).
+- Native `--automation` on portable identity `ea9cb251c8f9-5390544472ff` (bundled engine
+  `5390544472ff` reused; no engine change): **exit 0 / PASS** on the first run. The dialog's
+  edits are read back from native storage, survive a renderer reload together with the new
+  automation draft, are restored with the notice (setup commands and port), and leave storage
+  after Apply; all existing automation scenarios still pass.
+- Not covered: the changed-environment offer natively, discard natively, existing-job keys
+  natively.
+
+## BTW read and handled receipts (2026-10-29)
+
+- Commit `e305a605a`. When a BTW note is saved during a run, the
+  composer captures its mailbox id (`mailbox.sent` → `messageId`). A collapsed "BTW notes · N"
+  list above the queue follows each note sent from this window: "Saved · not read yet", "Read by
+  the leader" with reader names, "Handled" (completed), or "No longer in the recent mailbox" when
+  the record is not in the latest 200. Receipts are re-read when the list opens, on mailbox
+  events and on demand. Mailbox records carry no session, so only ids captured in this window are
+  tracked (50 per session); the list does not survive a restart.
+- Checks: desktop **483 tests / 106 files PASS** (new `btw-receipts` tests: per-session bounded
+  store, receipt states, captured id from a BTW sent during a run); typecheck **276 PASS**; Biome
+  PASS on the changed files.
+- Native `--composer` on portable identity `f7f752804657-5390544472ff` (bundled engine reused):
+  **exit 0 / PASS** on the first run. The BTW sent during a held provider turn appears in the
+  list with a receipt read from its real mailbox record, and "Handled" is shown exactly when that
+  record is completed.
+- Not covered: read and handled transitions natively (the held turn does not read the note),
+  multiple windows, restart.
+
+## Find and replace in the file editor (2026-10-29)
+
+- Commit `bfb3a536c`. Ctrl/Cmd+F in the file editor opens a find and replace bar: literal
+  matching (regex characters are literal), optional match case, match count and position,
+  Enter / Shift+Enter or buttons for next/previous (selects the match in the editor, wrapping),
+  Replace (the selected match) and Replace all with "Undo replace all" while the text is
+  unchanged since. Replacing edits only the editor text; Save still writes the file and the
+  existing draft and version-bound save rules apply. Matching stops at 10,000 matches and
+  Replace all then refuses with a message instead of stalling.
+- Checks: desktop **486 tests / 107 files PASS** (new `editor-find` tests: literal and case
+  matching, caret navigation with wrap, literal replacement including `$&`, capped refusal);
+  typecheck **278 PASS**; Biome PASS on the changed files.
+- Native `--files` on portable identity `ee5983cfb00c-5390544472ff` (bundled engine reused):
+  **exit 0 / PASS** on the first run. In a saved file, Ctrl+F finds the one match, Replace all
+  changes only the editor text (the file on disk is unchanged), Undo restores it exactly and
+  Escape closes the bar; all existing file scenarios still pass.
+- Not covered: Replace and next/previous natively, very large files, and the read-only viewer
+  (find is offered in edit mode only).
+
+## Catalog details in the model picker (2026-10-29)
+
+- Commit `5ffe57c43`. Every model picker row (session model, refiner, agent plan, roster and
+  automation pickers share `ProfileModelPicker`) shows one line of known catalog facts: context
+  window, output limit, input/output price per 1M tokens, capabilities (vision reads as
+  "images") and a non-active status such as "deprecated". Unknown facts are left out rather
+  than shown as zero; a catalog price of 0 / 0 reads "no catalog price"; malformed values in
+  the reply are dropped.
+- Engine fix (uncommitted, held with the residency commit because the Core API snapshot hook
+  refuses while another session's `packages/cli` edits are unstaged):
+  `packages/webui-server/src/server/provider/catalog.ts` now lists a saved custom model's
+  output limit in `provider.models`; the enrichment fallback kept its context window but dropped
+  `maxOutput`. RED then GREEN in `packages/webui-server/tests/provider-models-custom-limits.test.ts`
+  (an unknown output limit stays absent); 87 related webui-server tests and its typecheck PASS.
+- Checks: desktop **489 tests / 108 files PASS** (new `model-picker-details` tests); typecheck
+  **279 PASS**; Biome PASS on the changed files.
+- Native `--composer` on portable identity `3726782d27de-eb7323dfffaf` (rebuilt engine with the
+  fix): **exit 0 / PASS**. The refiner picker row of a custom model saved with 128,000 context
+  and 16,000 output reads "128K context · 16K output …"; all existing composer scenarios pass.
+  The native assertion is committed together with the engine fix.
+- Not covered: catalog prices natively (the local fixture provider has none), and side-by-side
+  model comparison.
+
+## Reply threads and resolution for Git review notes (2026-10-29)
+
+- Commit `7d4cfe99b`. Each saved review note in Changes & review can carry replies (up to 50,
+  each with its time) and be resolved or reopened. Resolved notes are struck through, hidden
+  unless "Show resolved" is ticked, counted separately in the tray header and left out of the
+  review sent to the conversation or copied. Notes are saved as version 2 under the same
+  project key with the existing revision check; version 1 notes still load and are written
+  back as version 2 on the next change. An older desktop build reading a version 2 collection
+  shows the existing "unsupported format" error rather than dropping notes. A failed save keeps
+  the typed reply. The tray moved out of `FileWorkspace.tsx` into `ReviewNotesTray.tsx`.
+- Checks: desktop **493 tests / 109 files PASS** (new `review-notes-discussion` tests: reply and
+  resolve helpers, reply limit, version 1/2 parsing and malformed discussions, review text
+  without resolved notes); typecheck **280 PASS**; Biome PASS on the changed files.
+- Native `--files` on portable identity `221529278f70-eb7323dfffaf`: **exit 0 / PASS** on the
+  first run. A reply is added and listed, resolving hides the note and reads "1 open review
+  notes · 1 resolved", the stored collection is version 2 with the reply and the resolved flag,
+  both survive a reload, "Show resolved" shows the thread and Reopen returns it to open; the
+  peer-conflict scenario before it still passes.
+- Not covered: reply editing or deletion, multiple authors (the notes are local to this
+  desktop), and the reply limit natively.
+
+## Bulk rename by find and replace in names (2026-10-29)
+
+- Commit `1ae5a0ba7`. Picked folder-listing items gain "Rename selected…": literal find and
+  replace in each item's name (never its folder), optional match case, and a preview of every
+  new name. The batch does not start while any name is invalid (empty, `.`/`..`, a path
+  separator), two items would reach the same name (compared without case), or a new name equals
+  another selected item (swap or chain). Items inside a selected folder go with that folder;
+  unchanged names are counted. Each rename is one `files.rename`; the engine refuses an existing
+  target, which is reported per item and never overwritten. Open editors follow renamed paths.
+- Checks: desktop **497 tests / 110 files PASS** (new `file-bulk-rename` tests: names only,
+  literal and case handling, invalid names, collisions and swaps, empty find); typecheck **280
+  PASS**; Biome PASS on the changed files.
+- Native `--files` on portable identity `021db18a9a8b-eb7323dfffaf`: **exit 0 / PASS** on the
+  first run. Three picked files are renamed `-old` → `-new`; two change on disk and the third is
+  refused because `f-new.txt` exists, whose content is unchanged; the summary reads
+  "Renamed 2 of 3 items. Failed: bulk-ops/f-old.txt (…)" and the refused item stays selected.
+- Not covered: bulk copy (the engine has no copy command), regex or numbering patterns, and an
+  atomic multi-item contract.
+
+## Side-by-side model comparison (2026-10-29)
+
+- Commit `64d3d7688`. Every model picker offers "Compare models": in this mode a row click
+  picks or unpicks the model (two to four, a fifth is refused with a message) without
+  switching, and "Show comparison" lays out context, output, input and output price per 1M,
+  every reported capability and a non-active status in one table. Unknown facts read
+  "Unknown" and are never estimated; the largest limit or lowest price is highlighted only
+  when at least two known values differ. "Use <model>" in the table goes through the same
+  policy-checked switch as a row click. Changing provider or refreshing clears the picks.
+- Checks: desktop **500 tests / 111 files PASS** (new `model-comparison` tests: alignment,
+  best marks with unknown and equal values, status row, pick limit); typecheck **282 PASS**;
+  Biome PASS on the changed files.
+- Native `--composer` on portable identity `fd23bb4150b2-eb7323dfffaf`: **exit 0 / PASS**. In
+  the session model picker, picking the fixture and alternate models for comparison leaves the
+  engine model unchanged, the table lists both in order with the alternate's Tools row "Yes",
+  and "Use" on the alternate switches the session; all existing composer scenarios pass.
+- Not covered: catalog prices natively (the fixture provider has none), more than one
+  provider in one comparison.
+
+## BTW receipts across restarts (2026-10-29)
+
+- Commit `ae0ece5a7`. BTW notes sent from a project session are now saved on this desktop
+  under a hashed project form key per session (`btw-receipts:`, newly allowed in the native
+  registry with a Rust test), so the receipt list survives a renderer reload or app restart.
+  The list is append-only: a save that lost a revision race re-reads, merges by message id and
+  retries (up to three times) instead of overwriting the other window; notes recorded while
+  the saved list is loading are kept and written back. Load and save failures are shown in the
+  receipt list; the note stays visible in this window. Read/handled state is still read live
+  from the mailbox and is not stored.
+- Checks: desktop **505 tests / 112 files PASS** (new `btw-receipts-persistence` tests:
+  restart restore, early note before load, two-window merge, visible save failure, malformed
+  envelopes and per-session keys); typecheck **282 PASS**; Biome PASS; Rust fmt and **21 tests
+  PASS**.
+- Native `--composer` on portable identity `e12dadc0b489-eb7323dfffaf` (native host rebuilt):
+  **exit 0 / PASS**. After the renderer reload in the queue scenario the BTW list still reads
+  "BTW notes · 1" and the receipt resolves from the mailbox. Only this hunk of
+  `native-composer.mjs` was committed; the held model-picker assertion stays uncommitted.
+- Not covered: a full app restart natively (the reload drops all renderer state), and
+  sessions without a project (they keep the in-memory list).
+
+## Chronicle timeline export (2026-10-29)
+
+- Commit `0114d1fed`. The Chronicle timeline header offers "Export Markdown" and "Export JSONL"
+  for the events currently loaded. JSONL writes each event exactly as the engine returned it;
+  Markdown writes a table of time, event type, title, subject and outcome, with recorded text
+  escaped (pipes, line breaks, backticks) so it cannot alter the document. The export header
+  states loaded versus matching events and the applied filters, and the notice says when older
+  events were not loaded; nothing extra is fetched.
+- Checks: desktop **508 tests / 113 files PASS** (new `chronicle-export` tests: exact JSONL,
+  table escaping and fallbacks, file names); typecheck **283 PASS**; Biome PASS.
+- Native `--chronicle` on portable identity `738160d79728-eb7323dfffaf`: **exit 0 / PASS**. The
+  real downloads contain exactly the loaded event count in JSONL (every event with an id) and
+  in Markdown table rows; the insights scenario still passes.
+- Not covered: exporting the lineage graph, prompt-manifest inspection, and exports larger
+  than the loaded pages.
+
+## Branch and merge lanes in repository history (2026-10-29)
+
+- Commit `e9456b164`. The commit list draws a lane graph from each loaded commit's parents:
+  a commit keeps the lane waiting for it and hands it to its first parent, other parents of a
+  merge get their own lane (or join one already waiting), and lanes that wait for the same
+  commit converge where a branch forked. Parents outside the loaded pages continue to the
+  bottom; more than 10 lanes are clipped. Merge commits use a filled marker. A search filters
+  rows, so it shows the previous plain markers instead of misleading lanes.
+- Checks: desktop **512 tests / 114 files PASS** (new `git-graph` tests: linear history, merged
+  branch with fork convergence, unrelated tips and parents outside the page, repeated merges
+  into a waiting lane); typecheck **285 PASS**; Biome PASS.
+- Native `--files` on portable identity `9d9127b3aa54-eb7323dfffaf`: **exit 0 / PASS**. A real
+  side branch merged with `--no-ff` shows the merge marker, the first parent in lane 0, the
+  side commit in lane 1 and a two-lane row; searching removes the graph; the earlier
+  rename/rename branch fixture also renders its own lane. All existing file scenarios pass.
+- Not covered: very wide histories, octopus merges natively, and lane continuity across
+  "Load older commits" boundaries beyond the recomputation over all loaded commits.
+
+## Batch termination of session processes (2026-10-29)
+
+- Commit `072356f33`. Running, unprotected processes in the session Processes view can be
+  picked (per row or "Select all running" over the visible rows) and terminated together after
+  a review that lists every picked PID and command. Picks are keyed by PID and start time, so a
+  reused PID never inherits a pick; picks that exit or become protected drop out of the
+  selection. On confirm the list is re-read once, each pick still the same running,
+  unprotected process gets its own `process.kill` with its start time, and the summary states
+  acknowledged, failed and not-sent (exited, changed, protected) processes separately.
+- Checks: desktop **515 tests / 115 files PASS** (new `session-process-batch` tests: fresh-list
+  split including a reused PID, keys and eligibility, summary wording); typecheck **285 PASS**;
+  Biome PASS.
+- Native `--processes` on portable identity `f59beed5d86b-eb7323dfffaf`: **exit 0 / PASS**. The
+  single-process review still keeps the process running when declined. The real termination now
+  goes through the batch path: pick, review list, "Keep processes running" (still running),
+  then confirm; the summary reads "Termination acknowledged for 1 of 1 processes.", the
+  registry drops the PID and the OS process actually exits. The single-process confirm button
+  is no longer exercised natively (it sends the same `process.kill`).
+- Not covered: several real processes in one batch (the fixture starts one), and a process
+  changing between review and send natively.
+
+## Code Assist edit comparison and restore (2026-10-29)
+
+- Commit `2f6fc0b21`. Before an editing Code Assist run ("Implement a fix" or a question with
+  "Allow changes to project files"), the panel reads the target file. When the run finishes,
+  "Changes from this run" shows that file as it was before the run next to its current content
+  (or says it is unchanged) and offers "Restore content from before this run". The restore uses
+  the version-bound save: it writes only when the disk still holds exactly the content shown,
+  otherwise nothing is written and the panel says so. A binary or unreadable file is reported
+  instead of compared. Only the target file is captured; the note points to the working tree
+  for others. The snapshot lives in the open panel only.
+- Checks: desktop **515 tests / 115 files PASS** (the restore reuses the tested
+  `saveFileVersion`; no new unit test); typecheck **286 PASS**; Biome PASS.
+- Native `--composer` on portable identity `2f18cdcee5cf-eb7323dfffaf`: **exit 0 / PASS** on the
+  first run. The fixture provider now answers `[native-code-assist-edit]` with a real `write`
+  tool call (the engine offers the tool only to editing runs). The file on disk changes, the
+  comparison shows the new line, a restore over a newer disk edit is refused and leaves that
+  edit in place, and after putting the run's content back the restore writes the original
+  bytes exactly.
+- Not covered: edits to files other than the target, a full app restart between run and
+  restore, and real-model edit quality.
+
+## Finding files open at their recorded line (2026-10-29)
+
+- Commit `059e01801`. Dead-code findings and Chimera finding locations now pass their recorded
+  line when opening the file: the project file target carries an optional line, and the file
+  manager opens the file scrolled to and marking that source line through the existing
+  search-match reveal. Findings without a line, and every other "open file" link, behave as
+  before (the line is reset with each target).
+- Checks: desktop **515 tests / 115 files PASS**; typecheck **286 PASS**; Biome PASS.
+- Native `--chimera` on portable identity `f9226fb1cb44-eb7323dfffaf`: **exit 0 / PASS**. The
+  recorded finding at `README.md:1` opens the file with line 1 marked, and the review reopens
+  for the rest of the scenario. Native `--files` on the same identity: the first run timed out
+  waiting for a merge-conflict dialog to close in the add/add variant (a step this change does
+  not touch); the rerun was **exit 0 / PASS**.
+- Not covered: the dead-code finding link natively (the dead-code native fixture runs only in
+  the full suite) and line ranges (only the start line is marked).
+
+## Binary MCP content preview and save (2026-10-29)
+
+- Commit `09ac96ac9`. Binary MCP resource blocks (`blob`) and prompt content (`data`) are no
+  longer only described: their base64 is decoded strictly (malformed data is reported), PNG,
+  JPEG, GIF and WebP are previewed from their own bytes (SVG and other types are not rendered),
+  and every binary block offers "Save <name>" with a name from the resource URI's last segment,
+  sanitized and given an extension from the media type. Text copies and draft insertion still
+  omit binary blocks. The engine's existing 256 KiB insertion limit applies unchanged; the
+  Tauri CSP already allows `data:` images.
+- Checks: desktop **517 tests / 116 files PASS** (new `mcp-binary` tests: strict decoding,
+  previewable types including SVG refusal, file names); typecheck **288 PASS**; Biome PASS.
+- Native `--mcp` on portable identity `e0b4e42c4424-eb7323dfffaf`: **exit 0 / PASS** after one
+  test correction. The loopback MCP fixture now serves a real 1×1 PNG resource; the preview
+  decodes (natural width 1) and the saved `logo.png` has exactly the served bytes. The first
+  run failed the existing "one page" assertion because WebView2 lists its own downloads flyout
+  (`edge://downloads-hub/`) as a target after any download; the assertion now ignores only
+  that built-in target and still requires the app page to be the only other one.
+- Not covered: audio/PDF preview, content near the 256 KiB limit, and prompt image content
+  natively.
