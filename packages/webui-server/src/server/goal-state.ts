@@ -144,6 +144,8 @@ export function buildGoalState(
     multiBoard: graph.multiBoard ?? false,
     verifyTasks: graph.verifyTasks ?? false,
     chimeraReview: graph.chimeraReview ?? false,
+    budget: graph.budget ?? null,
+    budgetUsage: graph.budgetUsage ? { ...graph.budgetUsage } : null,
     finalVerification: graph.finalVerification ? structuredClone(graph.finalVerification) : null,
     status: normalizedStatus,
   };

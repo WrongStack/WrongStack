@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineSend } from './engine-operations';
 import { type EngineState, entries, record } from './engine-state';
 import { matchingGoalAssessment } from './goal-assessment';
+import { goalBudgetPayload, goalBudgetText } from './goal-budget-model';
 import { ProjectMission } from './ProjectMission';
 import './project-goals.css';
 
@@ -47,6 +48,11 @@ export function ProjectGoals({
   const [multiBoard, setMultiBoard] = useState(false);
   const [review, setReview] = useState(false);
   const [isolate, setIsolate] = useState(false);
+  // Optional limits: tasks started and active run time, checked before each task.
+  const [budgetTasks, setBudgetTasks] = useState(''),
+    [budgetMinutes, setBudgetMinutes] = useState(''),
+    [resumeTasks, setResumeTasks] = useState(''),
+    [resumeMinutes, setResumeMinutes] = useState('');
   const [action, setAction] = useState('');
   const [error, setError] = useState('');
   const [stopConfirm, setStopConfirm] = useState(false);
@@ -166,6 +172,13 @@ export function ProjectGoals({
   };
   const start = async () => {
     if (!title.trim()) return;
+    let budget: ReturnType<typeof goalBudgetPayload>;
+    try {
+      budget = goalBudgetPayload(budgetTasks, budgetMinutes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      return;
+    }
     assessmentRequest.current = 0;
     setAssessing(false);
     setAssessment(null);
@@ -184,6 +197,7 @@ export function ProjectGoals({
         multiBoard,
         verifyTasks: verify,
         chimeraReview: review,
+        ...(budget ? { budget } : {}),
       });
     } catch (e) {
       setAction('');
@@ -358,6 +372,29 @@ export function ProjectGoals({
               />{' '}
               Isolate work in Git worktrees
             </label>
+            <label>
+              Task limit
+              <input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={budgetTasks}
+                placeholder="No limit"
+                onChange={(e) => setBudgetTasks(e.target.value)}
+              />
+            </label>
+            <label>
+              Run-time limit (minutes)
+              <input
+                type="number"
+                min={1}
+                inputMode="decimal"
+                value={budgetMinutes}
+                placeholder="No limit"
+                onChange={(e) => setBudgetMinutes(e.target.value)}
+              />
+            </label>
           </div>
           <div className="goal-create-actions">
             <button type="button" className="button secondary" onClick={() => setCreating(false)}>
@@ -395,6 +432,9 @@ export function ProjectGoals({
                 <span>{readOnly ? 'Controlled by another owner' : 'Project engine'}</span>
                 {goal?.['verifyTasks'] === true && <span>Task verification</span>}
                 {goal?.['multiBoard'] === true && <span>Multiple boards</span>}
+                {goalBudgetText(goal?.['budget'], goal?.['budgetUsage']) && (
+                  <span>{goalBudgetText(goal?.['budget'], goal?.['budgetUsage'])}</span>
+                )}
               </div>
             </div>
             <div className="goal-controls">
@@ -408,12 +448,50 @@ export function ProjectGoals({
                   <Pause size={14} /> Pause
                 </button>
               )}
+              {['stopped', 'failed'].includes(status) && !readOnly && (
+                // New limits replace the saved budget when the run resumes; blank keeps it.
+                <span className="goal-resume-budget">
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    aria-label="Task limit for the resumed run"
+                    placeholder="Task limit"
+                    value={resumeTasks}
+                    onChange={(e) => setResumeTasks(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    aria-label="Run-time limit in minutes for the resumed run"
+                    placeholder="Minutes"
+                    value={resumeMinutes}
+                    onChange={(e) => setResumeMinutes(e.target.value)}
+                  />
+                </span>
+              )}
               {['paused', 'stopped', 'failed'].includes(status) && (
                 <button
                   type="button"
                   className="button secondary"
                   disabled={readOnly}
-                  onClick={() => void sendRequest('goal.resume', { goalId: selected }, 'Resume')}
+                  onClick={() => {
+                    let budget: ReturnType<typeof goalBudgetPayload>;
+                    try {
+                      budget =
+                        status === 'paused'
+                          ? undefined
+                          : goalBudgetPayload(resumeTasks, resumeMinutes);
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : String(e));
+                      return;
+                    }
+                    void sendRequest(
+                      'goal.resume',
+                      { goalId: selected, ...(budget ? { budget } : {}) },
+                      'Resume',
+                    );
+                  }}
                 >
                   <Play size={14} /> Resume
                 </button>

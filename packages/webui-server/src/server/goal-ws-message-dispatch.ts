@@ -44,7 +44,8 @@ export async function dispatchGoalMessage(
       } else {
         const graphId =
           typeof msg.payload?.graphId === 'string' ? msg.payload.graphId : host.graph?.id;
-        if (graphId) await host.handleResumeGraph(graphId);
+        // An optional `budget` replaces the saved one, e.g. to continue past a budget stop.
+        if (graphId) await host.handleResumeGraph(graphId, msg.payload?.budget);
         else
           host.broadcast({
             type: 'goal.error',

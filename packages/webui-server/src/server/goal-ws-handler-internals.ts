@@ -58,7 +58,7 @@ export interface GoalWsHandlerInternals extends GoalWsRunControlsHost {
   handleMessage(ws: WebSocket, msg: GoalWSMessage): Promise<void>;
   handleAssess(ws: WebSocket, payload?: Record<string, unknown>): Promise<void>;
   handleStart(payload?: Record<string, unknown>): Promise<void>;
-  handleResumeGraph(graphId: string): Promise<void>;
+  handleResumeGraph(graphId: string, budget?: unknown): Promise<void>;
   handleClear(): Promise<void>;
   handleRevert(): Promise<void>;
   planPhases(goal: string, signal?: AbortSignal): Promise<PhaseTemplate[]>;

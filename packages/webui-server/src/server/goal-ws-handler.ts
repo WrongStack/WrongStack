@@ -191,9 +191,10 @@ export class GoalWebSocketHandler {
     }
   }
 
-  private async handleResumeGraph(graphId: string): Promise<void> {
-    if (this.setupPromise) return handleResumeGraphFromHost(this.goalWsRunControlsHost(), graphId);
-    const setup = handleResumeGraphFromHost(this.goalWsRunControlsHost(), graphId);
+  private async handleResumeGraph(graphId: string, budget?: unknown): Promise<void> {
+    if (this.setupPromise)
+      return handleResumeGraphFromHost(this.goalWsRunControlsHost(), graphId, budget);
+    const setup = handleResumeGraphFromHost(this.goalWsRunControlsHost(), graphId, budget);
     this.setupPromise = setup;
     try {
       await setup;

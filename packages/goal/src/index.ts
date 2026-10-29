@@ -47,6 +47,12 @@ export {
   type GoalAssessResult,
 } from './goal-assessor.js';
 export {
+  type GoalBudget,
+  type GoalBudgetUsage,
+  goalBudgetExceeded,
+  parseGoalBudget,
+} from './goal-budget.js';
+export {
   extractJSONArray as extractGoalJSONArray,
   GoalPlanner,
   type GoalPlannerOptions,
@@ -76,7 +82,6 @@ export {
   PhaseOrchestrator,
   type PhaseOrchestratorOptions,
 } from './phase-orchestrator.js';
-
 export { GoalRunLeaseBusyError, PhaseStore, type PhaseStoreOptions } from './phase-store.js';
 export {
   type GoalProjectVerificationResult,

@@ -92,6 +92,10 @@ export interface PhaseGraph {
   worktrees?: boolean | undefined;
   /** Base tip before the run's first merge, retained across process restart. */
   runBase?: { branch: string; sha: string } | undefined;
+  /** Operator limits checked before each task starts (see `goal-budget.ts`). */
+  budget?: import('./goal-budget.js').GoalBudget | undefined;
+  /** Tasks started and active run time counted against `budget`, across resumes. */
+  budgetUsage?: import('./goal-budget.js').GoalBudgetUsage | undefined;
   /** Verification of the fully merged base tree after every phase integrates. */
   finalVerification?:
     | {

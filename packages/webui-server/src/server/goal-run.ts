@@ -1,18 +1,20 @@
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Logger } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   type GoalRunPersistence,
+  goalBudgetExceeded,
   type PhaseExecutionContext,
   type PhaseGraph,
   PhaseGraphBuilder,
   type PhaseNode,
   PhaseOrchestrator,
   type PhaseTemplate,
+  parseGoalBudget,
   prepareGoalWorkspace,
   verifyGoalProject,
 } from '@wrongstack/goal';
-import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/worktree';
 import { isGitWorkTree } from './git-process.js';
 
@@ -255,10 +257,36 @@ export async function startGoalRun(
       host.runRepairPhase(phase, failure, attempt, env);
   }
 
+  // Budget: a resume keeps the saved one unless the request sets a new one. Usage is counted
+  // before each task starts; run time accrues only while this run is active.
+  const requestedBudget = parseGoalBudget(payload?.budget);
+  if (requestedBudget || !resumeGraph) graph.budget = requestedBudget;
+  graph.budgetUsage ??= { tasks: 0, elapsedMs: 0 };
+  // The previous budget stop is history once the run continues.
+  if (graph.runError?.startsWith('Budget reached')) graph.runError = undefined;
+  const usage = graph.budgetUsage;
+  let accruedAt = Date.now();
+  const accrue = () => {
+    const now = Date.now();
+    usage.elapsedMs += now - accruedAt;
+    accruedAt = now;
+  };
+  let budgetStop: string | undefined;
+
   const orchestrator = new PhaseOrchestrator({
     graph,
     ctx: {
       executeTask: async (task, phaseId, env, signal) => {
+        accrue();
+        const exceeded = goalBudgetExceeded(graph.budget, usage);
+        if (exceeded) {
+          // stop() leaves this task pending (resumable) rather than failed.
+          budgetStop = exceeded;
+          graph.runError = exceeded;
+          orchestrator.stop();
+          throw new Error(exceeded);
+        }
+        usage.tasks += 1;
         host.logger.info(`[Goal] [${phaseId}] Executing: ${task.title}`);
         const taskEnv = { ...env, cwd: env?.cwd ?? runRoot };
         const result = await host.executeTaskWithAgent(task, phaseId, taskEnv, signal);
@@ -321,9 +349,25 @@ export async function startGoalRun(
 
   const runPromise = orchestrator.start();
   host.runPromise = runPromise;
+  /** A run its budget stopped ends `stopped` with the reason, not completed or failed. */
+  const finishBudgetStop = async (reason: string) => {
+    graph.runState = 'stopped';
+    host.runStatus = 'stopped';
+    await host.persistence.save(graph).catch((saveErr: unknown) => {
+      host.logger.warn(`[Goal] Failed to save budget stop: ${toErrorMessage(saveErr)}`);
+    });
+    host.stopBroadcast();
+    host.broadcast({ type: 'goal.stopped', payload: { title, reason } });
+    host.broadcastState();
+    host.abort = null;
+    await host.releaseActiveRunLease();
+    if (host.runPromise === runPromise) host.runPromise = null;
+  };
   void runPromise
     .then(async () => {
       if (host.orchestrator !== orchestrator) return;
+      accrue();
+      if (budgetStop) return finishBudgetStop(budgetStop);
       graph.runState =
         graph.failedPhaseIds.length > 0 || graph.finalVerification?.status === 'failed'
           ? 'failed'
@@ -355,6 +399,8 @@ export async function startGoalRun(
     })
     .catch(async (err: unknown) => {
       if (host.orchestrator !== orchestrator) return;
+      accrue();
+      if (budgetStop) return finishBudgetStop(budgetStop);
       host.logger.error(`[Goal] Aborted: ${toErrorMessage(err)}`);
       await host.persistence.save(graph).catch((saveErr: unknown) => {
         host.logger.warn(`[Goal] Failed to save aborted run: ${toErrorMessage(saveErr)}`);

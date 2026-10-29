@@ -1,3 +1,4 @@
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   GoalRunLeaseBusyError,
   type GoalRunPersistence,
@@ -8,7 +9,6 @@ import {
   prepareGoalWorkspace,
   releaseGoalWorkspaceHold,
 } from '@wrongstack/goal';
-import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/worktree';
 import { isGitWorkTree } from './git-process.js';
 import { commitsSince } from './goal-ws-run-controls-contracts.js';
@@ -116,6 +116,7 @@ export async function handleStart(
 export async function handleResumeGraph(
   host: GoalWsRunControlsHost,
   graphId: string,
+  budget?: unknown,
 ): Promise<void> {
   if (
     host.startInFlight ||
@@ -164,7 +165,7 @@ export async function handleResumeGraph(
     host.runStatus = 'running';
     host.releaseRunLease = releaseRunLease;
     releaseRunLease = undefined;
-    await host.startRun(undefined, graph);
+    await host.startRun(budget === undefined ? undefined : { budget }, graph);
     if (!host.stopping && host.orchestrator) {
       host.broadcast({ type: 'goal.resumed', payload: { graphId: graph.id } });
       host.broadcastState();

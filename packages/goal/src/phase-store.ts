@@ -57,6 +57,8 @@ interface SerializedPhaseGraph {
   chimeraReview?: boolean | undefined;
   worktrees?: boolean | undefined;
   runBase?: PhaseGraph['runBase'];
+  budget?: PhaseGraph['budget'];
+  budgetUsage?: PhaseGraph['budgetUsage'];
   finalVerification?: PhaseGraph['finalVerification'];
   createdAt: number;
   updatedAt: number;
@@ -498,6 +500,8 @@ export class PhaseStore {
       chimeraReview: graph.chimeraReview,
       worktrees: graph.worktrees,
       runBase: graph.runBase,
+      budget: graph.budget,
+      budgetUsage: graph.budgetUsage,
       finalVerification: graph.finalVerification,
       createdAt: graph.createdAt,
       updatedAt: graph.updatedAt,
@@ -582,6 +586,8 @@ export class PhaseStore {
       chimeraReview: serialized.chimeraReview,
       worktrees: serialized.worktrees,
       runBase: serialized.runBase,
+      budget: serialized.budget,
+      budgetUsage: serialized.budgetUsage,
       finalVerification: serialized.finalVerification,
       createdAt: serialized.createdAt,
       updatedAt: serialized.updatedAt,
