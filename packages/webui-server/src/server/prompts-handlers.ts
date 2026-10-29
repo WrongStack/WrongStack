@@ -274,6 +274,22 @@ export async function handlePromptsCreate(
       createdAt: now,
       updatedAt: now,
     };
+    if (p['ifAbsent'] === true) {
+      // Create-only: checked past the loader cache right before the write, so a prompt saved
+      // meanwhile by another window or process is not replaced. Built-ins are only shadowed.
+      ctx.promptLoader.invalidateCache?.();
+      const existing = await ctx.promptLoader.find(slug);
+      if (existing && existing.source !== 'builtin') {
+        send(ws, {
+          type: 'prompts.created',
+          payload: withRequestId(msg, {
+            success: false,
+            error: `A prompt "${slug}" already exists. Choose a different title.`,
+          }),
+        });
+        return;
+      }
+    }
     await ctx.promptLoader.save(entry);
     send(ws, { type: 'prompts.created', payload: withRequestId(msg, { success: true, slug }) });
   } catch (err) {

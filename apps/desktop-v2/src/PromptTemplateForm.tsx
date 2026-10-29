@@ -68,9 +68,13 @@ export function PromptTemplateForm({
             .map((tag) => tag.trim())
             .filter(Boolean),
           variables: variables.map((name) => ({ name, required: required.includes(name) })),
+          // The engine re-checks right before writing; engines without it ignore the flag.
+          ifAbsent: true,
         },
         ['prompts.created'],
       );
+      if (result['success'] === false)
+        throw Error(String(result['error'] ?? 'The prompt was not saved. Your draft is kept.'));
       const doc = await command('prompts.content', { slug: result['slug'] }, ['prompts.content']);
       if (doc['found'] !== true || doc['content'] !== content)
         throw Error('The saved template did not match readback. Your draft is kept.');

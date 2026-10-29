@@ -25,7 +25,7 @@ import {
   handlePromptsUsed,
   type PromptsContext,
 } from '@wrongstack/webui-server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from '../../src/types.js';
 
@@ -308,6 +308,34 @@ describe('handlePromptsCreate', () => {
       source: 'user',
       category: 'coding',
     });
+  });
+
+  it('refuses to replace an existing user prompt when asked to create only', async () => {
+    const { ws, messages } = openWs();
+    const existing = { slug: 'my-new-prompt', id: 'my-new-prompt', title: 'Mine', source: 'user' };
+    const loader = fakeLoader([existing as never]);
+    const invalidate = vi.fn();
+    Object.assign(loader, { invalidateCache: invalidate });
+    await handlePromptsCreate(
+      ws,
+      { promptLoader: loader },
+      { payload: { title: 'My New Prompt', content: 'x', ifAbsent: true } },
+    );
+    expect(payloadOf(messages, 'prompts.created')).toMatchObject({
+      success: false,
+      error: expect.stringMatching(/already exists/),
+    });
+    expect(loader.saved).toHaveLength(0);
+    // The check reads past the loader cache.
+    expect(invalidate).toHaveBeenCalled();
+    // A built-in prompt of the same name is shadowed, not replaced, so it does not block.
+    const builtin = fakeLoader([{ ...existing, source: 'builtin' } as never]);
+    await handlePromptsCreate(
+      ws,
+      { promptLoader: builtin },
+      { payload: { title: 'My New Prompt', content: 'x', ifAbsent: true } },
+    );
+    expect(builtin.saved).toHaveLength(1);
   });
 
   it('rejects missing title/content', async () => {
