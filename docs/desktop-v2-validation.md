@@ -3944,3 +3944,13 @@ one final native pass.
 - Checks: `cargo check`, `rustfmt --check`, typecheck and Biome PASS.
 - No native step exists for previews yet; the final native pass must open one with and
   without developer tools and check that storage does not survive a reopen.
+
+## Off-screen chat messages skip rendering work (2026-10-29)
+
+- Commit `8c7c9d301`. Live chat messages use `content-visibility: auto` with a remembered intrinsic
+  size, so the browser skips layout and paint for messages outside the viewport while they stay
+  in the DOM (find-in-page, copy and accessibility are unchanged). This is not list
+  virtualization: React still renders every message, and the session history view is
+  unchanged to keep exact-ID navigation stable.
+- Checks: Biome PASS. The startup/scroll measurement on a long transcript belongs to the final
+  native pass.
