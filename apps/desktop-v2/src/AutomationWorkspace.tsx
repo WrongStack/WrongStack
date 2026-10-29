@@ -13,6 +13,7 @@ import { Download, Eye, Pause, Play, Plus, RefreshCw, Save } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AutomationConfiguration, AutomationTemplates } from './AutomationConfiguration';
 import { AutomationEnvironmentEditor } from './AutomationEnvironmentEditor';
+import { AutomationRunComparison } from './AutomationRunComparison';
 import { AutomationRunInspector } from './AutomationRunInspector';
 import { activeDrafts, automationDraftKey, jobDrafts } from './automation-draft';
 import { automationMilliseconds } from './automation-units';
@@ -43,6 +44,12 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [inspectedRun, setInspectedRun] = useState<string | null>(null);
+  // Two picked runs, in pick order, compared from their recorded results.
+  const [compared, setCompared] = useState<string[]>([]),
+    [comparing, setComparing] = useState(false);
+  const comparedRuns = compared
+    .map((id) => data.runs.find((run) => run.id === id))
+    .filter((run) => run !== undefined);
   const [modelPicker, setModelPicker] = useState(false),
     [environmentOpen, setEnvironmentOpen] = useState(false),
     [modelBusy, setModelBusy] = useState(false),
@@ -274,9 +281,33 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
           </section>
           <section className="automation-runs">
             <h3>Recent runs</h3>
+            {data.runs.length > 1 && (
+              <button
+                type="button"
+                className="button secondary small"
+                disabled={comparedRuns.length !== 2}
+                onClick={() => setComparing(true)}
+              >
+                Compare {comparedRuns.length === 2 ? '2 runs' : 'two picked runs'}
+              </button>
+            )}
             {data.runs.map((item) => (
               <article key={item.id}>
                 <div>
+                  {data.runs.length > 1 && (
+                    <input
+                      type="checkbox"
+                      aria-label={`Pick run ${item.id.slice(0, 8)} for comparison`}
+                      checked={compared.includes(item.id)}
+                      onChange={(event) =>
+                        setCompared((current) =>
+                          event.target.checked
+                            ? [...current.filter((id) => id !== item.id), item.id].slice(-2)
+                            : current.filter((id) => id !== item.id),
+                        )
+                      }
+                    />
+                  )}
                   <strong>{item.id.slice(0, 8)}</strong>
                   <span className="feature-meta">
                     {item.status} · {item.trigger}
@@ -649,6 +680,13 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
           </fieldset>
         </form>
       </div>
+      {comparing && comparedRuns.length === 2 && (
+        <AutomationRunComparison
+          left={comparedRuns[0]!}
+          right={comparedRuns[1]!}
+          onClose={() => setComparing(false)}
+        />
+      )}
       {inspectedRun && data.runs.some((run) => run.id === inspectedRun) && (
         <AutomationRunInspector
           key={inspectedRun}

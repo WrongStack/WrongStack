@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:06:35.064Z",
+  "generatedAt": "2026-10-29T19:08:55.938Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5474,
-    "testFiles": 4766,
-    "sourceLines": 1204458,
+    "sourceFiles": 5476,
+    "testFiles": 4767,
+    "sourceLines": 1204657,
     "workspaceEdges": 222,
-    "moduleEdges": 16435,
+    "moduleEdges": 16439,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 121,
+    "testsWithoutTypecheck": 122,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 983
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 286,
-      "testFiles": 121,
+      "sourceFiles": 288,
+      "testFiles": 122,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1307,6 +1307,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/automation-evidence.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/automation-run-compare.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29919,6 +29925,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/automation-run-compare.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/automation-units.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31379,8 +31392,8 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 741,
-      "relativeImports": 12
+      "lines": 779,
+      "relativeImports": 13
     },
     {
       "file": "apps/desktop-v2/src/CodeAtlas.tsx",
@@ -31545,6 +31558,11 @@
       "relativeImports": 12
     },
     {
+      "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
+      "lines": 779,
+      "relativeImports": 13
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
       "lines": 778,
       "relativeImports": 10
@@ -31593,11 +31611,6 @@
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
       "lines": 743,
       "relativeImports": 6
-    },
-    {
-      "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 741,
-      "relativeImports": 12
     },
     {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",

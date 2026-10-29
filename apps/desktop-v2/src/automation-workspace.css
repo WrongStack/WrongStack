@@ -391,3 +391,33 @@
   flex-basis: 100%;
   margin: 0;
 }
+.modal:has(.automation-run-comparison) {
+  width: min(960px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+}
+.automation-run-comparison > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.automation-run-comparison table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.automation-run-comparison :where(th, td) {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.automation-run-comparison tr.differs > td {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.automation-run-comparison-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  font-size: 11px;
+}
