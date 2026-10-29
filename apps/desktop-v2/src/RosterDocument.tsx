@@ -1,5 +1,6 @@
 import { Copy, Pencil, Save, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { DraftMergeChoices } from './DraftMergeChoices';
 import type { EngineCommand } from './engine-operations';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
@@ -242,6 +243,18 @@ export function RosterDocument({
             >
               Use saved text
             </button>
+            {durableState.review.value?.base === base &&
+              durableState.review.value.text !== text && (
+                <DraftMergeChoices
+                  mine={text}
+                  stored={durableState.review.value.text}
+                  busy={durableState.saving}
+                  onKeep={(merged) => {
+                    change(merged);
+                    void durable.resolve('local');
+                  }}
+                />
+              )}
           </div>
         )}
         {(cached || recovered) && dirty && (
