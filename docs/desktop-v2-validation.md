@@ -4383,3 +4383,20 @@ staged; the other session's edits stay untouched.
   change); 83 webui-server Goal tests, 217 goal package tests and both typechecks PASS (goal
   `dist` rebuilt); desktop suite **581 PASS**, typecheck and Biome PASS.
 - No native step yet.
+
+### Text cuts inside a context message and a draft token estimate
+
+- Commit `d438b6478`. The engine's context editor already validated range removals inside a
+  message's string content or text blocks; the desktop now offers them. "Trim text" shows each
+  editable text of a message read-only; the selected part is added as a cut (empty and
+  overlapping selections are refused). Cutting a user message also removes the replies it
+  produced, as the engine requires, and the proposal sends exactly the cut messages plus the
+  removal plan. Before checking, the dialog shows an estimate of the request tokens after the
+  edit (removed messages at their reported tokens, cut text at one token per 3.5 characters, the
+  engine's own estimator); the checked figure comes from the engine.
+- Checks: model tests (texts, overlap refusal, pairing, exact proposal, estimate); a new
+  webui-server test feeds the desktop model's proposal from a real snapshot into
+  `applyContextEditorProposal`, which accepts and applies it (47 context editor tests PASS);
+  desktop suite **584 PASS**, typecheck and Biome PASS.
+- Native step written (`native-composer-resources.mjs`: cut the first characters of a message,
+  check and apply); **not run**.
