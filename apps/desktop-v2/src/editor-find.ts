@@ -58,3 +58,15 @@ export function replaceAllMatches(
   }
   return { text: result + text.slice(cursor), count: matches.length };
 }
+
+/** 1-based line of each match start, in order, one entry per matching line. */
+export function matchLines(text: string, matches: readonly TextMatch[]): number[] {
+  const lines: number[] = [];
+  let line = 1,
+    cursor = 0;
+  for (const match of matches) {
+    for (; cursor < match.start; cursor++) if (text.charCodeAt(cursor) === 10) line++;
+    if (lines[lines.length - 1] !== line) lines.push(line);
+  }
+  return lines;
+}

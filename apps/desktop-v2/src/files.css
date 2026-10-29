@@ -1167,3 +1167,13 @@
   min-width: 70px;
   color: var(--muted);
 }
+.file-source-line.find-match {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.file-source-line.find-current {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.file-source-code:focus-visible {
+  outline: 1px solid var(--accent);
+}

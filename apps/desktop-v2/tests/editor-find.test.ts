@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { findMatches, MAX_MATCHES, nextMatchIndex, replaceAllMatches } from '../src/editor-find';
+import {
+  findMatches,
+  MAX_MATCHES,
+  matchLines,
+  nextMatchIndex,
+  replaceAllMatches,
+} from '../src/editor-find';
 
 describe('editor find and replace', () => {
   it('finds literal, non-overlapping matches with optional case', () => {
@@ -28,5 +34,14 @@ describe('editor find and replace', () => {
     const many = 'z'.repeat(MAX_MATCHES + 5);
     expect(findMatches(many, 'z', true)).toHaveLength(MAX_MATCHES);
     expect(replaceAllMatches(many, 'z', 'y', true)).toEqual({ text: many, count: 0 });
+  });
+});
+
+describe('match lines', () => {
+  it('lists each matching line once, in order', () => {
+    const text = 'a x x\nb\nx c\n\nx';
+    expect(matchLines(text, findMatches(text, 'x', true))).toEqual([1, 3, 5]);
+    expect(matchLines(text, [])).toEqual([]);
+    expect(matchLines('ab\ncd', findMatches('ab\ncd', 'b\nc', true))).toEqual([1]);
   });
 });

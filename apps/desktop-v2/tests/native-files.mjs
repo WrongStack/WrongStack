@@ -17,9 +17,27 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await page.getByRole('treeitem', { name: 'packages/alpha', exact: true }).click();
   await page.getByRole('treeitem', { name: 'packages/alpha/src', exact: true }).click();
   await page.getByRole('treeitem', { name: 'packages/alpha/src/index.ts', exact: true }).click();
-  await page
-    .getByRole('region', { name: 'Source of packages/alpha/src/index.ts', exact: true })
-    .waitFor();
+  const source = page.getByRole('region', {
+    name: 'Source of packages/alpha/src/index.ts',
+    exact: true,
+  });
+  await source.waitFor();
+  // Find in the read-only view marks matching lines and steps through them.
+  await source.focus();
+  await page.keyboard.press('Control+f');
+  const viewerFind = page.getByRole('region', { name: 'Find in read-only source', exact: true });
+  await viewerFind.getByLabel('Find in source', { exact: true }).fill('shared');
+  await viewerFind.getByText('2 matches on 2 lines', { exact: true }).waitFor();
+  assert.equal(await source.locator('.file-source-line.find-match').count(), 2);
+  await viewerFind.getByLabel('Find in source', { exact: true }).press('Enter');
+  await source.locator('.find-current[data-source-line="1"]').waitFor();
+  await viewerFind.getByRole('button', { name: 'Next matching line', exact: true }).click();
+  await source.locator('.find-current[data-source-line="2"]').waitFor();
+  await viewerFind.getByLabel('Find in source', { exact: true }).press('Shift+Enter');
+  await source.locator('.find-current[data-source-line="1"]').waitFor();
+  await viewerFind.getByLabel('Find in source', { exact: true }).press('Escape');
+  await viewerFind.waitFor({ state: 'detached' });
+  assert.equal(await source.locator('.find-match').count(), 0);
   const drawer = () => page.getByRole('region', { name: 'File details panel', exact: true });
   await drawer().waitFor();
   const resize = page.getByRole('separator', { name: 'Resize file details', exact: true });

@@ -56,6 +56,7 @@ import { Modal } from './Modal';
 import { ReviewNotesTray } from './ReviewNotesTray';
 import type { ReviewNote } from './review-notes-store';
 import { useReviewNotes } from './useReviewNotes';
+import { type ViewerFind, ViewerFindBar } from './ViewerFindBar';
 import './file-draft.css';
 import { saveFileVersion } from './file-save';
 import { fileDraftStorage, request } from './platform';
@@ -615,6 +616,17 @@ export function FileWorkspace({
   const [bulk, setBulk] = useState<'move' | 'rename' | 'delete' | null>(null);
   // Find and replace in the open editor (Ctrl/Cmd+F).
   const [finding, setFinding] = useState(false);
+  // Find in the read-only source view; matching lines are marked, the current one scrolled to.
+  const [viewerFind, setViewerFind] = useState<ViewerFind | null>(null);
+  const closeViewerFind = useCallback(() => setViewerFind(null), []);
+  const updateViewerFind = useCallback((find: ViewerFind) => setViewerFind(find), []);
+  useEffect(() => setViewerFind(null), [active]);
+  useEffect(() => {
+    if (!viewerFind?.current) return;
+    contentElement.current
+      ?.querySelector(`[data-source-line="${viewerFind.current}"]`)
+      ?.scrollIntoView({ block: 'center' });
+  }, [viewerFind?.current]);
   // A new folder, search or sort starts again at the first page.
   useEffect(() => setFolderLimit(FOLDER_PAGE), [folder, search, sort]);
   // Leaving the folder or search drops a selection the listing no longer shows.
@@ -654,6 +666,18 @@ export function FileWorkspace({
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && active) {
           event.preventDefault();
           if (isDirty && !busy) void run(() => save(active));
+        }
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          event.key.toLowerCase() === 'f' &&
+          mode === 'files' &&
+          document &&
+          !document.editing &&
+          !document.binary &&
+          !document.tooLarge
+        ) {
+          event.preventDefault();
+          setViewerFind((current) => current ?? { lines: [], current: 0 });
         }
       }}
     >
@@ -1268,20 +1292,35 @@ export function FileWorkspace({
                     />
                   </>
                 ) : document ? (
-                  <section className="file-source-code" aria-label={`Source of ${active}`}>
-                    {document.content.split('\n').map((line, index) => (
-                      <div
-                        className={`file-source-line${searchSelection?.path === active && searchSelection.line === index + 1 ? ' search-match' : ''}`}
-                        data-source-line={index + 1}
-                        key={index}
-                      >
-                        <span aria-hidden="true">{index + 1}</span>
-                        <code>
-                          <HighlightLine text={line} />
-                        </code>
-                      </div>
-                    ))}
-                  </section>
+                  <>
+                    {viewerFind && (
+                      <ViewerFindBar
+                        key={active}
+                        content={document.content}
+                        onChange={updateViewerFind}
+                        onClose={closeViewerFind}
+                      />
+                    )}
+                    <section
+                      className="file-source-code"
+                      aria-label={`Source of ${active}`}
+                      // biome-ignore lint/a11y/noNoninteractiveTabindex: the source view takes Ctrl/Cmd+F.
+                      tabIndex={0}
+                    >
+                      {document.content.split('\n').map((line, index) => (
+                        <div
+                          className={`file-source-line${searchSelection?.path === active && searchSelection.line === index + 1 ? ' search-match' : ''}${viewerFind?.lines.includes(index + 1) ? ' find-match' : ''}${viewerFind?.current === index + 1 ? ' find-current' : ''}`}
+                          data-source-line={index + 1}
+                          key={index}
+                        >
+                          <span aria-hidden="true">{index + 1}</span>
+                          <code>
+                            <HighlightLine text={line} />
+                          </code>
+                        </div>
+                      ))}
+                    </section>
+                  </>
                 ) : (
                   <p className="file-quiet-state">Select another file or refresh to retry.</p>
                 )}

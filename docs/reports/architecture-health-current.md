@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-29T17:21:27.900Z
+**Generated:** 2026-10-29T17:55:41.822Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 45 |
-| Production source files | 5469 |
-| Production source lines | 1203433 |
+| Production source files | 5470 |
+| Production source lines | 1203589 |
 | Test files | 4761 |
 | Workspace dependency edges | 222 |
-| Relative module edges | 16428 |
+| Relative module edges | 16430 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 281 | 116 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 282 | 116 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/goal | 22 | 22 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
 | @wrongstack/hq | 62 | 42 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
@@ -89,7 +89,7 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1797 | `apps/desktop-v2/src/FileWorkspace.tsx` |
+| 1836 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1555 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/webui/src/components/codemap-model.ts` |
