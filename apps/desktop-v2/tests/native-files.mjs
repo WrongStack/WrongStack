@@ -196,8 +196,12 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Shift+Tab');
   assert.equal(await editor().inputValue(), 'function x() {\na\nb\n}');
+  // These edits stay in the textarea's own undo history.
+  await page.keyboard.press('Control+z');
+  assert.equal(await editor().inputValue(), 'function x() {\n  a\n  b\n}');
+  await page.keyboard.press('Control+a');
   await page.keyboard.press('Tab');
-  assert.equal(await editor().inputValue(), '  function x() {\n  a\n  b\n  }');
+  assert.equal(await editor().inputValue(), '  function x() {\n    a\n    b\n  }');
   await editor().fill('export const unsaved = true;\n');
   await waitFor(async () => {
     const drafts = await page.evaluate(

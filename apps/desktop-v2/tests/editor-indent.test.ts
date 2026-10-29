@@ -5,6 +5,7 @@ import {
   indentUnit,
   newlineWithIndent,
   outdentLines,
+  replacementRange,
 } from '../src/editor-indent';
 
 describe('editor indentation', () => {
@@ -71,5 +72,14 @@ describe('editor indentation', () => {
       editorKeyEdit(key('Enter', { nativeEvent: { isComposing: true } }, 3), '  x'),
     ).toBeNull();
     expect(editorKeyEdit(key('a'), 'x')).toBeNull();
+  });
+});
+
+describe('replacement range', () => {
+  it('finds the single changed range between two texts', () => {
+    expect(replacementRange('abcdef', 'abXYef')).toEqual({ from: 2, to: 4, insert: 'XY' });
+    expect(replacementRange('ab', 'ab')).toEqual({ from: 2, to: 2, insert: '' });
+    expect(replacementRange('aaa', 'aaaa')).toEqual({ from: 3, to: 3, insert: 'a' });
+    expect(replacementRange('x', '')).toEqual({ from: 0, to: 1, insert: '' });
   });
 });

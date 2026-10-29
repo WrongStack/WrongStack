@@ -122,3 +122,17 @@ export function editorKeyEdit(
   if (event.key === 'Enter' && !event.shiftKey) return newlineWithIndent(text, start, end, unit);
   return null;
 }
+
+/** The single range that turns `before` into `after`: common prefix and suffix are kept. */
+export function replacementRange(
+  before: string,
+  after: string,
+): { from: number; to: number; insert: string } {
+  let from = 0;
+  const limit = Math.min(before.length, after.length);
+  while (from < limit && before[from] === after[from]) from++;
+  let tail = 0;
+  while (tail < limit - from && before[before.length - 1 - tail] === after[after.length - 1 - tail])
+    tail++;
+  return { from, to: before.length - tail, insert: after.slice(from, after.length - tail) };
+}

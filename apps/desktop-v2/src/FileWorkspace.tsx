@@ -28,7 +28,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ComposerFileReference } from './composer-resources-model';
 import { DiffPreview } from './DiffPreview';
 import { EditorFindBar } from './EditorFindBar';
-import { editorKeyEdit } from './editor-indent';
+import { editorKeyEdit, replacementRange } from './editor-indent';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
@@ -1293,7 +1293,13 @@ export function FileWorkspace({
                         if (edit) {
                           event.preventDefault();
                           pendingSelection.current = { start: edit.start, end: edit.end };
-                          updateDocument(active, { content: edit.text });
+                          // insertText keeps the edit in the textarea's own undo history; the
+                          // input event it fires updates the draft like typing does.
+                          const input = event.currentTarget;
+                          const change = replacementRange(document.content, edit.text);
+                          input.setSelectionRange(change.from, change.to);
+                          if (!window.document.execCommand('insertText', false, change.insert))
+                            updateDocument(active, { content: edit.text });
                         }
                       }}
                     />
