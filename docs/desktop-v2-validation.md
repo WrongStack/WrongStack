@@ -3712,3 +3712,61 @@ Verification on the shared working snapshot:
 - Checks: desktop **531 tests / 119 files PASS**; typecheck **292 PASS**; Biome PASS.
 - Not covered: every individual dialog natively, and dialogs whose opener is removed while
   they are open (focus then stays where the browser puts it).
+
+## Native acceptance deferred until Desktop v2 is complete (2026-10-29)
+
+From this point the user asked that native (Tauri + Playwright) runs wait until the whole
+Desktop v2 implementation is finished, because each run takes over the screen and mouse. The
+increments below were verified with the desktop unit suite, typecheck and Biome only. Their
+native scenario steps are written and committed, but **have not been run**; they will run in
+one final native pass.
+
+## Review reply editing and deletion (2026-10-29)
+
+- Commit `93776af2c`. Each reply on a Git review note can be edited in place or deleted; an
+  empty edit is refused, and deleting the last reply leaves no empty reply list behind. Saves
+  keep the existing project revision check.
+- Checks: desktop unit suite PASS (new reply edit/delete tests); typecheck and Biome PASS.
+- Native step written (`native-files.mjs`: add, edit and delete a second reply); **not run**.
+
+## Chronicle lineage export (2026-10-29)
+
+- Commit `5af3af5c4`. A traced evidence lineage offers "Export lineage JSON" (the engine graph
+  exactly as returned) and "Export lineage Markdown" (events table plus relationships with
+  their kind and the engine's confidence classification unchanged; the export states the seed,
+  counts and whether the engine truncated the graph).
+- Checks: desktop unit suite PASS (new lineage export tests); typecheck and Biome PASS.
+- Native step written (`native-chronicle-export.mjs`: trace, export both, parse the JSON);
+  **not run**.
+
+## Dead-code finding ranges (2026-10-29)
+
+- Commit `1a21ceeca`. Opening a dead-code finding passes its end line too: the read-only view
+  marks every line from start to end, and the editor selects the whole range. Single-line
+  targets behave as before.
+- Checks: desktop unit suite, typecheck and Biome PASS. No native step (the dead-code fixture
+  runs only in the full suite).
+
+## Bulk copy of text files (2026-10-29)
+
+- Commit `04c96b73c`. "Copy selected…" copies picked files into a destination folder. The
+  engine has no copy command, so each copy reads the saved source, creates the target
+  (`files.create` refuses an existing path, so nothing is overwritten) and writes the text with
+  `expectedSha256` of empty content, i.e. only into the file it just created. Folders are
+  refused up front; binary and over-limit files are refused per item; unsaved editor text is
+  not copied (edited files must be saved first).
+- Checks: desktop unit suite PASS (copy target and empty-content hash tests); typecheck and
+  Biome PASS.
+- Native step written (`native-file-bulk.mjs`: one copied file, one refused existing target,
+  bytes checked); **not run**.
+
+## Recent models quick switch (2026-10-29)
+
+- Commit `9e2ec1ac3`. Every model picker shows up to five recently chosen models above the
+  search, kept on this desktop. A recent is offered only while its provider is still offered
+  and the current profile policy allows the model; choosing it goes through the same
+  policy-checked switch and may change the provider.
+- Checks: desktop **538 tests / 120 files PASS** (new `model-recents` tests); typecheck and
+  Biome PASS.
+- Native step written (`native-profile-model-policy.mjs`: switch back to the alternate from the
+  recents row); **not run**.
