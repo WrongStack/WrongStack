@@ -10,6 +10,7 @@ export const SERVER_WORKSPACE_MESSAGE_TYPES = [
   'files.list',
   'files.moved',
   'files.moved_many',
+  'files.copied_many',
   'files.deleted_many',
   'files.image',
   'files.read',

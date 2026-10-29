@@ -4,6 +4,7 @@ export const CLIENT_WORKSPACE_MESSAGE_TYPES = [
   'files.list',
   'files.move',
   'files.move_many',
+  'files.copy_many',
   'files.delete_many',
   'files.image',
   'files.read',

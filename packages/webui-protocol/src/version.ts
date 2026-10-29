@@ -27,6 +27,8 @@ export const SURFACE_PROTOCOL_CAPABILITIES = [
   'session.subagent-plan-expected',
   /** `files.move_many` / `files.delete_many`: multi-item moves and deletions, all or nothing. */
   'files.batch',
+  /** `files.copy_many`: multi-item copies of files and folders, all or nothing. */
+  'files.batch-copy',
   /** `composer.warm`: the user is typing; open the provider connection ahead of the send. */
   'session.provider-warm',
   /**

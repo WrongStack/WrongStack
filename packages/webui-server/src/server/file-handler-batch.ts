@@ -2,6 +2,7 @@
  * Multi-item file moves and deletions that apply all or nothing.
  *
  *   files.move_many   { items: [{ from, to }] }          → files.moved_many
+ *   files.copy_many   { items: [{ from, to }] }          → files.copied_many
  *   files.delete_many { filePaths, recursive? }           → files.deleted_many
  *
  * Every item is checked before anything changes (inside the project, not the root, source
@@ -124,6 +125,110 @@ export async function handleFilesMoveMany(
         throw Error('A target is another selected item; move them in separate steps.');
     }
     await renameAll(steps);
+    reply({ success: true, items: items.map(({ from, to }) => ({ from, to })) });
+  } catch (error) {
+    reply({ success: false, error: errMessage(error) });
+  }
+}
+
+export const MAX_COPY_ENTRIES = 5_000;
+export const MAX_COPY_BYTES = 256 * 1024 * 1024;
+
+/** Counts what a copy would write; symbolic links are refused rather than followed or cloned. */
+async function measureCopy(
+  real: string,
+  label: string,
+  budget: { entries: number; bytes: number },
+): Promise<void> {
+  const stat = await fs.lstat(real);
+  if (stat.isSymbolicLink()) throw Error(`${label} contains a symbolic link, which is not copied.`);
+  budget.entries += 1;
+  if (stat.isDirectory())
+    for (const name of await fs.readdir(real))
+      await measureCopy(path.join(real, name), label, budget);
+  else if (stat.isFile()) budget.bytes += stat.size;
+  else throw Error(`${label} contains an item that is neither a file nor a folder.`);
+  if (budget.entries > MAX_COPY_ENTRIES || budget.bytes > MAX_COPY_BYTES)
+    throw Error(
+      `The copy exceeds ${MAX_COPY_ENTRIES} entries or ${MAX_COPY_BYTES / 1024 / 1024} MiB.`,
+    );
+}
+
+/**
+ * Copies every item into a hidden name beside its target first; only when all copies are
+ * complete are they renamed into place (with the same rollback as a move). A failure leaves
+ * no target behind.
+ */
+export async function handleFilesCopyMany(
+  ws: WebSocket,
+  msg: unknown,
+  projectRoot: string,
+): Promise<void> {
+  const sessionId = messageSessionId(msg as { payload?: unknown });
+  const raw = payloadOf(msg)['items'];
+  const reply = (body: Record<string, unknown>) =>
+    send(ws, { type: 'files.copied_many', payload: withSessionEcho(body, sessionId) });
+  try {
+    if (
+      !Array.isArray(raw) ||
+      raw.length === 0 ||
+      raw.length > MAX_BATCH_ITEMS ||
+      raw.some(
+        (item) =>
+          !item ||
+          typeof item !== 'object' ||
+          typeof (item as Step).from !== 'string' ||
+          typeof (item as Step).to !== 'string' ||
+          !(item as Step).from.trim() ||
+          !(item as Step).to.trim(),
+      )
+    )
+      throw Error(`Send 1 to ${MAX_BATCH_ITEMS} items, each with a source and a target path.`);
+    const items = raw as Step[];
+    const realRoot = await fs.realpath(projectRoot);
+    const steps: Step[] = [];
+    const budget = { entries: 0, bytes: 0 };
+    for (const item of items) {
+      const from = await resolveSource(projectRoot, realRoot, item.from);
+      const to = await resolveFileInsideProject(projectRoot, item.to);
+      if (await exists(to)) throw Error(`${item.to} already exists.`);
+      const parent = await fs.stat(path.dirname(to)).catch(() => undefined);
+      if (!parent?.isDirectory()) throw Error(`The folder for ${item.to} does not exist.`);
+      await measureCopy(from, item.from, budget);
+      steps.push({ from, to });
+    }
+    for (const [index, step] of steps.entries()) {
+      if (isPathInside(step.from, step.to))
+        throw Error(`${items[index]!.from} cannot be copied into itself.`);
+      for (const other of steps.slice(index + 1))
+        if (overlaps(step.to, other.to)) throw Error('Two items would reach the same place.');
+      if (steps.some((other) => overlaps(step.to, other.from)))
+        throw Error('A target is inside a selected item; copy them in separate steps.');
+    }
+    const tag = randomBytes(6).toString('hex');
+    const staged = steps.map((step, index) => ({
+      from: path.join(path.dirname(step.to), `.wrongstack-copy-${tag}-${index}`),
+      to: step.to,
+    }));
+    const discard = async () => {
+      for (const temp of staged)
+        await fs.rm(temp.from, { recursive: true, force: true }).catch(() => {});
+    };
+    try {
+      for (const [index, step] of steps.entries())
+        await fs.cp(step.from, staged[index]!.from, {
+          recursive: true,
+          errorOnExist: true,
+          force: false,
+          preserveTimestamps: true,
+        });
+      await renameAll(staged);
+    } catch (error) {
+      await discard();
+      throw /Nothing was changed|could not be put back/.test(errMessage(error))
+        ? error
+        : Error(`${errMessage(error)}. Nothing was changed.`);
+    }
     reply({ success: true, items: items.map(({ from, to }) => ({ from, to })) });
   } catch (error) {
     reply({ success: false, error: errMessage(error) });

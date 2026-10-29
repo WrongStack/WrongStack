@@ -18,7 +18,11 @@ import {
   handleDesignVerify,
 } from './design-handlers.js';
 import { handleFileContentSearch } from './file-content-search.js';
-import { handleFilesDeleteMany, handleFilesMoveMany } from './file-handler-batch.js';
+import {
+  handleFilesCopyMany,
+  handleFilesDeleteMany,
+  handleFilesMoveMany,
+} from './file-handler-batch.js';
 import {
   handleFilesCreate,
   handleFilesDelete,
@@ -84,6 +88,7 @@ export async function handleContentRoute(
       'files.renamed',
       'files.moved',
       'files.moved_many',
+      'files.copied_many',
       'files.deleted_many',
       'files.skeleton_result',
     ]).socket;
@@ -159,6 +164,9 @@ export async function handleContentRoute(
       return true;
     case 'files.move_many':
       await handleFilesMoveMany(ws, message, ctx.getProjectRoot());
+      return true;
+    case 'files.copy_many':
+      await handleFilesCopyMany(ws, message, ctx.getProjectRoot());
       return true;
     case 'files.delete_many':
       await handleFilesDeleteMany(ws, message, ctx.getProjectRoot());
