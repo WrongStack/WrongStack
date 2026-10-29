@@ -301,8 +301,8 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
   complete media handling and large-transcript virtualization.
 - Model selection has catalog facts, comparison across providers and recent-model quick
   switching (2026-10-29).
-- Add supported reasoning mode/preserve controls and prove provider-specific effort vocabularies
-  and leader overrides/resets. Do not manufacture support when the provider reports unknown.
+- Session reasoning mode/preserve controls follow the catalog's documented policy (2026-10-30);
+  prove provider-specific effort vocabularies and leader overrides/resets against real models. Do not manufacture support when the provider reports unknown.
 - Finish active worker assignment/topology and actual execution of session-owned model plans.
   Plan drafts are durable per session and saves are refused when the plan changed since it
   was read (2026-10-29).

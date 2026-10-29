@@ -4429,3 +4429,18 @@ staged; the other session's edits stay untouched.
   reply; webui-server typecheck PASS; desktop suite **587 PASS**, typecheck and Biome PASS.
 - Native step written (`native-composer-resources.mjs`: compaction shows its result region);
   **not run**.
+
+### Session reasoning mode and preserve controls
+
+- Commit `c4cf6342f`. `provider.models` rows now carry `reasoningControls` (the catalog's reasoning
+  default, whether reasoning can be switched off, and whether earlier reasoning can be kept:
+  `unsupported`, `optional` or `always_on`), and only when the model's reasoning policy is
+  known. Beside the effort chip the composer then offers the session reasoning mode (Auto/On,
+  and Off only where switching off is documented or already chosen; hidden for always-on
+  models) and "Keep reasoning" only where preserving is optional. Both write the existing
+  session-scoped `reasoningMode`/`reasoningPreserve` preferences and are confirmed by reading
+  the session back. Unknown policy offers no control.
+- Checks: `custom-model-reasoning.test.ts` extended for the row field (written with the
+  change; no separate RED); composer model test for the projection; webui-server typecheck
+  PASS; desktop suite **588 PASS**, typecheck and Biome PASS.
+- No native step yet: the native fixture models carry no documented reasoning policy.
