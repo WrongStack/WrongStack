@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest';
-import { effectSummary, effectsCsv, effectsSnapshot } from '../src/side-effects-model';
+import {
+  effectSummary,
+  effectsCsv,
+  effectsSnapshot,
+  withOlderPage,
+} from '../src/side-effects-model';
 
 const effect = {
   toolUseId: 'call-1',
@@ -39,4 +44,30 @@ it('summarizes meaningful inputs without dumping arbitrary JSON and escapes spre
   ]);
   expect(csv).toContain('"\'=HYPERLINK(""https://fixture.invalid"")\nnext"');
   expect(csv).toContain('"\'+untrusted"');
+});
+
+it('pages older records only when they join the loaded window exactly', () => {
+  const at = (id: string) => ({ ...effect, toolUseId: id });
+  const latest = effectsSnapshot(
+    { sessionId: 'one', sideEffects: [at('c'), at('d')], total: 4, start: 2, truncated: true },
+    'one',
+  );
+  expect(latest.start).toBe(2);
+  const older = effectsSnapshot(
+    { sessionId: 'one', sideEffects: [at('a'), at('b'), at('c')], total: 4, start: 0 },
+    'one',
+  );
+  expect(withOlderPage(latest.entries, older).map((item) => item.toolUseId)).toEqual([
+    'a',
+    'b',
+    'c',
+    'd',
+  ]);
+  // The runtime dropped records in between: refused instead of leaving a gap.
+  const shifted = effectsSnapshot(
+    { sessionId: 'one', sideEffects: [at('x'), at('y')], total: 4, start: 0 },
+    'one',
+  );
+  expect(() => withOlderPage(latest.entries, shifted)).toThrow(/changed while paging/);
+  expect(effectsSnapshot({ sessionId: 'one', sideEffects: [] }, 'one').start).toBeNull();
 });

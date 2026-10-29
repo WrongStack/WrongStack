@@ -9,6 +9,7 @@ import {
   effectSummary,
   effectsCsv,
   effectsSnapshot,
+  withOlderPage,
 } from './side-effects-model';
 import { StructuredToolValue } from './ToolApprovalCard';
 import './session-side-effects.css';
@@ -32,7 +33,13 @@ export function SessionSideEffects({
     [query, setQuery] = useState(''),
     [kind, setKind] = useState('all'),
     [order, setOrder] = useState('newest'),
-    [selected, setSelected] = useState<SideEffect | null>(null);
+    [selected, setSelected] = useState<SideEffect | null>(null),
+    // Older pages joined to the loaded window; live refresh pauses while they are shown.
+    [paged, setPaged] = useState<{ entries: SideEffect[]; start: number } | null>(null),
+    [pagingError, setPagingError] = useState(''),
+    [paging, setPaging] = useState(false);
+  const pagedRef = useRef(paged);
+  pagedRef.current = paged;
   const alive = useRef(true),
     pending = useRef(false),
     sequence = useRef(0);
@@ -63,7 +70,7 @@ export function SessionSideEffects({
     let stopped = false,
       timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
-      await load();
+      if (!pagedRef.current) await load();
       if (!stopped) timer = setTimeout(poll, 3000);
     };
     void poll();
@@ -74,9 +81,33 @@ export function SessionSideEffects({
       clearTimeout(timer);
     };
   }, [load]);
+  const loaded = useMemo(() => paged?.entries ?? snapshot?.entries ?? [], [paged, snapshot]);
+  const loadedStart = paged ? paged.start : (snapshot?.start ?? null);
+  const loadOlder = async () => {
+    if (!snapshot || loadedStart === null || loadedStart <= 0) return;
+    setPaging(true);
+    setPagingError('');
+    try {
+      // One record of overlap proves the older page joins the loaded window.
+      const page = effectsSnapshot(
+        await command('side_effects.list', { sessionId, before: loadedStart + 1, limit: 101 }, [
+          'side_effects',
+        ]),
+        sessionId,
+      );
+      if (page.start === null) throw Error('This engine does not page side effects.');
+      const entries = withOlderPage(loaded, page);
+      if (alive.current) setPaged({ entries, start: page.start });
+    } catch (failure) {
+      if (alive.current)
+        setPagingError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      if (alive.current) setPaging(false);
+    }
+  };
   const visible = useMemo(
     () =>
-      (snapshot?.entries ?? [])
+      loaded
         .filter(
           (entry) =>
             (kind === 'all' ||
@@ -94,7 +125,7 @@ export function SessionSideEffects({
               ? a.risk.localeCompare(b.risk)
               : (Date.parse(a.ts) - Date.parse(b.ts)) * (order === 'oldest' ? 1 : -1),
         ),
-    [snapshot, query, kind, order],
+    [loaded, query, kind, order],
   );
   const copy = async () => {
     setExportError('');
@@ -155,7 +186,7 @@ export function SessionSideEffects({
       </header>
       <div className="effects-summary">
         <span>
-          <strong>{snapshot?.entries.length ?? '—'}</strong> loaded
+          <strong>{snapshot ? loaded.length : '—'}</strong> loaded
         </span>
         <span>
           <strong>{snapshot?.total ?? '—'}</strong> retained by runtime
@@ -170,8 +201,41 @@ export function SessionSideEffects({
       </div>
       {(snapshot?.truncated || snapshot?.total === null) && (
         <p className="effects-window-note">
-          The engine returns the latest 50 records from its retained runtime history. Search and
-          export apply only to this loaded window.
+          {loadedStart === null
+            ? 'The engine returns the latest 50 records from its retained runtime history.'
+            : `Showing records ${loadedStart + 1}–${loadedStart + loaded.length} of ${snapshot?.total ?? '—'} retained by the runtime.`}{' '}
+          Search and export apply only to the loaded records.
+          {loadedStart !== null && loadedStart > 0 && (
+            <button
+              type="button"
+              className="button secondary small"
+              disabled={paging || !connected}
+              onClick={() => void loadOlder()}
+            >
+              {paging ? 'Loading…' : 'Load older records'}
+            </button>
+          )}
+        </p>
+      )}
+      {paged && (
+        <p className="effects-window-note" role="status">
+          Live refresh is paused while older records are shown.{' '}
+          <button
+            type="button"
+            className="button secondary small"
+            onClick={() => {
+              setPaged(null);
+              setPagingError('');
+              void load();
+            }}
+          >
+            Return to latest
+          </button>
+        </p>
+      )}
+      {pagingError && (
+        <p role="alert" className="session-error">
+          {pagingError}
         </p>
       )}
       {exportError && (

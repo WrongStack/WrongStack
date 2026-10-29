@@ -13,6 +13,8 @@ export interface EffectsSnapshot {
   entries: SideEffect[];
   total: number | null;
   truncated: boolean;
+  /** Position of the first entry in the runtime history; null from engines without paging. */
+  start: number | null;
 }
 export function effectsSnapshot(
   payload: Record<string, unknown>,
@@ -50,7 +52,24 @@ export function effectsSnapshot(
     total: typeof total === 'number' ? total : null,
     truncated:
       payload['truncated'] === true || (typeof total === 'number' && total > entries.length),
+    start:
+      Number.isSafeInteger(payload['start']) && Number(payload['start']) >= 0
+        ? Number(payload['start'])
+        : null,
   };
+}
+
+/**
+ * Appends an older page in front of the loaded records. The page is requested to end with the
+ * oldest record already loaded; if it does not, the runtime dropped or reordered records in
+ * between and the page is refused rather than leaving a silent gap.
+ */
+export function withOlderPage(loaded: readonly SideEffect[], page: EffectsSnapshot): SideEffect[] {
+  const oldest = loaded[0];
+  const last = page.entries.at(-1);
+  if (!oldest || last?.toolUseId !== oldest.toolUseId)
+    throw Error('The retained history changed while paging. Refresh and load older records again.');
+  return [...page.entries.slice(0, -1), ...loaded];
 }
 export function effectSummary(effect: SideEffect): string {
   for (const key of ['command', 'url', 'filePath', 'path', 'packages']) {

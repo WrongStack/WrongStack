@@ -117,6 +117,43 @@ describe('canonical introspection handler family', () => {
     ]);
   });
 
+  it('pages side effects backwards from the newest with a bounded limit', async () => {
+    const { context, sent } = harness();
+    const effects = Array.from({ length: 130 }, (_, i) => ({
+      toolUseId: `t${i}`,
+      toolName: 'write',
+      ts: i,
+      input: {},
+      outcome: 'success',
+      risk: 'low',
+    }));
+    (context.agent as unknown as { ctx: { sideEffects: unknown[] } }).ctx.sideEffects = effects;
+    const page = async (payload?: Record<string, unknown>) => {
+      await handleIntrospectionRoute(context, {} as WebSocket, {
+        type: 'side_effects.list',
+        ...(payload ? { payload } : {}),
+      });
+      const reply = sent.at(-1)?.payload as Record<string, unknown> & {
+        sideEffects: Array<{ toolUseId: string }>;
+      };
+      return { ...reply, ids: reply.sideEffects.map((effect) => effect.toolUseId) };
+    };
+    // The default stays the newest 50.
+    const latest = await page();
+    expect(latest).toMatchObject({ total: 130, truncated: true, start: 80 });
+    expect(latest.ids[0]).toBe('t80');
+    expect(latest.ids.at(-1)).toBe('t129');
+    const older = await page({ before: 80, limit: 60 });
+    expect(older).toMatchObject({ start: 20, truncated: true });
+    expect(older.ids).toHaveLength(60);
+    expect(older.ids[0]).toBe('t20');
+    const oldest = await page({ before: 20, limit: 500 });
+    expect(oldest).toMatchObject({ start: 0, truncated: false });
+    expect(oldest.ids).toHaveLength(20);
+    // Invalid paging falls back to the newest page instead of guessing.
+    expect((await page({ before: -1, limit: 0 })).start).toBe(80);
+  });
+
   it('claims every family member and rejects foreign messages', async () => {
     const types = [
       'diag.get',

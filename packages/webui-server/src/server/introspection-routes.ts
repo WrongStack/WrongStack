@@ -230,13 +230,27 @@ export async function handleIntrospectionRoute(
     }
     case 'side_effects.list': {
       if (!sessionAllowed(ctx, ws, message)) return true;
+      // Optional paging toward older records: `before` is an exclusive index, `limit` 1–200.
+      // Without them (or with invalid values) the newest 50 are sent, as before.
+      const all = actx.sideEffects ?? [];
+      const paging = (message.payload ?? {}) as { before?: unknown; limit?: unknown };
+      const limit =
+        Number.isSafeInteger(paging.limit) && (paging.limit as number) >= 1
+          ? Math.min(paging.limit as number, 200)
+          : 50;
+      const end =
+        Number.isSafeInteger(paging.before) && (paging.before as number) >= 0
+          ? Math.min(paging.before as number, all.length)
+          : all.length;
+      const start = Math.max(0, end - limit);
       ctx.send(ws, {
         type: 'side_effects',
         payload: withRequestId(message.payload, {
           sessionId: askingSessionId(),
-          total: actx.sideEffects?.length ?? 0,
-          truncated: (actx.sideEffects?.length ?? 0) > 50,
-          sideEffects: (actx.sideEffects ?? []).slice(-50).map((effect) => ({
+          total: all.length,
+          truncated: start > 0,
+          start,
+          sideEffects: all.slice(start, end).map((effect) => ({
             toolUseId: effect.toolUseId,
             toolName: effect.toolName,
             ts: effect.ts,
