@@ -302,6 +302,9 @@ export function createSessionCheckpointHandlers(
                 errors: reverted.errors,
                 removedEvents: applied.removedEvents,
                 messageCount: applied.messageCount,
+                // The rewound prompt's text (attachments are not included), so a client can
+                // offer it for editing and sending again.
+                ...(reverted.promptText !== undefined ? { promptText: reverted.promptText } : {}),
               },
             },
           });

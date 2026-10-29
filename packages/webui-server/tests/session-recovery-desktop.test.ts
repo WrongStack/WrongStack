@@ -229,6 +229,12 @@ describe('desktop session recovery through the real session route', () => {
     const file = join(h.project, 'proof.txt'),
       outside = join(h.root, 'outside.txt');
     try {
+      // The agent records the prompt just before its checkpoint; the rewind hands it back.
+      await h.writer.append({
+        type: 'user_input',
+        ts: new Date().toISOString(),
+        content: 'First prompt, the whole text past the checkpoint preview',
+      });
       await h.writer.writeCheckpoint(0, 'First prompt');
       await h.writer.writeFileSnapshot(0, [
         { path: file, action: 'modified', before: 'before', after: 'after' },
@@ -244,7 +250,11 @@ describe('desktop session recovery through the real session route', () => {
       });
       expect(reply.payload.requestId).toBe('reviewed-request');
       expect(reply.payload.success).toBe(true);
-      expect(reply.payload.rewind).toMatchObject({ toPromptIndex: 0, revertedFiles: [file] });
+      expect(reply.payload.rewind).toMatchObject({
+        toPromptIndex: 0,
+        revertedFiles: [file],
+        promptText: 'First prompt, the whole text past the checkpoint preview',
+      });
       expect((reply.payload.rewind as { errors: string[] }).errors[0]).toMatch(
         /outside project root/,
       );
