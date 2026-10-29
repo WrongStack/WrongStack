@@ -79,7 +79,13 @@ export type AddPromptResult = { ok: true; item: QueuedPrompt } | { ok: false; re
 export interface SessionPromptQueue {
   add(
     sessionId: string,
-    prompt: { text: string; images?: IncomingImagePayload[]; journalRaw?: string },
+    prompt: {
+      text: string;
+      images?: IncomingImagePayload[];
+      journalRaw?: string;
+      /** Place the prompt ahead of the queued ones (a steer), instead of after them. */
+      front?: boolean;
+    },
   ): Promise<AddPromptResult>;
   remove(sessionId: string, id: string): Promise<boolean>;
   clear(sessionId: string): Promise<number>;
@@ -458,7 +464,8 @@ export function createSessionPromptQueue(deps: SessionPromptQueueDeps): SessionP
       if (bytesOf(items.map(toPersisted)) + itemBytes > QUEUE_MAX_BYTES) {
         return { ok: false, reason: 'The queue is full; remove a prompt first.' };
       }
-      items.push(item);
+      if (prompt.front === true) items.unshift(item);
+      else items.push(item);
       await changed(sessionId);
       // Queued while idle: nothing will end to drain it, so start it now.
       void drain(sessionId);
@@ -551,6 +558,7 @@ export async function handlePromptQueueMessage(
           ...(typeof payload['journalRaw'] === 'string'
             ? { journalRaw: payload['journalRaw'] }
             : {}),
+          ...(payload['front'] === true ? { front: true } : {}),
         });
       } catch (err) {
         refuse(toErrorMessage(err));

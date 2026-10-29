@@ -159,18 +159,25 @@ export async function exerciseNativeComposer({
     'BTW receipt restored after reload',
   );
   await receipts.locator('summary').click();
-  await send('Do not lose this steering draft.', 'steer');
-  await page.getByRole('alert').filter({ hasText: 'Remove pending queued prompts' }).waitFor();
-  assert.equal(await composer().inputValue(), 'Do not lose this steering draft.');
-  assert.ok(
-    providerFixture.holds.has('queue'),
-    'Ambiguous steering does not interrupt or drop queued work',
+  // Steering over a nonempty queue: the engine places the instruction first, then the run stops.
+  await send('[native-composer-steer-first] Take this before the queued task.', 'steer');
+  await waitFor(
+    () => providerFixture.canceledHolds.has('queue'),
+    'Steer over the queue aborts the held provider request',
   );
-  await composer().fill('');
-  providerFixture.releaseHold('queue');
   await waitFor(
     () => providerFixture.calls.some((c) => c.composerPrompt.includes('[native-composer-queued]')),
-    'Engine drains the queue after the held turn',
+    'Engine drains the queue after the steering instruction',
+  );
+  const steerAt = providerFixture.calls.findIndex((c) =>
+    c.composerPrompt.includes('[native-composer-steer-first]'),
+  );
+  const queuedAt = providerFixture.calls.findIndex((c) =>
+    c.composerPrompt.includes('[native-composer-queued]'),
+  );
+  assert.ok(
+    steerAt !== -1 && steerAt < queuedAt,
+    'The steering instruction runs before the prompt that was already queued',
   );
   await idle();
   assert.equal((await call('queue.get', {}, ['queue.state'])).items.length, 0);

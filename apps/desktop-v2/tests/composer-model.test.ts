@@ -202,7 +202,7 @@ describe('desktop composer delivery contracts', () => {
     expect(order).toEqual(['abort', 'settled', 'accepted']);
     expect(ports.send).toHaveBeenCalledExactlyOnceWith('abort');
   });
-  it('refuses ambiguous steering with an existing queue and does not discard it or abort', async () => {
+  it('refuses steering over an existing queue on an engine without front placement', async () => {
     const ports = fixture(true);
     ports.update({ queue: [{ id: 'pending', text: 'Keep me', imageCount: 0, addedAt: 1 }] });
     await expect(dispatchComposer('New direction', 'steer', ports)).rejects.toThrow(
@@ -210,6 +210,47 @@ describe('desktop composer delivery contracts', () => {
     );
     expect(ports.send).not.toHaveBeenCalled();
     expect(ports.command).not.toHaveBeenCalled();
+  });
+  it('places a steering instruction ahead of the queue before stopping the run', async () => {
+    const ports = fixture(true);
+    const start = ports.current().results['session.start'] ?? {};
+    ports.update({
+      queue: [{ id: 'pending', text: 'Keep me', imageCount: 0, addedAt: 1 }],
+      results: {
+        ...ports.current().results,
+        'session.start': {
+          ...start,
+          protocolCapabilities: [
+            'session.prompt-queue',
+            'session.prompt-queue-front',
+            'session.user-ack',
+          ],
+        },
+      },
+    });
+    const order: string[] = [];
+    ports.command.mockImplementation(async () => {
+      order.push('queued first');
+      return {};
+    });
+    ports.send.mockImplementation(async () => {
+      order.push('abort');
+    });
+    expect(await dispatchComposer('New direction', 'steer', ports)).toMatch(/ahead of/);
+    expect(order).toEqual(['queued first', 'abort']);
+    expect(ports.command).toHaveBeenCalledExactlyOnceWith(
+      'queue.add',
+      { text: 'New direction', front: true },
+      ['queue.state'],
+    );
+    expect(ports.waitForIdle).not.toHaveBeenCalled();
+    ports.command.mockClear();
+    ports.send.mockRejectedValueOnce(Error('socket closed'));
+    expect(await dispatchComposer('Again', 'steer', ports)).toMatch(/could not be stopped/);
+    ports.command.mockRejectedValueOnce(Error('The queue is full (50 prompts).'));
+    ports.send.mockClear();
+    await expect(dispatchComposer('Refused', 'steer', ports)).rejects.toThrow('queue is full');
+    expect(ports.send).not.toHaveBeenCalled();
   });
   it('propagates refusal and prevents a detached or question-blocked session from consuming a draft', async () => {
     const ports = fixture();

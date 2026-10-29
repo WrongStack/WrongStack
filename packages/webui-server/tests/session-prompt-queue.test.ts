@@ -115,6 +115,30 @@ describe('createSessionPromptQueue', () => {
     });
   });
 
+  it('places a front prompt ahead of the queued ones so it runs first when the turn ends', async () => {
+    const h = queueHarness({ busy: true });
+    await h.queue.add('s1', { text: 'first' });
+    await h.queue.add('s1', { text: 'second' });
+    const replies: Outbound[] = [];
+    await handlePromptQueueMessage(h.queue, {
+      sessionId: 's1',
+      type: 'queue.add',
+      payload: { text: 'steer now', front: true, requestId: 'r1' },
+      reply: (message) => replies.push(message),
+    });
+    expect(replies.at(-1)).toMatchObject({
+      type: 'queue.state',
+      payload: {
+        requestId: 'r1',
+        items: [{ text: 'steer now' }, { text: 'first' }, { text: 'second' }],
+      },
+    });
+    h.setBusy(false);
+    await h.queue.drain('s1');
+    expect(h.started.map((p) => p.text)).toEqual(['steer now']);
+    expect((await h.queue.list('s1')).map((p) => p.text)).toEqual(['first', 'second']);
+  });
+
   it('starts a prompt queued while idle right away', async () => {
     const h = queueHarness();
     await h.queue.add('s1', { text: 'now' });

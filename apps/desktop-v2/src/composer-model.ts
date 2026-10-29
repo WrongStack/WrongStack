@@ -121,10 +121,32 @@ export async function dispatchComposer(
     return 'BTW saved for this session’s leader. Delivery does not mean it has been read.';
   }
   if (delivery === 'steer' && state.running) {
-    if (state.queue.length)
-      throw Error(
-        'Remove pending queued prompts before steering, so another prompt cannot start ahead of your instruction. Your draft is kept.',
+    if (state.queue.length) {
+      if (!Array.isArray(capabilities) || !capabilities.includes('session.prompt-queue-front'))
+        throw Error(
+          'Remove pending queued prompts before steering, so another prompt cannot start ahead of your instruction. Your draft is kept.',
+        );
+      validateAttachments(images, true);
+      validateAttachmentPayload({ content, journalRaw, ...media }, true);
+      // The engine places the instruction first in its queue, then the run stops: the queue
+      // starts it when the turn ends, ahead of the prompts already waiting.
+      await ports.command(
+        'queue.add',
+        {
+          text: content,
+          ...media,
+          ...(journalRaw !== undefined && journalRaw !== content ? { journalRaw } : {}),
+          front: true,
+        },
+        ['queue.state'],
       );
+      try {
+        await ports.send('abort');
+      } catch (failure) {
+        return `Your instruction is first in the queue, but the current run could not be stopped (${failure instanceof Error ? failure.message : String(failure)}). It runs when the turn ends.`;
+      }
+      return 'Instruction placed ahead of the queued prompts; the current run is stopping.';
+    }
     await ports.send('abort');
     await ports.waitForIdle();
   }
