@@ -3964,3 +3964,13 @@ one final native pass.
 - Checks: desktop unit suite PASS (new `process-preview-urls` tests); typecheck and Biome PASS.
 - Native fixture and step written (`local-provider.mjs` prints a URL; `native-processes.mjs`
   checks the button without opening it); **not run**.
+
+## Stop waiting for a refinement (2026-10-29)
+
+- Commit `18c952fe5`. While a refinement runs, "Stop waiting" ends the wait in this dialog: the
+  draft and any earlier refinement stay reviewable, a late reply is ignored, and "Try again"
+  starts a new request. The engine has no refinement cancel endpoint, so the message says the
+  engine may still finish the abandoned request; no cancel is claimed.
+- Checks: typecheck and Biome PASS; desktop unit suite PASS.
+- No native step: the fixture refiner answers too quickly to stop; a slow-refiner fixture is
+  needed for the final pass.
