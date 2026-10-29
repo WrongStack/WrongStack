@@ -254,6 +254,7 @@ describe('desktop session recovery through the real session route', () => {
         toPromptIndex: 0,
         revertedFiles: [file],
         promptText: 'First prompt, the whole text past the checkpoint preview',
+        promptHasAttachments: false,
       });
       expect((reply.payload.rewind as { errors: string[] }).errors[0]).toMatch(
         /outside project root/,

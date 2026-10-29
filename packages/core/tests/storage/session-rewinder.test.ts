@@ -65,6 +65,8 @@ describe('DefaultSessionRewinder', () => {
       expect(await rewind.promptAt(id, 9)).toBeUndefined();
       const result = await rewind.rewindToCheckpoint(id, 3);
       expect(result.promptText).toBe('second prompt\nwith a second line');
+      // The image block is not in the text, so a resend of the text alone would lose it.
+      expect(result.promptHasAttachments).toBe(true);
       expect(result.removedEvents).toBe(2);
     });
 
@@ -80,9 +82,9 @@ describe('DefaultSessionRewinder', () => {
       ]);
       const rewind = new DefaultSessionRewinder(tmp, tmp);
       expect(await rewind.promptAt(id, 1)).toBe('prompt sent after the rewind');
-      expect((await rewind.rewindToCheckpoint(id, 1)).promptText).toBe(
-        'prompt sent after the rewind',
-      );
+      const result = await rewind.rewindToCheckpoint(id, 1);
+      expect(result.promptText).toBe('prompt sent after the rewind');
+      expect(result.promptHasAttachments).toBe(false);
     });
 
     it('reports no prompt when the journal holds no input before the checkpoint', async () => {

@@ -23,6 +23,13 @@ function userInputText(content: Extract<SessionEvent, { type: 'user_input' }>['c
     .join('\n');
 }
 
+/** Whether a recorded prompt carried blocks its text leaves out. */
+function userInputHasAttachments(
+  content: Extract<SessionEvent, { type: 'user_input' }>['content'],
+): boolean {
+  return typeof content !== 'string' && content.some((block) => block.type !== 'text');
+}
+
 export interface SessionRewinderOptions {
   sessionsDir: string;
   /** The project root directory; used to validate rewind targets stay inside it. */
@@ -104,10 +111,15 @@ export class DefaultSessionRewinder implements SessionRewinder {
     let foundTarget = false;
     let removedEvents = 0;
     let lastInput: string | undefined;
+    let lastInputHasAttachments = false;
     let promptText: string | undefined;
+    let promptHasAttachments = false;
     const snapshotsToRevert: Array<{ promptIndex: number; files: FileSnapshot[] }> = [];
     for await (const event of this.readEvents(file)) {
-      if (event.type === 'user_input') lastInput = userInputText(event.content);
+      if (event.type === 'user_input') {
+        lastInput = userInputText(event.content);
+        lastInputHasAttachments = userInputHasAttachments(event.content);
+      }
       if (event.type === 'checkpoint') {
         const checkpointEvent = event as { promptIndex: number };
         if (checkpointEvent.promptIndex === checkpointIndex) {
@@ -116,6 +128,7 @@ export class DefaultSessionRewinder implements SessionRewinder {
           // which takes the later prompt back too, so that later prompt is
           // the one handed back.
           promptText = lastInput;
+          promptHasAttachments = lastInputHasAttachments;
           if (!foundTarget) {
             foundTarget = true;
             continue;
@@ -149,7 +162,7 @@ export class DefaultSessionRewinder implements SessionRewinder {
       ...result,
       toPromptIndex: checkpointIndex,
       removedEvents,
-      ...(promptText !== undefined ? { promptText } : {}),
+      ...(promptText !== undefined ? { promptText, promptHasAttachments } : {}),
     };
   }
 

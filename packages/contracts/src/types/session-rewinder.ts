@@ -20,6 +20,11 @@ export interface RewindResultExtended extends RewindResult {
    * user to edit and send again. Absent when the journal has none.
    */
   promptText?: string | undefined;
+  /**
+   * Whether that prompt also carried non-text blocks (images, documents) that
+   * `promptText` leaves out. Present whenever `promptText` is.
+   */
+  promptHasAttachments?: boolean | undefined;
 }
 
 export interface SessionRewinder {
