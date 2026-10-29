@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-29T23:46:08.774Z
+**Generated:** 2026-10-29T23:57:03.264Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 45 |
 | Production source files | 5499 |
-| Production source lines | 1210570 |
+| Production source lines | 1210658 |
 | Test files | 4793 |
 | Workspace dependency edges | 222 |
 | Relative module edges | 16493 |
@@ -95,8 +95,8 @@ None.
 | 1098 | `packages/webui/src/components/codemap-model.ts` |
 | 1089 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
+| 957 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 939 | `apps/desktop-v2/src/ProjectKnowledge.tsx` |
-| 934 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 917 | `apps/desktop-v2/src/CodeAtlas.tsx` |
 | 917 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |

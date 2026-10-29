@@ -17,3 +17,15 @@ it('describes the budget and its usage only when a budget is set', () => {
   ).toBe('Budget: 3 of 10 tasks · 12 of 60 min');
   expect(goalBudgetText({ maxTasks: 4 }, null)).toBe('Budget: 0 of 4 tasks');
 });
+
+it('carries a token limit and shows token usage', () => {
+  expect(goalBudgetPayload('', '', '50000')).toEqual({ maxTokens: 50_000 });
+  expect(() => goalBudgetPayload('', '', '10.5')).toThrow('whole number');
+  expect(goalBudgetText({ maxTokens: 50_000 }, { tasks: 2, elapsedMs: 0, tokens: 9_000 })).toBe(
+    'Budget: 9,000 of 50,000 tokens',
+  );
+  // A run saved before token counting reports no token usage yet.
+  expect(goalBudgetText({ maxTokens: 1_000 }, { tasks: 0, elapsedMs: 0 })).toBe(
+    'Budget: 0 of 1,000 tokens',
+  );
+});

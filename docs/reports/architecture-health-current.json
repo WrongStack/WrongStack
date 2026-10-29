@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T23:46:08.774Z",
+  "generatedAt": "2026-10-29T23:57:03.264Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 45,
     "sourceFiles": 5499,
     "testFiles": 4793,
-    "sourceLines": 1210570,
+    "sourceLines": 1210658,
     "workspaceEdges": 222,
     "moduleEdges": 16493,
     "nonCommandSlashImports": 0,
@@ -31703,7 +31703,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 934,
+      "lines": 957,
       "relativeImports": 6
     },
     {
@@ -31789,14 +31789,14 @@
       "relativeImports": 10
     },
     {
+      "file": "apps/desktop-v2/src/ProjectGoals.tsx",
+      "lines": 957,
+      "relativeImports": 6
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
       "lines": 939,
       "relativeImports": 9
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 934,
-      "relativeImports": 6
     },
     {
       "file": "apps/desktop-v2/src/CodeAtlas.tsx",

@@ -48,11 +48,13 @@ export function ProjectGoals({
   const [multiBoard, setMultiBoard] = useState(false);
   const [review, setReview] = useState(false);
   const [isolate, setIsolate] = useState(false);
-  // Optional limits: tasks started and active run time, checked before each task.
+  // Optional limits: tasks started, active run time and provider tokens, checked before each task.
   const [budgetTasks, setBudgetTasks] = useState(''),
     [budgetMinutes, setBudgetMinutes] = useState(''),
+    [budgetTokens, setBudgetTokens] = useState(''),
     [resumeTasks, setResumeTasks] = useState(''),
-    [resumeMinutes, setResumeMinutes] = useState('');
+    [resumeMinutes, setResumeMinutes] = useState(''),
+    [resumeTokens, setResumeTokens] = useState('');
   const [action, setAction] = useState('');
   const [error, setError] = useState('');
   const [stopConfirm, setStopConfirm] = useState(false);
@@ -174,7 +176,7 @@ export function ProjectGoals({
     if (!title.trim()) return;
     let budget: ReturnType<typeof goalBudgetPayload>;
     try {
-      budget = goalBudgetPayload(budgetTasks, budgetMinutes);
+      budget = goalBudgetPayload(budgetTasks, budgetMinutes, budgetTokens);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       return;
@@ -395,6 +397,18 @@ export function ProjectGoals({
                 onChange={(e) => setBudgetMinutes(e.target.value)}
               />
             </label>
+            <label title="Provider tokens reported by the task agents, checked before each task: the task that crosses the limit finishes.">
+              Token limit
+              <input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={budgetTokens}
+                placeholder="No limit"
+                onChange={(e) => setBudgetTokens(e.target.value)}
+              />
+            </label>
           </div>
           <div className="goal-create-actions">
             <button type="button" className="button secondary" onClick={() => setCreating(false)}>
@@ -468,6 +482,15 @@ export function ProjectGoals({
                     value={resumeMinutes}
                     onChange={(e) => setResumeMinutes(e.target.value)}
                   />
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    aria-label="Token limit for the resumed run"
+                    placeholder="Tokens"
+                    value={resumeTokens}
+                    onChange={(e) => setResumeTokens(e.target.value)}
+                  />
                 </span>
               )}
               {['paused', 'stopped', 'failed'].includes(status) && (
@@ -481,7 +504,7 @@ export function ProjectGoals({
                       budget =
                         status === 'paused'
                           ? undefined
-                          : goalBudgetPayload(resumeTasks, resumeMinutes);
+                          : goalBudgetPayload(resumeTasks, resumeMinutes, resumeTokens);
                     } catch (e) {
                       setError(e instanceof Error ? e.message : String(e));
                       return;
