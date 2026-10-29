@@ -3635,3 +3635,18 @@ Verification on the shared working snapshot:
   lines marked; Enter, Next and Shift+Enter move the current line 1 → 2 → 1; Escape removes the
   marks.
 - Not covered: very large files and matches spanning lines (marked at their first line).
+
+## Recently ended session processes (2026-10-29)
+
+- Commit `ada44b7d5`. The engine drops a process from `process.list` once it ends and reports no
+  exit status. The Processes view now keeps the runs this window saw disappear under
+  "Recently ended": PID, tool, command, start time, last time seen, the refresh by which it was
+  gone and the minimum tracked duration, with an explicit note that how it ended is unknown.
+  A reused PID with a new start time counts as a new run. The list holds up to 50 runs per
+  session for the life of the window and can be cleared.
+- Checks: desktop **522 tests / 117 files PASS** (new `session-process-ended` tests: diffing,
+  newest first, PID reuse, bound, durations); typecheck **289 PASS**; Biome PASS.
+- Native `--processes` on portable identity `49950b58ea75-eb7323dfffaf`: **exit 0 / PASS**. After
+  the real batch termination the run appears as "Recently ended · 1" with its PID and the
+  unknown-exit note.
+- Not covered: exit codes (needs an engine contract) and history across app restarts.
