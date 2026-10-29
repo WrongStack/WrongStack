@@ -5,6 +5,8 @@ import {
   recoveryCheckpoints,
   recoveryResult,
   redoResult,
+  retryCheckpoint,
+  retryPlan,
 } from '../src/session-recovery-model';
 
 describe('recorded recovery evidence', () => {
@@ -42,6 +44,7 @@ describe('recorded recovery evidence', () => {
       removedEvents: null,
       messageCount: null,
       promptText: '',
+      promptHasAttachments: false,
     });
     expect(
       recoveryResult({ rewind: { toPromptIndex: 1, promptText: 'Whole prompt' } })?.promptText,
@@ -54,4 +57,28 @@ it('reads a redone rewind only from the engine result', () => {
   expect(
     redoResult({ redo: { toPromptIndex: 2, reappliedFiles: ['/p/a.ts'], messageCount: 7 } }),
   ).toEqual({ checkpoint: 2, files: ['/p/a.ts'], messageCount: 7 });
+});
+
+it('retries only the newest prompt, and only when it can be sent again unchanged', () => {
+  const point = (promptIndex: number, ts: string) => ({
+    promptIndex,
+    promptPreview: `prompt ${promptIndex}`,
+    ts,
+    fileCount: 0,
+  });
+  expect(retryCheckpoint([])).toBeNull();
+  expect(retryCheckpoint([point(0, 'a'), point(1, 'b')])?.ts).toBe('b');
+  // After an earlier rewind the index repeats; a rewind to it would take back two prompts.
+  expect(retryCheckpoint([point(0, 'a'), point(1, 'b'), point(1, 'c')])).toBeNull();
+
+  const result = (rewind: Record<string, unknown>) =>
+    recoveryResult({ rewind: { toPromptIndex: 1, ...rewind } })!;
+  expect(retryPlan(result({ promptText: 'Fix it' }))).toEqual({ text: 'Fix it' });
+  expect(retryPlan(result({}))).toHaveProperty('reason');
+  expect(
+    retryPlan(result({ promptText: 'With an image', promptHasAttachments: true })),
+  ).toMatchObject({ reason: expect.stringMatching(/attached files or images/) });
+  expect(retryPlan(result({ promptText: 'Fix it', errors: ['a.txt: refused'] }))).toMatchObject({
+    reason: expect.stringMatching(/not restored/),
+  });
 });

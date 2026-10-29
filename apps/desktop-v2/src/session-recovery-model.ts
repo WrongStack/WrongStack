@@ -46,8 +46,39 @@ export function recoveryResult(value: unknown) {
         messageCount: typeof result['messageCount'] === 'number' ? result['messageCount'] : null,
         /** Text of the rewound prompt, when the engine reports it; attachments are not included. */
         promptText: typeof result['promptText'] === 'string' ? result['promptText'] : '',
+        promptHasAttachments: result['promptHasAttachments'] === true,
       }
     : null;
+}
+
+/**
+ * The newest checkpoint, when a rewind to it takes back only the newest prompt. After an earlier
+ * rewind a prompt index can appear twice; the engine cuts at the first, which would take back
+ * more than one prompt, so such a checkpoint is not offered for a one-step retry.
+ */
+export function retryCheckpoint(checkpoints: RecoveryCheckpoint[]): RecoveryCheckpoint | null {
+  const newest = checkpoints.at(-1);
+  return newest && checkpoints.filter((p) => p.promptIndex === newest.promptIndex).length === 1
+    ? newest
+    : null;
+}
+
+/** Whether a retry may send the rewound prompt again unchanged, or why not. */
+export function retryPlan(
+  result: NonNullable<ReturnType<typeof recoveryResult>>,
+): { text: string } | { reason: string } {
+  if (!result.promptText.trim())
+    return { reason: 'The journal has no recorded text for this prompt, so nothing was sent.' };
+  if (result.errors.length)
+    return {
+      reason: 'Some files were not restored, so nothing was sent. Inspect them before sending.',
+    };
+  if (result.promptHasAttachments)
+    return {
+      reason:
+        'This prompt had attached files or images, so nothing was sent. Use Edit and resend to attach them again.',
+    };
+  return { text: result.promptText };
 }
 export function checkpointMatches(reviewed: RecoveryCheckpoint[], current: RecoveryCheckpoint[]) {
   return JSON.stringify(reviewed) === JSON.stringify(current);

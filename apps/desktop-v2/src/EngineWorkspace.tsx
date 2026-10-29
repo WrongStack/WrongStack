@@ -501,6 +501,17 @@ export function EngineWorkspace({
               if (saved) setTab('chat');
             });
           }}
+          onRetryPrompt={async (text) => {
+            const capabilities = state.results['session.start']?.['protocolCapabilities'];
+            if (!Array.isArray(capabilities) || !capabilities.includes('session.user-ack'))
+              throw Error('this engine cannot confirm that it accepted the prompt');
+            await command(
+              'user_message',
+              { id: crypto.randomUUID(), content: text, timestamp: Date.now() },
+              ['key.operation_result'],
+            );
+            setTab('chat');
+          }}
         />
       ) : tab === 'activity' ? (
         <SessionActivity

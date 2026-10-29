@@ -12,6 +12,8 @@ import {
   recoveryDate,
   recoveryResult,
   redoResult,
+  retryCheckpoint,
+  retryPlan,
 } from './session-recovery-model';
 import './session-recovery.css';
 
@@ -24,6 +26,7 @@ export function SessionRecovery({
   onOpenFile,
   draftEmpty = true,
   onEditPrompt,
+  onRetryPrompt,
 }: {
   sessionId: string;
   sessionTitle: string;
@@ -35,6 +38,8 @@ export function SessionRecovery({
   draftEmpty?: boolean | undefined;
   /** Puts the rewound prompt into the composer for editing and sending again. */
   onEditPrompt?: ((text: string) => void) | undefined;
+  /** Sends the rewound prompt again, unchanged; rejects when the engine did not accept it. */
+  onRetryPrompt?: ((text: string) => Promise<void>) | undefined;
 }) {
   const [inspect, setInspect] = useState<Record<string, unknown> | null>(null);
   const [checkpoints, setCheckpoints] = useState<RecoveryCheckpoint[]>([]);
@@ -46,6 +51,8 @@ export function SessionRecovery({
   const [confirm, setConfirm] = useState<RecoveryCheckpoint | null>(null);
   const [result, setResult] = useState<ReturnType<typeof recoveryResult>>(null);
   const [redone, setRedone] = useState<ReturnType<typeof redoResult>>(null);
+  const [retrying, setRetrying] = useState(false),
+    [retryNote, setRetryNote] = useState('');
   const [search, setSearch] = useState(''),
     [kind, setKind] = useState(''),
     [limit, setLimit] = useState(100);
@@ -94,9 +101,11 @@ export function SessionRecovery({
   const rewind = async () => {
     if (!confirm || busy || mutation.current || running || !revision) return;
     const target = confirm;
+    const retry = retrying;
     mutation.current = true;
     setBusy(true);
     setError('');
+    setRetryNote('');
     try {
       const fresh = await command('session.checkpoints', { includeRevision: true }, [
         'session.checkpoints',
@@ -122,6 +131,22 @@ export function SessionRecovery({
         );
       setResult(observed);
       setConfirm(null);
+      setRetrying(false);
+      if (retry && onRetryPrompt) {
+        const plan = retryPlan(observed);
+        if ('reason' in plan) setRetryNote(plan.reason);
+        else
+          try {
+            await onRetryPrompt(plan.text);
+            if (mounted.current) setRetryNote('The prompt was sent again.');
+          } catch (failure) {
+            if (mounted.current)
+              setRetryNote(
+                `The rewind completed, but sending again failed: ${failure instanceof Error ? failure.message : String(failure)}. Use Edit and resend.`,
+              );
+          }
+      }
+      if (!mounted.current) return;
       await load();
     } catch (error) {
       if (mounted.current) {
@@ -239,6 +264,7 @@ export function SessionRecovery({
               {path}
             </button>
           ))}
+          {retryNote && <p role="status">{retryNote}</p>}
           {result.promptText && onEditPrompt && (
             <RewoundPrompt
               key={`${result.checkpoint}:${result.promptText}`}
@@ -342,6 +368,23 @@ export function SessionRecovery({
             <RotateCcw size={14} />
             Redo last rewind
           </button>
+          {onRetryPrompt && (
+            <button
+              type="button"
+              className="button secondary small"
+              disabled={busy || running || !revision || !retryCheckpoint(checkpoints)}
+              title="Rewind the newest prompt and send the same text again"
+              onClick={() => {
+                const newest = retryCheckpoint(checkpoints);
+                if (!newest) return;
+                setRetrying(true);
+                setConfirm(newest);
+              }}
+            >
+              <RefreshCw size={14} />
+              Retry last prompt
+            </button>
+          )}
         </header>
         {running && (
           <p role="status" className="settings-defaults-note">
@@ -501,7 +544,10 @@ export function SessionRecovery({
       {confirm && (
         <Modal
           onClose={() => {
-            if (!busy) setConfirm(null);
+            if (!busy) {
+              setConfirm(null);
+              setRetrying(false);
+            }
           }}
         >
           <form
@@ -510,8 +556,14 @@ export function SessionRecovery({
               void rewind();
             }}
           >
-            <span className="eyebrow">REWIND THIS CONVERSATION</span>
-            <h2 id="dialog-title">Undo prompt {confirm.promptIndex} and later work?</h2>
+            <span className="eyebrow">
+              {retrying ? 'RETRY THE LAST PROMPT' : 'REWIND THIS CONVERSATION'}
+            </span>
+            <h2 id="dialog-title">
+              {retrying
+                ? `Undo prompt ${confirm.promptIndex} and send it again?`
+                : `Undo prompt ${confirm.promptIndex} and later work?`}
+            </h2>
             <p>{confirm.promptPreview}</p>
             <p>
               {snapshotCount} recorded file snapshots belong to this prompt and later prompts. The
@@ -531,7 +583,10 @@ export function SessionRecovery({
                 type="button"
                 className="button secondary"
                 disabled={busy}
-                onClick={() => setConfirm(null)}
+                onClick={() => {
+                  setConfirm(null);
+                  setRetrying(false);
+                }}
               >
                 Keep current history
               </button>
@@ -540,7 +595,11 @@ export function SessionRecovery({
                 className="button primary"
                 disabled={busy || running || !revision}
               >
-                {busy ? 'Rewinding…' : 'Confirm checkpoint rewind'}
+                {busy
+                  ? 'Rewinding…'
+                  : retrying
+                    ? 'Rewind and send again'
+                    : 'Confirm checkpoint rewind'}
               </button>
             </div>
           </form>
