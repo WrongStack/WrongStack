@@ -1,8 +1,10 @@
-import { LoaderCircle, RefreshCw, Search, Settings2, X } from 'lucide-react';
+import { Columns3, LoaderCircle, RefreshCw, Search, Settings2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { type EngineState, emptyEngineState } from './engine-state';
 import { entries } from './engine-values';
+import { ModelComparison } from './ModelComparison';
+import { toggleCompared } from './model-comparison';
 import { modelDetailLine, type PickerModel, pickerModel } from './model-picker-details';
 import { modelListed, providerDisabled, selectableCatalogModels } from './model-visibility';
 import { emptyModelPolicy, mergeModelPolicy, readProfileModelPolicy } from './profile-model-policy';
@@ -59,6 +61,10 @@ function LiveProfileModelPicker({
     [loading, setLoading] = useState(false),
     [switching, setSwitching] = useState(false),
     [revision, setRevision] = useState(0);
+  // Comparison mode: rows toggle membership instead of switching; the table shows them together.
+  const [comparing, setComparing] = useState(false),
+    [compared, setCompared] = useState<string[]>([]),
+    [comparisonOpen, setComparisonOpen] = useState(false);
   const mounted = useRef(true),
     sequence = useRef(0),
     refreshSequence = useRef(0),
@@ -125,6 +131,8 @@ function LiveProfileModelPicker({
   useEffect(() => {
     const version = ++sequence.current;
     setModels([]);
+    setCompared([]);
+    setComparisonOpen(false);
     if (!ready || !provider) return;
     setLoading(true);
     void profile
@@ -154,6 +162,17 @@ function LiveProfileModelPicker({
   const available = selectableCatalogModels(models, provider, policy).filter((item) =>
     `${item.id} ${item.name}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
+  const comparedModels = compared
+    .map((id) => models.find((model) => model.id === id))
+    .filter((model): model is PickerModel => !!model);
+  const toggle = (id: string) => {
+    setError('');
+    try {
+      setCompared((current) => toggleCompared(current, id));
+    } catch (refusal) {
+      reportError(refusal);
+    }
+  };
   const choose = async (model: string) => {
     if (switching || !ready) return;
     setSwitching(true);
@@ -231,35 +250,78 @@ function LiveProfileModelPicker({
           {error}
         </p>
       )}
-      <div className="composer-model-list">
-        {error && !ready ? (
-          <p>Model choices are unavailable. Refresh to retry.</p>
-        ) : !ready || loading ? (
-          <p>
-            <LoaderCircle className="spin" size={15} /> Loading current profile catalog…
-          </p>
-        ) : available.length ? (
-          available.map((model) => (
-            <button
-              type="button"
-              key={model.id}
-              disabled={switching}
-              aria-pressed={provider === session.provider && model.id === session.model}
-              onClick={() => void choose(model.id)}
-            >
-              <strong>{model.name}</strong>
-              {modelListed(policy.favoriteModels, provider, model.id) && <span>Favorite</span>}
-              <small>{model.id}</small>
-              {modelDetailLine(model) && (
-                <small className="composer-model-details">{modelDetailLine(model)}</small>
-              )}
-            </button>
-          ))
-        ) : (
-          <p>No available models match the current profile policy.</p>
-        )}
-      </div>
+      {comparing && !comparisonOpen && (
+        <div className="model-compare-bar" role="status">
+          {compared.length < 2
+            ? `Pick ${compared.length ? 'another model' : 'two to four models'} to compare.`
+            : `${compared.length} models picked.`}
+          <button
+            type="button"
+            className="button small"
+            disabled={comparedModels.length < 2}
+            onClick={() => setComparisonOpen(true)}
+          >
+            Show comparison
+          </button>
+        </div>
+      )}
+      {comparisonOpen ? (
+        <ModelComparison
+          models={comparedModels}
+          disabled={switching || !ready}
+          onUse={(id) => void choose(id)}
+          onBack={() => setComparisonOpen(false)}
+        />
+      ) : (
+        <div className="composer-model-list">
+          {error && !ready ? (
+            <p>Model choices are unavailable. Refresh to retry.</p>
+          ) : !ready || loading ? (
+            <p>
+              <LoaderCircle className="spin" size={15} /> Loading current profile catalog…
+            </p>
+          ) : available.length ? (
+            available.map((model) => (
+              <button
+                type="button"
+                key={model.id}
+                disabled={switching}
+                aria-pressed={
+                  comparing
+                    ? compared.includes(model.id)
+                    : provider === session.provider && model.id === session.model
+                }
+                onClick={() => (comparing ? toggle(model.id) : void choose(model.id))}
+              >
+                <strong>{model.name}</strong>
+                {comparing && compared.includes(model.id) && <span>Comparing</span>}
+                {modelListed(policy.favoriteModels, provider, model.id) && <span>Favorite</span>}
+                <small>{model.id}</small>
+                {modelDetailLine(model) && (
+                  <small className="composer-model-details">{modelDetailLine(model)}</small>
+                )}
+              </button>
+            ))
+          ) : (
+            <p>No available models match the current profile policy.</p>
+          )}
+        </div>
+      )}
       <footer>
+        <button
+          type="button"
+          className="button secondary"
+          disabled={switching || !ready}
+          aria-pressed={comparing}
+          onClick={() => {
+            setComparing((value) => !value);
+            setCompared([]);
+            setComparisonOpen(false);
+          }}
+        >
+          <Columns3 size={14} />
+          {comparing ? 'Done comparing' : 'Compare models'}
+        </button>
         <button
           type="button"
           className="button secondary"

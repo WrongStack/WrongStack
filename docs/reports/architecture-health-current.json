@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T15:08:15.722Z",
+  "generatedAt": "2026-10-29T15:55:16.707Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5459,
-    "testFiles": 4754,
-    "sourceLines": 1202054,
+    "sourceFiles": 5462,
+    "testFiles": 4756,
+    "sourceLines": 1202396,
     "workspaceEdges": 222,
-    "moduleEdges": 16403,
+    "moduleEdges": 16410,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 110,
+    "testsWithoutTypecheck": 111,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 977
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 273,
-      "testFiles": 110,
+      "sourceFiles": 275,
+      "testFiles": 111,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1029,8 +1029,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 770,
-      "testFiles": 508,
+      "sourceFiles": 771,
+      "testFiles": 509,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1055,7 +1055,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 508
+          "testFiles": 509
         }
       ]
     },
@@ -1601,6 +1601,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/model-catalog-editor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/model-comparison.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26668,6 +26674,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/ChatInput/composer-escape.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/ChatInput/subagent-model-picker-dialog.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -30190,6 +30202,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/model-comparison.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/model-draft-admin.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31640,8 +31659,8 @@
       "name": "mailDraftCodec"
     },
     {
-      "file": "apps/desktop-v2/src/model-picker-details.ts",
-      "name": "compactCount"
+      "file": "apps/desktop-v2/src/model-comparison.ts",
+      "name": "MAX_COMPARED_MODELS"
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogProfile.tsx",

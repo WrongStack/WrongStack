@@ -129,7 +129,25 @@ export async function exerciseNativeProfileModelPolicy({
       path: join(artifactDir, 'native-live-model-policy.png'),
       fullPage: true,
     });
+    // Comparison mode: picking rows does not switch; the table offers the switch instead.
+    await picker.getByRole('button', { name: 'Compare models', exact: true }).click();
+    await modelButton(fixtureModel).click();
     await modelButton(alt).click();
+    await picker.getByText('2 models picked.', { exact: false }).waitFor();
+    assert.equal((await rpc('engine.identity', { id: agent.id })).model, fixtureModel);
+    await picker.getByRole('button', { name: 'Show comparison', exact: true }).click();
+    const comparison = picker.getByRole('table', { name: 'Model comparison', exact: true });
+    const headers = await comparison.locator('thead th').allInnerTexts();
+    assert.ok(headers[1].includes(fixtureModel) && headers[2].includes(alt), headers.join(' | '));
+    const toolsRow = comparison
+      .getByRole('row')
+      .filter({ has: page.getByRole('rowheader', { name: 'Tools', exact: true }) });
+    assert.equal((await toolsRow.locator('td').allInnerTexts())[1], 'Yes');
+    await page.screenshot({
+      path: join(artifactDir, 'native-model-comparison.png'),
+      fullPage: true,
+    });
+    await comparison.getByRole('button', { name: /^Use / }).nth(1).click();
     await picker.waitFor({ state: 'detached' });
     assert.equal((await rpc('engine.identity', { id: agent.id })).model, alt);
     assert.equal(

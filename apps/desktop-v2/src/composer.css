@@ -414,3 +414,51 @@
   padding: 0;
   list-style: none;
 }
+.model-compare-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.model-comparison {
+  display: grid;
+  gap: 10px;
+}
+.model-comparison > button {
+  justify-self: start;
+}
+.model-comparison-scroll {
+  max-height: 350px;
+  overflow: auto;
+}
+.model-comparison table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.model-comparison :where(th, td) {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.model-comparison :where(thead th) {
+  display: table-cell;
+}
+.model-comparison :where(thead small) {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+}
+.model-comparison td.best {
+  color: var(--accent);
+  font-weight: 600;
+}
+.model-comparison :where(td) > small {
+  color: var(--muted);
+  font-weight: 400;
+}
