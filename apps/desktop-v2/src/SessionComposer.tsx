@@ -48,6 +48,7 @@ import { SessionAgentPlan } from './SessionAgentPlan';
 import { SessionContextPanel } from './SessionContextPanel';
 import { SessionModelControls } from './SessionModelControls';
 import { useComposerInput } from './useComposerInput';
+import { useDetailsDismiss } from './useDetailsDismiss';
 import { SavedRefinementNotice, useRefinementDraft } from './useRefinementDraft';
 import './composer.css';
 import './composer-resources.css';
@@ -142,6 +143,7 @@ export function SessionComposer({
   const topicResolution = useRef<((choice: boolean | null) => void) | null>(null);
   const [topicBusy, setTopicBusy] = useState(false);
   const [agentPlan, setAgentPlan] = useState(false);
+  const optionsMenu = useDetailsDismiss();
   const [mcpContent, setMcpContent] = useState(false);
   const [topic, setTopic] = useState<{ reason: string; nextTopic: string } | null>(null);
   const input = useComposerInput({
@@ -761,7 +763,7 @@ export function SessionComposer({
             >
               <Clock3 size={14} />
             </button>
-            <details className="composer-options">
+            <details className="composer-options" ref={optionsMenu}>
               <summary title="Composer options" aria-label="Composer options">
                 <Sparkles size={15} />
               </summary>

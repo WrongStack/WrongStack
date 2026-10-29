@@ -250,6 +250,21 @@ export async function exerciseNativeAttachments({
     .getByRole('button', { name: 'Remove attachment dropped.png', exact: true })
     .waitFor();
   await tray().getByRole('button', { name: 'Remove attachment dropped.png', exact: true }).click();
+  // The options popover closes on Escape (focus back on its summary) and on an outside press.
+  const optionsPopover = page.locator('.composer-options');
+  const optionsSummary = optionsPopover.getByLabel('Composer options', { exact: true });
+  if (!(await optionsPopover.evaluate((el) => el.open))) await optionsSummary.click();
+  await optionsPopover.getByRole('button', { name: 'Prompt library', exact: true }).focus();
+  await page.keyboard.press('Escape');
+  assert.equal(await optionsPopover.evaluate((el) => el.open), false);
+  assert.equal(
+    await optionsSummary.evaluate((el) => el === document.activeElement),
+    true,
+    'Escape returns focus to the composer options summary',
+  );
+  await optionsSummary.click();
+  await page.mouse.click(5, 5);
+  assert.equal(await optionsPopover.evaluate((el) => el.open), false);
   const openRefine = async () => {
     const options = page.locator('.composer-options');
     if (!(await options.evaluate((el) => el.open)))
