@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-29T18:56:47.388Z
+**Generated:** 2026-10-29T18:58:49.000Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 45 |
 | Production source files | 5473 |
-| Production source lines | 1204203 |
+| Production source lines | 1204268 |
 | Test files | 4764 |
 | Workspace dependency edges | 222 |
 | Relative module edges | 16434 |
@@ -89,7 +89,7 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1888 | `apps/desktop-v2/src/FileWorkspace.tsx` |
+| 1913 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1555 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/webui/src/components/codemap-model.ts` |

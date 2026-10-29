@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bulkRenamePlan } from '../src/file-bulk';
+import { bulkRenamePlan, copyTarget, EMPTY_SHA256 } from '../src/file-bulk';
 
 describe('bulk rename plan', () => {
   it('replaces literal text in names only and keeps folders in place', () => {
@@ -43,5 +43,19 @@ describe('bulk rename plan', () => {
       unchanged: ['a.ts'],
       problems: [],
     });
+  });
+});
+
+describe('bulk copy targets', () => {
+  it('keeps the name inside the destination folder or the project root', () => {
+    expect(copyTarget('src/a.ts', 'lib')).toBe('lib/a.ts');
+    expect(copyTarget('a.ts', '.')).toBe('a.ts');
+    expect(copyTarget('deep/x/y.md', 'docs/notes')).toBe('docs/notes/y.md');
+  });
+  it('binds the first write to empty content', async () => {
+    const digest = await crypto.subtle.digest('SHA-256', new Uint8Array());
+    expect(
+      Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join(''),
+    ).toBe(EMPTY_SHA256);
   });
 });

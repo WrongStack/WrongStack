@@ -135,7 +135,7 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 1888,
+      "lines": 1913,
       "relativeImports": 27
     },
     "apps/desktop-v2/src/KanbanTaskInspector.tsx": {

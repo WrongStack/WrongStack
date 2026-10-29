@@ -59,6 +59,23 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     }
     assert.equal(await bar.count(), 0, 'Moved items leave the selection');
 
+    // Bulk copy: text is copied from the saved file; an existing target is never overwritten.
+    await writeFile(join(source, 'b.txt'), 'existing b\n');
+    await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
+    await tree.getByRole('treeitem', { name: 'bulk-dest', exact: true }).click();
+    await page.getByRole('button', { name: 'Select bulk-dest/a.txt', exact: true }).click();
+    await page.getByRole('button', { name: 'Select bulk-dest/b.txt', exact: true }).click();
+    await bar.getByRole('button', { name: 'Copy selected…', exact: true }).click();
+    const copyDialog = page.getByRole('dialog', { name: 'Copy 2 selected items', exact: true });
+    await copyDialog.getByLabel('Bulk copy destination', { exact: true }).fill('bulk-ops');
+    await copyDialog.getByRole('button', { name: 'Copy 2 to bulk-ops', exact: true }).click();
+    await page.getByText(/^Copied 1 of 2 items\. Failed: bulk-dest\/b\.txt \(/).waitFor();
+    assert.equal(await readFile(join(source, 'a.txt'), 'utf8'), 'a.txt\n', 'Copied text');
+    assert.equal(await readFile(join(target, 'a.txt'), 'utf8'), 'a.txt\n', 'Source kept');
+    assert.equal(await readFile(join(source, 'b.txt'), 'utf8'), 'existing b\n', 'Not overwritten');
+    await bar.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    await tree.getByRole('treeitem', { name: 'bulk-ops', exact: true }).click();
+
     // Bulk rename: literal text in names; an existing target is refused, never overwritten.
     for (const name of ['d-old.txt', 'e-old.txt', 'f-old.txt'])
       await page.getByRole('button', { name: `Select bulk-ops/${name}`, exact: true }).click();

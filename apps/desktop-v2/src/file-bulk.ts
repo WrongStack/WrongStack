@@ -58,7 +58,7 @@ export async function runBulk(
 }
 
 export function bulkSummary(
-  verb: 'Moved' | 'Deleted' | 'Renamed',
+  verb: 'Moved' | 'Copied' | 'Deleted' | 'Renamed',
   total: number,
   outcome: BulkOutcome & { skipped: string[] },
 ): string {
@@ -120,4 +120,13 @@ export function bulkRenamePlan(
       problems.push(`${step.from} would take the name of selected item ${step.to}.`);
   }
   return { steps, unchanged, problems };
+}
+
+/** SHA-256 of empty content: a copy writes only into the empty file it just created. */
+export const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+/** The path a copy of `path` gets inside `destination` ("." is the project root). */
+export function copyTarget(path: string, destination: string): string {
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  return destination === '.' ? name : `${destination}/${name}`;
 }

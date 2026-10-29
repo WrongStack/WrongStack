@@ -37,7 +37,7 @@ import { FileBulkDialog } from './FileBulkDialog';
 import { FileContentSearch } from './FileContentSearch';
 import { FileEvidenceDrawer } from './FileEvidenceDrawer';
 import { FileTreeView } from './FileTreeView';
-import { relocatedPath } from './file-bulk';
+import { copyTarget, EMPTY_SHA256, relocatedPath } from './file-bulk';
 import { type FileDraftSnapshot, FileDraftStore } from './file-draft';
 import {
   byteSize,
@@ -508,6 +508,22 @@ export function FileWorkspace({
     ]);
     relocate(path, String(result['destPath'] ?? result['newPath'] ?? ''));
   };
+  /**
+   * Copies a saved text file: create refuses an existing target, and the content is written
+   * only while the new file is still the empty one just created.
+   */
+  const copyPath = async (path: string, destination: string) => {
+    const source = await command('files.read', { filePath: path }, ['files.read']);
+    if (source['binary'] || source['tooLarge'])
+      throw Error('Only text files within the editor limit can be copied.');
+    const target = copyTarget(path, destination);
+    await command('files.create', { filePath: target, type: 'file' }, ['files.created']);
+    await command(
+      'files.write',
+      { filePath: target, content: String(source['content'] ?? ''), expectedSha256: EMPTY_SHA256 },
+      ['files.written'],
+    );
+  };
   const renamePath = async (path: string, newPath: string) => {
     const result = await command('files.rename', { oldPath: path, newPath }, ['files.renamed']);
     relocate(path, String(result['newPath'] ?? newPath));
@@ -625,7 +641,7 @@ export function FileWorkspace({
   // Items picked for a bulk move or delete in the folder listing.
   const [picked, setPicked] = useState<string[]>([]);
   const [selecting, setSelecting] = useState(false);
-  const [bulk, setBulk] = useState<'move' | 'rename' | 'delete' | null>(null);
+  const [bulk, setBulk] = useState<'move' | 'copy' | 'rename' | 'delete' | null>(null);
   // Find and replace in the open editor (Ctrl/Cmd+F).
   const [finding, setFinding] = useState(false);
   // Caret for a key edit, applied once React has written the new text into the textarea;
@@ -845,6 +861,7 @@ export function FileWorkspace({
           isDirectory={(path) => all.find((node) => node.path === path)?.type === 'directory'}
           hasUnsaved={hasUnsaved}
           move={movePath}
+          copy={copyPath}
           rename={renamePath}
           remove={removePath}
           onClose={() => setBulk(null)}
@@ -1459,6 +1476,14 @@ export function FileWorkspace({
                       onClick={() => setBulk('move')}
                     >
                       Move selected…
+                    </button>
+                    <button
+                      type="button"
+                      className="button secondary small"
+                      disabled={busy}
+                      onClick={() => setBulk('copy')}
+                    >
+                      Copy selected…
                     </button>
                     <button
                       type="button"
