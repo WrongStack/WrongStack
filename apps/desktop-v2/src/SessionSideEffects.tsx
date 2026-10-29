@@ -9,6 +9,7 @@ import {
   effectSummary,
   effectsCsv,
   effectsSnapshot,
+  journalEffectsSnapshot,
   withOlderPage,
 } from './side-effects-model';
 import { StructuredToolValue } from './ToolApprovalCard';
@@ -37,22 +38,39 @@ export function SessionSideEffects({
     // Older pages joined to the loaded window; live refresh pauses while they are shown.
     [paged, setPaged] = useState<{ entries: SideEffect[]; start: number } | null>(null),
     [pagingError, setPagingError] = useState(''),
-    [paging, setPaging] = useState(false);
+    [paging, setPaging] = useState(false),
+    // `runtime` polls the live window; `journal` reads the durable session journal on request.
+    [source, setSource] = useState<'runtime' | 'journal'>('runtime');
   const pagedRef = useRef(paged);
   pagedRef.current = paged;
   const alive = useRef(true),
     pending = useRef(false),
     sequence = useRef(0);
+  const fetchPage = useCallback(
+    async (window: { before?: number; limit?: number }) =>
+      source === 'journal'
+        ? journalEffectsSnapshot(
+            await command(
+              'session.inspect',
+              { id: sessionId, journalSideEffects: window },
+              ['session.inspect'],
+              { timeoutMs: 90000 },
+            ),
+            sessionId,
+          )
+        : effectsSnapshot(
+            await command('side_effects.list', { sessionId, ...window }, ['side_effects']),
+            sessionId,
+          ),
+    [source, sessionId, command],
+  );
   const load = useCallback(async () => {
     if (!connected || !sessionId || pending.current) return;
     pending.current = true;
     setBusy(true);
     const current = ++sequence.current;
     try {
-      const value = effectsSnapshot(
-        await command('side_effects.list', { sessionId }, ['side_effects']),
-        sessionId,
-      );
+      const value = await fetchPage({});
       if (alive.current && current === sequence.current) {
         setSnapshot(value);
         setError('');
@@ -64,14 +82,14 @@ export function SessionSideEffects({
       pending.current = false;
       if (alive.current && current === sequence.current) setBusy(false);
     }
-  }, [sessionId, connected, command]);
+  }, [sessionId, connected, fetchPage]);
   useEffect(() => {
     alive.current = true;
     let stopped = false,
       timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       if (!pagedRef.current) await load();
-      if (!stopped) timer = setTimeout(poll, 3000);
+      if (!stopped && source === 'runtime') timer = setTimeout(poll, 3000);
     };
     void poll();
     return () => {
@@ -80,7 +98,7 @@ export function SessionSideEffects({
       sequence.current++;
       clearTimeout(timer);
     };
-  }, [load]);
+  }, [load, source]);
   const loaded = useMemo(() => paged?.entries ?? snapshot?.entries ?? [], [paged, snapshot]);
   const loadedStart = paged ? paged.start : (snapshot?.start ?? null);
   const loadOlder = async () => {
@@ -89,12 +107,7 @@ export function SessionSideEffects({
     setPagingError('');
     try {
       // One record of overlap proves the older page joins the loaded window.
-      const page = effectsSnapshot(
-        await command('side_effects.list', { sessionId, before: loadedStart + 1, limit: 101 }, [
-          'side_effects',
-        ]),
-        sessionId,
-      );
+      const page = await fetchPage({ before: loadedStart + 1, limit: 101 });
       if (page.start === null) throw Error('This engine does not page side effects.');
       const entries = withOlderPage(loaded, page);
       if (alive.current) setPaged({ entries, start: page.start });
@@ -173,6 +186,24 @@ export function SessionSideEffects({
             <ArrowLeft size={14} />
             Back to conversation
           </button>
+          <select
+            aria-label="Side-effect source"
+            value={source}
+            onChange={(event) => {
+              sequence.current++;
+              pending.current = false;
+              setBusy(false);
+              setSnapshot(null);
+              setPaged(null);
+              setPagingError('');
+              setError('');
+              setSelected(null);
+              setSource(event.target.value === 'journal' ? 'journal' : 'runtime');
+            }}
+          >
+            <option value="runtime">Live runtime window</option>
+            <option value="journal">Session journal</option>
+          </select>
           <button
             type="button"
             className="button secondary"
@@ -189,21 +220,24 @@ export function SessionSideEffects({
           <strong>{snapshot ? loaded.length : '—'}</strong> loaded
         </span>
         <span>
-          <strong>{snapshot?.total ?? '—'}</strong> retained by runtime
+          <strong>{snapshot?.total ?? '—'}</strong>{' '}
+          {source === 'journal' ? 'recorded in the journal' : 'retained by runtime'}
         </span>
         <small>
           {!connected
             ? 'Disconnected'
             : error
               ? 'Refresh failed; prior snapshot retained'
-              : 'Audit metadata refreshes every 3 seconds'}
+              : source === 'journal'
+                ? 'Read from the session journal; refresh to read new records'
+                : 'Audit metadata refreshes every 3 seconds'}
         </small>
       </div>
       {(snapshot?.truncated || snapshot?.total === null) && (
         <p className="effects-window-note">
           {loadedStart === null
             ? 'The engine returns the latest 50 records from its retained runtime history.'
-            : `Showing records ${loadedStart + 1}–${loadedStart + loaded.length} of ${snapshot?.total ?? '—'} retained by the runtime.`}{' '}
+            : `Showing records ${loadedStart + 1}–${loadedStart + loaded.length} of ${snapshot?.total ?? '—'} ${source === 'journal' ? 'recorded in the session journal' : 'retained by the runtime'}.`}{' '}
           Search and export apply only to the loaded records.
           {loadedStart !== null && loadedStart > 0 && (
             <button
@@ -219,7 +253,9 @@ export function SessionSideEffects({
       )}
       {paged && (
         <p className="effects-window-note" role="status">
-          Live refresh is paused while older records are shown.{' '}
+          {source === 'runtime'
+            ? 'Live refresh is paused while older records are shown.'
+            : 'Older journal records are shown.'}{' '}
           <button
             type="button"
             className="button secondary small"

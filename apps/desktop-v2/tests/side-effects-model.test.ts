@@ -3,6 +3,7 @@ import {
   effectSummary,
   effectsCsv,
   effectsSnapshot,
+  journalEffectsSnapshot,
   withOlderPage,
 } from '../src/side-effects-model';
 
@@ -70,4 +71,27 @@ it('pages older records only when they join the loaded window exactly', () => {
   );
   expect(() => withOlderPage(latest.entries, shifted)).toThrow(/changed while paging/);
   expect(effectsSnapshot({ sessionId: 'one', sideEffects: [] }, 'one').start).toBeNull();
+});
+it('reads journal pages only with their position and reports engines without journal reads', () => {
+  expect(
+    journalEffectsSnapshot(
+      {
+        journalSideEffects: { sessionId: 'one', sideEffects: [effect], total: 9, start: 8 },
+      },
+      'one',
+    ),
+  ).toMatchObject({ total: 9, start: 8, truncated: true, entries: [effect] });
+  expect(() => journalEffectsSnapshot({ id: 'one' }, 'one')).toThrow('session journal');
+  expect(() => journalEffectsSnapshot({ id: 'one', error: 'Session not found' }, 'one')).toThrow(
+    'Session not found',
+  );
+  expect(() =>
+    journalEffectsSnapshot({ journalSideEffects: { sessionId: 'one', sideEffects: [] } }, 'one'),
+  ).toThrow('position');
+  expect(() =>
+    journalEffectsSnapshot(
+      { journalSideEffects: { sessionId: 'two', sideEffects: [], total: 0, start: 0 } },
+      'one',
+    ),
+  ).toThrow('another');
 });

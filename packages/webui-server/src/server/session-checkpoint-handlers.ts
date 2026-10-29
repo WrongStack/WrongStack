@@ -10,6 +10,7 @@ import { rehydrateContextEvidenceFromMessages, sessionScopedPath } from '@wrongs
 import { buildReplayPayload } from '@wrongstack/webui-protocol';
 import type { SessionHandlerShared } from './session-handler-helpers.js';
 import { buildInspectPayload } from './session-history.js';
+import { readJournalSideEffects } from './session-journal-side-effects.js';
 import type { SessionRouteHandlers } from './session-routes.js';
 import {
   projectSessionTranscript,
@@ -85,12 +86,16 @@ export function createSessionCheckpointHandlers(
         const transcriptToolInput = options['transcriptToolInput']
           ? readSessionTranscriptToolInput(data.messages, options['transcriptToolInput'])
           : undefined;
+        const journalSideEffects = options['journalSideEffects']
+          ? readJournalSideEffects(id, data.events, options['journalSideEffects'])
+          : undefined;
         if (
           options['transcriptOnly'] === true ||
           transcriptBlock ||
           transcriptImage ||
           transcriptBlocks ||
-          transcriptToolInput
+          transcriptToolInput ||
+          journalSideEffects
         ) {
           sendTo(ws, {
             type: 'session.inspect',
@@ -101,6 +106,7 @@ export function createSessionCheckpointHandlers(
               transcriptImage,
               transcriptBlocks,
               transcriptToolInput,
+              journalSideEffects,
             },
           });
           return;

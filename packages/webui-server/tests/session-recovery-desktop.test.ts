@@ -129,6 +129,52 @@ describe('desktop session recovery through the real session route', () => {
       await h.writer.close();
     }
   });
+  it('pages side-effect records from the journal after the runtime window is gone', async () => {
+    const h = await harness();
+    try {
+      for (let i = 0; i < 5; i++)
+        await h.writer.append({
+          type: 'side_effect',
+          ts: new Date(Date.UTC(2026, 9, 29, 10, i)).toISOString(),
+          toolUseId: `call-${i}`,
+          toolName: 'bash',
+          input: { command: `echo ${i}` },
+          ...(i === 4 ? {} : { outcome: 'exit 0' }),
+          risk: 'shell',
+        });
+      await h.writer.flush();
+      const latest = await h.call('session.inspect', {
+        id: h.writer.id,
+        journalSideEffects: { limit: 2 },
+      });
+      const page = latest.payload.journalSideEffects as {
+        sessionId: string;
+        total: number;
+        start: number;
+        truncated: boolean;
+        sideEffects: { toolUseId: string; outcome?: string }[];
+      };
+      expect(page).toMatchObject({ sessionId: h.writer.id, total: 5, start: 3, truncated: true });
+      expect(page.sideEffects.map((effect) => effect.toolUseId)).toEqual(['call-3', 'call-4']);
+      expect(page.sideEffects[1]).not.toHaveProperty('outcome');
+      const older = await h.call('session.inspect', {
+        id: h.writer.id,
+        journalSideEffects: { before: 4, limit: 10 },
+      });
+      const olderPage = older.payload.journalSideEffects as typeof page;
+      expect(olderPage.start).toBe(0);
+      expect(olderPage.truncated).toBe(false);
+      expect(olderPage.sideEffects.map((effect) => effect.toolUseId)).toEqual([
+        'call-0',
+        'call-1',
+        'call-2',
+        'call-3',
+      ]);
+      expect(older.payload).not.toHaveProperty('events');
+    } finally {
+      await h.writer.close();
+    }
+  });
   it('correlates inspection and checkpoint reads and reports unreadable journals', async () => {
     const h = await harness();
     try {

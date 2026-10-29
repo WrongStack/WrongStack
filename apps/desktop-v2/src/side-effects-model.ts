@@ -60,6 +60,27 @@ export function effectsSnapshot(
 }
 
 /**
+ * Reads the `journalSideEffects` page of a `session.inspect` reply: the durable copy of the
+ * records in the session journal, which outlives the runtime window and host restarts.
+ */
+export function journalEffectsSnapshot(
+  result: Record<string, unknown>,
+  sessionId: string,
+): EffectsSnapshot {
+  const page = result['journalSideEffects'];
+  if (!page || typeof page !== 'object')
+    throw Error(
+      typeof result['error'] === 'string' && result['error']
+        ? result['error']
+        : 'This engine does not read side effects from the session journal.',
+    );
+  const snapshot = effectsSnapshot(record(page), sessionId);
+  if (snapshot.start === null || snapshot.total === null)
+    throw Error('The engine returned a journal page without its position.');
+  return snapshot;
+}
+
+/**
  * Appends an older page in front of the loaded records. The page is requested to end with the
  * oldest record already loaded; if it does not, the runtime dropped or reordered records in
  * between and the page is refused rather than leaving a silent gap.

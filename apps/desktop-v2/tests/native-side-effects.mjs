@@ -125,7 +125,22 @@ export async function exerciseNativeSideEffects({
     .locator('.effects-records > button')
     .filter({ hasText: 'native-process-output-ready' })
     .waitFor();
+  // The same record is read back from the durable session journal, not the runtime window.
+  await panel()
+    .getByRole('combobox', { name: 'Side-effect source', exact: true })
+    .selectOption('journal');
+  await panel()
+    .locator('.effects-records > button')
+    .filter({ hasText: 'native-process-output-ready' })
+    .waitFor();
+  assert.ok(
+    (await panel().locator('.effects-summary').innerText()).includes('recorded in the journal'),
+    'The journal source is labelled as the journal',
+  );
+  await panel()
+    .getByRole('combobox', { name: 'Side-effect source', exact: true })
+    .selectOption('runtime');
   console.log(
-    'PASS: actual approved tool side effect, input/outcome inspector, filters/sort, empty-session isolation, real clipboard CSV and native file download, compact and themed audit layout',
+    'PASS: actual approved tool side effect, input/outcome inspector, filters/sort, empty-session isolation, real clipboard CSV and native file download, journal-read records, compact and themed audit layout',
   );
 }
