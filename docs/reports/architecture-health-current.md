@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-29T19:34:37.729Z
+**Generated:** 2026-10-29T19:36:49.858Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 45 |
 | Production source files | 5483 |
-| Production source lines | 1205499 |
+| Production source lines | 1205532 |
 | Test files | 4770 |
 | Workspace dependency edges | 222 |
-| Relative module edges | 16451 |
+| Relative module edges | 16452 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
@@ -115,7 +115,7 @@ None.
 | 754 | `packages/client/src/client.ts` |
 | 752 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
-| 740 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
+| 742 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 737 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 734 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |

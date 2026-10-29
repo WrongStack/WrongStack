@@ -25,7 +25,9 @@ export const mailDraftCodec: FormDraftCodec<MailDraft> = {
       )
     )
       throw Error('The saved mailbox draft has an unsupported format.');
-    return Object.fromEntries(FIELDS.map((field) => [field, String(draft[field])])) as unknown as MailDraft;
+    return Object.fromEntries(
+      FIELDS.map((field) => [field, String(draft[field])]),
+    ) as unknown as MailDraft;
   },
 };
 
@@ -87,6 +89,15 @@ export class MailboxDraftStore {
     // Edits typed while the review was open were not saved yet.
     else if (ok) this.persist(this.state.draft);
     return ok;
+  };
+  /**
+   * Resolve an other-window conflict with a body merged change by change; this window's other
+   * fields (recipients, subject…) are kept, and the result becomes the saved draft.
+   */
+  merge = async (body: string) => {
+    if (this.state.pending) return false;
+    this.publish({ draft: { ...this.state.draft, body }, error: '' });
+    return this.resolve('local');
   };
   begin() {
     if (this.state.pending) throw Error('A mailbox send is already awaiting acknowledgement.');

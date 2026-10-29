@@ -102,6 +102,29 @@ describe('durable mailbox draft', () => {
     expect(await peer.resolve('saved')).toBe(true);
     expect(peer.snapshot().draft.subject).toBe('Mine, edited during review');
   });
+  it('resolves a conflict with a merged body and keeps this window’s other fields', async () => {
+    const { slot, storage } = nativeSlot();
+    const mine = windowOn(storage);
+    const peer = windowOn(storage);
+    await mine.hydrate();
+    await peer.hydrate();
+    peer.update({ ...message, subject: 'Peer subject', body: 'intro\npeer line' });
+    await peer.durable!.flush();
+    mine.update({ ...message, subject: 'My subject', body: 'intro\nmy line' });
+    await mine.durable!.flush();
+    expect(mine.durable!.snapshot().review?.value?.body).toBe('intro\npeer line');
+    expect(await mine.merge('intro\nmy line\npeer line')).toBe(true);
+    await mine.durable!.flush();
+    expect(mine.snapshot().draft).toMatchObject({
+      subject: 'My subject',
+      body: 'intro\nmy line\npeer line',
+    });
+    expect(slot.value).toEqual({
+      version: 1,
+      draft: { ...message, subject: 'My subject', body: 'intro\nmy line\npeer line' },
+    });
+    expect(mine.durable!.snapshot().review).toBeNull();
+  });
   it('refuses foreign or oversized envelopes', () => {
     expect(mailDraftCodec.parse(null)).toBeNull();
     for (const value of [

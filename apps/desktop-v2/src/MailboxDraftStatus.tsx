@@ -1,3 +1,4 @@
+import { DraftMergeChoices } from './DraftMergeChoices';
 import type { DurableFormState } from './durable-form-draft';
 import type { MailDraft } from './mailbox-model';
 
@@ -5,12 +6,17 @@ import type { MailDraft } from './mailbox-model';
 export function MailboxDraftStatus({
   restoredAt,
   saved,
+  localBody,
   onResolve,
+  onMerge,
   onRetry,
 }: {
   restoredAt: number | undefined;
   saved: DurableFormState<MailDraft> | null;
+  /** This window's message body, to merge with the other window's change by change. */
+  localBody: string;
   onResolve: (choice: 'local' | 'saved') => void;
+  onMerge: (body: string) => void;
   onRetry: () => void;
 }) {
   if (!saved) return null;
@@ -28,6 +34,20 @@ export function MailboxDraftStatus({
         <button type="button" className="button secondary" onClick={() => onResolve('saved')}>
           Use saved message
         </button>
+        {saved.review.value && saved.review.value.body !== localBody && (
+          <>
+            <p className="field-help">
+              Merging combines the message bodies; recipients, subject and other fields stay as in
+              this window.
+            </p>
+            <DraftMergeChoices
+              mine={localBody}
+              stored={saved.review.value.body}
+              busy={saved.saving}
+              onKeep={onMerge}
+            />
+          </>
+        )}
       </div>
     );
   if (saved.error)

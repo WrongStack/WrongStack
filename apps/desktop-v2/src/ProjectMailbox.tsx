@@ -279,7 +279,9 @@ export function ProjectMailbox({
       <MailboxDraftStatus
         restoredAt={draftState.restoredAt}
         saved={savedState}
+        localBody={draft.body}
         onResolve={(choice) => void draftStore.resolve(choice)}
+        onMerge={(body) => void draftStore.merge(body)}
         onRetry={() => void durable?.load()}
       />
       {displayedError && !composing && (
