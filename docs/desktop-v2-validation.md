@@ -4319,3 +4319,22 @@ staged; the other session's edits stay untouched.
   webui-server typecheck PASS; desktop suite **578 PASS**, typecheck and Biome PASS.
 - Native step written (`native-session-recovery.mjs`: redo restores the file, then rewind
   again); **not run**.
+
+### Code Assist: every written file reviewed and restorable
+
+- Commit `da9276e20`. On editing runs the engine listens to the worker's `tool.started`, which the
+  executor emits synchronously just before a tool runs, and reads the target of each `write` and
+  `edit` call at that moment (first write per file; at most 50 files, 1 MiB each, 8 MiB in
+  total, UTF-8 only). `code.assist.result` then carries `edits` (project-relative path and text
+  before the run, null for a file the run created) and `uncaptured` (tools that can change files
+  without one readable target — shell, replace, patch, formatters and others — plus paths outside
+  the project or over the limits). The panel shows a comparison and restore for each captured
+  file; a created file can be removed again only while it still holds the content shown. Older
+  engines keep the single target-file snapshot.
+- Each restore is checked against the content shown (version-bound write, or re-read before
+  removal). There is no all-files restore: files are restored one by one.
+- Checks: RED then GREEN in the new `code-assist-edit-capture.test.ts` (real files; a second write
+  keeps the first before-content; created file, outside path and shell reported); 14 Code Assist
+  route tests and the webui-server typecheck PASS; desktop suite **579 PASS**, typecheck and
+  Biome PASS.
+- No native step yet: a real editing run needs a live model.
