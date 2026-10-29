@@ -687,6 +687,8 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
         <AutomationEnvironmentEditor
           {...(draft.environment ? { value: draft.environment } : {})}
           image={draft.image}
+          projectId={projectId}
+          jobId={selected?.id}
           onClose={() => setEnvironmentOpen(false)}
           onApply={(profile) => {
             update('environment', profile);

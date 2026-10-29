@@ -4,29 +4,49 @@ import {
   parseEnvironmentProfile,
 } from '@wrongstack/webui-protocol';
 import { Download, Plus, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { environmentDraft, environmentProfile } from './automation-environment-model';
 import { Modal } from './Modal';
+import { useEnvironmentDraft } from './useEnvironmentDraft';
 
 export function AutomationEnvironmentEditor({
   value,
   image,
   onApply,
   onClose,
+  projectId,
+  jobId,
 }: {
   value?: EnvironmentProfile;
   image: string;
   onApply: (profile: EnvironmentProfile) => void;
   onClose: () => void;
+  projectId: string;
+  jobId: string | undefined;
 }) {
-  const [draft, setDraft] = useState(() => environmentDraft(value, image));
+  const base = useMemo(() => environmentDraft(value, image), [value, image]);
+  const [draft, setDraft] = useState(base);
   const [error, setError] = useState(''),
-    [leaving, setLeaving] = useState(false);
+    [leaving, setLeaving] = useState(false),
+    [restored, setRestored] = useState('');
   const change = (next: typeof draft) => {
     setDraft(next);
     setError('');
   };
-  const dirty = JSON.stringify(draft) !== JSON.stringify(environmentDraft(value, image));
+  const dirty = JSON.stringify(draft) !== JSON.stringify(base);
+  const saved = useEnvironmentDraft({
+    projectId,
+    jobId,
+    base,
+    draft,
+    dirty,
+    restore: (next, savedAt) => {
+      setDraft(next);
+      setRestored(
+        `Restored unapplied environment edits${savedAt ? ` from ${new Date(savedAt).toLocaleString()}` : ''}.`,
+      );
+    },
+  });
   const close = () => (dirty ? setLeaving(true) : onClose());
   return (
     <Modal title="Automation environment" onClose={close}>
@@ -36,6 +56,7 @@ export function AutomationEnvironmentEditor({
           event.preventDefault();
           try {
             onApply(environmentProfile(draft));
+            saved.forget();
             onClose();
           } catch (error) {
             setError(error instanceof Error ? error.message : String(error));
@@ -64,6 +85,30 @@ export function AutomationEnvironmentEditor({
           <p role="alert" className="session-error">
             {error}
           </p>
+        )}
+        {restored && (
+          <p role="status" className="feature-notice">
+            {restored}
+          </p>
+        )}
+        {saved.error && (
+          <p role="alert" className="session-error">
+            {saved.error}
+          </p>
+        )}
+        {saved.older && (
+          <div className="automation-leave" role="alert">
+            <p>
+              Unapplied edits were saved from a different version of this environment; it has
+              changed since.
+            </p>
+            <button type="button" className="button secondary" onClick={saved.takeOlder}>
+              Use unapplied edits
+            </button>
+            <button type="button" className="button secondary" onClick={saved.discardOlder}>
+              Discard them
+            </button>
+          </div>
         )}
         <div className="automation-config-grid">
           <label>
@@ -390,7 +435,14 @@ export function AutomationEnvironmentEditor({
             <button type="button" className="button secondary" onClick={() => setLeaving(false)}>
               Keep editing environment
             </button>
-            <button type="button" className="button secondary" onClick={onClose}>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => {
+                saved.forget();
+                onClose();
+              }}
+            >
               Discard environment changes
             </button>
           </div>

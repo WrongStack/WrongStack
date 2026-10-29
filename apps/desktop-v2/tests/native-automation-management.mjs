@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { editableAutomationJob } from '@wrongstack/webui-protocol';
@@ -107,6 +108,29 @@ export async function exerciseNativeAutomationManagement({
     .getByRole('button', { name: 'Close automation environment', exact: true })
     .click();
   await environment.getByRole('button', { name: 'Keep editing environment', exact: true }).click();
+  // Unapplied environment edits are kept natively per job and restored after a reload.
+  const environmentKey = `automation-environment:${createHash('sha256')
+    .update(JSON.stringify(['automation-environment', project.id, '@new']))
+    .digest('hex')}`;
+  const storedEnvironment = () =>
+    page.evaluate(
+      (params) =>
+        window.__TAURI_INTERNALS__.invoke('host_request', { method: 'form-draft.get', params }),
+      { projectId: project.id, formKey: environmentKey },
+    );
+  await waitFor(
+    async () => (await storedEnvironment()).value?.draft?.setup?.includes('bun run build'),
+    'Environment dialog draft saved natively',
+  );
+  await page.reload();
+  await open(project);
+  await workspace().getByRole('button', { name: 'Configure environment', exact: true }).click();
+  await environment.getByText(/Restored unapplied environment edits/).waitFor();
+  assert.equal(
+    await environment.getByLabel('Environment setup commands', { exact: true }).inputValue(),
+    'bun install --frozen-lockfile\nbun run build',
+  );
+  assert.equal(await environment.getByLabel('Port 1 port', { exact: true }).inputValue(), '3000');
   await environment.getByLabel('Cache 1 target', { exact: true }).fill('/workspace');
   await environment
     .getByRole('button', { name: 'Apply environment to draft', exact: true })
@@ -124,6 +148,10 @@ export async function exerciseNativeAutomationManagement({
     (await state(project)).jobs.length,
     0,
     'Applying an environment only updates the local job draft',
+  );
+  await waitFor(
+    async () => (await storedEnvironment()).value === null,
+    'Applied environment edits leave native storage',
   );
   assert.equal(
     await workspace().getByLabel('Automation image', { exact: true }).getAttribute('readonly'),

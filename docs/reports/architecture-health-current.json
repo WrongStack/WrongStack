@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T13:43:24.966Z",
+  "generatedAt": "2026-10-29T14:10:55.723Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5449,
-    "testFiles": 4745,
-    "sourceLines": 1200837,
+    "sourceFiles": 5453,
+    "testFiles": 4748,
+    "sourceLines": 1201243,
     "workspaceEdges": 222,
-    "moduleEdges": 16378,
+    "moduleEdges": 16390,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 103,
+    "testsWithoutTypecheck": 105,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 974
   },
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 676,
-      "testFiles": 676,
+      "testFiles": 677,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -260,7 +260,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 676
+          "testFiles": 677
         }
       ]
     },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 263,
-      "testFiles": 103,
+      "sourceFiles": 267,
+      "testFiles": 105,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1294,6 +1294,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/automation-environment-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/automation-environment-model.test.ts",
         "projects": [
           "root-node"
@@ -1373,6 +1379,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/context-editor-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/context-residency-model.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3527,6 +3539,12 @@
       },
       {
         "file": "packages/cli/tests/boot-provider-acp-leader.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/boot-system-prompt-default.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29772,6 +29790,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/automation-environment-draft.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/automation-environment-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -29864,6 +29889,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/context-editor-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/context-residency-model.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -31122,7 +31154,7 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 739,
+      "lines": 741,
       "relativeImports": 12
     },
     {
@@ -31338,14 +31370,14 @@
       "relativeImports": 6
     },
     {
+      "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
+      "lines": 741,
+      "relativeImports": 12
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
       "lines": 740,
       "relativeImports": 10
-    },
-    {
-      "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 739,
-      "relativeImports": 12
     },
     {
       "file": "packages/coordination/src/sqlite-mailbox.ts",

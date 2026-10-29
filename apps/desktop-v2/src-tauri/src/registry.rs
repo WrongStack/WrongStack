@@ -234,6 +234,7 @@ impl Registry {
             "skill-editor:",
             "roster-document:",
             "roster-runtime:",
+            "automation-environment:",
         ]
         .iter()
         .any(|prefix| {
@@ -1062,6 +1063,14 @@ mod tests {
         assert!(peer.form_draft(&a.id, "roster-document:reviewer").is_err());
         let runtime = format!("roster-runtime:{}", "8".repeat(64));
         assert_eq!(db.save_form_draft(&a.id, &runtime, &design, 0).unwrap(), 1);
+        let environment = format!("automation-environment:{}", "7".repeat(64));
+        assert_eq!(
+            db.save_form_draft(&a.id, &environment, &design, 0).unwrap(),
+            1
+        );
+        assert!(peer
+            .form_draft(&a.id, "automation-environment:job-1")
+            .is_err());
         for owner in ["new", "reqi_01ABC-def"] {
             let key = format!("requirement-resource-input:{owner}");
             assert_eq!(db.save_form_draft(&a.id, &key, &design, 0).unwrap(), 1);
