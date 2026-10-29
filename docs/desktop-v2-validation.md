@@ -4531,3 +4531,23 @@ staged; the other session's edits stay untouched.
   Desktop `vector-memory-reindex.test.ts` was written with the change (coverage parsing,
   outcome text, buttons by coverage). Desktop suite **594 PASS**, typecheck and Biome PASS.
 - No native step: the native fixture project has no vector provider enabled.
+
+### Edit and resend a rewound prompt
+
+- The core rewinder already returns the rewound prompt's text (`promptText`, from the
+  `user_input` recorded just before the checkpoint; text blocks only). The TUI used it, but
+  `session.rewind` in webui-server did not forward it. The rewind result now carries
+  `rewind.promptText` when the journal has it.
+- Desktop: the "Rewind completed" result shows the rewound prompt with "Edit and resend" and
+  "Copy prompt". With an empty composer, the text goes into the composer draft and the chat
+  tab opens once the draft save is confirmed. With unsent composer text, it asks first:
+  "Replace it with this prompt" or "Keep current draft". Attached files and images are not
+  restored, and the panel says so. Sending stays the normal composer action.
+- Checks: RED then GREEN in webui-server `session-recovery-desktop.test.ts` (a real journal
+  with the prompt recorded before its checkpoint; the rewind result returns the whole text past
+  the 80-character preview). Recovery route tests 6 PASS; typecheck and Biome PASS. Desktop:
+  `session-recovery.test.ts` (model reads `promptText`, empty when absent) and
+  `rewound-prompt.test.ts` (render: text, actions, attachment note, no replace choice before
+  asking) were written with the change. Desktop suite **595 PASS**; typecheck and Biome PASS.
+- Native: `native-session-recovery.mjs` checks the rewound first prompt, the ask-before-replace
+  choice and keeping the draft (the later draft-preserved assertions still hold). Not run yet.
