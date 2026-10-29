@@ -4032,3 +4032,15 @@ staged; the other session's edits stay untouched.
 - Native step updated (`native-processes.mjs`: the terminated fixture reads "Terminated on
   request"); **not run**. The final native pass needs the bundled engine rebuilt from this
   tree.
+
+### Older session side effects
+
+- Commit `a44ff8600`. `side_effects.list` accepts optional `before` (exclusive position) and
+  `limit` (1–200) and reports `start`; without them it still sends the newest 50 with the same
+  `truncated` meaning. The audit view shows which records are loaded and offers "Load older
+  records". Each older page is requested with one record of overlap and is refused unless it
+  ends with the oldest loaded record, because the runtime keeps at most 500 and drops the
+  oldest. Live refresh pauses while older records are shown, with "Return to latest".
+- Checks: RED then GREEN in `introspection-routes.test.ts` (17 related tests) and the
+  webui-server typecheck; desktop suite PASS with the new join test; typecheck and Biome PASS.
+- No native step: the fixture session records fewer than 50 side effects.
