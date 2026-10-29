@@ -5,6 +5,7 @@ import {
   readSessionTranscriptBlock,
   readSessionTranscriptBlocks,
   readSessionTranscriptImage,
+  readSessionTranscriptToolInput,
 } from '../src/server/session-transcript.js';
 
 describe('bounded retained session transcript', () => {
@@ -147,6 +148,40 @@ describe('bounded retained session transcript', () => {
     expect(last.nextBlockOffset).toBeNull();
     expect(() => read(231)).toThrow(/outside/);
     expect(() => read(100, 'stale')).toThrow(/changed/);
+  });
+  it('reads one complete tool input on request, bounded and revision-checked', () => {
+    const big = 'x'.repeat(20000);
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'run' },
+          { type: 'tool_use', id: 'call-1', name: 'write', input: { path: 'a.ts', content: big } },
+          {
+            type: 'tool_use',
+            id: 'call-2',
+            name: 'write',
+            input: { content: 'y'.repeat(1_100_000) },
+          },
+        ],
+      },
+    ];
+    const page = projectSessionTranscript(messages, {});
+    // The page keeps its bounded preview.
+    expect(JSON.stringify(page)).not.toContain(big);
+    const read = (blockIndex: number, expectedRevision = page.revision) =>
+      readSessionTranscriptToolInput(messages, { expectedRevision, messageIndex: 0, blockIndex });
+    expect(read(1)).toEqual({
+      revision: page.revision,
+      messageIndex: 0,
+      blockIndex: 1,
+      name: 'write',
+      toolId: 'call-1',
+      input: { path: 'a.ts', content: big },
+    });
+    expect(() => read(0)).toThrow(/not a tool request/);
+    expect(() => read(2)).toThrow(/too large/);
+    expect(() => read(1, 'stale')).toThrow(/changed/);
   });
   it('applies role filters, stable paging and input bounds without changing messages', () => {
     const messages: Message[] = [

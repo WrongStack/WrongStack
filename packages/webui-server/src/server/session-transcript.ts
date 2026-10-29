@@ -206,6 +206,31 @@ export function readSessionTranscriptBlocks(messages: readonly Message[], raw: u
     nextBlockOffset: blockOffset + 100 < all.length ? blockOffset + 100 : null,
   };
 }
+/** Serialized size limit for one complete tool input read from history. */
+const MAX_TOOL_INPUT_CHARS = 1_000_000;
+
+/** One recorded tool request's complete input, read on explicit request (pages keep a preview). */
+export function readSessionTranscriptToolInput(messages: readonly Message[], raw: unknown) {
+  const options = record(raw);
+  const revision = transcriptRevision(messages);
+  if (options['expectedRevision'] !== revision)
+    throw Error('The transcript changed. Refresh before reading this tool input.');
+  const messageIndex = integer(options['messageIndex'], -1, Number.MAX_SAFE_INTEGER),
+    blockIndex = integer(options['blockIndex'], -1, Number.MAX_SAFE_INTEGER);
+  const message = messages[messageIndex],
+    block = message && blocks(message)[blockIndex];
+  if (block?.type !== 'tool_use') throw Error('This transcript block is not a tool request.');
+  if (JSON.stringify(block.input ?? null).length > MAX_TOOL_INPUT_CHARS)
+    throw Error('This tool input is too large to show here.');
+  return {
+    revision,
+    messageIndex,
+    blockIndex,
+    name: block.name,
+    toolId: block.id,
+    input: block.input,
+  };
+}
 const RASTER_IMAGES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 /** Base64 characters for about 4 MiB of image bytes. */
 const MAX_IMAGE_BASE64 = Math.ceil((4 * 1024 * 1024) / 3) * 4;

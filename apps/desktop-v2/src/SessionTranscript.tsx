@@ -327,13 +327,13 @@ function TranscriptBlock({
     );
   if (block['type'] === 'tool_use')
     return (
-      <details className="history-tool">
-        <summary>Tool request · {String(block['name'])}</summary>
-        <div className="approval-arguments">
-          <StructuredToolValue value={block['input']} />
-        </div>
-        <p className="field-help">Bounded input preview from the journal.</p>
-      </details>
+      <HistoryToolRequest
+        block={block}
+        sessionId={sessionId}
+        messageIndex={messageIndex}
+        revision={revision}
+        command={command}
+      />
     );
   const body = (
     <>
@@ -494,5 +494,83 @@ function MoreMessageBlocks({
         </p>
       )}
     </>
+  );
+}
+
+/** A recorded tool request: the bounded preview, and its complete input on request. */
+function HistoryToolRequest({
+  block,
+  sessionId,
+  messageIndex,
+  revision,
+  command,
+}: {
+  block: Row;
+  sessionId: string;
+  messageIndex: number;
+  revision: string;
+  command: EngineCommand;
+}) {
+  const [full, setFull] = useState<{ input: unknown } | null>(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  const load = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const result = await command(
+        'session.inspect',
+        {
+          id: sessionId,
+          transcriptToolInput: {
+            messageIndex,
+            blockIndex: block['index'],
+            expectedRevision: revision,
+          },
+        },
+        ['session.inspect'],
+        { timeoutMs: 90000 },
+      );
+      const read = record(result['transcriptToolInput']);
+      if (read['blockIndex'] !== block['index'] || !('input' in read))
+        throw Error(
+          typeof result['error'] === 'string'
+            ? result['error']
+            : 'This engine did not return the complete input.',
+        );
+      setFull({ input: read['input'] });
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <details className="history-tool">
+      <summary>Tool request · {String(block['name'])}</summary>
+      <div className="approval-arguments">
+        <StructuredToolValue value={full ? full.input : block['input']} />
+      </div>
+      {full ? (
+        <p className="field-help">Complete recorded input.</p>
+      ) : (
+        <p className="field-help">
+          Bounded input preview from the journal.{' '}
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={busy}
+            onClick={() => void load()}
+          >
+            {busy ? 'Loading…' : 'Show complete input'}
+          </button>
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="session-error">
+          {error}
+        </p>
+      )}
+    </details>
   );
 }

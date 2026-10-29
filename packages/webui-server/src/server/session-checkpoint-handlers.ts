@@ -16,6 +16,7 @@ import {
   readSessionTranscriptBlock,
   readSessionTranscriptBlocks,
   readSessionTranscriptImage,
+  readSessionTranscriptToolInput,
 } from './session-transcript.js';
 import { errMessage } from './ws-utils.js';
 
@@ -81,15 +82,26 @@ export function createSessionCheckpointHandlers(
         const transcriptBlocks = options['transcriptBlocks']
           ? readSessionTranscriptBlocks(data.messages, options['transcriptBlocks'])
           : undefined;
+        const transcriptToolInput = options['transcriptToolInput']
+          ? readSessionTranscriptToolInput(data.messages, options['transcriptToolInput'])
+          : undefined;
         if (
           options['transcriptOnly'] === true ||
           transcriptBlock ||
           transcriptImage ||
-          transcriptBlocks
+          transcriptBlocks ||
+          transcriptToolInput
         ) {
           sendTo(ws, {
             type: 'session.inspect',
-            payload: { id, transcript, transcriptBlock, transcriptImage, transcriptBlocks },
+            payload: {
+              id,
+              transcript,
+              transcriptBlock,
+              transcriptImage,
+              transcriptBlocks,
+              transcriptToolInput,
+            },
           });
           return;
         }
