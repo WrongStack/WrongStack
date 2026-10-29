@@ -8,6 +8,7 @@ pub mod registry;
 mod request_pool;
 pub mod sessions;
 pub mod transcript;
+pub mod window_geometry;
 
 pub type Result<T> = std::result::Result<T, String>;
 pub fn err(e: impl std::fmt::Display) -> String {

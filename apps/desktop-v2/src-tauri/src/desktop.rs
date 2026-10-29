@@ -1,4 +1,9 @@
-use crate::{err, host::Client, Result};
+use crate::{
+    err,
+    host::Client,
+    window_geometry::{self, Area, Geometry},
+    Result,
+};
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
@@ -20,10 +25,85 @@ struct Desktop {
     drafts: Arc<Mutex<crate::registry::Registry>>,
     project_aliases: Arc<Mutex<HashMap<String, String>>>,
     streams: Mutex<HashMap<String, Arc<StreamControl>>>,
+    geometry: Mutex<HashMap<String, Geometry>>,
 }
 struct StreamControl {
     cancel: AtomicBool,
     ready: AtomicBool,
+}
+/** Logical work areas of the connected monitors, for deciding where a window may reopen. */
+fn monitor_areas(monitors: Vec<tauri::Monitor>) -> Vec<Area> {
+    monitors
+        .iter()
+        .map(|monitor| {
+            let scale = monitor.scale_factor();
+            let area = monitor.work_area();
+            let position = area.position.to_logical::<f64>(scale);
+            let size = area.size.to_logical::<f64>(scale);
+            Area {
+                x: position.x,
+                y: position.y,
+                width: size.width,
+                height: size.height,
+            }
+        })
+        .collect()
+}
+/** The saved placement for a window label that still fits on a connected monitor. */
+fn saved_geometry(app: &tauri::AppHandle, label: &str) -> Option<Geometry> {
+    let key = window_geometry::key(label)?;
+    let saved = *app.state::<Desktop>().geometry.lock().ok()?.get(&key)?;
+    window_geometry::restorable(&saved, &monitor_areas(app.available_monitors().ok()?))
+}
+/** Records a window's current placement; a maximized window keeps its last normal bounds. */
+fn remember_geometry(window: &tauri::Window) {
+    let Some(key) = window_geometry::key(window.label()) else {
+        return;
+    };
+    if window.is_minimized().unwrap_or(true) {
+        return;
+    }
+    let Some(state) = window.app_handle().try_state::<Desktop>() else {
+        return;
+    };
+    let Ok(mut map) = state.geometry.lock() else {
+        return;
+    };
+    let maximized = window.is_maximized().unwrap_or(false);
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let (Ok(position), Ok(size)) = (window.outer_position(), window.inner_size()) else {
+        return;
+    };
+    let position = position.to_logical::<f64>(scale);
+    let size = size.to_logical::<f64>(scale);
+    let previous = map.get(&key).copied();
+    let next = match (maximized, previous) {
+        (true, Some(normal)) => Geometry {
+            maximized: true,
+            updated_at: crate::now(),
+            ..normal
+        },
+        _ => Geometry {
+            x: position.x,
+            y: position.y,
+            width: size.width,
+            height: size.height,
+            maximized,
+            updated_at: crate::now(),
+        },
+    };
+    map.insert(key, next);
+}
+fn persist_geometry(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<Desktop>() else {
+        return;
+    };
+    let Ok(map) = state.geometry.lock() else {
+        return;
+    };
+    if let Ok(dir) = crate::host::data_dir() {
+        let _ = window_geometry::save(&dir, &map);
+    }
 }
 fn trusted(window: &WebviewWindow) -> Result<()> {
     if window.label() == "main" || window.label().starts_with("project-") {
@@ -267,14 +347,22 @@ async fn open_project_window(window: WebviewWindow, id: String) -> Result<()> {
     if let Some(existing) = window.app_handle().get_webview_window(&label) {
         return existing.set_focus().map_err(err);
     }
-    WebviewWindowBuilder::new(
+    let saved = saved_geometry(window.app_handle(), &label);
+    let builder = WebviewWindowBuilder::new(
         window.app_handle(),
         label,
         WebviewUrl::App(format!("index.html?project={id}").into()),
     )
     .title("WrongStack — Project")
     .disable_drag_drop_handler()
-    .inner_size(1360., 900.)
+    .min_inner_size(window_geometry::MIN_WIDTH, window_geometry::MIN_HEIGHT);
+    match saved {
+        Some(g) => builder
+            .inner_size(g.width, g.height)
+            .position(g.x, g.y)
+            .maximized(g.maximized),
+        None => builder.inner_size(1360., 900.),
+    }
     .build()
     .map_err(err)?;
     Ok(())
@@ -435,10 +523,36 @@ pub fn run() {
                 )),
                 project_aliases: Arc::new(Mutex::new(HashMap::new())),
                 streams: Mutex::new(HashMap::new()),
+                geometry: Mutex::new(
+                    crate::host::data_dir()
+                        .map(|dir| window_geometry::load(&dir))
+                        .unwrap_or_default(),
+                ),
             });
+            // The main window reopens where it was, unless that display is gone.
+            if let (Some(main), Some(g)) = (
+                app.get_webview_window("main"),
+                saved_geometry(app.handle(), "main"),
+            ) {
+                let _ = main.set_size(tauri::LogicalSize::new(g.width, g.height));
+                let _ = main.set_position(tauri::LogicalPosition::new(g.x, g.y));
+                if g.maximized {
+                    let _ = main.maximize();
+                }
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
+            match event {
+                tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
+                    remember_geometry(window)
+                }
+                tauri::WindowEvent::CloseRequested { .. } => {
+                    remember_geometry(window);
+                    persist_geometry(window.app_handle());
+                }
+                _ => {}
+            }
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 if let Some(state) = window.app_handle().try_state::<Desktop>() {
                     if let Ok(mut streams) = state.streams.lock() {
