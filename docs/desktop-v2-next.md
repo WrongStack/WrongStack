@@ -388,9 +388,9 @@ and `SessionUsage.tsx`.
 - Exercise actual multiple windows and multiple simultaneous projects/sessions under queue,
   refinement, model-switch, approval, draft and reconnect load. IPC-injected peer writes and
   two controller/SQLite connections do not replace concurrent WebView stress.
-- Window placement is remembered per main/project window (2026-10-29). Finish migration,
-  older-host compatibility and preview profile isolation/
-  DevTools gates. Keep existing live sessions on their original host during updates.
+- Window placement is remembered per main/project window (2026-10-29). Previews use a private profile
+  and open developer tools only on request (2026-10-29). Finish migration and older-host
+  compatibility. Keep existing live sessions on their original host during updates.
 - Measure startup/RAM, large graphs/trees/catalogs, transcript/terminal scrollback and package size.
   The three-terminal proof is not the 3 × 10k lines/s/no-dropped-frames benchmark.
 - Complete installer/update migration, signed installer/update artifacts, platform acceptance and

@@ -3934,3 +3934,13 @@ one final native pass.
 - Checks: Rust tests PASS (`cargo test --no-default-features`, 25 tests including 4 new
   `window_geometry` tests); `cargo check` and `rustfmt --check` PASS.
 - No native step: moving real windows belongs to the final native pass.
+
+## Private preview windows with opt-in developer tools (2026-10-29)
+
+- Commit `d8cff3cc5`. Local previews open in a private (incognito) webview profile, so cookies and
+  storage are neither shared with other previews nor kept after the window closes. Developer
+  tools no longer open with every preview; the preview dialog has an "Open developer tools"
+  option. The localhost-only URL check and the absence of desktop IPC are unchanged.
+- Checks: `cargo check`, `rustfmt --check`, typecheck and Biome PASS.
+- No native step exists for previews yet; the final native pass must open one with and
+  without developer tools and check that storage does not survive a reopen.
