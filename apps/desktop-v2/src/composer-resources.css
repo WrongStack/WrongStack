@@ -492,3 +492,45 @@
 .context-editor-trim button {
   justify-self: start;
 }
+.context-modes {
+  display: grid;
+  gap: 8px;
+}
+.context-modes header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.context-modes ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.context-modes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.context-modes li.active {
+  border-color: var(--accent, var(--border));
+}
+.context-modes li > div {
+  display: grid;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.context-mode-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.context-mode-field {
+  display: grid;
+  gap: 2px;
+}
