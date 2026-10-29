@@ -27,6 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComposerFileReference } from './composer-resources-model';
 import { DiffPreview } from './DiffPreview';
+import { EditorFindBar } from './EditorFindBar';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
@@ -594,6 +595,8 @@ export function FileWorkspace({
   const [picked, setPicked] = useState<string[]>([]);
   const [selecting, setSelecting] = useState(false);
   const [bulk, setBulk] = useState<'move' | 'delete' | null>(null);
+  // Find and replace in the open editor (Ctrl/Cmd+F).
+  const [finding, setFinding] = useState(false);
   // A new folder, search or sort starts again at the first page.
   useEffect(() => setFolderLimit(FOLDER_PAGE), [folder, search, sort]);
   // Leaving the folder or search drops a selection the listing no longer shows.
@@ -1196,28 +1199,55 @@ export function FileWorkspace({
                     <p>Your file stays on disk. Text editing is unavailable.</p>
                   </div>
                 ) : document?.editing ? (
-                  <textarea
-                    className="file-code-editor"
-                    aria-label={`Edit ${active}`}
-                    spellCheck={false}
-                    value={document.content}
-                    onChange={(event) => updateDocument(active, { content: event.target.value })}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Tab') {
-                        event.preventDefault();
-                        const input = event.currentTarget,
-                          start = input.selectionStart,
-                          end = input.selectionEnd;
-                        updateDocument(active, {
-                          content:
-                            document.content.slice(0, start) + '  ' + document.content.slice(end),
-                        });
-                        requestAnimationFrame(() => {
-                          input.selectionStart = input.selectionEnd = start + 2;
-                        });
-                      }
-                    }}
-                  />
+                  <>
+                    {finding && (
+                      <EditorFindBar
+                        content={document.content}
+                        editor={() =>
+                          contentElement.current?.querySelector<HTMLTextAreaElement>(
+                            'textarea.file-code-editor',
+                          ) ?? null
+                        }
+                        onChange={(text, select) => {
+                          updateDocument(active, { content: text });
+                          if (select)
+                            requestAnimationFrame(() =>
+                              contentElement.current
+                                ?.querySelector<HTMLTextAreaElement>('textarea.file-code-editor')
+                                ?.setSelectionRange(select.start, select.end),
+                            );
+                        }}
+                        onClose={() => setFinding(false)}
+                      />
+                    )}
+                    <textarea
+                      className="file-code-editor"
+                      aria-label={`Edit ${active}`}
+                      spellCheck={false}
+                      value={document.content}
+                      onChange={(event) => updateDocument(active, { content: event.target.value })}
+                      onKeyDown={(event) => {
+                        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+                          event.preventDefault();
+                          setFinding(true);
+                          return;
+                        }
+                        if (event.key === 'Tab') {
+                          event.preventDefault();
+                          const input = event.currentTarget,
+                            start = input.selectionStart,
+                            end = input.selectionEnd;
+                          updateDocument(active, {
+                            content:
+                              document.content.slice(0, start) + '  ' + document.content.slice(end),
+                          });
+                          requestAnimationFrame(() => {
+                            input.selectionStart = input.selectionEnd = start + 2;
+                          });
+                        }
+                      }}
+                    />
+                  </>
                 ) : document ? (
                   <section className="file-source-code" aria-label={`Source of ${active}`}>
                     {document.content.split('\n').map((line, index) => (

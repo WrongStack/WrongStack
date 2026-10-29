@@ -148,6 +148,25 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
     async () => !(await page.getByRole('button', { name: 'Save', exact: true }).isEnabled()),
     'Saved file acknowledgement',
   );
+  // Find and replace edits only the editor text; undo restores it and the disk is untouched.
+  await editor().focus();
+  await page.keyboard.press('Control+f');
+  const finder = page.getByRole('region', { name: 'Find and replace', exact: true });
+  await finder.getByLabel('Find in file', { exact: true }).fill('desktop');
+  await finder.getByText('1 matches', { exact: true }).waitFor();
+  await finder.getByLabel('Replace with', { exact: true }).fill('native');
+  await finder.getByRole('button', { name: 'Replace all', exact: true }).click();
+  await finder.getByText('Replaced 1 match.', { exact: true }).waitFor();
+  assert.equal(await editor().inputValue(), 'export const native = 1;\n');
+  assert.equal(
+    await readFile(join(project.root, 'desktop-notes/native.ts'), 'utf8'),
+    'export const desktop = 1;\n',
+    'Replacing does not write the file',
+  );
+  await finder.getByRole('button', { name: 'Undo replace all', exact: true }).click();
+  assert.equal(await editor().inputValue(), 'export const desktop = 1;\n');
+  await finder.getByLabel('Find in file', { exact: true }).press('Escape');
+  await finder.waitFor({ state: 'detached' });
   await editor().fill('export const unsaved = true;\n');
   await waitFor(async () => {
     const drafts = await page.evaluate(

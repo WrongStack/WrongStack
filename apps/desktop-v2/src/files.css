@@ -1097,3 +1097,17 @@
   gap: 8px;
   margin-top: 12px;
 }
+
+.editor-find-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.editor-find-count {
+  min-width: 70px;
+  color: var(--muted);
+}
