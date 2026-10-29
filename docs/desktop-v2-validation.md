@@ -4200,3 +4200,20 @@ staged; the other session's edits stay untouched.
   **573 PASS**, typecheck and Biome PASS.
 - Native step rewritten (`native-composer.mjs`: the steering prompt reaches the provider before
   the already-queued one); **not run**.
+
+### Dead-code apply bound to the reviewed preview
+
+- Commit `12e1dcf59`. A dead-code plan carries `revision`, a SHA-256 over every planned file's
+  action and exact before/after contents. `/api/deadcode/apply` accepts `expectedRevision`;
+  the engine re-scans as before and, when the new plan's revision differs, writes nothing and
+  returns `stale: true` with the new plan (a non-string value is a 400). The comparison and the
+  write happen in the same step, with no await between them. Only the first write is bound:
+  later attempts are that plan minus findings excluded for failing verification, reported in
+  `excluded` as before. The desktop sends the revision of the preview it showed and, on a stale
+  reply, shows the new preview and says nothing was written; its earlier diff comparison stays
+  for engines without revisions.
+- Checks: RED then GREEN in `dead-code-engine.test.ts` (file edited after review: refused,
+  file untouched, new revision applies); 49 dead-code tests and the tools typecheck PASS (tools
+  `dist` rebuilt); `deadcode-handlers.test.ts` passes the revision through the HTTP route;
+  webui-server typecheck PASS; desktop suite **574 PASS**, typecheck and Biome PASS.
+- The existing native dead-code step now applies with the revision; **not run**.
