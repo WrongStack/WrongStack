@@ -4120,3 +4120,18 @@ staged; the other session's edits stay untouched.
 - Checks: RED then GREEN in the new `session-usage-summary.test.ts`; webui-server typecheck
   PASS; desktop suite **571 PASS**, typecheck and Biome PASS.
 - Native step written (`native-project-history.mjs`); **not run**.
+
+### Line-level Git staging
+
+- Commit `a32b75626`. `git.hunk.apply` accepts `lines` (indices of change lines in the reviewed
+  hunk). The server still builds the patch from the reviewed hunk: applied forward, unselected
+  additions are dropped and unselected removals become context; when unstaging, the roles swap.
+  Within each run of changes the applied side keeps its order, header counts are recomputed and
+  `git apply --recount` is used. Context lines, out-of-range or empty selections, and hunks
+  with an end-of-file newline marker are refused. The hunk review shows a checkbox on every
+  change line and "Stage/Unstage N selected lines".
+- Checks: RED then GREEN in `git-hunks.test.ts` (real repository: stage b→B only, then unstage
+  B only; partial-hunk ordering cases); 19 git hunk/route tests and the webui-server typecheck
+  PASS; desktop suite PASS, typecheck and Biome PASS.
+- Native step written (`native-files.mjs`: only the removal of "line 3" enters the index, then
+  undone); **not run**.
