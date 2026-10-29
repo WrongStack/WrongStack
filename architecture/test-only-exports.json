@@ -103,6 +103,7 @@
       "fieldsCodec"
     ],
     "apps/desktop-v2/src/VectorMemoryEntries.tsx": [
+      "reindexOutcome",
       "vectorTags"
     ],
     "apps/desktop-v2/src/word-diff.ts": [

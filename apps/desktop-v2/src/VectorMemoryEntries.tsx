@@ -161,3 +161,131 @@ export function VectorMemoryForget({
     </span>
   );
 }
+
+export interface VectorCoverage {
+  entries: number;
+  covered: number;
+  missing: number;
+}
+
+/** The status route's coverage block, when the engine reports one with consistent counts. */
+export function vectorCoverage(status: Record<string, unknown>): VectorCoverage | null {
+  const raw = status['coverage'];
+  if (!raw || typeof raw !== 'object') return null;
+  const row = raw as Record<string, unknown>;
+  const [entries, covered, missing] = [row['entries'], row['covered'], row['missing']];
+  return Number.isSafeInteger(entries) &&
+    Number.isSafeInteger(covered) &&
+    Number.isSafeInteger(missing) &&
+    (covered as number) + (missing as number) === entries
+    ? { entries: entries as number, covered: covered as number, missing: missing as number }
+    : null;
+}
+
+/** What one reindex did, from `POST /api/vector-memory/reindex`. */
+export function reindexOutcome(result: Record<string, unknown>): string {
+  const processed = Number(result['processed'] ?? 0),
+    errors = Number(result['errors'] ?? 0);
+  const coverage = vectorCoverage(result);
+  return [
+    `Embedded ${processed} ${processed === 1 ? 'entry' : 'entries'}.`,
+    errors ? `${errors} could not be embedded; the provider may be unavailable.` : '',
+    coverage
+      ? coverage.missing
+        ? `${coverage.missing} of ${coverage.entries} still have no vector for this provider.`
+        : `All ${coverage.entries} entries have a vector for this provider.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * Embedding coverage with maintenance: embed only the entries that have no vector for the
+ * active provider, or re-embed everything (after a confirmation, since it calls the provider
+ * once per entry).
+ */
+export function VectorMemoryReindex({
+  http,
+  coverage,
+  onDone,
+}: {
+  http: EngineHttp;
+  coverage: VectorCoverage;
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false),
+    [confirmAll, setConfirmAll] = useState(false),
+    [error, setError] = useState(''),
+    [notice, setNotice] = useState('');
+  const run = async (onlyMissing: boolean) => {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    setConfirmAll(false);
+    try {
+      const result = record(await http('/api/vector-memory/reindex', 'POST', { onlyMissing }));
+      setNotice(reindexOutcome(result));
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="vector-memory-reindex" aria-label="Embedding coverage">
+      <p>
+        {coverage.covered} of {coverage.entries} entries have a vector for the active provider.
+        {coverage.missing > 0 && ' Entries without one are not found by semantic search.'}
+      </p>
+      <div className="vector-memory-reindex-actions">
+        {coverage.missing > 0 && (
+          <button
+            type="button"
+            className="button primary small"
+            disabled={busy}
+            onClick={() => void run(true)}
+          >
+            Embed {coverage.missing} missing
+          </button>
+        )}
+        {confirmAll ? (
+          <>
+            <button
+              type="button"
+              className="button danger small"
+              disabled={busy}
+              onClick={() => void run(false)}
+            >
+              Re-embed all {coverage.entries}
+            </button>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => setConfirmAll(false)}
+            >
+              Keep
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={busy || coverage.entries === 0}
+            onClick={() => setConfirmAll(true)}
+          >
+            Re-embed all…
+          </button>
+        )}
+      </div>
+      {busy && <p role="status">Embedding… this calls the provider once per entry.</p>}
+      {error && (
+        <p role="alert" className="session-error">
+          {error}
+        </p>
+      )}
+      {notice && <p role="status">{notice}</p>}
+    </section>
+  );
+}

@@ -1090,3 +1090,13 @@
   align-items: center;
   gap: 6px;
 }
+.vector-memory-reindex {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+.vector-memory-reindex-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

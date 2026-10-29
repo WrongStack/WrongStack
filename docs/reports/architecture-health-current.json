@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T23:27:28.101Z",
+  "generatedAt": "2026-10-29T23:35:00.339Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 45,
     "sourceFiles": 5499,
-    "testFiles": 4790,
-    "sourceLines": 1210178,
+    "testFiles": 4792,
+    "sourceLines": 1210370,
     "workspaceEdges": 222,
     "moduleEdges": 16493,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 135,
+    "testsWithoutTypecheck": 136,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 989
+    "testOnlyExports": 990
   },
   "errors": [],
   "packageCycles": [],
@@ -386,7 +386,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 307,
-      "testFiles": 135,
+      "testFiles": 136,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1113,7 +1113,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 321,
-      "testFiles": 351,
+      "testFiles": 352,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1147,7 +1147,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 351
+          "testFiles": 352
         }
       ]
     },
@@ -2063,6 +2063,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/vector-memory-entries.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/vector-memory-reindex.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26746,6 +26752,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/vector-memory-reindex.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/webui-status-logger-heartbeat-unref.test.ts",
         "projects": [
           "root-node"
@@ -30945,6 +30957,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/vector-memory-reindex.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/word-diff.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31681,7 +31700,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
-      "lines": 927,
+      "lines": 939,
       "relativeImports": 9
     },
     {
@@ -31757,14 +31776,14 @@
       "relativeImports": 10
     },
     {
+      "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
+      "lines": 939,
+      "relativeImports": 9
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
       "lines": 934,
       "relativeImports": 6
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
-      "lines": 927,
-      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/CodeAtlas.tsx",
@@ -32141,6 +32160,10 @@
     {
       "file": "apps/desktop-v2/src/usePersistedFields.tsx",
       "name": "fieldsCodec"
+    },
+    {
+      "file": "apps/desktop-v2/src/VectorMemoryEntries.tsx",
+      "name": "reindexOutcome"
     },
     {
       "file": "apps/desktop-v2/src/VectorMemoryEntries.tsx",

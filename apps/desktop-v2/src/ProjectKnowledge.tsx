@@ -20,7 +20,12 @@ import { ProjectMemory } from './ProjectMemory';
 import { SageAudience } from './SageAudience';
 import { SageRecordDetails } from './SageRecordDetails';
 import { sageRepairs } from './sage-model';
-import { VectorMemoryAdd, VectorMemoryForget } from './VectorMemoryEntries';
+import {
+  VectorMemoryAdd,
+  VectorMemoryForget,
+  VectorMemoryReindex,
+  vectorCoverage,
+} from './VectorMemoryEntries';
 
 export function ProjectKnowledge({
   command,
@@ -819,6 +824,13 @@ function VectorMemory({
               </article>
             ))}
           </div>
+          {vectorCoverage(status) && (
+            <VectorMemoryReindex
+              http={http}
+              coverage={vectorCoverage(status)!}
+              onDone={() => setStatusRead((value) => value + 1)}
+            />
+          )}
           <VectorMemoryAdd http={http} onStored={() => setStatusRead((value) => value + 1)} />
           <form
             className="sage-retrieval-search"
