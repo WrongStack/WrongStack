@@ -114,8 +114,33 @@ export async function exerciseNativeAppearance({ page, rpc, waitFor, artifactDir
     fullPage: true,
   });
   await page.setViewportSize({ width: 1480, height: 960 });
+  // High contrast is stored and applied; System follows the OS preference.
+  const contrastGroup = appearance.getByRole('group', { name: 'Contrast', exact: true });
+  await contrastGroup.getByRole('button', { name: 'High', exact: true }).click();
+  await waitFor(
+    () => page.evaluate(() => document.documentElement.dataset.contrast === 'more'),
+    'High contrast applied',
+  );
+  await waitFor(
+    async () => JSON.parse((await rpc('snapshot')).appearance ?? '{}').contrast === 'more',
+    'High contrast stored',
+  );
+  await contrastGroup.getByRole('button', { name: 'System', exact: true }).click();
+  await page.emulateMedia({ contrast: 'more' });
+  await waitFor(
+    () => page.evaluate(() => document.documentElement.dataset.contrast === 'more'),
+    'System high contrast',
+  );
+  await page.emulateMedia({ contrast: 'no-preference' });
+  await waitFor(
+    () => page.evaluate(() => document.documentElement.dataset.contrast === 'standard'),
+    'System standard contrast',
+  );
   await page.emulateMedia({ colorScheme: 'dark' });
-  await appearance.getByRole('button', { name: 'System', exact: true }).click();
+  await appearance
+    .getByRole('group', { name: 'Color mode', exact: true })
+    .getByRole('button', { name: 'System', exact: true })
+    .click();
   await waitFor(
     () => page.evaluate(() => document.documentElement.dataset.mode === 'dark'),
     'System dark mode',

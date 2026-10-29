@@ -20,6 +20,17 @@
 :root[data-mode="dark"] {
   color-scheme: dark;
 }
+/* High contrast: muted text and borders move toward the foreground; focus is always drawn. */
+:root[data-contrast="more"] {
+  --muted: color-mix(in srgb, var(--text) 85%, var(--base));
+  --subtle: color-mix(in srgb, var(--text) 75%, var(--base));
+  --border: color-mix(in srgb, var(--text) 55%, var(--base));
+  --accent-border: var(--accent);
+}
+:root[data-contrast="more"] :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .heading-dot {
   color: var(--brand-secondary);
 }

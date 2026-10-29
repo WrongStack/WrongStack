@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:11:31.362Z",
+  "generatedAt": "2026-10-29T19:14:00.903Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 45,
     "sourceFiles": 5477,
     "testFiles": 4767,
-    "sourceLines": 1204800,
+    "sourceLines": 1204863,
     "workspaceEdges": 222,
     "moduleEdges": 16441,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 122,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 983
+    "testOnlyExports": 984
   },
   "errors": [],
   "packageCycles": [],
@@ -31741,6 +31741,10 @@
     {
       "file": "apps/desktop-v2/src/appearance.ts",
       "name": "paletteColors"
+    },
+    {
+      "file": "apps/desktop-v2/src/appearance.ts",
+      "name": "resolvedContrast"
     },
     {
       "file": "apps/desktop-v2/src/automation-draft.ts",

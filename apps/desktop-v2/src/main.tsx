@@ -17,7 +17,11 @@ import './chronicle.css';
 import './git-history.css';
 import './skills.css';
 
-applyAppearance(cachedAppearance(), matchMedia('(prefers-color-scheme: dark)').matches);
+applyAppearance(
+  cachedAppearance(),
+  matchMedia('(prefers-color-scheme: dark)').matches,
+  matchMedia('(prefers-contrast: more)').matches,
+);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

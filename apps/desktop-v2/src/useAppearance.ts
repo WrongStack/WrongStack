@@ -24,6 +24,15 @@ export function useAppearance(
   const [systemDark, setSystemDark] = useState(
     () => matchMedia('(prefers-color-scheme: dark)').matches,
   );
+  const [systemMore, setSystemMore] = useState(
+    () => matchMedia('(prefers-contrast: more)').matches,
+  );
+  useEffect(() => {
+    const media = matchMedia('(prefers-contrast: more)');
+    const update = () => setSystemMore(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const awaiting = useRef<string | null>(null);
   const serial = useRef(Promise.resolve());
   const latest = useRef(appearance);
@@ -42,17 +51,22 @@ export function useAppearance(
     setAppearance(restored);
   }, [persisted]);
   useEffect(() => {
-    applyAppearance(appearance, systemDark);
+    applyAppearance(appearance, systemDark, systemMore);
     try {
       localStorage.setItem(cacheKey, JSON.stringify(appearance));
     } catch {
       /* Native storage remains authoritative. */
     }
-  }, [appearance, systemDark]);
+  }, [appearance, systemDark, systemMore]);
   const changeAppearance = useCallback(
     (patch: Partial<Appearance>) => {
       const next = { ...latest.current, ...patch };
-      if (next.mode === latest.current.mode && next.accent === latest.current.accent) return;
+      if (
+        next.mode === latest.current.mode &&
+        next.accent === latest.current.accent &&
+        next.contrast === latest.current.contrast
+      )
+        return;
       latest.current = next;
       setAppearance(next);
       if (!native) return;

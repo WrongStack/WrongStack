@@ -6,12 +6,19 @@ import {
 } from './brand-palettes';
 
 export const appearanceModes = ['system', 'light', 'dark'] as const;
+/** System follows the OS "more contrast" preference; "more" forces stronger text and borders. */
+export const contrastModes = ['system', 'standard', 'more'] as const;
 export const accentThemes = brandPalettes;
 export interface Appearance {
   mode: (typeof appearanceModes)[number];
   accent: BrandPaletteId;
+  contrast: (typeof contrastModes)[number];
 }
-export const defaultAppearance: Appearance = { mode: 'system', accent: brandDefaultPalette };
+export const defaultAppearance: Appearance = {
+  mode: 'system',
+  accent: brandDefaultPalette,
+  contrast: 'system',
+};
 const legacyPalettes: Record<string, string> = {
   moss: 'moss-rust',
   ocean: 'blue-navy',
@@ -30,10 +37,19 @@ export function parseAppearance(raw: string | null | undefined): Appearance {
     return {
       mode: appearanceModes.find((mode) => mode === candidate['mode']) ?? defaultAppearance.mode,
       accent: accentThemes.find((theme) => theme.id === accent)?.id ?? defaultAppearance.accent,
+      contrast:
+        contrastModes.find((mode) => mode === candidate['contrast']) ?? defaultAppearance.contrast,
     };
   } catch {
     return defaultAppearance;
   }
+}
+export function resolvedContrast(appearance: Appearance, systemMore: boolean): 'standard' | 'more' {
+  return appearance.contrast === 'system'
+    ? systemMore
+      ? 'more'
+      : 'standard'
+    : appearance.contrast;
 }
 export function resolvedMode(appearance: Appearance, systemDark: boolean): 'dark' | 'light' {
   return appearance.mode === 'system' ? (systemDark ? 'dark' : 'light') : appearance.mode;
@@ -79,9 +95,10 @@ export function paletteColors(appearance: Appearance, systemDark: boolean) {
     ),
   };
 }
-export function applyAppearance(appearance: Appearance, systemDark: boolean) {
+export function applyAppearance(appearance: Appearance, systemDark: boolean, systemMore = false) {
   const root = document.documentElement;
   root.dataset['mode'] = resolvedMode(appearance, systemDark);
+  root.dataset['contrast'] = resolvedContrast(appearance, systemMore);
   root.dataset['accent'] = appearance.accent;
   if (appearance.accent === 'signal') delete root.dataset['palette'];
   else root.dataset['palette'] = appearance.accent;

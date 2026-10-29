@@ -3,7 +3,8 @@
   "files": {
     "apps/desktop-v2/src/appearance.ts": [
       "hslHex",
-      "paletteColors"
+      "paletteColors",
+      "resolvedContrast"
     ],
     "apps/desktop-v2/src/automation-draft.ts": [
       "NEW_AUTOMATION"

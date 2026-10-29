@@ -34,6 +34,31 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
       </div>
       <div className="appearance-section">
         <div>
+          <h3>Contrast</h3>
+          <p>Stronger text, borders and focus outlines; System follows your device setting.</p>
+        </div>
+        <fieldset className="appearance-modes" aria-label="Contrast">
+          {(
+            [
+              { id: 'system', label: 'System' },
+              { id: 'standard', label: 'Standard' },
+              { id: 'more', label: 'High' },
+            ] as const
+          ).map(({ id, label }) => (
+            <button
+              type="button"
+              key={id}
+              aria-pressed={appearance.contrast === id}
+              onClick={() => changeAppearance({ contrast: id })}
+            >
+              <span>{label}</span>
+              {appearance.contrast === id && <Check size={13} />}
+            </button>
+          ))}
+        </fieldset>
+      </div>
+      <div className="appearance-section">
+        <div>
           <h3>Color palette</h3>
           <p>WrongStack’s signature color pairs, tuned for light and dark.</p>
         </div>
