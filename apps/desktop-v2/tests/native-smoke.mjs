@@ -21,6 +21,7 @@ import { exerciseNativeChimera } from './native-chimera.mjs';
 import { exerciseNativeChronicleExport } from './native-chronicle-export.mjs';
 import { seedNativeChronicle } from './native-chronicle-fixture.mjs';
 import { exerciseNativeChronicleInsights } from './native-chronicle-insights.mjs';
+import { exerciseNativeCodeAssistEdit } from './native-code-assist-edit.mjs';
 import { exerciseNativeComposer } from './native-composer.mjs';
 import { exerciseNativeComposerResources } from './native-composer-resources.mjs';
 import { exerciseNativeConversation } from './native-conversation.mjs';
@@ -1626,6 +1627,7 @@ try {
     });
     await exerciseNativeApprovals({ page, agent, rpc, artifactDir, waitFor, providerFixture });
     await exerciseNativeNextSteps({ page, artifactDir, waitFor, providerFixture });
+    await exerciseNativeCodeAssistEdit({ page, waitFor, artifactDir, projectRoot: repo1 });
     if (!composerOnly) {
       const views = () => page.getByRole('navigation', { name: 'Agent workspace views' });
       const assistSessions = (await rpc('snapshot')).sessions.length;

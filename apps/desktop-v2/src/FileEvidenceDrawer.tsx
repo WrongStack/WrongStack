@@ -185,6 +185,7 @@ export function FileEvidenceDrawer({
               key={path}
               filePath={path}
               send={send}
+              command={command}
               state={state}
               onEdited={refreshDiff}
             />

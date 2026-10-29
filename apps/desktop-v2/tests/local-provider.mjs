@@ -303,6 +303,32 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
           body.tools?.some((tool) => tool.function?.name === 'bash'),
           'The real background shell tool must be offered',
         );
+      // An editing Code Assist run writes one known file through the real write tool.
+      const assistEditUser =
+        body.messages?.findLastIndex(
+          (message) =>
+            message.role === 'user' &&
+            (typeof message.content === 'string'
+              ? [message.content]
+              : (message.content ?? [])
+                  .filter((part) => part.type === 'text')
+                  .map((part) => part.text ?? '')
+            ).some((text) => text.includes('[native-code-assist-edit]')),
+        ) ?? -1;
+      const assistEditCallId = `native-code-assist-edit-${assistEditUser}`;
+      const assistEditReply =
+        assistEditUser >= 0 &&
+        body.messages
+          .slice(assistEditUser + 1)
+          .find((message) => message.role === 'tool' && message.tool_call_id === assistEditCallId);
+      const needsAssistEdit = !refiner && !topicAdvisor && assistEditUser >= 0 && !assistEditReply;
+      if (needsAssistEdit)
+        assert.ok(
+          body.tools?.some((tool) => tool.function?.name === 'write'),
+          'The editing Code Assist run must be offered the real write tool',
+        );
+      if (assistEditReply)
+        toolResults.push({ challenge: 'code-assist-edit', content: assistEditReply.content });
       if (needsApproval)
         assert.ok(
           body.tools?.some((tool) => tool.function?.name === 'exec'),
@@ -364,7 +390,20 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
                     }),
                   },
                 }
-              : undefined;
+              : needsAssistEdit
+                ? {
+                    index: 0,
+                    id: assistEditCallId,
+                    type: 'function',
+                    function: {
+                      name: 'write',
+                      arguments: JSON.stringify({
+                        path: 'README.md',
+                        content: '# Native Code Assist edit\n',
+                      }),
+                    },
+                  }
+                : undefined;
       if (!body.stream) {
         response.setHeader('content-type', 'application/json');
         response.end(

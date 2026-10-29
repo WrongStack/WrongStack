@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T16:27:28.764Z",
+  "generatedAt": "2026-10-29T16:38:12.905Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5466,
+    "sourceFiles": 5467,
     "testFiles": 4760,
-    "sourceLines": 1203136,
+    "sourceLines": 1203298,
     "workspaceEdges": 222,
-    "moduleEdges": 16422,
+    "moduleEdges": 16426,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -385,7 +385,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 278,
+      "sourceFiles": 279,
       "testFiles": 115,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -31306,7 +31306,7 @@
     },
     {
       "file": "apps/desktop-v2/src/CodeAtlas.tsx",
-      "lines": 916,
+      "lines": 917,
       "relativeImports": 11
     },
     {
@@ -31422,14 +31422,14 @@
       "relativeImports": 10
     },
     {
+      "file": "apps/desktop-v2/src/CodeAtlas.tsx",
+      "lines": 917,
+      "relativeImports": 11
+    },
+    {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
       "lines": 917,
       "relativeImports": 16
-    },
-    {
-      "file": "apps/desktop-v2/src/CodeAtlas.tsx",
-      "lines": 916,
-      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",

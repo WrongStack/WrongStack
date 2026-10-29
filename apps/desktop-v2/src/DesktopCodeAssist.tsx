@@ -1,7 +1,8 @@
 import type { CodeAssistPreset } from '@wrongstack/webui-protocol';
 import { Bot, Play, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { EngineSend } from './engine-operations';
+import { CodeAssistEditReview } from './CodeAssistEditReview';
+import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { MarkdownContent } from './MarkdownContent';
 import { markdownTarget } from './markdown-target';
@@ -12,6 +13,7 @@ export function DesktopCodeAssist({
   symbol,
   line,
   send,
+  command,
   state,
   onEdited,
 }: {
@@ -19,6 +21,8 @@ export function DesktopCodeAssist({
   symbol?: string;
   line?: number;
   send: EngineSend;
+  /** Enables the before/after comparison and restore for editing runs. */
+  command?: EngineCommand;
   state: EngineState;
   onEdited?: () => void;
 }) {
@@ -27,7 +31,9 @@ export function DesktopCodeAssist({
     [allowEdits, setAllowEdits] = useState(false),
     [requestId, setRequestId] = useState(''),
     [pending, setPending] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [snapshot, setSnapshot] = useState<{ requestId: string; content: string } | null>(null),
+    [snapshotNote, setSnapshotNote] = useState('');
   const current = useRef(''),
     completed = useRef('');
   const run = state.assists[requestId];
@@ -66,6 +72,22 @@ export function DesktopCodeAssist({
   const start = async () => {
     if (current.current) await send('code.assist.abort', { requestId: current.current });
     const id = crypto.randomUUID();
+    const edits = (preset === 'fix' || preset === 'custom') && allowEdits;
+    setSnapshot(null);
+    setSnapshotNote('');
+    // The target file is read before an editing run so its changes can be compared and undone.
+    if (edits && command) {
+      try {
+        const read = await command('files.read', { filePath }, ['files.read']);
+        if (read['binary'] || read['tooLarge'])
+          setSnapshotNote('This file is not text, so its changes cannot be compared here.');
+        else setSnapshot({ requestId: id, content: String(read['content'] ?? '') });
+      } catch (e) {
+        setSnapshotNote(
+          `The file could not be read before the run (${e instanceof Error ? e.message : String(e)}); its changes cannot be compared here.`,
+        );
+      }
+    }
     current.current = id;
     setRequestId(id);
     setPending(true);
@@ -188,8 +210,20 @@ export function DesktopCodeAssist({
       {run?.appliedEdits && (
         <p className="code-assist-applied">
           This run was allowed to edit project files. Review the working tree changes.
+          {snapshotNote ? ` ${snapshotNote}` : ''}
         </p>
       )}
+      {run?.appliedEdits &&
+        run.status !== 'running' &&
+        command &&
+        snapshot?.requestId === requestId && (
+          <CodeAssistEditReview
+            command={command}
+            path={filePath}
+            before={snapshot.content}
+            {...(onEdited ? { onRestored: onEdited } : {})}
+          />
+        )}
       {run?.text && (
         <div className="code-assist-answer">
           <MarkdownContent

@@ -655,6 +655,24 @@
   background: var(--accent-soft);
   border-radius: 4px;
 }
+.code-assist-edit-review {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11px;
+}
+.code-assist-edit-review > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.code-assist-edit-review > header > span {
+  color: var(--muted);
+}
+.code-assist-edit-review > button {
+  justify-self: start;
+}
 .file-drawer-content > .desktop-code-assist {
   margin: 0;
   padding: 15px 22px;

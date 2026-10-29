@@ -803,6 +803,7 @@ export function CodeAtlas({
                   {...(node.data['kind'] === 'symbol' ? { symbol: node.label } : {})}
                   {...(typeof node.data['line'] === 'number' ? { line: node.data['line'] } : {})}
                   send={send}
+                  command={command}
                   state={state}
                   onEdited={() => void load()}
                 />
