@@ -448,6 +448,19 @@ export async function exerciseNativeComposerResources({
   );
   const debug = await call('engine', 'context.debug');
   assert.ok(debug.total > 0 && debug.messages.count > 0);
+  // Cache layout and retention come from the same engine read the panel shows; the session
+  // has completed real turns, so both must be reported.
+  assert.ok(debug.residency?.segments?.length, 'The engine reports the last request layout');
+  assert.ok(debug.retention?.classes, 'The engine reports compaction retention');
+  await dialog.locator('summary').filter({ hasText: 'Last request cache layout' }).click();
+  const layout = dialog.getByRole('region', { name: 'Request cache layout', exact: true });
+  await layout.waitFor();
+  assert.equal(await layout.locator('meter').count(), 3, 'One meter per cache lane');
+  assert.ok(
+    (await layout.innerText()).includes(`${debug.residency.providerId}/${debug.residency.model}`),
+  );
+  await dialog.locator('summary').filter({ hasText: 'What the next compaction keeps' }).click();
+  await dialog.getByRole('region', { name: 'Compaction retention', exact: true }).waitFor();
   await dialog.getByRole('button', { name: 'Read effective instructions', exact: true }).click();
   await dialog.locator('.context-instructions .markdown-content').waitFor();
   await dialog.getByRole('button', { name: 'Repair protocol', exact: true }).click();

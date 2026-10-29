@@ -281,7 +281,10 @@ export async function exerciseNativeComposer({
   await profileCall('provider.custom_models.set', {
     providerId: refinerIdentity.provider,
     modelId: 'alternate-refiner',
-    customModel: { name: 'Alternate refiner', capabilities: { streaming: true } },
+    customModel: {
+      name: 'Alternate refiner',
+      capabilities: { streaming: true, maxContext: 128_000, maxOutput: 16_000 },
+    },
   });
   const optionsForRefiner = async () => {
     const details = refine.locator('.refine-options');
@@ -307,6 +310,16 @@ export async function exerciseNativeComposer({
     .locator('.composer-model-list button')
     .filter({ hasText: 'alternate-refiner' })
     .waitFor();
+  const refinerRowDetails = await refinerPicker
+    .locator('.composer-model-list button')
+    .filter({ hasText: 'alternate-refiner' })
+    .locator('.composer-model-details')
+    .innerText();
+  assert.match(
+    refinerRowDetails,
+    /^128K context · 16K output/,
+    'Catalog limits show in the picker',
+  );
   await page.screenshot({ path: join(artifactDir, 'native-refiner-picker.png'), fullPage: true });
   await page.setViewportSize({ width: 800, height: 640 });
   assert.equal(

@@ -1,6 +1,7 @@
 import { Gauge, LoaderCircle, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ContextEditorDialog } from './ContextEditorDialog';
+import { ContextResidency } from './ContextResidency';
 import type { EngineCommand } from './engine-operations';
 import { contentText, entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -186,6 +187,7 @@ export function SessionContextPanel({
                 ))}
               </div>
             </details>
+            <ContextResidency residency={snapshot['residency']} retention={snapshot['retention']} />
             <section>
               <button
                 type="button"

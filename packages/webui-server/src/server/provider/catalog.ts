@@ -97,6 +97,7 @@ async function resolveEnrichedModels(
       return {
         ...model,
         contextWindow: model.contextWindow ?? resolved.capabilities.maxContext ?? undefined,
+        maxOutput: model.maxOutput ?? resolved.capabilities.maxOutput,
         inputCost: model.inputCost ?? resolved.cost?.input,
         outputCost: model.outputCost ?? resolved.cost?.output,
         capabilities: [...capabilities],
