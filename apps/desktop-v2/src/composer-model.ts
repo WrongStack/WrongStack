@@ -65,6 +65,8 @@ export async function dispatchComposer(
     send: EngineSend;
     command: EngineCommand;
     waitForIdle: () => Promise<void>;
+    /** Receives the mailbox id of a BTW note so its receipts can be followed. */
+    onBtwSaved?: (messageId: string, text: string) => void;
   },
   journalRaw?: string,
   images: WSUserMessageImage[] = [],
@@ -102,7 +104,7 @@ export async function dispatchComposer(
   if (state.inputs.length)
     throw Error('Answer the pending questions before sending. Your draft is kept.');
   if (delivery === 'btw' && state.running) {
-    await ports.command(
+    const saved = await ports.command(
       'mailbox.send',
       {
         to: 'leader',
@@ -115,6 +117,7 @@ export async function dispatchComposer(
       },
       ['mailbox.sent'],
     );
+    if (typeof saved['messageId'] === 'string') ports.onBtwSaved?.(saved['messageId'], content);
     return 'BTW saved for this session’s leader. Delivery does not mean it has been read.';
   }
   if (delivery === 'steer' && state.running) {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T14:10:55.723Z",
+  "generatedAt": "2026-10-29T14:24:09.641Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5453,
-    "testFiles": 4748,
-    "sourceLines": 1201243,
+    "sourceFiles": 5455,
+    "testFiles": 4749,
+    "sourceLines": 1201397,
     "workspaceEdges": 222,
-    "moduleEdges": 16390,
+    "moduleEdges": 16396,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 105,
+    "testsWithoutTypecheck": 106,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 974
+    "testOnlyExports": 975
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 267,
-      "testFiles": 105,
+      "sourceFiles": 269,
+      "testFiles": 106,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1337,6 +1337,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/brand-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/btw-receipts.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29846,6 +29852,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/btw-receipts.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/chimera-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31234,8 +31247,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1058,
-      "relativeImports": 22
+      "lines": 1067,
+      "relativeImports": 24
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -31266,8 +31279,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1058,
-      "relativeImports": 22
+      "lines": 1067,
+      "relativeImports": 24
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
@@ -31515,6 +31528,10 @@
     {
       "file": "apps/desktop-v2/src/brain-targets-model.ts",
       "name": "brainTargetsWire"
+    },
+    {
+      "file": "apps/desktop-v2/src/btw-receipts.ts",
+      "name": "BtwReceiptStore"
     },
     {
       "file": "apps/desktop-v2/src/CatalogModelSearch.tsx",

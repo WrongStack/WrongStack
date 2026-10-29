@@ -395,3 +395,22 @@
 .refine-comparison-text del {
   color: light-dark(#ad4545, #e19797);
 }
+
+.btw-receipts {
+  margin: 8px 18px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 11px;
+}
+.btw-receipts > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+}
+.btw-receipts > section {
+  padding: 0 12px 10px;
+}
+.btw-receipts-list {
+  margin: 6px 0;
+  padding: 0;
+  list-style: none;
+}

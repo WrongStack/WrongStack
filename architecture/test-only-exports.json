@@ -14,6 +14,9 @@
     "apps/desktop-v2/src/brain-targets-model.ts": [
       "brainTargetsWire"
     ],
+    "apps/desktop-v2/src/btw-receipts.ts": [
+      "BtwReceiptStore"
+    ],
     "apps/desktop-v2/src/CatalogModelSearch.tsx": [
       "catalogMatchDefinition"
     ],

@@ -18,6 +18,8 @@ import {
   X,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { BtwReceipts } from './BtwReceipts';
+import { btwReceipts } from './btw-receipts';
 import { ComposerAttachments, useComposerAttachments } from './ComposerAttachments';
 import { usePasteHint } from './ComposerPasteHint';
 import { ComposerReferenceChips } from './ComposerReferenceChips';
@@ -230,6 +232,8 @@ export function SessionComposer({
           current: () => current.current,
           send,
           command,
+          onBtwSaved: (messageId, text) =>
+            btwReceipts.record(current.current.sessionId, { messageId, text, sentAt: Date.now() }),
           waitForIdle: async () => {
             const started = Date.now();
             while (current.current.running) {
@@ -534,6 +538,11 @@ export function SessionComposer({
             onAdd={(text) => input.replace(appendToDraft(currentDraft.current, text))}
           />
         )}
+      <BtwReceipts
+        sessionId={state.sessionId}
+        command={command}
+        mailboxEvent={state.results['mailbox.event'] ?? state.results['mailbox.received']}
+      />
       {state.queue.length > 0 && (
         <details className="composer-queue" ref={queuePanel}>
           <summary>

@@ -112,6 +112,27 @@ export async function exerciseNativeComposer({
     'BTW does not interrupt or start a provider turn',
   );
   assert.ok(providerFixture.holds.has('queue'), 'BTW leaves the active provider request running');
+  // The sent note is followed through its real mailbox record.
+  const receipts = page.locator('.btw-receipts');
+  await receipts.locator('summary').filter({ hasText: 'BTW notes · 1' }).click();
+  const receipt = receipts
+    .getByRole('region', { name: 'BTW receipts', exact: true })
+    .locator('li')
+    .filter({ hasText: '[native-composer-btw] Keep the public API stable.' });
+  await waitFor(
+    async () => /Saved · not read yet|Read by the leader|Handled/.test(await receipt.innerText()),
+    'BTW receipt read from the mailbox',
+  );
+  const btwMail = (
+    await call('mailbox.messages', { limit: 200 }, ['mailbox.messages'])
+  ).messages.find((mail) => mail.body === '[native-composer-btw] Keep the public API stable.');
+  assert.ok(btwMail, 'The receipt follows a real mailbox record');
+  assert.equal(
+    (await receipt.innerText()).includes('Handled'),
+    btwMail.completed === true,
+    'Handled is shown exactly when the mailbox record is completed',
+  );
+  await receipts.locator('summary').click();
   await send('[native-composer-remove] Remove this pending task.', 'queue');
   const queue = page.locator('.composer-queue');
   await queue.locator('summary').filter({ hasText: '1 queued prompt' }).waitFor();
