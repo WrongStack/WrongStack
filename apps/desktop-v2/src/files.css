@@ -160,10 +160,10 @@
 }
 .status-D,
 .status-U {
-  color: #d6787a;
+  color: var(--danger);
 }
 .status-untracked {
-  color: #81ad71;
+  color: light-dark(#397239, #94c788);
 }
 .file-center {
   display: flex;
@@ -951,7 +951,7 @@
   background: var(--accent-soft);
 }
 .file-context-menu > button.danger {
-  color: #ca7676;
+  color: var(--danger);
 }
 .file-action-dialog {
   max-width: 560px;
