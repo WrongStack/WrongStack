@@ -4086,3 +4086,13 @@ staged; the other session's edits stay untouched.
 - Checks: RED then GREEN in `session-transcript.test.ts` (230-block message); webui-server
   typecheck PASS; desktop suite PASS, typecheck and Biome PASS.
 - No native step yet (the history fixture has no message over 100 blocks).
+
+### Complete tool inputs in history
+
+- Commit `d9d8cc400`. `session.inspect` accepts `transcriptToolInput: { messageIndex, blockIndex,
+  expectedRevision }` and returns that recorded tool request's complete input (refused above
+  1,000,000 serialized characters or when the transcript changed). History tool requests keep
+  their bounded preview and offer "Show complete input".
+- Checks: RED then GREEN in `session-transcript.test.ts`; webui-server typecheck PASS; desktop
+  suite PASS, typecheck and Biome PASS.
+- No native step yet.
