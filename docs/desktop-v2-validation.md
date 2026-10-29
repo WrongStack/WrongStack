@@ -4267,3 +4267,17 @@ staged; the other session's edits stay untouched.
 - Not committed: the Core API snapshot regeneration. In this shared tree it also picks up another
   session's uncommitted CLI imports, so it must be regenerated once that work lands.
 - Kit pinning and swapping keep their read-back checks; they are not yet conditional.
+
+### Conditional design kit pinning and swapping
+
+- Commit `7924516d6`. `recordKitChoiceIfCurrent` pins a kit only when `active.json` still names the
+  expected kit (null = none), reading, deciding the kept overrides and writing under the same
+  lock. `design.use` and `design.swap` accept `expectedKit` and answer `{ ok: false, conflict:
+  true }` without touching the session's design state when another kit was pinned meanwhile;
+  without it they behave as before. The desktop gallery sends the kit it shows.
+- The expectation is compared with the persisted kit. The gallery shows the session's kit
+  when one is set, and both are written together by every pin path, so they agree in practice.
+- Checks: `design-checked-overrides.test.ts` extended (stale none/other kit refused and file
+  unchanged, same-kit pin keeps overrides, swap clears them), 24 design route tests, core and
+  webui-server typechecks PASS (core `dist` rebuilt); desktop suite **575 PASS**, typecheck and
+  Biome PASS. This test was written after the change, so it has no separate RED run.
