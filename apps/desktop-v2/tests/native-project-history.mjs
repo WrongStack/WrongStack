@@ -189,6 +189,14 @@ export async function exerciseNativeProjectHistory({
   await transcript.getByText('Image attachment', { exact: true }).waitFor();
   await transcript.getByText('recorded-notes.pdf', { exact: true }).waitFor();
   assert.equal((await page.content()).includes('opaque-image-fixture-not-for-rendering'), false);
+  // Image bytes load only on request; the fixture's placeholder is not valid image data, so the
+  // engine refuses it and nothing is rendered.
+  await transcript.getByRole('button', { name: 'Show image', exact: true }).click();
+  await transcript
+    .getByRole('alert')
+    .filter({ hasText: 'The stored image data is not valid.' })
+    .waitFor();
+  assert.equal((await page.content()).includes('opaque-image-fixture-not-for-rendering'), false);
   assert.equal((await page.content()).includes('opaque-pdf-fixture-not-for-rendering'), false);
   assert.equal((await page.content()).includes('opaque-signature-not-for-rendering'), false);
   const longMessage = transcript.getByRole('article', { name: 'Recorded message 2', exact: true });

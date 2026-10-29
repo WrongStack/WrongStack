@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CopyButton } from './CopyButton';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { HistoryImage } from './HistoryImage';
 import { MarkdownContent } from './MarkdownContent';
 import type { HistorySearchSelection } from './ProjectHistorySearch';
 import { recoveryDate } from './session-recovery-model';
@@ -308,10 +309,14 @@ function TranscriptBlock({
   };
   if (block['type'] === 'image')
     return (
-      <div className="history-attachment">
-        <strong>Image attachment</strong>
-        <span>{String(block['mediaType'])} · binary data not loaded</span>
-      </div>
+      <HistoryImage
+        command={command}
+        sessionId={sessionId}
+        revision={revision}
+        messageIndex={messageIndex}
+        blockIndex={Number(block['index'])}
+        mediaType={String(block['mediaType'])}
+      />
     );
   if (block['type'] === 'tool_use')
     return (

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   projectSessionTranscript,
   readSessionTranscriptBlock,
+  readSessionTranscriptImage,
 } from '../src/server/session-transcript.js';
 
 describe('bounded retained session transcript', () => {
@@ -73,6 +74,55 @@ describe('bounded retained session transcript', () => {
         blockIndex: 0,
       }),
     ).toThrow(/changed/);
+  });
+  it('reads one retained raster image on explicit request, bounded and revision-checked', () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64');
+    const messages: Message[] = [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Look' },
+          { type: 'image', source: { type: 'base64', data: png, media_type: 'image/png' } },
+          {
+            type: 'image',
+            source: { type: 'base64', data: 'PHN2Zz4=', media_type: 'image/svg+xml' },
+          },
+          { type: 'image', source: { type: 'url', url: 'https://example.com/a.png' } },
+        ],
+      },
+    ];
+    const { revision } = projectSessionTranscript(messages, {});
+    const read = (blockIndex: number, expectedRevision = revision) =>
+      readSessionTranscriptImage(messages, { expectedRevision, messageIndex: 0, blockIndex });
+    expect(read(1)).toEqual({
+      revision,
+      messageIndex: 0,
+      blockIndex: 1,
+      mediaType: 'image/png',
+      dataUrl: `data:image/png;base64,${png}`,
+    });
+    expect(() => read(2)).toThrow(/not a raster image/);
+    expect(() => read(3)).toThrow(/not stored in the session/);
+    expect(() => read(0)).toThrow(/not an image/);
+    expect(() => read(1, 'stale')).toThrow(/changed/);
+    const huge: Message[] = [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', data: 'A'.repeat(6_000_000), media_type: 'image/png' },
+          },
+        ],
+      },
+    ];
+    expect(() =>
+      readSessionTranscriptImage(huge, {
+        expectedRevision: projectSessionTranscript(huge, {}).revision,
+        messageIndex: 0,
+        blockIndex: 0,
+      }),
+    ).toThrow(/too large/);
   });
   it('applies role filters, stable paging and input bounds without changing messages', () => {
     const messages: Message[] = [

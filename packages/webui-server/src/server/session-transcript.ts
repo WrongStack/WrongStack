@@ -180,6 +180,42 @@ export function projectSessionTranscript(messages: readonly Message[], raw: unkn
     }),
   };
 }
+const RASTER_IMAGES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+/** Base64 characters for about 4 MiB of image bytes. */
+const MAX_IMAGE_BASE64 = Math.ceil((4 * 1024 * 1024) / 3) * 4;
+
+/**
+ * One retained image, read only on explicit request for a viewer. Transcript pages never carry
+ * image bytes; this returns a single raster image stored in the session (no URL is fetched,
+ * markup formats such as SVG are refused) within a bounded size.
+ */
+export function readSessionTranscriptImage(messages: readonly Message[], raw: unknown) {
+  const options = record(raw);
+  const revision = transcriptRevision(messages);
+  if (options['expectedRevision'] !== revision)
+    throw Error('The transcript changed. Refresh before reading this image.');
+  const messageIndex = integer(options['messageIndex'], -1, Number.MAX_SAFE_INTEGER),
+    blockIndex = integer(options['blockIndex'], -1, Number.MAX_SAFE_INTEGER);
+  const message = messages[messageIndex],
+    block = message && blocks(message)[blockIndex];
+  if (block?.type !== 'image') throw Error('This transcript block is not an image.');
+  const { source } = block;
+  if (source.type !== 'base64' || typeof source.data !== 'string')
+    throw Error('This image is not stored in the session, so it cannot be shown.');
+  const mediaType = (source.media_type ?? '').toLowerCase();
+  if (!RASTER_IMAGES.has(mediaType))
+    throw Error('This image is not a raster image that can be shown.');
+  const data = source.data.replace(/\s+/g, '');
+  if (data.length > MAX_IMAGE_BASE64) throw Error('This image is too large to show here.');
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(data)) throw Error('The stored image data is not valid.');
+  return {
+    revision,
+    messageIndex,
+    blockIndex,
+    mediaType,
+    dataUrl: `data:${mediaType};base64,${data}`,
+  };
+}
 export function readSessionTranscriptBlock(messages: readonly Message[], raw: unknown) {
   const options = record(raw);
   const revision = transcriptRevision(messages);

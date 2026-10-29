@@ -11,7 +11,11 @@ import { buildReplayPayload } from '@wrongstack/webui-protocol';
 import type { SessionHandlerShared } from './session-handler-helpers.js';
 import { buildInspectPayload } from './session-history.js';
 import type { SessionRouteHandlers } from './session-routes.js';
-import { projectSessionTranscript, readSessionTranscriptBlock } from './session-transcript.js';
+import {
+  projectSessionTranscript,
+  readSessionTranscriptBlock,
+  readSessionTranscriptImage,
+} from './session-transcript.js';
 import { errMessage } from './ws-utils.js';
 
 export function createSessionCheckpointHandlers(
@@ -70,8 +74,14 @@ export function createSessionCheckpointHandlers(
         const transcriptBlock = options['transcriptBlock']
           ? readSessionTranscriptBlock(data.messages, options['transcriptBlock'])
           : undefined;
-        if (options['transcriptOnly'] === true || transcriptBlock) {
-          sendTo(ws, { type: 'session.inspect', payload: { id, transcript, transcriptBlock } });
+        const transcriptImage = options['transcriptImage']
+          ? readSessionTranscriptImage(data.messages, options['transcriptImage'])
+          : undefined;
+        if (options['transcriptOnly'] === true || transcriptBlock || transcriptImage) {
+          sendTo(ws, {
+            type: 'session.inspect',
+            payload: { id, transcript, transcriptBlock, transcriptImage },
+          });
           return;
         }
         // Best-effort summary lookup — fall back to deriving from events when
