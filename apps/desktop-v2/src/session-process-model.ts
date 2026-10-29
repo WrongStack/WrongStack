@@ -51,3 +51,46 @@ export function sameSessionProcess(left: SessionProcess, right: SessionProcess):
     left.tool === right.tool
   );
 }
+
+/** Stable identity of one tracked process run; a reused PID gets a different key. */
+export const processKey = (proc: SessionProcess) => `${proc.pid}:${proc.startedAt}`;
+
+/** Only running, unprotected processes can be terminated. */
+export const terminable = (proc: SessionProcess) => proc.status === 'running' && !proc.protected;
+
+/**
+ * Splits the picked processes against a fresh list: those still the same running,
+ * unprotected process are sent; the rest are reported and never terminated.
+ */
+export function batchTermination(
+  picked: readonly SessionProcess[],
+  current: readonly SessionProcess[],
+): { send: SessionProcess[]; skipped: SessionProcess[] } {
+  const send: SessionProcess[] = [],
+    skipped: SessionProcess[] = [];
+  for (const proc of picked) {
+    const fresh = current.find((row) => sameSessionProcess(row, proc));
+    if (fresh && terminable(fresh)) send.push(fresh);
+    else skipped.push(proc);
+  }
+  return { send, skipped };
+}
+
+export function batchTerminationSummary(
+  total: number,
+  done: readonly SessionProcess[],
+  failed: readonly { proc: SessionProcess; error: string }[],
+  skipped: readonly SessionProcess[],
+): string {
+  const parts = [`Termination acknowledged for ${done.length} of ${total} processes.`];
+  if (failed.length)
+    parts.push(
+      `Failed: ${failed.map((item) => `PID ${item.proc.pid} (${item.error})`).join('; ')}.`,
+    );
+  if (skipped.length)
+    parts.push(
+      `Not sent because they exited, changed or became protected: ${skipped.map((proc) => `PID ${proc.pid}`).join(', ')}.`,
+    );
+  parts.push('Refresh verifies whether they are still tracked.');
+  return parts.join(' ');
+}

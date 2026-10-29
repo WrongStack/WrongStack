@@ -2,7 +2,15 @@ import { ArrowLeft, RefreshCw, Search, Square, Terminal, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { Modal } from './Modal';
-import { type SessionProcess, sameSessionProcess, sessionProcesses } from './session-process-model';
+import {
+  batchTermination,
+  batchTerminationSummary,
+  processKey,
+  type SessionProcess,
+  sameSessionProcess,
+  sessionProcesses,
+  terminable,
+} from './session-process-model';
 import './session-processes.css';
 
 export function SessionProcesses({
@@ -28,7 +36,9 @@ export function SessionProcesses({
     [output, setOutput] = useState<string[] | null>(null),
     [outputError, setOutputError] = useState(''),
     [outputBusy, setOutputBusy] = useState(false),
-    [lines, setLines] = useState(100);
+    [lines, setLines] = useState(100),
+    [picked, setPicked] = useState<string[]>([]),
+    [batchReview, setBatchReview] = useState(false);
   const alive = useRef(true),
     reading = useRef(false),
     operating = useRef(false),
@@ -143,9 +153,54 @@ export function SessionProcesses({
       if (alive.current) setPending(false);
     }
   };
+  // Picks follow the list: a process that exited or became protected drops out.
+  const pickedProcesses = processes.filter(
+    (proc) => terminable(proc) && picked.includes(processKey(proc)),
+  );
+  const terminateBatch = async (targets: SessionProcess[]) => {
+    if (operating.current) return;
+    operating.current = true;
+    setPending(true);
+    setError('');
+    setNotice('');
+    try {
+      const { send, skipped } = batchTermination(targets, await read());
+      const done: SessionProcess[] = [],
+        failed: { proc: SessionProcess; error: string }[] = [];
+      for (const proc of send) {
+        if (!alive.current) return;
+        try {
+          await command(
+            'process.kill',
+            { sessionId, pid: proc.pid, expectedStartedAt: proc.startedAt },
+            ['key.operation_result'],
+          );
+          done.push(proc);
+        } catch (failure) {
+          failed.push({
+            proc,
+            error: failure instanceof Error ? failure.message : String(failure),
+          });
+        }
+      }
+      if (!alive.current) return;
+      setNotice(batchTerminationSummary(targets.length, done, failed, skipped));
+      setPicked([]);
+      setBatchReview(false);
+      await refresh();
+    } catch (failure) {
+      if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      operating.current = false;
+      if (alive.current) setPending(false);
+    }
+  };
   const visible = processes.filter((proc) =>
     `${proc.pid} ${proc.command} ${proc.tool}`.toLowerCase().includes(query.toLowerCase()),
   );
+  const selectable = visible.filter(terminable),
+    allPicked =
+      selectable.length > 0 && selectable.every((proc) => picked.includes(processKey(proc)));
   return (
     <section className="session-processes" aria-label="Session processes">
       <header>
@@ -200,6 +255,31 @@ export function SessionProcesses({
           onChange={(event) => setQuery(event.target.value)}
         />
       </label>
+      {connected && processes.some(terminable) && (
+        <div className="process-batch-bar" role="toolbar" aria-label="Process selection">
+          <span>{pickedProcesses.length} selected</span>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={pending}
+            onClick={() => setPicked(allPicked ? [] : selectable.map(processKey))}
+          >
+            {allPicked ? 'Clear selection' : 'Select all running'}
+          </button>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={pending || !pickedProcesses.length}
+            onClick={() => {
+              setError('');
+              setBatchReview(true);
+            }}
+          >
+            <Square size={12} />
+            Terminate selected…
+          </button>
+        </div>
+      )}
       {!connected ? (
         <p className="quiet-state">Reconnect this conversation to inspect its commands.</p>
       ) : !loaded ? (
@@ -219,6 +299,21 @@ export function SessionProcesses({
           {visible.map((proc) => (
             <article key={`${proc.pid}:${proc.startedAt}`} data-process-pid={proc.pid}>
               <header>
+                {terminable(proc) && (
+                  <input
+                    type="checkbox"
+                    aria-label={`Select PID ${proc.pid}`}
+                    checked={picked.includes(processKey(proc))}
+                    disabled={pending}
+                    onChange={(event) =>
+                      setPicked((current) =>
+                        event.target.checked
+                          ? [...current, processKey(proc)]
+                          : current.filter((key) => key !== processKey(proc)),
+                      )
+                    }
+                  />
+                )}
                 <span className={`process-status ${proc.status}`}>{proc.status}</span>
                 <code>PID {proc.pid}</code>
                 <small>
@@ -313,6 +408,58 @@ export function SessionProcesses({
             <pre>{output.join('\n') || 'The registered log has no output yet.'}</pre>
           )}
         </aside>
+      )}
+      {batchReview && (
+        <Modal
+          title="Terminate selected processes"
+          onClose={() => {
+            if (!pending) setBatchReview(false);
+          }}
+        >
+          <div className="process-review">
+            <h2>
+              Terminate {pickedProcesses.length}{' '}
+              {pickedProcesses.length === 1 ? 'process' : 'processes'}?
+            </h2>
+            <ul aria-label="Processes to terminate">
+              {pickedProcesses.map((proc) => (
+                <li key={processKey(proc)}>
+                  <code>PID {proc.pid}</code> {proc.command}
+                </li>
+              ))}
+            </ul>
+            <p>
+              Each selected command and its child process tree is stopped separately. A process that
+              exits, changes or becomes protected before its turn is skipped and reported. Unsaved
+              work inside these commands may be lost.
+            </p>
+            {error && (
+              <p role="alert" className="session-error">
+                {error}
+              </p>
+            )}
+            <div className="feature-actions">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={pending}
+                onClick={() => setBatchReview(false)}
+              >
+                Keep processes running
+              </button>
+              <button
+                type="button"
+                className="button primary"
+                disabled={pending || !connected || !pickedProcesses.length}
+                onClick={() => void terminateBatch(pickedProcesses)}
+              >
+                {pending
+                  ? 'Requesting termination…'
+                  : `Confirm termination of ${pickedProcesses.length}`}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
       {review && (
         <Modal

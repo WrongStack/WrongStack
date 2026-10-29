@@ -198,9 +198,29 @@ export async function exerciseNativeProcesses({
       ?.status,
     'running',
   );
-  await card().getByRole('button', { name: 'Terminate process', exact: true }).click();
-  await review.getByRole('button', { name: 'Confirm process termination', exact: true }).click();
-  await review.waitFor({ state: 'detached' });
+  // The real termination goes through the batch path: select, review the list, confirm.
+  const bar = panel().getByRole('toolbar', { name: 'Process selection', exact: true });
+  await card().getByLabel(`Select PID ${proc.pid}`, { exact: true }).check();
+  await bar.getByText('1 selected', { exact: true }).waitFor();
+  await bar.getByRole('button', { name: 'Terminate selected…', exact: true }).click();
+  const batch = page.getByRole('dialog', { name: 'Terminate selected processes', exact: true });
+  await batch
+    .getByRole('list', { name: 'Processes to terminate', exact: true })
+    .getByText(`PID ${proc.pid}`, { exact: true })
+    .waitFor();
+  await batch.getByRole('button', { name: 'Keep processes running', exact: true }).click();
+  assert.equal(
+    (await list(owner.id, identity.sessionId)).processes.find((row) => row.pid === proc.pid)
+      ?.status,
+    'running',
+  );
+  await bar.getByRole('button', { name: 'Terminate selected…', exact: true }).click();
+  await batch.getByRole('button', { name: 'Confirm termination of 1', exact: true }).click();
+  await batch.waitFor({ state: 'detached' });
+  await panel()
+    .getByRole('status')
+    .filter({ hasText: 'Termination acknowledged for 1 of 1 processes.' })
+    .waitFor();
   await waitFor(
     async () =>
       !(await list(owner.id, identity.sessionId)).processes.some((row) => row.pid === proc.pid),
@@ -230,6 +250,6 @@ export async function exerciseNativeProcesses({
     ownerTitle: 'Process owner',
   });
   console.log(
-    'PASS: real approved background tool process, registered output tail, session isolation, compact layout, reviewed keep/terminate, actual PID exit and no WebUI frontend',
+    'PASS: real approved background tool process, registered output tail, session isolation, compact layout, reviewed keep, batch select/review/terminate, actual PID exit and no WebUI frontend',
   );
 }

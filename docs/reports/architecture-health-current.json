@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T16:21:01.397Z",
+  "generatedAt": "2026-10-29T16:27:28.764Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 45,
     "sourceFiles": 5466,
-    "testFiles": 4759,
-    "sourceLines": 1202946,
+    "testFiles": 4760,
+    "sourceLines": 1203136,
     "workspaceEdges": 222,
     "moduleEdges": 16422,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 114,
+    "testsWithoutTypecheck": 115,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 978
   },
@@ -386,7 +386,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 278,
-      "testFiles": 114,
+      "testFiles": 115,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1865,6 +1865,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-layout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-process-batch.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30522,6 +30528,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-layout.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-process-batch.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
