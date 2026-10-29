@@ -6,6 +6,7 @@ import { materializeProjectTheme } from './design-studio-actions';
 import {
   designColorValue,
   designOverrideConflict,
+  designOverrideExpectation,
   designTheme,
   designTokens,
   designValuesMatch,
@@ -169,7 +170,21 @@ export function ProjectDesignStudio({
         throw Error(
           'A color you edited changed in another window. Your draft is retained; refresh after copying or discarding it.',
         );
-      await command('design.set', { overrides: colors }, ['design.set']);
+      // The engine re-checks the kit and these values under its file lock before writing.
+      const response = await command(
+        'design.set',
+        {
+          overrides: colors,
+          expected: designOverrideExpectation(activeId, designTokens(current['overrides']), colors),
+        },
+        ['design.set'],
+      );
+      if (response['ok'] === false)
+        throw Error(
+          response['conflict'] === true
+            ? 'A color you edited changed in another window. Your draft is retained; refresh after copying or discarding it.'
+            : String(response['error'] ?? 'The color save was refused. Your draft is retained.'),
+        );
       const saved = await command('design.list', {}, ['design.list']);
       if (
         saved['activeKit'] !== activeId ||
@@ -189,7 +204,15 @@ export function ProjectDesignStudio({
     if (!Object.keys(patch).length || dirty) return;
     await run(async () => {
       await currentActive();
-      const result = await command('design.tune', { tune: patch }, ['design.tune']);
+      const result = await command('design.tune', { tune: patch, expected: { kit: activeId } }, [
+        'design.tune',
+      ]);
+      if (result['ok'] === false)
+        throw Error(
+          result['conflict'] === true
+            ? 'The project’s active kit changed. Refresh the gallery before tuning it.'
+            : String(result['error'] ?? 'The tuning was refused.'),
+        );
       const saved = await command('design.list', {}, ['design.list']);
       if (
         saved['activeKit'] !== activeId ||

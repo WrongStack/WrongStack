@@ -6,6 +6,7 @@ import { DesignThemePreview } from '../src/DesignThemePreview';
 import {
   designColorValue,
   designOverrideConflict,
+  designOverrideExpectation,
   designTheme,
   designTokens,
   designValuesMatch,
@@ -83,4 +84,16 @@ describe('Desktop project design themes', () => {
     expect(markup).not.toContain('<main>');
     expect(markup).not.toContain('[object Object]');
   });
+});
+it('expects the values just read for exactly the keys being written', () => {
+  expect(
+    designOverrideExpectation(
+      'soft-glass',
+      { primary: '#111111', accent: '#222222' },
+      {
+        primary: '#333333',
+        border: '#444444',
+      },
+    ),
+  ).toEqual({ kit: 'soft-glass', values: { primary: '#111111', border: '' } });
 });

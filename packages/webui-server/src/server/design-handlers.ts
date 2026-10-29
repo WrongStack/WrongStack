@@ -20,6 +20,8 @@ import * as path from 'node:path';
 import {
   applyTokenOverrides,
   clearPersistedActiveKit,
+  DesignOverridesChanged,
+  type DesignOverridesExpectation,
   type DesignStack,
   getDesignKitLoader,
   getDesignState,
@@ -50,6 +52,18 @@ function readOverrides(value: unknown): Record<string, string> {
     }
   }
   return out;
+}
+
+/**
+ * The optional `expected` of an override write: the pinned kit the caller reviewed and, per key,
+ * the value it saw ('' = no override). Checked under the `active.json` lock.
+ */
+function readExpectation(value: unknown): DesignOverridesExpectation | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const kit = (value as { kit?: unknown }).kit;
+  if (typeof kit !== 'string' || !kit) return undefined;
+  const values = readOverrides((value as { values?: unknown }).values);
+  return { kit, values };
 }
 
 export interface DesignContext {
@@ -215,6 +229,13 @@ export async function handleDesignUse(
   }
 }
 
+/** A refused checked write says so (`conflict`); other failures keep their message. */
+function overrideFailure(err: unknown): Record<string, unknown> {
+  return err instanceof DesignOverridesChanged
+    ? { ok: false, conflict: true, error: err.message }
+    : { ok: false, error: String(err) };
+}
+
 /** Record structured color/token overrides without changing the pinned kit. */
 export async function handleDesignSet(
   ws: WebSocket,
@@ -227,7 +248,12 @@ export async function handleDesignSet(
     return;
   }
   try {
-    const merged = await recordOverrides(ctx.projectRoot, patch, new Date().toISOString());
+    const merged = await recordOverrides(
+      ctx.projectRoot,
+      patch,
+      new Date().toISOString(),
+      readExpectation((msg.payload as { expected?: unknown })?.expected),
+    );
     if (!merged) {
       reply(ws, ctx, { type: 'design.set', payload: { ok: false, error: 'No active kit' } });
       return;
@@ -235,7 +261,7 @@ export async function handleDesignSet(
     if (ctx.agentMeta) setDesignOverrides(ctx.agentMeta, merged);
     reply(ws, ctx, { type: 'design.set', payload: { ok: true, overrides: merged } });
   } catch (err) {
-    reply(ws, ctx, { type: 'design.set', payload: { ok: false, error: String(err) } });
+    reply(ws, ctx, { type: 'design.set', payload: overrideFailure(err) });
   }
 }
 
@@ -253,7 +279,12 @@ export async function handleDesignTune(
     return;
   }
   try {
-    const merged = await recordOverrides(ctx.projectRoot, patch, new Date().toISOString());
+    const merged = await recordOverrides(
+      ctx.projectRoot,
+      patch,
+      new Date().toISOString(),
+      readExpectation((msg.payload as { expected?: unknown })?.expected),
+    );
     if (!merged) {
       reply(ws, ctx, { type: 'design.tune', payload: { ok: false, error: 'No active kit' } });
       return;
@@ -264,7 +295,7 @@ export async function handleDesignTune(
       payload: { ok: true, resolved: patch, overrides: merged },
     });
   } catch (err) {
-    reply(ws, ctx, { type: 'design.tune', payload: { ok: false, error: String(err) } });
+    reply(ws, ctx, { type: 'design.tune', payload: overrideFailure(err) });
   }
 }
 

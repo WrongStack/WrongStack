@@ -43,3 +43,17 @@ export function designColorValue(value: string): boolean {
     value.trim(),
   );
 }
+/**
+ * The `expected` of a checked override write: the kit and, for each key being written, the
+ * value just read ('' = no override). The engine refuses the write if either changed since.
+ */
+export function designOverrideExpectation(
+  kit: string,
+  current: Record<string, string>,
+  patch: Record<string, string>,
+): { kit: string; values: Record<string, string> } {
+  return {
+    kit,
+    values: Object.fromEntries(Object.keys(patch).map((key) => [key, current[key] ?? ''])),
+  };
+}

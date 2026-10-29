@@ -6,10 +6,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   _resetDesignRulesCache,
   clearPersistedActiveKit,
+  DesignOverridesChanged,
   designProjectDir,
   loadActiveKit,
   loadProjectDesignRules,
   recordKitChoice,
+  recordOverrides,
 } from '../../src/execution/design-project-store.js';
 
 let root: string;
@@ -46,6 +48,37 @@ describe('design-project-store', () => {
     expect(decisions.match(/^- /gm)?.length).toBe(2);
     // Latest choice wins in active.json.
     expect((await loadActiveKit(root))?.kit).toBe('soft-glass');
+  });
+
+  it('merges overrides only over the kit and values the caller reviewed', async () => {
+    await recordKitChoice(root, 'soft-glass', 'web', 'webui', '2026-06-27T10:00:00.000Z', {
+      primary: '#111111',
+    });
+    const iso = '2026-06-27T11:00:00.000Z';
+    await expect(
+      recordOverrides(root, { primary: '#222222' }, iso, {
+        kit: 'soft-glass',
+        values: { primary: '#000000' },
+      }),
+    ).rejects.toBeInstanceOf(DesignOverridesChanged);
+    await expect(
+      recordOverrides(root, { accent: '#333333' }, iso, { kit: 'neo-brutalist', values: {} }),
+    ).rejects.toBeInstanceOf(DesignOverridesChanged);
+    expect((await loadActiveKit(root))?.overrides).toEqual({ primary: '#111111' });
+
+    // Reviewed: '' means the key had no override.
+    expect(
+      await recordOverrides(root, { primary: '#222222', accent: '#333333' }, iso, {
+        kit: 'soft-glass',
+        values: { primary: '#111111', accent: '' },
+      }),
+    ).toEqual({ primary: '#222222', accent: '#333333' });
+    // Concurrent writers serialize: both merges land.
+    await Promise.all([
+      recordOverrides(root, { a: '1' }, iso),
+      recordOverrides(root, { b: '2' }, iso),
+    ]);
+    expect((await loadActiveKit(root))?.overrides).toMatchObject({ a: '1', b: '2' });
   });
 
   it('loadActiveKit returns undefined when nothing is persisted', async () => {

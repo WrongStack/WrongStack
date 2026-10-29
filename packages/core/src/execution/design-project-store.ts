@@ -17,6 +17,7 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
+import { withFileLock } from '../utils/atomic-write.js';
 import { getDesignKitLoader } from './design-kit-loader.js';
 
 const DESIGN_DIR = '.design';
@@ -191,14 +192,32 @@ export async function recordKitChoice(
     const dir = await ensureDesignDir(projectRoot);
     const record: Record<string, unknown> = { kit, stack: stack ?? null };
     if (overrides && Object.keys(overrides).length > 0) record.overrides = overrides;
-    await assertInsideDesignProject(projectRoot, path.join(dir, 'active.json'));
-    await fs.writeFile(path.join(dir, 'active.json'), `${JSON.stringify(record, null, 2)}\n`);
-    await assertInsideDesignProject(projectRoot, path.join(dir, 'decisions.md'));
-    const line = `- ${isoTime} · kit=${kit}${stack ? ` stack=${stack}` : ''} · via=${source}\n`;
-    await fs.appendFile(path.join(dir, 'decisions.md'), line);
+    const active = path.join(dir, 'active.json');
+    await assertInsideDesignProject(projectRoot, active);
+    // Under the same lock as checked override writes, so neither lands inside the other.
+    await withFileLock(active, async () => {
+      await fs.writeFile(active, `${JSON.stringify(record, null, 2)}\n`);
+      await assertInsideDesignProject(projectRoot, path.join(dir, 'decisions.md'));
+      const line = `- ${isoTime} · kit=${kit}${stack ? ` stack=${stack}` : ''} · via=${source}\n`;
+      await fs.appendFile(path.join(dir, 'decisions.md'), line);
+    });
   } catch {
     // best-effort: never break the caller
   }
+}
+
+/** The kit, or a reviewed override value, changed before a checked override write. */
+export class DesignOverridesChanged extends Error {
+  constructor() {
+    super('The design kit or a reviewed override changed since it was read.');
+    this.name = 'DesignOverridesChanged';
+  }
+}
+
+/** What a caller reviewed: the pinned kit and, per key, the value it saw ('' = no override). */
+export interface DesignOverridesExpectation {
+  kit: string;
+  values?: Record<string, string> | undefined;
 }
 
 /**
@@ -210,30 +229,57 @@ export async function recordOverrides(
   projectRoot: string,
   patch: DesignOverrides,
   isoTime: string,
+  expected?: DesignOverridesExpectation | undefined,
 ): Promise<DesignOverrides | undefined> {
-  const active = await loadActiveKit(projectRoot);
-  if (!active) return undefined;
-  const merged: DesignOverrides = { ...(active.overrides ?? {}) };
-  for (const [k, v] of Object.entries(patch)) {
-    if (v?.trim()) merged[k] = v.trim();
-    else delete merged[k]; // empty value clears an override
-  }
+  // A project without a pinned kit gets no `.design/` directory (or lock) from this call.
+  if (!(await loadActiveKit(projectRoot))) return undefined;
+  const merge = (active: PersistedActiveKit): DesignOverrides => {
+    const merged: DesignOverrides = { ...(active.overrides ?? {}) };
+    for (const [k, v] of Object.entries(patch)) {
+      if (v?.trim()) merged[k] = v.trim();
+      else delete merged[k]; // empty value clears an override
+    }
+    return merged;
+  };
+  let dir: string;
   try {
-    const dir = await ensureDesignDir(projectRoot);
-    const record: Record<string, unknown> = { kit: active.kit, stack: active.stack ?? null };
-    if (Object.keys(merged).length > 0) record.overrides = merged;
+    dir = await ensureDesignDir(projectRoot);
     await assertInsideDesignProject(projectRoot, path.join(dir, 'active.json'));
-    await fs.writeFile(path.join(dir, 'active.json'), `${JSON.stringify(record, null, 2)}\n`);
-    await assertInsideDesignProject(projectRoot, path.join(dir, 'decisions.md'));
-    const keys = Object.keys(patch).join(',');
-    await fs.appendFile(
-      path.join(dir, 'decisions.md'),
-      `- ${isoTime} · kit=${active.kit} · override=${keys} · via=set\n`,
-    );
   } catch {
-    // best-effort
+    // Best-effort, as before: report the merge without persisting it.
+    const active = await loadActiveKit(projectRoot);
+    return active ? merge(active) : undefined;
   }
-  return merged;
+  const file = path.join(dir, 'active.json');
+  // Read, compare and write under the file's lock, so another runtime's kit choice or override
+  // write cannot land between this read and the write.
+  return withFileLock(file, async () => {
+    const active = await loadActiveKit(projectRoot);
+    if (!active) return undefined;
+    if (
+      expected &&
+      (active.kit !== expected.kit ||
+        Object.entries(expected.values ?? {}).some(
+          ([key, value]) => (active.overrides?.[key] ?? '') !== value.trim(),
+        ))
+    )
+      throw new DesignOverridesChanged();
+    const merged = merge(active);
+    try {
+      const record: Record<string, unknown> = { kit: active.kit, stack: active.stack ?? null };
+      if (Object.keys(merged).length > 0) record.overrides = merged;
+      await fs.writeFile(file, `${JSON.stringify(record, null, 2)}\n`);
+      await assertInsideDesignProject(projectRoot, path.join(dir, 'decisions.md'));
+      const keys = Object.keys(patch).join(',');
+      await fs.appendFile(
+        path.join(dir, 'decisions.md'),
+        `- ${isoTime} · kit=${active.kit} · override=${keys} · via=set\n`,
+      );
+    } catch {
+      // best-effort
+    }
+    return merged;
+  });
 }
 
 /** Clear the persisted active kit (e.g. `/design off`). Best-effort. */
