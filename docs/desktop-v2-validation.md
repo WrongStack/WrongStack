@@ -4231,3 +4231,18 @@ staged; the other session's edits stay untouched.
   temporary `WRONGSTACK_HOME`); the existing 10 goal handler tests and the webui-server typecheck
   PASS; desktop suite **574 PASS**, typecheck and Biome PASS.
 - No new native step.
+
+### Session model plans saved over the plan that was read
+
+- Commit `0820f4c99`. `prefs.update` accepts `expectedSubagentModelPlan` beside
+  `subagentModelPlan`. It is not a preference: it is removed before validation and never
+  persisted. Both plans are normalized (roles in name order) and compared against the plan on
+  the calling session immediately before the plan setter, which records the new plan before its
+  first await, so of two windows saving over the same read plan only the first applies; the
+  other gets "The session model plan changed since it was read". Engines advertise this as
+  `session.subagent-plan-expected`; the desktop sends the plan it just read only to such engines
+  (older ones would reject the unknown key) and keeps its read-compare-write check for the rest.
+- Checks: RED then GREEN in `prefs-subagent-model-plan.test.ts` (8 tests; 27 with the related
+  prefs suites); webui-protocol suite (261) and build, webui-server typecheck PASS; desktop
+  suite **574 PASS**, typecheck and Biome PASS.
+- No new native step.

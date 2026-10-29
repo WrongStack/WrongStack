@@ -304,8 +304,8 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
 - Add supported reasoning mode/preserve controls and prove provider-specific effort vocabularies
   and leader overrides/resets. Do not manufacture support when the provider reports unknown.
 - Finish active worker assignment/topology and actual execution of session-owned model plans.
-  Plan drafts are durable per session (2026-10-29); atomic same-plan writes still need a
-  canonical contract.
+  Plan drafts are durable per session and saves are refused when the plan changed since it
+  was read (2026-10-29).
 - Add richer skill/resource invocation progress and reference-aware durable recall. File,
   line-range and quoted-snippet references, the code-paste hint/undo and the prompt journal
   month filter, export and older-page loading exist (2026-10-29).
