@@ -322,7 +322,7 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
 - Whole-message context editing is validated and applied through the engine (2026-10-29); add
   in-message range editing, mode authoring, draft token estimates and richer compaction
   feedback. Residency/retention in the context panel are implemented (2026-10-29) and await commit.
-- Add selective draft merging, send-time races, abrupt termination during pending saves and the
+- Extend selective merging beyond file drafts (file drafts merge change by change, 2026-10-29); send-time races, abrupt termination during pending saves and the
   full focus/keyboard/screen-reader matrix. Existing tests protect acknowledged snapshots, not
   every unacknowledged last keystroke.
 

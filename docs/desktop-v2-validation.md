@@ -3676,3 +3676,22 @@ Verification on the shared working snapshot:
   identity `d90a7b840ab1-eb7323dfffaf`: **exit 0 / PASS**, including Ctrl+Z restoring the text
   before Shift+Tab; desktop **528 tests PASS** (new `replacementRange` test).
 - Not covered: language-specific rules beyond brackets.
+
+## Selective file draft merge (2026-10-29)
+
+- Commit `db6f7f816`. When another window changes a file's stored draft, the comparison dialog now
+  also offers "Merge change by change": every change between your editor and the stored draft
+  is shown side by side with a choice of Mine, Stored or Both (mine first), defaulting to
+  Mine, and the merged draft is previewed. "Keep merged draft" stores it against the revision
+  shown (a newer peer change reopens the comparison instead of being overwritten) and puts it
+  in the editor. "Keep my draft" and "Use stored draft" are unchanged; project files are not
+  written.
+- Checks: desktop **531 tests / 119 files PASS** (new `draft-merge` tests: segments, exact
+  reconstruction of either side, mixed and both choices, empty and identical drafts);
+  typecheck **292 PASS**; Biome PASS.
+- Native `--files` on portable identity `1a35b53cc1d7-eb7323dfffaf`: **exit 0 / PASS** on the
+  first run. After the existing "Use stored draft" round, a second peer draft write is merged
+  with "Both, mine first"; the preview, the editor and the natively stored draft all hold the
+  merged text.
+- Not covered: three-way merging against the saved file and very large drafts (the line diff
+  falls back to one delete/add block past its budget).
