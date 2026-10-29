@@ -4444,3 +4444,20 @@ staged; the other session's edits stay untouched.
   change; no separate RED); composer model test for the projection; webui-server typecheck
   PASS; desktop suite **588 PASS**, typecheck and Biome PASS.
 - No native step yet: the native fixture models carry no documented reasoning policy.
+
+### Adding and removing vector memory entries
+
+- Commit `d45f71906`. Vector Memory gains "Add an entry" (text up to 20,000 characters and tags,
+  through the existing `POST /api/vector-memory/store`; the reply says whether a vector was
+  computed) and "Remove" with confirmation on each search hit (`DELETE
+  /api/vector-memory/store/:id`; a reply of `removed: false` is reported, not hidden). Hits
+  linked to a SAGE record are not removable here, because the SAGE mirror would restore them;
+  the record is retired in SAGE Memory instead. Status counts refresh after each change.
+- Checks: tags parser test; the engine routes keep their existing handler tests; desktop suite
+  **589 PASS**, typecheck and Biome PASS.
+- The pre-commit hook regenerated and committed the architecture evidence with this commit, so
+  `check-architecture-health` passes again. It left the generated files staged with their
+  previous content; only those index entries were reset to the commit (working tree untouched).
+  The Core API snapshot remains stale because regenerating it would capture another session's
+  uncommitted CLI imports.
+- No native step: the native fixture project has no vector provider enabled.

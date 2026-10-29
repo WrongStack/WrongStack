@@ -334,7 +334,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 | Area / entry points | Remaining work |
 | --- | --- |
 | SAGE: `ProjectMemory.tsx`, `SageRecordDetails.tsx`, `SageValidityReview.tsx` | Injection-context/live trace inspector; recovery/backfill administration; large-graph exploration; broader applicability/lifecycle concurrency; native coverage of every repair/retirement proposal. Preserve direct counts and real graph relationships independently of vectors. |
-| Vector memory | CRUD, reindex/maintenance, provider configuration and actual enabled-store native acceptance. Keep its UI and lifecycle separate from SAGE. |
+| Vector memory | Reindex/maintenance, provider configuration and actual enabled-store native acceptance (adding and removing entries exists, 2026-10-30). Keep its UI and lifecycle separate from SAGE. |
 | Atlas: `CodeAtlas.tsx`, `AtlasViews.tsx`, `AtlasBoundaryMap.tsx` | Richer persona tours (communities inferred from stored references exist, 2026-10-29), cross-scope paths, AI flow traces, live actor overlays and large-index performance. Do not replace indexed relationships with fabricated visual links. |
 | Chronicle: `ProjectChronicle.tsx` and Chronicle views | Richer cross-domain navigation and long-history performance (timeline/lineage export and prompt-manifest inspection exist, 2026-10-29). Keep confidence-labelled lineage distinct from asserted delegation. |
 | Code Assist | Changes made through shell/patch/replace (every `write`/`edit` target is captured, compared and restorable per file, 2026-10-29), cancellation/error coverage and real-model output quality. Edit opt-in and request-owned streaming must remain. |
