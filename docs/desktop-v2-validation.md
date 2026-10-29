@@ -4158,3 +4158,16 @@ staged; the other session's edits stay untouched.
 - Checks: RED then GREEN in `prompts-handlers.test.ts` (19 tests); webui-server typecheck PASS;
   desktop suite PASS, typecheck and Biome PASS.
 - No native step yet.
+
+### Deleting automation jobs
+
+- Commit `6c37c83a7`. The automation store gains `remove(id, expectedRevision)` and the management API
+  `DELETE /v1/jobs/:id?expectedRevision=N` (proxied as `/api/automation/jobs/:id`). A stale
+  revision or a queued/running run of the job answers 409, an unknown job 404, a missing
+  revision 400. Because every stored run must belong to a stored job, the job's run records are
+  removed with it; artifact files on disk are not touched, and the reply reports how many run
+  records went. The desktop asks for confirmation with that explanation before deleting.
+- Checks: RED then GREEN in `automation-management.test.ts` (25 tests; 100 automation tests
+  overall) and the runtime typecheck; desktop suite PASS, typecheck and Biome PASS.
+- Native step written (`native-automation-management.mjs`: confirm and delete the fixture job
+  at the end); **not run**.

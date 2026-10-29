@@ -363,7 +363,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
   Finish real Docker execution, service/health/cache/credential lifecycle and restart behavior;
   actual PR prepare/publish/update/check/follow-up; signed GitHub delivery (two-run comparison from recorded results exists, 2026-10-29); event
   sample authoring and durable secondary forms. Successful management requests do not establish
-  successful external runs. The current shared management API has no job-delete endpoint.
+  successful external runs. Jobs can be deleted at their reviewed revision (2026-10-29).
 - MCP still needs OAuth, secret environment/header and advanced policy administration, broader
   task lifecycle stress, PDF preview (raster and audio previews and binary save exist, 2026-10-29; PDF stays save-only under the window CSP), deep catalogs and explicit tool
   invocation UX. Preserve session task identity/isolation/cancellation and question routing.
