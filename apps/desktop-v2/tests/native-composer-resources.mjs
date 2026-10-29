@@ -523,6 +523,21 @@ export async function exerciseNativeComposerResources({
   await editor.getByRole('button', { name: 'Close context editor', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Context & instructions', exact: true });
   await dialog.getByRole('region', { name: 'Estimated context sections', exact: true }).waitFor();
+  // Author a custom context mode, use it, then delete it (the conversation returns to default).
+  const modes = dialog.getByRole('region', { name: 'Context modes', exact: true });
+  await modes.getByRole('button', { name: 'New mode', exact: true }).click();
+  const modeForm = modes.getByRole('form', { name: 'New context mode', exact: true });
+  await modeForm.getByLabel('Mode ID').fill('native-mode');
+  await modeForm.getByLabel('Name').fill('Native mode');
+  await modeForm.getByLabel('Compact at (% of window)').fill('70');
+  await modeForm.getByRole('button', { name: 'Create mode', exact: true }).click();
+  const nativeMode = modes.getByRole('listitem').filter({ hasText: 'native-mode' });
+  await nativeMode.waitFor();
+  await nativeMode.getByRole('button', { name: 'Use', exact: true }).click();
+  await nativeMode.getByText('In use', { exact: true }).waitFor();
+  await nativeMode.getByRole('button', { name: 'Delete', exact: true }).click();
+  await nativeMode.getByRole('button', { name: 'Confirm delete', exact: true }).click();
+  await nativeMode.waitFor({ state: 'detached' });
   await page.screenshot({
     path: join(artifactDir, 'native-context-inspector.png'),
     fullPage: true,
