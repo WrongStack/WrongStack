@@ -4507,3 +4507,27 @@ staged; the other session's edits stay untouched.
 - Native: `native-file-bulk.mjs` now expects the batch path (a refused batch with one existing
   target, then a full copy without hidden leftovers); the per-item expectation was replaced
   because the native run uses the current engine. Not run yet.
+
+### Vector embedding coverage and reindexing
+
+- `GET /api/vector-memory/status` now includes `coverage {entries, covered, missing}`: entries
+  with a vector usable by the active provider and dimensions (the store's existing
+  `embeddingCoverage`, so vectors from an earlier provider count as missing).
+  `POST /api/vector-memory/reindex { onlyMissing?: boolean }` (access token as the other vector
+  routes) runs the store's `reindexAll` under its file lock and answers
+  `{processed, errors, coverage}`. A provider failure on one entry is counted in `errors`;
+  a malformed body is 400 and a host without a store is 503.
+- Desktop: the vector panel in Knowledge shows "N of M entries have a vector for the active
+  provider" and, when some are missing, says they are not found by semantic search and offers
+  "Embed N missing". "Re-embed all…" asks for confirmation first, since it calls the provider
+  once per entry. The result line reports embedded entries, failures and the coverage that
+  remains, and the status is read again. Older engines without `coverage` show no control.
+  The panel stays separate from SAGE.
+- Checks: webui-server `vector-memory-reindex.test.ts` with a real store and a provider that is
+  offline when the entry is stored. RED first: status had no `coverage`. Then GREEN: coverage
+  1/0/1, an invalid `onlyMissing` is 400, the missing reindex embeds 1 with coverage 1/1/0, and
+  no store gives 503. The status mock in `vector-memory-handlers.test.ts` gained the real
+  store's `embeddingCoverage`. Vector route tests: 54 PASS. Typecheck and Biome PASS.
+  Desktop `vector-memory-reindex.test.ts` was written with the change (coverage parsing,
+  outcome text, buttons by coverage). Desktop suite **594 PASS**, typecheck and Biome PASS.
+- No native step: the native fixture project has no vector provider enabled.
