@@ -429,6 +429,7 @@ export {
 export {
   _resetProcessRegistry,
   type BreakerCountdown,
+  type EndedProcess,
   getProcessRegistry,
   type KillOpts,
   type ProcessRegistryImpl,

@@ -449,3 +449,45 @@ describe('ProcessRegistry circuit-breaker config', () => {
     expect(r.get(30021)).toBeUndefined();
   });
 });
+
+describe('ProcessRegistry recently ended processes', () => {
+  beforeEach(() => _resetProcessRegistry());
+  afterEach(() => _resetProcessRegistry());
+
+  const exited = (exitCode: number | null, signalCode: string | null = null) =>
+    ({ killed: false, kill: vi.fn(() => true), exitCode, signalCode }) as never as ChildProcess;
+
+  it('keeps the exit code and signal a child reported when it is unregistered', () => {
+    const r = getProcessRegistry();
+    r.register(makeProc({ pid: 41001, sessionId: 's1', command: 'npm test', child: exited(2) }));
+    r.register(makeProc({ pid: 41002, sessionId: 's2', child: exited(null, 'SIGTERM') }));
+    r.register(makeProc({ pid: 41003, sessionId: 's1', child: fakeChild() }));
+    r.unregister(41001);
+    r.unregister(41002);
+    r.unregister(41003);
+    const s1 = r.recentlyEnded('s1');
+    expect(s1.map((p) => p.pid)).toEqual([41003, 41001]);
+    expect(s1[1]).toMatchObject({ command: 'npm test', exitCode: 2, signal: null, killed: false });
+    expect(typeof s1[1]?.endedAt).toBe('number');
+    // A child that had not reported an exit yet stays "not reported", never a guessed 0.
+    expect(s1[0]).toMatchObject({ exitCode: null, signal: null });
+    expect(r.recentlyEnded('s2')[0]).toMatchObject({ exitCode: null, signal: 'SIGTERM' });
+    expect(r.recentlyEnded()).toHaveLength(3);
+  });
+
+  it('records orphans pruned after exiting, and stays bounded', () => {
+    const r = getProcessRegistry();
+    r.register(makeProc({ pid: 42001, startedAt: Date.now() - 120_000, child: staleChild() }));
+    expect(r.get(42001)).toBeUndefined();
+    expect(r.recentlyEnded()[0]).toMatchObject({ pid: 42001, exitCode: 0 });
+    for (let pid = 43000; pid < 43100; pid++) {
+      r.register(makeProc({ pid, child: exited(0) }));
+      r.unregister(pid);
+    }
+    expect(r.recentlyEnded()).toHaveLength(50);
+    expect(r.recentlyEnded()[0]?.pid).toBe(43099);
+    // Unregistering an unknown PID records nothing.
+    r.unregister(1);
+    expect(r.recentlyEnded()[0]?.pid).toBe(43099);
+  });
+});

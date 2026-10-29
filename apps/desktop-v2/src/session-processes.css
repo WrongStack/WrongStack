@@ -201,3 +201,14 @@ fieldset.process-preview-links {
   border: 0;
   padding: 0;
 }
+.process-end {
+  margin-left: 8px;
+  font-weight: 500;
+  font-size: 10px;
+}
+.process-end.ok {
+  color: light-dark(#397239, #94c788);
+}
+.process-end.failed {
+  color: var(--danger);
+}

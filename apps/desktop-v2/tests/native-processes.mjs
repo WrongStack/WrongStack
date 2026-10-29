@@ -246,14 +246,16 @@ export async function exerciseNativeProcesses({
     30000,
   );
   await panel().getByRole('heading', { name: 'No tracked processes.', exact: true }).waitFor();
-  // The terminated run stays visible as recently ended; no exit status is invented.
+  // The terminated run stays visible as recently ended with the end the engine recorded.
   const ended = panel().locator('.process-ended');
-  await ended.locator('summary').filter({ hasText: 'Recently ended · 1' }).click();
-  await ended
+  await ended.locator('summary').filter({ hasText: /^Recently ended · \d+$/ }).click();
+  const endedRun = ended
     .getByRole('list', { name: 'Recently ended processes', exact: true })
-    .getByText(`PID ${proc.pid}`, { exact: true })
-    .waitFor();
-  assert.ok((await ended.innerText()).includes('does not report how'));
+    .getByRole('listitem')
+    .filter({ has: page.getByText(`PID ${proc.pid}`, { exact: true }) });
+  await endedRun.waitFor();
+  assert.match(await endedRun.locator('.process-end').innerText(), /^Terminated on request/);
+  assert.ok((await ended.innerText()).includes('as the engine recorded them'));
   assert.equal(page.context().pages().length, 1);
   await exerciseNativeSideEffects({
     page,

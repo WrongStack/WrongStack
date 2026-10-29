@@ -173,8 +173,27 @@ export function killWin32Tree(pid: number, opts: Win32TreeKillOptions = {}): boo
   }
 }
 
+/** How many ended processes the registry remembers. */
+const MAX_ENDED = 50;
+
+/** A process that left the registry, with the exit the child reported. */
+export interface EndedProcess {
+  pid: number;
+  name: string;
+  command: string;
+  startedAt: number;
+  endedAt: number;
+  exitCode: number | null;
+  signal: string | null;
+  /** True when the registry had been asked to kill it. */
+  killed: boolean;
+  background: boolean;
+  sessionId?: string | undefined;
+}
+
 export class ProcessRegistryImpl {
   private readonly processes = new Map<number, TrackedProcess>();
+  private readonly ended: EndedProcess[] = [];
   private readonly breaker: CircuitBreaker;
 
   /**
@@ -254,7 +273,34 @@ export class ProcessRegistryImpl {
 
   /** Unregister a process by PID. Called on 'close' / 'exit' events. */
   unregister(pid: number): void {
+    const entry = this.processes.get(pid);
+    if (entry) this._recordEnded(entry);
     this.processes.delete(pid);
+  }
+
+  /**
+   * Processes that left the registry, newest first (bounded), optionally for one session.
+   * `exitCode`/`signal` are what the child reported; null when it had not reported one
+   * (for example a mirror entry or a process unregistered before its exit event).
+   */
+  recentlyEnded(sessionId?: string): EndedProcess[] {
+    return sessionId ? this.ended.filter((p) => p.sessionId === sessionId) : [...this.ended];
+  }
+
+  private _recordEnded(entry: TrackedProcess): void {
+    this.ended.unshift({
+      pid: entry.pid,
+      name: entry.name,
+      command: entry.command,
+      startedAt: entry.startedAt,
+      endedAt: Date.now(),
+      exitCode: typeof entry.child?.exitCode === 'number' ? entry.child.exitCode : null,
+      signal: typeof entry.child?.signalCode === 'string' ? entry.child.signalCode : null,
+      killed: entry.killed,
+      background: entry.background,
+      ...(entry.sessionId ? { sessionId: entry.sessionId } : {}),
+    });
+    if (this.ended.length > MAX_ENDED) this.ended.length = MAX_ENDED;
   }
 
   /** Get a single process by PID. */
@@ -639,6 +685,7 @@ export class ProcessRegistryImpl {
   private _pruneStale(pid: number): void {
     const entry = this.processes.get(pid);
     if (entry && this._isStaleEntry(entry)) {
+      this._recordEnded(entry);
       this.processes.delete(pid);
     }
   }
@@ -653,7 +700,10 @@ export class ProcessRegistryImpl {
    */
   private _pruneAllStale(): void {
     for (const [pid, entry] of this.processes) {
-      if (this._isStaleEntry(entry)) this.processes.delete(pid);
+      if (this._isStaleEntry(entry)) {
+        this._recordEnded(entry);
+        this.processes.delete(pid);
+      }
     }
   }
 }

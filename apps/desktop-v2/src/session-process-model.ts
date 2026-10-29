@@ -43,6 +43,68 @@ export function sessionProcesses(
     hasOutput: row['hasOutput'] === true,
   }));
 }
+/** A process the engine reports as ended, with the exit its child reported. */
+export interface ReportedEnd {
+  pid: number;
+  command: string;
+  tool: string;
+  startedAt: number;
+  endedAt: number;
+  exitCode: number | null;
+  signal: string | null;
+  killed: boolean;
+  background: boolean;
+}
+/**
+ * This session's ended processes from `process.list`, or null when the engine does not report
+ * them (older engines). Rows of another session or with unreadable values are left out.
+ */
+export function reportedEnded(
+  payload: Record<string, unknown>,
+  sessionId: string,
+): ReportedEnd[] | null {
+  if (!Array.isArray(payload['ended'])) return null;
+  return entries(payload['ended']).flatMap((row) =>
+    row['sessionId'] === sessionId &&
+    Number.isSafeInteger(row['pid']) &&
+    typeof row['command'] === 'string' &&
+    typeof row['tool'] === 'string' &&
+    Number.isFinite(row['startedAt']) &&
+    Number.isFinite(row['endedAt']) &&
+    (row['exitCode'] === null || Number.isSafeInteger(row['exitCode'])) &&
+    (row['signal'] === null || typeof row['signal'] === 'string')
+      ? [
+          {
+            pid: Number(row['pid']),
+            command: String(row['command']),
+            tool: String(row['tool']),
+            startedAt: Number(row['startedAt']),
+            endedAt: Number(row['endedAt']),
+            exitCode: row['exitCode'] as number | null,
+            signal: row['signal'] as string | null,
+            killed: row['killed'] === true,
+            background: row['background'] === true,
+          },
+        ]
+      : [],
+  );
+}
+/** How an ended process finished, as reported; an unreported exit is never shown as success. */
+export function endLabel(end: ReportedEnd): { text: string; failed: boolean | null } {
+  if (end.exitCode !== null)
+    return end.exitCode === 0
+      ? { text: 'Exit code 0', failed: false }
+      : { text: `Exit code ${end.exitCode}`, failed: true };
+  if (end.signal)
+    return {
+      text: `${end.killed ? 'Terminated on request' : 'Stopped'} · ${end.signal}`,
+      failed: true,
+    };
+  return {
+    text: end.killed ? 'Terminated on request · exit not reported' : 'Exit not reported',
+    failed: null,
+  };
+}
 export function sameSessionProcess(left: SessionProcess, right: SessionProcess): boolean {
   return (
     left.pid === right.pid &&

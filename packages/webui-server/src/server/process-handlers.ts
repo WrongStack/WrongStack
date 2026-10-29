@@ -57,6 +57,9 @@ export function handleProcessList(ws: WebSocket, msg?: { payload?: unknown }): v
   try {
     const registry = getProcessRegistry();
     const procs = sessionId ? registry.bySession(sessionId) : registry.list();
+    // Older tool builds have no ended-process memory; the list is then sent without it.
+    const ended =
+      typeof registry.recentlyEnded === 'function' ? registry.recentlyEnded(sessionId) : undefined;
     send(ws, {
       type: 'process.list',
       payload: {
@@ -72,6 +75,22 @@ export function handleProcessList(ws: WebSocket, msg?: { payload?: unknown }): v
           hasOutput: p.logFile !== undefined,
           ...(p.sessionId ? { sessionId: p.sessionId } : {}),
         })),
+        ...(ended
+          ? {
+              ended: ended.map((p) => ({
+                pid: p.pid,
+                command: p.command,
+                tool: p.name,
+                startedAt: p.startedAt,
+                endedAt: p.endedAt,
+                exitCode: p.exitCode,
+                signal: p.signal,
+                killed: p.killed,
+                background: p.background,
+                ...(p.sessionId ? { sessionId: p.sessionId } : {}),
+              })),
+            }
+          : {}),
         ...(sessionId ? { sessionId } : {}),
       },
     });

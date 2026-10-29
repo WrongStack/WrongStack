@@ -88,6 +88,45 @@ describe('process WebSocket handlers', () => {
   });
 
   describe('handleProcessList', () => {
+    it("adds the session's recently ended processes with their reported exit", async () => {
+      registry.bySession.mockReturnValue([]);
+      const recentlyEnded = vi.fn(() => [
+        {
+          pid: 12,
+          name: 'bash',
+          command: 'npm test',
+          startedAt: 5,
+          endedAt: 9,
+          exitCode: 1,
+          signal: null,
+          killed: false,
+          background: true,
+          sessionId: 's1',
+        },
+      ]);
+      Object.assign(registry, { recentlyEnded });
+      try {
+        const ws = createMockWs();
+        await handleProcessList(ws, { payload: { sessionId: 's1' } });
+        expect(recentlyEnded).toHaveBeenCalledWith('s1');
+        expect(ws.sent[0]?.payload['ended']).toEqual([
+          {
+            pid: 12,
+            command: 'npm test',
+            tool: 'bash',
+            startedAt: 5,
+            endedAt: 9,
+            exitCode: 1,
+            signal: null,
+            killed: false,
+            background: true,
+            sessionId: 's1',
+          },
+        ]);
+      } finally {
+        delete (registry as { recentlyEnded?: unknown }).recentlyEnded;
+      }
+    });
     it('projects the registry list into the wire shape', async () => {
       registry.list.mockReturnValue([
         {

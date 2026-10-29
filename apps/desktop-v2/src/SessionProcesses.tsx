@@ -8,8 +8,11 @@ import {
   batchTerminationSummary,
   type EndedProcess,
   endedProcesses,
+  endLabel,
   observedDuration,
   processKey,
+  type ReportedEnd,
+  reportedEnded,
   type SessionProcess,
   sameSessionProcess,
   sessionProcesses,
@@ -54,14 +57,17 @@ export function SessionProcesses({
     reading = useRef(false),
     operating = useRef(false),
     outputSequence = useRef(0);
-  const read = useCallback(
-    async () =>
-      sessionProcesses(
-        await command('process.list', { sessionId }, ['process.list', 'key.operation_result']),
-        sessionId,
-      ),
-    [command, sessionId],
-  );
+  // Engines that report ended processes with their exit replace the list this window observed.
+  const [reported, setReported] = useState<ReportedEnd[] | null>(null);
+  const read = useCallback(async () => {
+    const payload = await command('process.list', { sessionId }, [
+      'process.list',
+      'key.operation_result',
+    ]);
+    const rows = sessionProcesses(payload, sessionId);
+    if (alive.current) setReported(reportedEnded(payload, sessionId));
+    return rows;
+  }, [command, sessionId]);
   const refresh = useCallback(async () => {
     if (!connected || reading.current || !sessionId) return;
     reading.current = true;
@@ -372,7 +378,43 @@ export function SessionProcesses({
           ))}
         </div>
       )}
-      {ended.length > 0 && (
+      {reported && reported.length > 0 && (
+        <details className="process-ended">
+          <summary>Recently ended · {reported.length}</summary>
+          <p className="field-help">
+            Exits as the engine recorded them when each process left its registry.
+          </p>
+          <ul aria-label="Recently ended processes">
+            {reported.map((item) => {
+              const end = endLabel(item);
+              return (
+                <li key={`${item.pid}:${item.startedAt}`}>
+                  <code>PID {item.pid}</code> {item.tool}
+                  {item.background ? ' · Background' : ''}
+                  <b
+                    className={
+                      end.failed === null
+                        ? 'process-end'
+                        : end.failed
+                          ? 'process-end failed'
+                          : 'process-end ok'
+                    }
+                  >
+                    {end.text}
+                  </b>
+                  <pre>{item.command}</pre>
+                  <small>
+                    Started {new Date(item.startedAt).toLocaleString()} · ended{' '}
+                    {new Date(item.endedAt).toLocaleTimeString()} · ran{' '}
+                    {observedDuration(item.startedAt, item.endedAt)}
+                  </small>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
+      {!reported && ended.length > 0 && (
         <details className="process-ended">
           <summary>Recently ended · {ended.length}</summary>
           <p className="field-help">
