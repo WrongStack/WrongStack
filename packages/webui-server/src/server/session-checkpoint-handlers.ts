@@ -23,7 +23,10 @@ import { errMessage } from './ws-utils.js';
 
 export function createSessionCheckpointHandlers(
   shared: SessionHandlerShared,
-): Pick<SessionRouteHandlers, 'inspectSession' | 'listCheckpoints' | 'rewindSession'> {
+): Pick<
+  SessionRouteHandlers,
+  'inspectSession' | 'listCheckpoints' | 'rewindSession' | 'redoSession'
+> {
   const {
     ctx,
     sendTo,
@@ -303,6 +306,79 @@ export function createSessionCheckpointHandlers(
             },
           });
           const replay = buildReplayPayload(applied.conversation);
+          broadcastToAll({
+            type: 'session.start',
+            payload: {
+              ...(await ctx.sessionStartPayload({ reset: true, sessionId: targetSessionId })),
+              ...replay,
+              replayMessages: replay.replayMessages ?? [],
+            },
+          });
+        } catch (err) {
+          result(ws, false, errMessage(err));
+        }
+      });
+    },
+    /**
+     * Undo the newest rewind of the acting session (core `redoLastRewind`): its file changes are
+     * re-applied only when every touched file still holds what the rewind left, then the cut
+     * journal is restored. A conflict changes nothing.
+     */
+    redoSession: async (ws, msg) => {
+      if (!ensureCurrentSession(ws, msg, 'session.redo')) return;
+      await shared.serializeSessionTransition(async () => {
+        const targetSessionId = actingSessionId(msg);
+        if (ctx.isRunActive?.(targetSessionId)) {
+          result(ws, false, 'Cannot redo while an agent run is active. Please stop the run first.');
+          return;
+        }
+        try {
+          const target = contextForMessage(msg);
+          if (!target || target.session?.id !== targetSessionId) {
+            result(ws, false, `Session ${targetSessionId} is not open in this runtime`);
+            return;
+          }
+          const { redoLastRewind } = await import('@wrongstack/core/storage');
+          const redo = await redoLastRewind({
+            session: target.session,
+            state: target.state,
+            sessionsDir: sessionsDirectory(),
+            projectRoot: ctx.getProjectRoot(),
+            meta: target.meta,
+            onMessagesReplaced: (messages) =>
+              rehydrateContextEvidenceFromMessages(target, messages),
+          });
+          if (!redo) {
+            result(
+              ws,
+              false,
+              'There is no rewind to redo: none was made, or a prompt was sent after it.',
+            );
+            return;
+          }
+          const { conversation, ...summary } = redo;
+          if (redo.conflicts.length > 0 || !conversation) {
+            sendTo(ws, {
+              type: 'key.operation_result',
+              payload: {
+                success: false,
+                sessionId: targetSessionId,
+                message: `Nothing was redone. ${redo.conflicts.slice(0, 5).join('; ')}${redo.conflicts.length > 5 ? `; and ${redo.conflicts.length - 5} more` : ''}.`,
+                redo: summary,
+              },
+            });
+            return;
+          }
+          sendTo(ws, {
+            type: 'key.operation_result',
+            payload: {
+              success: true,
+              sessionId: targetSessionId,
+              message: `Redid the rewind to checkpoint ${redo.toPromptIndex}`,
+              redo: summary,
+            },
+          });
+          const replay = buildReplayPayload(conversation);
           broadcastToAll({
             type: 'session.start',
             payload: {

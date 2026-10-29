@@ -37,6 +37,7 @@ export const CLIENT_CONVERSATION_MESSAGE_TYPES = [
   'session.rename',
   'session.resume',
   'session.rewind',
+  'session.redo',
   'session.save',
   'session.subscribe',
   'sessions.list',

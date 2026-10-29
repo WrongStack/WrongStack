@@ -11,6 +11,7 @@ import {
   recoveryCheckpoints,
   recoveryDate,
   recoveryResult,
+  redoResult,
 } from './session-recovery-model';
 import './session-recovery.css';
 
@@ -38,6 +39,7 @@ export function SessionRecovery({
     [checkpointError, setCheckpointError] = useState('');
   const [confirm, setConfirm] = useState<RecoveryCheckpoint | null>(null);
   const [result, setResult] = useState<ReturnType<typeof recoveryResult>>(null);
+  const [redone, setRedone] = useState<ReturnType<typeof redoResult>>(null);
   const [search, setSearch] = useState(''),
     [kind, setKind] = useState(''),
     [limit, setLimit] = useState(100);
@@ -120,6 +122,35 @@ export function SessionRecovery({
         setError(error instanceof Error ? error.message : String(error));
         setRevision('');
       }
+    } finally {
+      mutation.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  };
+  /**
+   * Undo the newest rewind. The engine re-applies its file changes only if every file still
+   * holds what the rewind left, and refuses once a prompt was sent after the rewind.
+   */
+  const redo = async () => {
+    if (busy || mutation.current || running) return;
+    mutation.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      const reply = await command('session.redo', {}, ['key.operation_result'], {
+        timeoutMs: 120000,
+      });
+      if (!mounted.current) return;
+      const observed = redoResult(reply);
+      if (!observed)
+        throw Error(
+          'The engine acknowledged the redo without a detailed result. Refresh and inspect the journal.',
+        );
+      setRedone(observed);
+      setResult(null);
+      await load();
+    } catch (error) {
+      if (mounted.current) setError(error instanceof Error ? error.message : String(error));
     } finally {
       mutation.current = false;
       if (mounted.current) setBusy(false);
@@ -217,6 +248,26 @@ export function SessionRecovery({
           )}
         </section>
       )}
+      {redone && (
+        <section className="recovery-outcome" aria-label="Observed redo result">
+          <h3>Rewind redone</h3>
+          <p>
+            Checkpoint {redone.checkpoint} · Re-applied files: {redone.files.length} · Messages:{' '}
+            {redone.messageCount ?? 'Unreported'}
+          </p>
+          {redone.files.map((path) => (
+            <button
+              type="button"
+              className="recovery-file-link"
+              key={path}
+              onClick={() => onOpenFile(path)}
+            >
+              <FileCode size={14} />
+              {path}
+            </button>
+          ))}
+        </section>
+      )}
       {inspect && (
         <>
           <div className="recovery-identity">
@@ -267,6 +318,16 @@ export function SessionRecovery({
               restores recorded file snapshots. Later manual edits can be overwritten.
             </p>
           </div>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={busy || running}
+            title="Re-apply the newest rewind, unless a prompt was sent or its files changed since"
+            onClick={() => void redo()}
+          >
+            <RotateCcw size={14} />
+            Redo last rewind
+          </button>
         </header>
         {running && (
           <p role="status" className="settings-defaults-note">

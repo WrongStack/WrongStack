@@ -4,6 +4,7 @@ import {
   checkpointMatches,
   recoveryCheckpoints,
   recoveryResult,
+  redoResult,
 } from '../src/session-recovery-model';
 
 describe('recorded recovery evidence', () => {
@@ -42,4 +43,11 @@ describe('recorded recovery evidence', () => {
       messageCount: null,
     });
   });
+});
+
+it('reads a redone rewind only from the engine result', () => {
+  expect(redoResult({ success: true })).toBeNull();
+  expect(
+    redoResult({ redo: { toPromptIndex: 2, reappliedFiles: ['/p/a.ts'], messageCount: 7 } }),
+  ).toEqual({ checkpoint: 2, files: ['/p/a.ts'], messageCount: 7 });
 });

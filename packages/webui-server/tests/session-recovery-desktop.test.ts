@@ -255,4 +255,44 @@ describe('desktop session recovery through the real session route', () => {
       await h.writer.close();
     }
   });
+
+  it('redoes the last rewind, and refuses when files changed since or nothing was rewound', async () => {
+    const h = await harness();
+    const file = join(h.project, 'proof.txt');
+    try {
+      expect((await h.call('session.redo')).payload).toMatchObject({ success: false });
+      await h.writer.writeCheckpoint(0, 'First prompt');
+      await h.writer.writeCheckpoint(1, 'Second prompt');
+      await h.writer.writeFileSnapshot(1, [
+        { path: file, action: 'modified', before: 'before', after: 'after' },
+      ]);
+      await writeFile(file, 'after');
+      await h.writer.flush();
+      expect((await h.call('session.rewind', { checkpointIndex: 1 })).payload.success).toBe(true);
+      expect(await readFile(file, 'utf8')).toBe('before');
+
+      // An edit after the rewind is not overwritten.
+      await writeFile(file, 'edited meanwhile');
+      const conflict = await h.call('session.redo');
+      expect(conflict.payload).toMatchObject({ success: false });
+      expect((conflict.payload.redo as { conflicts: string[] }).conflicts[0]).toMatch(/changed/);
+      expect(await readFile(file, 'utf8')).toBe('edited meanwhile');
+
+      await writeFile(file, 'before');
+      h.setActive(true);
+      expect((await h.call('session.redo')).payload.message).toMatch(/active/);
+      h.setActive(false);
+      h.broadcast.length = 0;
+      const redone = await h.call('session.redo');
+      expect(redone.payload).toMatchObject({
+        success: true,
+        requestId: 'reviewed-request',
+        redo: { toPromptIndex: 1, reappliedFiles: [file] },
+      });
+      expect(await readFile(file, 'utf8')).toBe('after');
+      expect(h.broadcast[0]?.payload).toMatchObject({ reset: true });
+    } finally {
+      await h.writer.close();
+    }
+  });
 });

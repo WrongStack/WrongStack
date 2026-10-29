@@ -50,3 +50,14 @@ export function recoveryResult(value: unknown) {
 export function checkpointMatches(reviewed: RecoveryCheckpoint[], current: RecoveryCheckpoint[]) {
   return JSON.stringify(reviewed) === JSON.stringify(current);
 }
+/** The engine's account of a redone rewind; null when the reply carries none. */
+export function redoResult(value: unknown) {
+  const result = record(record(value)['redo']);
+  return typeof result['toPromptIndex'] === 'number'
+    ? {
+        checkpoint: result['toPromptIndex'],
+        files: Array.isArray(result['reappliedFiles']) ? result['reappliedFiles'].map(String) : [],
+        messageCount: typeof result['messageCount'] === 'number' ? result['messageCount'] : null,
+      }
+    : null;
+}

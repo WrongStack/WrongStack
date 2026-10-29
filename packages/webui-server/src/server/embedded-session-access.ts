@@ -19,6 +19,7 @@ export function createEmbeddedSessionAccess(deps: EmbeddedMessageRouterDeps) {
     'session.save',
     'session.checkpoints',
     'session.rewind',
+    'session.redo',
     'context.clear',
     'context.compact',
     'context.repair',

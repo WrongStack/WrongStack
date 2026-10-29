@@ -260,6 +260,17 @@ export async function exerciseNativeSessionRecovery({
     .click();
   await screen.getByRole('heading', { name: 'Rewind completed', exact: true }).waitFor();
   assert.equal(await readFile(file, 'utf8'), 'before recovery prompts');
+  // Redo brings the prompts and the file back; rewinding again restores the state checked below.
+  await screen.getByRole('button', { name: 'Redo last rewind', exact: true }).click();
+  await screen.getByRole('heading', { name: 'Rewind redone', exact: true }).waitFor();
+  assert.equal(await readFile(file, 'utf8'), 'after second prompt');
+  await review().click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Confirm checkpoint rewind', exact: true })
+    .click();
+  await screen.getByRole('heading', { name: 'Rewind completed', exact: true }).waitFor();
+  assert.equal(await readFile(file, 'utf8'), 'before recovery prompts');
   const loaded = await call('session.inspect', { id: identity.sessionId });
   assert.equal(loaded.retainedMessageCount, 0);
   assert.equal(loaded.journalTokenTotal, 0);
