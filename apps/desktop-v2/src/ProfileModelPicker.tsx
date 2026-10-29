@@ -6,6 +6,12 @@ import { entries } from './engine-values';
 import { ModelComparison } from './ModelComparison';
 import { toggleCompared } from './model-comparison';
 import { modelDetailLine, type PickerModel, pickerModel } from './model-picker-details';
+import {
+  RECENT_MODELS_KEY,
+  type RecentModel,
+  readRecentModels,
+  withRecentModel,
+} from './model-recents';
 import { modelListed, providerDisabled, selectableCatalogModels } from './model-visibility';
 import { emptyModelPolicy, mergeModelPolicy, readProfileModelPolicy } from './profile-model-policy';
 import { providerChoices } from './provider-settings-model';
@@ -173,7 +179,16 @@ function LiveProfileModelPicker({
       reportError(refusal);
     }
   };
-  const choose = async (model: string) => {
+  const [recents, setRecents] = useState<RecentModel[]>(() =>
+    readRecentModels(() => localStorage.getItem(RECENT_MODELS_KEY)),
+  );
+  // Only recents whose provider is still offered and whose model the profile still allows.
+  const quickRecents = recents.filter(
+    (item) =>
+      choices.some((choice) => choice.id === item.provider) &&
+      selectableCatalogModels([{ id: item.model }], item.provider, policy).length > 0,
+  );
+  const choose = async (model: string, target = provider) => {
     if (switching || !ready) return;
     setSwitching(true);
     onBusy(true);
@@ -182,12 +197,19 @@ function LiveProfileModelPicker({
       const current = await readProfileModelPolicy(profile.command);
       if (!mounted.current) return;
       setPolicy(current);
-      if (!selectableCatalogModels([{ id: model }], provider, current).length)
+      if (!selectableCatalogModels([{ id: model }], target, current).length)
         throw Error('This model was disabled in your profile. Refresh choices before switching.');
-      if (onPick) await onPick(provider, model);
+      if (onPick) await onPick(target, model);
       else if (sessionCommand)
-        await sessionCommand('model.switch', { provider, model }, ['model.switch_result']);
+        await sessionCommand('model.switch', { provider: target, model }, ['model.switch_result']);
       else throw Error('No model selection target is available.');
+      const next = withRecentModel(recents, { provider: target, model });
+      setRecents(next);
+      try {
+        localStorage.setItem(RECENT_MODELS_KEY, JSON.stringify(next));
+      } catch {
+        // Recents are a convenience; a full or blocked store leaves them unsaved.
+      }
       if (mounted.current) onClose();
     } catch (error) {
       if (mounted.current) reportError(error);
@@ -236,6 +258,24 @@ function LiveProfileModelPicker({
           ))}
         </select>
       </label>
+      {ready && quickRecents.length > 0 && (
+        <fieldset className="composer-model-recents">
+          <legend>Recent models</legend>
+          {quickRecents.map((item) => (
+            <button
+              type="button"
+              key={`${item.provider}/${item.model}`}
+              className="button secondary small"
+              disabled={switching}
+              aria-pressed={item.provider === session.provider && item.model === session.model}
+              onClick={() => void choose(item.model, item.provider)}
+            >
+              {item.model}
+              <small>{item.provider}</small>
+            </button>
+          ))}
+        </fieldset>
+      )}
       <label className="composer-model-search">
         <Search size={15} />
         <input

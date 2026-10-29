@@ -56,6 +56,9 @@
     "apps/desktop-v2/src/model-comparison.ts": [
       "MAX_COMPARED_MODELS"
     ],
+    "apps/desktop-v2/src/model-recents.ts": [
+      "MAX_RECENT_MODELS"
+    ],
     "apps/desktop-v2/src/ModelCatalogProfile.tsx": [
       "readModelProfile"
     ],

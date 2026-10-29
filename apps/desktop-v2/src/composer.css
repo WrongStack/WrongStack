@@ -462,3 +462,26 @@
   color: var(--muted);
   font-weight: 400;
 }
+.composer-model-recents {
+  border: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 10px;
+  color: var(--muted);
+}
+.composer-model-recents button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.composer-model-recents button small {
+  color: var(--muted);
+}
+.composer-model-recents legend {
+  float: left;
+  margin-right: 4px;
+}

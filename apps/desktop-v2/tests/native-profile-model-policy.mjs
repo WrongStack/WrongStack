@@ -162,6 +162,19 @@ export async function exerciseNativeProfileModelPolicy({
     await modelButton(fixtureModel).click();
     await picker.waitFor({ state: 'detached' });
     assert.equal((await rpc('engine.identity', { id: agent.id })).model, fixtureModel);
+    // The recently used alternate switches back with one click from the recents row.
+    await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
+    await picker
+      .getByRole('group', { name: 'Recent models', exact: true })
+      .getByRole('button')
+      .filter({ hasText: alt })
+      .click();
+    await picker.waitFor({ state: 'detached' });
+    assert.equal((await rpc('engine.identity', { id: agent.id })).model, alt);
+    await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
+    await modelButton(fixtureModel).click();
+    await picker.waitFor({ state: 'detached' });
+    assert.equal((await rpc('engine.identity', { id: agent.id })).model, fixtureModel);
     assert.equal(await humanFrames(), promptsBefore, 'Model choices do not enqueue a human prompt');
     assert.equal(
       providerFixture.calls.some((call) => call.profilePolicyDraft),

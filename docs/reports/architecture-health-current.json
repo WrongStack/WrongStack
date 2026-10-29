@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T18:58:49.000Z",
+  "generatedAt": "2026-10-29T19:00:33.118Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5473,
-    "testFiles": 4764,
-    "sourceLines": 1204268,
+    "sourceFiles": 5474,
+    "testFiles": 4765,
+    "sourceLines": 1204342,
     "workspaceEdges": 222,
-    "moduleEdges": 16434,
+    "moduleEdges": 16435,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 119,
+    "testsWithoutTypecheck": 120,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 981
+    "testOnlyExports": 982
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 285,
-      "testFiles": 119,
+      "sourceFiles": 286,
+      "testFiles": 120,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1673,6 +1673,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/model-profile-drafts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/model-recents.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30334,6 +30340,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/model-recents.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/model-visibility.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31786,6 +31799,10 @@
     {
       "file": "apps/desktop-v2/src/model-comparison.ts",
       "name": "MAX_COMPARED_MODELS"
+    },
+    {
+      "file": "apps/desktop-v2/src/model-recents.ts",
+      "name": "MAX_RECENT_MODELS"
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogProfile.tsx",
