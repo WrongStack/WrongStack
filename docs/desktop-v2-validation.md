@@ -4551,3 +4551,27 @@ staged; the other session's edits stay untouched.
   asking) were written with the change. Desktop suite **595 PASS**; typecheck and Biome PASS.
 - Native: `native-session-recovery.mjs` checks the rewound first prompt, the ask-before-replace
   choice and keeping the draft (the later draft-preserved assertions still hold). Not run yet.
+
+### One-step retry of the newest prompt
+
+- Core: `rewindToCheckpoint` now also reports `promptHasAttachments` (whether the rewound
+  `user_input` carried image or document blocks that `promptText` leaves out). The contract
+  type `RewindResultExtended` gained the optional field. webui-server forwards it with
+  `promptText`.
+- Desktop: History & recovery has "Retry last prompt". It opens the same reviewed rewind
+  confirmation for the newest checkpoint ("Undo prompt N and send it again?", "Rewind and send
+  again"), with the same journal-revision and checkpoint checks. After the rewind, the text is
+  sent again only when it was recorded, every file was restored and the prompt had no
+  attachments. The send is a `user_message` acknowledged by the engine (`session.user-ack`
+  required). Otherwise nothing is sent and the panel says why; Edit and resend stays available.
+  The newest checkpoint is not offered when its prompt index also appears earlier: the engine
+  cuts at the first occurrence, which would take back more than one prompt.
+- Checks: RED then GREEN in core `session-rewinder.test.ts` (an image block gives `true`, a
+  text prompt `false`); 24 rewinder tests PASS. webui-server `session-recovery-desktop.test.ts`
+  6 PASS, typecheck and Biome PASS. Contracts and core were rebuilt for the dependent
+  typecheck. The Core API snapshot was not regenerated; it is still blocked by another
+  session's uncommitted CLI work. Desktop `session-recovery.test.ts` (newest-checkpoint choice
+  with a repeated index, send/no-send reasons) was written with the change. Desktop suite
+  **596 PASS**, typecheck and Biome PASS.
+- No native step yet: a native retry sends a second real local-model turn, which the existing
+  recovery scenario's later counters do not expect. It is planned for the final native pass.
