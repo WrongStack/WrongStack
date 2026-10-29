@@ -3837,3 +3837,74 @@ one final native pass.
   `<details>` floats over other content.
 - Checks: typecheck and Biome PASS; desktop unit suite PASS.
 - Native step written (`native-attachments.mjs`); **not run**.
+
+## MCP audio content plays in place (2026-10-29)
+
+- Commit `72d7d52c4`. Binary MCP content with an MP3, WAV, Ogg or WebM audio type gets an audio
+  player built from its own bytes, next to the existing save action. The window CSP adds
+  `media-src 'self' data:` for this; frames and objects stay disallowed, so PDF content remains
+  save-only.
+- Checks: desktop unit suite PASS (updated `mcp-binary` tests); typecheck and Biome PASS.
+- Native step written (`native-mcp-content.mjs`: a real 10 ms WAV resource loads its metadata);
+  **not run**.
+
+## Cross-provider model comparison (2026-10-29)
+
+- Commit `09027a10e`. Comparison picks survive a provider change, so models of different
+  providers can be compared in one table; each column names its provider, and "Use" switches the
+  provider too when needed. Picks whose provider is no longer offered, or whose model the
+  profile no longer allows, drop out of the table.
+- Checks: typecheck, Biome and desktop unit suite PASS.
+- Native step updated (`native-profile-model-policy.mjs`: status text); the fixture has one
+  provider, so a two-provider native case is still missing. **Not run**.
+
+## Line comment toggle in the code editor (2026-10-29)
+
+- Commit `8b0b2ea87`. Ctrl+/ (Cmd+/) comments or uncomments the touched lines with the
+  language's line marker (`//`, `#` or `--`, from the file name); languages without line
+  comments (CSS, HTML, JSON, Markdown) are left alone. The edit goes through `insertText`, so it
+  is undoable like typing.
+- Checks: desktop unit suite PASS (new `editor-comment` tests); typecheck and Biome PASS.
+- Native step written (`native-files.mjs`: comment and uncomment a selection); **not run**.
+
+## Inferred Atlas communities (2026-10-29)
+
+- Commit `4ece905eb`. The subsystem view can group nodes into communities computed from the
+  stored references alone (deterministic weighted label propagation). They are named
+  "Inferred: <shared folder>" or "Inferred: around <top-ranked member>", and nodes without
+  references are "Unconnected". When the index stored no subsystem or package, inferred
+  grouping is the default; otherwise it is opt-in. No edge is added or changed.
+- Checks: desktop unit suite PASS (new `atlas-communities` tests, including order
+  independence); typecheck and Biome PASS.
+- Native step written (`native-atlas.mjs`: switch to inferred and back); **not run**.
+
+## Chronicle prompt manifest inspection (2026-10-29)
+
+- Commit `bc6d4ad25`. A Chronicle event that recorded a prompt manifest shows it as sections:
+  message, token-estimate and byte totals, role and block counts, system prompt composition by
+  layer (or a note when the manifest predates per-block composition), tool counts and names (or
+  the reference to the earlier request that stored them), and the itemised recent messages with
+  the count Chronicle left out. Values the manifest did not record show "not recorded".
+- Checks: desktop unit suite PASS (new `chronicle-manifest` tests); typecheck and Biome PASS.
+- Native fixture and step written (`native-chronicle-fixture.mjs`, `native-evidence.mjs`);
+  **not run**.
+
+## Theme-aware status and lane colors (2026-10-29)
+
+- Commit `6c55cc625`. Git status, the file menu's delete action and the Git history lanes no
+  longer use fixed colors that ignore the theme: deleted/unmerged use the danger token, and
+  untracked files and lanes 1–5 use light/dark pairs. The terminal surface stays dark on
+  purpose.
+- Checks: Biome PASS. Visual confirmation belongs to the final native pass.
+
+## Selective merge for mailbox and roster drafts (2026-10-29)
+
+- Commits `077e7417f` and `2b7964fc8`. When another window saved a different unsent mailbox
+  message or roster document draft, the conflict notice now also offers the change-by-change
+  merge used for file drafts. Mailbox merging combines the bodies and keeps this window's
+  recipients, subject and other fields; roster merging is offered only when both drafts start
+  from the same stored text. The merged result becomes the saved draft through the existing
+  revision check.
+- Checks: desktop unit suite PASS (new mailbox merge test against the compare-and-set slot);
+  typecheck and Biome PASS.
+- No native step yet.

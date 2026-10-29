@@ -285,7 +285,7 @@ have real workflows; the work below closes their missing actions, durability and
 
 | Area / entry points | What remains | Acceptance to require |
 | --- | --- | --- |
-| Files: `FileWorkspace.tsx`, `file-draft.ts`, `FileContentSearch.tsx` | Language-aware editor depth; an atomic multi-item contract (bulk move/rename/delete, text-file and folder copy exist per item, 2026-10-29). The directory tree is virtualized and the folder listing pages 200 entries at a time (2026-10-29 validation entry). Saves are now version-bound (`files.write` `expectedSha256`, see the 2026-10-29 validation entry); OS-level exclusion against external writers is not provided. Keep current 2 MiB draft and bounded search/recovery limits visible. | Real external modification and simultaneous-save cases, large trees/files, symlink boundaries, preserved unsaved text and no silent overwrite. |
+| Files: `FileWorkspace.tsx`, `file-draft.ts`, `FileContentSearch.tsx` | Language-aware editor depth beyond indentation and line comments; an atomic multi-item contract (bulk move/rename/delete, text-file and folder copy exist per item, 2026-10-29). The directory tree is virtualized and the folder listing pages 200 entries at a time (2026-10-29 validation entry). Saves are now version-bound (`files.write` `expectedSha256`, see the 2026-10-29 validation entry); OS-level exclusion against external writers is not provided. Keep current 2 MiB draft and bounded search/recovery limits visible. | Real external modification and simultaneous-save cases, large trees/files, symlink boundaries, preserved unsaved text and no silent overwrite. |
 | Git/review: `GitHunkReview.tsx`, `MergeConflictReview.tsx`, `review-notes-store.ts` | Per-line staging, unsupported partial added/deleted/binary/mode changes, automatic rename grouping, larger/symlink/submodule conflicts, worktree management (history lanes and review discussions with reply editing and resolution exist, 2026-10-29). | Real repository/index operations with stale-index refusal, binary/rename/mode cases and precise file-layer ownership. Worktree features must not cause this agent to create a workspace worktree against the user's instruction. |
 | Session history: `ProjectSessionHistory.tsx`, `ProjectHistorySearch.tsx`, `SessionTranscript.tsx` | Compressed and large retained histories, binary viewers, over-100-block message expansion, full structured tool inputs, atomic rename policy, older-host migration and richer story/navigation. File-store full scans remain explicitly budgeted at 10,000 records. | Real compressed/long journals, exact-ID navigation, full-catalog search consistency, stale revisions, bounded memory and cancellation. |
 | Session recovery: `SessionRecovery.tsx`, `session-recovery-model.ts` | Redo and richer recovery administration, edit/resend/retry, durable recovery-operation records and broader partial-error/restart handling. | Real files and journal state after each operation; active-run refusal, preserved conversation/drafts, stale-operation refusal and visible partial failures. |
@@ -299,8 +299,8 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
 
 - Complete tool-specific and chronological activity presentation, binary/document viewers,
   complete media handling and large-transcript virtualization.
-- Model selection has catalog facts, comparison and recent-model quick switching
-  (2026-10-29); cross-provider comparison remains.
+- Model selection has catalog facts, comparison across providers and recent-model quick
+  switching (2026-10-29).
 - Add supported reasoning mode/preserve controls and prove provider-specific effort vocabularies
   and leader overrides/resets. Do not manufacture support when the provider reports unknown.
 - Finish active worker assignment/topology and actual execution of session-owned model plans.
@@ -321,7 +321,7 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
 - Whole-message context editing is validated and applied through the engine (2026-10-29); add
   in-message range editing, mode authoring, draft token estimates and richer compaction
   feedback. Residency/retention in the context panel are implemented (2026-10-29) and await commit.
-- Extend selective merging beyond file drafts (file drafts merge change by change, 2026-10-29); send-time races, abrupt termination during pending saves and the
+- Extend selective merging to the remaining durable forms (file, mailbox and roster document drafts merge change by change, 2026-10-29); send-time races, abrupt termination during pending saves and the
   full focus/keyboard/screen-reader matrix. Existing tests protect acknowledged snapshots, not
   every unacknowledged last keystroke.
 
@@ -335,8 +335,8 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 | --- | --- |
 | SAGE: `ProjectMemory.tsx`, `SageRecordDetails.tsx`, `SageValidityReview.tsx` | Injection-context/live trace inspector; recovery/backfill administration; large-graph exploration; broader applicability/lifecycle concurrency; native coverage of every repair/retirement proposal. Preserve direct counts and real graph relationships independently of vectors. |
 | Vector memory | CRUD, reindex/maintenance, provider configuration and actual enabled-store native acceptance. Keep its UI and lifecycle separate from SAGE. |
-| Atlas: `CodeAtlas.tsx`, `AtlasViews.tsx`, `AtlasBoundaryMap.tsx` | Inferred communities when explicit groups are absent, richer persona tours, cross-scope paths, AI flow traces, live actor overlays and large-index performance. Do not replace indexed relationships with fabricated visual links. |
-| Chronicle: `ProjectChronicle.tsx` and Chronicle views | Prompt-manifest inspection (timeline and lineage export exist, 2026-10-29), richer cross-domain navigation and long-history performance. Keep confidence-labelled lineage distinct from asserted delegation. |
+| Atlas: `CodeAtlas.tsx`, `AtlasViews.tsx`, `AtlasBoundaryMap.tsx` | Richer persona tours (communities inferred from stored references exist, 2026-10-29), cross-scope paths, AI flow traces, live actor overlays and large-index performance. Do not replace indexed relationships with fabricated visual links. |
+| Chronicle: `ProjectChronicle.tsx` and Chronicle views | Richer cross-domain navigation and long-history performance (timeline/lineage export and prompt-manifest inspection exist, 2026-10-29). Keep confidence-labelled lineage distinct from asserted delegation. |
 | Code Assist | Multi-file applied-edit review and rollback (target-file comparison and restore exist, 2026-10-29), cancellation/error coverage and real-model output quality. Edit opt-in and request-owned streaming must remain. |
 | TechStack: `ProjectTechStack.tsx`, `TechStackRemediation.tsx` | Real registry/model research, permission-governed package execution, disk-export acceptance, cross-window job discovery, larger inventories and historical comparisons. Current reviewed-target checks do not prove external execution. |
 | Project Kit: `ProjectKit.tsx`, `KitParameterForm.tsx` | Richer run diagnostics/source snapshots, real agent verification/run evidence and large-catalog usability. |
@@ -365,7 +365,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
   sample authoring and durable secondary forms. Successful management requests do not establish
   successful external runs. The current shared management API has no job-delete endpoint.
 - MCP still needs OAuth, secret environment/header and advanced policy administration, broader
-  task lifecycle stress, audio/PDF previews (raster preview and binary save exist, 2026-10-29), deep catalogs and explicit tool
+  task lifecycle stress, PDF preview (raster and audio previews and binary save exist, 2026-10-29; PDF stays save-only under the window CSP), deep catalogs and explicit tool
   invocation UX. Preserve session task identity/isolation/cancellation and question routing.
 - Session processes need engine-reported exit status and stress proof (batch termination and
   a recently-ended list exist, 2026-10-29). Browser
