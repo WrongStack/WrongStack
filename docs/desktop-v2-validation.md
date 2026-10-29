@@ -4575,3 +4575,31 @@ staged; the other session's edits stay untouched.
   **596 PASS**, typecheck and Biome PASS.
 - No native step yet: a native retry sends a second real local-model turn, which the existing
   recovery scenario's later counters do not expect. It is planned for the final native pass.
+
+### Goal token budgets
+
+- `@wrongstack/goal`: `GoalBudget.maxTokens` (whole number, up to 10^12) and
+  `GoalBudgetUsage.tokens`. Usage saved before this change has no `tokens` and counts as 0.
+  `goalUsageTokens(usage)` counts one provider response as fresh input plus output plus
+  cache reads and writes; negative or non-finite fields count as 0. Like the other limits,
+  the token limit is checked before each task starts, so the task that crosses it finishes.
+  The run then ends `stopped` with "Budget reached: N of M provider tokens used." and is
+  resumable with a raised limit.
+- webui-server: `executeGoalTask` subscribes to `provider.response` on the task agent's own
+  event bus while that task runs: the isolated worker's bus, or the host agent's bus on the
+  fallback path. A throwing observer cannot break the task, and a factory result without a
+  bus (some embedders' fakes omit it despite the type) is not metered instead of failing. `startGoalRun` adds the reported
+  usage to `budgetUsage.tokens`, which is persisted and broadcast with the Goal state as
+  before. Currency cost budgets are not implemented: they need a per-model price that every
+  provider reports.
+- Desktop: "Token limit" in the Goal form and a "Tokens" field next to the resume limits; the
+  budget line shows "9,000 of 50,000 tokens".
+- Checks: RED then GREEN in webui-server `goal-run-budget.test.ts` (each task reports
+  400 + 500 + 200 tokens against a 1,000-token budget; the second task does not start, usage
+  is 1,100 and the run is `stopped` with the reason). The goal package `goal-budget.test.ts`
+  (parsing, counting, the message, older usage without tokens) and the desktop
+  `goal-budget-model.test.ts` were written with the change. All 84 webui-server Goal tests
+  PASS; the webui-server and goal typechecks PASS. Desktop suite **597 PASS**,
+  typecheck and Biome PASS.
+- No native step: the native Goal fixture uses the local provider without a token budget; the
+  token path is covered by the run test above.
