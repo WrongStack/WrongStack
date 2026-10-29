@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { type EngineState, emptyEngineState } from './engine-state';
 import { entries } from './engine-values';
+import { modelDetailLine, type PickerModel, pickerModel } from './model-picker-details';
 import { modelListed, providerDisabled, selectableCatalogModels } from './model-visibility';
 import { emptyModelPolicy, mergeModelPolicy, readProfileModelPolicy } from './profile-model-policy';
 import { providerChoices } from './provider-settings-model';
@@ -54,7 +55,7 @@ function LiveProfileModelPicker({
     [saved, setSaved] = useState<Record<string, unknown>>({});
   const [provider, setProvider] = useState(session.provider),
     [query, setQuery] = useState('');
-  const [models, setModels] = useState<{ id: string; name: string }[]>([]),
+  const [models, setModels] = useState<PickerModel[]>([]),
     [loading, setLoading] = useState(false),
     [switching, setSwitching] = useState(false),
     [revision, setRevision] = useState(0);
@@ -134,12 +135,7 @@ function LiveProfileModelPicker({
         if (!mounted.current || sequence.current !== version) return;
         if (reply['provider'] !== provider)
           throw Error('The profile engine returned another provider catalog.');
-        setModels(
-          entries(reply['models']).map((model) => ({
-            id: String(model['id']),
-            name: String(model['name'] ?? model['id']),
-          })),
-        );
+        setModels(entries(reply['models']).map(pickerModel));
       })
       .catch((error) => {
         if (mounted.current && sequence.current === version) reportError(error);
@@ -254,6 +250,9 @@ function LiveProfileModelPicker({
               <strong>{model.name}</strong>
               {modelListed(policy.favoriteModels, provider, model.id) && <span>Favorite</span>}
               <small>{model.id}</small>
+              {modelDetailLine(model) && (
+                <small className="composer-model-details">{modelDetailLine(model)}</small>
+              )}
             </button>
           ))
         ) : (
