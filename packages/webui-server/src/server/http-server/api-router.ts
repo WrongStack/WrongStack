@@ -63,6 +63,7 @@ import { decodeSessionId, strictDecodeParam } from './security-helpers.js';
 import {
   handleMemorySearch,
   handleVectorMemoryForget,
+  handleVectorMemoryReindex,
   handleVectorMemorySearch,
   handleVectorMemoryStatus,
   handleVectorMemoryStore,
@@ -593,6 +594,12 @@ export async function handleApiRoutes(
         return memory && isWebuiSearchVisible(memory) ? memory : undefined;
       },
     });
+    return true;
+  }
+
+  if (url.pathname === '/api/vector-memory/reindex' && req.method === 'POST') {
+    if (requireAccessToken && !accessTokenOk) return unauthorized(res);
+    await handleVectorMemoryReindex(res, req, () => deps.getVectorMemoryStore?.());
     return true;
   }
 

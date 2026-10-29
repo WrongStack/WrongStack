@@ -60,6 +60,7 @@ function makeStore() {
       totalUseCount: 12,
       oldestLastUsedAt: '2026-08-15T20:00:00.000Z',
     })),
+    embeddingCoverage: vi.fn(() => ({ entries: 2, covered: 2, missing: 0 })),
     search: vi.fn(
       async (): Promise<SearchHitFixture[]> => [
         {
@@ -111,6 +112,7 @@ describe('handleVectorMemoryStatus', () => {
       entries: 2,
       vectors: 2,
       providers: ['fake'],
+      coverage: { entries: 2, covered: 2, missing: 0 },
     });
   });
 

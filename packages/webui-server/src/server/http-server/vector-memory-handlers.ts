@@ -37,6 +37,8 @@ interface VectorMemoryStatusResponse {
         oldestLastUsedAt: string | null;
       }
     | undefined;
+  /** Entries with a vector usable by the active provider and dimensions. */
+  coverage?: { entries: number; covered: number; missing: number } | undefined;
 }
 
 interface VectorMemorySearchHit {
@@ -167,6 +169,7 @@ export async function handleVectorMemoryStatus(
       vectors: snap.stats.vectors,
       providers: snap.stats.providers,
       cache: snapshotVectorMemoryCache(store),
+      coverage: store.embeddingCoverage(),
     };
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
@@ -588,6 +591,48 @@ export async function handleVectorMemoryStore(
     res.end(
       JSON.stringify({
         error: 'Vector memory store failed',
+        detail: sanitizeApiError(error),
+      }),
+    );
+  }
+}
+
+/**
+ * Handle `POST /api/vector-memory/reindex` `{ onlyMissing?: boolean }`. Re-embeds entries with
+ * the active provider (all of them, or only those without a usable vector) and answers the
+ * counts with the coverage afterwards. Per-entry provider failures are counted, not thrown.
+ */
+export async function handleVectorMemoryReindex(
+  res: http.ServerResponse,
+  req: http.IncomingMessage,
+  getStore: () => VectorMemoryStore | undefined,
+): Promise<void> {
+  const store = getStore();
+  if (!store) {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Vector memory not enabled in this host' }));
+    return;
+  }
+  const body = (await parseStoreBody(req)) as { onlyMissing?: unknown } | null;
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    Array.isArray(body) ||
+    (body.onlyMissing !== undefined && typeof body.onlyMissing !== 'boolean')
+  ) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Send `{ onlyMissing?: boolean }`' }));
+    return;
+  }
+  try {
+    const result = await store.reindexAll({ onlyMissing: body.onlyMissing === true });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ ...result, coverage: store.embeddingCoverage() }));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: 'Vector memory reindex failed',
         detail: sanitizeApiError(error),
       }),
     );
