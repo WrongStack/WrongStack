@@ -504,6 +504,22 @@ export async function exerciseNativeComposerResources({
       (await call('engine', 'context.debug')).messages.count === messagesBefore - removing,
     'Context editor removal reaches the engine context',
   );
+  // A text cut inside one message, checked and applied by the engine.
+  const trimTarget = rows.getByRole('button', { name: 'Trim text', exact: true }).last();
+  await trimTarget.click();
+  const area = rows.getByRole('textbox').last();
+  const trimmedText = await area.inputValue();
+  await area.evaluate((element) => element.setSelectionRange(0, Math.min(4, element.value.length)));
+  await rows.getByRole('button', { name: 'Remove selected text', exact: true }).last().click();
+  await editor.getByRole('button', { name: 'Check removal', exact: true }).click();
+  await waitFor(
+    async () => /^Valid: /.test(await verdict.innerText().catch(() => '')),
+    'Text cut validation',
+    30000,
+  );
+  await editor.getByRole('button', { name: /text part/ }).click();
+  await editor.getByRole('status').filter({ hasText: 'Context editor applied' }).waitFor();
+  assert.ok(trimmedText.length >= 4, 'The trimmed message had text to cut');
   await editor.getByRole('button', { name: 'Close context editor', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Context & instructions', exact: true });
   await dialog.getByRole('region', { name: 'Estimated context sections', exact: true }).waitFor();

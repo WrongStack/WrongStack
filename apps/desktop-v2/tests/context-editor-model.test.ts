@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   contextEditorSnapshot,
+  draftTokenEstimate,
+  editProposal,
+  messageTexts,
   metricsSummary,
   removalProposal,
   removalSet,
+  withTextRange,
 } from '../src/context-editor-model';
 
 const raw = {
@@ -59,5 +63,61 @@ describe('context editor model', () => {
       }),
     ).toBe('4 → 2 messages · ~1,200 → ~900 request tokens');
     expect(metricsSummary({ before: { messages: 4 } })).toBe('');
+  });
+});
+
+describe('text ranges inside a message', () => {
+  const snapshot = contextEditorSnapshot({
+    ...raw,
+    messages: [
+      ...raw.messages.slice(0, 3),
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'keep this, drop that' },
+          { type: 'tool_use', id: 't', name: 'read', input: {} },
+        ],
+      },
+    ],
+  });
+  it('lists the editable texts and refuses empty or overlapping ranges', () => {
+    expect(messageTexts(snapshot.messages[3]!)).toEqual([
+      { blockIndex: 0, text: 'keep this, drop that' },
+    ]);
+    expect(messageTexts(snapshot.messages[0]!)).toEqual([{ text: 'first' }]);
+    const first = withTextRange([], { messageIndex: 3, blockIndex: 0, start: 9, end: 20 });
+    expect(Array.isArray(first) && first).toHaveLength(1);
+    expect(
+      withTextRange(first as never, { messageIndex: 3, blockIndex: 0, start: 15, end: 18 }),
+    ).toMatch(/overlaps/);
+    expect(withTextRange([], { messageIndex: 3, start: 2, end: 2 })).toMatch(/Select/);
+  });
+  it('builds the exact proposal the engine validates, pairing replies of an edited user message', () => {
+    const proposal = editProposal(snapshot, new Set(), [
+      { messageIndex: 3, blockIndex: 0, start: 9, end: 20 },
+      { messageIndex: 0, start: 0, end: 2 },
+    ]);
+    expect(proposal.removals).toEqual([
+      { messageIndex: 1 },
+      { messageIndex: 3, blockIndex: 0, start: 9, end: 20 },
+      { messageIndex: 0, start: 0, end: 2 },
+    ]);
+    expect(proposal.messages.map((message) => message['content'])).toEqual([
+      'rst',
+      'second',
+      [
+        { type: 'text', text: 'keep this' },
+        { type: 'tool_use', id: 't', name: 'read', input: {} },
+      ],
+    ]);
+    expect(snapshot.messages[3]!['content']).not.toBe(proposal.messages[2]!['content']);
+  });
+  it('estimates request tokens before the engine check', () => {
+    expect(draftTokenEstimate(snapshot, new Set([2, 3]), [])).toBe(1200 - 4 - 7);
+    expect(
+      draftTokenEstimate(snapshot, new Set(), [
+        { messageIndex: 3, blockIndex: 0, start: 0, end: 7 },
+      ]),
+    ).toBe(1198);
   });
 });

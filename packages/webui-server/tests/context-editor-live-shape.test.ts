@@ -141,3 +141,34 @@ describe('context editor on live-shaped messages', () => {
     expect(messages[0]?.content).toEqual([document, { type: 'text', text: 'summarize' }]);
   });
 });
+
+describe('desktop text-range proposals', () => {
+  it('are accepted and applied exactly as the desktop model builds them', async () => {
+    const { contextEditorSnapshot, editProposal } = await import(
+      '../../../apps/desktop-v2/src/context-editor-model.js'
+    );
+    const messages: Message[] = [
+      userTurn('please review the attached log carefully'),
+      { role: 'assistant', content: [{ type: 'text', text: 'kept part. noisy part' }] },
+      userTurn('next'),
+      { role: 'assistant', content: 'a2' },
+    ];
+    const ctx = mockContext(messages);
+    const snapshot = contextEditorSnapshot(
+      JSON.parse(JSON.stringify(buildContextEditorSnapshot(ctx, undefined))),
+    );
+    // Trim the assistant text block, and cut words from the last user turn (its reply goes too).
+    const proposal = editProposal(snapshot, new Set(), [
+      { messageIndex: 1, blockIndex: 0, start: 10, end: 21 },
+      { messageIndex: 2, start: 0, end: 2 },
+    ]);
+    const result = await applyContextEditorProposal({ ctx, ...proposal });
+    // An applied result has no `ok`; a refusal is a validation result with `ok: false`.
+    expect('ok' in result).toBe(false);
+    expect(messages.map((message) => message.content)).toEqual([
+      'please review the attached log carefully',
+      [{ type: 'text', text: 'kept part.' }],
+      'xt',
+    ]);
+  });
+});

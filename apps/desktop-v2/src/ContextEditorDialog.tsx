@@ -1,11 +1,16 @@
 import { LoaderCircle, RefreshCw, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type ContextEditorSnapshot,
+  type ContextTextRange,
   contextEditorSnapshot,
+  draftTokenEstimate,
+  editProposal,
+  messageTexts,
   metricsSummary,
-  removalProposal,
+  rangePlan,
   removalSet,
+  withTextRange,
 } from './context-editor-model';
 import { type EngineCommand, EngineReplyError } from './engine-operations';
 import { entries, record } from './engine-values';
@@ -14,8 +19,9 @@ import { Modal } from './Modal';
 const count = (value: unknown) => (Array.isArray(value) ? value.length : 0);
 
 /**
- * Removes whole messages from the provider context through the engine's validated editor:
- * every removal plan is validated against the snapshot revision before it can be applied.
+ * Removes whole messages, or selected text inside a message, from the provider context through
+ * the engine's validated editor: every plan is validated against the snapshot revision before it
+ * can be applied.
  */
 export function ContextEditorDialog({
   command,
@@ -30,6 +36,8 @@ export function ContextEditorDialog({
 }) {
   const [snapshot, setSnapshot] = useState<ContextEditorSnapshot | null>(null),
     [chosen, setChosen] = useState<Set<number>>(new Set()),
+    [ranges, setRanges] = useState<ContextTextRange[]>([]),
+    [trimming, setTrimming] = useState<number | null>(null),
     [validation, setValidation] = useState<{ key: string; result: Record<string, unknown> } | null>(
       null,
     ),
@@ -46,6 +54,8 @@ export function ContextEditorDialog({
         ),
       );
       setChosen(new Set());
+      setRanges([]);
+      setTrimming(null);
       setValidation(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -56,19 +66,40 @@ export function ContextEditorDialog({
   useEffect(() => {
     void load();
   }, [load]);
-  const removed = useMemo(
-    () => (snapshot ? removalSet(snapshot, chosen) : new Set<number>()),
-    [snapshot, chosen],
+  const removed = useMemo(() => {
+    if (!snapshot) return new Set<number>();
+    return rangePlan(snapshot, removalSet(snapshot, chosen), ranges).whole;
+  }, [snapshot, chosen, ranges]);
+  const activeRanges = useMemo(
+    () => (snapshot ? rangePlan(snapshot, removed, ranges).ranges : []),
+    [snapshot, removed, ranges],
   );
-  const key = [...removed].sort((a, b) => a - b).join(',');
+  const key = `${[...removed].sort((a, b) => a - b).join(',')}|${JSON.stringify(activeRanges)}`;
+  const editing = removed.size > 0 || activeRanges.length > 0;
+  const trimAreas = useRef(new Map<string, HTMLTextAreaElement>());
+  const trimSelection = (messageIndex: number, blockIndex: number | undefined) => {
+    const area = trimAreas.current.get(`${messageIndex}:${blockIndex ?? ''}`);
+    if (!area) return;
+    const next = withTextRange(ranges, {
+      messageIndex,
+      ...(blockIndex === undefined ? {} : { blockIndex }),
+      start: area.selectionStart,
+      end: area.selectionEnd,
+    });
+    if (typeof next === 'string') setError(next);
+    else {
+      setError('');
+      setRanges(next);
+    }
+  };
   const current = validation?.key === key ? validation.result : null;
   const run = async (kind: 'validate' | 'apply') => {
-    if (!snapshot || !removed.size) return;
+    if (!snapshot || !editing) return;
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      const proposal = removalProposal(snapshot, removed);
+      const proposal = editProposal(snapshot, removalSet(snapshot, chosen), ranges);
       // A refused plan arrives as a rejected request carrying the validation result.
       const answer = (reply: Promise<Record<string, unknown>>) =>
         reply.catch((failure: unknown) => {
@@ -138,9 +169,10 @@ export function ContextEditorDialog({
       </header>
       <section className="context-editor">
         <p>
-          Remove whole messages from what the model sees next. The conversation transcript on disk
-          is not changed. Removing your message also removes the replies it produced. Every plan is
-          checked by the engine before it can be applied.
+          Remove whole messages, or selected text inside one, from what the model sees next. The
+          conversation transcript on disk is not changed. Removing or trimming your message also
+          removes the replies it produced. Every plan is checked by the engine before it can be
+          applied.
         </p>
         {running && (
           <p role="status" className="composer-notice">
@@ -166,6 +198,9 @@ export function ContextEditorDialog({
             <p className="field-help">
               {snapshot.rows.length} messages · ~{snapshot.totalTokens.toLocaleString()} tokens in
               the full request · {removed.size} selected for removal
+              {activeRanges.length > 0 && ` · ${activeRanges.length} text cuts`}
+              {editing &&
+                ` · about ~${draftTokenEstimate(snapshot, removalSet(snapshot, chosen), ranges).toLocaleString()} tokens after this edit (estimate; checking reports the engine figure)`}
             </p>
             <ol className="context-editor-rows" aria-label="Context messages">
               {snapshot.rows.map((row) => {
@@ -186,6 +221,71 @@ export function ContextEditorDialog({
                       <span className="context-editor-preview">{row.preview || '(no text)'}</span>
                       <strong>~{row.tokens.toLocaleString()}</strong>
                     </label>
+                    {!removed.has(row.index) &&
+                      messageTexts(snapshot.messages[row.index] ?? {}).length > 0 && (
+                        <button
+                          type="button"
+                          className="button secondary small"
+                          disabled={busy}
+                          aria-expanded={trimming === row.index}
+                          onClick={() =>
+                            setTrimming((current) => (current === row.index ? null : row.index))
+                          }
+                        >
+                          {trimming === row.index ? 'Close text' : 'Trim text'}
+                        </button>
+                      )}
+                    {trimming === row.index &&
+                      !removed.has(row.index) &&
+                      messageTexts(snapshot.messages[row.index] ?? {}).map((target) => {
+                        const id = `${row.index}:${target.blockIndex ?? ''}`;
+                        return (
+                          <div key={id} className="context-editor-trim">
+                            <textarea
+                              readOnly
+                              aria-label={`Text of message ${row.index + 1}${target.blockIndex === undefined ? '' : `, block ${target.blockIndex + 1}`}`}
+                              ref={(element) => {
+                                if (element) trimAreas.current.set(id, element);
+                                else trimAreas.current.delete(id);
+                              }}
+                              value={target.text}
+                              rows={Math.min(12, Math.max(3, target.text.split('\n').length))}
+                            />
+                            <button
+                              type="button"
+                              className="button secondary small"
+                              disabled={busy}
+                              onClick={() => trimSelection(row.index, target.blockIndex)}
+                            >
+                              Remove selected text
+                            </button>
+                          </div>
+                        );
+                      })}
+                    {activeRanges
+                      .filter((range) => range.messageIndex === row.index)
+                      .map((range) => (
+                        <small
+                          key={`${range.blockIndex ?? ''}:${range.start}`}
+                          className="field-help"
+                        >
+                          Cut {range.end - range.start} characters: “
+                          {messageTexts(snapshot.messages[row.index] ?? {})
+                            .find((target) => target.blockIndex === range.blockIndex)
+                            ?.text.slice(range.start, Math.min(range.end, range.start + 80))}
+                          {range.end - range.start > 80 ? '…' : ''}”{' '}
+                          <button
+                            type="button"
+                            className="button secondary small"
+                            disabled={busy}
+                            onClick={() =>
+                              setRanges((current) => current.filter((item) => item !== range))
+                            }
+                          >
+                            Keep
+                          </button>
+                        </small>
+                      ))}
                     {pairedOnly && (
                       <small className="field-help">
                         Removed with the user message it answers.
@@ -241,15 +341,18 @@ export function ContextEditorDialog({
         <button
           type="button"
           className="button secondary"
-          disabled={busy || !removed.size}
-          onClick={() => setChosen(new Set())}
+          disabled={busy || !editing}
+          onClick={() => {
+            setChosen(new Set());
+            setRanges([]);
+          }}
         >
           Clear selection
         </button>
         <button
           type="button"
           className="button secondary"
-          disabled={busy || running || !removed.size}
+          disabled={busy || running || !editing}
           onClick={() => void run('validate')}
         >
           Check removal
@@ -260,7 +363,12 @@ export function ContextEditorDialog({
           disabled={busy || running || current?.['ok'] !== true}
           onClick={() => void run('apply')}
         >
-          Remove {removed.size} {removed.size === 1 ? 'message' : 'messages'}
+          {removed.size > 0 &&
+            `Remove ${removed.size} ${removed.size === 1 ? 'message' : 'messages'}`}
+          {removed.size > 0 && activeRanges.length > 0 && ' and '}
+          {activeRanges.length > 0 &&
+            `${removed.size ? 'cut' : 'Cut'} ${activeRanges.length} ${activeRanges.length === 1 ? 'text part' : 'text parts'}`}
+          {!editing && 'Remove 0 messages'}
         </button>
       </footer>
     </Modal>

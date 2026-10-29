@@ -83,3 +83,118 @@ export function metricsSummary(result: Record<string, unknown>): string {
   const tokens = (value: unknown) => Number(value ?? 0).toLocaleString();
   return `${before['messages']} → ${after['messages']} messages · ~${tokens(before['fullRequestTokens'])} → ~${tokens(after['fullRequestTokens'])} request tokens`;
 }
+
+/** A text removal inside one message: its string content, or one of its text blocks. */
+export interface ContextTextRange {
+  messageIndex: number;
+  blockIndex?: number;
+  start: number;
+  end: number;
+}
+
+/** The editable texts of a message: its string content or each text block. */
+export function messageTexts(
+  message: Record<string, unknown>,
+): { blockIndex?: number; text: string }[] {
+  const content = message['content'];
+  if (typeof content === 'string') return [{ text: content }];
+  return entries(content).flatMap((block, blockIndex) =>
+    block['type'] === 'text' && typeof block['text'] === 'string'
+      ? [{ blockIndex, text: block['text'] }]
+      : [],
+  );
+}
+
+/**
+ * Adds a text range unless it is empty or overlaps a range already chosen on the same text.
+ * Returns the new list, or a reason the range was not added.
+ */
+export function withTextRange(
+  ranges: readonly ContextTextRange[],
+  next: ContextTextRange,
+): ContextTextRange[] | string {
+  if (next.end <= next.start) return 'Select some text to remove first.';
+  const sameTarget = ranges.filter(
+    (range) => range.messageIndex === next.messageIndex && range.blockIndex === next.blockIndex,
+  );
+  if (sameTarget.some((range) => next.start < range.end && range.start < next.end))
+    return 'That text overlaps a part already chosen for removal.';
+  return [...ranges, next];
+}
+
+/**
+ * Whole-message removals for a plan with text ranges: editing a user message also removes the
+ * replies it produced, as the engine requires. Ranges inside removed messages are dropped.
+ */
+export function rangePlan(
+  snapshot: ContextEditorSnapshot,
+  removed: ReadonlySet<number>,
+  ranges: readonly ContextTextRange[],
+) {
+  const whole = new Set(removed);
+  for (const range of ranges)
+    if (snapshot.rows[range.messageIndex]?.role === 'user')
+      for (const pair of snapshot.rows[range.messageIndex]?.paired ?? []) whole.add(pair);
+  return { whole, ranges: ranges.filter((range) => !whole.has(range.messageIndex)) };
+}
+
+/** The engine proposal for whole-message removals and text ranges together. */
+export function editProposal(
+  snapshot: ContextEditorSnapshot,
+  removed: ReadonlySet<number>,
+  ranges: readonly ContextTextRange[],
+) {
+  const plan = rangePlan(snapshot, removed, ranges);
+  const messages = structuredClone(snapshot.messages);
+  const targets = new Map<string, ContextTextRange[]>();
+  for (const range of plan.ranges) {
+    const key = `${range.messageIndex}:${range.blockIndex ?? ''}`;
+    targets.set(key, [...(targets.get(key) ?? []), range]);
+  }
+  for (const group of targets.values()) {
+    const first = group[0]!;
+    const message = messages[first.messageIndex]!;
+    const cut = (text: string) => {
+      let next = '';
+      let cursor = 0;
+      for (const range of [...group].sort((a, b) => a.start - b.start)) {
+        next += text.slice(cursor, range.start);
+        cursor = range.end;
+      }
+      return next + text.slice(cursor);
+    };
+    if (first.blockIndex === undefined) message['content'] = cut(String(message['content']));
+    else {
+      const block = record(entries(message['content'])[first.blockIndex]);
+      block['text'] = cut(String(block['text'] ?? ''));
+      (message['content'] as unknown[])[first.blockIndex] = block;
+    }
+  }
+  const indices = [...plan.whole].sort((a, b) => a - b);
+  return {
+    baseRevision: snapshot.revision,
+    messages: messages.filter((_, index) => !plan.whole.has(index)),
+    removals: [
+      ...indices.map((messageIndex) => ({ messageIndex })),
+      ...plan.ranges.map((range) => ({ ...range })),
+    ],
+    allowRepair: true as const,
+  };
+}
+
+/**
+ * Request tokens expected after the edit, before the engine checks it: removed messages take
+ * their reported tokens, removed text about one token per 3.5 characters (the engine's own
+ * estimator). The engine's checked figure replaces this once the plan is validated.
+ */
+export function draftTokenEstimate(
+  snapshot: ContextEditorSnapshot,
+  removed: ReadonlySet<number>,
+  ranges: readonly ContextTextRange[],
+): number {
+  const plan = rangePlan(snapshot, removed, ranges);
+  let tokens = snapshot.totalTokens;
+  for (const index of plan.whole) tokens -= snapshot.rows[index]?.tokens ?? 0;
+  for (const range of plan.ranges) tokens -= Math.ceil((range.end - range.start) / 3.5);
+  return Math.max(0, tokens);
+}

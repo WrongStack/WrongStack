@@ -478,3 +478,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.context-editor-trim {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 6px 28px;
+}
+.context-editor-trim textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+.context-editor-trim button {
+  justify-self: start;
+}
