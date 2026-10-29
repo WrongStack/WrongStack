@@ -3650,3 +3650,24 @@ Verification on the shared working snapshot:
   the real batch termination the run appears as "Recently ended · 1" with its PID and the
   unknown-exit note.
 - Not covered: exit codes (needs an engine contract) and history across app restarts.
+
+## Editor indentation keys (2026-10-29)
+
+- Commit `6e7ac447a`. In the file editor, Enter keeps the current line's leading whitespace and
+  adds one unit after `{`, `[` or `(`; between a bracket pair the closing bracket moves to its
+  own line. Tab inserts one unit or, over a multi-line selection, indents every touched line;
+  Shift+Tab removes at most one unit from every touched line. The unit is a tab when most
+  indented lines start with one, otherwise two spaces. Modified Enter and IME composition are
+  left to the textarea.
+- Fix found by the native proof: the caret after a key edit was set in an animation frame and
+  lost when the controlled textarea re-rendered, so the next keystroke landed at the end of the
+  file (this also affected the earlier Tab insertion). It is now applied in a layout effect
+  once the textarea holds the new text.
+- Checks: desktop **527 tests / 118 files PASS** (new `editor-indent` tests: unit detection,
+  Enter with brackets and pairs, indent/outdent selections, key mapping); typecheck **290
+  PASS**; Biome PASS.
+- Native `--files` on portable identity `331d055607e8-eb7323dfffaf`: **exit 0 / PASS** with real
+  keystrokes (Enter between braces, typing, Enter, Ctrl+A, Shift+Tab, Tab). The first build
+  failed this step with the misplaced caret described above; the rebuilt app passes.
+- Not covered: undo history for these edits (programmatic changes are outside the textarea's
+  native undo stack) and language-specific rules beyond brackets.
