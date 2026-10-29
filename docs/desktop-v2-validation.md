@@ -4353,8 +4353,8 @@ staged; the other session's edits stay untouched.
   `git hash-object -w` and writes it with `git update-index --cacheinfo` in the file's mode. A
   selection that would add or remove the whole file is refused in favour of the whole-file
   controls, as is a file without a final newline. The panel hides "Stage hunk" for these.
-- Untracked files have no unstaged diff in Git, so they appear here only once staged (or marked
-  intent-to-add): their lines can then be unstaged selectively.
+- Untracked files had no unstaged diff in Git, so they appeared here only once staged (or marked
+  intent-to-add). See "Line staging for untracked files" below.
 - Checks: RED then GREEN in `git-hunks.test.ts` (real repository: intent-to-add file staged two
   of three lines, one unstaged again, unstaging all refused, worktree untouched; working-tree
   deletion staged one removed line; staged deletion one line unstaged); 54 Git route tests and
@@ -4461,3 +4461,23 @@ staged; the other session's edits stay untouched.
   The Core API snapshot remains stale because regenerating it would capture another session's
   uncommitted CLI imports.
 - No native step: the native fixture project has no vector provider enabled.
+
+### Line staging for untracked files
+
+- Hunk review in the unstaged layer now covers an untracked text file. When Git reports no diff
+  and `git ls-files --others --exclude-standard` lists the path (ignored files are not offered),
+  the engine builds the addition patch from the file content: one `@@ -0,0 +1,N @@` hunk, mode
+  `100644` (or `100755` for an executable file outside Windows), with the end-of-file newline
+  marker when the file has none. It then follows the added-file path above (`linesOnly`, index
+  content written as a blob). Empty files, files over 1 MiB, files containing NUL bytes and
+  invalid UTF-8 keep the whole-file controls. Symbolic links and project containment are
+  checked as before. The patch identity covers the generated text, so an edit after review is
+  refused as stale.
+- The desktop needed no change: it already opened hunk review for untracked files and renders
+  `linesOnly` hunks with line selection only.
+- Checks: RED (`expected [] to have a length of 1`) then GREEN in `git-hunks.test.ts`. On a real
+  repository, one of three lines of an untracked file is staged, the index holds only that line
+  and the file is unchanged on disk; an ignored file offers no hunks. The earlier assertion that
+  an untracked file offers no hunks recorded the old limitation, so it now expects the single
+  line-only addition hunk. 54 Git route tests, the webui-server typecheck and Biome PASS.
+- No native step yet.
