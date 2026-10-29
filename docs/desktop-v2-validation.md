@@ -3921,3 +3921,16 @@ one final native pass.
 - Checks: desktop unit suite PASS (new `kanban-boundary-model` tests); typecheck and Biome PASS.
 - Native steps written (`native-kanban-execution.mjs`: task and board boundaries saved,
   normalized and removed before dispatch); **not run**.
+
+## Window placement is remembered (2026-10-29)
+
+- Commit `3c312b0a1`. The main window and each project window reopen at their last logical
+  position and size, maximized if they were. Placements are recorded on move/resize (not
+  while minimized; a maximized window keeps its last normal bounds) and written atomically to
+  `window-geometry.json` in the desktop data directory when a window closes; at most 64 are
+  kept, newest first. A placement whose title area would be off every connected monitor (a
+  disconnected display) is ignored and the window opens at its default place; sizes below the
+  800 × 600 minimum are raised. Preview windows are not remembered.
+- Checks: Rust tests PASS (`cargo test --no-default-features`, 25 tests including 4 new
+  `window_geometry` tests); `cargo check` and `rustfmt --check` PASS.
+- No native step: moving real windows belongs to the final native pass.
