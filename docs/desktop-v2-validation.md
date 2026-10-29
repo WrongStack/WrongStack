@@ -4217,3 +4217,17 @@ staged; the other session's edits stay untouched.
   `dist` rebuilt); `deadcode-handlers.test.ts` passes the revision through the HTTP route;
   webui-server typecheck PASS; desktop suite **574 PASS**, typecheck and Biome PASS.
 - The existing native dead-code step now applies with the revision; **not run**.
+
+### Conditional mission writes
+
+- Commit `1cbf250f5`. `goal-state.set`, `.pause`, `.resume` and `.clear` accept `expectedMission`:
+  the mission id the window reviewed (its `setAt` for older missions, an empty string for "no
+  mission"). It is compared inside the locked `goal.json` update; a different mission leaves the
+  file untouched and answers `goal-state.error` ("The mission changed since it was read…"), and
+  a refused set does not start refinement. Requests without the field behave as before. The
+  desktop mission panel sends the mission it shows with every write, so a second window that
+  also saw no mission cannot replace one created meanwhile.
+- Checks: RED then GREEN in the new `goal-mission-conditional.test.ts` (real `goal.json` under a
+  temporary `WRONGSTACK_HOME`); the existing 10 goal handler tests and the webui-server typecheck
+  PASS; desktop suite **574 PASS**, typecheck and Biome PASS.
+- No new native step.
