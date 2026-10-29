@@ -4481,3 +4481,29 @@ staged; the other session's edits stay untouched.
   an untracked file offers no hunks recorded the old limitation, so it now expects the single
   line-only addition hunk. 54 Git route tests, the webui-server typecheck and Biome PASS.
 - No native step yet.
+
+### All-or-nothing bulk copy
+
+- `files.copy_many { items: [{ from, to }] }` → `files.copied_many`, advertised as the
+  `files.batch-copy` capability. Every item is checked before anything is written: inside the
+  project, not the root, source present, target absent with an existing parent folder, not into
+  itself, no two targets overlapping and no target inside a selected source. The sources are
+  measured first: a symbolic link (or junction) anywhere inside refuses the batch, and one copy
+  is limited to 5,000 entries and 256 MiB. Each item is then copied (recursively, without
+  overwriting, timestamps kept) to a hidden `.wrongstack-copy-<tag>-<n>` name beside its target.
+  Only when every copy is complete are they renamed into place, with the move batch's reverse
+  rollback; any failure removes the hidden copies and reports that nothing was changed.
+- Desktop: with the capability, the bulk copy dialog sends one `files.copy_many` (any file type,
+  not only text) and explains the all-or-nothing rule; older engines keep the per-item text copy
+  and its help text. Copying a folder into itself is now refused in the dialog as it is for moves.
+- Checks: `file-batch-mutations.test.ts` (real folders: a batch with one existing target copies
+  nothing; into-itself, duplicate-target and target-inside-source batches refused; a file and a
+  nested folder copied with sources intact and no hidden name left; a folder containing a
+  junction refused). These tests were written after the implementation, so there was no
+  separate RED run. A failure in the middle of copying is not reproduced by a test. The
+  webui-protocol suite **261 PASS**, the webui-server typecheck and Biome PASS. Desktop
+  `file-bulk-copy.test.ts` (dialog text by capability, into-itself refusal); desktop suite
+  **591 PASS**, typecheck and Biome PASS.
+- Native: `native-file-bulk.mjs` now expects the batch path (a refused batch with one existing
+  target, then a full copy without hidden leftovers); the per-item expectation was replaced
+  because the native run uses the current engine. Not run yet.
