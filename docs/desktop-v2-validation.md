@@ -4044,3 +4044,21 @@ staged; the other session's edits stay untouched.
 - Checks: RED then GREEN in `introspection-routes.test.ts` (17 related tests) and the
   webui-server typecheck; desktop suite PASS with the new join test; typecheck and Biome PASS.
 - No native step: the fixture session records fewer than 50 side effects.
+
+### Older mailbox messages
+
+- Commit `de445710a`. `MailboxQuery` gains `until`, an inclusive timestamp upper bound normalized to
+  an instant like `since`; the SQLite store, the daemon IPC query codec and
+  `mailbox.messages` pass it through (invalid values are ignored). The desktop mailbox offers
+  "Load older messages" when the loaded list fills the chosen window: it reads from the oldest
+  loaded timestamp with the same view filters and actor scope, skips messages already loaded,
+  and stops with "No older messages in this view" on a short page. If more messages than one
+  page share the oldest timestamp, it says the bound cannot move past them instead of looping.
+  Reloading returns to the recent window.
+- Checks: store test (`sqlite-mailbox-store.test.ts`, 51 tests) and the handler test reaching
+  all 250 seeded messages past the 200 clamp (it failed until the coordination `dist` carried
+  the change); 632 coordination mailbox tests, contracts, coordination and webui-server
+  typechecks PASS; desktop suite **570 PASS**, typecheck and Biome PASS. The store test was
+  written before the change but its RED was not run separately.
+- No native step yet. The project daemon and bundled engine must be rebuilt from this tree
+  before the final native pass.
