@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   projectSessionTranscript,
   readSessionTranscriptBlock,
+  readSessionTranscriptBlocks,
   readSessionTranscriptImage,
 } from '../src/server/session-transcript.js';
 
@@ -123,6 +124,29 @@ describe('bounded retained session transcript', () => {
         blockIndex: 0,
       }),
     ).toThrow(/too large/);
+  });
+  it('reads the blocks of a long message beyond the first hundred, in bounded pages', () => {
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: Array.from({ length: 230 }, (_, i) => ({ type: 'text' as const, text: `b${i}` })),
+      },
+    ];
+    const page = projectSessionTranscript(messages, {});
+    expect(page.messages[0]).toMatchObject({ omittedBlocks: 130 });
+    const read = (blockOffset: number, expectedRevision = page.revision) =>
+      readSessionTranscriptBlocks(messages, { expectedRevision, messageIndex: 0, blockOffset });
+    const second = read(100);
+    expect(second.blocks).toHaveLength(100);
+    expect(second.blocks[0]).toMatchObject({ index: 100, text: 'b100' });
+    expect(second.nextBlockOffset).toBe(200);
+    const last = read(200);
+    expect(last.blocks.map((block) => block.index)).toEqual(
+      Array.from({ length: 30 }, (_, i) => 200 + i),
+    );
+    expect(last.nextBlockOffset).toBeNull();
+    expect(() => read(231)).toThrow(/outside/);
+    expect(() => read(100, 'stale')).toThrow(/changed/);
   });
   it('applies role filters, stable paging and input bounds without changing messages', () => {
     const messages: Message[] = [

@@ -221,9 +221,16 @@ export function SessionTranscript({
             />
           ))}
           {Number(message['omittedBlocks']) > 0 && (
-            <p className="field-help">
-              {String(message['omittedBlocks'])} additional blocks are outside this bounded view.
-            </p>
+            <MoreMessageBlocks
+              key={`${String(page?.['revision'])}:${String(message['index'])}`}
+              omitted={Number(message['omittedBlocks'])}
+              shown={entries(message['blocks']).length}
+              sessionId={id}
+              messageIndex={Number(message['index'])}
+              revision={String(page?.['revision'])}
+              command={command}
+              onLink={onLink}
+            />
           )}
         </article>
       ))}
@@ -400,5 +407,92 @@ function TranscriptBlock({
     </details>
   ) : (
     <div className="history-text-block">{body}</div>
+  );
+}
+
+/** Blocks a long message has beyond the page's first hundred, read a hundred at a time. */
+function MoreMessageBlocks({
+  omitted,
+  shown,
+  sessionId,
+  messageIndex,
+  revision,
+  command,
+  onLink,
+}: {
+  omitted: number;
+  shown: number;
+  sessionId: string;
+  messageIndex: number;
+  revision: string;
+  command: EngineCommand;
+  onLink: (href: string) => void;
+}) {
+  const [more, setMore] = useState<Row[]>([]),
+    [next, setNext] = useState<number | null>(shown),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  const load = async () => {
+    if (next === null) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await command(
+        'session.inspect',
+        {
+          id: sessionId,
+          transcriptBlocks: { messageIndex, expectedRevision: revision, blockOffset: next },
+        },
+        ['session.inspect'],
+        { timeoutMs: 90000 },
+      );
+      const page = record(result['transcriptBlocks']);
+      if (page['blockOffset'] !== next || !Array.isArray(page['blocks']))
+        throw Error(
+          typeof result['error'] === 'string'
+            ? result['error']
+            : 'This engine did not return the remaining blocks.',
+        );
+      setMore((current) => [...current, ...entries(page['blocks'])]);
+      setNext(typeof page['nextBlockOffset'] === 'number' ? page['nextBlockOffset'] : null);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remaining = omitted - more.length;
+  return (
+    <>
+      {more.map((block) => (
+        <TranscriptBlock
+          key={String(block['index'])}
+          block={block}
+          sessionId={sessionId}
+          messageIndex={messageIndex}
+          revision={revision}
+          command={command}
+          onLink={onLink}
+        />
+      ))}
+      {next !== null && remaining > 0 && (
+        <p className="field-help">
+          {remaining} more blocks in this message.{' '}
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={busy}
+            onClick={() => void load()}
+          >
+            {busy ? 'Loading…' : `Load next ${Math.min(100, remaining)} blocks`}
+          </button>
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="session-error">
+          {error}
+        </p>
+      )}
+    </>
   );
 }

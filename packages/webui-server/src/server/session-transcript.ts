@@ -180,6 +180,32 @@ export function projectSessionTranscript(messages: readonly Message[], raw: unkn
     }),
   };
 }
+/**
+ * The blocks of one message from `blockOffset`, a hundred at a time, projected like a transcript
+ * page (bounded text and tool inputs, no media bytes). Reaches blocks a page leaves out.
+ */
+export function readSessionTranscriptBlocks(messages: readonly Message[], raw: unknown) {
+  const options = record(raw);
+  const revision = transcriptRevision(messages);
+  if (options['expectedRevision'] !== revision)
+    throw Error('The transcript changed. Refresh before reading more of this message.');
+  const messageIndex = integer(options['messageIndex'], -1, Number.MAX_SAFE_INTEGER);
+  const message = messages[messageIndex];
+  if (!message) throw Error('This transcript message does not exist.');
+  const all = blocks(message);
+  const blockOffset = integer(options['blockOffset'], 0, Number.MAX_SAFE_INTEGER);
+  if (blockOffset >= all.length) throw Error('These blocks are outside the message.');
+  const budget = { left: 60000 };
+  return {
+    revision,
+    messageIndex,
+    blockOffset,
+    blocks: all
+      .slice(blockOffset, blockOffset + 100)
+      .map((block, at) => projectBlock(block, blockOffset + at, budget, '')),
+    nextBlockOffset: blockOffset + 100 < all.length ? blockOffset + 100 : null,
+  };
+}
 const RASTER_IMAGES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 /** Base64 characters for about 4 MiB of image bytes. */
 const MAX_IMAGE_BASE64 = Math.ceil((4 * 1024 * 1024) / 3) * 4;

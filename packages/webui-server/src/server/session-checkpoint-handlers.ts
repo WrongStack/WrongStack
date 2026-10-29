@@ -14,6 +14,7 @@ import type { SessionRouteHandlers } from './session-routes.js';
 import {
   projectSessionTranscript,
   readSessionTranscriptBlock,
+  readSessionTranscriptBlocks,
   readSessionTranscriptImage,
 } from './session-transcript.js';
 import { errMessage } from './ws-utils.js';
@@ -77,10 +78,18 @@ export function createSessionCheckpointHandlers(
         const transcriptImage = options['transcriptImage']
           ? readSessionTranscriptImage(data.messages, options['transcriptImage'])
           : undefined;
-        if (options['transcriptOnly'] === true || transcriptBlock || transcriptImage) {
+        const transcriptBlocks = options['transcriptBlocks']
+          ? readSessionTranscriptBlocks(data.messages, options['transcriptBlocks'])
+          : undefined;
+        if (
+          options['transcriptOnly'] === true ||
+          transcriptBlock ||
+          transcriptImage ||
+          transcriptBlocks
+        ) {
           sendTo(ws, {
             type: 'session.inspect',
-            payload: { id, transcript, transcriptBlock, transcriptImage },
+            payload: { id, transcript, transcriptBlock, transcriptImage, transcriptBlocks },
           });
           return;
         }
