@@ -28,6 +28,9 @@
     "apps/desktop-v2/src/composer-attachments.ts": [
       "attachmentBytes"
     ],
+    "apps/desktop-v2/src/context-editor-model.ts": [
+      "removalProposal"
+    ],
     "apps/desktop-v2/src/editor-indent.ts": [
       "indentLines",
       "newlineWithIndent",
@@ -72,6 +75,9 @@
     "apps/desktop-v2/src/ProjectRequirements.tsx": [
       "requirementFields"
     ],
+    "apps/desktop-v2/src/ProjectUsageSummary.tsx": [
+      "readUsageSummary"
+    ],
     "apps/desktop-v2/src/ProviderHealth.tsx": [
       "mergeQuotaSnapshots",
       "quotaPercent",
@@ -95,6 +101,9 @@
     ],
     "apps/desktop-v2/src/usePersistedFields.tsx": [
       "fieldsCodec"
+    ],
+    "apps/desktop-v2/src/VectorMemoryEntries.tsx": [
+      "vectorTags"
     ],
     "apps/desktop-v2/src/word-diff.ts": [
       "MAX_DIFF_TOKENS"
@@ -1777,6 +1786,9 @@
     ],
     "packages/webui-server/src/server/embedded-host-adapters.ts": [
       "resolveSessionDefaultModel"
+    ],
+    "packages/webui-server/src/server/git-hunks.ts": [
+      "partialHunk"
     ],
     "packages/webui-server/src/server/governance-runtime.ts": [
       "webUiGovernanceRuntimeEnabled"

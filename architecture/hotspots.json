@@ -62,6 +62,10 @@
       "lines": 903,
       "relativeImports": 2
     },
+    "packages/tools/src/process-registry.ts": {
+      "lines": 729,
+      "relativeImports": 3
+    },
     "packages/tools/src/read.ts": {
       "lines": 720,
       "relativeImports": 5
@@ -127,7 +131,7 @@
       "relativeImports": 3
     },
     "apps/desktop-v2/src/AutomationWorkspace.tsx": {
-      "lines": 779,
+      "lines": 833,
       "relativeImports": 13
     },
     "apps/desktop-v2/src/CodeAtlas.tsx": {
@@ -135,11 +139,11 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 1977,
+      "lines": 2006,
       "relativeImports": 29
     },
     "apps/desktop-v2/src/KanbanTaskInspector.tsx": {
-      "lines": 812,
+      "lines": 822,
       "relativeImports": 8
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
@@ -147,8 +151,8 @@
       "relativeImports": 16
     },
     "apps/desktop-v2/src/ProjectAgentRoster.tsx": {
-      "lines": 1555,
-      "relativeImports": 15
+      "lines": 1562,
+      "relativeImports": 16
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
       "lines": 778,
@@ -159,23 +163,23 @@
       "relativeImports": 8
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
-      "lines": 752,
+      "lines": 786,
       "relativeImports": 8
     },
     "apps/desktop-v2/src/ProjectGoals.tsx": {
-      "lines": 856,
-      "relativeImports": 5
+      "lines": 934,
+      "relativeImports": 6
     },
     "apps/desktop-v2/src/ProjectKanban.tsx": {
-      "lines": 702,
+      "lines": 704,
       "relativeImports": 6
     },
     "apps/desktop-v2/src/ProjectKnowledge.tsx": {
-      "lines": 913,
-      "relativeImports": 8
+      "lines": 927,
+      "relativeImports": 9
     },
     "apps/desktop-v2/src/ProjectMailbox.tsx": {
-      "lines": 742,
+      "lines": 800,
       "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectMemory.tsx": {
@@ -191,8 +195,8 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectSessionHistory.tsx": {
-      "lines": 734,
-      "relativeImports": 14
+      "lines": 736,
+      "relativeImports": 15
     },
     "apps/desktop-v2/src/RosterRuntimeEditor.tsx": {
       "lines": 777,
@@ -203,7 +207,7 @@
       "relativeImports": 27
     },
     "apps/desktop-v2/src/SkillLibrary.tsx": {
-      "lines": 884,
+      "lines": 891,
       "relativeImports": 7
     }
   }

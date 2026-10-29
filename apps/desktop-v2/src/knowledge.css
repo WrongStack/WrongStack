@@ -1073,3 +1073,20 @@
   font-size: 12px;
   line-height: 1.6;
 }
+.vector-memory-add form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.vector-memory-add summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.vector-memory-forget {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

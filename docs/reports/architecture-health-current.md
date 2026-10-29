@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-29T20:24:17.872Z
+**Generated:** 2026-10-29T23:18:12.357Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 45 |
-| Production source files | 5487 |
-| Production source lines | 1206134 |
-| Test files | 4773 |
+| Production source files | 5499 |
+| Production source lines | 1209989 |
+| Test files | 4789 |
 | Workspace dependency edges | 222 |
-| Relative module edges | 16463 |
+| Relative module edges | 16493 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 127 |
+| Tests without TypeScript test-project coverage | 134 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,8 +38,8 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 299 | 127 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
-| @wrongstack/goal | 22 | 22 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
+| @wrongstack/desktop-v2 | 307 | 134 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/goal | 23 | 23 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
 | @wrongstack/hq | 62 | 42 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban | 108 | 86 | @wrongstack/persistence, @wrongstack/primitives |
@@ -68,7 +68,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/webui | 772 | 510 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 127 | 55 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 29 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
-| @wrongstack/webui-server | 318 | 343 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 321 | 351 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 4 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/wrongtrace | 11 | 10 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
@@ -89,23 +89,25 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1977 | `apps/desktop-v2/src/FileWorkspace.tsx` |
-| 1555 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
+| 2006 | `apps/desktop-v2/src/FileWorkspace.tsx` |
+| 1562 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/webui/src/components/codemap-model.ts` |
 | 1089 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
+| 934 | `apps/desktop-v2/src/ProjectGoals.tsx` |
+| 927 | `apps/desktop-v2/src/ProjectKnowledge.tsx` |
 | 917 | `apps/desktop-v2/src/CodeAtlas.tsx` |
 | 917 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
-| 913 | `apps/desktop-v2/src/ProjectKnowledge.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
-| 884 | `apps/desktop-v2/src/SkillLibrary.tsx` |
-| 856 | `apps/desktop-v2/src/ProjectGoals.tsx` |
+| 891 | `apps/desktop-v2/src/SkillLibrary.tsx` |
+| 833 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 826 | `apps/desktop-v2/src/ProjectMemory.tsx` |
+| 822 | `apps/desktop-v2/src/KanbanTaskInspector.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
-| 812 | `apps/desktop-v2/src/KanbanTaskInspector.tsx` |
+| 800 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
-| 779 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
+| 786 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 778 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 777 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
@@ -113,13 +115,12 @@ None.
 | 766 | `packages/webui-server/src/server/provider-routes.ts` |
 | 756 | `packages/cli/src/fleet/host-skill-companion.ts` |
 | 754 | `packages/client/src/client.ts` |
-| 752 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
-| 742 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 737 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
-| 734 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
+| 736 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
+| 729 | `packages/tools/src/process-registry.ts` |
 | 725 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 724 | `packages/coordination/src/agent-monitor.ts` |
 | 720 | `packages/tools/src/read.ts` |
@@ -134,21 +135,20 @@ None.
 | 706 | `packages/chronicle/src/project-server.ts` |
 | 705 | `packages/chronicle/src/project-server-client.ts` |
 | 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
+| 704 | `apps/desktop-v2/src/ProjectKanban.tsx` |
 | 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
 | 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
-| 702 | `apps/desktop-v2/src/ProjectKanban.tsx` |
-| 701 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 
 ## Exports only tests reference
 
-- 985 runtime exports are referenced by tests and by no other production file.
+- 989 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 127 test files are not included in a package TypeScript test project.
+- 134 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

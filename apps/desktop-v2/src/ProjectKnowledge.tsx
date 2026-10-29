@@ -20,6 +20,7 @@ import { ProjectMemory } from './ProjectMemory';
 import { SageAudience } from './SageAudience';
 import { SageRecordDetails } from './SageRecordDetails';
 import { sageRepairs } from './sage-model';
+import { VectorMemoryAdd, VectorMemoryForget } from './VectorMemoryEntries';
 
 export function ProjectKnowledge({
   command,
@@ -742,9 +743,11 @@ function VectorMemory({
     [query, setQuery] = useState(''),
     [hits, setHits] = useState<Record<string, unknown>[]>([]),
     [error, setError] = useState(''),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [statusRead, setStatusRead] = useState(0);
   useEffect(() => {
     let current = true;
+    void statusRead;
     void http('/api/vector-memory/status')
       .then((data) => {
         if (current) setStatus(record(data));
@@ -755,7 +758,7 @@ function VectorMemory({
     return () => {
       current = false;
     };
-  }, [http]);
+  }, [http, statusRead]);
   const search = async () => {
     setBusy(true);
     setError('');
@@ -816,6 +819,7 @@ function VectorMemory({
               </article>
             ))}
           </div>
+          <VectorMemoryAdd http={http} onStored={() => setStatusRead((value) => value + 1)} />
           <form
             className="sage-retrieval-search"
             onSubmit={(event) => {
@@ -848,6 +852,16 @@ function VectorMemory({
                   <span>{String(hit['kind'] ?? 'Vector entry')}</span>
                 </header>
                 <p>{String(hit['text'])}</p>
+                {!record(hit['sage'])['id'] && (
+                  <VectorMemoryForget
+                    http={http}
+                    id={String(hit['id'])}
+                    onRemoved={() => {
+                      setHits((current) => current.filter((item) => item['id'] !== hit['id']));
+                      setStatusRead((value) => value + 1);
+                    }}
+                  />
+                )}
                 {record(hit['sage'])['status'] === 'verified' && (
                   <button
                     type="button"
