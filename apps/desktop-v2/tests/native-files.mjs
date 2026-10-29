@@ -384,6 +384,48 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   );
   await page.getByRole('button', { name: 'Reload saved review notes', exact: true }).click();
   await page.locator('.file-review-tray').getByText('Peer review note', { exact: true }).waitFor();
+  const tray = page.locator('.file-review-tray');
+  const firstNote = tray.locator('article').filter({ hasText: reviewText });
+  await firstNote.getByRole('button', { name: 'Reply', exact: true }).click();
+  await tray
+    .getByRole('textbox', { name: 'Reply to review note 1', exact: true })
+    .fill('Checked against the requirement.');
+  await tray.getByRole('button', { name: 'Add reply', exact: true }).click();
+  await tray
+    .getByRole('list', { name: 'Replies to review note 1', exact: true })
+    .getByText('Checked against the requirement.', { exact: true })
+    .waitFor();
+  await tray.getByRole('button', { name: 'Resolve review note 1', exact: true }).click();
+  await tray.getByText('1 open review notes · 1 resolved', { exact: true }).waitFor();
+  assert.equal(await tray.getByText(reviewText, { exact: true }).count(), 0);
+  const discussed = await invokeForm('form-draft.get', {
+    projectId: project.id,
+    formKey: 'git-review-notes',
+  });
+  assert.equal(discussed.value.version, 2);
+  assert.deepEqual(
+    discussed.value.notes.map((note) => [
+      note.text,
+      note.resolved ?? false,
+      note.replies?.length ?? 0,
+    ]),
+    [
+      [reviewText, true, 1],
+      ['Peer review note', false, 0],
+    ],
+  );
+  await page.reload();
+  await page.locator('.project-item').filter({ hasText: project.name }).click();
+  await tool('Changes').click();
+  await tray.getByText('1 open review notes · 1 resolved', { exact: true }).waitFor();
+  await tray.getByLabel('Show resolved', { exact: true }).check();
+  await firstNote.getByText('Checked against the requirement.', { exact: true }).waitFor();
+  await page.screenshot({
+    path: join(artifactDir, 'native-review-discussion.png'),
+    fullPage: true,
+  });
+  await tray.getByRole('button', { name: 'Reopen review note 1', exact: true }).click();
+  await tray.getByText('2 open review notes', { exact: true }).waitFor();
 
   const git = (...args) =>
     execFileSync('git', args, { cwd: project.root, encoding: 'utf8', windowsHide: true });

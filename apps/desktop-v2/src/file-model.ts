@@ -202,8 +202,26 @@ export function lineDiff(before: string, after: string): DiffLine[] {
     newLine: line.kind === 'remove' ? null : ++newLine,
   }));
 }
-export function reviewText(notes: { path: string; line: number; text: string }[]) {
-  return notes.map((note) => `${note.path}:${note.line}\n${note.text}`).join('\n\n');
+/** Open notes with their replies, as sent to the conversation; resolved notes are left out. */
+export function reviewText(
+  notes: {
+    path: string;
+    line: number;
+    text: string;
+    resolved?: boolean;
+    replies?: { text: string }[];
+  }[],
+) {
+  return notes
+    .filter((note) => !note.resolved)
+    .map((note) =>
+      [
+        `${note.path}:${note.line}`,
+        note.text,
+        ...(note.replies ?? []).map((reply) => `Reply: ${reply.text}`),
+      ].join('\n'),
+    )
+    .join('\n\n');
 }
 /**
  * Inclusive 1-based lines covered by a text selection. A selection that ends at the very

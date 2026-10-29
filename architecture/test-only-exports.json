@@ -71,6 +71,7 @@
       "parseReviewNote"
     ],
     "apps/desktop-v2/src/review-notes-store.ts": [
+      "MAX_REVIEW_REPLIES",
       "parseReviewNotes"
     ],
     "apps/desktop-v2/src/SddDependencyGraph.tsx": [

@@ -53,6 +53,8 @@ import { GitHistory } from './GitHistory';
 import { GitHunkReview } from './GitHunkReview';
 import { MergeConflictReview } from './MergeConflictReview';
 import { Modal } from './Modal';
+import { ReviewNotesTray } from './ReviewNotesTray';
+import type { ReviewNote } from './review-notes-store';
 import { useReviewNotes } from './useReviewNotes';
 import './file-draft.css';
 import { saveFileVersion } from './file-save';
@@ -65,11 +67,6 @@ interface Document {
   tooLarge: boolean;
   image?: string;
   editing: boolean;
-}
-interface ReviewNote {
-  path: string;
-  line: number;
-  text: string;
 }
 interface Chrome {
   documents: Record<string, Document>;
@@ -1456,50 +1453,16 @@ export function FileWorkspace({
             </>
           )}
           {mode === 'changes' && (
-            <section className="file-review-tray">
-              <header>
-                <strong>{notes.length} review notes</strong>
-                <button
-                  type="button"
-                  disabled={reviewNotes.busy}
-                  onClick={() => void reviewNotes.store.load()}
-                >
-                  Reload saved review notes
-                </button>
-                <button type="button" onClick={review}>
-                  <Copy size={13} />
-                  {onReview ? 'Use in conversation' : 'Copy review'}
-                </button>
-              </header>
-              {reviewNotes.error && <p role="alert">{reviewNotes.error}</p>}
-              <small>
-                {reviewNotes.busy
-                  ? 'Saving or loading review notes…'
-                  : reviewNotes.ready
-                    ? 'Saved per project on this desktop. Line anchors refer to the reviewed file version.'
-                    : 'Review notes are unavailable.'}
-              </small>
-              <div>
-                {notes.map((note, index) => (
-                  <article key={index}>
-                    <span>
-                      {note.path}:{note.line}
-                    </span>
-                    <p>{note.text}</p>
-                    <button
-                      type="button"
-                      aria-label={`Remove review note ${index + 1}`}
-                      disabled={!reviewNotes.ready || reviewNotes.busy}
-                      onClick={() =>
-                        void run(() => reviewNotes.store.save(notes.filter((_, i) => i !== index)))
-                      }
-                    >
-                      <X size={12} />
-                    </button>
-                  </article>
-                ))}
-              </div>
-            </section>
+            <ReviewNotesTray
+              notes={notes}
+              busy={reviewNotes.busy}
+              ready={reviewNotes.ready}
+              error={reviewNotes.error}
+              reviewLabel={onReview ? 'Use in conversation' : 'Copy review'}
+              onReload={() => void reviewNotes.store.load()}
+              onSave={reviewNotes.store.save}
+              onReview={review}
+            />
           )}
         </div>
       </div>

@@ -859,10 +859,58 @@
   margin: 8px 0;
   color: var(--muted);
 }
-.file-review-tray :where(article) > button {
+.file-review-remove {
   position: absolute;
   right: 0;
   top: 12px;
+}
+.file-review-show-resolved {
+  margin-left: auto;
+  margin-right: 12px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.file-review-resolved-text {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.file-review-replies {
+  margin: 0 0 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  list-style: none;
+}
+.file-review-replies li {
+  margin-bottom: 6px;
+}
+.file-review-reply-text {
+  margin: 0;
+  color: var(--text);
+}
+.file-review-replies time {
+  color: var(--subtle);
+  font-size: 9px;
+}
+.file-review-note-actions {
+  display: flex;
+  gap: 12px;
+}
+.file-review-note-actions button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-size: 10px;
+}
+.file-review-reply {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.file-review-reply textarea {
+  flex: 1 1 100%;
+  min-width: 0;
+  resize: vertical;
 }
 .file-context-dismiss {
   position: fixed;

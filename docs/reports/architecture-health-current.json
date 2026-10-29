@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T14:53:53.286Z",
+  "generatedAt": "2026-10-29T15:01:39.219Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5458,
-    "testFiles": 4752,
-    "sourceLines": 1201715,
+    "sourceFiles": 5459,
+    "testFiles": 4753,
+    "sourceLines": 1201929,
     "workspaceEdges": 222,
-    "moduleEdges": 16399,
+    "moduleEdges": 16402,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 108,
+    "testsWithoutTypecheck": 109,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 976
+    "testOnlyExports": 977
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 272,
-      "testFiles": 108,
+      "sourceFiles": 273,
+      "testFiles": 109,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1745,6 +1745,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/review-note-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/review-notes-discussion.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30346,6 +30352,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/review-notes-discussion.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/review-notes-store.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31209,8 +31222,8 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 1804,
-      "relativeImports": 22
+      "lines": 1767,
+      "relativeImports": 24
     },
     {
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
@@ -31291,8 +31304,8 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 1804,
-      "relativeImports": 22
+      "lines": 1767,
+      "relativeImports": 24
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
@@ -31648,6 +31661,10 @@
     {
       "file": "apps/desktop-v2/src/review-note-draft.ts",
       "name": "parseReviewNote"
+    },
+    {
+      "file": "apps/desktop-v2/src/review-notes-store.ts",
+      "name": "MAX_REVIEW_REPLIES"
     },
     {
       "file": "apps/desktop-v2/src/review-notes-store.ts",
