@@ -69,5 +69,7 @@ export async function exerciseNativeChronicleExport({ page, waitFor, artifactDir
   await heading.getByRole('button', { name: 'Export lineage Markdown', exact: true }).click();
   assert.match(await lineageFile('.md'), /^# WrongStack Chronicle lineage/);
   await cdp.detach();
-  console.log('PASS: Chronicle timeline and lineage export: loaded events as JSONL and Markdown, traced lineage as JSON and Markdown');
+  console.log(
+    'PASS: Chronicle timeline and lineage export: loaded events as JSONL and Markdown, traced lineage as JSON and Markdown',
+  );
 }

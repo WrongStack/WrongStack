@@ -34,7 +34,7 @@ export function ProjectDeadCode({
   sessions: Session[];
   onPrepare: (id: string, text: string) => Promise<boolean>;
   onNewSession: () => void;
-  onOpenFile: (path: string, line?: number) => void;
+  onOpenFile: (path: string, line?: number, endLine?: number) => void;
 }) {
   const work = useDeadCodeWork(projectId);
   const update = (changes: Parameters<typeof updateDeadCodeWork>[1]) =>
@@ -366,6 +366,7 @@ export function ProjectDeadCode({
                     onOpenFile(
                       String(item['file']),
                       typeof item['line'] === 'number' ? item['line'] : undefined,
+                      typeof item['endLine'] === 'number' ? item['endLine'] : undefined,
                     )
                   }
                 >

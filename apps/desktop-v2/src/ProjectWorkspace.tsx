@@ -119,9 +119,10 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
     [project.id],
   );
   // A line, when known, opens the file scrolled to and marking that source line.
-  const [fileTarget, setFileTargetState] = useState({ path: '', line: 0 }),
+  const [fileTarget, setFileTargetState] = useState({ path: '', line: 0, endLine: 0 }),
     [memoryTarget, setMemoryTarget] = useState('');
-  const setFileTarget = (path: string, line = 0) => setFileTargetState({ path, line });
+  const setFileTarget = (path: string, line = 0, endLine = 0) =>
+    setFileTargetState({ path, line, endLine });
   useEffect(() => {
     if (vm.projectPage !== 'files' && vm.projectPage !== 'changes') setFileTarget('');
   }, [vm.projectPage]);
@@ -144,6 +145,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           mode={vm.projectPage}
           initialPath={fileTarget.path}
           {...(fileTarget.line ? { initialLine: fileTarget.line } : {})}
+          {...(fileTarget.endLine ? { initialEndLine: fileTarget.endLine } : {})}
         />
       ) : vm.projectPage === 'chronicle' ? (
         <ProjectChronicle
@@ -206,8 +208,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             sessions={vm.snapshot.sessions.filter((item) => item.projectId === project.id)}
             onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
             onNewSession={() => vm.newSession(project.id)}
-            onOpenFile={(path, line) => {
-              setFileTarget(path, line);
+            onOpenFile={(path, line, endLine) => {
+              setFileTarget(path, line, endLine);
               vm.setProjectPage('files');
             }}
           />

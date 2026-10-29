@@ -108,6 +108,7 @@ export function FileWorkspace({
   mode = 'files',
   initialPath = '',
   initialLine,
+  initialEndLine,
   onReview,
   onReference,
   send,
@@ -120,6 +121,8 @@ export function FileWorkspace({
   initialPath?: string;
   /** 1-based source line to reveal and mark when `initialPath` opens a file. */
   initialLine?: number;
+  /** Last line of the range to mark, when the target is a range. */
+  initialEndLine?: number;
   onReview?: (text: string) => void;
   /** Attach the open file, or its selected lines, to the owning conversation. */
   onReference?: (ref: ComposerFileReference) => void;
@@ -163,6 +166,8 @@ export function FileWorkspace({
   const [searchSelection, setSearchSelection] = useState<{
     path: string;
     line: number;
+    /** Last line of a marked range; absent for a single line. */
+    endLine?: number;
     id: string;
   } | null>(null);
   const draftStore = useMemo(() => {
@@ -292,7 +297,7 @@ export function FileWorkspace({
     if (mode === 'files' && active && !docs.current[active]) void openFile(active);
   }, [mode, active, openFile]);
   useEffect(() => {
-    const identity = `${key}\0${initialPath}\0${initialLine ?? ''}`;
+    const identity = `${key}\0${initialPath}\0${initialLine ?? ''}\0${initialEndLine ?? ''}`;
     if (
       !initialPath ||
       !treeReady ||
@@ -324,11 +329,17 @@ export function FileWorkspace({
     } else {
       void openFile(path);
       if (initialLine && initialLine > 0)
-        setSearchSelection({ path, line: initialLine, id: crypto.randomUUID() });
+        setSearchSelection({
+          path,
+          line: initialLine,
+          ...(initialEndLine && initialEndLine > initialLine ? { endLine: initialEndLine } : {}),
+          id: crypto.randomUUID(),
+        });
     }
   }, [
     initialPath,
     initialLine,
+    initialEndLine,
     openFile,
     key,
     treeReady,
@@ -578,13 +589,12 @@ export function FileWorkspace({
         .slice(0, searchSelection.line - 1)
         .reduce((total, line) => total + line.length + 1, 0);
       editor.focus();
-      editor.setSelectionRange(
-        offset,
-        Math.min(
-          document.content.length,
-          offset + (document.content.split('\n')[searchSelection.line - 1]?.length ?? 0),
-        ),
-      );
+      const lines = document.content.split('\n');
+      const last = searchSelection.endLine ?? searchSelection.line;
+      const end = lines
+        .slice(searchSelection.line - 1, last)
+        .reduce((total, line) => total + line.length + 1, offset - 1);
+      editor.setSelectionRange(offset, Math.min(document.content.length, Math.max(offset, end)));
       editor.scrollTop = Math.max(
         0,
         (searchSelection.line - 4) * (Number.parseFloat(getComputedStyle(editor).lineHeight) || 20),
@@ -1351,7 +1361,7 @@ export function FileWorkspace({
                     >
                       {document.content.split('\n').map((line, index) => (
                         <div
-                          className={`file-source-line${searchSelection?.path === active && searchSelection.line === index + 1 ? ' search-match' : ''}${viewerFind?.lines.includes(index + 1) ? ' find-match' : ''}${viewerFind?.current === index + 1 ? ' find-current' : ''}`}
+                          className={`file-source-line${searchSelection?.path === active && index + 1 >= searchSelection.line && index + 1 <= (searchSelection.endLine ?? searchSelection.line) ? ' search-match' : ''}${viewerFind?.lines.includes(index + 1) ? ' find-match' : ''}${viewerFind?.current === index + 1 ? ' find-current' : ''}`}
                           data-source-line={index + 1}
                           key={index}
                         >
