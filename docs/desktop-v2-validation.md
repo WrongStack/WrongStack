@@ -4281,3 +4281,25 @@ staged; the other session's edits stay untouched.
   unchanged, same-kit pin keeps overrides, swap clears them), 24 design route tests, core and
   webui-server typechecks PASS (core `dist` rebuilt); desktop suite **575 PASS**, typecheck and
   Biome PASS. This test was written after the change, so it has no separate RED run.
+
+### Bulk file moves and deletions, all or nothing
+
+- Commit `aa13aeae5`. New `files.move_many` (`items: [{ from, to }]`) and `files.delete_many`
+  (`filePaths`, `recursive`), at most 500 items, advertised as `files.batch`. Every item is
+  checked before anything changes: inside the project, not the root, source present, target
+  absent in an existing folder, a non-empty folder only with `recursive`, no item inside another,
+  no two targets alike, no move into itself or onto another selected item. Renames then run in
+  order and, if one fails, the completed ones are renamed back in reverse; the reply names any
+  item that could not be put back. Deletion first renames every item into one
+  `.wrongstack-delete-…` folder in the project root and removes that folder only after all moved;
+  if emptying it fails, the reply carries a warning naming it. Another process can still change
+  the files during a batch; this is not a lock.
+- The desktop bulk dialog uses one batch for move, rename and delete on such engines and says
+  "No item was changed" on a refusal; copying and older engines keep the per-item path with its
+  per-item report.
+- Checks: RED then GREEN in the new `file-batch-mutations.test.ts` (real files through the
+  content route: refused batches leave every file in place, overlaps/root/outside refused);
+  75 related file tests, webui-protocol suite (261) and build, webui-server typecheck PASS;
+  desktop suite **577 PASS**, typecheck and Biome PASS. Restoring after a failure partway through
+  the renames is not exercised by a test, because no failure can be injected there without mocks.
+- The existing native bulk steps now go through the batch path; **not run**.
