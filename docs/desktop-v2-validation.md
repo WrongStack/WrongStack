@@ -3619,3 +3619,19 @@ Verification on the shared working snapshot:
   that built-in target and still requires the app page to be the only other one.
 - Not covered: audio/PDF preview, content near the 256 KiB limit, and prompt image content
   natively.
+
+## Find in the read-only source view (2026-10-29)
+
+- Commit `eb11ac524`. Ctrl/Cmd+F in the read-only source view (the source region is now
+  focusable) opens a find bar without replace: literal matching with optional match case,
+  "N matches on M lines", every matching line marked, and Enter / Shift+Enter or the arrows
+  stepping to the next or previous matching line, scrolled into view. Escape closes it and
+  clears the marks; switching files closes it. Editing mode keeps the existing find and
+  replace bar.
+- Checks: desktop **518 tests / 116 files PASS** (new `matchLines` test); typecheck **289 PASS**;
+  Biome PASS.
+- Native `--files` on portable identity `97116e0e114a-eb7323dfffaf`: **exit 0 / PASS** on the
+  first run. In `packages/alpha/src/index.ts`, "shared" reads "2 matches on 2 lines" with both
+  lines marked; Enter, Next and Shift+Enter move the current line 1 → 2 → 1; Escape removes the
+  marks.
+- Not covered: very large files and matches spanning lines (marked at their first line).
