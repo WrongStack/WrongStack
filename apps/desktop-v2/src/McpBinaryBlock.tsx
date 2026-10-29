@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { mcpBinary, mcpBinaryFileName } from './mcp-binary';
 
 /**
- * Binary MCP content: raster images are previewed from their own bytes, anything can be saved
+ * Binary MCP content: raster images and audio are previewed from their own bytes, anything can be saved
  * as a file. Nothing is executed or rendered as markup, and text copies still omit it.
  */
 export function McpBinaryBlock({ value }: { value: Record<string, unknown> }) {
@@ -23,10 +23,18 @@ export function McpBinaryBlock({ value }: { value: Record<string, unknown> }) {
   };
   return (
     <div className="mcp-binary">
-      {binary.previewable ? (
+      {binary.preview === 'image' ? (
         <img
           src={`data:${binary.mimeType};base64,${binary.base64}`}
           alt={`MCP content preview, ${binary.mimeType}`}
+        />
+      ) : binary.preview === 'audio' ? (
+        // biome-ignore lint/a11y/useMediaCaption: MCP audio carries no caption track to show.
+        <audio
+          controls
+          preload="metadata"
+          src={`data:${binary.mimeType};base64,${binary.base64}`}
+          aria-label={`MCP audio preview, ${binary.mimeType}`}
         />
       ) : (
         <p className="quiet-state">No preview for {binary.mimeType}.</p>

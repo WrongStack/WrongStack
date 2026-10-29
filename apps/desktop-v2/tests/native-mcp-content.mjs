@@ -7,6 +7,26 @@ import { join } from 'node:path';
 const NATIVE_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
+/** A real 8 kHz mono 16-bit WAV with 80 silent samples (10 ms). */
+function nativeWav() {
+  const samples = 80;
+  const wav = Buffer.alloc(44 + samples * 2);
+  wav.write('RIFF', 0);
+  wav.writeUInt32LE(36 + samples * 2, 4);
+  wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(8000, 24);
+  wav.writeUInt32LE(16000, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36);
+  wav.writeUInt32LE(samples * 2, 40);
+  return wav.toString('base64');
+}
+const NATIVE_WAV = nativeWav();
+
 async function startMcpFixture() {
   const calls = [];
   const server = createServer(async (request, response) => {
@@ -68,6 +88,7 @@ async function startMcpFixture() {
             },
             { name: 'Missing resource', uri: 'repo://native/missing', mimeType: 'text/plain' },
             { name: 'Native logo', uri: 'repo://native/logo.png', mimeType: 'image/png' },
+            { name: 'Native chime', uri: 'repo://native/chime.wav', mimeType: 'audio/wav' },
           ],
         };
         break;
@@ -88,6 +109,10 @@ async function startMcpFixture() {
         else if (message.params.uri === 'repo://native/logo.png')
           result = {
             contents: [{ uri: message.params.uri, mimeType: 'image/png', blob: NATIVE_PNG }],
+          };
+        else if (message.params.uri === 'repo://native/chime.wav')
+          result = {
+            contents: [{ uri: message.params.uri, mimeType: 'audio/wav', blob: NATIVE_WAV }],
           };
         else
           result = {
@@ -308,6 +333,15 @@ export async function exerciseNativeMcpContent({ page, rpc, waitFor, artifactDir
     );
     assert.equal(savedLogo.toString('base64'), NATIVE_PNG, 'The saved file has the exact bytes');
     await cdp.detach();
+    // Audio resources play in place from their own bytes (media-src allows data: only).
+    await browser.getByRole('button').filter({ hasText: 'Native chime' }).click();
+    await browser.getByRole('button', { name: 'Read resource', exact: true }).click();
+    const audio = browser.getByLabel('MCP audio preview, audio/wav', { exact: true });
+    await audio.waitFor();
+    await waitFor(
+      () => audio.evaluate((element) => element.readyState >= 1 && element.duration > 0),
+      'The WAV preview loads its metadata',
+    );
     await browser.getByRole('button').filter({ hasText: 'Native project path' }).click();
     await browser.getByLabel('MCP resource URI', { exact: true }).fill('repo://native/notes');
     await browser.getByRole('button', { name: 'Read resource', exact: true }).click();

@@ -1,5 +1,18 @@
-/** Raster images only: SVG is markup and is not rendered from external content. */
-const PREVIEWABLE = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+/**
+ * Raster images and common audio only: SVG is markup and is not rendered from external content,
+ * and PDF stays save-only because the window allows no frames or objects.
+ */
+const PREVIEW: Record<string, 'image' | 'audio'> = {
+  'image/png': 'image',
+  'image/jpeg': 'image',
+  'image/gif': 'image',
+  'image/webp': 'image',
+  'audio/mpeg': 'audio',
+  'audio/wav': 'audio',
+  'audio/x-wav': 'audio',
+  'audio/ogg': 'audio',
+  'audio/webm': 'audio',
+};
 const EXTENSIONS: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -11,13 +24,17 @@ const EXTENSIONS: Record<string, string> = {
   'application/json': 'json',
   'audio/mpeg': 'mp3',
   'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/ogg': 'ogg',
+  'audio/webm': 'webm',
 };
 
 export interface McpBinary {
   mimeType: string;
   base64: string;
   bytes: Uint8Array<ArrayBuffer>;
-  previewable: boolean;
+  /** How the bytes can be shown in place, or null when they can only be saved. */
+  preview: 'image' | 'audio' | null;
 }
 
 /**
@@ -37,7 +54,7 @@ export function mcpBinary(value: Record<string, unknown>): McpBinary | { error: 
     typeof value['mimeType'] === 'string' && value['mimeType']
       ? value['mimeType'].toLowerCase()
       : 'application/octet-stream';
-  return { mimeType, base64, bytes, previewable: PREVIEWABLE.has(mimeType) };
+  return { mimeType, base64, bytes, preview: PREVIEW[mimeType] ?? null };
 }
 
 /** A file name from the resource URI's last segment, safe on every platform. */

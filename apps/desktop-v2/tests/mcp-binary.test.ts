@@ -4,13 +4,19 @@ import { mcpBinary, mcpBinaryFileName } from '../src/mcp-binary';
 describe('MCP binary content', () => {
   it('decodes resource blobs and prompt data strictly', () => {
     const blob = mcpBinary({ blob: 'AAEC/w==', mimeType: 'IMAGE/PNG' });
-    expect(blob).toMatchObject({ mimeType: 'image/png', previewable: true });
+    expect(blob).toMatchObject({ mimeType: 'image/png', preview: 'image' });
     expect([...(blob as { bytes: Uint8Array }).bytes]).toEqual([0, 1, 2, 255]);
     expect(mcpBinary({ data: 'AA\nEC/w==', mimeType: 'application/pdf' })).toMatchObject({
-      previewable: false,
+      preview: null,
     });
     expect(mcpBinary({ data: 'AAEC', mimeType: 'image/svg+xml' })).toMatchObject({
-      previewable: false,
+      preview: null,
+    });
+    expect(mcpBinary({ data: 'AAEC', mimeType: 'audio/mpeg' })).toMatchObject({
+      preview: 'audio',
+    });
+    expect(mcpBinary({ data: 'AAEC', mimeType: 'audio/x-unknown' })).toMatchObject({
+      preview: null,
     });
     expect(mcpBinary({ blob: 'not base64!' })).toEqual({
       error: 'The binary content is not valid base64.',
