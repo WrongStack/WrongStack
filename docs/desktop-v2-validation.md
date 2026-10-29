@@ -4135,3 +4135,15 @@ staged; the other session's edits stay untouched.
   PASS; desktop suite PASS, typecheck and Biome PASS.
 - Native step written (`native-files.mjs`: only the removal of "line 3" enters the index, then
   undone); **not run**.
+
+### Skill edits checked against the read text
+
+- Commit `68b209ea9`. `skills.edit` accepts `expectedBody` and refuses the write when the skill
+  file no longer has that text, checked immediately before the atomic write. The skill library
+  sends the text it opened, so an edit racing another window's save is refused with its draft
+  kept. Without `expectedBody` the edit behaves as before. This narrows, but does not remove,
+  the window between the check and the write.
+- Checks: RED then GREEN in the new `skills-edit-expected.test.ts`; 162 skills and payload
+  validation tests and the webui-server typecheck PASS; desktop suite PASS, typecheck and Biome
+  PASS.
+- No native step yet.
