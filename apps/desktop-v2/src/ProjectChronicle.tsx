@@ -13,7 +13,12 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChronicleInsights } from './ChronicleInsights';
-import { chronicleFileName, chronicleJsonl, chronicleMarkdown } from './chronicle-export';
+import {
+  chronicleFileName,
+  chronicleJsonl,
+  chronicleLineageMarkdown,
+  chronicleMarkdown,
+} from './chronicle-export';
 import {
   chronicleGraph,
   chronicleQuery,
@@ -144,6 +149,31 @@ export function ProjectChronicle({
     summary = record(data['summary']);
   const [notice, setNotice] = useState('');
   /** Exports the loaded events only; older pages that were not loaded are not fetched. */
+  /** Downloads text as a file; the notice says what was requested. */
+  const download = (content: string, type: string, name: string) => {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  /** Exports the traced lineage exactly as the engine returned it, or as readable tables. */
+  const exportLineage = (format: 'md' | 'json') => {
+    if (!graphData) return;
+    const exportedAt = new Date().toISOString();
+    const seed = String(selected?.['eventId'] ?? '');
+    download(
+      format === 'md'
+        ? chronicleLineageMarkdown(graphData, { seed, exportedAt })
+        : `${JSON.stringify(graphData, null, 2)}\n`,
+      format === 'md' ? 'text/markdown;charset=utf-8' : 'application/json',
+      chronicleFileName(exportedAt, format, 'lineage'),
+    );
+    setNotice(
+      `Export requested for the lineage of ${graph.nodes.length} events and ${graph.edges.length} relationships.`,
+    );
+  };
   const exportEvents = (format: 'md' | 'jsonl') => {
     const exportedAt = new Date().toISOString();
     const applied = Object.entries(filters)
@@ -348,6 +378,18 @@ export function ProjectChronicle({
                 <button type="button" disabled={busy} onClick={() => exportEvents('jsonl')}>
                   <Download size={13} />
                   Export JSONL
+                </button>
+              </>
+            )}
+            {view === 'graph' && graphData && !graphBusy && (
+              <>
+                <button type="button" onClick={() => exportLineage('md')}>
+                  <Download size={13} />
+                  Export lineage Markdown
+                </button>
+                <button type="button" onClick={() => exportLineage('json')}>
+                  <Download size={13} />
+                  Export lineage JSON
                 </button>
               </>
             )}

@@ -43,6 +43,31 @@ export async function exerciseNativeChronicleExport({ page, waitFor, artifactDir
   const markdown = (await exported('.md')).trimEnd().split('\n');
   assert.equal(markdown[0], '# WrongStack Chronicle');
   assert.equal(markdown.filter((line) => line.startsWith('| 20')).length, loaded);
+  // A traced lineage exports as the engine returned it and as readable tables.
+  await page.locator('.chronicle-events > button').first().click();
+  await page.getByRole('button', { name: 'Trace related events', exact: true }).click();
+  await heading
+    .getByRole('button', { name: 'Export lineage JSON', exact: true })
+    .waitFor({ timeout: 60000 });
+  const lineageFile = (extension) =>
+    waitFor(
+      async () => {
+        const file = (await readdir(artifactDir)).find(
+          (name) =>
+            !before.has(name) &&
+            name.startsWith('wrongstack-chronicle-lineage-') &&
+            name.endsWith(extension),
+        );
+        return file ? readFile(join(artifactDir, file), 'utf8') : null;
+      },
+      `Chronicle lineage ${extension} download`,
+      15000,
+    );
+  await heading.getByRole('button', { name: 'Export lineage JSON', exact: true }).click();
+  const lineage = JSON.parse(await lineageFile('.json'));
+  assert.ok(Array.isArray(lineage.nodes) && lineage.nodes.length > 0, 'Lineage nodes exported');
+  await heading.getByRole('button', { name: 'Export lineage Markdown', exact: true }).click();
+  assert.match(await lineageFile('.md'), /^# WrongStack Chronicle lineage/);
   await cdp.detach();
-  console.log('PASS: Chronicle timeline export: loaded events as JSONL and a Markdown table');
+  console.log('PASS: Chronicle timeline and lineage export: loaded events as JSONL and Markdown, traced lineage as JSON and Markdown');
 }

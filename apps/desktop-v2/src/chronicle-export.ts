@@ -51,7 +51,52 @@ export function chronicleMarkdown(
   return `${lines.join('\n')}\n`;
 }
 
-export function chronicleFileName(exportedAt: string, extension: 'md' | 'jsonl') {
+export function chronicleFileName(
+  exportedAt: string,
+  extension: 'md' | 'jsonl' | 'json',
+  kind: 'timeline' | 'lineage' = 'timeline',
+) {
   const stamp = exportedAt.replaceAll(':', '-').replaceAll('.', '-');
-  return `wrongstack-chronicle-${stamp}.${extension}`;
+  return `wrongstack-chronicle-${kind === 'lineage' ? 'lineage-' : ''}${stamp}.${extension}`;
+}
+
+/**
+ * The traced lineage as Markdown: events with their recorded titles, then each relationship
+ * with its kind and the engine's confidence classification, unchanged.
+ */
+export function chronicleLineageMarkdown(
+  graph: Record<string, unknown>,
+  scope: { seed: string; exportedAt: string },
+): string {
+  const nodes = Array.isArray(graph['nodes'])
+    ? (graph['nodes'] as ChronicleEvent[]).filter((node) => typeof node['eventId'] === 'string')
+    : [];
+  const titles = new Map(nodes.map((node) => [String(node['eventId']), eventTitle(node)]));
+  const edges = (Array.isArray(graph['edges']) ? (graph['edges'] as ChronicleEvent[]) : []).filter(
+    (edge) => titles.has(String(edge['from'])) && titles.has(String(edge['to'])),
+  );
+  const lines = [
+    '# WrongStack Chronicle lineage',
+    '',
+    `Exported ${scope.exportedAt} · seed ${code(scope.seed)} · ${nodes.length} events · ${edges.length} relationships${graph['truncated'] === true ? ' · truncated at the engine limit' : ''}`,
+    '',
+    '## Events',
+    '',
+    '| Time (UTC) | Event | Title | Outcome |',
+    '| --- | --- | --- | --- |',
+    ...nodes.map(
+      (node) =>
+        `| ${cell(String(node['occurredAt'] ?? ''))} | ${cell(String(node['eventType'] ?? ''))} | ${cell(eventTitle(node))} | ${cell(String(node['outcome'] ?? 'unknown'))} |`,
+    ),
+    '',
+    '## Relationships',
+    '',
+    '| From | Relationship | Confidence | To |',
+    '| --- | --- | --- | --- |',
+    ...edges.map(
+      (edge) =>
+        `| ${cell(titles.get(String(edge['from']))!)} | ${cell(String(edge['kind'] ?? '').replaceAll('_', ' '))} | ${cell(String(edge['confidence'] ?? 'unknown'))} | ${cell(titles.get(String(edge['to']))!)} |`,
+    ),
+  ];
+  return `${lines.join('\n')}\n`;
 }
