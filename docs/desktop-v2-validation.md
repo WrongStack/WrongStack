@@ -4147,3 +4147,14 @@ staged; the other session's edits stay untouched.
   validation tests and the webui-server typecheck PASS; desktop suite PASS, typecheck and Biome
   PASS.
 - No native step yet.
+
+### Create-only prompt templates
+
+- Commit `f9aaad217`. `prompts.create` accepts `ifAbsent: true`: right before saving it re-reads the
+  library past the loader cache and refuses when a user or project prompt with the same
+  identifier exists (a built-in one is only shadowed). The desktop template form sends it in
+  addition to its existing preflight, so a prompt saved meanwhile by another window is not
+  replaced. As with skills, this narrows the race window rather than locking the store.
+- Checks: RED then GREEN in `prompts-handlers.test.ts` (19 tests); webui-server typecheck PASS;
+  desktop suite PASS, typecheck and Biome PASS.
+- No native step yet.
