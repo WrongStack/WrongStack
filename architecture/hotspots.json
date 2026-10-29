@@ -98,6 +98,10 @@
       "lines": 750,
       "relativeImports": 8
     },
+    "packages/webui/src/components/ChronicleDashboard.tsx": {
+      "lines": 705,
+      "relativeImports": 5
+    },
     "packages/webui/src/components/codemap-model.ts": {
       "lines": 1098,
       "relativeImports": 0

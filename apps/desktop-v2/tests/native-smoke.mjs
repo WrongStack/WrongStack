@@ -18,6 +18,7 @@ import { exerciseNativeAttachments } from './native-attachments.mjs';
 import { exerciseNativeAutomationManagement } from './native-automation-management.mjs';
 import { exerciseNativeBrainPolicy } from './native-brain-policy.mjs';
 import { exerciseNativeChimera } from './native-chimera.mjs';
+import { exerciseNativeChronicleExport } from './native-chronicle-export.mjs';
 import { seedNativeChronicle } from './native-chronicle-fixture.mjs';
 import { exerciseNativeChronicleInsights } from './native-chronicle-insights.mjs';
 import { exerciseNativeComposer } from './native-composer.mjs';
@@ -1277,6 +1278,7 @@ try {
   } else if (chronicleOnly) {
     await seedNativeChronicle({ rpc: workspaceRpc, project: a, waitFor });
     await exerciseNativeChronicleInsights({ page, rpc: workspaceRpc, project: a, artifactDir });
+    await exerciseNativeChronicleExport({ page, waitFor, artifactDir });
     assert.deepEqual(errors, []);
     result = {
       result: 'PASS',

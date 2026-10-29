@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Clock3,
+  Download,
   FileCode2,
   GitBranch,
   LoaderCircle,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChronicleInsights } from './ChronicleInsights';
+import { chronicleFileName, chronicleJsonl, chronicleMarkdown } from './chronicle-export';
 import {
   chronicleGraph,
   chronicleQuery,
@@ -140,6 +142,38 @@ export function ProjectChronicle({
   };
   const rows = entries(data['events']),
     summary = record(data['summary']);
+  const [notice, setNotice] = useState('');
+  /** Exports the loaded events only; older pages that were not loaded are not fetched. */
+  const exportEvents = (format: 'md' | 'jsonl') => {
+    const exportedAt = new Date().toISOString();
+    const applied = Object.entries(filters)
+      .filter(([, value]) => value !== '')
+      .map(([key, value]) => `${key} ${String(value)}`);
+    const more = typeof data['nextCursor'] === 'string';
+    const filterText = [
+      applied.length ? `filters: ${applied.join(', ')}` : 'no filters',
+      more && 'older events not loaded',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    const content =
+      format === 'md'
+        ? chronicleMarkdown(rows, { filters: filterText, exportedAt, total: data['total'] })
+        : chronicleJsonl(rows);
+    const url = URL.createObjectURL(
+      new Blob([content], {
+        type: format === 'md' ? 'text/markdown;charset=utf-8' : 'application/x-ndjson',
+      }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = chronicleFileName(exportedAt, format);
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setNotice(
+      `Export requested for the ${rows.length} loaded ${rows.length === 1 ? 'event' : 'events'}${more ? '; load older events first to include them' : ''}.`,
+    );
+  };
   const graph = useMemo(() => chronicleGraph(graphData), [graphData]);
   const pipeline = record(health['pipeline']),
     journal = record(health['journal']),
@@ -290,6 +324,11 @@ export function ProjectChronicle({
           {error}
         </p>
       )}
+      {notice && (
+        <p role="status" className="field-help">
+          {notice}
+        </p>
+      )}
       <div className="chronicle-body">
         <div className="chronicle-main">
           <header className="chronicle-list-heading">
@@ -300,6 +339,18 @@ export function ProjectChronicle({
                 ? `${rows.length} of ${String(data['total'] ?? '…')} loaded`
                 : `${graph.nodes.length} events · ${graph.edges.length} relationships`}
             </span>
+            {view === 'timeline' && rows.length > 0 && (
+              <>
+                <button type="button" disabled={busy} onClick={() => exportEvents('md')}>
+                  <Download size={13} />
+                  Export Markdown
+                </button>
+                <button type="button" disabled={busy} onClick={() => exportEvents('jsonl')}>
+                  <Download size={13} />
+                  Export JSONL
+                </button>
+              </>
+            )}
             {view === 'graph' && (
               <button
                 type="button"

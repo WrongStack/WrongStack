@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T16:05:19.705Z",
+  "generatedAt": "2026-10-29T16:11:51.751Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5463,
-    "testFiles": 4757,
-    "sourceLines": 1202630,
+    "sourceFiles": 5464,
+    "testFiles": 4758,
+    "sourceLines": 1202765,
     "workspaceEdges": 222,
-    "moduleEdges": 16416,
+    "moduleEdges": 16419,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 112,
+    "testsWithoutTypecheck": 113,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 978
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 275,
-      "testFiles": 112,
+      "sourceFiles": 276,
+      "testFiles": 113,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1355,6 +1355,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/chimera-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/chronicle-export.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29921,6 +29927,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/chronicle-export.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/chronicle-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31226,6 +31239,11 @@
       "relativeImports": 8
     },
     {
+      "file": "packages/webui/src/components/ChronicleDashboard.tsx",
+      "lines": 705,
+      "relativeImports": 5
+    },
+    {
       "file": "packages/webui/src/components/codemap-model.ts",
       "lines": 1098,
       "relativeImports": 0
@@ -31568,6 +31586,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/webui/src/components/ChronicleDashboard.tsx",
+      "lines": 705,
+      "relativeImports": 5
+    },
+    {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
@@ -31591,11 +31614,6 @@
       "file": "apps/desktop-v2/src/useDesktop.ts",
       "lines": 700,
       "relativeImports": 9
-    },
-    {
-      "file": "packages/coordination/src/subagent-budget.ts",
-      "lines": 699,
-      "relativeImports": 2
     }
   ],
   "testOnlyExports": [
