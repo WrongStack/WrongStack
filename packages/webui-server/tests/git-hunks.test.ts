@@ -197,3 +197,78 @@ it('builds partial hunks that keep the applied side in order', () => {
     partialHunk('@@ -1 +1 @@\n-x\n+y\n\\ No newline at end of file\n', [0], false),
   ).toThrow(/end-of-file newline/);
 });
+
+it('stages and unstages selected lines of added and deleted files through the index', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'wrongstack-addel-'));
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true });
+  const frames: { type: string; payload: Record<string, any> }[] = [];
+  const ws = { readyState: 1, send: (text: string) => frames.push(JSON.parse(text)) };
+  const run = async (apply: boolean, payload: Record<string, unknown>) => {
+    frames.length = 0;
+    await handleGitHunks(ws as never, root, payload, apply);
+    return frames.at(-1)!.payload;
+  };
+  const pick = async (path: string, layer: string, wanted: string[]) => {
+    const view = await run(false, { path, layer });
+    expect(view.hunks).toHaveLength(1);
+    const body: string[] = view.hunks[0].text.split('\n').slice(1);
+    return run(true, {
+      path,
+      layer,
+      patchId: view.patchId,
+      hunk: 0,
+      lines: wanted.map((line) => body.indexOf(line)),
+    });
+  };
+  try {
+    git('init');
+    await writeFile(join(root, 'gone.txt'), 'x\ny\nz\n');
+    await writeFile(join(root, 'kept.txt'), 'p\nq\n');
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=T',
+      '-c',
+      'user.email=t@example.invalid',
+      '-c',
+      'core.hooksPath=disabled',
+      'commit',
+      '-m',
+      'x',
+    );
+
+    // A new file marked with intent-to-add: stage two of its three lines.
+    await writeFile(join(root, 'new.txt'), '1\n2\n3\n');
+    git('add', '-N', 'new.txt');
+    const whole = await run(false, { path: 'new.txt', layer: 'unstaged' });
+    expect(
+      (await run(true, { path: 'new.txt', layer: 'unstaged', patchId: whole.patchId, hunk: 0 })).ok,
+    ).toBe(false);
+    expect(await pick('new.txt', 'unstaged', ['+1', '+3'])).toMatchObject({
+      ok: true,
+      action: 'stage-lines',
+    });
+    expect(git('show', ':new.txt')).toBe('1\n3\n');
+    // Unstage one of them again; unstaging every line is left to whole-file controls.
+    expect(await pick('new.txt', 'staged', ['+1'])).toMatchObject({ ok: true });
+    expect(git('show', ':new.txt')).toBe('3\n');
+    expect((await pick('new.txt', 'staged', ['+3'])).ok).toBe(false);
+    expect(await readFile(join(root, 'new.txt'), 'utf8')).toBe('1\n2\n3\n');
+
+    // A file deleted from the working tree: stage the removal of one line only.
+    await rm(join(root, 'gone.txt'));
+    expect(await pick('gone.txt', 'unstaged', ['-y'])).toMatchObject({ ok: true });
+    expect(git('show', ':gone.txt')).toBe('x\nz\n');
+
+    // A staged deletion: unstage one removed line, which returns to the index.
+    git('rm', '-q', 'kept.txt');
+    expect(await pick('kept.txt', 'staged', ['-p'])).toMatchObject({
+      ok: true,
+      action: 'unstage-lines',
+    });
+    expect(git('show', ':kept.txt')).toBe('p\n');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

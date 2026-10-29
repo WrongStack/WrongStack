@@ -83,7 +83,8 @@ export async function gitReviewTarget(projectRoot: string, path: string, allowMi
   return { root, project, physical, exists };
 }
 async function reviewedPatch(projectRoot: string, path: string, staged: boolean) {
-  const { root } = await gitReviewTarget(projectRoot, path);
+  // A file deleted from the working tree is still reviewable; containment is still checked.
+  const { root } = await gitReviewTarget(projectRoot, path, true);
   const patch = await gitReviewCommand(root, [
     'diff',
     '--no-ext-diff',
@@ -98,24 +99,35 @@ async function reviewedPatch(projectRoot: string, path: string, staged: boolean)
     path,
   ]);
   const starts = [...patch.matchAll(/^@@ /gm)].map((match) => match.index!);
-  // Partial creation/deletion, mode changes, binary and combined merge patches
-  // need separate semantics. Keep their existing whole-file controls available.
+  // Mode changes, binary and combined merge patches need separate semantics; they keep their
+  // whole-file controls. An added or deleted text file (one hunk) supports line selection only:
+  // its lines are staged by writing the resulting index content directly.
+  const special = /^(?:old mode|new mode|Binary files|GIT binary patch)/m.test(patch);
+  const added = /^new file mode (100644|100755)$/m.exec(patch);
+  const deleted = /^deleted file mode (100644|100755)$/m.exec(patch);
+  const fileChange =
+    !special && starts.length === 1 && (added || deleted)
+      ? { kind: added ? ('added' as const) : ('deleted' as const), mode: (added ?? deleted)![1]! }
+      : undefined;
   const available =
-    /^index [a-f0-9]+\.\.[a-f0-9]+ 100(?:644|755)$/m.test(patch) &&
-    !/^(?:old mode|new mode|new file mode|deleted file mode|Binary files|GIT binary patch)/m.test(
-      patch,
-    );
+    fileChange !== undefined ||
+    (!special &&
+      !added &&
+      !deleted &&
+      /^index [a-f0-9]+\.\.[a-f0-9]+ 100(?:644|755)$/m.test(patch));
   const header = starts.length ? patch.slice(0, starts[0]) : '';
   const hunks = available
     ? starts.map((start, id) => ({
         id,
         header: patch.slice(start, patch.indexOf('\n', start)),
         text: patch.slice(start, starts[id + 1] ?? patch.length),
+        ...(fileChange ? { linesOnly: true } : {}),
       }))
     : [];
   return {
     root,
     header,
+    fileChange,
     patchId: createHash('sha256').update(patch).digest('hex'),
     hunks,
     reason: !patch
@@ -186,6 +198,35 @@ export function partialHunk(text: string, selected: readonly number[], reverse: 
   return `@@ -${match[1]},${oldCount} +${match[2]},${newCount} @@${match[3]}\n${body.join('\n')}\n`;
 }
 
+/**
+ * The index content after applying selected lines of an added or deleted file's single hunk.
+ * Forward (staging) an added file keeps the selected additions and a deleted file keeps the
+ * unselected removals; in reverse (unstaging) the choice flips. Null when nothing would remain,
+ * which is whole-file staging or unstaging.
+ */
+export function wholeFileLines(
+  text: string,
+  selected: readonly number[],
+  kind: 'added' | 'deleted',
+  reverse: boolean,
+): string | null {
+  const [, ...rest] = text.replace(/\n$/, '').split('\n');
+  if (rest.some((line) => line.startsWith('\\')))
+    throw Error('Stage this file whole: it has no final newline.');
+  const sign = kind === 'added' ? '+' : '-';
+  const chosen = new Set(selected);
+  if (
+    !chosen.size ||
+    [...chosen].some((index) => !Number.isSafeInteger(index) || !rest[index]?.startsWith(sign))
+  )
+    throw Error('Select one or more added or removed lines of this hunk.');
+  const keepSelected = (kind === 'added') !== reverse;
+  const kept = rest.filter(
+    (line, index) => line.startsWith(sign) && chosen.has(index) === keepSelected,
+  );
+  return kept.length ? `${kept.map((line) => line.slice(1)).join('\n')}\n` : null;
+}
+
 /** Server-generated patches only: the caller selects a reviewed hunk, never sends executable patch text. */
 export async function handleGitHunks(
   ws: WebSocket,
@@ -226,6 +267,42 @@ export async function handleGitHunks(
     const lines = value['lines'];
     if (lines !== undefined && !Array.isArray(lines))
       throw Error('Select one or more added or removed lines of this hunk.');
+    if (review.fileChange) {
+      if (!lines)
+        throw Error(
+          'Select lines, or use the whole-file controls to stage or unstage an added or deleted file.',
+        );
+      const content = wholeFileLines(
+        review.hunks[id]!.text,
+        lines as number[],
+        review.fileChange.kind,
+        staged,
+      );
+      if (content === null)
+        throw Error(
+          `That selection ${staged ? 'unstages' : 'stages'} the whole file; use the whole-file controls.`,
+        );
+      // The new index entry is written as a blob of exactly the kept lines.
+      const blob = (
+        await gitReviewCommand(review.root, ['hash-object', '-w', '--stdin'], content)
+      ).trim();
+      if (!/^[a-f0-9]{40,64}$/.test(blob)) throw Error('Git did not store the selected lines.');
+      await gitReviewCommand(review.root, [
+        'update-index',
+        '--add',
+        '--cacheinfo',
+        `${review.fileChange.mode},${blob},${value['path']}`,
+      ]);
+      send(ws, {
+        type: 'git.action_result',
+        payload: {
+          ok: true,
+          action: staged ? 'unstage-lines' : 'stage-lines',
+          path: value['path'],
+        },
+      });
+      return;
+    }
     const hunkText = lines
       ? partialHunk(review.hunks[id]!.text, lines as number[], staged)
       : review.hunks[id]!.text;

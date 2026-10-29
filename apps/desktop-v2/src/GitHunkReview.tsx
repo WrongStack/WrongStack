@@ -144,14 +144,19 @@ export function GitHunkReview({
                     selected lines
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="button secondary"
-                  disabled={busy || !!error}
-                  onClick={() => void apply(Number(hunk['id']))}
-                >
-                  {layer === 'staged' ? 'Unstage' : 'Stage'} hunk {Number(hunk['id']) + 1}
-                </button>
+                {hunk['linesOnly'] === true ? (
+                  // An added or deleted file: lines here, the whole file with the file controls.
+                  <small>Select lines · whole file via the file’s stage controls</small>
+                ) : (
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={busy || !!error}
+                    onClick={() => void apply(Number(hunk['id']))}
+                  >
+                    {layer === 'staged' ? 'Unstage' : 'Stage'} hunk {Number(hunk['id']) + 1}
+                  </button>
+                )}
               </header>
               <pre>
                 {String(hunk['text'])
