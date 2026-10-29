@@ -67,14 +67,23 @@ export function agentRouteTarget(
   else if (kind === 'profile' && value.trim()) next['fallbackProfile'] = value.trim();
   return next;
 }
+/**
+ * The save request for a reviewed plan. With `atomic` (engines advertising
+ * `session.subagent-plan-expected`), the plan just read travels as `expectedSubagentModelPlan`
+ * and the engine refuses the write if another window changed it in between.
+ */
 export function agentPlanPatch(
   base: unknown,
   draft: AgentModelPlan,
   current: unknown,
+  atomic = false,
 ): Record<string, unknown> {
   if (!sameSetting(base, current) && !sameSetting(draft, current))
     throw Error(
       'This session model plan changed elsewhere. Your edits are kept; reload the saved plan before retrying.',
     );
-  return { subagentModelPlan: draft };
+  return {
+    subagentModelPlan: draft,
+    ...(atomic ? { expectedSubagentModelPlan: current ?? null } : {}),
+  };
 }

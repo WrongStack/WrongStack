@@ -86,6 +86,45 @@ describe('subagentModelPlan preference', () => {
     expect(result).toMatchObject({ payload: { success: false } });
   });
 
+  it('applies a plan only over the plan it was reviewed against', async () => {
+    const state = makeContext();
+    const saved = { ...PLAN, roles: { critic: { model: 'a' }, planner: { model: 'b' } } };
+    state.sessionMeta['subagentModelPlan'] = saved;
+    const other = { ...PLAN, slots: [{ provider: 'openai', model: 'gpt-5' }] };
+
+    await handlePrefsUpdate(
+      state.context,
+      ws,
+      { subagentModelPlan: other, expectedSubagentModelPlan: PLAN },
+      'sess-1',
+    );
+    expect(state.setSubagentModelPlan).not.toHaveBeenCalled();
+    expect(state.sessionMeta['subagentModelPlan']).toBe(saved);
+    expect(state.sent.find((m) => m.type === 'key.operation_result')).toMatchObject({
+      payload: { success: false, message: expect.stringMatching(/changed/) },
+    });
+
+    // Same plan in another role order and with defaults spelled out: accepted.
+    state.sent.length = 0;
+    await handlePrefsUpdate(
+      state.context,
+      ws,
+      {
+        subagentModelPlan: other,
+        expectedSubagentModelPlan: {
+          ...PLAN,
+          followSessionModel: false,
+          roles: { planner: { model: 'b' }, critic: { model: 'a' } },
+        },
+      },
+      'sess-1',
+    );
+    expect(state.setSubagentModelPlan).toHaveBeenCalledWith(other, 'sess-1');
+    expect(state.sessionMeta['subagentModelPlan']).toEqual(other);
+    expect(state.sessionMeta).not.toHaveProperty('expectedSubagentModelPlan');
+    expect(state.persist).not.toHaveBeenCalled();
+  });
+
   it('rejects a malformed plan before it reaches the host', async () => {
     const state = makeContext();
 

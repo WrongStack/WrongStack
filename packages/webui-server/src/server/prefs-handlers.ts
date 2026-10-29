@@ -1,4 +1,5 @@
 import type { ConfigStore } from '@wrongstack/contracts/types';
+import { normalizeSubagentModelPlan } from '@wrongstack/coordination';
 import {
   activateSystemPromptPreset,
   bundledPromptText,
@@ -356,6 +357,15 @@ export async function handleSystemPromptPresets(
   }
 }
 
+/** A plan's canonical text: normalized, with roles in name order, so equal plans compare equal. */
+function subagentPlanText(value: unknown): string {
+  const plan = normalizeSubagentModelPlan(value);
+  const roles = plan.roles
+    ? Object.fromEntries(Object.entries(plan.roles).sort(([a], [b]) => a.localeCompare(b)))
+    : undefined;
+  return JSON.stringify({ ...plan, ...(roles ? { roles } : {}) });
+}
+
 /** The identity variant this tab is actually running, if it has its own. */
 function sessionVariant(ctx: PrefsHandlerContext, sessionId?: string): string | undefined {
   if (!sessionId) return undefined;
@@ -369,7 +379,9 @@ export async function handlePrefsUpdate(
   input: Record<string, unknown>,
   sessionId?: string,
 ): Promise<void> {
-  const parsed = validatePrefsUpdatePayload(input);
+  // Not a preference: the plan the caller reviewed, compared right before the plan is applied.
+  const { expectedSubagentModelPlan: expectedPlan, ...prefsInput } = input;
+  const parsed = validatePrefsUpdatePayload(prefsInput);
   if (!parsed.ok) {
     sendResult(ctx, ws, false, parsed.message);
     return;
@@ -396,6 +408,22 @@ export async function handlePrefsUpdate(
   if (planPayload && typeof planPayload === 'object' && !Array.isArray(planPayload)) {
     if (!ctx.setSubagentModelPlan) {
       sendResult(ctx, ws, false, 'Session subagent model plan is unavailable.');
+      return;
+    }
+    // No await between this comparison and the setter, which records the plan on the session
+    // before its first await, so two windows saving the same reviewed plan cannot both apply.
+    if (
+      expectedPlan !== undefined &&
+      subagentPlanText(ctx.metaFor?.(sessionId)?.['subagentModelPlan']) !==
+        subagentPlanText(expectedPlan)
+    ) {
+      sendResult(
+        ctx,
+        ws,
+        false,
+        'The session model plan changed since it was read. Reload it before saving.',
+      );
+      handlePrefsGet(ctx, ws, sessionId);
       return;
     }
     try {

@@ -23,6 +23,8 @@ export const SURFACE_PROTOCOL_CAPABILITIES = [
   'session.prompt-queue-front',
   /** Direct user submissions receive a correlated acknowledgement after claiming their turn. */
   'session.user-ack',
+  /** `prefs.update` accepts `expectedSubagentModelPlan` and refuses when the plan changed. */
+  'session.subagent-plan-expected',
   /** `composer.warm`: the user is typing; open the provider connection ahead of the send. */
   'session.provider-warm',
   /**

@@ -119,7 +119,13 @@ export function SessionAgentPlan({
     setNotice('');
     try {
       const current = await command('prefs.get', {}, ['prefs.updated']);
-      const patch = agentPlanPatch(base, plan, current['subagentModelPlan']);
+      const capabilities = state.results['session.start']?.['protocolCapabilities'];
+      const patch = agentPlanPatch(
+        base,
+        plan,
+        current['subagentModelPlan'],
+        Array.isArray(capabilities) && capabilities.includes('session.subagent-plan-expected'),
+      );
       await command('prefs.update', patch, ['key.operation_result']);
       const actual = await command('prefs.get', {}, ['prefs.updated']);
       if (!sameSetting(agentModelPlan(actual['subagentModelPlan']), plan))

@@ -47,4 +47,11 @@ it('refuses a competing whole-plan change and emits only the session-owned prefe
   expect(agentPlanPatch(base, draft, base)).toEqual({ subagentModelPlan: draft });
   expect(() => agentPlanPatch(base, draft, { ...base, lock: false })).toThrow('changed elsewhere');
   expect(agentPlanPatch(base, draft, draft)).toEqual({ subagentModelPlan: draft });
+  expect(agentPlanPatch(base, draft, base, true)).toEqual({
+    subagentModelPlan: draft,
+    expectedSubagentModelPlan: base,
+  });
+  expect(agentPlanPatch(undefined, draft, undefined, true)).toMatchObject({
+    expectedSubagentModelPlan: null,
+  });
 });
