@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ContextEditorDialog } from './ContextEditorDialog';
 import { ContextModes } from './ContextModes';
 import { ContextResidency } from './ContextResidency';
+import { type CompactionOutcome, compactionOutcome, reductionLabels } from './compaction-outcome';
 import type { EngineCommand } from './engine-operations';
 import { contentText, entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -28,6 +29,7 @@ export function SessionContextPanel({
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [confirmClear, setConfirmClear] = useState(initialAction === 'clear'),
+    [compaction, setCompaction] = useState<CompactionOutcome | null>(null),
     [editing, setEditing] = useState(false);
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -47,14 +49,23 @@ export function SessionContextPanel({
       setBusy(true);
       setError('');
       setNotice('');
+      setCompaction(null);
       try {
+        // A compaction answers with its report first; a refusal arrives as an operation result.
+        const compacting = action.startsWith('compact');
         const result = await command(
-          action.startsWith('compact') ? 'context.compact' : `context.${action}`,
+          compacting ? 'context.compact' : `context.${action}`,
           action === 'compact-aggressive' ? { aggressive: true } : {},
-          ['key.operation_result'],
+          compacting ? ['context.compacted', 'key.operation_result'] : ['key.operation_result'],
           { timeoutMs: 120000 },
         );
-        setNotice(String(result['message'] ?? 'Context operation completed.'));
+        const outcome = compacting ? compactionOutcome(result) : null;
+        setCompaction(outcome);
+        setNotice(
+          outcome
+            ? `Compacted: ~${outcome.before.toLocaleString()} → ~${outcome.after.toLocaleString()} message tokens (saved ~${outcome.saved.toLocaleString()}).`
+            : String(result['message'] ?? 'Context operation completed.'),
+        );
         setConfirmClear(false);
         await refresh();
       } catch (e) {
@@ -115,6 +126,42 @@ export function SessionContextPanel({
           <p className="composer-error" role="alert">
             {error}
           </p>
+        )}
+        {compaction && (
+          <section className="compaction-outcome" aria-label="Compaction result">
+            {compaction.request && (
+              <p>
+                Full request: ~{compaction.request.before.toLocaleString()} → ~
+                {compaction.request.after.toLocaleString()} tokens
+              </p>
+            )}
+            {compaction.reductions.length > 0 ? (
+              <ul>
+                {compaction.reductions.map((reduction) => (
+                  <li key={reduction.phase}>
+                    {reductionLabels[reduction.phase] ?? reduction.phase}: ~
+                    {reduction.saved.toLocaleString()} tokens
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              compaction.saved === 0 && <p>Nothing needed compacting.</p>
+            )}
+            {compaction.quality && !compaction.quality.ok && (
+              <p role="alert">
+                The compactor's own check flagged the result: {compaction.quality.issues.join('; ')}
+              </p>
+            )}
+            {compaction.digest && (
+              <details>
+                <summary>What the collapsed turns became</summary>
+                <pre>{compaction.digest}</pre>
+                {compaction.digestTruncated && (
+                  <small>Shortened here; the session log keeps the complete digest.</small>
+                )}
+              </details>
+            )}
+          </section>
         )}
         {notice && (
           <p className="composer-notice" role="status">

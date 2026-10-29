@@ -538,6 +538,9 @@ export async function exerciseNativeComposerResources({
   await nativeMode.getByRole('button', { name: 'Delete', exact: true }).click();
   await nativeMode.getByRole('button', { name: 'Confirm delete', exact: true }).click();
   await nativeMode.waitFor({ state: 'detached' });
+  // A compaction reports what it did, not only a token count.
+  await dialog.getByRole('button', { name: 'Compact context', exact: true }).click();
+  await dialog.getByRole('region', { name: 'Compaction result', exact: true }).waitFor();
   await page.screenshot({
     path: join(artifactDir, 'native-context-inspector.png'),
     fullPage: true,

@@ -34,6 +34,8 @@ function safeSnapshot<T>(fn: () => T): T | undefined {
   }
 }
 
+/** Characters of a compaction's collapsed-turn digest sent to the panel. */
+const COMPACTION_DIGEST_CHARS = 20_000;
 export function createSessionContextHandlers(
   shared: SessionHandlerShared,
 ): Pick<
@@ -203,6 +205,22 @@ export function createSessionContextHandlers(
             saved: Math.max(0, before - after),
             reductions: report.reductions ?? [],
             repaired: report.repaired ?? false,
+            // What the pass did, for the panel: request-level load, the compactor's own sanity
+            // check, and the collapsed turns' digest (bounded; the session log keeps all of it).
+            ...(typeof report.fullRequestTokensBefore === 'number' &&
+            typeof report.fullRequestTokensAfter === 'number'
+              ? {
+                  fullRequestTokensBefore: report.fullRequestTokensBefore,
+                  fullRequestTokensAfter: report.fullRequestTokensAfter,
+                }
+              : {}),
+            ...(report.quality ? { quality: report.quality } : {}),
+            ...(report.collapsedDigest
+              ? {
+                  digest: report.collapsedDigest.slice(0, COMPACTION_DIGEST_CHARS),
+                  digestTruncated: report.collapsedDigest.length > COMPACTION_DIGEST_CHARS,
+                }
+              : {}),
           }),
         });
         result(

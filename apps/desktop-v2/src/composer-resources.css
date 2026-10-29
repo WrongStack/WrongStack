@@ -534,3 +534,15 @@
   display: grid;
   gap: 2px;
 }
+.compaction-outcome {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.compaction-outcome pre {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+}

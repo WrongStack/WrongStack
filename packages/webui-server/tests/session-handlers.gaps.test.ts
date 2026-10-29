@@ -247,6 +247,29 @@ describe('createSessionHandlers — context handlers', () => {
     expect(res?.payload['message']).toContain('Compacted: 100 → 40 tokens');
   });
 
+  it('reports full-request tokens, the quality check and a bounded digest of what collapsed', async () => {
+    const compact = vi.fn(async () => ({
+      before: 900,
+      after: 300,
+      fullRequestTokensBefore: 1500,
+      fullRequestTokensAfter: 900,
+      reductions: [{ phase: 'summary', saved: 600 }],
+      collapsedDigest: `Turns 1-8: ${'x'.repeat(30_000)}`,
+      quality: { ok: false, hasIntent: true, hasPathTrail: false, issues: ['no path trail'] },
+    }));
+    const h = makeHarness({ compactor: { compact } });
+    await h.routes.compactContext(h.ws as never, { type: 'context.compact' } as never);
+    const payload = h.sent.find((m) => m.type === 'context.compacted')?.payload ?? {};
+    expect(payload).toMatchObject({
+      fullRequestTokensBefore: 1500,
+      fullRequestTokensAfter: 900,
+      quality: { ok: false, issues: ['no path trail'] },
+      digestTruncated: true,
+    });
+    expect(String(payload['digest'])).toMatch(/^Turns 1-8: x+$/);
+    expect(String(payload['digest']).length).toBe(20_000);
+  });
+
   it('falls back to token-counter totals when the report omits numbers', async () => {
     const compact = vi.fn(async () => ({ reductions: [] }));
     const h = makeHarness({ compactor: { compact } });
