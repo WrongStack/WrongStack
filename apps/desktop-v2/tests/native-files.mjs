@@ -214,6 +214,21 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
     );
     return drafts.drafts.some((draft) => draft.path === 'desktop-notes/native.ts');
   }, 'File draft persisted in the native project registry');
+  // The draft already existed from the edits above, so also wait for its latest text.
+  await waitFor(
+    () =>
+      page.evaluate(async (projectId) => {
+        const path = 'desktop-notes/native.ts';
+        const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(path));
+        const formKey = `file-draft:${Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        const stored = await window.__TAURI_INTERNALS__.invoke('host_request', {
+          method: 'form-draft.get',
+          params: { projectId, formKey },
+        });
+        return stored.value?.content === 'export const unsaved = true;\n';
+      }, project.id),
+    'Latest file draft text stored before reload',
+  );
   await page.reload();
   await tool('Files').click();
   await page.getByText('1 local file drafts · saved on this device', { exact: true }).click();

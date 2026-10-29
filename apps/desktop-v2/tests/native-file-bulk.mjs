@@ -36,6 +36,18 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     await page.getByRole('button', { name: 'Select bulk-ops/b.txt', exact: true }).click();
     const bar = page.getByRole('toolbar', { name: 'Selected items', exact: true });
     await bar.getByText('2 selected', { exact: true }).waitFor();
+    // Closing a dialog with Escape returns focus to the control that opened it.
+    await bar.getByRole('button', { name: 'Move selected…', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Move 2 selected items', exact: true }).waitFor();
+    await page.keyboard.press('Escape');
+    await page
+      .getByRole('dialog', { name: 'Move 2 selected items', exact: true })
+      .waitFor({ state: 'detached' });
+    assert.equal(
+      await page.evaluate(() => document.activeElement?.textContent?.trim()),
+      'Move selected…',
+      'Focus returns to the opener',
+    );
     await bar.getByRole('button', { name: 'Move selected…', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Move 2 selected items', exact: true });
     await dialog.getByLabel('Bulk move destination', { exact: true }).fill('bulk-dest');
