@@ -3669,5 +3669,10 @@ Verification on the shared working snapshot:
 - Native `--files` on portable identity `331d055607e8-eb7323dfffaf`: **exit 0 / PASS** with real
   keystrokes (Enter between braces, typing, Enter, Ctrl+A, Shift+Tab, Tab). The first build
   failed this step with the misplaced caret described above; the rebuilt app passes.
-- Not covered: undo history for these edits (programmatic changes are outside the textarea's
-  native undo stack) and language-specific rules beyond brackets.
+- Follow-up `7ee71aa7a`: the first version replaced the whole value, which kept these edits out of
+  the textarea's undo history (Ctrl+Z after Enter no longer undid the newline). Each key edit
+  is now applied as one `insertText` over the changed range (falling back to a value update if
+  the command is refused), so Ctrl+Z undoes it like typing. Native `--files` on portable
+  identity `d90a7b840ab1-eb7323dfffaf`: **exit 0 / PASS**, including Ctrl+Z restoring the text
+  before Shift+Tab; desktop **528 tests PASS** (new `replacementRange` test).
+- Not covered: language-specific rules beyond brackets.
