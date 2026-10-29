@@ -318,8 +318,9 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
 - Refinement keeps completed reviews across restart and offers a word-level comparison with
   the original (2026-10-29); it still needs richer provenance, external-model quality and reconnect/cancellation/empty/timeout cases. Countdown or automatic submit is a new
   deliberate UX; current refinement must not acquire hidden auto-send.
-- Finish validated context editor/apply, mode authoring, residency/retention visualization, draft
-  token estimates and richer compaction feedback.
+- Whole-message context editing is validated and applied through the engine (2026-10-29); add
+  in-message range editing, mode authoring, residency/retention visualization, draft token
+  estimates and richer compaction feedback.
 - Add selective draft merging, send-time races, abrupt termination during pending saves and the
   full focus/keyboard/screen-reader matrix. Existing tests protect acknowledged snapshots, not
   every unacknowledged last keystroke.

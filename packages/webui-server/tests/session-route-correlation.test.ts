@@ -54,6 +54,43 @@ describe('session context acknowledgement routing', () => {
       },
     ]);
   });
+  it('correlates context editor validation and apply replies with the asking request', async () => {
+    const sent: Record<string, unknown>[] = [];
+    const socket = {
+      readyState: 1,
+      send: (data: string) => sent.push(JSON.parse(data)),
+    } as unknown as WebSocket;
+    const reply = (ws: WebSocket, type: string, payload: Record<string, unknown>) =>
+      ws.send(JSON.stringify({ type, payload }));
+    const handlers = {
+      validateContextEditor: async (ws: WebSocket) =>
+        reply(ws, 'context.editor.validation', { ok: true, sessionId: 'session-a' }),
+      applyContextEditor: async (ws: WebSocket) => {
+        reply(ws, 'context.editor.validation', { ok: false, sessionId: 'session-a' });
+        reply(ws, 'key.operation_result', { success: true, message: 'applied' });
+      },
+    } as unknown as SessionRouteHandlers;
+    await handleSessionRoute(
+      socket,
+      { type: 'context.editor.validate', payload: { requestId: 'validate-a' } } as never,
+      handlers,
+    );
+    await handleSessionRoute(
+      socket,
+      { type: 'context.editor.apply', payload: { requestId: 'apply-b' } } as never,
+      handlers,
+    );
+    expect(
+      sent.map((frame) => [
+        frame['type'],
+        (frame['payload'] as Record<string, unknown>)['requestId'],
+      ]),
+    ).toEqual([
+      ['context.editor.validation', 'validate-a'],
+      ['context.editor.validation', 'apply-b'],
+      ['key.operation_result', 'apply-b'],
+    ]);
+  });
   it('preserves the original socket and payload for legacy context requests', async () => {
     const socket = { readyState: 1 } as WebSocket;
     let actual: WebSocket | undefined;

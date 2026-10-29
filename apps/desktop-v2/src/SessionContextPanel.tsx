@@ -1,5 +1,6 @@
 import { Gauge, LoaderCircle, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { ContextEditorDialog } from './ContextEditorDialog';
 import type { EngineCommand } from './engine-operations';
 import { contentText, entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -24,7 +25,8 @@ export function SessionContextPanel({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
-    [confirmClear, setConfirmClear] = useState(initialAction === 'clear');
+    [confirmClear, setConfirmClear] = useState(initialAction === 'clear'),
+    [editing, setEditing] = useState(false);
   const refresh = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -70,6 +72,15 @@ export function SessionContextPanel({
   const tools = record(snapshot?.['tools']),
     messages = record(snapshot?.['messages']),
     total = Number(snapshot?.['total'] ?? 0);
+  if (editing)
+    return (
+      <ContextEditorDialog
+        command={command}
+        running={running}
+        onClose={() => setEditing(false)}
+        onApplied={() => void refresh().catch((e) => setError(String(e)))}
+      />
+    );
   return (
     <Modal
       onClose={() => {
@@ -196,6 +207,14 @@ export function SessionContextPanel({
                 }}
               >
                 Read effective instructions
+              </button>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => setEditing(true)}
+              >
+                Edit context…
               </button>
               {instructions !== null && (
                 <div className="context-instructions">

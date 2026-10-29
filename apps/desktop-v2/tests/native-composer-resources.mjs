@@ -453,6 +453,43 @@ export async function exerciseNativeComposerResources({
       await dialog.getByRole('button', { name: 'Refresh context', exact: true }).isEnabled(),
     'Context readback after repair',
   );
+  // The validated context editor removes the oldest user turn and its replies.
+  const messagesBefore = (await call('engine', 'context.debug')).messages.count;
+  await dialog.getByRole('button', { name: 'Edit context…', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Edit provider context', exact: true });
+  const rows = editor.getByRole('list', { name: 'Context messages', exact: true });
+  await rows.waitFor();
+  await rows
+    .getByRole('checkbox', { name: /^Remove message \d+ \(user\)$/ })
+    .first()
+    .check();
+  const apply = editor.getByRole('button', { name: /^Remove \d+ messages?$/ });
+  assert.equal(await apply.isDisabled(), true, 'Applying requires a validated plan');
+  await editor.getByRole('button', { name: 'Check removal', exact: true }).click();
+  const verdict = editor.getByRole('region', { name: 'Context edit validation', exact: true });
+  await waitFor(
+    async () => {
+      if (await verdict.count()) return true;
+      const failure = editor.locator('p.session-error[role="alert"]');
+      if (await failure.count())
+        throw Error(`Context edit check failed: ${await failure.innerText()}`);
+      return false;
+    },
+    'Context edit validation',
+    30000,
+  );
+  assert.match(await verdict.innerText(), /^Valid: /, 'The engine accepts the removal plan');
+  const removing = Number((await apply.innerText()).match(/\d+/)[0]);
+  await apply.click();
+  await editor.getByRole('status').filter({ hasText: 'Context editor applied' }).waitFor();
+  await waitFor(
+    async () =>
+      (await call('engine', 'context.debug')).messages.count === messagesBefore - removing,
+    'Context editor removal reaches the engine context',
+  );
+  await editor.getByRole('button', { name: 'Close context editor', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Context & instructions', exact: true });
+  await dialog.getByRole('region', { name: 'Estimated context sections', exact: true }).waitFor();
   await page.screenshot({
     path: join(artifactDir, 'native-context-inspector.png'),
     fullPage: true,

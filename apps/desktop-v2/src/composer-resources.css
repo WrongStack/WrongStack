@@ -452,3 +452,29 @@
   padding: 4px 8px;
   font-size: 12px;
 }
+
+.context-editor-rows {
+  max-height: 45vh;
+  overflow-y: auto;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.context-editor-rows li {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.context-editor-rows li.removed {
+  opacity: 0.65;
+}
+.context-editor-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+.context-editor-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

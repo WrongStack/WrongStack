@@ -3289,3 +3289,36 @@ Verification on the shared working snapshot:
   refiner reply, the comparison shows added words and the shared text; all refinement, restore,
   attachment and topic-boundary scenarios in the scope still pass.
 - Not covered: the size-refusal message natively and screen-reader announcement of `ins`/`del`.
+
+## Validated context editor for whole-message removals (2026-10-29)
+
+- The context panel gains "Edit context…": the engine's `context.editor.open` snapshot is listed
+  with role, preview, token estimate and warnings per message. Choosing a user message also
+  removes the assistant replies the engine pairs with it (shown as such). "Check removal" sends
+  the exact proposal (remaining messages plus the removal plan, against the snapshot revision)
+  to `context.editor.validate` and shows the before/after message and request-token metrics,
+  the protocol-repair preview, warnings, errors or a revision/run conflict. "Remove N messages"
+  is enabled only after a passing check for the same selection; the panel then re-reads the
+  snapshot. The transcript on disk is unchanged. Range edits inside a message are not offered.
+- Engine defect found by the native run: `context.editor.validate` and `context.editor.apply`
+  were missing from the session route's reply correlation, so their replies carried no
+  `requestId` and a desktop request could never settle (the engine had actually accepted the
+  plan). `packages/webui-server/src/server/session-routes.ts` now correlates both, with
+  `context.editor.validation` as a reply type; a successful apply settles on the correlated
+  `key.operation_result` while `context.editor.applied` stays a broadcast. New
+  `session-route-correlation` case: **FAIL** on the previous file, **PASS** with the fix. The
+  desktop also treats a refused plan (a rejected request carrying `ok: false`) as a validation
+  result instead of a generic error.
+- Checks: desktop **474 tests / 103 files PASS** (new `context-editor-model` tests); webui-server
+  correlation/session-route/dispatcher/context tests **77 PASS**; a local proof against the real
+  `validateContextEditorProposal` accepted the desktop proposal (4 → 2 messages); typecheck
+  **270 PASS**; Biome PASS on the changed files.
+- Native `--composer` on portable identity `8c112691755c-5390544472ff`, bundled engine rebuilt
+  with the fix: earlier runs **failed** (first on a `role` that hid the validation region — a
+  desktop markup mistake — then on the missing correlation above); with both fixes **exit 0 /
+  PASS**. The oldest user turn is selected, apply stays disabled until the engine check passes,
+  the check reports "Valid", the removal applies and `context.debug` shows exactly that many
+  fewer messages; the existing inspector, repair and clear steps still pass.
+- Not covered: conflict and run-active refusals natively, protocol-repair cases with tool
+  pairs, very large contexts, and the WebUI editor (its listeners are not request-correlated;
+  the added `requestId` is additive).
