@@ -102,7 +102,10 @@ it('stages and unstages only the reviewed hunk, refuses stale diffs, and keeps w
       /UTF-8/,
     );
     await writeFile(join(root, 'new.txt'), 'New file\n');
-    expect((await invoke('git.hunks', { path: 'new.txt', layer: 'unstaged' })).hunks).toEqual([]);
+    // Untracked text is reviewed as an addition offering line selection only.
+    expect((await invoke('git.hunks', { path: 'new.txt', layer: 'unstaged' })).hunks).toEqual([
+      expect.objectContaining({ id: 0, linesOnly: true, text: '@@ -0,0 +1 @@\n+New file\n' }),
+    ]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -255,6 +258,16 @@ it('stages and unstages selected lines of added and deleted files through the in
     expect(git('show', ':new.txt')).toBe('3\n');
     expect((await pick('new.txt', 'staged', ['+3'])).ok).toBe(false);
     expect(await readFile(join(root, 'new.txt'), 'utf8')).toBe('1\n2\n3\n');
+
+    // An untracked file: Git shows no diff, so the engine reviews its content as an addition.
+    await writeFile(join(root, 'fresh.txt'), 'a\nb\nc\n');
+    expect(await pick('fresh.txt', 'unstaged', ['+b'])).toMatchObject({ ok: true });
+    expect(git('show', ':fresh.txt')).toBe('b\n');
+    expect(await readFile(join(root, 'fresh.txt'), 'utf8')).toBe('a\nb\nc\n');
+    // An ignored file is not offered.
+    await writeFile(join(root, '.gitignore'), 'ignored.txt\n');
+    await writeFile(join(root, 'ignored.txt'), 'secret\n');
+    expect((await run(false, { path: 'ignored.txt', layer: 'unstaged' })).hunks).toEqual([]);
 
     // A file deleted from the working tree: stage the removal of one line only.
     await rm(join(root, 'gone.txt'));

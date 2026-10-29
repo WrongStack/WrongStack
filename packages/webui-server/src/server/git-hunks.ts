@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { lstat, realpath } from 'node:fs/promises';
+import { lstat, readFile, realpath } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { gitIsolationEnv } from '@wrongstack/primitives';
@@ -82,10 +82,53 @@ export async function gitReviewTarget(projectRoot: string, path: string, allowMi
     throw Error('Only regular files inside this project support Git text review.');
   return { root, project, physical, exists };
 }
+/** Largest untracked file offered for line review; bigger files keep whole-file controls. */
+const UNTRACKED_REVIEW_BYTES = 1024 * 1024;
+
+/**
+ * An untracked (not ignored) text file has no Git diff. It is reviewed as an addition: the
+ * patch is built from its content as a single hunk, so its lines go through the same
+ * added-file path as an intent-to-add file. Null when the file is tracked, ignored or not text.
+ */
+async function untrackedPatch(root: string, physical: string, path: string) {
+  const listed = await gitReviewCommand(root, [
+    'ls-files',
+    '-z',
+    '--others',
+    '--exclude-standard',
+    '--',
+    path,
+  ]);
+  if (!listed.split('\0').includes(path)) return null;
+  const stat = await lstat(physical);
+  if (!stat.isFile() || stat.size === 0 || stat.size > UNTRACKED_REVIEW_BYTES) return null;
+  const bytes = await readFile(physical);
+  if (bytes.includes(0)) return null;
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+  const finalNewline = text.endsWith('\n');
+  const lines = (finalNewline ? text.slice(0, -1) : text).split('\n');
+  const mode = process.platform !== 'win32' && stat.mode & 0o111 ? '100755' : '100644';
+  return [
+    `diff --git a/${path} b/${path}`,
+    `new file mode ${mode}`,
+    '--- /dev/null',
+    `+++ b/${path}`,
+    `@@ -0,0 +1${lines.length === 1 ? '' : `,${lines.length}`} @@`,
+    ...lines.map((line) => `+${line}`),
+    ...(finalNewline ? [] : ['\\ No newline at end of file']),
+    '',
+  ].join('\n');
+}
+
 async function reviewedPatch(projectRoot: string, path: string, staged: boolean) {
   // A file deleted from the working tree is still reviewable; containment is still checked.
-  const { root } = await gitReviewTarget(projectRoot, path, true);
-  const patch = await gitReviewCommand(root, [
+  const { root, physical, exists } = await gitReviewTarget(projectRoot, path, true);
+  const diff = await gitReviewCommand(root, [
     'diff',
     '--no-ext-diff',
     '--no-textconv',
@@ -98,6 +141,8 @@ async function reviewedPatch(projectRoot: string, path: string, staged: boolean)
     '--',
     path,
   ]);
+  const patch =
+    !diff && !staged && exists ? ((await untrackedPatch(root, physical, path)) ?? '') : diff;
   const starts = [...patch.matchAll(/^@@ /gm)].map((match) => match.index!);
   // Mode changes, binary and combined merge patches need separate semantics; they keep their
   // whole-file controls. An added or deleted text file (one hunk) supports line selection only:
