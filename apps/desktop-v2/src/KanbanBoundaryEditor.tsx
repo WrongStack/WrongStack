@@ -94,9 +94,10 @@ function SelectorRows({
 }
 
 /**
- * The task's filesystem boundary. The board's boundary is always evaluated as well, so a task
- * can narrow it but not widen it. Saving re-reads the task first and refuses to overwrite a
- * boundary another window changed; the engine validates and normalizes every path.
+ * A task's filesystem boundary, or the board's when no task is given. Board and task boundaries
+ * are both evaluated, so a task can narrow its board's scope but not widen it. Saving re-reads
+ * the stored boundary first and refuses to overwrite one another window changed; the engine
+ * validates and normalizes every path.
  */
 export function KanbanBoundaryEditor({
   task,
@@ -106,18 +107,22 @@ export function KanbanBoundaryEditor({
   disabled,
   onSaved,
 }: {
-  task: Record<string, unknown>;
+  task?: Record<string, unknown>;
   board: Record<string, unknown>;
   boardId: string;
   command: EngineCommand;
   disabled: boolean;
   onSaved: () => Promise<void>;
 }) {
-  const [baseline, setBaseline] = useState(() => task['boundary']);
-  const [draft, setDraft] = useState<BoundaryPolicy | null>(() => boundaryPolicy(task['boundary']));
+  const owner = task ?? board;
+  const [baseline, setBaseline] = useState(() => owner['boundary']);
+  const [draft, setDraft] = useState<BoundaryPolicy | null>(() =>
+    boundaryPolicy(owner['boundary']),
+  );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  const subject = task ? 'task' : 'board';
   const boardPolicy = boundaryPolicy(board['boundary']);
   const problems = draft ? boundaryErrors(draft) : [];
   const changed = !sameBoundary(draft && boundaryPayload(draft), baseline);
@@ -126,27 +131,33 @@ export function KanbanBoundaryEditor({
     setError('');
     setNotice('');
     const stored = async () => {
-      const fresh = await command('kanban.get', { boardId }, ['kanban.get']);
-      return entries(record(fresh['data'])['tasks']).find((item) => item['id'] === task['id']);
+      const data = record((await command('kanban.get', { boardId }, ['kanban.get']))['data']);
+      return task ? entries(data['tasks']).find((item) => item['id'] === task['id']) : data;
     };
+    const boundary = draft ? boundaryPayload(draft) : null;
     try {
       const current = await stored();
-      if (!current) throw Error('This task was removed in another window. Nothing was saved.');
+      if (!current)
+        throw Error(`This ${subject} was removed in another window. Nothing was saved.`);
       if (!sameBoundary(current['boundary'], baseline))
         throw Error(
-          'The boundary was changed in another window since you opened this task. Close and reopen the task to review it before saving.',
+          `The boundary was changed in another window since you opened this ${subject}. Reopen it to review the change before saving.`,
         );
-      await command(
-        'kanban.task.update',
-        { boardId, taskId: task['id'], boundary: draft ? boundaryPayload(draft) : null },
-        ['kanban.task.update'],
-      );
+      if (task)
+        await command('kanban.task.update', { boardId, taskId: task['id'], boundary }, [
+          'kanban.task.update',
+        ]);
+      else await command('kanban.update', { boardId, boundary }, ['kanban.update']);
       // Show what the engine stored (it normalizes paths) and compare later saves against it.
       const saved = (await stored())?.['boundary'];
       setBaseline(saved);
       setDraft(boundaryPolicy(saved));
       setNotice(
-        draft ? 'Task boundary saved.' : 'Task boundary removed; only the board boundary applies.',
+        draft
+          ? `${task ? 'Task' : 'Board'} boundary saved.`
+          : task
+            ? 'Task boundary removed; only the board boundary applies.'
+            : 'Board boundary removed; task boundaries still apply.',
       );
       await onSaved();
     } catch (failure) {
@@ -156,14 +167,23 @@ export function KanbanBoundaryEditor({
     }
   };
   return (
-    <section className="kanban-boundary" aria-label="Task resource boundary">
-      <p className="field-help">
-        Board boundary:{' '}
-        {boardPolicy?.enabled
-          ? `${boardPolicy.enforcement} · ${boardPolicy.allow.length} allow · ${boardPolicy.deny.length} deny · shell ${boardPolicy.shellAccess}`
-          : 'unrestricted'}
-        . Both are evaluated; this task can narrow the board's scope but not widen it.
-      </p>
+    <section
+      className="kanban-boundary"
+      aria-label={task ? 'Task resource boundary' : 'Board resource boundary'}
+    >
+      {task ? (
+        <p className="field-help">
+          Board boundary:{' '}
+          {boardPolicy?.enabled
+            ? `${boardPolicy.enforcement} · ${boardPolicy.allow.length} allow · ${boardPolicy.deny.length} deny · shell ${boardPolicy.shellAccess}`
+            : 'unrestricted'}
+          . Both are evaluated; this task can narrow the board's scope but not widen it.
+        </p>
+      ) : (
+        <p className="field-help">
+          Applies to every task on this board, together with each task's own boundary.
+        </p>
+      )}
       {draft ? (
         <>
           <label className="kanban-boundary-toggle">
@@ -173,7 +193,7 @@ export function KanbanBoundaryEditor({
               disabled={disabled || busy}
               onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })}
             />
-            Enforce this task boundary
+            Enforce this {subject} boundary
           </label>
           <div className="kanban-boundary-options">
             <label>
@@ -227,7 +247,7 @@ export function KanbanBoundaryEditor({
           />
         </>
       ) : (
-        <p className="quiet-state">This task has no boundary of its own.</p>
+        <p className="quiet-state">This {subject} has no boundary of its own.</p>
       )}
       {problems.length > 0 && (
         <ul className="session-error">
@@ -250,7 +270,7 @@ export function KanbanBoundaryEditor({
             disabled={disabled || busy}
             onClick={() => setDraft(null)}
           >
-            Remove task boundary
+            Remove {subject} boundary
           </button>
         ) : (
           <button
@@ -259,7 +279,7 @@ export function KanbanBoundaryEditor({
             disabled={disabled || busy}
             onClick={() => setDraft(newBoundary())}
           >
-            Add a task boundary
+            Add a {subject} boundary
           </button>
         )}
         <button

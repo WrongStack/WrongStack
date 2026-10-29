@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:42:10.219Z",
+  "generatedAt": "2026-10-29T19:44:18.109Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 45,
     "sourceFiles": 5485,
-    "testFiles": 4771,
-    "sourceLines": 1205939,
+    "testFiles": 4772,
+    "sourceLines": 1205990,
     "workspaceEdges": 222,
-    "moduleEdges": 16458,
+    "moduleEdges": 16460,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -1030,7 +1030,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 772,
-      "testFiles": 509,
+      "testFiles": 510,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1055,7 +1055,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 509
+          "testFiles": 510
         }
       ]
     },
@@ -27250,6 +27250,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/export-code-blocks.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/export-many-backticks.test.ts",
         "projects": [
           "webui-jsdom"
@@ -31493,6 +31499,11 @@
       "relativeImports": 5
     },
     {
+      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
+      "lines": 702,
+      "relativeImports": 6
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
       "lines": 913,
       "relativeImports": 8
@@ -31780,14 +31791,14 @@
       "relativeImports": 6
     },
     {
+      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
+      "lines": 702,
+      "relativeImports": 6
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
       "lines": 701,
       "relativeImports": 8
-    },
-    {
-      "file": "packages/coordination/src/provider-status-tracker.ts",
-      "lines": 701,
-      "relativeImports": 4
     }
   ],
   "testOnlyExports": [

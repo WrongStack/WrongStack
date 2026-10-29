@@ -9,12 +9,15 @@ import {
   MessageSquare,
   Plus,
   RefreshCw,
+  ShieldCheck,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
 import { KanbanTaskInspector } from './KanbanTaskInspector';
+import { Modal } from './Modal';
 import './kanban.css';
 
 export function ProjectKanban({ command }: { command: EngineCommand }) {
@@ -28,6 +31,7 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [editing, setEditing] = useState(false);
+  const [boundaryOpen, setBoundaryOpen] = useState(false);
   const [draftColumn, setDraftColumn] = useState('');
   const [dropColumn, setDropColumn] = useState('');
   const [move, setMove] = useState<{
@@ -220,8 +224,30 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
               >
                 <RefreshCw size={15} />
               </button>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Board boundary"
+                title="Board boundary"
+                disabled={busy || !board}
+                onClick={() => setBoundaryOpen(true)}
+              >
+                <ShieldCheck size={15} />
+              </button>
             </div>
           </div>
+          {boundaryOpen && board && (
+            <Modal title="Board resource boundary" onClose={() => setBoundaryOpen(false)}>
+              <KanbanBoundaryEditor
+                key={boardId}
+                board={board}
+                boardId={boardId}
+                command={command}
+                disabled={busy}
+                onSaved={loadBoard}
+              />
+            </Modal>
+          )}
           <progress
             className="board-progress"
             max={Math.max(tasks.length, 1)}

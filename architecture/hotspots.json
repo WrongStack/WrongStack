@@ -166,6 +166,10 @@
       "lines": 856,
       "relativeImports": 5
     },
+    "apps/desktop-v2/src/ProjectKanban.tsx": {
+      "lines": 702,
+      "relativeImports": 6
+    },
     "apps/desktop-v2/src/ProjectKnowledge.tsx": {
       "lines": 913,
       "relativeImports": 8

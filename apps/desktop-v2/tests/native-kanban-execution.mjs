@@ -81,6 +81,26 @@ export async function exerciseNativeTaskExecution({
     .getByRole('status')
     .filter({ hasText: 'Task boundary removed; only the board boundary applies.' })
     .waitFor();
+  // The board boundary is edited the same way from the board header.
+  await page.getByRole('button', { name: 'Board boundary', exact: true }).click();
+  const boardBoundary = page.getByRole('region', { name: 'Board resource boundary', exact: true });
+  await boardBoundary.getByRole('button', { name: 'Add a board boundary', exact: true }).click();
+  await boardBoundary.getByRole('button', { name: 'Add deny path', exact: true }).click();
+  await boardBoundary.getByLabel('Deny 1 path', { exact: true }).fill('./private/');
+  await boardBoundary.getByRole('button', { name: 'Save boundary', exact: true }).click();
+  await boardBoundary.getByRole('status').filter({ hasText: 'Board boundary saved.' }).waitFor();
+  assert.equal(
+    await boardBoundary.getByLabel('Deny 1 path', { exact: true }).inputValue(),
+    'private',
+  );
+  await boardBoundary.getByRole('button', { name: 'Remove board boundary', exact: true }).click();
+  await boardBoundary.getByRole('button', { name: 'Save boundary', exact: true }).click();
+  await boardBoundary
+    .getByRole('status')
+    .filter({ hasText: 'Board boundary removed; task boundaries still apply.' })
+    .waitFor();
+  await page.keyboard.press('Escape');
+  await boardBoundary.waitFor({ state: 'detached' });
   await section('Execution').click();
   const calls = providerFixture.calls.length;
   await page.getByRole('button', { name: 'Dispatch agent', exact: true }).click();
