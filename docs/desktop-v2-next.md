@@ -367,7 +367,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 - MCP still needs OAuth, secret environment/header and advanced policy administration, broader
   task lifecycle stress, PDF preview (raster and audio previews and binary save exist, 2026-10-29; PDF stays save-only under the window CSP), deep catalogs and explicit tool
   invocation UX. Preserve session task identity/isolation/cancellation and question routing.
-- Session processes need engine-reported exit status and stress proof (batch termination and
+- Session processes need stress proof (engine-reported exits, batch termination and
   a recently-ended list exist, 2026-10-29; printed local URLs open as previews). Browser
   selection, preview controls, watcher and batch-process integration remain incomplete.
 - Usage needs project/profile aggregation, persisted historical model/billing attribution,

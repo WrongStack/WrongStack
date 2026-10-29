@@ -4015,3 +4015,20 @@ staged; the other session's edits stay untouched.
   Biome PASS.
 - Native step written (`native-project-history.mjs`: the fixture's placeholder bytes are
   refused and never rendered); **not run**.
+
+### Process exits from the engine's record
+
+- Commit `bcc3caa16`. The tools process registry now remembers the last 50 processes that left it
+  (unregistered on exit/close or pruned as exited orphans) with the exit code and signal their
+  child reported, whether a kill was requested, and when they ended. `process.list` adds them
+  as `ended` (session-scoped when the request names a session); older tool builds send the
+  list without it. The desktop shows "Exit code N", "Terminated on request · SIGNAL" or "Exit
+  not reported" from that record and only falls back to the window-observed list when the
+  engine does not send one. An unreported exit is never shown as success.
+- Checks: RED then GREEN for the registry (`packages/tools/tests/process-registry.test.ts`, 37
+  tests) and the handler (`process-handlers.test.ts`); tools and webui-server typechecks PASS
+  (tools `dist` rebuilt for the declarations); desktop suite **568 PASS**, typecheck and Biome
+  PASS.
+- Native step updated (`native-processes.mjs`: the terminated fixture reads "Terminated on
+  request"); **not run**. The final native pass needs the bundled engine rebuilt from this
+  tree.
