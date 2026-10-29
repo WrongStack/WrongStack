@@ -3908,3 +3908,16 @@ one final native pass.
 - Checks: desktop unit suite PASS (new mailbox merge test against the compare-and-set slot);
   typecheck and Biome PASS.
 - No native step yet.
+
+## Kanban resource boundaries (2026-10-29)
+
+- Commits `79b724c68` (task) and `38de169f0` (board). A task's inspector has a Boundary section, and the board
+  header opens the board boundary. Both edit enforcement (ask or block), shell/opaque tool
+  access and allow/deny selectors (kind, project-relative path, access, note). Empty,
+  absolute and escaping paths are flagged before sending; the engine still validates and
+  normalizes every selector, and the editor then shows what it stored. Saving re-reads the
+  stored boundary and refuses to overwrite one another window changed. Removing a task
+  boundary leaves only the board boundary; the task view states that both are evaluated.
+- Checks: desktop unit suite PASS (new `kanban-boundary-model` tests); typecheck and Biome PASS.
+- Native steps written (`native-kanban-execution.mjs`: task and board boundaries saved,
+  normalized and removed before dispatch); **not run**.
