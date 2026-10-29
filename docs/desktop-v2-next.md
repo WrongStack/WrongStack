@@ -313,8 +313,8 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
   unsupported systems must not show a fake working microphone.
 - BTW notes show read/handled receipts that survive restarts per project session (2026-10-29);
   add richer queue presentation and longer restart coverage. Presentation sorting must not change engine FIFO order.
-- Preserve the existing steer rule: queued work must be removed explicitly. Atomic prioritization
-  of steer over a nonempty queue needs an engine contract; never silently clear or bypass it.
+- Steer over a nonempty queue places the instruction first in the engine queue and keeps the
+  waiting prompts behind it (2026-10-29); never silently clear or bypass queued work.
 - Refinement keeps completed reviews across restart and offers a word-level comparison with
   the original (2026-10-29); it still needs richer provenance, external-model quality and reconnect/cancellation/empty/timeout cases. Countdown or automatic submit is a new
   deliberate UX; current refinement must not acquire hidden auto-send.

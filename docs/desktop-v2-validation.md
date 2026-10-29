@@ -4184,3 +4184,19 @@ staged; the other session's edits stay untouched.
   webui-server typecheck PASS; desktop suite **572 PASS**, typecheck and Biome PASS.
 - Native step written (`native-side-effects.mjs`: the approved command's record read from the
   journal); **not run**.
+
+### Steering ahead of a nonempty queue
+
+- Commit `f491f6d2f`. `queue.add` accepts `front: true` and places the prompt ahead of the queued
+  ones; engines advertise it as the `session.prompt-queue-front` protocol capability. "Stop &
+  steer" while prompts are queued now sends the instruction to the engine queue first, then
+  stops the run, so the queue starts the instruction when the turn ends and the waiting prompts
+  keep their order behind it. If stopping fails, the instruction stays first and runs when the
+  turn ends, and the composer says so. Engines without the capability keep the earlier refusal
+  ("Remove pending queued prompts…"). A second steer from another window placed in the meantime
+  goes ahead of the first; nothing else can.
+- Checks: RED then GREEN in `session-prompt-queue.test.ts` (26 tests, through the queue message
+  handler); webui-protocol suite (261) and build, webui-server typecheck PASS; desktop suite
+  **573 PASS**, typecheck and Biome PASS.
+- Native step rewritten (`native-composer.mjs`: the steering prompt reaches the provider before
+  the already-queued one); **not run**.
