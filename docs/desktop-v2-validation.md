@@ -4303,3 +4303,19 @@ staged; the other session's edits stay untouched.
   desktop suite **577 PASS**, typecheck and Biome PASS. Restoring after a failure partway through
   the renames is not exercised by a test, because no failure can be injected there without mocks.
 - The existing native bulk steps now go through the batch path; **not run**.
+
+### Redo the last rewind
+
+- Commit `7722534e8`. New `session.redo` serves core `redoLastRewind` for the acting session,
+  with the rewind's guards (refused during an active run, or when the session is not open in
+  this runtime). It re-applies the rewind's recorded file changes only if every touched file still
+  holds what the rewind left (otherwise nothing changes and the reply names the files), restores
+  the cut journal, reloads the live conversation and broadcasts a replay. With no rewind to undo,
+  or after a later prompt, it refuses. History & recovery gains "Redo last rewind" and shows the
+  re-applied files.
+- Checks: RED then GREEN in `session-recovery-desktop.test.ts` (nothing to redo; edit after the
+  rewind refused and kept; active run refused; real redo restores the file and broadcasts);
+  71 related session route tests, 46 routing/embedded tests, webui-protocol suite and the
+  webui-server typecheck PASS; desktop suite **578 PASS**, typecheck and Biome PASS.
+- Native step written (`native-session-recovery.mjs`: redo restores the file, then rewind
+  again); **not run**.
