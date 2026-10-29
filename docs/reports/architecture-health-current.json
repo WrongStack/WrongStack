@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T15:55:16.707Z",
+  "generatedAt": "2026-10-29T16:05:19.705Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5462,
-    "testFiles": 4756,
-    "sourceLines": 1202396,
+    "sourceFiles": 5463,
+    "testFiles": 4757,
+    "sourceLines": 1202630,
     "workspaceEdges": 222,
-    "moduleEdges": 16410,
+    "moduleEdges": 16416,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 111,
+    "testsWithoutTypecheck": 112,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 977
+    "testOnlyExports": 978
   },
   "errors": [],
   "packageCycles": [],
@@ -386,7 +386,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 275,
-      "testFiles": 111,
+      "testFiles": 112,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1029,7 +1029,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 771,
+      "sourceFiles": 772,
       "testFiles": 509,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1337,6 +1337,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/brand-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/btw-receipts-persistence.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29894,6 +29900,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/btw-receipts-persistence.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/btw-receipts.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31324,8 +31337,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1067,
-      "relativeImports": 24
+      "lines": 1084,
+      "relativeImports": 26
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -31356,8 +31369,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1067,
-      "relativeImports": 24
+      "lines": 1084,
+      "relativeImports": 26
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
@@ -31609,6 +31622,10 @@
     {
       "file": "apps/desktop-v2/src/btw-receipts.ts",
       "name": "BtwReceiptStore"
+    },
+    {
+      "file": "apps/desktop-v2/src/btw-receipts.ts",
+      "name": "parseBtwReceipts"
     },
     {
       "file": "apps/desktop-v2/src/CatalogModelSearch.tsx",

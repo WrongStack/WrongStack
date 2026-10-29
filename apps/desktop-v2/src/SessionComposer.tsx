@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { BtwReceipts } from './BtwReceipts';
-import { btwReceipts } from './btw-receipts';
+import { btwReceiptKey, btwReceipts, type SavedBtwReceipts } from './btw-receipts';
 import { ComposerAttachments, useComposerAttachments } from './ComposerAttachments';
 import { usePasteHint } from './ComposerPasteHint';
 import { ComposerReferenceChips } from './ComposerReferenceChips';
@@ -41,7 +41,9 @@ import { Modal } from './Modal';
 import { NextStepsPanel } from './NextStepsPanel';
 import { PromptRefinement } from './PromptRefinement';
 import { PromptWorkspace } from './PromptWorkspace';
+import { projectFormDraftStorage } from './platform';
 import type { RefinementDraft } from './refinement-draft';
+import type { ProjectFormDraftStorage } from './requirement-draft';
 import { SessionAgentPlan } from './SessionAgentPlan';
 import { SessionContextPanel } from './SessionContextPanel';
 import { SessionModelControls } from './SessionModelControls';
@@ -191,6 +193,17 @@ export function SessionComposer({
   useEffect(() => {
     if (state.connected && queueSupported) void send('queue.get').catch((e) => setError(String(e)));
   }, [state.connected, queueSupported, send]);
+  // BTW receipts persist per project session so they survive a restart.
+  useEffect(() => {
+    if (!projectId || !state.sessionId) return;
+    const sessionId = state.sessionId;
+    void btwReceiptKey(projectId, sessionId).then((key) =>
+      btwReceipts.attach(
+        sessionId,
+        projectFormDraftStorage(projectId, key) as ProjectFormDraftStorage<SavedBtwReceipts>,
+      ),
+    );
+  }, [projectId, state.sessionId]);
   useEffect(() => {
     const el = textarea.current;
     if (el) {
@@ -233,7 +246,11 @@ export function SessionComposer({
           send,
           command,
           onBtwSaved: (messageId, text) =>
-            btwReceipts.record(current.current.sessionId, { messageId, text, sentAt: Date.now() }),
+            void btwReceipts.record(current.current.sessionId, {
+              messageId,
+              text,
+              sentAt: Date.now(),
+            }),
           waitForIdle: async () => {
             const started = Date.now();
             while (current.current.running) {

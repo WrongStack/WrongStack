@@ -5,7 +5,7 @@ import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
 /**
- * Receipts for BTW notes this window sent during runs: whether the leader has read or handled
+ * Receipts for BTW notes this desktop sent during runs: whether the leader has read or handled
  * each one, read from the project mailbox on demand and when mailbox events arrive.
  */
 export function BtwReceipts({
@@ -18,6 +18,7 @@ export function BtwReceipts({
   mailboxEvent: unknown;
 }) {
   const notes = useSyncExternalStore(btwReceipts.subscribe, () => btwReceipts.list(sessionId));
+  const saveError = useSyncExternalStore(btwReceipts.subscribe, () => btwReceipts.error(sessionId));
   const [mail, setMail] = useState<Map<string, Record<string, unknown>> | null>(null),
     [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
@@ -48,12 +49,17 @@ export function BtwReceipts({
       <summary>BTW notes · {notes.length}</summary>
       <section aria-label="BTW receipts">
         <p className="field-help">
-          Notes sent to this session's leader while it was working. Saved means it is in the
-          mailbox; it does not mean it has been read.
+          Notes sent to this session's leader while it was working, kept on this desktop across
+          restarts. Saved means it is in the mailbox; it does not mean it has been read.
         </p>
         {error && (
           <p role="alert" className="session-error">
             {error}
+          </p>
+        )}
+        {saveError && (
+          <p role="alert" className="session-error">
+            {saveError}
           </p>
         )}
         <ul className="btw-receipts-list">

@@ -235,6 +235,7 @@ impl Registry {
             "roster-document:",
             "roster-runtime:",
             "automation-environment:",
+            "btw-receipts:",
         ]
         .iter()
         .any(|prefix| {
@@ -1071,6 +1072,9 @@ mod tests {
         assert!(peer
             .form_draft(&a.id, "automation-environment:job-1")
             .is_err());
+        let receipts = format!("btw-receipts:{}", "6".repeat(64));
+        assert_eq!(db.save_form_draft(&a.id, &receipts, &design, 0).unwrap(), 1);
+        assert!(peer.form_draft(&a.id, "btw-receipts:session-1").is_err());
         for owner in ["new", "reqi_01ABC-def"] {
             let key = format!("requirement-resource-input:{owner}");
             assert_eq!(db.save_form_draft(&a.id, &key, &design, 0).unwrap(), 1);

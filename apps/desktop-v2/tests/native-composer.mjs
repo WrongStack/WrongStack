@@ -152,6 +152,13 @@ export async function exerciseNativeComposer({
   await page.locator(`[data-engine-session="${identity.sessionId}"]`).waitFor();
   await queue.locator('summary').filter({ hasText: '1 queued prompt' }).waitFor();
   assert.ok(providerFixture.holds.has('queue'), 'Queue and active turn survive renderer reload');
+  // BTW receipts are stored per project session, not only in the renderer.
+  await receipts.locator('summary').filter({ hasText: 'BTW notes · 1' }).click();
+  await waitFor(
+    async () => /Saved · not read yet|Read by the leader|Handled/.test(await receipt.innerText()),
+    'BTW receipt restored after reload',
+  );
+  await receipts.locator('summary').click();
   await send('Do not lose this steering draft.', 'steer');
   await page.getByRole('alert').filter({ hasText: 'Remove pending queued prompts' }).waitFor();
   assert.equal(await composer().inputValue(), 'Do not lose this steering draft.');
