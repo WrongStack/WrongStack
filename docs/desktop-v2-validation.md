@@ -3954,3 +3954,13 @@ one final native pass.
   unchanged to keep exact-ID navigation stable.
 - Checks: Biome PASS. The startup/scroll measurement on a long transcript belongs to the final
   native pass.
+
+## Preview URLs from process output (2026-10-29)
+
+- Commit `98ac0cb93`. When a session process's output is shown, local URLs it printed (localhost,
+  127.0.0.1, [::1]; `0.0.0.0` is offered as localhost) appear as "Preview <url>" buttons, newest
+  first and at most five, after colour codes and trailing punctuation are stripped. Each opens
+  the private preview window; remote hosts are never offered.
+- Checks: desktop unit suite PASS (new `process-preview-urls` tests); typecheck and Biome PASS.
+- Native fixture and step written (`local-provider.mjs` prints a URL; `native-processes.mjs`
+  checks the button without opening it); **not run**.
