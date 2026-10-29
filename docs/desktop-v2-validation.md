@@ -4246,3 +4246,24 @@ staged; the other session's edits stay untouched.
   prefs suites); webui-protocol suite (261) and build, webui-server typecheck PASS; desktop
   suite **574 PASS**, typecheck and Biome PASS.
 - No new native step.
+
+### Design override writes checked under a file lock
+
+- Commit `ab6991bf3`. `recordOverrides` and `recordKitChoice` now read and write
+  `.design/active.json` under its file lock, so a kit choice or override write from another
+  runtime (CLI tool, WebUI, desktop) cannot land between an override write's read and write;
+  two concurrent merges both survive. `recordOverrides` takes an optional expectation (the kit
+  and, per key, the value the caller saw, '' for none) checked inside the lock and throws
+  `DesignOverridesChanged` on a difference. `design.set` and `design.tune` accept `expected` and
+  answer `{ ok: false, conflict: true }` on a refusal. The desktop sends the kit and the values
+  it has just read for the keys it writes (tuning sends the kit only, because the engine resolves
+  tuning keys), and reports a refusal with the draft kept.
+- Checks: RED then GREEN in `design-project-store.test.ts` (stale value, other kit, concurrent
+  merges); new route test `design-checked-overrides.test.ts`; 24 webui-server design tests and
+  the core and webui-server typechecks PASS (core `dist` rebuilt); desktop suite **575 PASS**,
+  typecheck and Biome PASS.
+- Pre-existing and unrelated: `design-detect.test.ts` "injects a stable dealt three…" fails in
+  this tree before and after the change.
+- Not committed: the Core API snapshot regeneration. In this shared tree it also picks up another
+  session's uncommitted CLI imports, so it must be regenerated once that work lands.
+- Kit pinning and swapping keep their read-back checks; they are not yet conditional.

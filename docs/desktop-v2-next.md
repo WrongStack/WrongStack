@@ -340,7 +340,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 | Code Assist | Multi-file applied-edit review and rollback (target-file comparison and restore exist, 2026-10-29), cancellation/error coverage and real-model output quality. Edit opt-in and request-owned streaming must remain. |
 | TechStack: `ProjectTechStack.tsx`, `TechStackRemediation.tsx` | Real registry/model research, permission-governed package execution, disk-export acceptance, cross-window job discovery, larger inventories and historical comparisons. Current reviewed-target checks do not prove external execution. |
 | Project Kit: `ProjectKit.tsx`, `KitParameterForm.tsx` | Richer run diagnostics/source snapshots, real agent verification/run evidence and large-catalog usability. |
-| Design Studio: `ProjectDesignStudio.tsx` | Atomic kit/override changes across runtimes, broader supported-stack outputs and quality/scale proof. |
+| Design Studio: `ProjectDesignStudio.tsx` | Conditional kit pinning/swapping (override writes are checked under the `active.json` lock, 2026-10-29), broader supported-stack outputs and quality/scale proof. |
 | Dead code: `ProjectDeadCode.tsx`, `DeadCodePlan.tsx` | Long verification/rollback and restart recovery (findings open at their marked line range and apply is bound to the reviewed preview revision, 2026-10-29). The shared scan API is synchronous and has no invented cancel endpoint. |
 | Chimera: `ProjectChimera.tsx`, `ChimeraFinding.tsx` | Full host-restart and actual two-WebView stress, concurrent lifecycle cases, advanced plugin policies, pagination and large-history usability. |
 
