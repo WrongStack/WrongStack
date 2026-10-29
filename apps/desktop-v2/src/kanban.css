@@ -595,3 +595,51 @@
   gap: 2px;
   overflow-wrap: anywhere;
 }
+.kanban-boundary {
+  display: grid;
+  gap: 12px;
+}
+.kanban-boundary-toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+}
+.kanban-boundary-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.kanban-boundary-options label {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.kanban-boundary-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.kanban-boundary-list legend {
+  font-size: 11px;
+  padding: 0 4px;
+}
+.kanban-boundary-row {
+  display: grid;
+  grid-template-columns: minmax(80px, auto) minmax(120px, 2fr) minmax(90px, auto) minmax(90px, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+.kanban-boundary-row input,
+.kanban-boundary-row select {
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .kanban-boundary-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
 import { KanbanBreakdown } from './KanbanBreakdown';
 import { KanbanExecution } from './KanbanExecution';
 import { KanbanFieldConflicts } from './KanbanFieldConflicts';
@@ -197,16 +198,18 @@ export function KanbanTaskInspector({
       )}
       {task && (
         <nav className="task-detail-nav" aria-label="Task detail sections">
-          {['definition', 'execution', 'evidence', 'breakdown', 'history'].map((section) => (
-            <button
-              type="button"
-              key={section}
-              aria-current={lens === section ? 'page' : undefined}
-              onClick={() => setLens(section)}
-            >
-              {section[0]!.toUpperCase() + section.slice(1)}
-            </button>
-          ))}
+          {['definition', 'execution', 'boundary', 'evidence', 'breakdown', 'history'].map(
+            (section) => (
+              <button
+                type="button"
+                key={section}
+                aria-current={lens === section ? 'page' : undefined}
+                onClick={() => setLens(section)}
+              >
+                {section[0]!.toUpperCase() + section.slice(1)}
+              </button>
+            ),
+          )}
         </nav>
       )}
       <form
@@ -661,6 +664,17 @@ export function KanbanTaskInspector({
                 await onRefresh();
                 await loadActivity();
               }}
+            />
+          </section>
+          <section hidden={lens !== 'boundary'}>
+            <KanbanBoundaryEditor
+              key={taskId}
+              task={task}
+              board={board}
+              boardId={boardId}
+              command={command}
+              disabled={disabled}
+              onSaved={onRefresh}
             />
           </section>
           <section hidden={lens !== 'breakdown'}>

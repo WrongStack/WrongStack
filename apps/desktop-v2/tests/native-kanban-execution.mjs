@@ -65,6 +65,23 @@ export async function exerciseNativeTaskExecution({
     await page.getByLabel('Task execution model', { exact: true }).inputValue(),
     fixtureModel,
   );
+  // A task boundary is saved through the engine (which normalizes the path) and removed again
+  // before dispatch so it does not change the run below.
+  await section('Boundary').click();
+  const boundary = page.getByRole('region', { name: 'Task resource boundary', exact: true });
+  await boundary.getByRole('button', { name: 'Add a task boundary', exact: true }).click();
+  await boundary.getByRole('button', { name: 'Add deny path', exact: true }).click();
+  await boundary.getByLabel('Deny 1 path', { exact: true }).fill('secrets/');
+  await boundary.getByRole('button', { name: 'Save boundary', exact: true }).click();
+  await boundary.getByRole('status').filter({ hasText: 'Task boundary saved.' }).waitFor();
+  assert.equal(await boundary.getByLabel('Deny 1 path', { exact: true }).inputValue(), 'secrets');
+  await boundary.getByRole('button', { name: 'Remove task boundary', exact: true }).click();
+  await boundary.getByRole('button', { name: 'Save boundary', exact: true }).click();
+  await boundary
+    .getByRole('status')
+    .filter({ hasText: 'Task boundary removed; only the board boundary applies.' })
+    .waitFor();
+  await section('Execution').click();
   const calls = providerFixture.calls.length;
   await page.getByRole('button', { name: 'Dispatch agent', exact: true }).click();
   await page.getByRole('button', { name: 'Start task agent', exact: true }).click();
