@@ -271,6 +271,16 @@ export async function exerciseNativeSessionRecovery({
     .click();
   await screen.getByRole('heading', { name: 'Rewind completed', exact: true }).waitFor();
   assert.equal(await readFile(file, 'utf8'), 'before recovery prompts');
+  // The rewound prompt is offered for editing; the composer's unsent draft is kept unless the
+  // replacement is chosen explicitly.
+  const rewoundPrompt = screen.locator('.recovery-rewound-prompt');
+  await rewoundPrompt
+    .getByText('First recovery prompt. Confirm the connection without tools.', { exact: true })
+    .waitFor();
+  await rewoundPrompt.getByRole('button', { name: 'Edit and resend', exact: true }).click();
+  await rewoundPrompt.getByText('The composer has unsent text.', { exact: true }).waitFor();
+  await rewoundPrompt.getByRole('button', { name: 'Keep current draft', exact: true }).click();
+  await rewoundPrompt.getByRole('button', { name: 'Edit and resend', exact: true }).waitFor();
   const loaded = await call('session.inspect', { id: identity.sessionId });
   assert.equal(loaded.retainedMessageCount, 0);
   assert.equal(loaded.journalTokenTotal, 0);

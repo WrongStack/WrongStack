@@ -264,3 +264,20 @@
     flex-wrap: wrap;
   }
 }
+.recovery-rewound-prompt {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.recovery-rewound-prompt pre {
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+.recovery-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

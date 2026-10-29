@@ -41,7 +41,11 @@ describe('recorded recovery evidence', () => {
       errors: ['outside.txt: refused'],
       removedEvents: null,
       messageCount: null,
+      promptText: '',
     });
+    expect(
+      recoveryResult({ rewind: { toPromptIndex: 1, promptText: 'Whole prompt' } })?.promptText,
+    ).toBe('Whole prompt');
   });
 });
 

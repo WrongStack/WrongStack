@@ -99,6 +99,9 @@
     "apps/desktop-v2/src/SddDependencyGraph.tsx": [
       "sddGraphElements"
     ],
+    "apps/desktop-v2/src/SessionRecovery.tsx": [
+      "RewoundPrompt"
+    ],
     "apps/desktop-v2/src/usePersistedFields.tsx": [
       "fieldsCodec"
     ],

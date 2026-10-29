@@ -495,6 +495,12 @@ export function EngineWorkspace({
             setFileTarget(path);
             setTab('files');
           }}
+          draftEmpty={!draft.trim()}
+          onEditPrompt={(text) => {
+            void onDraftChange(text).then((saved) => {
+              if (saved) setTab('chat');
+            });
+          }}
         />
       ) : tab === 'activity' ? (
         <SessionActivity

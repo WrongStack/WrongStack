@@ -44,6 +44,8 @@ export function recoveryResult(value: unknown) {
         errors: Array.isArray(result['errors']) ? result['errors'].map(String) : [],
         removedEvents: typeof result['removedEvents'] === 'number' ? result['removedEvents'] : null,
         messageCount: typeof result['messageCount'] === 'number' ? result['messageCount'] : null,
+        /** Text of the rewound prompt, when the engine reports it; attachments are not included. */
+        promptText: typeof result['promptText'] === 'string' ? result['promptText'] : '',
       }
     : null;
 }

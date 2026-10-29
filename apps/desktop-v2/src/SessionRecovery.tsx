@@ -22,6 +22,8 @@ export function SessionRecovery({
   command,
   onBack,
   onOpenFile,
+  draftEmpty = true,
+  onEditPrompt,
 }: {
   sessionId: string;
   sessionTitle: string;
@@ -29,6 +31,10 @@ export function SessionRecovery({
   command: EngineCommand;
   onBack: () => void;
   onOpenFile: (path: string) => void;
+  /** Whether the composer holds no unsent text; editing a rewound prompt asks before replacing it. */
+  draftEmpty?: boolean | undefined;
+  /** Puts the rewound prompt into the composer for editing and sending again. */
+  onEditPrompt?: ((text: string) => void) | undefined;
 }) {
   const [inspect, setInspect] = useState<Record<string, unknown> | null>(null);
   const [checkpoints, setCheckpoints] = useState<RecoveryCheckpoint[]>([]);
@@ -233,6 +239,14 @@ export function SessionRecovery({
               {path}
             </button>
           ))}
+          {result.promptText && onEditPrompt && (
+            <RewoundPrompt
+              key={`${result.checkpoint}:${result.promptText}`}
+              text={result.promptText}
+              draftEmpty={draftEmpty}
+              onEdit={onEditPrompt}
+            />
+          )}
           {result.errors.length > 0 && (
             <>
               <p>
@@ -533,5 +547,56 @@ export function SessionRecovery({
         </Modal>
       )}
     </section>
+  );
+}
+
+/**
+ * The prompt a rewind took back, offered for editing in the composer. Unsent composer text is
+ * replaced only after an explicit choice.
+ */
+export function RewoundPrompt({
+  text,
+  draftEmpty,
+  onEdit,
+}: {
+  text: string;
+  draftEmpty: boolean;
+  onEdit: (text: string) => void;
+}) {
+  const [replacing, setReplacing] = useState(false);
+  return (
+    <div className="recovery-rewound-prompt">
+      <h4>Rewound prompt</h4>
+      <pre>{text}</pre>
+      <p className="field-help">
+        Edit it in the composer and send it again. Attached files and images are not restored.
+      </p>
+      {replacing ? (
+        <div className="recovery-prompt-actions">
+          <span>The composer has unsent text.</span>
+          <button type="button" className="button primary small" onClick={() => onEdit(text)}>
+            Replace it with this prompt
+          </button>
+          <button
+            type="button"
+            className="button secondary small"
+            onClick={() => setReplacing(false)}
+          >
+            Keep current draft
+          </button>
+        </div>
+      ) : (
+        <div className="recovery-prompt-actions">
+          <button
+            type="button"
+            className="button primary small"
+            onClick={() => (draftEmpty ? onEdit(text) : setReplacing(true))}
+          >
+            Edit and resend
+          </button>
+          <CopyButton text={text} label="Copy prompt" />
+        </div>
+      )}
+    </div>
   );
 }
