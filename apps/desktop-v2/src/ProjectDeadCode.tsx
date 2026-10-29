@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CopyButton } from './CopyButton';
 import { DeadCodePlan, DeadCodeResult } from './DeadCodePlan';
 import {
+  deadCodeApplyBody,
   deadCodeCategories,
   deadCodeLabel,
   deadCodeRequest,
@@ -135,8 +136,14 @@ export function ProjectDeadCode({
         throw Error('The preview changed. Review the new changes before applying.');
       }
       const result = record(
-        await http('/api/deadcode/apply', 'POST', { ids, verify: verify ? 'typecheck' : 'none' }),
+        await http('/api/deadcode/apply', 'POST', deadCodeApplyBody(ids, verify, work.plan)),
       );
+      if (result['stale'] === true) {
+        update({ plan: record(result['plan']) });
+        throw Error(
+          'The changes differ from the reviewed preview. Nothing was written; review the new preview.',
+        );
+      }
       update({
         result,
         plan: null,

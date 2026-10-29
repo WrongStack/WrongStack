@@ -76,3 +76,20 @@ export function sameDeadCodePlan(
   });
   return JSON.stringify(normalize(record(left))) === JSON.stringify(normalize(record(right)));
 }
+
+/**
+ * The apply request for a reviewed preview. Its `revision` (from engines that report one) binds
+ * the write: the engine writes nothing when the re-scanned plan differs and returns `stale`.
+ */
+export function deadCodeApplyBody(
+  ids: string[],
+  verify: boolean,
+  plan: Record<string, unknown>,
+): Record<string, unknown> {
+  const revision = plan['revision'];
+  return {
+    ids,
+    verify: verify ? 'typecheck' : 'none',
+    ...(typeof revision === 'string' && revision ? { expectedRevision: revision } : {}),
+  };
+}

@@ -1,5 +1,6 @@
 /** Fix planning: re-scan, select still-present findings, and compute every file change. */
 
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { unifiedDiff } from '@wrongstack/core/utils';
@@ -250,6 +251,14 @@ export async function planDeadCodeFixesInternal(
   };
 }
 
+/** The plan's identity: each file's action and exact contents before and after, in file order. */
+export function deadCodePlanRevision(internal: readonly InternalChange[]): string {
+  const hash = createHash('sha256');
+  for (const change of internal)
+    hash.update(JSON.stringify([change.file, change.action, change.before, change.after]));
+  return hash.digest('hex');
+}
+
 export async function planDeadCodeFixes(
   projectRoot: string,
   findingIds: readonly string[],
@@ -261,5 +270,5 @@ export async function planDeadCodeFixes(
     linkedBy: _l,
     ...plan
   } = await planDeadCodeFixesInternal(projectRoot, findingIds, scanOptions);
-  return plan;
+  return { ...plan, revision: deadCodePlanRevision(_i) };
 }

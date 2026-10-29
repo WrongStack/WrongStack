@@ -3,7 +3,7 @@
  *
  *   POST /api/deadcode/scan     { paths?, includePublicApi? }      → findings
  *   POST /api/deadcode/preview  { ids }                            → exact diffs, nothing written
- *   POST /api/deadcode/apply    { ids, verify? }                   → re-scan, write, typecheck, rollback on failure
+ *   POST /api/deadcode/apply    { ids, verify?, expectedRevision? } → re-scan, write, typecheck, rollback on failure
  *   POST /api/deadcode/undo     { backupId, force? }               → restore a fix's backup
  *   GET  /api/deadcode/backups                                     → available backups
  *
@@ -128,7 +128,18 @@ export async function handleDeadCodeRequest(
         const ids = stringArray(body.ids, 'ids');
         if (ids.length === 0) throw new BadRequest('ids must not be empty');
         const verify = body.verify === 'none' ? 'none' : 'typecheck';
-        send(res, 200, await applyDeadCodeFixes(deps.projectRoot, ids, { verify }));
+        if (body.expectedRevision !== undefined && typeof body.expectedRevision !== 'string')
+          throw new BadRequest('expectedRevision must be a string');
+        send(
+          res,
+          200,
+          await applyDeadCodeFixes(deps.projectRoot, ids, {
+            verify,
+            ...(typeof body.expectedRevision === 'string'
+              ? { expectedRevision: body.expectedRevision }
+              : {}),
+          }),
+        );
         return true;
       }
       case 'undo': {

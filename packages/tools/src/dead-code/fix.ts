@@ -23,7 +23,7 @@ import {
   restoreFromManifest,
   writeBackup,
 } from './fix-backup.js';
-import { planDeadCodeFixesInternal } from './fix-plan.js';
+import { deadCodePlanRevision, planDeadCodeFixesInternal } from './fix-plan.js';
 import type {
   DeadCodeApplyOptions,
   DeadCodeApplyResult,
@@ -88,12 +88,28 @@ export async function applyDeadCodeFixes(
         : `Retrying without ${excluded.length} finding(s)…`,
     );
     const plan = await planDeadCodeFixesInternal(projectRoot, ids, opts);
+    const revision = deadCodePlanRevision(plan.internal);
     lastPlan = {
       changes: plan.changes,
       planned: plan.planned,
       skipped: [...plan.skipped, ...excluded],
       notes: plan.notes,
+      revision,
     };
+    // Only the first write is bound to the reviewed preview: later attempts are that plan with
+    // findings excluded for failing verification, and report them in `excluded`.
+    if (attempts === 1 && opts.expectedRevision !== undefined && revision !== opts.expectedRevision)
+      return {
+        ok: false,
+        stale: true,
+        changed: [],
+        deleted: [],
+        rolledBack: false,
+        verify: [],
+        plan: lastPlan,
+        excluded,
+        attempts,
+      };
     if (plan.internal.length === 0) break;
 
     const manifest = writeChanges(projectRoot, plan);

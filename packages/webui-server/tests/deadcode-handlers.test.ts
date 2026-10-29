@@ -96,6 +96,9 @@ describe('dead-code endpoints', () => {
     expect((await post(`${baseUrl}/api/deadcode/scan`, { paths: ['../etc'] })).status).toBe(400);
     expect((await post(`${baseUrl}/api/deadcode/preview`, { ids: [] })).status).toBe(400);
     expect((await post(`${baseUrl}/api/deadcode/apply`, { ids: 'x' })).status).toBe(400);
+    expect(
+      (await post(`${baseUrl}/api/deadcode/apply`, { ids: ['x'], expectedRevision: 1 })).status,
+    ).toBe(400);
     expect((await post(`${baseUrl}/api/deadcode/undo`, { backupId: '../x' })).status).toBe(400);
   });
 
@@ -110,7 +113,11 @@ describe('dead-code endpoints', () => {
     const ids = [orphan!.id, dead!.id];
 
     const preview = await post(`${baseUrl}/api/deadcode/preview`, { ids });
-    const plan = (await preview.json()) as { changes: Array<{ file: string; diff: string }> };
+    const plan = (await preview.json()) as {
+      changes: Array<{ file: string; diff: string }>;
+      revision: string;
+    };
+    expect(plan.revision).toMatch(/^[a-f0-9]{64}$/);
     expect(plan.changes.map((c) => c.file).sort()).toEqual(['src/lib.ts', 'src/orphan.ts']);
     expect(plan.changes.find((c) => c.file === 'src/lib.ts')?.diff).toContain(
       '-export function unusedFn',
@@ -120,7 +127,11 @@ describe('dead-code endpoints', () => {
     );
 
     const applied = (await (
-      await post(`${baseUrl}/api/deadcode/apply`, { ids, verify: 'none' })
+      await post(`${baseUrl}/api/deadcode/apply`, {
+        ids,
+        verify: 'none',
+        expectedRevision: plan.revision,
+      })
     ).json()) as {
       ok: boolean;
       backupId: string;

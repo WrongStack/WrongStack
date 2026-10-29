@@ -269,6 +269,32 @@ describe('dead-code fixes', () => {
     expect(after).not.toMatch(/\n\n\n/);
   });
 
+  it('applies only the reviewed plan revision and writes nothing when the plan changed', async () => {
+    const r = await analyzeDeadCode(root, { noCache: true });
+    const dead = find(r.findings, 'dead-export', 'packages/app/src/helpers/helper.ts', 'deadFn')!;
+    const plan = await planDeadCodeFixes(root, [dead.id]);
+    expect(plan.revision).toMatch(/^[a-f0-9]{64}$/);
+    expect((await planDeadCodeFixes(root, [dead.id])).revision).toBe(plan.revision);
+    // The file changes after review: the same finding now plans different file contents.
+    const helper = 'packages/app/src/helpers/helper.ts';
+    const edited = `${read(helper)}\nexport const lateEdit = 1;\n`;
+    fs.writeFileSync(path.join(root, helper), edited);
+    const stale = await applyDeadCodeFixes(root, [dead.id], {
+      verify: 'none',
+      expectedRevision: plan.revision,
+    });
+    expect(stale).toMatchObject({ ok: false, stale: true, rolledBack: false, changed: [] });
+    expect(stale.backupId).toBeUndefined();
+    expect(stale.plan.revision).not.toBe(plan.revision);
+    expect(read(helper)).toBe(edited);
+    const reviewed = await applyDeadCodeFixes(root, [dead.id], {
+      verify: 'none',
+      expectedRevision: stale.plan.revision,
+    });
+    expect(reviewed.ok).toBe(true);
+    expect(read(helper)).not.toContain('deadFn');
+  });
+
   it('removes barrel re-exports together with the declaration they point at', async () => {
     const r = await analyzeDeadCode(root, { noCache: true });
     const dead = find(r.findings, 'dead-export', 'packages/app/src/helpers/helper.ts', 'unusedRe')!;

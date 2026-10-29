@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DeadCodePlan, DeadCodeResult } from '../src/DeadCodePlan';
 import {
+  deadCodeApplyBody,
   deadCodeRequest,
   deadCodeRestoreOutcome,
   filterDeadCode,
@@ -154,4 +155,13 @@ describe('Desktop dead-code review', () => {
     expect(result).toContain('Type mismatch');
     expect(result).not.toContain('[object Object]');
   });
+});
+
+it('binds an apply to the reviewed preview revision when the engine reports one', () => {
+  expect(deadCodeApplyBody(['a'], true, { revision: 'abc', changes: [] })).toEqual({
+    ids: ['a'],
+    verify: 'typecheck',
+    expectedRevision: 'abc',
+  });
+  expect(deadCodeApplyBody(['a'], false, { changes: [] })).toEqual({ ids: ['a'], verify: 'none' });
 });

@@ -17,6 +17,11 @@ export interface DeadCodePlan {
   planned: string[];
   skipped: Array<{ id: string; reason: string }>;
   notes: string[];
+  /**
+   * SHA-256 over every planned file's action and exact before/after contents. Passed back as
+   * `expectedRevision`, it binds an apply to the reviewed plan.
+   */
+  revision?: string | undefined;
 }
 
 export interface InternalChange extends DeadCodeFileChange {
@@ -53,6 +58,11 @@ export interface DeadCodeApplyOptions extends DeadCodeScanOptions {
    */
   quarantine?: boolean | undefined;
   onProgress?: ((message: string) => void) | undefined;
+  /**
+   * The `revision` of the reviewed preview. When the re-scanned plan differs, nothing is
+   * written and the result carries `stale: true` with the new plan.
+   */
+  expectedRevision?: string | undefined;
 }
 
 export interface DeadCodeApplyResult {
@@ -67,4 +77,6 @@ export interface DeadCodeApplyResult {
   /** Findings dropped because removing them broke verification. */
   excluded: Array<{ id: string; reason: string }>;
   attempts: number;
+  /** The re-scanned plan no longer matched `expectedRevision`; nothing was written. */
+  stale?: boolean | undefined;
 }
