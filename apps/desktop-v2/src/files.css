@@ -1145,6 +1145,14 @@
   gap: 8px;
   margin-top: 12px;
 }
+.file-bulk-rename {
+  display: grid;
+  gap: 8px;
+}
+.file-bulk-rename input:not([type]) {
+  display: block;
+  width: 100%;
+}
 
 .editor-find-bar {
   display: flex;

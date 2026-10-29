@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, mkdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const exists = (path) =>
@@ -14,7 +14,16 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     target = join(project.root, 'bulk-dest');
   await mkdir(source, { recursive: true });
   await mkdir(target, { recursive: true });
-  for (const name of ['a.txt', 'b.txt', 'c.txt']) await writeFile(join(source, name), `${name}\n`);
+  for (const name of [
+    'a.txt',
+    'b.txt',
+    'c.txt',
+    'd-old.txt',
+    'e-old.txt',
+    'f-old.txt',
+    'f-new.txt',
+  ])
+    await writeFile(join(source, name), `${name}\n`);
   try {
     await tool('Files').click();
     await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
@@ -38,6 +47,27 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     }
     assert.equal(await bar.count(), 0, 'Moved items leave the selection');
 
+    // Bulk rename: literal text in names; an existing target is refused, never overwritten.
+    for (const name of ['d-old.txt', 'e-old.txt', 'f-old.txt'])
+      await page.getByRole('button', { name: `Select bulk-ops/${name}`, exact: true }).click();
+    await bar.getByRole('button', { name: 'Rename selected…', exact: true }).click();
+    const rename = page.getByRole('dialog', { name: 'Rename 3 selected items', exact: true });
+    await rename.getByLabel('Find in names', { exact: true }).fill('-old');
+    await rename.getByLabel('Replace in names', { exact: true }).fill('-new');
+    await rename
+      .getByRole('list', { name: 'Rename preview', exact: true })
+      .getByText('bulk-ops/d-old.txt → d-new.txt', { exact: true })
+      .waitFor();
+    await rename.getByRole('button', { name: 'Rename 3', exact: true }).click();
+    await page.getByText(/^Renamed 2 of 3 items\. Failed: bulk-ops\/f-old\.txt \(/).waitFor();
+    for (const name of ['d-new.txt', 'e-new.txt', 'f-old.txt'])
+      assert.equal(await exists(join(source, name)), true, `${name} exists after the rename`);
+    for (const name of ['d-old.txt', 'e-old.txt'])
+      assert.equal(await exists(join(source, name)), false, `${name} was renamed`);
+    assert.equal(await readFile(join(source, 'f-new.txt'), 'utf8'), 'f-new.txt\n');
+    await bar.getByText('1 selected', { exact: true }).waitFor();
+    await bar.getByRole('button', { name: 'Clear selection', exact: true }).click();
+
     // Ctrl-click picks an item outside selection mode.
     await page.getByRole('button', { name: 'Done selecting', exact: true }).click();
     await page
@@ -51,7 +81,9 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
       .click();
     await page.getByText('Deleted 1 of 1 items.', { exact: true }).waitFor();
     await waitFor(async () => !(await exists(join(source, 'c.txt'))), 'Selected file deleted');
-    console.log('PASS: native bulk file actions: move two picked files, Ctrl-click delete');
+    console.log(
+      'PASS: native bulk file actions: move two picked files, rename three with one refused existing target, Ctrl-click delete',
+    );
   } finally {
     await rm(source, { recursive: true, force: true });
     await rm(target, { recursive: true, force: true });

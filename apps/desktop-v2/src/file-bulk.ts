@@ -1,3 +1,5 @@
+import { replaceAllMatches } from './editor-find';
+
 /** Selected paths without those already covered by a selected ancestor folder. */
 export function topLevelPaths(paths: readonly string[]): string[] {
   const unique = [...new Set(paths)].toSorted();
@@ -56,7 +58,7 @@ export async function runBulk(
 }
 
 export function bulkSummary(
-  verb: 'Moved' | 'Deleted',
+  verb: 'Moved' | 'Deleted' | 'Renamed',
   total: number,
   outcome: BulkOutcome & { skipped: string[] },
 ): string {
@@ -67,4 +69,55 @@ export function bulkSummary(
     );
   if (outcome.skipped.length) parts.push(`Not attempted: ${outcome.skipped.join(', ')}.`);
   return parts.join(' ');
+}
+
+export interface RenameStep {
+  from: string;
+  to: string;
+}
+
+const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1);
+const parentOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf('/')));
+
+/**
+ * Renames each selected item in place by replacing literal text in its name (never its folder).
+ * Items whose name does not change are listed as unchanged. Invalid names, two items reaching
+ * the same name, and a new name equal to another selected item (a swap or chain) are problems:
+ * the batch must not start while any remain. Existing unselected targets are refused by the
+ * engine per item.
+ */
+export function bulkRenamePlan(
+  paths: readonly string[],
+  find: string,
+  replacement: string,
+  caseSensitive: boolean,
+): { steps: RenameStep[]; unchanged: string[]; problems: string[] } {
+  const steps: RenameStep[] = [],
+    unchanged: string[] = [],
+    problems: string[] = [];
+  if (!find) return { steps, unchanged: [...paths], problems };
+  for (const path of paths) {
+    const name = baseName(path);
+    const next = replaceAllMatches(name, find, replacement, caseSensitive).text.trim();
+    if (next === name) unchanged.push(path);
+    else if (!next || next === '.' || next === '..' || /[\\/]/.test(next))
+      problems.push(`${path}: "${next}" is not a valid name.`);
+    else {
+      const parent = parentOf(path);
+      steps.push({ from: path, to: parent ? `${parent}/${next}` : next });
+    }
+  }
+  // Windows and macOS folders usually ignore case, so names that differ only by case collide.
+  const key = (path: string) => path.toLowerCase();
+  const selected = new Set(paths.map(key));
+  const seen = new Map<string, string>();
+  for (const step of steps) {
+    const target = key(step.to);
+    const earlier = seen.get(target);
+    if (earlier) problems.push(`${earlier} and ${step.from} would both become ${step.to}.`);
+    else seen.set(target, step.from);
+    if (selected.has(target) && target !== key(step.from))
+      problems.push(`${step.from} would take the name of selected item ${step.to}.`);
+  }
+  return { steps, unchanged, problems };
 }

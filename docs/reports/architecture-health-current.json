@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T15:01:39.219Z",
+  "generatedAt": "2026-10-29T15:08:15.722Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 45,
     "sourceFiles": 5459,
-    "testFiles": 4753,
-    "sourceLines": 1201929,
+    "testFiles": 4754,
+    "sourceLines": 1202054,
     "workspaceEdges": 222,
-    "moduleEdges": 16402,
+    "moduleEdges": 16403,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 109,
+    "testsWithoutTypecheck": 110,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 977
   },
@@ -386,7 +386,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 273,
-      "testFiles": 109,
+      "testFiles": 110,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1457,6 +1457,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/feature-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/file-bulk-rename.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30016,6 +30022,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/file-bulk-rename.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/file-bulk.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31222,7 +31235,7 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 1767,
+      "lines": 1780,
       "relativeImports": 24
     },
     {
@@ -31304,7 +31317,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 1767,
+      "lines": 1780,
       "relativeImports": 24
     },
     {

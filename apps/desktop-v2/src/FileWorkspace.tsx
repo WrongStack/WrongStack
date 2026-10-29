@@ -477,6 +477,10 @@ export function FileWorkspace({
     ]);
     relocate(path, String(result['destPath'] ?? result['newPath'] ?? ''));
   };
+  const renamePath = async (path: string, newPath: string) => {
+    const result = await command('files.rename', { oldPath: path, newPath }, ['files.renamed']);
+    relocate(path, String(result['newPath'] ?? newPath));
+  };
   const confirm = () =>
     run(async () => {
       if (!action) return;
@@ -591,7 +595,7 @@ export function FileWorkspace({
   // Items picked for a bulk move or delete in the folder listing.
   const [picked, setPicked] = useState<string[]>([]);
   const [selecting, setSelecting] = useState(false);
-  const [bulk, setBulk] = useState<'move' | 'delete' | null>(null);
+  const [bulk, setBulk] = useState<'move' | 'rename' | 'delete' | null>(null);
   // Find and replace in the open editor (Ctrl/Cmd+F).
   const [finding, setFinding] = useState(false);
   // A new folder, search or sort starts again at the first page.
@@ -775,6 +779,7 @@ export function FileWorkspace({
           isDirectory={(path) => all.find((node) => node.path === path)?.type === 'directory'}
           hasUnsaved={hasUnsaved}
           move={movePath}
+          rename={renamePath}
           remove={removePath}
           onClose={() => setBulk(null)}
           onFinished={(summary, changed) => {
@@ -1346,6 +1351,14 @@ export function FileWorkspace({
                       onClick={() => setBulk('move')}
                     >
                       Move selected…
+                    </button>
+                    <button
+                      type="button"
+                      className="button secondary small"
+                      disabled={busy}
+                      onClick={() => setBulk('rename')}
+                    >
+                      Rename selected…
                     </button>
                     <button
                       type="button"
