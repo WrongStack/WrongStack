@@ -96,4 +96,11 @@ export interface CodeAssistResult {
    * a "fix" run touched the working tree.
    */
   appliedEdits?: boolean | undefined;
+  /**
+   * Editing runs only: each file a `write`/`edit` tool targeted, with its text before the run's
+   * first write to it (null = it did not exist). Read as each tool started.
+   */
+  edits?: Array<{ path: string; before: string | null }> | undefined;
+  /** Editing runs only: tools or files whose changes were not captured (shell, patch, limits). */
+  uncaptured?: string[] | undefined;
 }

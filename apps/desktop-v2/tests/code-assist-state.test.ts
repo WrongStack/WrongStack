@@ -31,3 +31,27 @@ it('keeps concurrent code-analysis streams and edit outcomes attached to their o
   });
   expect(state.assists['symbol']?.status).toBe('aborted');
 });
+
+it('keeps the engine-captured files of an editing run and drops malformed entries', () => {
+  const state = reduceEngine(emptyEngineState, {
+    type: 'code.assist.result',
+    payload: {
+      requestId: 'fix',
+      status: 'done',
+      appliedEdits: true,
+      edits: [
+        { path: 'src/a.ts', before: 'old' },
+        { path: 'created.ts', before: null },
+        { path: 'bad.ts' },
+      ],
+      uncaptured: ['bash'],
+    },
+  });
+  expect(state.assists['fix']).toMatchObject({
+    edits: [
+      { path: 'src/a.ts', before: 'old' },
+      { path: 'created.ts', before: null },
+    ],
+    uncaptured: ['bash'],
+  });
+});

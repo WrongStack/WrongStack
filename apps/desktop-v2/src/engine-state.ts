@@ -32,7 +32,19 @@ export interface EngineState {
   pendingUserMessages: Record<string, ChatMessage>;
   queue: Array<{ id: string; text: string; addedAt: number; imageCount: number }>;
   drainedPromptIds: string[];
-  assists: Record<string, { text: string; status: string; error?: string; appliedEdits?: boolean }>;
+  assists: Record<
+    string,
+    {
+      text: string;
+      status: string;
+      error?: string;
+      appliedEdits?: boolean;
+      /** Files the engine captured before an editing run wrote them (null = created). */
+      edits?: { path: string; before: string | null }[];
+      /** Tools or files whose changes the engine could not capture. */
+      uncaptured?: string[];
+    }
+  >;
   sessionId: string;
   provider: string;
   model: string;
@@ -152,6 +164,15 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
       if (typeof p['text'] === 'string') run.text = p['text'];
       if (typeof p['error'] === 'string') run.error = p['error'];
       run.appliedEdits = p['appliedEdits'] === true;
+      if (Array.isArray(p['edits']))
+        run.edits = p['edits'].flatMap((item) => {
+          const edit = record(item);
+          return typeof edit['path'] === 'string' &&
+            (typeof edit['before'] === 'string' || edit['before'] === null)
+            ? [{ path: edit['path'], before: edit['before'] as string | null }]
+            : [];
+        });
+      if (Array.isArray(p['uncaptured'])) run.uncaptured = p['uncaptured'].map(String);
     }
     next.assists = { ...Object.fromEntries(Object.entries(state.assists).slice(-19)), [id]: run };
   }

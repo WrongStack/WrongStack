@@ -213,9 +213,33 @@ export function DesktopCodeAssist({
           {snapshotNote ? ` ${snapshotNote}` : ''}
         </p>
       )}
+      {run?.appliedEdits && run.status !== 'running' && command && run.edits && (
+        // Engines that capture every written file: review and restore each one.
+        <section className="code-assist-edit-list" aria-label="Files changed by this run">
+          {run.edits.length === 0 && (
+            <p className="file-quiet-state">No file writes were recorded for this run.</p>
+          )}
+          {run.edits.map((edit) => (
+            <CodeAssistEditReview
+              key={edit.path}
+              command={command}
+              path={edit.path}
+              before={edit.before}
+              note="Captured by the engine before this run first wrote the file."
+              {...(onEdited ? { onRestored: onEdited } : {})}
+            />
+          ))}
+          {run.uncaptured && run.uncaptured.length > 0 && (
+            <p className="code-assist-applied">
+              Not captured, review these in the working tree: {run.uncaptured.join(', ')}.
+            </p>
+          )}
+        </section>
+      )}
       {run?.appliedEdits &&
         run.status !== 'running' &&
         command &&
+        !run.edits &&
         snapshot?.requestId === requestId && (
           <CodeAssistEditReview
             command={command}

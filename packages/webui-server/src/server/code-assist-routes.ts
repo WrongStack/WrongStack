@@ -40,6 +40,7 @@ import {
   codeAssistAllowsEdits,
 } from '@wrongstack/webui-protocol';
 import type { WebSocket } from 'ws';
+import { createEditCapture } from './code-assist-edit-capture.js';
 import { buildCodeAssistPrompt } from './code-assist-prompt.js';
 import type { WSClientMessage } from './types.js';
 
@@ -164,6 +165,8 @@ export function createCodeAssistRouteHandlers(deps: {
       });
 
       let unsubscribe: (() => void) | undefined;
+      let unsubscribeTools: (() => void) | undefined;
+      const capture = allowEdits ? createEditCapture(deps.projectRoot()) : undefined;
       try {
         const built = await deps.subagentFactory({
           name: `code-assist-${preset}`.slice(0, 48),
@@ -188,6 +191,10 @@ export function createCodeAssistRouteHandlers(deps: {
             if (!text) return;
             deps.send(ws, { type: 'code.assist.delta', payload: { requestId, text } });
           });
+          if (capture)
+            unsubscribeTools = built.events.on('tool.started', (e) =>
+              capture.onToolStarted(e as { name?: unknown; input?: unknown }),
+            );
 
           const result = (await built.agent.run(prompt, {
             signal: controller.signal,
@@ -222,10 +229,12 @@ export function createCodeAssistRouteHandlers(deps: {
             // The panel warns on the working tree only when this is true, so a
             // read-only analysis can never imply it changed something.
             appliedEdits: allowEdits,
+            ...(capture ? capture.result() : {}),
           };
           deps.send(ws, { type: 'code.assist.result', payload });
         } finally {
           unsubscribe?.();
+          unsubscribeTools?.();
           await built.dispose?.();
         }
       } catch (err) {
