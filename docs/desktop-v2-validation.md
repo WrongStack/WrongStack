@@ -4062,3 +4062,16 @@ staged; the other session's edits stay untouched.
   written before the change but its RED was not run separately.
 - No native step yet. The project daemon and bundled engine must be rebuilt from this tree
   before the final native pass.
+
+### Atomic Kanban task edits
+
+- Commit `d4c28d0a9`. `updateTask` accepts `expectedUpdatedAt` and checks it inside the board
+  write, refusing with `KANBAN_TASK_CONFLICT` when the task changed since that version was
+  read; `kanban.task.update` passes it through. The task inspector sends the version from its
+  pre-save read, so the same-field review (`28eb3afa0`) is now backed by an atomic check: a
+  save racing another window's save is refused and the inspector stays open with its draft.
+  Callers that do not send a version behave as before.
+- Checks: RED then GREEN in `packages/kanban/tests/manager-async.test.ts`; kanban suite **1332
+  PASS**, 82 webui-server Kanban tests PASS, kanban and webui-server typechecks PASS (kanban
+  `dist` rebuilt); desktop suite **570 PASS**, typecheck and Biome PASS.
+- No native step yet; the Kanban project server must be rebuilt for the final native pass.
