@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:00:33.118Z",
+  "generatedAt": "2026-10-29T19:04:31.721Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 45,
     "sourceFiles": 5474,
-    "testFiles": 4765,
-    "sourceLines": 1204342,
+    "testFiles": 4766,
+    "sourceLines": 1204369,
     "workspaceEdges": 222,
     "moduleEdges": 16435,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 120,
+    "testsWithoutTypecheck": 121,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 982
+    "testOnlyExports": 983
   },
   "errors": [],
   "packageCycles": [],
@@ -386,7 +386,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 286,
-      "testFiles": 120,
+      "testFiles": 121,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1625,6 +1625,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/mcp-tasks-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/modal-backdrop.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30284,6 +30290,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/modal-backdrop.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/model-advanced-editor.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31795,6 +31808,10 @@
     {
       "file": "apps/desktop-v2/src/mailbox-draft.ts",
       "name": "mailDraftCodec"
+    },
+    {
+      "file": "apps/desktop-v2/src/Modal.tsx",
+      "name": "outsideBox"
     },
     {
       "file": "apps/desktop-v2/src/model-comparison.ts",

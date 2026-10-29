@@ -53,6 +53,9 @@
       "MailboxDraftStore",
       "mailDraftCodec"
     ],
+    "apps/desktop-v2/src/Modal.tsx": [
+      "outsideBox"
+    ],
     "apps/desktop-v2/src/model-comparison.ts": [
       "MAX_COMPARED_MODELS"
     ],

@@ -48,6 +48,13 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
       'Move selected…',
       'Focus returns to the opener',
     );
+    // A click on the backdrop closes the dialog like Escape.
+    await bar.getByRole('button', { name: 'Move selected…', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Move 2 selected items', exact: true }).waitFor();
+    await page.mouse.click(5, 5);
+    await page
+      .getByRole('dialog', { name: 'Move 2 selected items', exact: true })
+      .waitFor({ state: 'detached' });
     await bar.getByRole('button', { name: 'Move selected…', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Move 2 selected items', exact: true });
     await dialog.getByLabel('Bulk move destination', { exact: true }).fill('bulk-dest');
