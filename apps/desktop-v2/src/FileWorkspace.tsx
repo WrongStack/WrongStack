@@ -1147,7 +1147,11 @@ export function FileWorkspace({
                             <FileDiff size={14} />
                             <span>
                               <strong>{fileName(String(file['path']))}</strong>
-                              <small>{parentPath(String(file['path'])) || 'Project root'}</small>
+                              <small>
+                                {typeof file['origPath'] === 'string' && file['origPath']
+                                  ? `${file['status'] === 'C' ? 'Copied' : 'Renamed'} from ${file['origPath']}`
+                                  : parentPath(String(file['path'])) || 'Project root'}
+                              </small>
                             </span>
                             <b
                               className={`file-git-status status-${String(file['status']).replace('?', 'untracked')}`}

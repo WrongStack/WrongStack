@@ -138,6 +138,25 @@ describe('git change-set handlers', () => {
       expect(files.find((f) => f.path === 'keep.txt')?.staged).toBe(true);
     });
 
+    it('reports the original path of a staged rename', async () => {
+      git(repo, ['mv', 'keep.txt', 'moved.txt']);
+
+      const ws = createMockWs();
+      await handleGitChanges(ws, repo);
+      const files = ws.sent[0]?.payload.files as Array<{
+        path: string;
+        status: string;
+        origPath?: string;
+      }>;
+      expect(files.find((f) => f.path === 'moved.txt')).toMatchObject({
+        status: 'R',
+        origPath: 'keep.txt',
+      });
+      // The original path is not listed as a separate change.
+      expect(files.some((f) => f.path === 'keep.txt')).toBe(false);
+      expect(files.find((f) => f.path === 'gone.txt')?.origPath).toBeUndefined();
+    });
+
     it('returns an empty list for a clean tree', async () => {
       const ws = createMockWs();
       await handleGitChanges(ws, repo);

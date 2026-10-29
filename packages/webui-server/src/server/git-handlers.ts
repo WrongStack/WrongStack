@@ -112,6 +112,8 @@ export interface GitChangedFile {
   deleted: number;
   /** True when the change is at least partly staged. */
   staged: boolean;
+  /** For a rename (`R`) or copy (`C`): the path it was renamed or copied from. */
+  origPath?: string;
 }
 
 /**
@@ -199,7 +201,8 @@ export async function handleGitChanges(ws: WebSocket, projectRoot: string): Prom
       const y = rec[1] ?? ' ';
       const path = rec.slice(3);
       const isRename = x === 'R' || x === 'C' || y === 'R' || y === 'C';
-      if (isRename) i += 1; // consume the original-path record that follows
+      // The original-path record follows a rename/copy; consume it and keep it.
+      const origPath = isRename ? records[++i] : undefined;
 
       let status: string;
       if (x === '?' && y === '?') status = '?';
@@ -222,7 +225,7 @@ export async function handleGitChanges(ws: WebSocket, projectRoot: string): Prom
         added = 0;
         deleted = 0;
       }
-      files.push({ path, status, added, deleted, staged });
+      files.push({ path, status, added, deleted, staged, ...(origPath ? { origPath } : {}) });
     }
 
     // Aggregate per-directory status so the explorer can badge folders from
