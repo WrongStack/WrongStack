@@ -95,7 +95,9 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
     try {
       await action();
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      // A stale-version refusal keeps the inspector and its draft open for review.
+      setError(message.replace(/^KANBAN_TASK_CONFLICT: /, ''));
     } finally {
       setBusy(false);
     }

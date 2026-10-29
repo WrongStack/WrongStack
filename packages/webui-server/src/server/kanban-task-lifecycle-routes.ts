@@ -208,6 +208,9 @@ export async function handleKanbanTaskLifecycleRoute(
             : {}),
         },
         activityContext(ctx, 'webui', payload?.activityNote as string | undefined),
+        typeof payload?.expectedUpdatedAt === 'string'
+          ? { expectedUpdatedAt: payload.expectedUpdatedAt }
+          : {},
       );
       if (!board) {
         fail(ws, type, 'Board or task not found');

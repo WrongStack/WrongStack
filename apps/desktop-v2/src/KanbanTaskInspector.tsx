@@ -93,8 +93,13 @@ export function KanbanTaskInspector({
         return;
       }
       const fields = baseline ? sameFieldConflicts(baseline, current, patch) : [];
-      if (fields.length) setConflicts({ fields, patch });
-      else onSave(patch);
+      // The engine refuses the write atomically if the task changes again after this read.
+      const versioned =
+        typeof current['updatedAt'] === 'string'
+          ? { ...patch, expectedUpdatedAt: current['updatedAt'] }
+          : patch;
+      if (fields.length) setConflicts({ fields, patch: versioned });
+      else onSave(versioned);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     }
@@ -447,7 +452,12 @@ export function KanbanTaskInspector({
               );
               setConflicts(null);
               // Only the activity note left: nothing of mine remains to save.
-              if (Object.keys(keep).some((field) => field !== 'activityNote')) onSave(keep);
+              if (
+                Object.keys(keep).some(
+                  (field) => field !== 'activityNote' && field !== 'expectedUpdatedAt',
+                )
+              )
+                onSave(keep);
               else void onRefresh().then(onClose);
             }}
           />

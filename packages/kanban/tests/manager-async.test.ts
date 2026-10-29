@@ -35,6 +35,7 @@ import {
   setTaskChain,
   splitTask,
   syncBoardFromTaskGraph,
+  TEST_EVENT_CONTEXT,
   touchKanbanPresence,
   transferTaskToBoard,
   transitionTask,
@@ -512,6 +513,34 @@ describe('updateTask edges', () => {
   it('returns null for an unknown task', async () => {
     const b = await makeBoard();
     expect(await updateTask(tmpDir, b.id, 'nope', { title: 'X' })).toBeNull();
+  });
+  it('refuses an update whose expected task version is stale, atomically', async () => {
+    const b = await makeBoard();
+    const t = await addTask(tmpDir, b.id, { title: 'Original' });
+    const read = t!.task.updatedAt;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    // Another window saves first.
+    await updateTask(tmpDir, b.id, t!.task.id, { title: 'Theirs' });
+    await expect(
+      updateTask(tmpDir, b.id, t!.task.id, { title: 'Mine' }, TEST_EVENT_CONTEXT, {
+        expectedUpdatedAt: read,
+      }),
+    ).rejects.toThrow(/KANBAN_TASK_CONFLICT/);
+    const board = await getBoard(tmpDir, b.id);
+    const task = board!.tasks.find((x) => x.id === t!.task.id)!;
+    expect(task.title).toBe('Theirs');
+    // The current version is accepted.
+    const saved = await updateTask(
+      tmpDir,
+      b.id,
+      t!.task.id,
+      { title: 'Mine' },
+      TEST_EVENT_CONTEXT,
+      {
+        expectedUpdatedAt: task.updatedAt,
+      },
+    );
+    expect(saved!.tasks.find((x) => x.id === t!.task.id)!.title).toBe('Mine');
   });
   it('reorders tasks when an explicit order is given', async () => {
     const b = await makeBoard();

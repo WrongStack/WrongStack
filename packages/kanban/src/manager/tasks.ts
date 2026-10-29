@@ -274,11 +274,20 @@ export async function updateTask(
   taskId: string,
   input: UpdateKanbanTaskInput,
   eventContext: KanbanEventContext,
+  /**
+   * `expectedUpdatedAt`: the task version the caller edited. Checked inside the board write,
+   * so an edit based on an older read is refused instead of overwriting a newer save.
+   */
+  options: { expectedUpdatedAt?: string | undefined } = {},
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
+    if (options.expectedUpdatedAt !== undefined && task.updatedAt !== options.expectedUpdatedAt)
+      throw new Error(
+        'KANBAN_TASK_CONFLICT: The task changed since it was read. Reload it before saving.',
+      );
     assertManagementWrite(board, [task], eventContext);
     if (
       eventContext.expectedManagementToken !== undefined &&
