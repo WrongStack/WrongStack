@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
+import { McpBinaryBlock } from './McpBinaryBlock';
 import { Modal } from './Modal';
 import { mcpContentText } from './mcp-content-text';
 import './mcp-content.css';
@@ -433,12 +434,7 @@ function McpContentBlock({ value }: { value: Record<string, unknown> }) {
   if (typeof value['text'] === 'string') return <MarkdownContent text={value['text']} />;
   if (value['type'] === 'resource') return <McpContentBlock value={record(value['resource'])} />;
   if (typeof value['blob'] === 'string' || typeof value['data'] === 'string')
-    return (
-      <p className="quiet-state">
-        Binary content · {String(value['mimeType'] ?? 'unknown media type')}. Text copy omits this
-        block.
-      </p>
-    );
+    return <McpBinaryBlock value={value} />;
   if (typeof value['uri'] === 'string')
     return (
       <p>

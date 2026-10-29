@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
+
+/** A real 1x1 RGBA PNG. */
+const NATIVE_PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
 async function startMcpFixture() {
   const calls = [];
@@ -63,6 +67,7 @@ async function startMcpFixture() {
               description: 'Profile-owned resource metadata.',
             },
             { name: 'Missing resource', uri: 'repo://native/missing', mimeType: 'text/plain' },
+            { name: 'Native logo', uri: 'repo://native/logo.png', mimeType: 'image/png' },
           ],
         };
         break;
@@ -80,6 +85,10 @@ async function startMcpFixture() {
       case 'resources/read':
         if (message.params.uri === 'repo://native/missing')
           error = { code: -32000, message: 'Native fixture resource is unavailable.' };
+        else if (message.params.uri === 'repo://native/logo.png')
+          result = {
+            contents: [{ uri: message.params.uri, mimeType: 'image/png', blob: NATIVE_PNG }],
+          };
         else
           result = {
             contents: [
@@ -279,6 +288,26 @@ export async function exerciseNativeMcpContent({ page, rpc, waitFor, artifactDir
       .getByRole('alert')
       .filter({ hasText: 'Native fixture resource is unavailable' })
       .waitFor();
+    // Binary resources: a raster preview from the bytes and a byte-exact saved file.
+    await browser.getByRole('button').filter({ hasText: 'Native logo' }).click();
+    await browser.getByRole('button', { name: 'Read resource', exact: true }).click();
+    const preview = browser.getByRole('img', {
+      name: 'MCP content preview, image/png',
+      exact: true,
+    });
+    await preview.waitFor();
+    assert.equal(await preview.evaluate((image) => image.naturalWidth), 1, 'The PNG decodes');
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: artifactDir });
+    await rm(join(artifactDir, 'logo.png'), { force: true });
+    await browser.getByRole('button', { name: 'Save logo.png', exact: true }).click();
+    const savedLogo = await waitFor(
+      () => readFile(join(artifactDir, 'logo.png')).catch(() => null),
+      'Saved MCP binary file',
+      15000,
+    );
+    assert.equal(savedLogo.toString('base64'), NATIVE_PNG, 'The saved file has the exact bytes');
+    await cdp.detach();
     await browser.getByRole('button').filter({ hasText: 'Native project path' }).click();
     await browser.getByLabel('MCP resource URI', { exact: true }).fill('repo://native/notes');
     await browser.getByRole('button', { name: 'Read resource', exact: true }).click();
@@ -330,7 +359,15 @@ export async function exerciseNativeMcpContent({ page, rpc, waitFor, artifactDir
     await waitFor(async () => !(await card.count()), 'Native MCP fixture removal');
     assert.equal((await rpc('snapshot')).projects.length, 0);
     assert.equal((await rpc('snapshot')).sessions.length, 0);
-    assert.equal(page.context().pages().length, 1);
+    // A saved file shows WebView2's own downloads flyout as a target; it is not an app window.
+    assert.deepEqual(
+      page
+        .context()
+        .pages()
+        .map((item) => item.url())
+        .filter((url) => !url.startsWith('edge://downloads')),
+      [page.url()],
+    );
     console.log(
       'PASS: real loopback MCP, typed connection changed-field save/readback, unrelated peer endpoint and hidden credential/policy preservation, same-field conflict/explicit reload, resource/template/prompt metadata and explicit content, correlated errors/provenance/compact layout without projects or sessions',
     );
