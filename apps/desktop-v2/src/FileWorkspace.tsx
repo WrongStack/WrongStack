@@ -24,10 +24,11 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ComposerFileReference } from './composer-resources-model';
 import { DiffPreview } from './DiffPreview';
 import { EditorFindBar } from './EditorFindBar';
+import { editorKeyEdit } from './editor-indent';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
@@ -616,6 +617,19 @@ export function FileWorkspace({
   const [bulk, setBulk] = useState<'move' | 'rename' | 'delete' | null>(null);
   // Find and replace in the open editor (Ctrl/Cmd+F).
   const [finding, setFinding] = useState(false);
+  // Caret for a key edit, applied once React has written the new text into the textarea;
+  // setting it earlier is lost when the controlled value re-renders.
+  const pendingSelection = useRef<{ start: number; end: number } | null>(null);
+  const editingContent = document?.editing ? document.content : undefined;
+  useLayoutEffect(() => {
+    const selection = pendingSelection.current;
+    const input = contentElement.current?.querySelector<HTMLTextAreaElement>(
+      'textarea.file-code-editor',
+    );
+    if (!selection || !input || input.value !== editingContent) return;
+    pendingSelection.current = null;
+    input.setSelectionRange(selection.start, selection.end);
+  }, [editingContent]);
   // Find in the read-only source view; matching lines are marked, the current one scrolled to.
   const [viewerFind, setViewerFind] = useState<ViewerFind | null>(null);
   const closeViewerFind = useCallback(() => setViewerFind(null), []);
@@ -1275,18 +1289,11 @@ export function FileWorkspace({
                           setFinding(true);
                           return;
                         }
-                        if (event.key === 'Tab') {
+                        const edit = editorKeyEdit(event, document.content);
+                        if (edit) {
                           event.preventDefault();
-                          const input = event.currentTarget,
-                            start = input.selectionStart,
-                            end = input.selectionEnd;
-                          updateDocument(active, {
-                            content:
-                              document.content.slice(0, start) + '  ' + document.content.slice(end),
-                          });
-                          requestAnimationFrame(() => {
-                            input.selectionStart = input.selectionEnd = start + 2;
-                          });
+                          pendingSelection.current = { start: edit.start, end: edit.end };
+                          updateDocument(active, { content: edit.text });
                         }
                       }}
                     />

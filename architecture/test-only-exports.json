@@ -24,6 +24,11 @@
     "apps/desktop-v2/src/composer-attachments.ts": [
       "attachmentBytes"
     ],
+    "apps/desktop-v2/src/editor-indent.ts": [
+      "indentLines",
+      "newlineWithIndent",
+      "outdentLines"
+    ],
     "apps/desktop-v2/src/engine-state.ts": [
       "reduceEngine"
     ],

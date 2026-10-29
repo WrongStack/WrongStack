@@ -185,6 +185,19 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   assert.equal(await editor().inputValue(), 'export const desktop = 1;\n');
   await finder.getByLabel('Find in file', { exact: true }).press('Escape');
   await finder.waitFor({ state: 'detached' });
+  // Enter keeps indentation and opens a bracket pair; Shift+Tab outdents the selected lines.
+  await editor().fill('function x() {}');
+  await editor().evaluate((input) => input.setSelectionRange(14, 14));
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('a');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('b');
+  assert.equal(await editor().inputValue(), 'function x() {\n  a\n  b\n}');
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await editor().inputValue(), 'function x() {\na\nb\n}');
+  await page.keyboard.press('Tab');
+  assert.equal(await editor().inputValue(), '  function x() {\n  a\n  b\n  }');
   await editor().fill('export const unsaved = true;\n');
   await waitFor(async () => {
     const drafts = await page.evaluate(
