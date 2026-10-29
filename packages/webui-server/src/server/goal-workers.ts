@@ -1,4 +1,5 @@
-import type { Logger } from '@wrongstack/contracts/types';
+import type { EventBus } from '@wrongstack/contracts/kernel';
+import type { Logger, Usage } from '@wrongstack/contracts/types';
 import { type AgentFactory, assignNickname } from '@wrongstack/coordination';
 import type { Agent, Context } from '@wrongstack/core/agent';
 import { toErrorMessage } from '@wrongstack/core/utils';
@@ -25,7 +26,20 @@ export async function executeGoalTask(
   phaseId: string,
   env?: { cwd?: string | undefined; branch?: string | undefined },
   signal?: AbortSignal | undefined,
+  onUsage?: ((usage: Usage) => void) | undefined,
 ): Promise<unknown> {
+  /** Reports the provider usage of this task's agent run (Goal token budgets). */
+  // Embedders' factories may omit the bus despite the type; such a task is simply not metered.
+  const meter = (events: EventBus | undefined) =>
+    onUsage && typeof events?.on === 'function'
+      ? events.on('provider.response', (event) => {
+          try {
+            onUsage(event.usage);
+          } catch {
+            // A budget observer must not break the task run.
+          }
+        })
+      : () => {};
   // Give the task a human worker identity (reuse a manual assignment if one
   // exists) so the board shows who is running it; reflect it on the node and
   // push a live state update before the (long) run begins.
@@ -58,6 +72,7 @@ export async function executeGoalTask(
         'package.install',
       ],
     });
+    const unmeter = meter(built.events);
     try {
       const result = (await built.agent.run(prompt, { signal: runSignal })) as {
         status?: string | undefined;
@@ -71,6 +86,7 @@ export async function executeGoalTask(
       }
       return result.finalText ?? '';
     } finally {
+      unmeter();
       await built.dispose?.();
     }
   }
@@ -80,6 +96,7 @@ export async function executeGoalTask(
   // CLI/standalone hosts always inject isolated workers.
   const prevCwd = host.context.cwd;
   if (env?.cwd) host.context.cwd = env.cwd;
+  const unmeter = meter(host.agent.events);
   try {
     const result = (await host.agent.run(prompt, { signal: runSignal })) as {
       status?: string | undefined;
@@ -93,6 +110,7 @@ export async function executeGoalTask(
     }
     return result.finalText ?? '';
   } finally {
+    unmeter();
     host.context.cwd = prevCwd;
   }
 }

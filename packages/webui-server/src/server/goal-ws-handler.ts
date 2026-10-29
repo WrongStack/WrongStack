@@ -250,8 +250,9 @@ export class GoalWebSocketHandler {
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
+    onUsage?: ((usage: import('@wrongstack/contracts/types').Usage) => void) | undefined,
   ): Promise<unknown> {
-    return executeGoalTask(this.goalWorkerHost(), task, phaseId, env, signal);
+    return executeGoalTask(this.goalWorkerHost(), task, phaseId, env, signal, onUsage);
   }
 
   private async runRepairPhase(

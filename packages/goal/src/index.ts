@@ -50,6 +50,7 @@ export {
   type GoalBudget,
   type GoalBudgetUsage,
   goalBudgetExceeded,
+  goalUsageTokens,
   parseGoalBudget,
 } from './goal-budget.js';
 export {

@@ -5,6 +5,7 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   type GoalRunPersistence,
   goalBudgetExceeded,
+  goalUsageTokens,
   type PhaseExecutionContext,
   type PhaseGraph,
   PhaseGraphBuilder,
@@ -61,6 +62,7 @@ export interface GoalRunHost {
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
+    onUsage?: ((usage: import('@wrongstack/contracts/types').Usage) => void) | undefined,
   ): Promise<unknown>;
   runChimeraReview(
     task: import('@wrongstack/contracts/types').TaskNode,
@@ -265,6 +267,7 @@ export async function startGoalRun(
   // The previous budget stop is history once the run continues.
   if (graph.runError?.startsWith('Budget reached')) graph.runError = undefined;
   const usage = graph.budgetUsage;
+  usage.tokens ??= 0;
   let accruedAt = Date.now();
   const accrue = () => {
     const now = Date.now();
@@ -289,7 +292,15 @@ export async function startGoalRun(
         usage.tasks += 1;
         host.logger.info(`[Goal] [${phaseId}] Executing: ${task.title}`);
         const taskEnv = { ...env, cwd: env?.cwd ?? runRoot };
-        const result = await host.executeTaskWithAgent(task, phaseId, taskEnv, signal);
+        const result = await host.executeTaskWithAgent(
+          task,
+          phaseId,
+          taskEnv,
+          signal,
+          (reported) => {
+            usage.tokens = (usage.tokens ?? 0) + goalUsageTokens(reported);
+          },
+        );
         host.logger.info(`[Goal] [${phaseId}] Completed: ${task.title}`);
 
         // This host owns one Agent. Await the review before the next task so

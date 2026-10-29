@@ -102,3 +102,42 @@ it('stops before the task that would exceed the task budget', async () => {
   expect(graph.runState).toBe('completed');
   expect(graph.runError).toBeUndefined();
 });
+
+it('stops before the next task once the provider tokens reported by tasks reach the budget', async () => {
+  const h = host();
+  // Each task reports the provider usage of its agent run.
+  (h.value as unknown as { executeTaskWithAgent: unknown }).executeTaskWithAgent = async (
+    item: { title: string },
+    _phase: string,
+    _env: unknown,
+    _signal: unknown,
+    onUsage?: (usage: { input: number; output: number; cacheRead?: number }) => void,
+  ) => {
+    h.executed.push(item.title);
+    onUsage?.({ input: 400, output: 500, cacheRead: 200 });
+    return { ok: true };
+  };
+  await startGoalRun(h.value, {
+    goal: 'Token budget',
+    verifyTasks: false,
+    worktrees: false,
+    budget: { maxTokens: 1000 },
+    phases: [
+      {
+        name: 'Only phase',
+        description: 'd',
+        priority: 'medium',
+        estimateHours: 1,
+        parallelizable: false,
+        taskTemplates: [task('First task'), { ...task('Second task'), dependsOn: [0] }],
+      },
+    ],
+  });
+  await h.finished;
+  expect(h.executed).toEqual(['First task']);
+  const graph = h.value.graph!;
+  expect(graph.budget).toEqual({ maxTokens: 1000 });
+  expect(graph.budgetUsage?.tokens).toBe(1100);
+  expect(graph.runState).toBe('stopped');
+  expect(graph.runError).toMatch(/Budget reached: 1,100 of 1,000 provider tokens/);
+});

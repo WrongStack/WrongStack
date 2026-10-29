@@ -67,6 +67,7 @@ export interface GoalWsHandlerInternals extends GoalWsRunControlsHost {
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
+    onUsage?: ((usage: import('@wrongstack/contracts/types').Usage) => void) | undefined,
   ): Promise<unknown>;
   runRepairPhase(
     phase: PhaseNode,
