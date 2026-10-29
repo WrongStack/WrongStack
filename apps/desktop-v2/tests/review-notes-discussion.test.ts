@@ -4,6 +4,7 @@ import {
   MAX_REVIEW_REPLIES,
   parseReviewNotes,
   withReply,
+  withReplyChange,
   withResolved,
 } from '../src/review-notes-store';
 
@@ -44,4 +45,16 @@ it('sends open notes with their replies and leaves resolved notes out', () => {
   const open = { ...note, replies: [{ text: 'Covered.', at }] };
   const done = { path: 'src/b.ts', line: 1, text: 'Rename.', resolved: true };
   expect(reviewText([open, done])).toBe('src/a.ts:4\nCheck the empty case.\nReply: Covered.');
+});
+it('edits and deletes a single reply', () => {
+  const replied = withReply(withReply([note], 0, 'first', at), 0, 'second', at);
+  expect(withReplyChange(replied, 0, 1, '  changed ')[0]!.replies!.map((r) => r.text)).toEqual([
+    'first',
+    'changed',
+  ]);
+  expect(withReplyChange(replied, 0, 0, null)[0]!.replies!.map((r) => r.text)).toEqual(['second']);
+  // Deleting the last reply leaves no empty replies field behind.
+  expect(withReplyChange(withReply([note], 0, 'only', at), 0, 0, null)[0]).toEqual(note);
+  expect(() => withReplyChange(replied, 0, 0, '   ')).toThrow('cannot be empty');
+  expect(withReplyChange(replied, 0, 9, 'x')).toBe(replied);
 });

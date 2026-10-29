@@ -1177,3 +1177,12 @@
 .file-source-code:focus-visible {
   outline: 1px solid var(--accent);
 }
+.file-review-reply-actions {
+  display: inline-flex;
+  gap: 10px;
+  margin-left: 10px;
+}
+.file-review-reply-actions button {
+  color: var(--accent);
+  font-size: 9px;
+}

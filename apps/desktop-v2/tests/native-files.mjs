@@ -482,6 +482,20 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
     .getByRole('list', { name: 'Replies to review note 1', exact: true })
     .getByText('Checked against the requirement.', { exact: true })
     .waitFor();
+  // A second reply is edited, then deleted; the first reply is untouched.
+  await firstNote.getByRole('button', { name: 'Reply', exact: true }).click();
+  await tray
+    .getByRole('textbox', { name: 'Reply to review note 1', exact: true })
+    .fill('Temporary reply');
+  await tray.getByRole('button', { name: 'Add reply', exact: true }).click();
+  await tray.getByRole('button', { name: 'Edit reply 2 to review note 1', exact: true }).click();
+  await tray
+    .getByRole('textbox', { name: 'Edit reply 2 to review note 1', exact: true })
+    .fill('Edited temporary reply');
+  await tray.getByRole('button', { name: 'Save reply', exact: true }).click();
+  await tray.getByText('Edited temporary reply', { exact: true }).waitFor();
+  await tray.getByRole('button', { name: 'Delete reply 2 to review note 1', exact: true }).click();
+  await tray.getByText('Edited temporary reply', { exact: true }).waitFor({ state: 'detached' });
   await tray.getByRole('button', { name: 'Resolve review note 1', exact: true }).click();
   await tray.getByText('1 open review notes · 1 resolved', { exact: true }).waitFor();
   assert.equal(await tray.getByText(reviewText, { exact: true }).count(), 0);

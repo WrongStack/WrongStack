@@ -1,6 +1,6 @@
 import { Check, Copy, MessageSquare, RotateCcw, X } from 'lucide-react';
 import { useState } from 'react';
-import { type ReviewNote, withReply, withResolved } from './review-notes-store';
+import { type ReviewNote, withReply, withReplyChange, withResolved } from './review-notes-store';
 
 /**
  * Saved review notes for the changes view: each note keeps a short discussion and can be
@@ -28,6 +28,7 @@ export function ReviewNotesTray({
   const [showResolved, setShowResolved] = useState(false),
     [replyTo, setReplyTo] = useState<number | null>(null),
     [reply, setReply] = useState(''),
+    [editing, setEditing] = useState<{ note: number; reply: number; text: string } | null>(null),
     [message, setMessage] = useState('');
   const resolved = notes.filter((note) => note.resolved).length;
   const locked = !ready || busy;
@@ -96,8 +97,65 @@ export function ReviewNotesTray({
                 >
                   {note.replies.map((item, replyIndex) => (
                     <li key={replyIndex}>
-                      <p className="file-review-reply-text">{item.text}</p>
-                      <time dateTime={item.at}>{new Date(item.at).toLocaleString()}</time>
+                      {editing?.note === index && editing.reply === replyIndex ? (
+                        <form
+                          className="file-review-reply"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void save(() =>
+                              withReplyChange(notes, index, replyIndex, editing.text),
+                            ).then((saved) => {
+                              if (saved) setEditing(null);
+                            });
+                          }}
+                        >
+                          <textarea
+                            aria-label={`Edit reply ${replyIndex + 1} to review note ${index + 1}`}
+                            value={editing.text}
+                            rows={2}
+                            onChange={(event) =>
+                              setEditing({ ...editing, text: event.target.value })
+                            }
+                          />
+                          <button type="submit" className="button small" disabled={locked}>
+                            Save reply
+                          </button>
+                          <button
+                            type="button"
+                            className="button secondary small"
+                            onClick={() => setEditing(null)}
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      ) : (
+                        <>
+                          <p className="file-review-reply-text">{item.text}</p>
+                          <time dateTime={item.at}>{new Date(item.at).toLocaleString()}</time>
+                          <span className="file-review-reply-actions">
+                            <button
+                              type="button"
+                              disabled={locked}
+                              aria-label={`Edit reply ${replyIndex + 1} to review note ${index + 1}`}
+                              onClick={() =>
+                                setEditing({ note: index, reply: replyIndex, text: item.text })
+                              }
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              disabled={locked}
+                              aria-label={`Delete reply ${replyIndex + 1} to review note ${index + 1}`}
+                              onClick={() =>
+                                void save(() => withReplyChange(notes, index, replyIndex, null))
+                              }
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        </>
+                      )}
                     </li>
                   ))}
                 </ol>

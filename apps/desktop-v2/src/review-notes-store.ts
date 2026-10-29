@@ -147,3 +147,25 @@ export function withResolved(notes: ReviewNote[], index: number, resolved: boole
     return resolved ? { ...rest, resolved: true } : rest;
   });
 }
+
+/** Notes with one reply's text replaced, or that reply removed when `text` is null. */
+export function withReplyChange(
+  notes: ReviewNote[],
+  index: number,
+  replyIndex: number,
+  text: string | null,
+) {
+  const note = notes[index];
+  const reply = note?.replies?.[replyIndex];
+  if (!note || !reply) return notes;
+  if (text !== null && !text.trim()) throw Error('A reply cannot be empty; delete it instead.');
+  const replies =
+    text === null
+      ? note.replies!.filter((_, i) => i !== replyIndex)
+      : note.replies!.map((item, i) => (i === replyIndex ? { ...item, text: text.trim() } : item));
+  return notes.map((item, i) => {
+    if (i !== index) return item;
+    const { replies: _, ...rest } = item;
+    return replies.length ? { ...rest, replies } : rest;
+  });
+}
