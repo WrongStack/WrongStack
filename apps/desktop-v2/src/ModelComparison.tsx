@@ -2,19 +2,28 @@ import { ArrowLeft } from 'lucide-react';
 import { comparisonRows } from './model-comparison';
 import type { PickerModel } from './model-picker-details';
 
-/** Catalog facts of the compared models side by side, with a way to pick one of them. */
+export interface ComparedModel {
+  key: string;
+  provider: string;
+  model: PickerModel;
+}
+
+/**
+ * Catalog facts of the compared models side by side, possibly from different providers, with a
+ * way to pick one of them (which switches the provider too when needed).
+ */
 export function ModelComparison({
   models,
   disabled,
   onUse,
   onBack,
 }: {
-  models: PickerModel[];
+  models: ComparedModel[];
   disabled: boolean;
-  onUse: (id: string) => void;
+  onUse: (id: string, provider: string) => void;
   onBack: () => void;
 }) {
-  const rows = comparisonRows(models);
+  const rows = comparisonRows(models.map((entry) => entry.model));
   return (
     <div className="model-comparison">
       <button type="button" className="button secondary small" onClick={onBack}>
@@ -25,10 +34,11 @@ export function ModelComparison({
           <thead>
             <tr>
               <th scope="col">Fact</th>
-              {models.map((model) => (
-                <th scope="col" key={model.id}>
+              {models.map(({ key, provider, model }) => (
+                <th scope="col" key={key}>
                   <strong>{model.name}</strong>
                   <small>{model.id}</small>
+                  <small>{provider}</small>
                 </th>
               ))}
             </tr>
@@ -38,7 +48,7 @@ export function ModelComparison({
               <tr key={row.label}>
                 <th scope="row">{row.label}</th>
                 {row.cells.map((cell, index) => (
-                  <td key={models[index]!.id} className={cell.best ? 'best' : undefined}>
+                  <td key={models[index]!.key} className={cell.best ? 'best' : undefined}>
                     {cell.text}
                     {cell.best && <small> best</small>}
                   </td>
@@ -47,13 +57,13 @@ export function ModelComparison({
             ))}
             <tr>
               <th scope="row">Choose</th>
-              {models.map((model) => (
-                <td key={model.id}>
+              {models.map(({ key, provider, model }) => (
+                <td key={key}>
                   <button
                     type="button"
                     className="button small"
                     disabled={disabled}
-                    onClick={() => onUse(model.id)}
+                    onClick={() => onUse(model.id, provider)}
                   >
                     Use {model.name}
                   </button>

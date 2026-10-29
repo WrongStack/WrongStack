@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { type EngineState, emptyEngineState } from './engine-state';
 import { entries } from './engine-values';
-import { ModelComparison } from './ModelComparison';
+import { type ComparedModel, ModelComparison } from './ModelComparison';
 import { toggleCompared } from './model-comparison';
 import { modelDetailLine, type PickerModel, pickerModel } from './model-picker-details';
 import {
@@ -68,8 +68,9 @@ function LiveProfileModelPicker({
     [switching, setSwitching] = useState(false),
     [revision, setRevision] = useState(0);
   // Comparison mode: rows toggle membership instead of switching; the table shows them together.
+  // Picks survive a provider change, so models of different providers can be compared.
   const [comparing, setComparing] = useState(false),
-    [compared, setCompared] = useState<string[]>([]),
+    [compared, setCompared] = useState<ComparedModel[]>([]),
     [comparisonOpen, setComparisonOpen] = useState(false);
   const mounted = useRef(true),
     sequence = useRef(0),
@@ -137,8 +138,6 @@ function LiveProfileModelPicker({
   useEffect(() => {
     const version = ++sequence.current;
     setModels([]);
-    setCompared([]);
-    setComparisonOpen(false);
     if (!ready || !provider) return;
     setLoading(true);
     void profile
@@ -168,13 +167,26 @@ function LiveProfileModelPicker({
   const available = selectableCatalogModels(models, provider, policy).filter((item) =>
     `${item.id} ${item.name}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
-  const comparedModels = compared
-    .map((id) => models.find((model) => model.id === id))
-    .filter((model): model is PickerModel => !!model);
-  const toggle = (id: string) => {
+  // Only picks whose provider is still offered and whose model the profile still allows.
+  const comparedModels = compared.filter(
+    (entry) =>
+      choices.some((choice) => choice.id === entry.provider) &&
+      selectableCatalogModels([{ id: entry.model.id }], entry.provider, policy).length > 0,
+  );
+  const comparedKey = (id: string) => `${provider}/${id}`;
+  const toggle = (model: PickerModel) => {
     setError('');
+    const key = comparedKey(model.id);
     try {
-      setCompared((current) => toggleCompared(current, id));
+      const keys = toggleCompared(
+        compared.map((entry) => entry.key),
+        key,
+      );
+      setCompared(
+        keys.map(
+          (item) => compared.find((entry) => entry.key === item) ?? { key, provider, model },
+        ),
+      );
     } catch (refusal) {
       reportError(refusal);
     }
@@ -292,9 +304,9 @@ function LiveProfileModelPicker({
       )}
       {comparing && !comparisonOpen && (
         <div className="model-compare-bar" role="status">
-          {compared.length < 2
-            ? `Pick ${compared.length ? 'another model' : 'two to four models'} to compare.`
-            : `${compared.length} models picked.`}
+          {comparedModels.length < 2
+            ? `Pick ${comparedModels.length ? 'another model' : 'two to four models'} to compare; change the provider to add its models.`
+            : `${comparedModels.length} models picked from ${new Set(comparedModels.map((entry) => entry.provider)).size} provider(s).`}
           <button
             type="button"
             className="button small"
@@ -309,7 +321,7 @@ function LiveProfileModelPicker({
         <ModelComparison
           models={comparedModels}
           disabled={switching || !ready}
-          onUse={(id) => void choose(id)}
+          onUse={(id, target) => void choose(id, target)}
           onBack={() => setComparisonOpen(false)}
         />
       ) : (
@@ -328,13 +340,15 @@ function LiveProfileModelPicker({
                 disabled={switching}
                 aria-pressed={
                   comparing
-                    ? compared.includes(model.id)
+                    ? compared.some((entry) => entry.key === comparedKey(model.id))
                     : provider === session.provider && model.id === session.model
                 }
-                onClick={() => (comparing ? toggle(model.id) : void choose(model.id))}
+                onClick={() => (comparing ? toggle(model) : void choose(model.id))}
               >
                 <strong>{model.name}</strong>
-                {comparing && compared.includes(model.id) && <span>Comparing</span>}
+                {comparing && compared.some((entry) => entry.key === comparedKey(model.id)) && (
+                  <span>Comparing</span>
+                )}
                 {modelListed(policy.favoriteModels, provider, model.id) && <span>Favorite</span>}
                 <small>{model.id}</small>
                 {modelDetailLine(model) && (

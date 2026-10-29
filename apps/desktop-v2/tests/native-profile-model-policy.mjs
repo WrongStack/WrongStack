@@ -133,7 +133,7 @@ export async function exerciseNativeProfileModelPolicy({
     await picker.getByRole('button', { name: 'Compare models', exact: true }).click();
     await modelButton(fixtureModel).click();
     await modelButton(alt).click();
-    await picker.getByText('2 models picked.', { exact: false }).waitFor();
+    await picker.getByText('2 models picked from 1 provider(s).', { exact: false }).waitFor();
     assert.equal((await rpc('engine.identity', { id: agent.id })).model, fixtureModel);
     await picker.getByRole('button', { name: 'Show comparison', exact: true }).click();
     const comparison = picker.getByRole('table', { name: 'Model comparison', exact: true });
