@@ -49,10 +49,8 @@ export function FileBulkDialog({
       isDirectory(path) &&
       (destination === path || destination.startsWith(`${path}/`)),
   );
-  // Copies read the saved file, so unsaved editor text would not be copied; folders are refused.
-  const folders = kind === 'copy' ? items.filter(isDirectory) : [];
+  // Copies read the saved files, so unsaved editor text would not be copied.
   const blocked =
-    folders.length > 0 ||
     unsaved.length > 0 ||
     intoItself.length > 0 ||
     (kind === 'rename' && (plan.problems.length > 0 || plan.steps.length === 0));
@@ -186,13 +184,11 @@ export function FileBulkDialog({
         )}
         {kind === 'copy' && (
           <p className="field-help">
-            Text files are copied from their saved version; an existing file with the same name is
-            never overwritten. Binary and very large files are refused per item.
-          </p>
-        )}
-        {folders.length > 0 && (
-          <p role="alert" className="session-error">
-            Folders cannot be copied yet; unselect: {folders.join(', ')}.
+            Text files are copied from their saved version; an existing file or folder with the same
+            name is never overwritten. A folder is copied only when all of its listed files are text
+            (at most 200 files, 8 MiB); otherwise nothing of it is copied. Hidden entries, skipped
+            folders such as .git and node_modules, and symbolic links to files are not listed by the
+            engine and are not copied.
           </p>
         )}
         {intoItself.length > 0 && (

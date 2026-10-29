@@ -130,3 +130,44 @@ export function copyTarget(path: string, destination: string): string {
   const name = path.slice(path.lastIndexOf('/') + 1);
   return destination === '.' ? name : `${destination}/${name}`;
 }
+
+export const MAX_FOLDER_COPY_FILES = 200;
+export const MAX_FOLDER_COPY_BYTES = 8 * 1024 * 1024;
+/** The engine stops listing below this depth without saying so. */
+const TREE_DEPTH_LIMIT = 10;
+
+interface TreeEntry {
+  path: string;
+  type: string;
+  children?: unknown;
+}
+
+/**
+ * Folders and files to create for copying the folder at `path`, from the engine's tree of that
+ * folder, in creation order. `tooDeep` is set when the listing reached the engine's depth limit,
+ * where entries may be missing.
+ */
+export function folderCopyPlan(
+  tree: unknown,
+  path: string,
+  destination: string,
+): { dirs: string[]; files: RenameStep[]; tooDeep: boolean } {
+  const root = copyTarget(path, destination);
+  const dirs = [root],
+    files: RenameStep[] = [];
+  let tooDeep = false;
+  const walk = (nodes: unknown, depth: number) => {
+    if (!Array.isArray(nodes)) return;
+    for (const node of nodes as TreeEntry[]) {
+      if (!node || typeof node.path !== 'string' || !node.path.startsWith(`${path}/`)) continue;
+      const to = root + node.path.slice(path.length);
+      if (node.type === 'directory') {
+        dirs.push(to);
+        if (depth >= TREE_DEPTH_LIMIT) tooDeep = true;
+        walk(node.children, depth + 1);
+      } else if (node.type === 'file') files.push({ from: node.path, to });
+    }
+  };
+  walk(tree, 0);
+  return { dirs, files, tooDeep };
+}

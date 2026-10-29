@@ -37,7 +37,14 @@ import { FileBulkDialog } from './FileBulkDialog';
 import { FileContentSearch } from './FileContentSearch';
 import { FileEvidenceDrawer } from './FileEvidenceDrawer';
 import { FileTreeView } from './FileTreeView';
-import { copyTarget, EMPTY_SHA256, relocatedPath } from './file-bulk';
+import {
+  copyTarget,
+  EMPTY_SHA256,
+  folderCopyPlan,
+  MAX_FOLDER_COPY_BYTES,
+  MAX_FOLDER_COPY_FILES,
+  relocatedPath,
+} from './file-bulk';
 import { type FileDraftSnapshot, FileDraftStore } from './file-draft';
 import {
   byteSize,
@@ -513,6 +520,8 @@ export function FileWorkspace({
    * only while the new file is still the empty one just created.
    */
   const copyPath = async (path: string, destination: string) => {
+    if (all.find((node) => node.path === path)?.type === 'directory')
+      return copyFolder(path, destination);
     const source = await command('files.read', { filePath: path }, ['files.read']);
     if (source['binary'] || source['tooLarge'])
       throw Error('Only text files within the editor limit can be copied.');
@@ -523,6 +532,49 @@ export function FileWorkspace({
       { filePath: target, content: String(source['content'] ?? ''), expectedSha256: EMPTY_SHA256 },
       ['files.written'],
     );
+  };
+  /**
+   * Copies a folder only when every listed file is readable text: all sources are read and
+   * checked before anything is created, so a refusal leaves no partial copy.
+   */
+  const copyFolder = async (path: string, destination: string) => {
+    const listing = await command('files.tree', { path, includeIgnored: true }, ['files.tree']);
+    if (listing['error']) throw Error(String(listing['error']));
+    const plan = folderCopyPlan(listing['tree'], path, destination);
+    if (plan.tooDeep)
+      throw Error('The folder is nested too deeply to list completely; nothing was copied.');
+    if (plan.files.length > MAX_FOLDER_COPY_FILES)
+      throw Error(`The folder has more than ${MAX_FOLDER_COPY_FILES} files; nothing was copied.`);
+    const contents: string[] = [];
+    let bytes = 0;
+    for (const file of plan.files) {
+      const source = await command('files.read', { filePath: file.from }, ['files.read']);
+      if (source['binary'] || source['tooLarge'])
+        throw Error(`${file.from} is not copyable text; nothing was copied.`);
+      const content = String(source['content'] ?? '');
+      bytes += new TextEncoder().encode(content).length;
+      if (bytes > MAX_FOLDER_COPY_BYTES)
+        throw Error('The folder is larger than the 8 MiB copy limit; nothing was copied.');
+      contents.push(content);
+    }
+    // The root is created first: an existing target refuses the copy before anything else.
+    await command('files.create', { filePath: plan.dirs[0], type: 'directory' }, ['files.created']);
+    try {
+      for (const dir of plan.dirs.slice(1))
+        await command('files.create', { filePath: dir, type: 'directory' }, ['files.created']);
+      for (const [index, file] of plan.files.entries()) {
+        await command('files.create', { filePath: file.to, type: 'file' }, ['files.created']);
+        await command(
+          'files.write',
+          { filePath: file.to, content: contents[index], expectedSha256: EMPTY_SHA256 },
+          ['files.written'],
+        );
+      }
+    } catch (failure) {
+      throw Error(
+        `Copy stopped partway; ${plan.dirs[0]} holds a partial copy (${failure instanceof Error ? failure.message : String(failure)}).`,
+      );
+    }
   };
   const renamePath = async (path: string, newPath: string) => {
     const result = await command('files.rename', { oldPath: path, newPath }, ['files.renamed']);

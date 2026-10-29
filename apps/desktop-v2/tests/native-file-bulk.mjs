@@ -81,6 +81,19 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     assert.equal(await readFile(join(target, 'a.txt'), 'utf8'), 'a.txt\n', 'Source kept');
     assert.equal(await readFile(join(source, 'b.txt'), 'utf8'), 'existing b\n', 'Not overwritten');
     await bar.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    // A text-only folder copies with its nested structure.
+    await mkdir(join(target, 'tree', 'inner'), { recursive: true });
+    await writeFile(join(target, 'tree', 'one.txt'), 'one\n');
+    await writeFile(join(target, 'tree', 'inner', 'two.txt'), 'two\n');
+    await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
+    await page.getByRole('button', { name: 'Select bulk-dest/tree', exact: true }).click();
+    await bar.getByRole('button', { name: 'Copy selected…', exact: true }).click();
+    const folderCopy = page.getByRole('dialog', { name: 'Copy 1 selected item', exact: true });
+    await folderCopy.getByLabel('Bulk copy destination', { exact: true }).fill('bulk-ops');
+    await folderCopy.getByRole('button', { name: 'Copy 1 to bulk-ops', exact: true }).click();
+    await page.getByText('Copied 1 of 1 items.', { exact: true }).waitFor();
+    assert.equal(await readFile(join(source, 'tree', 'inner', 'two.txt'), 'utf8'), 'two\n');
+    assert.equal(await readFile(join(source, 'tree', 'one.txt'), 'utf8'), 'one\n');
     await tree.getByRole('treeitem', { name: 'bulk-ops', exact: true }).click();
 
     // Bulk rename: literal text in names; an existing target is refused, never overwritten.

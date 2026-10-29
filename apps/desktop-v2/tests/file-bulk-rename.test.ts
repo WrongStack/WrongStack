@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bulkRenamePlan, copyTarget, EMPTY_SHA256 } from '../src/file-bulk';
+import { bulkRenamePlan, copyTarget, EMPTY_SHA256, folderCopyPlan } from '../src/file-bulk';
 
 describe('bulk rename plan', () => {
   it('replaces literal text in names only and keeps folders in place', () => {
@@ -57,5 +57,42 @@ describe('bulk copy targets', () => {
     expect(
       Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join(''),
     ).toBe(EMPTY_SHA256);
+  });
+});
+
+describe('folder copy plan', () => {
+  const tree = [
+    { path: 'src/a.ts', type: 'file' },
+    {
+      path: 'src/lib',
+      type: 'directory',
+      children: [
+        { path: 'src/lib/b.ts', type: 'file' },
+        { path: 'src/lib/empty', type: 'directory', children: [] },
+      ],
+    },
+    { path: 'other/x.ts', type: 'file' },
+  ];
+  it('lists folders before files under the copied root', () => {
+    expect(folderCopyPlan(tree, 'src', 'copies')).toEqual({
+      dirs: ['copies/src', 'copies/src/lib', 'copies/src/lib/empty'],
+      files: [
+        { from: 'src/a.ts', to: 'copies/src/a.ts' },
+        { from: 'src/lib/b.ts', to: 'copies/src/lib/b.ts' },
+      ],
+      tooDeep: false,
+    });
+  });
+  it('flags listings that reach the engine depth limit', () => {
+    let nodes: unknown[] = [];
+    for (let depth = 12; depth >= 1; depth--)
+      nodes = [
+        {
+          path: `d/${Array.from({ length: depth }, (_, i) => `n${i}`).join('/')}`,
+          type: 'directory',
+          children: nodes,
+        },
+      ];
+    expect(folderCopyPlan(nodes, 'd', '.').tooDeep).toBe(true);
   });
 });
