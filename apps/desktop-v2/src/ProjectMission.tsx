@@ -22,6 +22,7 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
   const [error, setError] = useState('');
   const seenError = useRef(state.results['goal-state.error']);
   const refinement = record(state.results['goal-state.refining']);
+  // The reviewed mission; the engine refuses writes when goal.json holds another one.
   const missionKey = text(mission?.['missionId']) || text(mission?.['setAt']);
   const refining = Boolean(
     missionKey && refinement['missionId'] === missionKey && refinement['active'] === true,
@@ -83,7 +84,11 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
     }
     setConfirm(null);
     setSaveAttempt({ identity, goal: draft.trim() });
-    void request('goal-state.set', { goal: draft.trim() }, 'Mission update');
+    void request(
+      'goal-state.set',
+      { goal: draft.trim(), expectedMission: missionKey },
+      'Mission update',
+    );
   };
   const progress = mission?.['progress'];
   const deliverables = Array.isArray(mission?.['deliverables']) ? mission['deliverables'] : [];
@@ -197,7 +202,9 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
                   type="button"
                   className="button secondary"
                   disabled={Boolean(pending)}
-                  onClick={() => void request('goal-state.pause', {}, 'Pause')}
+                  onClick={() =>
+                    void request('goal-state.pause', { expectedMission: missionKey }, 'Pause')
+                  }
                 >
                   <Pause size={13} /> Pause
                 </button>
@@ -207,7 +214,9 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
                   type="button"
                   className="button secondary"
                   disabled={Boolean(pending)}
-                  onClick={() => void request('goal-state.resume', {}, 'Resume')}
+                  onClick={() =>
+                    void request('goal-state.resume', { expectedMission: missionKey }, 'Resume')
+                  }
                 >
                   <Play size={13} /> Resume
                 </button>
@@ -234,7 +243,7 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
                         );
                         return;
                       }
-                      void request('goal-state.clear', {}, 'Clear');
+                      void request('goal-state.clear', { expectedMission: missionKey }, 'Clear');
                     }}
                   >
                     Confirm clear

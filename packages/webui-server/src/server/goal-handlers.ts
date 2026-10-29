@@ -9,6 +9,7 @@
  * unparseable file broadcasts `null` so clients clear stale goal state.
  */
 
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   loadGoal,
   type RefinedMission,
@@ -16,7 +17,6 @@ import {
   replaceGoalMission,
   updateGoal,
 } from '@wrongstack/goal';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
 
 /**
  * Read `goal.json` for `projectRoot` and broadcast a `goal-state.updated` message.
@@ -40,6 +40,16 @@ export async function handleGoalGet(
   }
 }
 
+/** The mission a window reviewed: its id, or `setAt` for older missions; '' when there was none. */
+function missionKey(
+  mission: { missionId?: string | undefined; setAt?: string | undefined } | null | undefined,
+): string {
+  return mission?.missionId || mission?.setAt || '';
+}
+
+const MISSION_CHANGED =
+  'The mission changed since it was read. Review the current mission before changing it.';
+
 export async function handleGoalStateMutation(
   projectRoot: string,
   type:
@@ -53,6 +63,17 @@ export async function handleGoalStateMutation(
   refine?: (goal: string) => Promise<RefinedMission | null>,
 ): Promise<void> {
   const goalPath = resolveWstackPaths({ projectRoot }).projectGoal;
+  // Optional: the mission the request was reviewed against, compared inside the locked update.
+  const expected =
+    typeof payload?.expectedMission === 'string' ? payload.expectedMission : undefined;
+  let stale = false;
+  const reviewed = (current: Parameters<typeof missionKey>[0]) => {
+    if (expected === undefined || missionKey(current) === expected) return true;
+    stale = true;
+    return false;
+  };
+  const refuseStale = () =>
+    broadcast({ type: 'goal-state.error', payload: { message: MISSION_CHANGED } });
   if (type === 'goal-state.set') {
     const goal = typeof payload?.goal === 'string' ? payload.goal.trim() : '';
     if (!goal) {
@@ -65,12 +86,14 @@ export async function handleGoalStateMutation(
     const refined = refineGoalHeuristic(goal);
     let missionId = '';
     await updateGoal(goalPath, (current) => {
+      if (!reviewed(current)) return current;
       const next = replaceGoalMission(current, goal, refined);
       missionId = next.missionId ?? '';
       return next;
     });
+    if (stale) refuseStale();
     await handleGoalGet(projectRoot, broadcast);
-    if (!refine) return;
+    if (stale || !refine) return;
     await refineCurrentMission(projectRoot, goalPath, goal, missionId, broadcast, refine);
     return;
   } else if (type === 'goal-state.refine') {
@@ -97,17 +120,20 @@ export async function handleGoalStateMutation(
     );
     return;
   } else if (type === 'goal-state.clear') {
-    await updateGoal(goalPath, () => null);
+    await updateGoal(goalPath, (current) => (reviewed(current) ? null : current));
+    if (stale) refuseStale();
   } else {
     let changed = false;
     await updateGoal(goalPath, (current) => {
+      if (!reviewed(current)) return current;
       if (!current) return null;
       const nextState = type === 'goal-state.pause' ? 'paused' : 'active';
       if (current.goalState === nextState) return current;
       changed = true;
       return { ...current, goalState: nextState, lastActivityAt: new Date().toISOString() };
     });
-    if (!changed) {
+    if (stale) refuseStale();
+    else if (!changed) {
       broadcast({
         type: 'goal-state.error',
         payload: { message: 'No matching persistent mission state change was available.' },
