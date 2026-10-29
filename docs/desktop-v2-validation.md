@@ -3974,3 +3974,14 @@ one final native pass.
 - Checks: typecheck and Biome PASS; desktop unit suite PASS.
 - No native step: the fixture refiner answers too quickly to stop; a slow-refiner fixture is
   needed for the final pass.
+
+## Several references to one file (2026-10-29)
+
+- Commit `bc793fc15`. A file can be referenced whole and by several line ranges or quotes at once;
+  each distinct reference is its own chip and wire line, and an identical one is not added
+  twice. Editing a chip's range changes only that chip. This replaces the earlier "one reference
+  per file" rule; older messages still parse, and the message's file list stays unique.
+- Checks: desktop unit suite PASS (566 tests; new multi-reference test); typecheck and Biome
+  PASS.
+- Native steps updated (`native-composer-resources.mjs`: whole file, range and quote of
+  README.md sent together); **not run**.
