@@ -1,10 +1,20 @@
 import { useRef, useState } from 'react';
-import { bulkDestination, bulkRenamePlan, bulkSummary, runBulk, topLevelPaths } from './file-bulk';
+import {
+  batchFailure,
+  batchMoveItems,
+  bulkDestination,
+  bulkRenamePlan,
+  bulkSummary,
+  type RenameStep,
+  runBulk,
+  topLevelPaths,
+} from './file-bulk';
 import { Modal } from './Modal';
 
 /**
- * Confirms and runs a move, rename or delete over the selected files and folders, one engine
- * operation per item, then reports exactly which items changed.
+ * Confirms and runs a move, rename or delete over the selected files and folders, then reports
+ * exactly which items changed. With `moveMany`/`removeMany` (engines that apply a batch all or
+ * nothing) a move, rename or delete is one engine operation; otherwise one per item.
  */
 export function FileBulkDialog({
   kind,
@@ -16,6 +26,8 @@ export function FileBulkDialog({
   copy,
   rename,
   remove,
+  moveMany,
+  removeMany,
   onClose,
   onFinished,
 }: {
@@ -28,6 +40,9 @@ export function FileBulkDialog({
   copy: (path: string, destination: string) => Promise<void>;
   rename: (path: string, newPath: string) => Promise<void>;
   remove: (path: string) => Promise<void>;
+  moveMany?: ((steps: RenameStep[]) => Promise<void>) | undefined;
+  /** Resolves with a warning when the items are gone but cleanup was incomplete. */
+  removeMany?: ((paths: string[]) => Promise<string | undefined>) | undefined;
   onClose: () => void;
   onFinished: (summary: string, changed: string[]) => void;
 }) {
@@ -68,6 +83,27 @@ export function FileBulkDialog({
     setRunning(true);
     setError('');
     cancelled.current = false;
+    const batch =
+      kind === 'delete' ? removeMany : kind === 'move' || kind === 'rename' ? moveMany : undefined;
+    if (batch) {
+      try {
+        const warning =
+          kind === 'delete'
+            ? await removeMany!(work)
+            : await moveMany!(
+                batchMoveItems(work, destination, kind === 'rename' ? renameTo : undefined),
+              );
+        onFinished(
+          `${verb} ${work.length} of ${work.length} items.${warning ? ` ${warning}` : ''}`,
+          work,
+        );
+      } catch (failure) {
+        setError(batchFailure(failure instanceof Error ? failure.message : String(failure)));
+      } finally {
+        setRunning(false);
+      }
+      return;
+    }
     try {
       const outcome = await runBulk(
         work,

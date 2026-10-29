@@ -45,6 +45,7 @@ import {
   folderCopyPlan,
   MAX_FOLDER_COPY_BYTES,
   MAX_FOLDER_COPY_FILES,
+  type RenameStep,
   relocatedPath,
 } from './file-bulk';
 import { type FileDraftSnapshot, FileDraftStore } from './file-draft';
@@ -495,12 +496,7 @@ export function FileWorkspace({
     Object.entries(docs.current).some(
       ([p, d]) => relocatedPath(p, path, p) !== null && d.content !== d.saved,
     );
-  const removePath = async (path: string) => {
-    await command(
-      'files.delete',
-      { filePath: path, recursive: all.find((n) => n.path === path)?.type === 'directory' },
-      ['files.deleted'],
-    );
+  const forget = (path: string) => {
     setDocuments((current) =>
       Object.fromEntries(
         Object.entries(current).filter(([p]) => relocatedPath(p, path, p) === null),
@@ -510,6 +506,33 @@ export function FileWorkspace({
     setFolder((current) =>
       relocatedPath(current, path, '') === null ? current : parentPath(path),
     );
+  };
+  const removePath = async (path: string) => {
+    await command(
+      'files.delete',
+      { filePath: path, recursive: all.find((n) => n.path === path)?.type === 'directory' },
+      ['files.deleted'],
+    );
+    forget(path);
+  };
+  // Engines with `files.batch` apply a bulk move, rename or delete all or nothing.
+  const capabilities = state.results['session.start']?.['protocolCapabilities'];
+  const batchFiles = Array.isArray(capabilities) && capabilities.includes('files.batch');
+  const moveMany = async (steps: RenameStep[]) => {
+    await command('files.move_many', { items: steps }, ['files.moved_many']);
+    for (const step of steps) relocate(step.from, step.to);
+  };
+  const removeMany = async (paths: string[]) => {
+    const result = await command(
+      'files.delete_many',
+      {
+        filePaths: paths,
+        recursive: paths.some((path) => all.find((n) => n.path === path)?.type === 'directory'),
+      },
+      ['files.deleted_many'],
+    );
+    for (const path of paths) forget(path);
+    return typeof result['warning'] === 'string' ? result['warning'] : undefined;
   };
   const movePath = async (path: string, destination: string) => {
     const result = await command('files.move', { srcPath: path, destDir: destination }, [
@@ -918,6 +941,8 @@ export function FileWorkspace({
           copy={copyPath}
           rename={renamePath}
           remove={removePath}
+          moveMany={batchFiles ? moveMany : undefined}
+          removeMany={batchFiles ? removeMany : undefined}
           onClose={() => setBulk(null)}
           onFinished={(summary, changed) => {
             setBulk(null);

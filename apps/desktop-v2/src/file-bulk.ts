@@ -171,3 +171,22 @@ export function folderCopyPlan(
   walk(tree, 0);
   return { dirs, files, tooDeep };
 }
+
+/** The `files.move_many` items for a bulk move or rename (move keeps each item's name). */
+export function batchMoveItems(
+  paths: readonly string[],
+  destination: string,
+  renameTo?: ReadonlyMap<string, string>,
+): RenameStep[] {
+  return paths.map((path) => ({
+    from: path,
+    to: renameTo ? renameTo.get(path)! : copyTarget(path, destination),
+  }));
+}
+
+/** A refused all-or-nothing batch, saying whether anything was left changed. */
+export function batchFailure(message: string): string {
+  return /could not be put back/.test(message)
+    ? message
+    : `${message.replace(/\s*Nothing was changed\.$/, '')} No item was changed.`;
+}

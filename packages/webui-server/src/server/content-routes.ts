@@ -18,6 +18,7 @@ import {
   handleDesignVerify,
 } from './design-handlers.js';
 import { handleFileContentSearch } from './file-content-search.js';
+import { handleFilesDeleteMany, handleFilesMoveMany } from './file-handler-batch.js';
 import {
   handleFilesCreate,
   handleFilesDelete,
@@ -82,6 +83,8 @@ export async function handleContentRoute(
       'files.deleted',
       'files.renamed',
       'files.moved',
+      'files.moved_many',
+      'files.deleted_many',
       'files.skeleton_result',
     ]).socket;
   if (message.type.startsWith('skills.'))
@@ -153,6 +156,12 @@ export async function handleContentRoute(
       return true;
     case 'files.move':
       await handleFilesMove(ws, message, ctx.getProjectRoot());
+      return true;
+    case 'files.move_many':
+      await handleFilesMoveMany(ws, message, ctx.getProjectRoot());
+      return true;
+    case 'files.delete_many':
+      await handleFilesDeleteMany(ws, message, ctx.getProjectRoot());
       return true;
     case 'skills.list':
       await handleSkillsList(ws, ctx.getSkillsContext(), message);

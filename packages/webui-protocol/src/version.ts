@@ -25,6 +25,8 @@ export const SURFACE_PROTOCOL_CAPABILITIES = [
   'session.user-ack',
   /** `prefs.update` accepts `expectedSubagentModelPlan` and refuses when the plan changed. */
   'session.subagent-plan-expected',
+  /** `files.move_many` / `files.delete_many`: multi-item moves and deletions, all or nothing. */
+  'files.batch',
   /** `composer.warm`: the user is typing; open the provider connection ahead of the send. */
   'session.provider-warm',
   /**

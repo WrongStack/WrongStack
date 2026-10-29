@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  batchFailure,
+  batchMoveItems,
   bulkDestination,
   bulkSummary,
   relocatedPath,
@@ -49,5 +51,24 @@ describe('bulk file actions', () => {
     );
     expect(stopped).toEqual({ done: ['x'], failed: [], skipped: ['y', 'z'] });
     expect(bulkSummary('Deleted', 3, stopped)).toBe('Deleted 1 of 3 items. Not attempted: y, z.');
+  });
+});
+
+describe('all-or-nothing batches', () => {
+  it('builds move items keeping names and rename items from the plan', () => {
+    expect(batchMoveItems(['src/a.ts', 'docs'], 'lib')).toEqual([
+      { from: 'src/a.ts', to: 'lib/a.ts' },
+      { from: 'docs', to: 'lib/docs' },
+    ]);
+    expect(batchMoveItems(['src/a.ts'], '.', new Map([['src/a.ts', 'src/b.ts']]))).toEqual([
+      { from: 'src/a.ts', to: 'src/b.ts' },
+    ]);
+  });
+  it('says nothing changed unless the engine reports items it could not restore', () => {
+    expect(batchFailure('lib/a.ts already exists.')).toBe(
+      'lib/a.ts already exists. No item was changed.',
+    );
+    expect(batchFailure('EPERM. Nothing was changed.')).toBe('EPERM. No item was changed.');
+    expect(batchFailure('EPERM. These items could not be put back: x.')).toMatch(/put back: x/);
   });
 });
