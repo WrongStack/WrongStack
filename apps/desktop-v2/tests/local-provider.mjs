@@ -384,7 +384,7 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
                   function: {
                     name: 'bash',
                     arguments: JSON.stringify({
-                      command: `"${process.env.SystemRoot ?? 'C:\\Windows'}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -NonInteractive -Command "Write-Output 'native-process-output-ready'; Start-Sleep -Seconds 240"`,
+                      command: `"${process.env.SystemRoot ?? 'C:\\Windows'}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -NonInteractive -Command "Write-Output 'native-process-output-ready'; Write-Output 'Local: http://localhost:5173/'; Start-Sleep -Seconds 240"`,
                       background: true,
                       hermetic: true,
                     }),

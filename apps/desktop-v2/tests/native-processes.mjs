@@ -158,6 +158,11 @@ export async function exerciseNativeProcesses({
     30000,
   );
   await page.screenshot({ path: join(artifactDir, 'native-process-output.png'), fullPage: true });
+  // The URL the process printed is offered as a private preview (not opened here).
+  await panel()
+    .getByRole('group', { name: 'Local URLs in this output', exact: true })
+    .getByRole('button', { name: 'Preview http://localhost:5173/', exact: true })
+    .waitFor();
   const dark = page.getByRole('button', { name: 'Switch to dark mode', exact: true });
   if (await dark.count()) await dark.click();
   await page.screenshot({ path: join(artifactDir, 'native-process-dark.png'), fullPage: true });

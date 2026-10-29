@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T20:09:19.832Z",
+  "generatedAt": "2026-10-29T20:17:43.144Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5485,
-    "testFiles": 4772,
-    "sourceLines": 1206003,
+    "sourceFiles": 5487,
+    "testFiles": 4773,
+    "sourceLines": 1206079,
     "workspaceEdges": 222,
-    "moduleEdges": 16460,
+    "moduleEdges": 16463,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 126,
+    "testsWithoutTypecheck": 127,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 985
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 297,
-      "testFiles": 126,
+      "sourceFiles": 299,
+      "testFiles": 127,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1757,6 +1757,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/portable.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/process-preview-urls.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30474,6 +30480,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/portable.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/process-preview-urls.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

@@ -2,6 +2,7 @@ import { ArrowLeft, RefreshCw, Search, Square, Terminal, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { Modal } from './Modal';
+import { ProcessPreviewLinks } from './ProcessPreviewLinks';
 import {
   batchTermination,
   batchTerminationSummary,
@@ -457,7 +458,10 @@ export function SessionProcesses({
             </p>
           )}
           {output !== null && (
-            <pre>{output.join('\n') || 'The registered log has no output yet.'}</pre>
+            <>
+              <ProcessPreviewLinks lines={output} />
+              <pre>{output.join('\n') || 'The registered log has no output yet.'}</pre>
+            </>
           )}
         </aside>
       )}

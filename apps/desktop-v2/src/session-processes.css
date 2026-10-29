@@ -187,3 +187,17 @@
 .process-ended li > small {
   color: var(--muted);
 }
+.process-preview-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.process-preview-links > button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+fieldset.process-preview-links {
+  border: 0;
+  padding: 0;
+}
