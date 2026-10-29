@@ -3695,3 +3695,20 @@ Verification on the shared working snapshot:
   merged text.
 - Not covered: three-way merging against the saved file and very large drafts (the line diff
   falls back to one delete/add block past its budget).
+
+## Dialogs return focus to their opener (2026-10-29)
+
+- Commit `3b6b269f5`. Every desktop dialog uses the shared `Modal`. It closed its native
+  `<dialog>` in a passive effect, which React runs after removing the element, so focus fell to
+  the document body when a dialog closed (Escape, Cancel or completion). Opening and closing
+  now run in a layout effect: the element focused before `showModal` is remembered and focused
+  again before the dialog leaves the document, if it is still connected.
+- Proof: a new native step in the bulk-move scenario (open "Move selected…", Escape) failed on
+  the previous build with focus on the body, and passes on portable identity
+  `2d050b469031-eb7323dfffaf`. The same build passed native `--files`, `--composer` and
+  `--chimera` (dialog-heavy scopes). The `--files` run first exposed a test race added with
+  the indentation steps (the draft already existed, so the reload could precede the latest
+  draft write); the test now waits for the stored draft text itself.
+- Checks: desktop **531 tests / 119 files PASS**; typecheck **292 PASS**; Biome PASS.
+- Not covered: every individual dialog natively, and dialogs whose opener is removed while
+  they are open (focus then stays where the browser puts it).
