@@ -8,7 +8,7 @@
  * formatters, …) are listed as uncaptured instead of being guessed at.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import * as path from 'node:path';
 import { isPathInside } from './path-containment.js';
 
@@ -39,7 +39,38 @@ export interface CapturedEdit {
   before: string | null;
 }
 
+/**
+ * The target's real location when it is inside the real project root, else undefined. A symlink
+ * (or a symlinked parent) leading outside must not have its target read and sent to the panel.
+ */
+function realInside(realRoot: string, absolute: string): string | undefined {
+  let real: string;
+  try {
+    real = realpathSync(absolute);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return undefined;
+    // A file (and possibly folders) the tool will create: resolve the nearest existing folder.
+    let existing = path.dirname(absolute);
+    for (;;) {
+      try {
+        real = path.join(realpathSync(existing), path.relative(existing, absolute));
+        break;
+      } catch {
+        if (existing === path.dirname(existing)) return undefined;
+        existing = path.dirname(existing);
+      }
+    }
+  }
+  return isPathInside(realRoot, real) ? real : undefined;
+}
+
 export function createEditCapture(projectRoot: string) {
+  let realRoot: string;
+  try {
+    realRoot = realpathSync(projectRoot);
+  } catch {
+    realRoot = path.resolve(projectRoot);
+  }
   const edits = new Map<string, CapturedEdit>();
   const uncaptured: string[] = [];
   let total = 0;
@@ -58,10 +89,12 @@ export function createEditCapture(projectRoot: string) {
       if (!isPathInside(projectRoot, absolute)) return skip(`${raw} (${name})`);
       const relative = path.relative(projectRoot, absolute).split(path.sep).join('/');
       if (edits.has(relative)) return;
+      const real = realInside(realRoot, absolute);
+      if (!real) return skip(`${relative} (outside the project through a link)`);
       if (edits.size >= MAX_FILES) return skip(`${relative} (file limit)`);
       let before: string | null;
       try {
-        const bytes = readFileSync(absolute);
+        const bytes = readFileSync(real);
         if (bytes.length > MAX_FILE_BYTES || total + bytes.length > MAX_TOTAL_BYTES)
           return skip(`${relative} (too large)`);
         before = new TextDecoder('utf-8', { fatal: true }).decode(bytes);

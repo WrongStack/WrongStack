@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { EventBus } from '@wrongstack/contracts/kernel';
@@ -79,6 +79,7 @@ it('reports each file an editing run wrote with its content from before the firs
       input: { path: join(dir, 'created.ts') },
       act: () => writeFile(join(dir, 'created.ts'), 'made'),
     },
+    { name: 'write', input: { path: 'new/deep/file.ts' } },
     { name: 'write', input: { path: '../outside.ts' } },
     { name: 'bash', input: { command: 'sed -i s/x/y/ src/a.ts' } },
     { name: 'read', input: { path: 'src/a.ts' } },
@@ -88,6 +89,7 @@ it('reports each file an editing run wrote with its content from before the firs
   expect(result['edits']).toEqual([
     { path: 'src/a.ts', before: 'old a' },
     { path: 'created.ts', before: null },
+    { path: 'new/deep/file.ts', before: null },
   ]);
   expect(result['uncaptured']).toEqual(['../outside.ts (write)', 'bash']);
 });
@@ -96,4 +98,25 @@ it('captures nothing on a read-only run', async () => {
   const run = harness([{ name: 'edit', input: { path: 'src/a.ts' } }]);
   const result = await run({ requestId: 'r2', filePath: 'src/a.ts', preset: 'bugs' });
   expect(result).not.toHaveProperty('edits');
+});
+
+it('does not read a target that leads outside the project through a link', async () => {
+  const outside = await mkdtemp(join(base, 'code-assist-outside-'));
+  try {
+    await writeFile(join(outside, 'secret.txt'), 'secret');
+    try {
+      await symlink(outside, join(dir, 'linked'), 'junction');
+    } catch {
+      return; // links unavailable on this system
+    }
+    const run = harness([{ name: 'edit', input: { path: 'linked/secret.txt' } }]);
+    const result = await run({ requestId: 'r3', filePath: 'src/a.ts', preset: 'fix' });
+    expect(result['edits']).toEqual([]);
+    expect(result['uncaptured']).toEqual([
+      'linked/secret.txt (outside the project through a link)',
+    ]);
+  } finally {
+    expect(outside.startsWith(base + sep)).toBe(true);
+    await rm(outside, { recursive: true, force: true });
+  }
 });
