@@ -4266,7 +4266,7 @@ staged; the other session's edits stay untouched.
   this tree before and after the change.
 - Not committed: the Core API snapshot regeneration. In this shared tree it also picks up another
   session's uncommitted CLI imports, so it must be regenerated once that work lands.
-- Kit pinning and swapping keep their read-back checks; they are not yet conditional.
+- Kit pinning and swapping became conditional in the next entry.
 
 ### Conditional design kit pinning and swapping
 
