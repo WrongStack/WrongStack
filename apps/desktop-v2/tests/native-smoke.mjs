@@ -31,6 +31,7 @@ import { exerciseNativeEvidence } from './native-evidence.mjs';
 import { exerciseNativeExecutionPolicy } from './native-execution-policy.mjs';
 import { exerciseNativeFiles } from './native-files.mjs';
 import { exerciseNativeFleetPolicy } from './native-fleet-policy.mjs';
+import { exerciseNativeGitGraph } from './native-git-graph.mjs';
 import { exerciseNativeGoals } from './native-goals.mjs';
 import { exerciseNativeTaskExecution } from './native-kanban-execution.mjs';
 import { exerciseNativeLiveFleet } from './native-live-fleet.mjs';
@@ -949,6 +950,7 @@ try {
       .click();
     await proposal.waitFor({ state: 'detached' });
     await exerciseNativeFiles({ page, waitFor, artifactDir, project: a, rpc: workspaceRpc });
+    await exerciseNativeGitGraph({ page, project: a, artifactDir });
     assert.deepEqual(errors, []);
     result = {
       result: 'PASS',

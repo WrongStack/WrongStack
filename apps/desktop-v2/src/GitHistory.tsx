@@ -10,10 +10,12 @@ import {
   RefreshCw,
   Search,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DiffPreview } from './DiffPreview';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
+import { GitGraphCell } from './GitGraphCell';
+import { commitGraph } from './git-graph';
 
 export function GitHistory({
   command,
@@ -122,6 +124,18 @@ export function GitHistory({
         .toLowerCase()
         .includes(search.toLowerCase()),
     );
+  // Lanes are only meaningful over the unfiltered list; a search shows plain markers.
+  const graph = useMemo(
+    () =>
+      commitGraph(
+        entries(data['commits']).map((commit) => ({
+          hash: String(commit['hash']),
+          parents: Array.isArray(commit['parents']) ? commit['parents'].map(String) : [],
+        })),
+      ),
+    [data],
+  );
+  const showGraph = !search.trim();
   const files = entries(detail?.['files']);
   return (
     <section className="git-history-workspace" aria-label="Repository history">
@@ -192,7 +206,7 @@ export function GitHistory({
               </p>
             </div>
           )}
-          {visible.map((commit) => (
+          {visible.map((commit, index) => (
             <button
               type="button"
               key={String(commit['hash'])}
@@ -200,9 +214,16 @@ export function GitHistory({
               className={detail?.['fullHash'] === commit['hash'] ? 'selected-commit' : ''}
               onClick={() => void inspect(String(commit['hash']))}
             >
-              <span
-                className={`git-commit-dot ${Array.isArray(commit['parents']) && commit['parents'].length > 1 ? 'git-merge-dot' : ''}`}
-              />
+              {showGraph && graph[index] ? (
+                <GitGraphCell
+                  row={graph[index]}
+                  merge={Array.isArray(commit['parents']) && commit['parents'].length > 1}
+                />
+              ) : (
+                <span
+                  className={`git-commit-dot ${Array.isArray(commit['parents']) && commit['parents'].length > 1 ? 'git-merge-dot' : ''}`}
+                />
+              )}
               <div>
                 <strong>{String(commit['subject'])}</strong>
                 <span className="git-commit-refs">

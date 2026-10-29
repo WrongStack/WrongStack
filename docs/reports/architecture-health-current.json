@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T16:11:51.751Z",
+  "generatedAt": "2026-10-29T16:21:01.397Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5464,
-    "testFiles": 4758,
-    "sourceLines": 1202765,
+    "sourceFiles": 5466,
+    "testFiles": 4759,
+    "sourceLines": 1202946,
     "workspaceEdges": 222,
-    "moduleEdges": 16419,
+    "moduleEdges": 16422,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 113,
+    "testsWithoutTypecheck": 114,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 978
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 276,
-      "testFiles": 113,
+      "sourceFiles": 278,
+      "testFiles": 114,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1511,6 +1511,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/fleet-policy-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/git-graph.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30103,6 +30109,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/fleet-policy-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/git-graph.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

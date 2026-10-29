@@ -362,3 +362,49 @@
     min-height: 260px;
   }
 }
+.git-graph-cell {
+  position: relative;
+  flex-shrink: 0;
+  align-self: stretch;
+  margin: -19px 0;
+}
+.git-graph-cell svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.git-graph-cell line {
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.git-graph-node {
+  stroke-width: 2;
+  fill: var(--base);
+}
+.git-graph-node.git-graph-merge {
+  fill: currentColor;
+}
+.git-lane-0 {
+  stroke: var(--accent);
+  color: var(--accent);
+}
+.git-lane-1 {
+  stroke: #d97706;
+  color: #d97706;
+}
+.git-lane-2 {
+  stroke: #059669;
+  color: #059669;
+}
+.git-lane-3 {
+  stroke: #7c3aed;
+  color: #7c3aed;
+}
+.git-lane-4 {
+  stroke: #db2777;
+  color: #db2777;
+}
+.git-lane-5 {
+  stroke: #0891b2;
+  color: #0891b2;
+}
