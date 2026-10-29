@@ -1139,6 +1139,9 @@ h1 {
 .chat-message {
   padding: 16px 0;
   max-width: 850px;
+  /* Long conversations: off-screen messages skip layout and paint but stay searchable. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px;
 }
 .chat-message header {
   font-size: 8px;
