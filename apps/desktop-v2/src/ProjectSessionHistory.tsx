@@ -8,6 +8,7 @@ import { Modal } from './Modal';
 import { markdownTarget } from './markdown-target';
 import { isLive, type Session } from './model';
 import { type HistorySearchSelection, ProjectHistorySearch } from './ProjectHistorySearch';
+import { ProjectUsageSummary } from './ProjectUsageSummary';
 import { openExternal, request } from './platform';
 import {
   historyHasContent,
@@ -293,6 +294,7 @@ export function ProjectSessionHistory({
           Refresh session history
         </button>
       </header>
+      <ProjectUsageSummary command={command} />
       {error && !rename && !reuse && !restore && (
         <p role="alert" className="session-error">
           {error}

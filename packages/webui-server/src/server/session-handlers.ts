@@ -37,6 +37,47 @@ export {
   type SessionHandlersContext,
 } from './session-handler-helpers.js';
 
+/** How many recorded conversations a project usage summary reads at most. */
+const USAGE_SCAN_LIMIT = 5000;
+
+/**
+ * Recorded token totals of a project's conversations per provider and model, from the session
+ * catalog. Sessions without a finite total are counted but add no tokens; no price is derived.
+ */
+function projectUsageSummary(
+  summaries: ReadonlyArray<{ provider?: string; model?: string; tokenTotal?: number }>,
+) {
+  const byModel = new Map<
+    string,
+    { provider: string; model: string; sessions: number; tokenTotal: number }
+  >();
+  let tokenTotal = 0,
+    sessionsWithTokens = 0;
+  for (const summary of summaries) {
+    const provider = summary.provider || 'unknown',
+      model = summary.model || 'unknown';
+    const key = JSON.stringify([provider, model]);
+    const row = byModel.get(key) ?? { provider, model, sessions: 0, tokenTotal: 0 };
+    row.sessions++;
+    const tokens = summary.tokenTotal;
+    if (typeof tokens === 'number' && Number.isFinite(tokens) && tokens >= 0) {
+      row.tokenTotal += tokens;
+      tokenTotal += tokens;
+      sessionsWithTokens++;
+    }
+    byModel.set(key, row);
+  }
+  return {
+    sessions: summaries.length,
+    sessionsWithTokens,
+    tokenTotal,
+    capped: summaries.length >= USAGE_SCAN_LIMIT,
+    byModel: [...byModel.values()].sort(
+      (a, b) => b.tokenTotal - a.tokenTotal || a.provider.localeCompare(b.provider),
+    ),
+  };
+}
+
 export function createSessionHandlers(ctx: SessionHandlersContext): SessionRouteHandlers {
   const shared = buildSessionHandlerShared(ctx);
   const {
@@ -229,6 +270,17 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           sendTo(ws, {
             type: 'sessions.list',
             payload: { sessionId: askingSessionId, sessions: [], contentSearch },
+          });
+          return;
+        }
+        if ((msg.payload as { usageSummary?: unknown } | undefined)?.usageSummary === true) {
+          sendTo(ws, {
+            type: 'sessions.list',
+            payload: {
+              sessionId: askingSessionId,
+              sessions: [],
+              usageSummary: projectUsageSummary(await store.list(USAGE_SCAN_LIMIT)),
+            },
           });
           return;
         }

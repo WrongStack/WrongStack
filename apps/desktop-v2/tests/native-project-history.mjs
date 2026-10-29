@@ -183,6 +183,11 @@ export async function exerciseNativeProjectHistory({
   };
   await open();
   const screen = page.getByRole('region', { name: 'Project session history' });
+  // Recorded tokens across the project's conversations, read on request; no prices.
+  await screen.locator('.project-usage-summary summary').click();
+  await screen.getByRole('button', { name: 'Summarize recorded usage', exact: true }).click();
+  await screen.getByRole('table', { name: 'Recorded tokens by model', exact: true }).waitFor();
+  assert.equal(/\$|USD/.test(await screen.locator('.project-usage-summary').innerText()), false);
   await screen.getByRole('button', { name: `Open history ${id}`, exact: true }).click();
   let transcript = page.getByRole('region', { name: 'Recorded session transcript' });
   await transcript.getByText('Recorded opening prompt.', { exact: false }).first().waitFor();

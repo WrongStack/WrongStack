@@ -321,3 +321,21 @@
   border-radius: 6px;
   object-fit: contain;
 }
+.project-usage-summary {
+  margin: 0 0 16px;
+  font-size: 11px;
+}
+.project-usage-summary summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.project-usage-summary table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.project-usage-summary :is(th, td) {
+  text-align: left;
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid var(--border);
+}
