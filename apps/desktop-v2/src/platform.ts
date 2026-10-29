@@ -102,7 +102,9 @@ export async function addProject(): Promise<void> {
 }
 export const openProjectWindow = (id: string): Promise<void> =>
   invoke('open_project_window', { id });
-export const openPreview = (url: string): Promise<void> => invoke('open_preview', { url });
+/** A private localhost preview window; developer tools open only when asked for. */
+export const openPreview = (url: string, devtools = false): Promise<void> =>
+  invoke('open_preview', { url, devtools });
 export const openExternal = (url: string): Promise<void> => invoke('open_external', { url });
 export function streamTerminal(
   id: string,

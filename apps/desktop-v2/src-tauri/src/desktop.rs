@@ -290,7 +290,7 @@ async fn choose_project(window: WebviewWindow) -> Result<Option<String>> {
     Ok(folder.map(|p| p.path().to_string_lossy().into_owned()))
 }
 #[tauri::command]
-async fn open_preview(window: WebviewWindow, url: String) -> Result<()> {
+async fn open_preview(window: WebviewWindow, url: String, devtools: Option<bool>) -> Result<()> {
     trusted(&window)?;
     let url: tauri::Url = url.parse().map_err(err)?;
     if !["http", "https"].contains(&url.scheme())
@@ -307,9 +307,14 @@ async fn open_preview(window: WebviewWindow, url: String) -> Result<()> {
     )
     .title("WrongStack — Local Preview")
     .inner_size(1100., 800.)
+    // A private profile: cookies and storage are not shared with other previews or kept after
+    // the window closes.
+    .incognito(true)
     .build()
     .map_err(err)?;
-    child.open_devtools();
+    if devtools == Some(true) {
+        child.open_devtools();
+    }
     Ok(())
 }
 #[tauri::command]

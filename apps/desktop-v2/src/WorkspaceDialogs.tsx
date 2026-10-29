@@ -11,6 +11,7 @@ import {
   Workflow,
   X,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Modal } from './Modal';
 import { visibleSessions } from './model';
 import { openPreview } from './platform';
@@ -42,6 +43,7 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
     jumpToSession,
     createSession,
   } = vm;
+  const [previewDevtools, setPreviewDevtools] = useState(false);
   return (
     <>
       {' '}
@@ -146,7 +148,7 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
               onSubmit={(e) => {
                 e.preventDefault();
                 void run(async () => {
-                  await openPreview(preview);
+                  await openPreview(preview, previewDevtools);
                   setDialog(null);
                 });
               }}
@@ -161,8 +163,17 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                   placeholder="http://localhost:3000"
                 />
               </label>
+              <label className="form-check">
+                <input
+                  type="checkbox"
+                  checked={previewDevtools}
+                  onChange={(e) => setPreviewDevtools(e.target.checked)}
+                />
+                Open developer tools
+              </label>
               <p className="form-note">
-                Opens in a separate native webview with no desktop IPC permissions.
+                Opens in a separate native webview with no desktop IPC permissions and a private
+                profile: cookies and storage are discarded when the preview closes.
               </p>
               <button type="submit" className="button primary full">
                 Open preview
