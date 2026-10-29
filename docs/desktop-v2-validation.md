@@ -4096,3 +4096,16 @@ staged; the other session's edits stay untouched.
 - Checks: RED then GREEN in `session-transcript.test.ts`; webui-server typecheck PASS; desktop
   suite PASS, typecheck and Biome PASS.
 - No native step yet.
+
+### Roster knowledge checklist editing
+
+- Commit `478159aef`. New `agent-roster.read-knowledge` and `agent-roster.update-knowledge` read and
+  write a role's knowledge manifest (`.wrongstack/agents/<role>/knowledge.json`): the checklist
+  (at most 50 trimmed items of 500 characters, blanks dropped) and the re-verify threshold
+  (0–1), keeping the manifest's live queries. A save carrying `expectedChecklist` is refused
+  when the stored checklist changed since it was read. The roster's Learning section shows an
+  editor with revert and save.
+- Checks: RED then GREEN in `agent-roster-handlers.test.ts` (26 tests); webui-server
+  typecheck PASS; desktop suite PASS, typecheck and Biome PASS.
+- Native step written (`native-agent-roster.mjs`: saved checklist read back from
+  `knowledge.json`); **not run**.
