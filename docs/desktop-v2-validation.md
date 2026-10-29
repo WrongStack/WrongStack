@@ -4075,3 +4075,14 @@ staged; the other session's edits stay untouched.
   PASS**, 82 webui-server Kanban tests PASS, kanban and webui-server typechecks PASS (kanban
   `dist` rebuilt); desktop suite **570 PASS**, typecheck and Biome PASS.
 - No native step yet; the Kanban project server must be rebuilt for the final native pass.
+
+### Long history messages beyond 100 blocks
+
+- Commit `72a0c0af7`. `session.inspect` accepts `transcriptBlocks: { messageIndex, expectedRevision,
+  blockOffset }` and returns the next 100 blocks of that message, projected like a transcript
+  page (bounded text and tool inputs, no media bytes) with `nextBlockOffset`. History
+  messages that had "N additional blocks are outside this bounded view" now offer "Load next …
+  blocks" until the message is complete; a changed transcript is refused.
+- Checks: RED then GREEN in `session-transcript.test.ts` (230-block message); webui-server
+  typecheck PASS; desktop suite PASS, typecheck and Biome PASS.
+- No native step yet (the history fixture has no message over 100 blocks).
