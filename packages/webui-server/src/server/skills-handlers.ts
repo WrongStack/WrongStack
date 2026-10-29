@@ -463,6 +463,21 @@ export async function handleSkillsEdit(
       });
       return;
     }
+    // Checked immediately before the write: an edit based on an older read is refused instead of
+    // replacing a newer save from another window.
+    if (
+      editPayload.expectedBody !== undefined &&
+      (await fs.readFile(entry.path, 'utf8').catch(() => null)) !== editPayload.expectedBody
+    ) {
+      send(ws, {
+        type: 'skills.edited',
+        payload: {
+          success: false,
+          error: 'This skill changed since it was read. Reload it before saving.',
+        },
+      });
+      return;
+    }
     await atomicWrite(entry.path, editPayload.body);
     // Invalidate the SkillLoader cache so the edited body is picked up
     // immediately by readBody and the system prompt builder.

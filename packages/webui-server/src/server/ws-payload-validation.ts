@@ -263,6 +263,8 @@ export function validateSkillsCreatePayload(
 interface SkillsEditPayload {
   name: string;
   body: string;
+  /** The text the editor read; the edit is refused when the file no longer matches it. */
+  expectedBody?: string;
 }
 
 export function validateSkillsEditPayload(
@@ -281,7 +283,13 @@ export function validateSkillsEditPayload(
   }
   const violations = validateSkillDocument(body, name.trim());
   if (violations.length) return { ok: false, message: violations.join('; ') };
-  return { ok: true, value: { name, body } };
+  const expectedBody = payload['expectedBody'];
+  if (expectedBody !== undefined && typeof expectedBody !== 'string')
+    return { ok: false, message: 'expectedBody must be the text the editor read' };
+  return {
+    ok: true,
+    value: { name, body, ...(expectedBody !== undefined ? { expectedBody } : {}) },
+  };
 }
 
 interface ProcessKillPayload {

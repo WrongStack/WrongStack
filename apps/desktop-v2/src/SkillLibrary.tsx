@@ -175,7 +175,14 @@ export function SkillLibrary({
         throw new Error(
           'This skill changed on disk. Copy your draft and reopen the skill before saving.',
         );
-      await command('skills.edit', { name: selected?.['name'], body: draft }, ['skills.edited']);
+      // The engine re-checks the same text right before writing (engines without it ignore it).
+      const edited = await command(
+        'skills.edit',
+        { name: selected?.['name'], body: draft, expectedBody: content?.['body'] },
+        ['skills.edited'],
+      );
+      if (edited['success'] === false)
+        throw new Error(String(edited['error'] ?? 'The skill was not saved.'));
       const result = await command(
         'skills.content',
         { name: selected?.['name'], source: selected?.['source'] },
