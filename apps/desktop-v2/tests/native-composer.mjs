@@ -222,6 +222,19 @@ export async function exerciseNativeComposer({
     providerFixture.calls.some((c) => c.refiner),
     'Refinement calls the production refiner/provider path',
   );
+  // Word-level comparison against the original draft.
+  await refine.getByRole('checkbox', { name: 'Compare with original', exact: true }).check();
+  const comparison = refine.getByRole('region', {
+    name: 'Changes from your original draft',
+    exact: true,
+  });
+  await comparison.getByText(/words? added/).waitFor();
+  assert.ok((await comparison.locator('ins').count()) > 0, 'Refined words are marked as added');
+  assert.equal(
+    (await comparison.locator('.refine-comparison-text').innerText()).includes('desktop composer'),
+    true,
+  );
+  await refine.getByRole('checkbox', { name: 'Compare with original', exact: true }).uncheck();
   const refinerPrefs = await call('prefs.get', {}, ['prefs.updated']);
   const refinerIdentity = await rpc('engine.identity', { id: agent.id });
   let profileOffset = 0;

@@ -73,6 +73,9 @@
     "apps/desktop-v2/src/usePersistedFields.tsx": [
       "fieldsCodec"
     ],
+    "apps/desktop-v2/src/word-diff.ts": [
+      "MAX_DIFF_TOKENS"
+    ],
     "packages/acp/src/agent/server-agent-turn.ts": [
       "disposeACPServerAgentTurn",
       "serverAgentTurnCoverage"

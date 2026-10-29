@@ -376,3 +376,22 @@
     flex-basis: 100%;
   }
 }
+
+.refine-comparison-text {
+  max-height: 30vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--base);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.refine-comparison-text ins {
+  color: light-dark(#397239, #94c788);
+  text-decoration: underline;
+}
+.refine-comparison-text del {
+  color: light-dark(#ad4545, #e19797);
+}

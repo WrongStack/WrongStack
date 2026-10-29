@@ -306,17 +306,17 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
 - Finish active worker assignment/topology and actual execution of session-owned model plans.
   Plan drafts are durable per session (2026-10-29); atomic same-plan writes still need a
   canonical contract.
-- Add richer skill/resource invocation (file, line-range and quoted-snippet references exist)
-  progress, reference-aware durable recall (code-paste hint/undo exists, 2026-10-29) (prompt journal month filter, export and older-page loading exist, 2026-10-29).
+- Add richer skill/resource invocation progress and reference-aware durable recall. File,
+  line-range and quoted-snippet references, the code-paste hint/undo and the prompt journal
+  month filter, export and older-page loading exist (2026-10-29).
 - Implement speech only with real platform support, permission and recording/transcript states;
   unsupported systems must not show a fake working microphone.
 - Add BTW delivery/read/processing receipt history, richer queue presentation and longer restart
   coverage. Presentation sorting must not change engine FIFO order.
 - Preserve the existing steer rule: queued work must be removed explicitly. Atomic prioritization
   of steer over a nonempty queue needs an engine contract; never silently clear or bypass it.
-- Refinement keeps completed reviews across restart (2026-10-29); it still needs richer
-  comparison/provenance, external-model
-  quality and reconnect/cancellation/empty/timeout cases. Countdown or automatic submit is a new
+- Refinement keeps completed reviews across restart and offers a word-level comparison with
+  the original (2026-10-29); it still needs richer provenance, external-model quality and reconnect/cancellation/empty/timeout cases. Countdown or automatic submit is a new
   deliberate UX; current refinement must not acquire hidden auto-send.
 - Finish validated context editor/apply, mode authoring, residency/retention visualization, draft
   token estimates and richer compaction feedback.

@@ -8,6 +8,7 @@ import type { EngineState } from './engine-state';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
 import { ProfileModelPicker } from './ProfileModelPicker';
+import { RefinementComparison } from './RefinementComparison';
 import { type RefinementDraft, refinementDraftResult } from './refinement-draft';
 import { preferredRefinementVariant } from './refinement-policy-model';
 import { type RefinerTarget, refinementRecovery } from './refinement-recovery';
@@ -53,7 +54,8 @@ export function PromptRefinement({
     [pickerBusy, setPickerBusy] = useState(false),
     [failure, setFailure] = useState<ReturnType<typeof refinementRecovery> | null>(null),
     [edited, setEdited] = useState<string | null>(restored?.edited ?? null),
-    [edit, setEdit] = useState(restored?.edited != null);
+    [edit, setEdit] = useState(restored?.edited != null),
+    [compare, setCompare] = useState(false);
   const generation = useRef(0);
   const refine = async (
     previous?: Record<string, unknown>,
@@ -289,6 +291,19 @@ export function PromptRefinement({
           <input type="checkbox" checked={edit} onChange={(e) => setEdit(e.target.checked)} /> Edit
           this version
         </label>
+        <label className="refine-edit-toggle">
+          <input
+            type="checkbox"
+            checked={compare}
+            disabled={variant === 'original' && edited === null}
+            onChange={(e) => setCompare(e.target.checked)}
+          />{' '}
+          Compare with original
+        </label>
+        {edited !== null && (
+          <p className="field-help">This version includes your edits to the refiner's text.</p>
+        )}
+        {compare && <RefinementComparison original={original} text={text} />}
         {edit ? (
           <textarea
             aria-label="Edit refined prompt"

@@ -3272,3 +3272,20 @@ Verification on the shared working snapshot:
   reload with its edit and chosen version and no extra refiner call, sent, and removed from
   storage; the attachment and topic-boundary refinement scenarios in the same scope still pass.
 - Not covered: two-window review conflicts natively, discard natively, full application restart.
+
+## Refinement comparison with the original (2026-10-29)
+
+- The refinement review gains "Compare with original": a word-level comparison (words and the
+  whitespace between them, so both texts are reproduced exactly) of the selected or edited
+  version against the original draft, with added/removed word counts. The comparison trims the
+  common prefix/suffix and is bounded (3,000 tokens per side and a 1M-cell table for the changed
+  middle); larger texts show a message instead of stalling. A note marks versions that include
+  the reviewer's own edits.
+- Checks: desktop **471 tests / 102 files PASS** (new `word-diff` tests: exact reconstruction,
+  marked words, identical input, size refusals); typecheck **268 PASS**; Biome PASS on the
+  changed files.
+- Native `--composer` on portable identity `5ba6874b09da-000e11e0b0af` (frontend-only change,
+  bundled engine `000e11e0b0af` reused): **exit 0 / PASS** on the first run. After the real
+  refiner reply, the comparison shows added words and the shared text; all refinement, restore,
+  attachment and topic-boundary scenarios in the scope still pass.
+- Not covered: the size-refusal message natively and screen-reader announcement of `ins`/`del`.
