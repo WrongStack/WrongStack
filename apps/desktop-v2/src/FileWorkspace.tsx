@@ -104,6 +104,7 @@ export function FileWorkspace({
   projectId,
   mode = 'files',
   initialPath = '',
+  initialLine,
   onReview,
   onReference,
   send,
@@ -114,6 +115,8 @@ export function FileWorkspace({
   projectId: string;
   mode?: 'files' | 'changes';
   initialPath?: string;
+  /** 1-based source line to reveal and mark when `initialPath` opens a file. */
+  initialLine?: number;
   onReview?: (text: string) => void;
   /** Attach the open file, or its selected lines, to the owning conversation. */
   onReference?: (ref: ComposerFileReference) => void;
@@ -286,7 +289,7 @@ export function FileWorkspace({
     if (mode === 'files' && active && !docs.current[active]) void openFile(active);
   }, [mode, active, openFile]);
   useEffect(() => {
-    const identity = `${key}\0${initialPath}`;
+    const identity = `${key}\0${initialPath}\0${initialLine ?? ''}`;
     if (
       !initialPath ||
       !treeReady ||
@@ -315,8 +318,22 @@ export function FileWorkspace({
           ),
         ]),
       ]);
-    } else void openFile(path);
-  }, [initialPath, openFile, key, treeReady, treeFilter, includeIgnored, all, scopeKey]);
+    } else {
+      void openFile(path);
+      if (initialLine && initialLine > 0)
+        setSearchSelection({ path, line: initialLine, id: crypto.randomUUID() });
+    }
+  }, [
+    initialPath,
+    initialLine,
+    openFile,
+    key,
+    treeReady,
+    treeFilter,
+    includeIgnored,
+    all,
+    scopeKey,
+  ]);
   const refreshDiff = useCallback(() => {
     if (!active) {
       setDiff(null);

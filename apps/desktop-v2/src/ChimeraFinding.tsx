@@ -51,7 +51,7 @@ export function ChimeraFinding({
   row: Record<string, unknown>;
   busy: boolean;
   onTransition: (finding: Record<string, unknown>, to: string) => void;
-  onOpenFile: (path: string) => void;
+  onOpenFile: (path: string, line?: number) => void;
 }) {
   const finding = record(row['finding']),
     location = record(finding['location']),
@@ -80,7 +80,12 @@ export function ChimeraFinding({
         <button
           type="button"
           className="review-file-link"
-          onClick={() => onOpenFile(String(location['file']))}
+          onClick={() =>
+            onOpenFile(
+              String(location['file']),
+              typeof location['line'] === 'number' ? location['line'] : undefined,
+            )
+          }
         >
           <FileCode2 size={13} />
           {location['file']}

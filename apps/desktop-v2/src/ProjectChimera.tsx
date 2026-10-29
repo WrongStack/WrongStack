@@ -41,7 +41,7 @@ export function ProjectChimera({
   sessions: Session[];
   onPrepare: (id: string, text: string) => Promise<boolean>;
   onNewSession: () => void;
-  onOpenFile: (path: string) => void;
+  onOpenFile: (path: string, line?: number) => void;
 }) {
   return (
     <ChimeraContent
@@ -70,7 +70,7 @@ function ChimeraContent({
   sessions: Session[];
   onPrepare: (id: string, text: string) => Promise<boolean>;
   onNewSession: () => void;
-  onOpenFile: (path: string) => void;
+  onOpenFile: (path: string, line?: number) => void;
 }) {
   const [reports, setReports] = useState<Record<string, unknown>[]>([]);
   const [selected, setSelected] = useState('');

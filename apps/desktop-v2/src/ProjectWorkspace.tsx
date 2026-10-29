@@ -118,8 +118,10 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
     (id: string) => requirementRecordDraftStorage(project.id, id),
     [project.id],
   );
-  const [fileTarget, setFileTarget] = useState(''),
+  // A line, when known, opens the file scrolled to and marking that source line.
+  const [fileTarget, setFileTargetState] = useState({ path: '', line: 0 }),
     [memoryTarget, setMemoryTarget] = useState('');
+  const setFileTarget = (path: string, line = 0) => setFileTargetState({ path, line });
   useEffect(() => {
     if (vm.projectPage !== 'files' && vm.projectPage !== 'changes') setFileTarget('');
   }, [vm.projectPage]);
@@ -140,7 +142,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           scopeKey={project.root}
           projectId={project.id}
           mode={vm.projectPage}
-          initialPath={fileTarget}
+          initialPath={fileTarget.path}
+          {...(fileTarget.line ? { initialLine: fileTarget.line } : {})}
         />
       ) : vm.projectPage === 'chronicle' ? (
         <ProjectChronicle
@@ -203,8 +206,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             sessions={vm.snapshot.sessions.filter((item) => item.projectId === project.id)}
             onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
             onNewSession={() => vm.newSession(project.id)}
-            onOpenFile={(path) => {
-              setFileTarget(path);
+            onOpenFile={(path, line) => {
+              setFileTarget(path, line);
               vm.setProjectPage('files');
             }}
           />
@@ -248,8 +251,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             sessions={vm.snapshot.sessions.filter((item) => item.projectId === project.id)}
             onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
             onNewSession={() => vm.newSession(project.id)}
-            onOpenFile={(path) => {
-              setFileTarget(path);
+            onOpenFile={(path, line) => {
+              setFileTarget(path, line);
               vm.setProjectPage('files');
             }}
           />

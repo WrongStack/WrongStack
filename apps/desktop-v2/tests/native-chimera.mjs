@@ -401,6 +401,12 @@ export async function exerciseNativeChimera({
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: join(artifactDir, 'native-chimera-compact.png'), fullPage: true });
   await page.setViewportSize({ width: 1480, height: 960 });
+  // The finding's location opens the file at its recorded line.
+  await screen.locator('.review-file-link').filter({ hasText: 'README.md:1' }).first().click();
+  await page.locator('.file-source-line.search-match[data-source-line="1"]').waitFor();
+  await open(project);
+  screen = page.getByRole('region', { name: 'Project Chimera reviews' });
+  await screen.getByRole('button', { name: `Open review ${reportId}`, exact: true }).click();
   assert.equal((await rpc('snapshot')).sessions.length, count);
   const target = await rpc('session.open', {
     projectId: project.id,
