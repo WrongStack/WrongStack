@@ -4342,3 +4342,21 @@ staged; the other session's edits stay untouched.
   nearest existing folder for a file still to be created) and must lie inside the real project
   root; a target reached through a link leading outside is reported as uncaptured and never
   read. Covered by a junction case in the same test file (3 tests PASS).
+
+### Line staging for added and deleted files
+
+- Commit `5e3d9d93a`. Hunk review now covers a text file that a layer adds or deletes (one hunk,
+  no mode or binary change); a working-tree deletion is reviewable although the file is gone,
+  with the same project containment. Such hunks are line-selection only (`linesOnly`): the
+  engine computes the resulting index content — staging an added file keeps the selected lines,
+  staging a deletion keeps the unselected ones, unstaging the reverse — stores it with
+  `git hash-object -w` and writes it with `git update-index --cacheinfo` in the file's mode. A
+  selection that would add or remove the whole file is refused in favour of the whole-file
+  controls, as is a file without a final newline. The panel hides "Stage hunk" for these.
+- Untracked files have no unstaged diff in Git, so they appear here only once staged (or marked
+  intent-to-add): their lines can then be unstaged selectively.
+- Checks: RED then GREEN in `git-hunks.test.ts` (real repository: intent-to-add file staged two
+  of three lines, one unstaged again, unstaging all refused, worktree untouched; working-tree
+  deletion staged one removed line; staged deletion one line unstaged); 54 Git route tests and
+  the webui-server typecheck PASS; desktop suite **579 PASS**, typecheck and Biome PASS.
+- No native step yet.
