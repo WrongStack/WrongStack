@@ -282,6 +282,43 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
     async () => (await editor().inputValue()) === 'export const peer = true;\n',
     'Explicit stored file draft recovery',
   );
+  // A second peer edit is merged change by change instead of picking one whole version.
+  const peerDraft = (content) =>
+    page.evaluate(
+      async ({ projectId, content }) => {
+        const path = 'desktop-notes/native.ts';
+        const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(path));
+        const formKey = `file-draft:${Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        const invoke = (method, params) =>
+          window.__TAURI_INTERNALS__.invoke('host_request', {
+            method,
+            params: { projectId, formKey, ...params },
+          });
+        const current = await invoke('form-draft.get', {});
+        if (content === undefined) return current.value?.content;
+        await invoke('form-draft.save', {
+          expectedRevision: current.revision,
+          value: { ...current.value, content },
+        });
+      },
+      { projectId: project.id, content },
+    );
+  await peerDraft('export const peer = true;\nexport const second = 2;\n');
+  await editor().fill('export const local = true;\n');
+  await conflict.waitFor();
+  await conflict.getByText(/^Merge change by change/).click();
+  const changes = conflict.getByRole('list', { name: 'Draft changes', exact: true });
+  await changes
+    .getByRole('group', { name: 'Keep for change 1' })
+    .getByLabel('Both, mine first')
+    .check();
+  const merged =
+    'export const local = true;\nexport const peer = true;\nexport const second = 2;\n';
+  assert.equal(await conflict.getByLabel('Merged draft', { exact: true }).inputValue(), merged);
+  await conflict.getByRole('button', { name: 'Keep merged draft', exact: true }).click();
+  await conflict.waitFor({ state: 'hidden' });
+  assert.equal(await editor().inputValue(), merged);
+  await waitFor(async () => (await peerDraft()) === merged, 'Merged draft stored');
   await editor().fill('export const unsaved = true;\n');
   await page.getByRole('button', { name: 'Close desktop-notes/native.ts', exact: true }).click();
   await page

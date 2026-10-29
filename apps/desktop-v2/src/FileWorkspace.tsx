@@ -27,6 +27,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ComposerFileReference } from './composer-resources-model';
 import { DiffPreview } from './DiffPreview';
+import { DraftMergeChoices } from './DraftMergeChoices';
 import { EditorFindBar } from './EditorFindBar';
 import { editorKeyEdit, replacementRange } from './editor-indent';
 import type { EngineCommand, EngineSend } from './engine-operations';
@@ -880,6 +881,34 @@ export function FileWorkspace({
                 />
               </label>
             </div>
+            {typeof draftConflict.snapshot.value?.content === 'string' && (
+              <DraftMergeChoices
+                key={draftConflict.snapshot.revision}
+                mine={documents[draftConflict.path]?.content ?? ''}
+                stored={draftConflict.snapshot.value.content}
+                busy={busy}
+                onKeep={(merged) =>
+                  void run(async () => {
+                    const { path, snapshot } = draftConflict;
+                    const document = docs.current[path];
+                    if (!document) return;
+                    try {
+                      await draftStore.resolve(path, snapshot.revision, merged, document.saved);
+                    } catch (error) {
+                      if (String(error).includes('DRAFT_CONFLICT'))
+                        setDraftConflict({ path, snapshot: await draftStore.inspect(path) });
+                      throw error;
+                    }
+                    updateDocument(path, { content: merged });
+                    setDraftConflict(null);
+                    await refreshDrafts();
+                    setNotice(
+                      'The merged version is in your editor and stored as the draft. Project files are unchanged.',
+                    );
+                  })
+                }
+              />
+            )}
             {error && (
               <p role="alert" className="file-workspace-error">
                 {error}

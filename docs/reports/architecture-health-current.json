@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T18:26:47.253Z",
+  "generatedAt": "2026-10-29T18:36:12.303Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5471,
-    "testFiles": 4763,
-    "sourceLines": 1203853,
+    "sourceFiles": 5473,
+    "testFiles": 4764,
+    "sourceLines": 1204007,
     "workspaceEdges": 222,
-    "moduleEdges": 16431,
+    "moduleEdges": 16434,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 118,
+    "testsWithoutTypecheck": 119,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 981
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 283,
-      "testFiles": 118,
+      "sourceFiles": 285,
+      "testFiles": 119,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1421,6 +1421,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/design-studio-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/draft-merge.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30034,6 +30040,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/draft-merge.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/draft-storage.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31350,8 +31363,8 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 1849,
-      "relativeImports": 26
+      "lines": 1878,
+      "relativeImports": 27
     },
     {
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
@@ -31432,8 +31445,8 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 1849,
-      "relativeImports": 26
+      "lines": 1878,
+      "relativeImports": 27
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
