@@ -4400,3 +4400,19 @@ staged; the other session's edits stay untouched.
   desktop suite **584 PASS**, typecheck and Biome PASS.
 - Native step written (`native-composer-resources.mjs`: cut the first characters of a message,
   check and apply); **not run**.
+
+### Context mode authoring
+
+- Commits `7d571d76c`, `4f472c51c`. The context panel lists the engine's context modes
+  (`context.modes.list`) with their warning, compaction and hard levels and the recent turns
+  they keep, switches the conversation to one (`context.mode.switch`), and creates, edits and
+  deletes project custom modes (`context.mode.create/update/delete`). Built-in modes stay
+  read-only, as in the engine. The form takes levels as percentages of the window and checks
+  the engine's rules first (rising warn ≤ compact ≤ hard within 0–100 %, whole non-negative
+  turn and token counts, a plain ID). Deleting a mode in use returns those conversations to the
+  default mode (engine behaviour, stated in the button title).
+- Checks: model tests; a new webui-server test stores, updates and reloads a mode through the
+  real custom mode store exactly as the desktop form builds it; desktop suite **586 PASS**,
+  typecheck and Biome PASS.
+- Native step written (`native-composer-resources.mjs`: create, use and delete a mode);
+  **not run**.
