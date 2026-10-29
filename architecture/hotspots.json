@@ -139,8 +139,8 @@
       "relativeImports": 27
     },
     "apps/desktop-v2/src/KanbanTaskInspector.tsx": {
-      "lines": 743,
-      "relativeImports": 6
+      "lines": 798,
+      "relativeImports": 7
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
       "lines": 917,

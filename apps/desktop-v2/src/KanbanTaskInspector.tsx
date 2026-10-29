@@ -15,8 +15,13 @@ import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { KanbanBreakdown } from './KanbanBreakdown';
 import { KanbanExecution } from './KanbanExecution';
+import { KanbanFieldConflicts } from './KanbanFieldConflicts';
 import { MarkdownContent } from './MarkdownContent';
-import { taskDefinitionPatch } from './task-definition-model';
+import {
+  type FieldConflict,
+  sameFieldConflicts,
+  taskDefinitionPatch,
+} from './task-definition-model';
 
 type Row = Record<string, unknown>;
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
@@ -66,6 +71,33 @@ export function KanbanTaskInspector({
   const [removing, setRemoving] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
+  const [conflicts, setConflicts] = useState<{
+    fields: FieldConflict[];
+    patch: Row;
+  } | null>(null);
+  /**
+   * Re-reads the task before saving an edit: fields someone else changed to another value since
+   * this inspector opened are shown for an explicit choice instead of being overwritten.
+   */
+  const saveChecked = async (patch: Row) => {
+    setError('');
+    setConflicts(null);
+    try {
+      const result = await command('kanban.get', { boardId: board['id'] }, ['kanban.get']);
+      const current = entries(record(result['data'])['tasks']).find(
+        (item) => item['id'] === baseline?.['id'],
+      );
+      if (!current) {
+        setError('This task was removed in another window. Nothing was saved.');
+        return;
+      }
+      const fields = baseline ? sameFieldConflicts(baseline, current, patch) : [];
+      if (fields.length) setConflicts({ fields, patch });
+      else onSave(patch);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
   const [check, setCheck] = useState('');
   const [note, setNote] = useState('');
   const [events, setEvents] = useState<Row[]>([]);
@@ -203,7 +235,8 @@ export function KanbanTaskInspector({
                 }
               : {}),
           };
-          onSave(baseline ? taskDefinitionPatch(baseline, draft) : draft);
+          if (baseline) void saveChecked(taskDefinitionPatch(baseline, draft));
+          else onSave(draft);
         }}
       >
         <label>
@@ -393,6 +426,28 @@ export function KanbanTaskInspector({
               </label>
             </div>
           </details>
+        )}
+        {conflicts && (
+          <KanbanFieldConflicts
+            conflicts={conflicts.fields}
+            busy={disabled}
+            onKeepMine={() => {
+              const { patch } = conflicts;
+              setConflicts(null);
+              onSave(patch);
+            }}
+            onKeepTheirs={() => {
+              const keep = Object.fromEntries(
+                Object.entries(conflicts.patch).filter(
+                  ([field]) => !conflicts.fields.some((item) => item.field === field),
+                ),
+              );
+              setConflicts(null);
+              // Only the activity note left: nothing of mine remains to save.
+              if (Object.keys(keep).some((field) => field !== 'activityNote')) onSave(keep);
+              else void onRefresh().then(onClose);
+            }}
+          />
         )}
         <button type="submit" className="button primary full" disabled={disabled || !title.trim()}>
           <Save size={14} />

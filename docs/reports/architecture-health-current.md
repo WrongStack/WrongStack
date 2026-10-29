@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-29T19:08:55.938Z
+**Generated:** 2026-10-29T19:11:31.362Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 45 |
-| Production source files | 5476 |
-| Production source lines | 1204657 |
+| Production source files | 5477 |
+| Production source lines | 1204800 |
 | Test files | 4767 |
 | Workspace dependency edges | 222 |
-| Relative module edges | 16439 |
+| Relative module edges | 16441 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 288 | 122 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 289 | 122 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/goal | 22 | 22 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
 | @wrongstack/hq | 62 | 42 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
@@ -104,6 +104,7 @@ None.
 | 826 | `apps/desktop-v2/src/ProjectMemory.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
+| 798 | `apps/desktop-v2/src/KanbanTaskInspector.tsx` |
 | 779 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 778 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 777 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
@@ -114,7 +115,6 @@ None.
 | 754 | `packages/client/src/client.ts` |
 | 752 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
-| 743 | `apps/desktop-v2/src/KanbanTaskInspector.tsx` |
 | 740 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 737 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |

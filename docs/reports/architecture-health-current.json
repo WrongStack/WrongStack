@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:08:55.938Z",
+  "generatedAt": "2026-10-29T19:11:31.362Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5476,
+    "sourceFiles": 5477,
     "testFiles": 4767,
-    "sourceLines": 1204657,
+    "sourceLines": 1204800,
     "workspaceEdges": 222,
-    "moduleEdges": 16439,
+    "moduleEdges": 16441,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -385,7 +385,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 288,
+      "sourceFiles": 289,
       "testFiles": 122,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -31407,8 +31407,8 @@
     },
     {
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
-      "lines": 743,
-      "relativeImports": 6
+      "lines": 798,
+      "relativeImports": 7
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
@@ -31558,6 +31558,11 @@
       "relativeImports": 12
     },
     {
+      "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
+      "lines": 798,
+      "relativeImports": 7
+    },
+    {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "lines": 779,
       "relativeImports": 13
@@ -31606,11 +31611,6 @@
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 750,
       "relativeImports": 8
-    },
-    {
-      "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
-      "lines": 743,
-      "relativeImports": 6
     },
     {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",

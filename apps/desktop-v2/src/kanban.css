@@ -574,3 +574,24 @@
   font-weight: 500;
   margin-top: 6px;
 }
+.kanban-field-conflicts {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 6px;
+  font-size: 11px;
+}
+.kanban-field-conflicts ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kanban-field-conflicts li {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
