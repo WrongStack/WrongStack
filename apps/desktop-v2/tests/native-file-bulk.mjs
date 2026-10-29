@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const exists = (path) =>
@@ -66,20 +66,39 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     }
     assert.equal(await bar.count(), 0, 'Moved items leave the selection');
 
-    // Bulk copy: text is copied from the saved file; an existing target is never overwritten.
+    // Bulk copy is all or nothing: one existing target refuses the batch and copies nothing.
     await writeFile(join(source, 'b.txt'), 'existing b\n');
     await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
     await tree.getByRole('treeitem', { name: 'bulk-dest', exact: true }).click();
     await page.getByRole('button', { name: 'Select bulk-dest/a.txt', exact: true }).click();
     await page.getByRole('button', { name: 'Select bulk-dest/b.txt', exact: true }).click();
     await bar.getByRole('button', { name: 'Copy selected…', exact: true }).click();
-    const copyDialog = page.getByRole('dialog', { name: 'Copy 2 selected items', exact: true });
-    await copyDialog.getByLabel('Bulk copy destination', { exact: true }).fill('bulk-ops');
-    await copyDialog.getByRole('button', { name: 'Copy 2 to bulk-ops', exact: true }).click();
-    await page.getByText(/^Copied 1 of 2 items\. Failed: bulk-dest\/b\.txt \(/).waitFor();
-    assert.equal(await readFile(join(source, 'a.txt'), 'utf8'), 'a.txt\n', 'Copied text');
-    assert.equal(await readFile(join(target, 'a.txt'), 'utf8'), 'a.txt\n', 'Source kept');
+    const batchCopy = page.getByRole('dialog', { name: 'Copy 2 selected items', exact: true });
+    await batchCopy.getByText(/or none is/).waitFor();
+    await batchCopy.getByLabel('Bulk copy destination', { exact: true }).fill('bulk-ops');
+    await batchCopy.getByRole('button', { name: 'Copy 2 to bulk-ops', exact: true }).click();
+    await batchCopy.getByText(/already exists\. No item was changed\.$/).waitFor();
+    assert.equal(await exists(join(source, 'a.txt')), false, 'A refused batch copies nothing');
     assert.equal(await readFile(join(source, 'b.txt'), 'utf8'), 'existing b\n', 'Not overwritten');
+    await batchCopy.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await bar.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    // Without the conflict both items copy, with no hidden copy left beside them.
+    await rm(join(source, 'b.txt'));
+    await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
+    await page.getByRole('button', { name: 'Select bulk-dest/a.txt', exact: true }).click();
+    await page.getByRole('button', { name: 'Select bulk-dest/b.txt', exact: true }).click();
+    await bar.getByRole('button', { name: 'Copy selected…', exact: true }).click();
+    const copyAll = page.getByRole('dialog', { name: 'Copy 2 selected items', exact: true });
+    await copyAll.getByLabel('Bulk copy destination', { exact: true }).fill('bulk-ops');
+    await copyAll.getByRole('button', { name: 'Copy 2 to bulk-ops', exact: true }).click();
+    await page.getByText('Copied 2 of 2 items.', { exact: true }).waitFor();
+    assert.equal(await readFile(join(source, 'b.txt'), 'utf8'), 'b.txt\n', 'Copied b');
+    assert.equal(await readFile(join(target, 'a.txt'), 'utf8'), 'a.txt\n', 'Source kept');
+    assert.deepEqual(
+      (await readdir(source)).filter((name) => name.startsWith('.wrongstack-copy-')),
+      [],
+      'No hidden copy remains',
+    );
     await bar.getByRole('button', { name: 'Clear selection', exact: true }).click();
     // A text-only folder copies with its nested structure.
     await mkdir(join(target, 'tree', 'inner'), { recursive: true });

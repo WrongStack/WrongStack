@@ -515,9 +515,14 @@ export function FileWorkspace({
     );
     forget(path);
   };
-  // Engines with `files.batch` apply a bulk move, rename or delete all or nothing.
+  // Engines with `files.batch` apply a bulk move, rename or delete all or nothing;
+  // `files.batch-copy` does the same for copies.
   const capabilities = state.results['session.start']?.['protocolCapabilities'];
   const batchFiles = Array.isArray(capabilities) && capabilities.includes('files.batch');
+  const batchCopy = Array.isArray(capabilities) && capabilities.includes('files.batch-copy');
+  const copyMany = async (steps: RenameStep[]) => {
+    await command('files.copy_many', { items: steps }, ['files.copied_many']);
+  };
   const moveMany = async (steps: RenameStep[]) => {
     await command('files.move_many', { items: steps }, ['files.moved_many']);
     for (const step of steps) relocate(step.from, step.to);
@@ -942,6 +947,7 @@ export function FileWorkspace({
           rename={renamePath}
           remove={removePath}
           moveMany={batchFiles ? moveMany : undefined}
+          copyMany={batchCopy ? copyMany : undefined}
           removeMany={batchFiles ? removeMany : undefined}
           onClose={() => setBulk(null)}
           onFinished={(summary, changed) => {

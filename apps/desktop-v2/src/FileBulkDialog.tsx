@@ -13,8 +13,9 @@ import { Modal } from './Modal';
 
 /**
  * Confirms and runs a move, rename or delete over the selected files and folders, then reports
- * exactly which items changed. With `moveMany`/`removeMany` (engines that apply a batch all or
- * nothing) a move, rename or delete is one engine operation; otherwise one per item.
+ * exactly which items changed. With `moveMany`/`copyMany`/`removeMany` (engines that apply a
+ * batch all or nothing) a move, copy, rename or delete is one engine operation; otherwise one
+ * per item.
  */
 export function FileBulkDialog({
   kind,
@@ -27,6 +28,7 @@ export function FileBulkDialog({
   rename,
   remove,
   moveMany,
+  copyMany,
   removeMany,
   onClose,
   onFinished,
@@ -41,6 +43,8 @@ export function FileBulkDialog({
   rename: (path: string, newPath: string) => Promise<void>;
   remove: (path: string) => Promise<void>;
   moveMany?: ((steps: RenameStep[]) => Promise<void>) | undefined;
+  /** Copies every item or none (`files.copy_many`), any file type, within the engine's limits. */
+  copyMany?: ((steps: RenameStep[]) => Promise<void>) | undefined;
   /** Resolves with a warning when the items are gone but cleanup was incomplete. */
   removeMany?: ((paths: string[]) => Promise<string | undefined>) | undefined;
   onClose: () => void;
@@ -60,7 +64,7 @@ export function FileBulkDialog({
   const destination = bulkDestination(target);
   const intoItself = items.filter(
     (path) =>
-      kind === 'move' &&
+      (kind === 'move' || kind === 'copy') &&
       isDirectory(path) &&
       (destination === path || destination.startsWith(`${path}/`)),
   );
@@ -84,15 +88,23 @@ export function FileBulkDialog({
     setError('');
     cancelled.current = false;
     const batch =
-      kind === 'delete' ? removeMany : kind === 'move' || kind === 'rename' ? moveMany : undefined;
+      kind === 'delete'
+        ? removeMany
+        : kind === 'copy'
+          ? copyMany
+          : kind === 'move' || kind === 'rename'
+            ? moveMany
+            : undefined;
     if (batch) {
       try {
         const warning =
           kind === 'delete'
             ? await removeMany!(work)
-            : await moveMany!(
-                batchMoveItems(work, destination, kind === 'rename' ? renameTo : undefined),
-              );
+            : kind === 'copy'
+              ? await copyMany!(batchMoveItems(work, destination))
+              : await moveMany!(
+                  batchMoveItems(work, destination, kind === 'rename' ? renameTo : undefined),
+                );
         onFinished(
           `${verb} ${work.length} of ${work.length} items.${warning ? ` ${warning}` : ''}`,
           work,
@@ -218,7 +230,15 @@ export function FileBulkDialog({
             Save or close edited files first: {unsaved.join(', ')}.
           </p>
         )}
-        {kind === 'copy' && (
+        {kind === 'copy' && copyMany && (
+          <p className="field-help">
+            Every item is copied from its saved version, or none is: the engine copies them beside
+            their targets first and moves them into place only when all are complete. An existing
+            file or folder with the same name is never overwritten. Folders that contain symbolic
+            links are refused, and one copy is limited to 5,000 entries and 256 MiB.
+          </p>
+        )}
+        {kind === 'copy' && !copyMany && (
           <p className="field-help">
             Text files are copied from their saved version; an existing file or folder with the same
             name is never overwritten. A folder is copied only when all of its listed files are text
@@ -229,7 +249,8 @@ export function FileBulkDialog({
         )}
         {intoItself.length > 0 && (
           <p role="alert" className="session-error">
-            A folder cannot move into itself: {intoItself.join(', ')}.
+            A folder cannot {kind === 'copy' ? 'be copied' : 'move'} into itself:{' '}
+            {intoItself.join(', ')}.
           </p>
         )}
         {kind === 'rename' && plan.problems.length > 0 && (

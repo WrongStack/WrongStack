@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T23:18:12.357Z",
+  "generatedAt": "2026-10-29T23:27:28.101Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 45,
     "sourceFiles": 5499,
-    "testFiles": 4789,
-    "sourceLines": 1209989,
+    "testFiles": 4790,
+    "sourceLines": 1210178,
     "workspaceEdges": 222,
     "moduleEdges": 16493,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 134,
+    "testsWithoutTypecheck": 135,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 989
   },
@@ -386,7 +386,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 307,
-      "testFiles": 134,
+      "testFiles": 135,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1517,6 +1517,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/feature-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/file-bulk-copy.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30302,6 +30308,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/file-bulk-copy.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/file-bulk-rename.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31623,7 +31636,7 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2006,
+      "lines": 2012,
       "relativeImports": 29
     },
     {
@@ -31715,7 +31728,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2006,
+      "lines": 2012,
       "relativeImports": 29
     },
     {

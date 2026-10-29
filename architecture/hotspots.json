@@ -139,7 +139,7 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 2006,
+      "lines": 2012,
       "relativeImports": 29
     },
     "apps/desktop-v2/src/KanbanTaskInspector.tsx": {
