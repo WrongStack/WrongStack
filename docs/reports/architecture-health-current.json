@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:14:00.903Z",
+  "generatedAt": "2026-10-29T19:17:22.397Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5477,
+    "sourceFiles": 5478,
     "testFiles": 4767,
-    "sourceLines": 1204863,
+    "sourceLines": 1204957,
     "workspaceEdges": 222,
-    "moduleEdges": 16441,
+    "moduleEdges": 16442,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -385,7 +385,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 289,
+      "sourceFiles": 290,
       "testFiles": 122,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -31403,7 +31403,7 @@
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
       "lines": 1965,
-      "relativeImports": 27
+      "relativeImports": 28
     },
     {
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
@@ -31485,7 +31485,7 @@
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
       "lines": 1965,
-      "relativeImports": 27
+      "relativeImports": 28
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",

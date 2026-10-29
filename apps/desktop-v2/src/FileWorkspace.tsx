@@ -35,6 +35,7 @@ import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
 import { FileBulkDialog } from './FileBulkDialog';
 import { FileContentSearch } from './FileContentSearch';
+import { FileContextMenu } from './FileContextMenu';
 import { FileEvidenceDrawer } from './FileEvidenceDrawer';
 import { FileTreeView } from './FileTreeView';
 import {
@@ -1687,49 +1688,48 @@ export function FileWorkspace({
         />
       )}
       {menu && (
-        <>
+        <FileContextMenu
+          label={`Actions for ${fileName(menu.path)}`}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+        >
+          <small>{fileName(menu.path)}</small>
           <button
             type="button"
-            className="file-context-dismiss"
-            aria-label="Close file menu"
-            onClick={() => setMenu(null)}
-          />
-          <div className="file-context-menu" style={{ left: menu.x, top: menu.y }}>
-            <small>{fileName(menu.path)}</small>
-            <button
-              type="button"
-              onClick={() => {
-                void navigator.clipboard.writeText(menu.path);
-                setMenu(null);
-              }}
-            >
-              <Copy size={14} />
-              Copy path
+            role="menuitem"
+            onClick={() => {
+              void navigator.clipboard.writeText(menu.path);
+              setMenu(null);
+            }}
+          >
+            <Copy size={14} />
+            Copy path
+          </button>
+          <button type="button" role="menuitem" onClick={() => startAction('rename', menu.path)}>
+            <Pencil size={14} />
+            Rename
+          </button>
+          <button type="button" role="menuitem" onClick={() => startAction('move', menu.path)}>
+            <FolderOpen size={14} />
+            Move to folder
+          </button>
+          {changes.some((file) => file['path'] === asGitPath(menu.path)) && (
+            <button type="button" role="menuitem" onClick={() => startAction('discard', menu.path)}>
+              <Undo2 size={14} />
+              Discard working changes
             </button>
-            <button type="button" onClick={() => startAction('rename', menu.path)}>
-              <Pencil size={14} />
-              Rename
-            </button>
-            <button type="button" onClick={() => startAction('move', menu.path)}>
-              <FolderOpen size={14} />
-              Move to folder
-            </button>
-            {changes.some((file) => file['path'] === asGitPath(menu.path)) && (
-              <button type="button" onClick={() => startAction('discard', menu.path)}>
-                <Undo2 size={14} />
-                Discard working changes
-              </button>
-            )}
-            <button
-              type="button"
-              className="danger"
-              onClick={() => startAction('delete', menu.path)}
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
-          </div>
-        </>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className="danger"
+            onClick={() => startAction('delete', menu.path)}
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        </FileContextMenu>
       )}
       {action && (
         <FileActionDialog

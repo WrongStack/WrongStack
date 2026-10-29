@@ -364,10 +364,30 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
     'Resolved save acknowledgement',
   );
   await exerciseVersionBoundSave({ page, editor, waitFor, project, rpc, artifactDir });
-  await page.getByRole('button', { name: 'File actions', exact: true }).click();
+  // The file menu owns the keyboard: first item focused, arrows move, Escape returns focus.
+  const fileActions = page.getByRole('button', { name: 'File actions', exact: true });
+  await fileActions.click();
+  const fileMenu = page.getByRole('menu', { name: /^Actions for / });
+  await waitFor(
+    async () =>
+      (await page.evaluate(() => document.activeElement?.textContent?.trim())) === 'Copy path',
+    'File menu focuses its first item',
+  );
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Rename');
+  await page.keyboard.press('End');
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Delete');
+  await page.keyboard.press('Escape');
+  await fileMenu.waitFor({ state: 'hidden' });
+  assert.equal(
+    await fileActions.evaluate((element) => element === document.activeElement),
+    true,
+    'Escape returns focus to the file menu opener',
+  );
+  await fileActions.click();
   await page
     .locator('.file-context-menu')
-    .getByRole('button', { name: 'Rename', exact: true })
+    .getByRole('menuitem', { name: 'Rename', exact: true })
     .click();
   await page.getByLabel('Project-relative path', { exact: true }).fill('desktop-notes/renamed.ts');
   await page
@@ -382,7 +402,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await page.getByRole('button', { name: 'File actions', exact: true }).click();
   await page
     .locator('.file-context-menu')
-    .getByRole('button', { name: 'Move to folder', exact: true })
+    .getByRole('menuitem', { name: 'Move to folder', exact: true })
     .click();
   await page.getByLabel('Destination folder', { exact: true }).fill('.');
   await page
@@ -397,7 +417,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await page.getByRole('button', { name: 'File actions', exact: true }).click();
   await page
     .locator('.file-context-menu')
-    .getByRole('button', { name: 'Delete', exact: true })
+    .getByRole('menuitem', { name: 'Delete', exact: true })
     .click();
   await page
     .getByRole('dialog', { name: 'Delete item', exact: true })
