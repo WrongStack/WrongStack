@@ -206,6 +206,39 @@ export async function recordKitChoice(
   }
 }
 
+/**
+ * Pin a kit only if the persisted kit is still `expectedKit` (null = none pinned), checked and
+ * written under the `active.json` lock. `overridesFor` receives the persisted choice read inside
+ * the lock. Returns the overrides written, or null when the pinned kit changed. Errors propagate.
+ */
+export async function recordKitChoiceIfCurrent(
+  projectRoot: string,
+  expectedKit: string | null,
+  kit: string,
+  stack: string | undefined,
+  source: string,
+  isoTime: string,
+  overridesFor: (current: PersistedActiveKit | undefined) => DesignOverrides,
+): Promise<DesignOverrides | null> {
+  const dir = await ensureDesignDir(projectRoot);
+  const file = path.join(dir, 'active.json');
+  await assertInsideDesignProject(projectRoot, file);
+  return withFileLock(file, async () => {
+    const current = await loadActiveKit(projectRoot);
+    if ((current?.kit ?? null) !== expectedKit) return null;
+    const overrides = overridesFor(current);
+    const record: Record<string, unknown> = { kit, stack: stack ?? null };
+    if (Object.keys(overrides).length > 0) record.overrides = overrides;
+    await fs.writeFile(file, `${JSON.stringify(record, null, 2)}\n`);
+    await assertInsideDesignProject(projectRoot, path.join(dir, 'decisions.md'));
+    await fs.appendFile(
+      path.join(dir, 'decisions.md'),
+      `- ${isoTime} · kit=${kit}${stack ? ` stack=${stack}` : ''} · via=${source}\n`,
+    );
+    return overrides;
+  });
+}
+
 /** The kit, or a reviewed override value, changed before a checked override write. */
 export class DesignOverridesChanged extends Error {
   constructor() {

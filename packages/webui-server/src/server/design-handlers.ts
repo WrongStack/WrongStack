@@ -31,6 +31,7 @@ import {
   loadActiveKit,
   materializeTokens,
   recordKitChoice,
+  recordKitChoiceIfCurrent,
   recordOverrides,
   resolveMaterializeTarget,
   resolveSemanticTune,
@@ -58,6 +59,14 @@ function readOverrides(value: unknown): Record<string, string> {
  * The optional `expected` of an override write: the pinned kit the caller reviewed and, per key,
  * the value it saw ('' = no override). Checked under the `active.json` lock.
  */
+/** `expectedKit` of a checked pin: the kit the caller saw pinned, null for none. */
+function readExpectedKit(payload: unknown): string | null | undefined {
+  const value = (payload as { expectedKit?: unknown } | undefined)?.expectedKit;
+  return value === null || (typeof value === 'string' && value) ? value : undefined;
+}
+
+const KIT_CHANGED = 'The project’s pinned kit changed since it was read.';
+
 function readExpectation(value: unknown): DesignOverridesExpectation | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const kit = (value as { kit?: unknown }).kit;
@@ -190,18 +199,45 @@ export async function handleDesignUse(
     const stack: DesignStack =
       stackArg && isDesignStack(stackArg) ? stackArg : (kit.stacks[0] ?? 'web');
     // Preserve persisted overrides for this kit; merge any passed with `use`.
-    const persisted = await loadActiveKit(ctx.projectRoot).catch(() => undefined);
-    const keep = persisted?.kit === kit.id ? (persisted.overrides ?? {}) : {};
-    const overrides = { ...keep, ...readOverrides((payload as { overrides?: unknown }).overrides) };
-    if (ctx.agentMeta) setActiveKit(ctx.agentMeta, kit.id, stack, overrides);
-    await recordKitChoice(
-      ctx.projectRoot,
-      kit.id,
-      stack,
-      'webui',
-      new Date().toISOString(),
-      Object.keys(overrides).length ? overrides : undefined,
-    );
+    const passed = readOverrides((payload as { overrides?: unknown }).overrides);
+    const expectedKit = readExpectedKit(payload);
+    let overrides: Record<string, string>;
+    if (expectedKit !== undefined) {
+      const written = await recordKitChoiceIfCurrent(
+        ctx.projectRoot,
+        expectedKit,
+        kit.id,
+        stack,
+        'webui',
+        new Date().toISOString(),
+        (current) => ({
+          ...(current?.kit === kit.id ? (current.overrides ?? {}) : {}),
+          ...passed,
+        }),
+      );
+      if (!written) {
+        reply(ws, ctx, {
+          type: 'design.use',
+          payload: { ok: false, kit: kitId, conflict: true, error: KIT_CHANGED },
+        });
+        return;
+      }
+      overrides = written;
+      if (ctx.agentMeta) setActiveKit(ctx.agentMeta, kit.id, stack, overrides);
+    } else {
+      const persisted = await loadActiveKit(ctx.projectRoot).catch(() => undefined);
+      const keep = persisted?.kit === kit.id ? (persisted.overrides ?? {}) : {};
+      overrides = { ...keep, ...passed };
+      if (ctx.agentMeta) setActiveKit(ctx.agentMeta, kit.id, stack, overrides);
+      await recordKitChoice(
+        ctx.projectRoot,
+        kit.id,
+        stack,
+        'webui',
+        new Date().toISOString(),
+        Object.keys(overrides).length ? overrides : undefined,
+      );
+    }
     const body = await loader.readBody(kit.id, stack);
     const rawTokens = await loader.readTokens(kit.id);
     const tokens = rawTokens ? applyTokenOverrides(rawTokens, overrides) : rawTokens;
@@ -325,9 +361,30 @@ export async function handleDesignSwap(
     const stack: DesignStack =
       stackArg && isDesignStack(stackArg) ? stackArg : (kit.stacks[0] ?? 'web');
     // Fresh switch: drop old overrides before pinning.
-    await clearPersistedActiveKit(ctx.projectRoot);
-    if (ctx.agentMeta) setActiveKit(ctx.agentMeta, kit.id, stack, {});
-    await recordKitChoice(ctx.projectRoot, kit.id, stack, 'webui-swap', new Date().toISOString());
+    const expectedKit = readExpectedKit(payload);
+    if (expectedKit !== undefined) {
+      const written = await recordKitChoiceIfCurrent(
+        ctx.projectRoot,
+        expectedKit,
+        kit.id,
+        stack,
+        'webui-swap',
+        new Date().toISOString(),
+        () => ({}),
+      );
+      if (!written) {
+        reply(ws, ctx, {
+          type: 'design.swap',
+          payload: { ok: false, kit: kitId, conflict: true, error: KIT_CHANGED },
+        });
+        return;
+      }
+      if (ctx.agentMeta) setActiveKit(ctx.agentMeta, kit.id, stack, {});
+    } else {
+      await clearPersistedActiveKit(ctx.projectRoot);
+      if (ctx.agentMeta) setActiveKit(ctx.agentMeta, kit.id, stack, {});
+      await recordKitChoice(ctx.projectRoot, kit.id, stack, 'webui-swap', new Date().toISOString());
+    }
     const body = await loader.readBody(kit.id, stack);
     const tokens = await loader.readTokens(kit.id);
     reply(ws, ctx, {

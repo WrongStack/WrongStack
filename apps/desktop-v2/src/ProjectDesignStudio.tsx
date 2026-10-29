@@ -137,7 +137,18 @@ export function ProjectDesignStudio({
     if (!kit || dirty || tuneDirty) return;
     setConfirmation(null);
     await run(async () => {
-      const response = await command(type, { kit: selected, stack }, [type]);
+      // The engine pins only if the project still has the kit this gallery shows.
+      const response = await command(
+        type,
+        { kit: selected, stack, expectedKit: activeId || null },
+        [type],
+      );
+      if (response['ok'] === false)
+        throw Error(
+          response['conflict'] === true
+            ? 'The project’s active kit changed. Refresh the gallery before changing it.'
+            : String(response['error'] ?? 'The kit change was refused.'),
+        );
       const saved = await command('design.list', {}, ['design.list']);
       if (saved['activeKit'] !== selected || saved['stack'] !== stack)
         throw Error('The active kit changed before readback. Refresh the project gallery.');

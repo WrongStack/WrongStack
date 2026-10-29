@@ -27,6 +27,8 @@ it('applies design overrides only over the kit and values the caller reviewed', 
   };
   const active = async () =>
     JSON.parse(await readFile(join(dir, '.design', 'active.json'), 'utf8')) as {
+      kit: string;
+      stack?: string;
       overrides?: Record<string, string>;
     };
   try {
@@ -54,6 +56,29 @@ it('applies design overrides only over the kit and values the caller reviewed', 
     expect(await call('design.set', { overrides: { accent: '#654321' } })).toMatchObject({
       ok: true,
     });
+    // Pinning and swapping are checked against the kit the caller saw pinned.
+    expect(
+      await call('design.swap', { kit: 'soft-glass', stack: 'web', expectedKit: null }),
+    ).toMatchObject({ ok: false, conflict: true });
+    expect(
+      await call('design.use', { kit: 'soft-glass', stack: 'web', expectedKit: 'other-kit' }),
+    ).toMatchObject({ ok: false, conflict: true });
+    expect(await active()).toMatchObject({ kit: 'minimal-clarity' });
+    expect(
+      await call('design.use', {
+        kit: 'minimal-clarity',
+        stack: 'web',
+        expectedKit: 'minimal-clarity',
+      }),
+    ).toMatchObject({ ok: true, overrides: { primary: '#123456', accent: '#654321' } });
+    expect(
+      await call('design.swap', {
+        kit: 'soft-glass',
+        stack: 'web',
+        expectedKit: 'minimal-clarity',
+      }),
+    ).toMatchObject({ ok: true, overrides: {} });
+    expect(await active()).toEqual({ kit: 'soft-glass', stack: 'web' });
   } finally {
     expect(dir.startsWith(base + sep)).toBe(true);
     await rm(dir, { recursive: true, force: true });
