@@ -226,6 +226,30 @@ describe('management revisions and scoped artifacts', () => {
     expect(state.jobs[0]!.revision).toBe(2);
     expect(state.runs[0]!.job.prompt).toBe(spec.prompt);
   });
+  it('deletes a job and its run records at its reviewed revision and refuses active runs', async () => {
+    const { store, spec } = await fixture();
+    const request = await api(store, spec.projectRoot);
+    const job = await store.add(spec);
+    const queued = await store.enqueue(job.id);
+    // A queued run blocks deletion.
+    const blocked = await request(`jobs/${job.id}?expectedRevision=1`, 'DELETE');
+    expect(blocked.status).toBe(409);
+    await store.cancel(queued.id);
+    // A stale revision is refused.
+    await store.update(job.id, { ...spec, prompt: 'edited' }, 1);
+    expect((await request(`jobs/${job.id}?expectedRevision=1`, 'DELETE')).status).toBe(409);
+    expect((await request(`jobs/${job.id}`, 'DELETE')).status).toBe(400);
+    const other = await store.add({ ...spec, name: 'other' });
+    const kept = await store.enqueue(other.id);
+    const removed = await request(`jobs/${job.id}?expectedRevision=2`, 'DELETE');
+    expect(removed.status).toBe(200);
+    expect(await removed.json()).toEqual({ ok: true, removedRuns: 1 });
+    const state = await store.snapshot();
+    expect(state.jobs.map((item) => item.id)).toEqual([other.id]);
+    // Only the deleted job's run records go; other jobs keep theirs.
+    expect(state.runs.map((run) => run.id)).toEqual([kept.id]);
+    expect((await request(`jobs/${job.id}?expectedRevision=3`, 'DELETE')).status).toBe(404);
+  });
   it('supports legacy jobs without revisions', async () => {
     const { store, spec } = await fixture();
     await store.add(spec);

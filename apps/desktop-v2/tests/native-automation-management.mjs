@@ -469,6 +469,16 @@ export async function exerciseNativeAutomationManagement({
     'Job model and credential references do not change profile settings',
   );
   assert.equal(page.context().pages().length, 1);
+  // Deleting removes the job and its run records after an explicit confirmation.
+  await workspace().getByRole('button', { name: 'Delete', exact: true }).click();
+  const confirmDelete = page.getByRole('dialog', { name: 'Delete automation', exact: true });
+  await confirmDelete.getByRole('button', { name: 'Delete automation', exact: true }).click();
+  await workspace().getByText(/^Deleted .+ run records\.$/).waitFor();
+  assert.equal(
+    await workspace().getByRole('button', { name: 'Queue run', exact: true }).count(),
+    0,
+    'The deleted automation is no longer selected',
+  );
   console.log(
     'PASS: native automation management, per-job/project drafts and stale-save refusal; actual offline queue/cancel, missing/malformed evidence handling, seeded verification and environment presentation, and ineligible publication guard; no sessions, Docker execution or external publication',
   );

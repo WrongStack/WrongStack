@@ -17,6 +17,13 @@ export class AutomationRevisionConflict extends Error {
   }
 }
 
+/** A job cannot be removed while one of its runs is queued or running. */
+export class AutomationJobBusy extends Error {
+  constructor() {
+    super('This automation has a queued or running run; cancel it or wait before deleting');
+  }
+}
+
 const MAX_STATE_BYTES = 16 * 1024 * 1024;
 const MAX_RUNS = 2000;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
@@ -372,6 +379,30 @@ export class AutomationStore {
       Object.assign(run, result, { completedAt: now });
       delete run.leaseExpiresAt;
       return true;
+    });
+  }
+  /**
+   * Removes a job at the reviewed revision together with its run records (every run must belong
+   * to a stored job). Artifact files on disk are not touched. Refused while a run of the job is
+   * queued or running. Returns how many run records were removed.
+   */
+  async remove(id: string, expectedRevision: number, projectRoot?: string): Promise<number> {
+    return this.change((state) => {
+      const index = state.jobs.findIndex((item) => item.id === id);
+      const job = state.jobs[index];
+      if (!job || (projectRoot !== undefined && job.projectRoot !== projectRoot))
+        throw new Error('Automation job not found');
+      if ((job.revision ?? 1) !== expectedRevision) throw new AutomationRevisionConflict();
+      if (
+        state.runs.some(
+          (run) => run.jobId === id && (run.status === 'queued' || run.status === 'running'),
+        )
+      )
+        throw new AutomationJobBusy();
+      state.jobs.splice(index, 1);
+      const before = state.runs.length;
+      state.runs = state.runs.filter((run) => run.jobId !== id);
+      return before - state.runs.length;
     });
   }
   async cancel(id: string): Promise<void> {

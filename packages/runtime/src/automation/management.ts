@@ -15,7 +15,7 @@ import type { AutomationJobSpec } from './contracts.js';
 import { evaluateGitHubFilters } from './github-filters.js';
 import { createHeadlessLaunchPlan } from './launch-plan.js';
 import { AutomationPullRequests } from './pull-request.js';
-import { AutomationRevisionConflict, type AutomationStore } from './store.js';
+import { AutomationJobBusy, AutomationRevisionConflict, type AutomationStore } from './store.js';
 
 export async function readAutomationBody(
   request: IncomingMessage,
@@ -209,6 +209,19 @@ export async function handleAutomationManagement(
         expectedRevision as number | undefined,
       );
       reply(202, { runId: run.id });
+    } else if (jobMatch && !jobMatch[2] && request.method === 'DELETE') {
+      const raw = url.searchParams.get('expectedRevision');
+      const expectedRevision = raw === null ? Number.NaN : Number(raw);
+      if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1)
+        throw new Error('expectedRevision is required');
+      if (!jobs.some((job) => job.id === jobMatch[1])) {
+        reply(404, { error: 'Automation job not found' });
+        return true;
+      }
+      reply(200, {
+        ok: true,
+        removedRuns: await store.remove(jobMatch[1]!, expectedRevision, root),
+      });
     } else if (jobMatch?.[2] === 'enabled' && request.method === 'POST') {
       const body = await readAutomationBody(request);
       if (typeof body['enabled'] !== 'boolean' || !Number.isSafeInteger(body['expectedRevision']))
@@ -276,9 +289,12 @@ export async function handleAutomationManagement(
       } else reply(201, await store.add(spec));
     } else reply(405, { error: 'Method not allowed' });
   } catch (error) {
-    reply(error instanceof AutomationRevisionConflict ? 409 : 400, {
-      error: error instanceof Error ? error.message.slice(0, 256) : 'Automation request failed',
-    });
+    reply(
+      error instanceof AutomationRevisionConflict || error instanceof AutomationJobBusy ? 409 : 400,
+      {
+        error: error instanceof Error ? error.message.slice(0, 256) : 'Automation request failed',
+      },
+    );
   }
   return true;
 }

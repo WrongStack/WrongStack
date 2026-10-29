@@ -9,7 +9,7 @@ import {
   parseAutomationCommands,
   VERSIONED_AUTOMATION_TEMPLATES,
 } from '@wrongstack/webui-protocol';
-import { Download, Eye, Pause, Play, Plus, RefreshCw, Save } from 'lucide-react';
+import { Download, Eye, Pause, Play, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AutomationConfiguration, AutomationTemplates } from './AutomationConfiguration';
 import { AutomationEnvironmentEditor } from './AutomationEnvironmentEditor';
@@ -37,6 +37,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
     workerOnline: false,
   });
   const [selected, setSelected] = useState<AutomationJobRecord | null>(cached?.selected ?? null);
+  const [deleting, setDeleting] = useState<AutomationJobRecord | null>(null);
   const [draft, setDraft] = useState<AutomationJobInput>(cached?.draft ?? fresh());
   const [commands, setCommands] = useState(cached?.commands ?? '');
   const [preview, setPreview] = useState<AutomationPreview | null>(null);
@@ -675,11 +676,64 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   <Download size={13} />
                   Export
                 </button>
+                <button
+                  type="button"
+                  className="button secondary danger"
+                  disabled={busy || dirty}
+                  onClick={() => setDeleting(selected)}
+                >
+                  <Trash2 size={13} />
+                  Delete
+                </button>
               </div>
             )}
           </fieldset>
         </form>
       </div>
+      {deleting && (
+        <Modal title="Delete automation" onClose={() => setDeleting(null)}>
+          <section className="automation-delete" aria-label="Delete automation">
+            <p>
+              Delete <strong>{deleting.name}</strong>? Its definition and its run records in this
+              list are removed. Artifact files already written stay on disk. A queued or running run
+              must be cancelled or finish first.
+            </p>
+            <div className="feature-actions">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => setDeleting(null)}
+              >
+                Keep it
+              </button>
+              <button
+                type="button"
+                className="button primary danger"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    const target = deleting;
+                    const result = (await http(
+                      `/api/automation/jobs/${target.id}?expectedRevision=${target.revision ?? 1}`,
+                      'DELETE',
+                    )) as { removedRuns?: unknown };
+                    if (!alive.current) return;
+                    setDeleting(null);
+                    jobDrafts.delete(draftKey(target.id));
+                    edit(null, true);
+                    setNotice(
+                      `Deleted ${target.name}${typeof result?.removedRuns === 'number' ? ` and ${result.removedRuns} run records` : ''}.`,
+                    );
+                  })
+                }
+              >
+                Delete automation
+              </button>
+            </div>
+          </section>
+        </Modal>
+      )}
       {comparing && comparedRuns.length === 2 && (
         <AutomationRunComparison
           left={comparedRuns[0]!}
