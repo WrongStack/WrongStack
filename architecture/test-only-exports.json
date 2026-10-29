@@ -6,6 +6,9 @@
       "paletteColors",
       "resolvedContrast"
     ],
+    "apps/desktop-v2/src/atlas-communities.ts": [
+      "UNCONNECTED"
+    ],
     "apps/desktop-v2/src/automation-draft.ts": [
       "NEW_AUTOMATION"
     ],

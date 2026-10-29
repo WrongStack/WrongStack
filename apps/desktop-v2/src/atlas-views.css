@@ -61,6 +61,25 @@
   line-height: 1.8;
   margin-bottom: 0;
 }
+.atlas-grouping {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: 0;
+}
+.atlas-grouping > button {
+  padding: 5px 9px;
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.atlas-grouping > button[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
 .atlas-subsystem-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));

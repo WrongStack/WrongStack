@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:26:52.966Z",
+  "generatedAt": "2026-10-29T19:29:31.186Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5480,
-    "testFiles": 4768,
-    "sourceLines": 1205138,
+    "sourceFiles": 5481,
+    "testFiles": 4769,
+    "sourceLines": 1205274,
     "workspaceEdges": 222,
-    "moduleEdges": 16445,
+    "moduleEdges": 16447,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 123,
+    "testsWithoutTypecheck": 124,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 984
+    "testOnlyExports": 985
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 292,
-      "testFiles": 123,
+      "sourceFiles": 293,
+      "testFiles": 124,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1277,6 +1277,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/atlas-boundary-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/atlas-communities.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29896,6 +29902,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/atlas-communities.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/atlas-views.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31758,6 +31771,10 @@
     {
       "file": "apps/desktop-v2/src/appearance.ts",
       "name": "resolvedContrast"
+    },
+    {
+      "file": "apps/desktop-v2/src/atlas-communities.ts",
+      "name": "UNCONNECTED"
     },
     {
       "file": "apps/desktop-v2/src/automation-draft.ts",

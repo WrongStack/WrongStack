@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { AtlasBoundaryMap } from './AtlasBoundaryMap';
+import { hasStoredGroups, inferCommunities } from './atlas-communities';
 import { atlasImpact, atlasSubsystems } from './atlas-views-model';
 import type { VisualGraph } from './graph-model';
 
@@ -19,7 +20,21 @@ type Props = {
   onOpen: (id: string) => void;
   nodeLimit?: number | null;
 };
-export function AtlasSubsystemView({ graph, selected, onSelect, onOpen, nodeLimit = 160 }: Props) {
+export function AtlasSubsystemView({
+  graph: stored,
+  selected,
+  onSelect,
+  onOpen,
+  nodeLimit = 160,
+}: Props) {
+  // Without stored subsystems or packages, communities found from the references are the default.
+  const explicit = useMemo(() => hasStoredGroups(stored), [stored]);
+  const [choice, setChoice] = useState<'stored' | 'inferred' | null>(null);
+  const grouping = choice ?? (explicit ? 'stored' : 'inferred');
+  const graph = useMemo(
+    () => (grouping === 'inferred' ? inferCommunities(stored) : stored),
+    [grouping, stored],
+  );
   const groups = useMemo(() => atlasSubsystems(graph), [graph]);
   return (
     <section className="atlas-subsystem-view" aria-label="Atlas subsystems">
@@ -29,7 +44,30 @@ export function AtlasSubsystemView({ graph, selected, onSelect, onOpen, nodeLimi
           <h2>Subsystem boundaries</h2>
           <p>Compare code ownership, internal cohesion, and references crossing each boundary.</p>
         </div>
+        <fieldset className="atlas-grouping" aria-label="Group nodes by">
+          <button
+            type="button"
+            aria-pressed={grouping === 'stored'}
+            onClick={() => setChoice('stored')}
+          >
+            {explicit ? 'Stored subsystems' : 'Node kind'}
+          </button>
+          <button
+            type="button"
+            aria-pressed={grouping === 'inferred'}
+            onClick={() => setChoice('inferred')}
+          >
+            Inferred communities
+          </button>
+        </fieldset>
       </header>
+      {grouping === 'inferred' && (
+        <p className="field-help">
+          Inferred communities are computed here from the stored references; they are not subsystems
+          recorded by the index.
+          {!explicit && ' The index stored no subsystem or package for these nodes.'}
+        </p>
+      )}
       <AtlasBoundaryMap graph={graph} onSelect={onSelect} onOpen={onOpen} nodeLimit={nodeLimit} />
       <div className="atlas-subsystem-grid">
         {groups.map((g, index) => (

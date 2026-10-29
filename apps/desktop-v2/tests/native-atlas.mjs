@@ -108,6 +108,18 @@ export async function exerciseNativeAtlas({
   await boundaries.getByRole('button', { name: 'Collapse all subsystems', exact: true }).click();
   assert.equal(await boundaries.locator('.graph-node').count(), groupCount);
   assert.equal(await boundaryDetail.count(), 0);
+  // Communities inferred from stored references are opt-in here (the index stored packages).
+  const grouping = page.getByRole('group', { name: 'Group nodes by', exact: true });
+  await grouping.getByRole('button', { name: 'Inferred communities', exact: true }).click();
+  await page.getByText('Inferred communities are computed here', { exact: false }).waitFor();
+  const inferredNames = await page.locator('.atlas-subsystem-card h3').allInnerTexts();
+  assert.ok(
+    inferredNames.length > 0 &&
+      inferredNames.every((name) => name.startsWith('Inferred: ') || name === 'Unconnected'),
+    inferredNames.join(' | '),
+  );
+  await grouping.getByRole('button', { name: 'Stored subsystems', exact: true }).click();
+  assert.equal(await boundaries.locator('.graph-node').count(), groupCount);
   await page.getByLabel('Search code atlas', { exact: true }).fill('no-boundary-match');
   await boundaries
     .getByText('No indexed nodes match the current filters.', { exact: true })
