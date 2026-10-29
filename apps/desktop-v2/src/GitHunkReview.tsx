@@ -20,13 +20,16 @@ export function GitHunkReview({
     [result, setResult] = useState<Record<string, unknown>>({}),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    // Change lines picked per hunk (indices into the hunk body after its @@ line).
+    [picked, setPicked] = useState<Record<number, number[]>>({});
   const generation = useRef(0);
   const refresh = useCallback(async () => {
     const own = ++generation.current;
     setLoading(true);
     setError('');
     setResult({});
+    setPicked({});
     try {
       const reply = await command('git.hunks', { path, layer }, ['git.hunks']);
       if (own !== generation.current) return;
@@ -46,14 +49,16 @@ export function GitHunkReview({
       generation.current++;
     };
   }, [refresh]);
-  const apply = async (hunk: number) => {
+  const apply = async (hunk: number, lines?: number[]) => {
     if (busy || loading) return;
     setBusy(true);
     setError('');
     try {
-      await command('git.hunk.apply', { path, layer, patchId: result['patchId'], hunk }, [
-        'git.action_result',
-      ]);
+      await command(
+        'git.hunk.apply',
+        { path, layer, patchId: result['patchId'], hunk, ...(lines ? { lines } : {}) },
+        ['git.action_result'],
+      );
       onApplied();
       await refresh();
     } catch (error) {
@@ -88,8 +93,8 @@ export function GitHunkReview({
           </button>
         </header>
         <p>
-          Move only the selected change between your working tree and the index. Files on disk stay
-          as they are.
+          Move only the selected change between your working tree and the index: a whole hunk, or
+          the lines you tick in it. Files on disk stay as they are.
         </p>
         <div className="git-hunk-controls">
           <label>
@@ -128,6 +133,17 @@ export function GitHunkReview({
             <article key={String(hunk['id'])}>
               <header>
                 <code>{String(hunk['header'])}</code>
+                {!!picked[Number(hunk['id'])]?.length && (
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={busy || !!error}
+                    onClick={() => void apply(Number(hunk['id']), picked[Number(hunk['id'])])}
+                  >
+                    {layer === 'staged' ? 'Unstage' : 'Stage'} {picked[Number(hunk['id'])]!.length}{' '}
+                    selected lines
+                  </button>
+                )}
                 <button
                   type="button"
                   className="button secondary"
@@ -151,6 +167,24 @@ export function GitHunkReview({
                             : ''
                       }
                     >
+                      {index > 0 && (line.startsWith('+') || line.startsWith('-')) && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Select line ${index} of hunk ${Number(hunk['id']) + 1}`}
+                          disabled={busy}
+                          checked={picked[Number(hunk['id'])]?.includes(index - 1) ?? false}
+                          onChange={(event) => {
+                            const id = Number(hunk['id']);
+                            setPicked((current) => {
+                              const lines = (current[id] ?? []).filter((at) => at !== index - 1);
+                              return {
+                                ...current,
+                                [id]: event.target.checked ? [...lines, index - 1] : lines,
+                              };
+                            });
+                          }}
+                        />
+                      )}
                       {line}
                       {'\n'}
                     </span>

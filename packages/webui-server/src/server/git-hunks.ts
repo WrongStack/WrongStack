@@ -126,6 +126,66 @@ async function reviewedPatch(projectRoot: string, path: string, staged: boolean)
   };
 }
 
+/**
+ * A reviewed hunk narrowed to the selected change lines (indices into the hunk body, after its
+ * `@@` line). Applied forward to the index, an unselected addition is dropped and an unselected
+ * removal stays as context; applied in reverse (unstaging), the roles swap. The header counts
+ * are recomputed. Hunks touching the end-of-file newline marker are left whole.
+ */
+export function partialHunk(text: string, selected: readonly number[], reverse: boolean): string {
+  const [header = '', ...rest] = text.replace(/\n$/, '').split('\n');
+  const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$/.exec(header);
+  if (!match) throw Error('The selected hunk is unavailable.');
+  if (rest.some((line) => line.startsWith('\\')))
+    throw Error('Stage this hunk whole: it changes the end-of-file newline.');
+  const chosen = new Set(selected);
+  if (
+    !chosen.size ||
+    [...chosen].some(
+      (index) =>
+        !Number.isSafeInteger(index) ||
+        !(rest[index]?.startsWith('+') || rest[index]?.startsWith('-')),
+    )
+  )
+    throw Error('Select one or more added or removed lines of this hunk.');
+  // Within each run of changes, the side the patch is applied to keeps its order: forward, the
+  // removed lines (selected stay removals, the rest become context) with the selected additions
+  // after the last selected removal; in reverse, the mirror of that.
+  const body: string[] = [];
+  let run: { line: string; index: number }[] = [];
+  const flush = () => {
+    const kept = reverse ? '+' : '-';
+    const fixed = run
+      .filter(({ line }) => line.startsWith(kept))
+      .map(({ line, index }) => (chosen.has(index) ? line : ` ${line.slice(1)}`));
+    const moved = run
+      .filter(({ line, index }) => !line.startsWith(kept) && chosen.has(index))
+      .map(({ line }) => line);
+    const anchors = run
+      .filter(({ line }) => line.startsWith(kept))
+      .map(({ index }) => chosen.has(index));
+    // Forward: after the last selected removal (else at the end). Reverse: before the first
+    // selected addition (else at the start).
+    const at = reverse
+      ? Math.max(0, anchors.indexOf(true))
+      : anchors.lastIndexOf(true) === -1
+        ? fixed.length
+        : anchors.lastIndexOf(true) + 1;
+    body.push(...fixed.slice(0, at), ...moved, ...fixed.slice(at));
+    run = [];
+  };
+  rest.forEach((line, index) => {
+    if (line.startsWith(' ')) {
+      flush();
+      body.push(line);
+    } else run.push({ line, index });
+  });
+  flush();
+  const oldCount = body.filter((line) => !line.startsWith('+')).length;
+  const newCount = body.filter((line) => !line.startsWith('-')).length;
+  return `@@ -${match[1]},${oldCount} +${match[2]},${newCount} @@${match[3]}\n${body.join('\n')}\n`;
+}
+
 /** Server-generated patches only: the caller selects a reviewed hunk, never sends executable patch text. */
 export async function handleGitHunks(
   ws: WebSocket,
@@ -162,15 +222,34 @@ export async function handleGitHunks(
     const id = value['hunk'];
     if (typeof id !== 'number' || !Number.isSafeInteger(id) || id < 0 || !review.hunks[id])
       throw Error('The selected hunk is unavailable.');
-    const patch = review.header + review.hunks[id]!.text;
+    // Optional line selection: still a server-built patch from the reviewed hunk.
+    const lines = value['lines'];
+    if (lines !== undefined && !Array.isArray(lines))
+      throw Error('Select one or more added or removed lines of this hunk.');
+    const hunkText = lines
+      ? partialHunk(review.hunks[id]!.text, lines as number[], staged)
+      : review.hunks[id]!.text;
+    const patch = review.header + hunkText;
     await gitReviewCommand(
       review.root,
-      ['apply', '--cached', '--whitespace=nowarn', ...(staged ? ['--reverse'] : []), '-'],
+      [
+        'apply',
+        '--cached',
+        '--whitespace=nowarn',
+        ...(lines ? ['--recount'] : []),
+        ...(staged ? ['--reverse'] : []),
+        '-',
+      ],
       patch,
     );
+    const unit = lines ? 'lines' : 'hunk';
     send(ws, {
       type: 'git.action_result',
-      payload: { ok: true, action: staged ? 'unstage-hunk' : 'stage-hunk', path: value['path'] },
+      payload: {
+        ok: true,
+        action: staged ? `unstage-${unit}` : `stage-${unit}`,
+        path: value['path'],
+      },
     });
   } catch (error) {
     send(ws, {

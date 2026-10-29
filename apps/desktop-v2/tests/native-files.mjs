@@ -622,6 +622,21 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   assert.ok(
     (await readFile(join(project.root, 'native-hunks.txt'), 'utf8')).includes('newer change'),
   );
+  // Ticking only the removal of "line 3" stages that line alone, not its replacement.
+  await hunks
+    .getByRole('combobox', { name: 'Hunk review layer', exact: true })
+    .selectOption('unstaged');
+  await hunks.getByRole('checkbox', { name: 'Select line 3 of hunk 1', exact: true }).check();
+  await hunks.getByRole('button', { name: 'Stage 1 selected lines', exact: true }).click();
+  await waitFor(
+    () => git('show', ':native-hunks.txt') === original.replace('line 3\n', ''),
+    'Only the selected line enters the real index',
+  );
+  await hunks
+    .getByRole('combobox', { name: 'Hunk review layer', exact: true })
+    .selectOption('staged');
+  await hunks.getByRole('button', { name: 'Unstage hunk 1', exact: true }).click();
+  await waitFor(() => git('show', ':native-hunks.txt') === original, 'Line staging undone');
   await hunks.getByRole('button', { name: 'Close hunk review', exact: true }).click();
   console.log(
     'PASS: native hunk stage/unstage, real index/disk readback, stale diff refusal, compact review, durable project notes and stale-window protection',
