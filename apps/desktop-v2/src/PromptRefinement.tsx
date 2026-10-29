@@ -55,7 +55,8 @@ export function PromptRefinement({
     [failure, setFailure] = useState<ReturnType<typeof refinementRecovery> | null>(null),
     [edited, setEdited] = useState<string | null>(restored?.edited ?? null),
     [edit, setEdit] = useState(restored?.edited != null),
-    [compare, setCompare] = useState(false);
+    [compare, setCompare] = useState(false),
+    [stopped, setStopped] = useState(false);
   const generation = useRef(0);
   const refine = async (
     previous?: Record<string, unknown>,
@@ -64,6 +65,7 @@ export function PromptRefinement({
   ) => {
     const own = ++generation.current;
     setBusy(true);
+    setStopped(false);
     setError('');
     setFailure(null);
     try {
@@ -132,6 +134,7 @@ export function PromptRefinement({
     setSending(true);
     setError('');
     setFailure(null);
+    setStopped(false);
     try {
       await onSend(text, mode);
     } catch (e) {
@@ -232,6 +235,22 @@ export function PromptRefinement({
         {busy && (
           <p className="refine-progress" role="status">
             <LoaderCircle size={15} className="spin" /> Refining with your configured model…
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => {
+                // The engine has no refinement cancel; a late reply is ignored by generation.
+                generation.current++;
+                setBusy(false);
+                setFailure(null);
+                setStopped(true);
+                setError(
+                  'Stopped waiting for this refinement. The engine may still finish it, but its result will not replace this review.',
+                );
+              }}
+            >
+              Stop waiting
+            </button>
           </p>
         )}
         {error && (
@@ -244,6 +263,16 @@ export function PromptRefinement({
                   : `${message} Your draft is kept.`;
               })()}
             </p>
+            {stopped && !busy && (
+              <button
+                type="button"
+                className="button secondary"
+                disabled={sending}
+                onClick={() => void refine(Object.keys(result).length ? result : undefined)}
+              >
+                Try again
+              </button>
+            )}
             {failure && (
               <details>
                 <summary>Error details</summary>
