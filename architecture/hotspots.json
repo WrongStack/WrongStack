@@ -154,6 +154,10 @@
       "lines": 778,
       "relativeImports": 10
     },
+    "apps/desktop-v2/src/ProjectChronicle.tsx": {
+      "lines": 701,
+      "relativeImports": 8
+    },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
       "lines": 752,
       "relativeImports": 8

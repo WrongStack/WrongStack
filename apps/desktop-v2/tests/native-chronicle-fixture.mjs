@@ -3,6 +3,36 @@ import { dirname } from 'node:path';
 import { createChronicleEventJournal } from '../../../packages/chronicle/dist/index.js';
 import { resolveWstackPaths } from '../../../packages/persistence/dist/index.js';
 
+/** A prompt manifest shaped like the provider runner's, with Chronicle's compacted tail. */
+const NATIVE_MANIFEST = {
+  manifestId: 'prompt_native_fixture',
+  messageCount: 10,
+  estimatedMessageTokens: 1200,
+  contentBytes: 4800,
+  roleCounts: { user: 5, assistant: 5 },
+  blockCounts: { text: 10 },
+  system: {
+    blockCount: 2,
+    bytes: 700,
+    hash: 'sha256-native-system',
+    blocks: [
+      { source: 'identity', bytes: 300, hash: 'sha256-native-identity' },
+      { source: 'project-instructions', bytes: 400, hash: 'sha256-native-project' },
+    ],
+  },
+  messages: [{ index: 9, role: 'user', bytes: 60, estimatedTokens: 15, hash: 'sha256-native-m9' }],
+  messagesTruncated: 9,
+  tools: {
+    count: 2,
+    estimatedDefinitionTokens: 300,
+    manifestHash: 'sha256-native-tools',
+    names: ['read', 'edit'],
+    mutating: 1,
+    destructive: 0,
+  },
+  request: {},
+};
+
 export async function seedNativeChronicle({ rpc, project, waitFor }) {
   const requestId = crypto.randomUUID();
   await rpc('project.send', {
@@ -59,6 +89,7 @@ export async function seedNativeChronicle({ rpc, project, waitFor }) {
           runId: 'fixture-run',
           toolName: 'edit',
           operation: 'write',
+          ...(eventType === 'provider.attempt.started' ? { promptManifest: NATIVE_MANIFEST } : {}),
         },
       })),
       ...['tool.started', 'file.changed', 'tool.completed'].map((eventType, i) => ({

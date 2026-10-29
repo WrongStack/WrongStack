@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T19:29:31.186Z",
+  "generatedAt": "2026-10-29T19:32:29.887Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5481,
-    "testFiles": 4769,
-    "sourceLines": 1205274,
+    "sourceFiles": 5483,
+    "testFiles": 4770,
+    "sourceLines": 1205499,
     "workspaceEdges": 222,
-    "moduleEdges": 16447,
+    "moduleEdges": 16451,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 124,
+    "testsWithoutTypecheck": 125,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 985
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 293,
-      "testFiles": 124,
+      "sourceFiles": 295,
+      "testFiles": 125,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1373,6 +1373,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/chronicle-export.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/chronicle-manifest.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30014,6 +30020,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/chronicle-manifest.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/chronicle-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31452,6 +31465,11 @@
       "relativeImports": 10
     },
     {
+      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
+      "lines": 701,
+      "relativeImports": 8
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
       "lines": 752,
       "relativeImports": 8
@@ -31749,14 +31767,14 @@
       "relativeImports": 6
     },
     {
+      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
+      "lines": 701,
+      "relativeImports": 8
+    },
+    {
       "file": "packages/coordination/src/provider-status-tracker.ts",
       "lines": 701,
       "relativeImports": 4
-    },
-    {
-      "file": "apps/desktop-v2/src/useDesktop.ts",
-      "lines": 700,
-      "relativeImports": 9
     }
   ],
   "testOnlyExports": [

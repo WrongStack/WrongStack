@@ -336,6 +336,50 @@
   overflow-wrap: anywhere;
   margin: 0;
 }
+.chronicle-manifest h3 {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 22px 0 10px;
+}
+.chronicle-manifest h4 {
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--subtle);
+  margin: 14px 0 6px;
+}
+.chronicle-manifest dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.chronicle-manifest dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+}
+.chronicle-manifest dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.chronicle-manifest table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.chronicle-manifest :is(th, td) {
+  text-align: left;
+  padding: 3px 6px 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.chronicle-manifest-tools {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
 .chronicle-identities {
   margin-top: 22px;
   border-top: 1px solid var(--border);

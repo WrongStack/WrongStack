@@ -13,12 +13,14 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChronicleInsights } from './ChronicleInsights';
+import { ChronicleManifest } from './ChronicleManifest';
 import {
   chronicleFileName,
   chronicleJsonl,
   chronicleLineageMarkdown,
   chronicleMarkdown,
 } from './chronicle-export';
+import { chronicleManifest, withoutManifest } from './chronicle-manifest';
 import {
   chronicleGraph,
   chronicleQuery,
@@ -591,6 +593,7 @@ function ChronicleDetail({
     scope = record(event['scope']),
     runtime = record(event['runtime']),
     correlation = record(event['correlation']);
+  const manifest = chronicleManifest(event['attributes']);
   return (
     <aside className="chronicle-inspector" aria-label="Chronicle event details">
       <header>
@@ -654,15 +657,16 @@ function ChronicleDetail({
             </div>
           ))}
       </dl>
+      {manifest && <ChronicleManifest manifest={manifest} />}
       <section className="chronicle-attributes">
         <h3>Recorded evidence</h3>
-        {Object.entries(record(event['attributes'])).map(([key, value]) => (
+        {Object.entries(withoutManifest(event['attributes'])).map(([key, value]) => (
           <div key={key}>
             <h4>{key.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' ')}</h4>
             <p>{evidenceText(value)}</p>
           </div>
         ))}
-        {!Object.keys(record(event['attributes'])).length && (
+        {!Object.keys(withoutManifest(event['attributes'])).length && (
           <p>No additional evidence was recorded for this event.</p>
         )}
       </section>

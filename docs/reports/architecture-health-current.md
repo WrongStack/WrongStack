@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-29T19:29:31.186Z
+**Generated:** 2026-10-29T19:32:29.887Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 45 |
-| Production source files | 5481 |
-| Production source lines | 1205274 |
-| Test files | 4769 |
+| Production source files | 5483 |
+| Production source lines | 1205499 |
+| Test files | 4770 |
 | Workspace dependency edges | 222 |
-| Relative module edges | 16447 |
+| Relative module edges | 16451 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 124 |
+| Tests without TypeScript test-project coverage | 125 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 293 | 124 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 295 | 125 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/goal | 22 | 22 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
 | @wrongstack/hq | 62 | 42 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
@@ -137,8 +137,8 @@ None.
 | 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
 | 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
+| 701 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 701 | `packages/coordination/src/provider-status-tracker.ts` |
-| 700 | `apps/desktop-v2/src/useDesktop.ts` |
 
 ## Exports only tests reference
 
@@ -148,7 +148,7 @@ None.
 
 ## TypeScript test coverage debt
 
-- 124 test files are not included in a package TypeScript test project.
+- 125 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

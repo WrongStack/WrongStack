@@ -62,6 +62,27 @@ export async function exerciseNativeEvidence({ page, rpc, project, waitFor, arti
     async () => (await page.locator('.chronicle-events > button').count()) === 105,
     'Chronicle cursor pagination',
   );
+  // A provider request event shows the prompt manifest it recorded as structured sections.
+  await page.getByLabel('Search Chronicle', { exact: true }).fill('');
+  await page.getByLabel('Chronicle eventType').selectOption('provider.attempt.started');
+  await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
+  await waitFor(
+    async () => (await page.locator('.chronicle-events > button').count()) === 1,
+    'Chronicle provider event filtering',
+  );
+  await page.getByRole('button', { name: 'Inspect Metrics fixture', exact: true }).click();
+  const manifest = page.getByRole('region', { name: 'Prompt manifest', exact: true });
+  await manifest.waitFor();
+  assert.deepEqual(
+    await manifest
+      .getByRole('table', { name: 'System prompt composition', exact: true })
+      .locator('tbody td:first-child')
+      .allInnerTexts(),
+    ['identity', 'project-instructions'],
+  );
+  await manifest.getByText('9 earlier messages are not itemised', { exact: false }).waitFor();
+  assert.ok((await manifest.innerText()).includes('read, edit'));
+  await page.getByLabel('Search Chronicle', { exact: true }).fill('Native Chronicle');
   await page.getByLabel('Chronicle eventType').selectOption('tool.completed');
   await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
   await waitFor(
