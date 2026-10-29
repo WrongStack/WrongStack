@@ -4360,3 +4360,26 @@ staged; the other session's edits stay untouched.
   deletion staged one removed line; staged deletion one line unstaged); 54 Git route tests and
   the webui-server typecheck PASS; desktop suite **579 PASS**, typecheck and Biome PASS.
 - No native step yet.
+
+### Goal budgets
+
+- Commit `6c93da60b`. A Goal run takes an optional `budget` (`maxTasks`, at most 10,000, and
+  `maxMinutes` of active run time, at most a week), saved with the graph together with its
+  usage (`budgetUsage`: tasks started, active run time), so both survive restarts. Before each
+  task starts the run counts the time since the previous check and compares; at a limit it stops
+  the orchestrator, which leaves that task pending (not failed), ends the run `stopped` with
+  "Budget reached: …" as the run error and in `goal.stopped`, saves, and releases the lease.
+  `goal.resume` accepts a new `budget` (blank keeps the saved one); continuing clears the old
+  budget message. Run time accrues only while a run is active: the stretch since the last task
+  start is not counted when the operator stops the run by hand.
+- The desktop start form has "Task limit" and "Run-time limit (minutes)", the detail shows
+  "Budget: 3 of 10 tasks · 12 of 60 min", and a stopped or failed Goal offers new limits next
+  to Resume.
+- Not a cost or token budget: the worker's provider usage is not attributed to Goal tasks yet.
+- Checks: RED then GREEN in the new `goal-run-budget.test.ts` (a real `startGoalRun` with two
+  dependent tasks and `maxTasks: 1` runs one, stops with the reason and leaves the second
+  pending; a resume with the saved budget runs nothing; a raised budget completes and clears
+  the error); `goal-budget.test.ts` (limits, persistence round-trip; written together with the
+  change); 83 webui-server Goal tests, 217 goal package tests and both typechecks PASS (goal
+  `dist` rebuilt); desktop suite **581 PASS**, typecheck and Biome PASS.
+- No native step yet.
