@@ -84,6 +84,7 @@ describe('saved custom model reasoning on real metadata and catalog paths', () =
     expect(payload.models.find((model) => model.id === 'reviewed')).toMatchObject({
       effortSupported: true,
       reasoningEffortLevels: ['low', 'high'],
+      reasoningControls: { disableSupported: expect.any(Boolean), preserveThinking: 'unsupported' },
     });
   });
 });

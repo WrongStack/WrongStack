@@ -200,3 +200,31 @@ export function refinementText(
     throw Error('The refiner did not return this version. Your original draft is kept.');
   return text;
 }
+/**
+ * Session reasoning controls the catalog documents for the current model. Unknown policy
+ * (no `reasoningControls`) offers nothing: support is never assumed.
+ */
+export function sessionReasoning(state: EngineState) {
+  const catalog = state.results['provider.models'];
+  const model =
+    catalog?.['provider'] === state.provider
+      ? entries(catalog['models']).find((row) => row['id'] === state.model)
+      : undefined;
+  const controls = model?.['reasoningControls'];
+  const prefs = state.results['prefs.updated'] ?? {};
+  if (!controls || typeof controls !== 'object') return null;
+  const row = controls as Record<string, unknown>;
+  const preserve = row['preserveThinking'];
+  return {
+    mode: ['on', 'off'].includes(String(prefs['reasoningMode']))
+      ? String(prefs['reasoningMode'])
+      : 'auto',
+    canDisable: row['disableSupported'] === true,
+    alwaysOn: row['default'] === 'always_on',
+    preserve:
+      preserve === 'optional' || preserve === 'always_on' || preserve === 'unsupported'
+        ? preserve
+        : 'unsupported',
+    preserveOn: prefs['reasoningPreserve'] === true,
+  };
+}

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { dispatchComposer, refinementText, sessionEffort } from '../src/composer-model';
+import {
+  dispatchComposer,
+  refinementText,
+  sessionEffort,
+  sessionReasoning,
+} from '../src/composer-model';
 import {
   type EngineState,
   emptyEngineState,
@@ -313,6 +318,43 @@ describe('session effort and queue projection', () => {
       },
     });
     expect(sessionEffort(ports.current()).hidden).toBe(true);
+  });
+  it('offers reasoning controls only for what the catalog documents', () => {
+    const ports = fixture();
+    const withModel = (row: Record<string, unknown>, prefs: Record<string, unknown> = {}) => {
+      ports.update({
+        results: {
+          ...ports.current().results,
+          'prefs.updated': prefs,
+          'provider.models': { provider: 'local', models: [{ id: 'reasoner', ...row }] },
+        },
+      });
+      return sessionReasoning(ports.current());
+    };
+    expect(withModel({})).toBeNull();
+    expect(
+      withModel(
+        {
+          reasoningControls: {
+            default: 'enabled',
+            disableSupported: true,
+            preserveThinking: 'optional',
+          },
+        },
+        { reasoningMode: 'off', reasoningPreserve: true },
+      ),
+    ).toEqual({
+      mode: 'off',
+      canDisable: true,
+      alwaysOn: false,
+      preserve: 'optional',
+      preserveOn: true,
+    });
+    expect(
+      withModel({
+        reasoningControls: { default: 'always_on', disableSupported: false, preserveThinking: 'x' },
+      }),
+    ).toMatchObject({ mode: 'auto', canDisable: false, alwaysOn: true, preserve: 'unsupported' });
   });
   it('projects drained turns once and excludes already-started prompts from delayed queue snapshots', () => {
     let state = fixture().current();

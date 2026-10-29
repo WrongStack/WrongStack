@@ -74,9 +74,18 @@ async function resolveEnrichedModels(
       // Tri-state companion to the levels: undefined = undocumented, false
       // = the model documents that it has no effort control.
       const effortSupported = rc?.effortSupported;
+      // What the catalog documents about switching reasoning off and keeping it between turns;
+      // absent when the model's reasoning policy is unknown (no control is then offered).
+      const reasoningControls = rc
+        ? {
+            default: rc.default,
+            disableSupported: rc.disableSupported,
+            preserveThinking: rc.preserveThinking,
+          }
+        : undefined;
       if (model.contextWindow && model.capabilities.length > 0) {
-        return reasoningEffortLevels || effortSupported !== undefined
-          ? { ...model, reasoningEffortLevels, effortSupported }
+        return reasoningEffortLevels || effortSupported !== undefined || reasoningControls
+          ? { ...model, reasoningEffortLevels, effortSupported, reasoningControls }
           : model;
       }
       const resolved = await resolveProviderModelMetadata(
@@ -86,8 +95,8 @@ async function resolveEnrichedModels(
         config,
       ).catch(() => undefined);
       if (!resolved) {
-        return reasoningEffortLevels || effortSupported !== undefined
-          ? { ...model, reasoningEffortLevels, effortSupported }
+        return reasoningEffortLevels || effortSupported !== undefined || reasoningControls
+          ? { ...model, reasoningEffortLevels, effortSupported, reasoningControls }
           : model;
       }
       const capabilities = new Set(model.capabilities);
@@ -103,6 +112,7 @@ async function resolveEnrichedModels(
         capabilities: [...capabilities],
         ...(reasoningEffortLevels ? { reasoningEffortLevels } : {}),
         ...(effortSupported !== undefined ? { effortSupported } : {}),
+        ...(reasoningControls ? { reasoningControls } : {}),
       };
     }),
   );

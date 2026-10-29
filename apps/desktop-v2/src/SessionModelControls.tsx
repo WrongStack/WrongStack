@@ -1,6 +1,6 @@
 import { ChevronDown, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { effortNames, sessionEffort } from './composer-model';
+import { effortNames, sessionEffort, sessionReasoning } from './composer-model';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { Modal } from './Modal';
@@ -22,6 +22,7 @@ export function SessionModelControls({
     [error, setError] = useState('');
   const [supersededLeader, setSupersededLeader] = useState<unknown>(null);
   const effort = sessionEffort(state, supersededLeader === state.results['leader.effort_changed']);
+  const reasoning = sessionReasoning(state);
   useEffect(() => {
     if (!state.connected || state.hydrating) return;
     void send('prefs.get').catch((e) => setError(String(e instanceof Error ? e.message : e)));
@@ -35,6 +36,21 @@ export function SessionModelControls({
       if (actual['reasoningEffort'] !== value)
         throw Error('The session did not confirm this effort. Refresh before retrying.');
       setSupersededLeader(state.results['leader.effort_changed']);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  /** A session-scoped reasoning preference, confirmed by reading the session back. */
+  const chooseReasoning = async (key: 'reasoningMode' | 'reasoningPreserve', value: unknown) => {
+    setBusy(true);
+    setError('');
+    try {
+      await command('prefs.update', { [key]: value }, ['key.operation_result']);
+      const actual = await command('prefs.get', {}, ['prefs.updated']);
+      if (actual[key] !== value)
+        throw Error('The session did not confirm this reasoning setting. Refresh before retrying.');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -83,6 +99,40 @@ export function SessionModelControls({
               </option>
             ))}
           </select>
+        </label>
+      )}
+      {reasoning && !reasoning.alwaysOn && (
+        <label
+          className="composer-chip effort-control"
+          title="Reasoning for this session. Auto follows the provider and project setting."
+        >
+          <select
+            aria-label="Session reasoning"
+            disabled={!state.connected || busy || state.needsSetup}
+            value={reasoning.mode}
+            onChange={(e) => void chooseReasoning('reasoningMode', e.target.value)}
+          >
+            <option value="auto">Auto reasoning</option>
+            <option value="on">Reasoning on</option>
+            {(reasoning.canDisable || reasoning.mode === 'off') && (
+              <option value="off">Reasoning off</option>
+            )}
+          </select>
+        </label>
+      )}
+      {reasoning?.preserve === 'optional' && (
+        <label
+          className="composer-chip effort-control"
+          title="Send earlier reasoning back to the model on later turns, as this model allows."
+        >
+          <input
+            type="checkbox"
+            aria-label="Keep reasoning between turns"
+            disabled={!state.connected || busy || state.needsSetup}
+            checked={reasoning.preserveOn}
+            onChange={(e) => void chooseReasoning('reasoningPreserve', e.target.checked)}
+          />
+          Keep reasoning
         </label>
       )}
       {effort.hint && (
