@@ -226,7 +226,9 @@ export async function exerciseNativeComposerResources({
   await chips.getByText('README.md:1', { exact: true }).waitFor();
   assert.equal(await input().inputValue(), 'Inspect ', 'Referencing lines keeps the draft text');
   // A line range narrows the reference, previews bounded real file lines and survives a tab switch.
-  await chips.getByRole('button', { name: 'Set line range for README.md', exact: true }).click();
+  // The whole-file reference from @README stays beside the ranged one.
+  await chips.getByText('README.md', { exact: true }).waitFor();
+  await chips.getByRole('button', { name: 'Set line range for README.md:1', exact: true }).click();
   const range = page.getByRole('region', { name: 'Line range for README.md', exact: true });
   await range.getByLabel('First referenced line', { exact: true }).fill('1');
   await range.getByLabel('Last referenced line', { exact: true }).fill('2');
@@ -237,7 +239,7 @@ export async function exerciseNativeComposerResources({
   await page.locator('.session-tab-label').filter({ hasText: 'Native UI terminal' }).click();
   await page.locator('.session-tab-label').filter({ hasText: 'WrongStack engine proof' }).click();
   await chips.getByText('README.md:1-2', { exact: true }).waitFor();
-  // Quoting the selected text replaces that file's range with the text itself.
+  // Quoting the selected text adds the quote as another reference to the same file.
   await page
     .getByRole('navigation', { name: 'Agent workspace views' })
     .getByRole('button', { name: 'Files', exact: true })
@@ -256,7 +258,8 @@ export async function exerciseNativeComposerResources({
   await page.getByRole('button', { name: 'Quote selection', exact: true }).click();
   const quoteChip = chips.getByText(/^README\.md:1 “/);
   await quoteChip.waitFor();
-  await chips.getByRole('button', { name: 'Show quoted text from README.md', exact: true }).click();
+  await chips.getByText('README.md:1-2', { exact: true }).waitFor();
+  await chips.getByRole('button', { name: /^Show quoted text from README\.md:1 “/ }).click();
   const quoteView = page.getByRole('figure', { name: 'Quoted text', exact: true });
   assert.equal(await quoteView.locator('pre').textContent(), quoted);
   await page
@@ -277,6 +280,7 @@ export async function exerciseNativeComposerResources({
   );
   assert.ok(
     request.composerPrompt.includes(`- "README.md" lines 1-1 snippet ${JSON.stringify(quoted)}`) &&
+      request.composerPrompt.includes('- "README.md" lines 1-2\n') &&
       request.composerPrompt.includes('Snippets are the exact text the user selected') &&
       request.composerPrompt.includes('Project Alpha') &&
       request.composerPrompt.includes('Continue paginated reads until EOF'),

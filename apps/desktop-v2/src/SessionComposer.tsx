@@ -31,6 +31,7 @@ import {
   type DesktopCommandAction,
   desktopCommands,
   parseDesktopCommand,
+  referenceKey,
   referenceMessage,
   splitReferenceMessage,
 } from './composer-resources-model';
@@ -276,7 +277,9 @@ export function SessionComposer({
       const cleared = await Promise.all([
         currentDraft.current === original ? onDraftChange('') : Promise.resolve(true),
         onReferencesChange(
-          refsNow.current.filter((ref) => !attached.some((sent) => sent.path === ref.path)),
+          refsNow.current.filter(
+            (ref) => !attached.some((sent) => referenceKey(sent) === referenceKey(ref)),
+          ),
         ),
         onAttachmentsChange(
           attachmentsNow.current.filter((item) => !files.some((sent) => sent.id === item.id)),

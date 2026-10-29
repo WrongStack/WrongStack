@@ -6,6 +6,7 @@ import {
   type ComposerFileReference,
   desktopCommands,
   fileMention,
+  withReference,
 } from './composer-resources-model';
 import type { ChatMessage } from './engine-state';
 
@@ -65,8 +66,8 @@ export function useComposerInput({
       const next = insertSkillMention(draft, skill, value);
       replace(next.text, next.cursor);
     } else if (file) {
-      if (!references.some((ref) => ref.path === value))
-        onReferencesChange([...references, { path: value }]);
+      const whole = withReference(references, { path: value });
+      if (whole.length !== references.length) onReferencesChange(whole);
       const next = draft.slice(0, file.start) + draft.slice(file.end);
       replace(next, file.start);
     }

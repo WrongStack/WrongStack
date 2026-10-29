@@ -199,7 +199,7 @@
       "relativeImports": 8
     },
     "apps/desktop-v2/src/SessionComposer.tsx": {
-      "lines": 1086,
+      "lines": 1089,
       "relativeImports": 27
     },
     "apps/desktop-v2/src/SkillLibrary.tsx": {

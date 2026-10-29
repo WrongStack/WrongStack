@@ -23,6 +23,21 @@ export function validReferenceLines(value: unknown): value is [number, number] {
     value[0] <= value[1]
   );
 }
+/** Identity of one reference: the same file with another range or quote is another reference. */
+export function referenceKey(ref: ComposerFileReference): string {
+  return JSON.stringify([ref.path, ref.lines ?? null, ref.snippet ?? null]);
+}
+/**
+ * Adds a reference unless the same one is attached already. A file referenced whole needs no
+ * second whole-file entry; ranges and quotes of it are kept alongside.
+ */
+export function withReference(
+  refs: readonly ComposerFileReference[],
+  ref: ComposerFileReference,
+): ComposerFileReference[] {
+  const key = referenceKey(ref);
+  return refs.some((item) => referenceKey(item) === key) ? [...refs] : [...refs, ref];
+}
 export function referenceLabel(ref: ComposerFileReference): string {
   const base = ref.lines
     ? ref.lines[0] === ref.lines[1]
@@ -61,8 +76,8 @@ export function referenceMessage(
   projectRoot: string,
 ): string {
   if (!refs.length) return text.trim();
-  // One entry per file; the last range given for a path wins.
-  const unique = [...new Map(refs.map((ref) => [ref.path, ref])).values()];
+  // One entry per distinct reference: a file may carry several ranges or quotes.
+  const unique = [...new Map(refs.map((ref) => [referenceKey(ref), ref])).values()];
   const root = projectRoot
     .replace(/^\\\\\?\\/, '')
     .replaceAll('\\', '/')
@@ -120,7 +135,7 @@ export function splitReferenceMessage(value: string): {
     const refs = references as ComposerFileReference[];
     return {
       text: value.slice(0, start).trimEnd(),
-      paths: refs.map((ref) => ref.path),
+      paths: [...new Set(refs.map((ref) => ref.path))],
       references: refs,
     };
   } catch {

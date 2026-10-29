@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
   type ComposerFileReference,
   MAX_REFERENCE_LINE,
+  referenceKey,
   referenceLabel,
   validReferenceLines,
 } from './composer-resources-model';
@@ -24,38 +25,52 @@ export function ComposerReferenceChips({
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   if (!references.length) return null;
-  const target = references.find((ref) => ref.path === editing);
+  const target = references.find((ref) => referenceKey(ref) === editing);
+  const replace = (next: ComposerFileReference) =>
+    references.flatMap((ref) =>
+      referenceKey(ref) !== editing
+        ? [ref]
+        : // Editing into a reference that already exists keeps a single copy.
+          references.some((other) => other !== ref && referenceKey(other) === referenceKey(next))
+          ? []
+          : [next],
+    );
   return (
     <>
       <section className="composer-reference-chips" aria-label="Attached project files">
-        {references.map((ref) => (
-          <span key={ref.path} title={referenceLabel(ref)}>
-            <FilePlus2 size={12} />
-            {referenceLabel(ref)}
-            <button
-              type="button"
-              aria-label={
-                ref.snippet ? `Show quoted text from ${ref.path}` : `Set line range for ${ref.path}`
-              }
-              aria-pressed={editing === ref.path}
-              disabled={disabled}
-              onClick={() => setEditing(editing === ref.path ? null : ref.path)}
-            >
-              {ref.snippet ? <Quote size={11} /> : <ListOrdered size={11} />}
-            </button>
-            <button
-              type="button"
-              aria-label={`Remove file reference ${ref.path}`}
-              disabled={disabled}
-              onClick={() => {
-                if (editing === ref.path) setEditing(null);
-                void onChange(references.filter((item) => item.path !== ref.path));
-              }}
-            >
-              <X size={11} />
-            </button>
-          </span>
-        ))}
+        {references.map((ref) => {
+          const key = referenceKey(ref);
+          return (
+            <span key={key} title={referenceLabel(ref)}>
+              <FilePlus2 size={12} />
+              {referenceLabel(ref)}
+              <button
+                type="button"
+                aria-label={
+                  ref.snippet
+                    ? `Show quoted text from ${referenceLabel(ref)}`
+                    : `Set line range for ${referenceLabel(ref)}`
+                }
+                aria-pressed={editing === key}
+                disabled={disabled}
+                onClick={() => setEditing(editing === key ? null : key)}
+              >
+                {ref.snippet ? <Quote size={11} /> : <ListOrdered size={11} />}
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove file reference ${referenceLabel(ref)}`}
+                disabled={disabled}
+                onClick={() => {
+                  if (editing === key) setEditing(null);
+                  void onChange(references.filter((item) => referenceKey(item) !== key));
+                }}
+              >
+                <X size={11} />
+              </button>
+            </span>
+          );
+        })}
       </section>
       {target?.snippet && (
         <section className="composer-reference-range" aria-label={`Quote from ${target.path}`}>
@@ -83,9 +98,7 @@ export function ComposerReferenceChips({
               disabled={disabled}
               onClick={() => {
                 setEditing(null);
-                void onChange(
-                  references.map((ref) => (ref.path === target.path ? { path: ref.path } : ref)),
-                );
+                void onChange(replace({ path: target.path }));
               }}
             >
               Reference whole file instead
@@ -95,22 +108,14 @@ export function ComposerReferenceChips({
       )}
       {target && !target.snippet && (
         <ReferenceRangeEditor
-          key={target.path}
+          key={editing ?? target.path}
           reference={target}
           command={command}
           disabled={disabled}
           onCancel={() => setEditing(null)}
           onApply={(lines) => {
             setEditing(null);
-            void onChange(
-              references.map((ref) =>
-                ref.path === target.path
-                  ? lines
-                    ? { path: ref.path, lines }
-                    : { path: ref.path }
-                  : ref,
-              ),
-            );
+            void onChange(replace(lines ? { path: target.path, lines } : { path: target.path }));
           }}
         />
       )}

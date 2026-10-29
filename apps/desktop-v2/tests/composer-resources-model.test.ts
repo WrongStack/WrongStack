@@ -4,11 +4,13 @@ import {
   desktopCommands,
   fileMention,
   parseDesktopCommand,
+  referenceKey,
   referenceLabel,
   referenceMessage,
   renderPromptTemplate,
   splitReferenceMessage,
   validReferenceLines,
+  withReference,
 } from '../src/composer-resources-model';
 
 describe('desktop composer project resources', () => {
@@ -40,6 +42,21 @@ describe('desktop composer project resources', () => {
       paths: [],
       references: [],
     });
+  });
+  it('keeps several ranges and quotes of one file as separate references', () => {
+    const whole = { path: 'src/a.ts' };
+    const range = { path: 'src/a.ts', lines: [3, 9] as [number, number] };
+    const quote = { path: 'src/a.ts', lines: [5, 5] as [number, number], snippet: 'x()' };
+    let refs = withReference([], whole);
+    refs = withReference(refs, range);
+    refs = withReference(refs, quote);
+    expect(withReference(refs, { path: 'src/a.ts', lines: [3, 9] })).toEqual(refs);
+    expect(refs).toHaveLength(3);
+    expect(new Set(refs.map(referenceKey)).size).toBe(3);
+    const payload = referenceMessage('Compare.', [...refs, range], 'D:/Example');
+    const view = splitReferenceMessage(payload);
+    expect(view.references).toEqual([whole, range, quote]);
+    expect(view.paths).toEqual(['src/a.ts']);
   });
   it('carries optional line ranges through the message and back', () => {
     const payload = referenceMessage(
