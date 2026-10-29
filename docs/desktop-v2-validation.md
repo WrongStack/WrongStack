@@ -3325,10 +3325,10 @@ Verification on the shared working snapshot:
 
 ## Context residency and retention in the context panel (2026-10-29)
 
-- Status: implemented and natively verified, not yet committed. The Core API snapshot hook
-  refuses this commit while another session's `packages/cli` edits are unstaged; the files are
-  `context-residency-model.ts`, `ContextResidency.tsx`, the `SessionContextPanel.tsx` hook-up and
-  their tests.
+- Status: natively verified; committed in `1b0902159` with `--no-verify` (approved by the user),
+  because the Core API snapshot hook refused while another session's `packages/*` edits were
+  unstaged. Files: `context-residency-model.ts`, `ContextResidency.tsx`, the
+  `SessionContextPanel.tsx` hook-up and their tests.
 - The context panel shows two engine snapshots `context.debug` already returned: the last
   request's cache layout (provider/model, verdict, estimated total, share the layout allows from
   cache, one meter per cache lane, segments with lane and count, cache breakers, whether the next
@@ -3413,8 +3413,8 @@ Verification on the shared working snapshot:
   "images") and a non-active status such as "deprecated". Unknown facts are left out rather
   than shown as zero; a catalog price of 0 / 0 reads "no catalog price"; malformed values in
   the reply are dropped.
-- Engine fix (uncommitted, held with the residency commit because the Core API snapshot hook
-  refuses while another session's `packages/cli` edits are unstaged):
+- Engine fix (committed with the residency work in `1b0902159`, `--no-verify` approved by the
+  user):
   `packages/webui-server/src/server/provider/catalog.ts` now lists a saved custom model's
   output limit in `provider.models`; the enrichment fallback kept its context window but dropped
   `maxOutput`. RED then GREEN in `packages/webui-server/tests/provider-models-custom-limits.test.ts`
