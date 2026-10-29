@@ -4338,3 +4338,7 @@ staged; the other session's edits stay untouched.
   route tests and the webui-server typecheck PASS; desktop suite **579 PASS**, typecheck and
   Biome PASS.
 - No native step yet: a real editing run needs a live model.
+- Follow-up `a777dd932` (security review finding): the target is resolved through `realpath` (the
+  nearest existing folder for a file still to be created) and must lie inside the real project
+  root; a target reached through a link leading outside is reported as uncaptured and never
+  read. Covered by a junction case in the same test file (3 tests PASS).
