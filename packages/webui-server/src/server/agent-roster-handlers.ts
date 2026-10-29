@@ -43,6 +43,7 @@ import {
   loadProjectAgentLearned,
   loadProjectAgentProfile,
   loadProjectSkillAugmentation,
+  loadRoleKnowledgeManifest,
   loadSkillAffinity,
   optimizeProjectAgentLearning,
   readQuarantinedDirectives,
@@ -57,6 +58,7 @@ import {
   slugifyProjectAgentRole,
   updateProjectAgentConfig,
   updateProjectAgentIdentity,
+  updateProjectAgentKnowledge,
   updateProjectAgentLearned,
   updateProjectAgentLearningPolicy,
 } from '@wrongstack/coordination';
@@ -331,6 +333,73 @@ export class AgentRosterWSHandler {
           projectRoot,
         );
         return { type, payload: { role, path: fp, success: true } };
+      }
+
+      // ── Knowledge checklist (what the role verifies from live sources) ──
+      case 'agent-roster.read-knowledge': {
+        if (!role) return { type, payload: { error: 'role required' } };
+        const manifest = loadRoleKnowledgeManifest(role, projectRoot);
+        return {
+          type,
+          payload: {
+            role,
+            checklist: manifest?.checklist ?? [],
+            verifyThreshold: manifest?.verifyThreshold ?? 0.5,
+            liveQueries: manifest?.liveQueries ?? {},
+          },
+        };
+      }
+
+      case 'agent-roster.update-knowledge': {
+        if (!role) return { type, payload: { error: 'role required' } };
+        const list = p.checklist;
+        if (
+          !Array.isArray(list) ||
+          list.length > 50 ||
+          list.some((item) => typeof item !== 'string' || item.length > 500)
+        )
+          return {
+            type,
+            payload: { error: 'checklist must be at most 50 strings of at most 500 characters' },
+          };
+        const threshold = p.verifyThreshold;
+        if (
+          threshold !== undefined &&
+          (typeof threshold !== 'number' ||
+            !Number.isFinite(threshold) ||
+            threshold < 0 ||
+            threshold > 1)
+        )
+          return { type, payload: { error: 'verifyThreshold must be between 0 and 1' } };
+        const current = loadRoleKnowledgeManifest(role, projectRoot);
+        if (
+          p.expectedChecklist !== undefined &&
+          JSON.stringify(p.expectedChecklist) !== JSON.stringify(current?.checklist ?? [])
+        )
+          return {
+            type,
+            payload: {
+              error: 'The knowledge checklist changed since it was read. Reload it before saving.',
+            },
+          };
+        const checklist = (list as string[]).map((item) => item.trim()).filter(Boolean);
+        const manifest = {
+          role,
+          liveQueries: current?.liveQueries ?? {},
+          checklist,
+          verifyThreshold: (threshold as number | undefined) ?? current?.verifyThreshold ?? 0.5,
+        };
+        const fp = updateProjectAgentKnowledge(role, manifest, projectRoot);
+        return {
+          type,
+          payload: {
+            role,
+            path: fp,
+            success: true,
+            checklist,
+            verifyThreshold: manifest.verifyThreshold,
+          },
+        };
       }
 
       case 'agent-roster.update-learning': {

@@ -649,3 +649,22 @@
     flex-wrap: wrap;
   }
 }
+.roster-knowledge {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.roster-knowledge h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+.roster-knowledge label {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}

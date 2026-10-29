@@ -24,6 +24,49 @@ describe('AgentRosterWSHandler', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 
+  it('reads and edits a role knowledge checklist with a stale-read check', async () => {
+    const read = async () =>
+      (await handler.handleMessage(ws, 'agent-roster.read-knowledge', { role: 'executor' }))
+        .payload as { checklist: string[]; verifyThreshold: number; liveQueries: object };
+    const before = await read();
+    expect(Array.isArray(before.checklist)).toBe(true);
+    const saved = await handler.handleMessage(ws, 'agent-roster.update-knowledge', {
+      role: 'executor',
+      checklist: ['  Check the lockfile before upgrading.  ', '', 'Verify the Node engine field.'],
+      verifyThreshold: 0.7,
+      expectedChecklist: before.checklist,
+    });
+    expect(saved.payload).toMatchObject({
+      success: true,
+      checklist: ['Check the lockfile before upgrading.', 'Verify the Node engine field.'],
+      verifyThreshold: 0.7,
+    });
+    // Live queries of the existing manifest are kept.
+    expect((await read()).liveQueries).toEqual(before.liveQueries);
+    expect(
+      fs.existsSync(path.join(projectRoot, '.wrongstack', 'agents', 'executor', 'knowledge.json')),
+    ).toBe(true);
+    // A save based on the earlier read is refused.
+    const stale = await handler.handleMessage(ws, 'agent-roster.update-knowledge', {
+      role: 'executor',
+      checklist: ['Mine'],
+      expectedChecklist: before.checklist,
+    });
+    expect(stale.payload).toMatchObject({ error: expect.stringMatching(/changed/) });
+    expect((await read()).checklist).toHaveLength(2);
+    for (const bad of [
+      { checklist: 'x' },
+      { checklist: ['x'.repeat(501)] },
+      { checklist: ['a'], verifyThreshold: 2 },
+    ]) {
+      const refused = await handler.handleMessage(ws, 'agent-roster.update-knowledge', {
+        role: 'executor',
+        ...bad,
+      });
+      expect(refused.payload).toHaveProperty('error');
+    }
+  });
+
   it('lists the complete catalog even before any role has learned data', async () => {
     const response = await handler.handleMessage(ws, 'agent-roster.list', {});
     const payload = response.payload as { roles: string[]; stats: unknown[]; catalog: unknown[] };

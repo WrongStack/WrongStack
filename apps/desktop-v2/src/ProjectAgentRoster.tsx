@@ -33,6 +33,7 @@ import { markdownTarget } from './markdown-target';
 import type { Session } from './model';
 import { openExternal, projectFormDraftStorage } from './platform';
 import { RosterDocument, type RosterDocumentKind } from './RosterDocument';
+import { RosterKnowledgeChecklist } from './RosterKnowledgeChecklist';
 import { rosterInputDraft } from './roster-document-store';
 import { rosterInputsToKeep } from './roster-input-draft';
 import { type RosterRecord, rosterBudgetFields, rosterCatalog } from './roster-model';
@@ -703,6 +704,12 @@ export function ProjectAgentRoster({
               )}
               {section === 'learning' && (
                 <>
+                  <RosterKnowledgeChecklist
+                    key={selected}
+                    role={selected}
+                    command={command}
+                    disabled={busy}
+                  />
                   <div className="roster-learning-metrics">
                     {[
                       ['Directives', stats['entryCount']],

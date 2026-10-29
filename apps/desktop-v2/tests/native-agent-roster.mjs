@@ -302,6 +302,21 @@ export async function exerciseNativeAgentRoster({
       await catalog().getByRole('button', { name: 'Pause learning', exact: true }).isEnabled(),
     'Role learning metadata',
   );
+  // The role's knowledge checklist is edited here and stored in the project's role directory.
+  const knowledge = catalog().getByRole('region', { name: /^Knowledge checklist for / });
+  await knowledge.getByLabel('Knowledge checklist items', { exact: true }).waitFor();
+  await knowledge
+    .getByLabel('Knowledge checklist items', { exact: true })
+    .fill('Check the lockfile before upgrading.\nVerify the engines field.');
+  await knowledge.getByRole('button', { name: 'Save checklist', exact: true }).click();
+  await knowledge
+    .getByRole('status')
+    .filter({ hasText: 'Knowledge checklist saved for this project.' })
+    .waitFor();
+  assert.deepEqual(
+    JSON.parse(await readFile(join(directory, 'knowledge.json'), 'utf8')).checklist,
+    ['Check the lockfile before upgrading.', 'Verify the engines field.'],
+  );
   const beforeEmpty = providerFixture.calls.filter((call) => call.model === fixtureModel).length;
   await catalog().getByRole('button', { name: 'Optimize learning', exact: true }).click();
   await page
