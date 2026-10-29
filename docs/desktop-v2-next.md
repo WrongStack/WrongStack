@@ -285,7 +285,7 @@ have real workflows; the work below closes their missing actions, durability and
 
 | Area / entry points | What remains | Acceptance to require |
 | --- | --- | --- |
-| Files: `FileWorkspace.tsx`, `file-draft.ts`, `FileContentSearch.tsx` | Language-aware editor depth; folder copy and an atomic multi-item contract (bulk move/rename/delete and text-file copy exist per item, 2026-10-29). The directory tree is virtualized and the folder listing pages 200 entries at a time (2026-10-29 validation entry). Saves are now version-bound (`files.write` `expectedSha256`, see the 2026-10-29 validation entry); OS-level exclusion against external writers is not provided. Keep current 2 MiB draft and bounded search/recovery limits visible. | Real external modification and simultaneous-save cases, large trees/files, symlink boundaries, preserved unsaved text and no silent overwrite. |
+| Files: `FileWorkspace.tsx`, `file-draft.ts`, `FileContentSearch.tsx` | Language-aware editor depth; an atomic multi-item contract (bulk move/rename/delete, text-file and folder copy exist per item, 2026-10-29). The directory tree is virtualized and the folder listing pages 200 entries at a time (2026-10-29 validation entry). Saves are now version-bound (`files.write` `expectedSha256`, see the 2026-10-29 validation entry); OS-level exclusion against external writers is not provided. Keep current 2 MiB draft and bounded search/recovery limits visible. | Real external modification and simultaneous-save cases, large trees/files, symlink boundaries, preserved unsaved text and no silent overwrite. |
 | Git/review: `GitHunkReview.tsx`, `MergeConflictReview.tsx`, `review-notes-store.ts` | Per-line staging, unsupported partial added/deleted/binary/mode changes, automatic rename grouping, larger/symlink/submodule conflicts, worktree management (history lanes and review discussions with reply editing and resolution exist, 2026-10-29). | Real repository/index operations with stale-index refusal, binary/rename/mode cases and precise file-layer ownership. Worktree features must not cause this agent to create a workspace worktree against the user's instruction. |
 | Session history: `ProjectSessionHistory.tsx`, `ProjectHistorySearch.tsx`, `SessionTranscript.tsx` | Compressed and large retained histories, binary viewers, over-100-block message expansion, full structured tool inputs, atomic rename policy, older-host migration and richer story/navigation. File-store full scans remain explicitly budgeted at 10,000 records. | Real compressed/long journals, exact-ID navigation, full-catalog search consistency, stale revisions, bounded memory and cancellation. |
 | Session recovery: `SessionRecovery.tsx`, `session-recovery-model.ts` | Redo and richer recovery administration, edit/resend/retry, durable recovery-operation records and broader partial-error/restart handling. | Real files and journal state after each operation; active-run refusal, preserved conversation/drafts, stale-operation refusal and visible partial failures. |
@@ -348,7 +348,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 
 | Area / entry points | Remaining work and proof boundary |
 | --- | --- |
-| Kanban: `ProjectKanban.tsx`, `KanbanTaskInspector.tsx`, `KanbanExecution.tsx`, `KanbanBreakdown.tsx` | Link Goal/SDD run controls and steering; supported tier-aware assignments; decomposition generation/atomic assessment; resource-boundary editing; same-field conflicts. Preserve the visible board list, detailed inspector and canonical five fixed lifecycle columns. |
+| Kanban: `ProjectKanban.tsx`, `KanbanTaskInspector.tsx`, `KanbanExecution.tsx`, `KanbanBreakdown.tsx` | Link Goal/SDD run controls and steering; supported tier-aware assignments; decomposition generation/atomic assessment; resource-boundary editing; atomic same-field conflicts (a read-compare preflight lists same-field changes from another window before saving, 2026-10-29; the engine has no task revision). Preserve the visible board list, detailed inspector and canonical five fixed lifecycle columns. |
 | Goals/missions: `ProjectGoals.tsx`, `ProjectMission.tsx` | Budgets, richer task/verification detail, conditional mission writes and broader actual start/control/retry/assign coverage. |
 | SDD: `ProjectSdd.tsx`, `SddTaskDetails.tsx`, `SddLifecycle.tsx` | Full intake/spec authoring, live graph/board linkage, historical run detail, catalog-backed run/model choices, real split/rollback and broader provider/run coverage. |
 | Requirements: `ProjectRequirements.tsx`, `RequirementResources.tsx` | Configured suggestion generation, richer assessment and larger catalogs. Existing metadata/answer/new-form durability should not be rebuilt. |
@@ -361,7 +361,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 
 - Automations already have structured management/environment/evidence/publication interfaces.
   Finish real Docker execution, service/health/cache/credential lifecycle and restart behavior;
-  actual PR prepare/publish/update/check/follow-up; signed GitHub delivery; run comparison; event
+  actual PR prepare/publish/update/check/follow-up; signed GitHub delivery (two-run comparison from recorded results exists, 2026-10-29); event
   sample authoring and durable secondary forms. Successful management requests do not establish
   successful external runs. The current shared management API has no job-delete endpoint.
 - MCP still needs OAuth, secret environment/header and advanced policy administration, broader
@@ -381,8 +381,10 @@ and `SessionUsage.tsx`.
 
 ### P3: application and release completion
 
-- Complete keyboard ownership/focus restoration, all Escape/outside-click paths, screen-reader
-  behavior, high contrast, long localized labels and consistent light/dark/theme rendering.
+- Screen-reader behavior, long localized labels and consistent light/dark/theme rendering.
+  Dialogs (Escape, backdrop click, focus return), the file context menu and the composer
+  options popover own the keyboard, and a high contrast mode exists (2026-10-29); all of it
+  still awaits the final native pass.
 - Exercise actual multiple windows and multiple simultaneous projects/sessions under queue,
   refinement, model-switch, approval, draft and reconnect load. IPC-injected peer writes and
   two controller/SQLite connections do not replace concurrent WebView stress.

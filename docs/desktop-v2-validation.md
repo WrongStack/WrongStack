@@ -3770,3 +3770,70 @@ one final native pass.
   Biome PASS.
 - Native step written (`native-profile-model-policy.mjs`: switch back to the alternate from the
   recents row); **not run**.
+
+## Dialog backdrop click closes like Escape (2026-10-29)
+
+- Commit `a6e00e988`. A press that both starts and ends outside a dialog's box closes it through
+  the same path as Escape (focus returns to the opener). A drag that starts inside the dialog
+  and ends on the backdrop, such as a text selection, does not close it.
+- Checks: desktop unit suite, typecheck and Biome PASS.
+- Native step written (`native-file-bulk.mjs`: backdrop click closes the bulk dialog);
+  **not run**.
+
+## Folder copy (2026-10-29)
+
+- Commit `82f8236cf`. Picked folders can be copied with their text files (at most 200 files and
+  8 MiB per copy). Every source file is read and validated before anything is created; a
+  binary or over-limit file refuses the whole copy up front. Each target is created and then
+  written with the empty-content `expectedSha256`, so existing files are never overwritten. If a
+  later item fails, the error names how many files were already copied.
+- Checks: desktop unit suite PASS (new folder copy plan tests); typecheck and Biome PASS.
+- Native step written (`native-file-bulk.mjs`: nested folder copied, bytes checked); **not run**.
+
+## Automation run comparison (2026-10-29)
+
+- Commit `1355a4347`. Two recent runs of a job can be picked and compared side by side from
+  their recorded results only: status, trigger, duration, agent and verification status,
+  token usage, iterations, catalog cost estimate, exit code, error and changed files (only in
+  one run / in both). Facts a run did not record show "Not recorded", not zero; a truncated
+  changed-file list marks the overlap as partial.
+- Checks: desktop unit suite PASS (new run comparison tests); typecheck and Biome PASS.
+- No native step yet (the automation fixture does not produce two finished runs).
+
+## Kanban same-field conflicts (2026-10-29)
+
+- Commit `28eb3afa0`. Before saving an inspector edit, the task is re-read. Fields that this
+  edit changes and that another window also changed to a different value are listed with both
+  values; the user keeps the other window's values or saves their own for those fields. Fields only the
+  other window changed are not in the patch and are kept. A task removed elsewhere is not
+  recreated. The engine has no task revision, so this is a read-compare preflight, not an
+  atomic check.
+- Checks: desktop unit suite PASS (new `sameFieldConflicts` tests); typecheck and Biome PASS.
+- No native step yet.
+
+## High contrast appearance (2026-10-29)
+
+- Commit `a29f157b0`. Appearance settings add Contrast: System (follows `prefers-contrast:
+  more`), Standard and High. High raises muted text and borders toward the foreground and
+  always draws focus outlines. The choice is applied before first paint from the cached
+  appearance.
+- Checks: desktop unit suite PASS (updated appearance tests); typecheck and Biome PASS.
+- Native step written (`native-appearance.mjs`: switch to High and back, `data-contrast`
+  checked); **not run**.
+
+## File context menu keyboard ownership (2026-10-29)
+
+- Commit `0c5626652`. The file context menu is a `menu` with `menuitem`s. The first item takes
+  focus when it opens; arrow keys, Home and End move between items; Escape or Tab closes it and
+  focus returns to whatever opened it. An outside click still closes it.
+- Checks: desktop unit suite, typecheck and Biome PASS.
+- Native step written (`native-files.mjs`: first item focused, ArrowDown/End, Escape returns
+  focus to "File actions"); **not run**.
+
+## Composer options popover dismissal (2026-10-29)
+
+- Commit `439f37ce4`. The composer options popover closes on Escape (focus returns to its
+  summary) and on a press outside it. Inline disclosures elsewhere are unchanged: only this
+  `<details>` floats over other content.
+- Checks: typecheck and Biome PASS; desktop unit suite PASS.
+- Native step written (`native-attachments.mjs`); **not run**.
