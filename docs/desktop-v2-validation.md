@@ -4171,3 +4171,16 @@ staged; the other session's edits stay untouched.
   overall) and the runtime typecheck; desktop suite PASS, typecheck and Biome PASS.
 - Native step written (`native-automation-management.mjs`: confirm and delete the fixture job
   at the end); **not run**.
+
+### Side effects read from the session journal
+
+- Commit `292458269`. Every side-effect record is also appended to the session journal, so
+  `session.inspect` accepts `journalSideEffects: { before?, limit? }` and pages those
+  `side_effect` events with the `side_effects.list` shape (`limit` 1–200, default 100). The
+  audit view gains a "Side-effect source" choice: the live runtime window (polled, at most 500
+  records, empty after a host restart) or the session journal (read on request, including records
+  the runtime has dropped). Older journal pages use the same one-record overlap check.
+- Checks: RED then GREEN in `session-recovery-desktop.test.ts` (real session store and route);
+  webui-server typecheck PASS; desktop suite **572 PASS**, typecheck and Biome PASS.
+- Native step written (`native-side-effects.mjs`: the approved command's record read from the
+  journal); **not run**.
