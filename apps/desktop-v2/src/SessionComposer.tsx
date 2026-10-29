@@ -39,10 +39,12 @@ import { Modal } from './Modal';
 import { NextStepsPanel } from './NextStepsPanel';
 import { PromptRefinement } from './PromptRefinement';
 import { PromptWorkspace } from './PromptWorkspace';
+import type { RefinementDraft } from './refinement-draft';
 import { SessionAgentPlan } from './SessionAgentPlan';
 import { SessionContextPanel } from './SessionContextPanel';
 import { SessionModelControls } from './SessionModelControls';
 import { useComposerInput } from './useComposerInput';
+import { SavedRefinementNotice, useRefinementDraft } from './useRefinementDraft';
 import './composer.css';
 import './composer-resources.css';
 
@@ -69,6 +71,7 @@ export function SessionComposer({
   onReferencesChange,
   onNavigate,
   planDraftStorage,
+  refineDraftStorage,
 }: {
   state: EngineState;
   send: EngineSend;
@@ -91,6 +94,8 @@ export function SessionComposer({
   ) => void;
   /** Native storage for this session's unsaved model plan. */
   planDraftStorage?: FormDraftStorage;
+  /** Native storage for a completed refinement review awaiting a decision. */
+  refineDraftStorage?: FormDraftStorage;
 }) {
   const [sending, setSending] = useState(false),
     [notice, setNotice] = useState(''),
@@ -100,6 +105,7 @@ export function SessionComposer({
       mode: SubmitMode;
       draftAtOpen: string;
       freshContext?: boolean;
+      restored?: RefinementDraft;
     } | null>(null),
     [restore, setRestore] = useState<{
       text: string;
@@ -147,6 +153,10 @@ export function SessionComposer({
     textarea,
   });
   const pasteHint = usePasteHint(draft, input.replace);
+  const refineDraft = useRefinementDraft(refineDraftStorage);
+  // The saved review belongs to the open dialog once it was restored or produced a reply;
+  // closing a new request before its reply leaves an older saved review untouched.
+  const refineOwnsSaved = useRef(false);
   const queueSupported = supportsQueue(state);
   const enhanceEnabled =
     enhanceDraft ?? state.results['prefs.updated']?.['enhanceEnabled'] === true;
@@ -327,6 +337,7 @@ export function SessionComposer({
         return;
       }
       if ((forceRefine || enhanceEnabled) && text.trim()) {
+        refineOwnsSaved.current = false;
         setRefine({ original: text, mode: selected, draftAtOpen, freshContext });
         return;
       }
@@ -911,15 +922,59 @@ export function SessionComposer({
           mode={refine.mode}
           command={command}
           state={state}
-          onClose={() => setRefine(null)}
+          restored={refine.restored}
+          onReview={(review) => {
+            const { restored } = refine;
+            // Reopening a saved review unchanged keeps its original time.
+            if (
+              restored &&
+              JSON.stringify(review) ===
+                JSON.stringify({
+                  result: restored.result,
+                  variant: restored.variant,
+                  edited: restored.edited,
+                })
+            )
+              return;
+            refineOwnsSaved.current = true;
+            refineDraft.save({
+              original: refine.original,
+              mode: refine.mode,
+              draftAtOpen: refine.draftAtOpen,
+              freshContext: refine.freshContext ?? false,
+              ...review,
+              savedAt: Date.now(),
+            });
+          }}
+          onClose={() => {
+            if (refineOwnsSaved.current) refineDraft.clear();
+            setRefine(null);
+          }}
           onApply={(text) => {
             onModeChange(refine.mode);
             onDraftChange(text);
+            refineDraft.clear();
             setRefine(null);
           }}
-          onSend={(text, selected) =>
-            deliver(text, selected, refine.draftAtOpen, refine.original, refine.freshContext)
-          }
+          onSend={async (text, selected) => {
+            await deliver(text, selected, refine.draftAtOpen, refine.original, refine.freshContext);
+            refineDraft.clear();
+          }}
+        />
+      )}
+      {!refine && (
+        <SavedRefinementNotice
+          draft={refineDraft}
+          onOpen={(saved) => {
+            refineOwnsSaved.current = true;
+            setRefine({
+              original: saved.original,
+              mode: saved.mode,
+              draftAtOpen: saved.draftAtOpen,
+              freshContext: saved.freshContext,
+              restored: saved,
+            });
+          }}
         />
       )}
       {promptWorkspace && (

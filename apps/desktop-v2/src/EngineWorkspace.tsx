@@ -29,7 +29,7 @@ import type { InputDraft } from './input-form-model';
 import { MarkdownContent } from './MarkdownContent';
 import { markdownTarget } from './markdown-target';
 import { ProjectSessionTools } from './ProjectSessionTools';
-import { openExternal, sessionPlanDraftStorage } from './platform';
+import { openExternal, sessionObjectDraftStorage } from './platform';
 import { SessionActivity } from './SessionActivity';
 import { SessionComposer } from './SessionComposer';
 import { SessionRecovery } from './SessionRecovery';
@@ -111,7 +111,8 @@ export function EngineWorkspace({
   const { state, send, command } = useEngine(id, onError);
   const [fileTarget, setFileTarget] = useState('');
   const [tab, setTab] = useState<EngineTab>('chat');
-  const planDraftStorage = useMemo(() => sessionPlanDraftStorage(id), [id]);
+  const planDraftStorage = useMemo(() => sessionObjectDraftStorage(id, 'plan'), [id]);
+  const refineDraftStorage = useMemo(() => sessionObjectDraftStorage(id, 'refine'), [id]);
   useEffect(() => {
     if (tab !== 'files' && tab !== 'changes') setFileTarget('');
   }, [tab]);
@@ -429,6 +430,7 @@ export function EngineWorkspace({
               projectId={projectId}
               projectRoot={projectRoot}
               planDraftStorage={planDraftStorage}
+              refineDraftStorage={refineDraftStorage}
               onNavigate={(target) => {
                 if (target === 'files' || target === 'changes' || target === 'skills')
                   setTab(target);

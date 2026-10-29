@@ -472,7 +472,16 @@ impl Registry {
     pub fn draft_revision(&self, id: &str, part: &str) -> Result<i64> {
         use rusqlite::OptionalExtension;
         self.ensure_agent(id)?;
-        if !["text", "references", "attachments", "mode", "plan"].contains(&part) {
+        if ![
+            "text",
+            "references",
+            "attachments",
+            "mode",
+            "plan",
+            "refine",
+        ]
+        .contains(&part)
+        {
             return Err("Unknown draft part".into());
         }
         Ok(self
@@ -543,7 +552,7 @@ impl Registry {
                 "text" => self.save_draft(id, value)?,
                 "mode" => self.save_draft_mode(id, value)?,
                 "references" | "attachments" => self.save_draft_part(id, part, value)?,
-                "plan" => self.save_draft_plan(id, value)?,
+                "plan" | "refine" => self.save_draft_object(id, part, value)?,
                 _ => return Err("Unknown draft part".into()),
             }
             let next = revision.checked_add(1).ok_or("Draft revision exhausted")?;
@@ -663,15 +672,24 @@ impl Registry {
             .setting(&format!("{prefix}:{id}"))?
             .unwrap_or_else(|| "[]".into()))
     }
-    /// Unsaved session model plan draft (a JSON object) and its revision.
-    pub fn draft_plan(&self, id: &str) -> Result<Value> {
+    /// Settings prefix and size limit of a session draft part stored as one JSON object.
+    fn draft_object_part(part: &str) -> Result<(&'static str, usize)> {
+        match part {
+            "plan" => Ok(("draftplan", 512 * 1024)),
+            "refine" => Ok(("draftrefine", 4 * 1024 * 1024)),
+            _ => Err("Unknown draft part".into()),
+        }
+    }
+    /// An object draft part of a session (model plan or refinement review) and its revision.
+    pub fn draft_object(&self, id: &str, part: &str) -> Result<Value> {
+        let (prefix, _) = Self::draft_object_part(part)?;
         self.db.execute_batch("BEGIN").map_err(err)?;
         let result = (|| {
-            let value = match self.setting(&format!("draftplan:{id}"))? {
+            let value = match self.setting(&format!("{prefix}:{id}"))? {
                 Some(text) => serde_json::from_str(&text).map_err(err)?,
                 None => Value::Null,
             };
-            Ok(serde_json::json!({"value":value,"revision":self.draft_revision(id,"plan")?}))
+            Ok(serde_json::json!({"value":value,"revision":self.draft_revision(id,part)?}))
         })();
         match result {
             Ok(snapshot) => {
@@ -684,12 +702,13 @@ impl Registry {
             }
         }
     }
-    fn save_draft_plan(&self, id: &str, value: &str) -> Result<()> {
+    fn save_draft_object(&self, id: &str, part: &str, value: &str) -> Result<()> {
+        let (prefix, limit) = Self::draft_object_part(part)?;
         self.ensure_agent(id)?;
-        if value.len() > 512 * 1024 {
+        if value.len() > limit {
             return Err("Draft data exceeds the storage limit".into());
         }
-        let key = format!("draftplan:{id}");
+        let key = format!("{prefix}:{id}");
         if value.is_empty() {
             self.db
                 .execute("DELETE FROM settings WHERE key=?1", [key])
@@ -698,7 +717,7 @@ impl Registry {
         }
         let parsed: Value = serde_json::from_str(value).map_err(err)?;
         if !parsed.is_object() {
-            return Err("A plan draft must be an object".into());
+            return Err("An object draft part must be an object".into());
         }
         self.db.execute("INSERT INTO settings VALUES (?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value", params![key, value]).map_err(err)?;
         Ok(())
@@ -1214,8 +1233,8 @@ mod tests {
             .contains("DRAFT_CONFLICT"));
         assert_eq!(db.draft(&a.id).unwrap(), "older client edit");
         // Session model plan drafts: object-only, revision-checked, isolated per session.
-        assert!(db.draft_plan(&a.id).unwrap()["value"].is_null());
-        assert_eq!(db.draft_plan(&a.id).unwrap()["revision"], 0);
+        assert!(db.draft_object(&a.id, "plan").unwrap()["value"].is_null());
+        assert_eq!(db.draft_object(&a.id, "plan").unwrap()["revision"], 0);
         assert!(db
             .save_draft_checked(&a.id, "plan", "[1]", 0)
             .unwrap_err()
@@ -1229,10 +1248,21 @@ mod tests {
             .save_draft_checked(&a.id, "plan", "{\"version\":2}", 0)
             .unwrap_err()
             .contains("DRAFT_CONFLICT"));
-        assert_eq!(peer.draft_plan(&a.id).unwrap()["value"]["version"], 1);
-        assert!(peer.draft_plan(&b.id).unwrap()["value"].is_null());
+        assert_eq!(
+            peer.draft_object(&a.id, "plan").unwrap()["value"]["version"],
+            1
+        );
+        assert!(peer.draft_object(&b.id, "plan").unwrap()["value"].is_null());
         assert_eq!(peer.save_draft_checked(&a.id, "plan", "", 1).unwrap(), 2);
-        assert!(db.draft_plan(&a.id).unwrap()["value"].is_null());
+        // The refinement review is a separate object part with its own revision.
+        assert_eq!(
+            db.save_draft_checked(&a.id, "refine", "{\"version\":1}", 0)
+                .unwrap(),
+            1
+        );
+        assert_eq!(db.draft_object(&a.id, "refine").unwrap()["revision"], 1);
+        assert!(db.draft_object(&a.id, "other").is_err());
+        assert!(db.draft_object(&a.id, "plan").unwrap()["value"].is_null());
         let reviewed = db.draft_snapshot(&a.id).unwrap();
         let local = serde_json::json!({"text":"local replacement", "references":serde_json::from_str::<Value>(refs).unwrap(), "attachments":serde_json::from_str::<Value>(media).unwrap(), "mode":"queue"});
         peer.save_draft(&a.id, "changed after review").unwrap();

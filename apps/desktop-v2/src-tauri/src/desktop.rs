@@ -69,7 +69,7 @@ async fn host_request(
         "draft.get",
         "draft.revisions",
         "draft.replace",
-        "draft.plan",
+        "draft.object",
         "form-draft.get",
         "form-draft.save",
         "profile-draft.get",
@@ -123,9 +123,12 @@ async fn host_request(
             let revision = registry.save_form_draft(project_id, form_key, value, expected)?;
             return Ok(json!({"revision":revision}));
         }
-        if method == "draft.plan" {
+        if method == "draft.object" {
             let registry = drafts.lock().map_err(err)?;
-            return registry.draft_plan(crate::sessions::field(&params, "id")?);
+            return registry.draft_object(
+                crate::sessions::field(&params, "id")?,
+                params["part"].as_str().ok_or("Missing draft part")?,
+            );
         }
         if method == "draft.get"
             || method == "draft.save"

@@ -3244,3 +3244,31 @@ Verification on the shared working snapshot:
   disappears once nothing older remains.
 - Not covered: journals spanning many thousands of files, project-scope paging natively, and the
   older-host path (unit only).
+
+## Refinement reviews kept across restart (2026-10-29)
+
+- A completed refinement review (the refiner's refined/English text and provenance, the chosen
+  version and any edits, plus the original, delivery mode, draft-at-open and fresh-context
+  choice) is written to a new native session object part `refine` (`draftrefine:<session>`,
+  4 MiB, object-only, revision-checked). The Rust object-part support added for model plans is
+  generalised: one `draft.object` read with an explicit part replaces `draft.plan`. Only the
+  reviewable reply fields are persisted.
+- After a restart the composer offers "A refined prompt from … is waiting for review" with
+  "Review refined prompt" (reopens it without a new refiner request) and "Discard refined
+  prompt". The saved review is removed after Apply, a successful send, Keep original or the
+  discard; a failed send keeps it. Closing a new request before its reply leaves an older saved
+  review untouched. A request still waiting for the refiner cannot survive a restart.
+- Found by the native run: sending immediately after a reload was refused while session history
+  was syncing ("The session history is still syncing"), and the refinement error repeated "Your
+  draft is kept." twice. "Approve & send" now shows "Syncing history…" and stays disabled until
+  history is synced, and the suffix is added only when missing.
+- Checks: desktop **468 tests / 101 files PASS** (new `refinement-draft` tests); typecheck
+  **266 PASS**; Biome PASS on the changed files; Rust fmt PASS; native Rust **21 tests PASS**
+  (refine part revision, unknown part refusal).
+- Native `--composer` on portable identity `14c006b436ad-000e11e0b0af`, bundled engine
+  `000e11e0b0af` built from the shared tree: the first run **failed** on the history-sync refusal
+  above (diagnosed with a test that now reports the dialog's alert text); after the fix **exit 0
+  / PASS**. The edited English review is read back from `draft.object`, restored after a renderer
+  reload with its edit and chosen version and no extra refiner call, sent, and removed from
+  storage; the attachment and topic-boundary refinement scenarios in the same scope still pass.
+- Not covered: two-window review conflicts natively, discard natively, full application restart.

@@ -233,8 +233,8 @@ export async function exerciseNativeSessionAgentPlan({
       page.evaluate(
         (id) =>
           window.__TAURI_INTERNALS__.invoke('host_request', {
-            method: 'draft.plan',
-            params: { id },
+            method: 'draft.object',
+            params: { id, part: 'plan' },
           }),
         agent.id,
       );

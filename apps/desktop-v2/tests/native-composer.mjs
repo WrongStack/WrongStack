@@ -397,7 +397,48 @@ export async function exerciseNativeComposer({
     .fill(
       '[native-composer-refined-approved] Implement the desktop composer and preserve all session boundaries.',
     );
+  // A completed, edited review survives a renderer reload without a new refiner request.
+  const storedReview = () =>
+    page.evaluate(
+      (id) =>
+        window.__TAURI_INTERNALS__.invoke('host_request', {
+          method: 'draft.object',
+          params: { id, part: 'refine' },
+        }),
+      agent.id,
+    );
+  await waitFor(
+    async () =>
+      (await storedReview()).value?.edited?.startsWith('[native-composer-refined-approved]'),
+    'Refinement review saved natively',
+  );
+  const refinerCallsBeforeReload = providerFixture.calls.filter((call) => call.refiner).length;
+  await page.reload();
+  await composer().waitFor();
+  await page.getByText(/is waiting for review/).waitFor();
+  await page.getByRole('button', { name: 'Review refined prompt', exact: true }).click();
+  refine = page.getByRole('dialog', { name: 'Refine your prompt' });
+  assert.equal(
+    await refine.getByRole('textbox', { name: 'Edit refined prompt' }).inputValue(),
+    '[native-composer-refined-approved] Implement the desktop composer and preserve all session boundaries.',
+  );
+  assert.equal(
+    await refine.getByRole('button', { name: 'English', exact: true }).getAttribute('aria-pressed'),
+    'true',
+  );
+  assert.equal(
+    providerFixture.calls.filter((call) => call.refiner).length,
+    refinerCallsBeforeReload,
+    'Restoring a review does not call the refiner again',
+  );
   await refine.getByRole('button', { name: 'Approve & send', exact: true }).click();
+  await waitFor(async () => {
+    if ((await storedReview()).value === null) return true;
+    const alert = refine.getByRole('alert');
+    if (await alert.count())
+      throw Error(`Restored review send failed: ${await alert.first().innerText()}`);
+    return false;
+  }, 'Sent review leaves storage');
   await refine.waitFor({ state: 'detached' });
   await waitFor(
     () =>

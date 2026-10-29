@@ -45,14 +45,20 @@ export function projectFormDraftStorage(projectId: string, formKey: string): For
       }).then((result) => result.revision),
   };
 }
-/** Unsaved model plan of one desktop session, revision-checked like the composer draft. */
-export function sessionPlanDraftStorage(sessionId: string): FormDraftStorage {
+/**
+ * An object part of one desktop session's draft (unsaved model plan or refinement review),
+ * revision-checked like the composer draft.
+ */
+export function sessionObjectDraftStorage(
+  sessionId: string,
+  part: 'plan' | 'refine',
+): FormDraftStorage {
   return {
-    get: () => request<FormDraftSnapshot>('draft.plan', { id: sessionId }),
+    get: () => request<FormDraftSnapshot>('draft.object', { id: sessionId, part }),
     save: (value, expectedRevision) =>
       request<{ revision: number }>('draft.save', {
         id: sessionId,
-        part: 'plan',
+        part,
         text: value === null ? '' : JSON.stringify(value),
         expectedRevision,
       }).then((result) => result.revision),

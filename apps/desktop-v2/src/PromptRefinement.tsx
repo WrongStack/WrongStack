@@ -8,6 +8,7 @@ import type { EngineState } from './engine-state';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
 import { ProfileModelPicker } from './ProfileModelPicker';
+import { type RefinementDraft, refinementDraftResult } from './refinement-draft';
 import { preferredRefinementVariant } from './refinement-policy-model';
 import { type RefinerTarget, refinementRecovery } from './refinement-recovery';
 
@@ -21,6 +22,8 @@ export function PromptRefinement({
   onSend,
   fileReferences = [],
   attachments = [],
+  restored,
+  onReview,
 }: {
   original: string;
   mode: SubmitMode;
@@ -31,20 +34,26 @@ export function PromptRefinement({
   onSend: (text: string, mode: SubmitMode) => Promise<void>;
   fileReferences?: readonly string[];
   attachments?: readonly ComposerAttachment[];
+  /** A completed review saved earlier; it is shown again without a new refiner request. */
+  restored?: Pick<RefinementDraft, 'result' | 'variant' | 'edited'> | undefined;
+  /** Receives the reviewable state whenever the reply, chosen version or edits change. */
+  onReview?: ((review: Pick<RefinementDraft, 'result' | 'variant' | 'edited'>) => void) | undefined;
 }) {
-  const [result, setResult] = useState<Record<string, unknown>>({}),
-    [busy, setBusy] = useState(true),
+  const [result, setResult] = useState<Record<string, unknown>>(restored?.result ?? {}),
+    [busy, setBusy] = useState(!restored),
     [sending, setSending] = useState(false),
     [error, setError] = useState(''),
-    [variant, setVariant] = useState<'original' | 'refined' | 'english'>('refined'),
+    [variant, setVariant] = useState<'original' | 'refined' | 'english'>(
+      restored?.variant ?? 'refined',
+    ),
     [feedback, setFeedback] = useState(''),
     [provider, setProvider] = useState(''),
     [model, setModel] = useState(''),
     [picker, setPicker] = useState(false),
     [pickerBusy, setPickerBusy] = useState(false),
     [failure, setFailure] = useState<ReturnType<typeof refinementRecovery> | null>(null),
-    [edited, setEdited] = useState<string | null>(null),
-    [edit, setEdit] = useState(false);
+    [edited, setEdited] = useState<string | null>(restored?.edited ?? null),
+    [edit, setEdit] = useState(restored?.edited != null);
   const generation = useRef(0);
   const refine = async (
     previous?: Record<string, unknown>,
@@ -99,11 +108,17 @@ export function PromptRefinement({
     }
   };
   useEffect(() => {
-    void refine();
+    if (!restored) void refine();
     return () => {
       generation.current++;
     };
   }, []);
+  const reviewRef = useRef(onReview);
+  reviewRef.current = onReview;
+  useEffect(() => {
+    const kept = refinementDraftResult(result);
+    if (kept) reviewRef.current?.({ result: kept, variant, edited });
+  }, [result, variant, edited]);
   let text = original;
   try {
     text = edited ?? refinementText(result, variant, original);
@@ -219,7 +234,14 @@ export function PromptRefinement({
         )}
         {error && (
           <section role="alert" className="composer-error refine-recovery">
-            <p>{failure?.guidance ?? error} Your draft is kept.</p>
+            <p>
+              {(() => {
+                const message = failure?.guidance ?? error;
+                return message.endsWith('Your draft is kept.')
+                  ? message
+                  : `${message} Your draft is kept.`;
+              })()}
+            </p>
             {failure && (
               <details>
                 <summary>Error details</summary>
@@ -367,10 +389,12 @@ export function PromptRefinement({
           <button
             type="button"
             className="button primary"
-            disabled={sending || !ready || !text.trim()}
+            disabled={sending || !ready || !text.trim() || state.hydrating}
+            title={state.hydrating ? 'Waiting for the session history to sync' : undefined}
             onClick={() => void send()}
           >
-            <Check size={14} /> {sending ? 'Sending…' : 'Approve & send'}
+            <Check size={14} />{' '}
+            {sending ? 'Sending…' : state.hydrating ? 'Syncing history…' : 'Approve & send'}
           </button>
         </footer>
       </div>

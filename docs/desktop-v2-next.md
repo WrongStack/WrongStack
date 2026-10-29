@@ -314,7 +314,8 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
   coverage. Presentation sorting must not change engine FIFO order.
 - Preserve the existing steer rule: queued work must be removed explicitly. Atomic prioritization
   of steer over a nonempty queue needs an engine contract; never silently clear or bypass it.
-- Refinement still needs durable in-flight previews, richer comparison/provenance, external-model
+- Refinement keeps completed reviews across restart (2026-10-29); it still needs richer
+  comparison/provenance, external-model
   quality and reconnect/cancellation/empty/timeout cases. Countdown or automatic submit is a new
   deliberate UX; current refinement must not acquire hidden auto-send.
 - Finish validated context editor/apply, mode authoring, residency/retention visualization, draft
