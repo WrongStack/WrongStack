@@ -29,6 +29,11 @@ export const SURFACE_PROTOCOL_CAPABILITIES = [
   'files.batch',
   /** `files.copy_many`: multi-item copies of files and folders, all or nothing. */
   'files.batch-copy',
+  /**
+   * `mcp.list` shows header names with masked values, and `mcp.update` keeps a stored env or
+   * header value sent back as the mask. Older engines would store the mask literally.
+   */
+  'mcp.masked-headers',
   /** `composer.warm`: the user is typing; open the provider connection ahead of the send. */
   'session.provider-warm',
   /**

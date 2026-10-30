@@ -50,4 +50,13 @@ describe('mcp.list env redaction (WS-036)', () => {
   it('omits env entirely when the server declares none', () => {
     expect(toView({ ...base } as never).env).toBeUndefined();
   });
+
+  it('shows header names and masks every header value', () => {
+    const secret = 'Bearer stored-header-secret';
+    const view = toView({ ...base, headers: { Authorization: secret, 'X-Team': 'core' } } as never);
+    // Header values are usually credentials; none is shown, all can be kept by sending the mask.
+    expect(view.headers).toEqual({ Authorization: MCP_ENV_MASK, 'X-Team': MCP_ENV_MASK });
+    expect(JSON.stringify(view)).not.toContain('stored-header-secret');
+    expect(toView({ ...base } as never).headers).toBeUndefined();
+  });
 });

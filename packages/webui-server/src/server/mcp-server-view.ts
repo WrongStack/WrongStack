@@ -33,6 +33,8 @@ interface MCPServerView {
   command?: string;
   args?: string[];
   env?: Record<string, string>;
+  /** Header names; every value is {@link MCP_ENV_MASK}, which `mcp.update` reads as "keep". */
+  headers?: Record<string, string>;
   url?: string;
   health?: MCPServerOperationalHealth;
 }
@@ -153,6 +155,10 @@ export function toView(
   if (info.command !== undefined) view.command = info.command;
   if (info.args !== undefined) view.args = info.args;
   if (info.env !== undefined) view.env = maskServerEnv(info.env);
+  // Header values are credentials far more often than not (`Authorization`,
+  // API-key headers), so none is shown; names stay editable.
+  if (info.headers !== undefined)
+    view.headers = Object.fromEntries(Object.keys(info.headers).map((key) => [key, MCP_ENV_MASK]));
   if (info.url !== undefined) view.url = info.url;
   if (health !== undefined) view.health = health;
   if (toolAnnotations !== undefined) view.toolAnnotations = toolAnnotations;

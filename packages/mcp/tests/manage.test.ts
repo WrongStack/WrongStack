@@ -9,6 +9,7 @@ import {
   discoverMcp,
   enableMcp,
   listMcp,
+  MCP_ENV_MASK,
   type McpManageDeps,
   removeMcp,
   restartMcp,
@@ -194,6 +195,33 @@ describe('updateMcp', () => {
     const servers = await readServers();
     expect(servers.context7?.url).toBe('https://a/mcp');
     expect(servers.context7?.description).toBe('docs');
+  });
+
+  it('keeps a masked header, sets new ones and drops omitted ones', async () => {
+    await addMcp(
+      {
+        name: 'remote',
+        transport: 'streamable-http',
+        url: 'https://a/mcp',
+        enabled: false,
+        headers: { Authorization: 'Bearer stored-secret', 'X-Team': 'core' },
+      },
+      deps(makeRegistry()),
+    );
+    const listed = await listMcp(deps(makeRegistry()));
+    expect(listed.find((server) => server.name === 'remote')?.headers).toEqual({
+      Authorization: 'Bearer stored-secret',
+      'X-Team': 'core',
+    });
+    const r = await updateMcp(
+      { name: 'remote', headers: { Authorization: MCP_ENV_MASK, 'X-Region': 'eu' } },
+      deps(makeRegistry()),
+    );
+    expect(r.ok).toBe(true);
+    expect((await readServers()).remote?.headers).toEqual({
+      Authorization: 'Bearer stored-secret',
+      'X-Region': 'eu',
+    });
   });
 
   it('errors when the server is not in config', async () => {

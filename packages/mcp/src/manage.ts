@@ -66,6 +66,8 @@ export interface McpServerInfo {
   command?: string | undefined;
   args?: string[] | undefined;
   env?: Record<string, string> | undefined;
+  /** HTTP headers sent to a remote server; raw here, masked by read surfaces. */
+  headers?: Record<string, string> | undefined;
   /** Lazy-connect opt-in (spawn on first tool call). */
   lazy?: boolean | undefined;
 }
@@ -274,7 +276,9 @@ function buildConfig(input: McpServerInput, base?: MCPServerConfig | undefined):
   if (env !== undefined) cfg.env = env;
   const url = input.url ?? base?.url;
   if (url !== undefined) cfg.url = url;
-  const headers = input.headers ?? base?.headers;
+  // Headers carry the same kind of credentials (`Authorization`), so a read
+  // surface masks them and the mask means "keep the stored value" here too.
+  const headers = unmaskEnv(input.headers ?? base?.headers, base?.headers);
   if (headers !== undefined) cfg.headers = headers;
   const bearerTokenEnv = input.bearerTokenEnv ?? base?.bearerTokenEnv;
   if (bearerTokenEnv !== undefined) cfg.bearerTokenEnv = bearerTokenEnv;
@@ -314,6 +318,7 @@ function projectServer(name: string, cfg: MCPServerConfig, registry: MCPRegistry
   if (cfg.command !== undefined) info.command = cfg.command;
   if (cfg.args !== undefined) info.args = cfg.args;
   if (cfg.env !== undefined) info.env = cfg.env;
+  if (cfg.headers !== undefined) info.headers = cfg.headers;
   if (cfg.lazy !== undefined) info.lazy = cfg.lazy;
   return info;
 }
