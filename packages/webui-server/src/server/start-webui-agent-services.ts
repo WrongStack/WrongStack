@@ -34,6 +34,8 @@ export interface StandaloneAgentServicesInput {
   getSessionStore: () => PreContext['sessionStore'];
   sessionRunLocks: Map<string, AbortController>;
   isDisplayed: (sessionId: string) => boolean;
+  /** Sends a frame to every connected client (called only after the server is listening). */
+  broadcastToClients?: AgentServicesInput['broadcastToClients'];
   updateGlobalConfig: (
     mutate: (cfg: Record<string, unknown>) => void,
     errorLabel: string,
@@ -117,6 +119,7 @@ export async function createStandaloneAgentServices(
     logger,
     projectRoot,
     workingDir,
+    broadcastToClients: input.broadcastToClients,
     context,
     provider,
     container,

@@ -139,9 +139,24 @@ vi.mock('@wrongstack/sage', () => ({
 
 vi.mock('@wrongstack/runtime', () => ({ makeLightSubagentFactory: vi.fn(() => vi.fn()) }));
 
+const goalHandlerArgs = vi.hoisted(() => [] as unknown[][]);
+const runMirror = vi.hoisted(() => ({
+  created: [] as unknown[],
+  onGoalState: (() => undefined) as (...args: unknown[]) => void,
+  dispose: (() => undefined) as () => void,
+}));
+vi.mock('../src/server/kanban-run-mirror.js', () => ({
+  createKanbanRunMirror: (deps: unknown) => {
+    runMirror.created.push(deps);
+    return { onGoalState: runMirror.onGoalState, dispose: runMirror.dispose };
+  },
+}));
 // Mock the WS handler constructors
 vi.mock('../src/server/goal-ws-handler.js', () => ({
   GoalWebSocketHandler: class {
+    constructor(...args: unknown[]) {
+      goalHandlerArgs.push(args);
+    }
     addClient = vi.fn();
     handleMessage = vi.fn(async () => undefined);
     dispose = vi.fn();
@@ -493,6 +508,27 @@ describe('createAgentServices', () => {
     expect(vi.mocked(makeLightSubagentFactory)).toHaveBeenCalledWith(
       expect.objectContaining({ statusTracker: tracker }),
     );
+  });
+
+  it('mirrors Goal runs into Kanban only when it can reach the clients', async () => {
+    runMirror.created.length = 0;
+    goalHandlerArgs.length = 0;
+    runMirror.onGoalState = vi.fn();
+    runMirror.dispose = vi.fn();
+    await createAgentServices(makeInput());
+    expect(runMirror.created).toHaveLength(0);
+    expect(goalHandlerArgs.at(-1)?.[6]).toBeUndefined();
+    const broadcastToClients = vi.fn();
+    const services = await createAgentServices({ ...makeInput(), broadcastToClients });
+    expect(runMirror.created).toEqual([
+      expect.objectContaining({ broadcast: broadcastToClients, projectRoot: expect.any(String) }),
+    ]);
+    const onBoardState = goalHandlerArgs.at(-1)?.[6] as (id: string, state: object) => void;
+    onBoardState('graph-1', { phases: [] });
+    expect(runMirror.onGoalState).toHaveBeenCalledWith('graph-1', { phases: [] });
+    services.disposeRealtimeHandlers();
+    services.disposeRealtimeHandlers();
+    expect(runMirror.dispose).toHaveBeenCalledTimes(1);
   });
 
   it('disposeRealtimeHandlers is safe to call', async () => {

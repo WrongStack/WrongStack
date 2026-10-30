@@ -151,6 +151,8 @@ export async function startWebUI(
       getSessionStore: () => sessionStore,
       sessionRunLocks: _sessionRunLocks,
       isDisplayed: (sessionId: string) => displayedSessionIds?.().has(sessionId) ?? false,
+      // Runs start only after the server listens, when `clients` exists.
+      broadcastToClients: (message) => broadcast(clients, message),
       updateGlobalConfig,
     });
   const { peekAgent, toolExecutor, permissionPolicy, brain, updateAutoCompactionMaxContext } =

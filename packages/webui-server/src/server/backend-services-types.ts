@@ -36,6 +36,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
+import type { KanbanRunMirrorDeps } from './kanban-run-mirror.js';
 import type { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import type { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
 import type { SpecsWebSocketHandler } from './specs-ws-handler.js';
@@ -54,6 +55,11 @@ export interface AgentServicesInput {
   logger: Logger;
   projectRoot: string;
   workingDir: string;
+  /**
+   * Sends a frame to every connected client. With it, Goal and SDD runs are mirrored into
+   * project Kanban boards, as in the CLI-hosted WebUI.
+   */
+  broadcastToClients?: KanbanRunMirrorDeps['broadcast'] | undefined;
   /** Pre-context services (built in startWebUI with opts.services injection). */
   context: Context;
   provider: Provider;

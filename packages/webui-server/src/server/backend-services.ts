@@ -72,6 +72,7 @@ import { installConversationFallback } from './conversation-fallback.js';
 import { createSessionAgentManager } from './create-session-agent-manager.js';
 import { discoverMailboxBridgeForWebui } from './discover-mailbox-bridge.js';
 import { GoalWebSocketHandler } from './goal-ws-handler.js';
+import { createKanbanRunMirror } from './kanban-run-mirror.js';
 import { createMaxContextUpdater, positiveWindow } from './max-context-updater.js';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 import { buildSavedProvider } from './saved-provider.js';
@@ -471,6 +472,17 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     hookRunner: wrongTraceHookRunner,
     ...(input.installToolBoundary ? { installToolBoundary: input.installToolBoundary } : {}),
   });
+  // Goal and SDD runs mirror into project boards, so a run can be followed and steered from Kanban.
+  const broadcastToClients = input.broadcastToClients;
+  const kanbanRunMirror =
+    projectRoot && broadcastToClients
+      ? createKanbanRunMirror({
+          projectRoot,
+          events,
+          broadcast: broadcastToClients,
+          log: (message) => logger.debug(`[KanbanRunMirror] ${message}`),
+        })
+      : null;
   const goalHandler = new GoalWebSocketHandler(
     agent,
     context,
@@ -478,7 +490,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     wpaths.projectAutophase,
     events,
     projectRoot,
-    undefined,
+    kanbanRunMirror ? (graphId, state) => kanbanRunMirror.onGoalState(graphId, state) : undefined,
     subagentFactory,
   );
   const specsHandler = new SpecsWebSocketHandler(wpaths.projectSpecs, wpaths.projectTaskGraphs);
@@ -542,6 +554,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     realtimeHandlersDisposed = true;
     brainServices.dispose();
     goalHandler.dispose();
+    kanbanRunMirror?.dispose();
     sddBoardHandler.dispose();
     sddWizardHandler.dispose();
     specsHandler.dispose();
