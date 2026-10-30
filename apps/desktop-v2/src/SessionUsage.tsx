@@ -1,6 +1,8 @@
 import { ArrowLeft, Coins, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { DelegationRecord } from './delegations';
 import type { EngineCommand } from './engine-operations';
+import { SessionDelegations } from './SessionDelegations';
 import {
   type PromptUsage,
   type UsageSnapshot,
@@ -73,12 +75,15 @@ export function SessionUsage({
   connected,
   command,
   onBack,
+  delegations = [],
 }: {
   sessionId: string;
   sessionTitle: string;
   connected: boolean;
   command: EngineCommand;
   onBack: () => void;
+  /** Worker delegations the engine reported for this conversation. */
+  delegations?: DelegationRecord[] | undefined;
 }) {
   const [snapshot, setSnapshot] = useState<UsageSnapshot | null>(null),
     [busy, setBusy] = useState(false),
@@ -384,6 +389,7 @@ export function SessionUsage({
           </section>
         </>
       )}
+      <SessionDelegations delegations={delegations} />
     </section>
   );
 }

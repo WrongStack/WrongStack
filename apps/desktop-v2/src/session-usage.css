@@ -177,3 +177,38 @@
     padding: 18px;
   }
 }
+.session-delegations {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  min-width: 0;
+}
+.session-delegations > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.session-delegations h3 {
+  margin: 0;
+}
+.session-delegations ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.session-delegations li {
+  display: grid;
+  gap: 2px;
+  border-left: 3px solid var(--border);
+  padding-left: 8px;
+  overflow-wrap: anywhere;
+}
+.session-delegations li.failed {
+  border-left-color: var(--danger);
+}
+.session-delegations small {
+  color: var(--muted);
+}

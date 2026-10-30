@@ -5384,3 +5384,16 @@ staged; the other session's edits stay untouched.
   `files` passed (89 s) and `composer` passed (208 s) with the conversation notices in place, both
   on the first run.
 
+### Worker delegations on the usage page (2026-10-31)
+
+- The engine broadcast `delegate.completed` for every finished worker delegation (target, task,
+  status, summary, duration, turns, tool calls and, when known, an estimated USD cost); the
+  desktop ignored it. The conversation state keeps them (50 newest, once per delegation id, other
+  sessions' frames dropped, cleared on reset), and the usage page lists them under "Worker
+  delegations" with totals. A delegation without an estimate is counted as such, never as $0.
+- Not claimed: whether the conversation's own counters already include these workers' tokens.
+  Light subagents resolve the container's `TokenCounter`, which may be the leader's, so the page
+  does not say either way.
+- Checks: `delegations.test.ts`; desktop 173 files / 682 tests; typecheck clean. Not exercised
+  natively (needs a delegation by a real model).
+

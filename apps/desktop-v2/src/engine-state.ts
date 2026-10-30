@@ -10,6 +10,7 @@ import {
   type ConversationNotice,
   conversationNotice,
 } from './conversation-notices.js';
+import { appendDelegation, type DelegationRecord, delegationRecord } from './delegations.js';
 import { contentText, entries, record } from './engine-values.js';
 import { parseInputRequest } from './input-form-model.js';
 import {
@@ -82,6 +83,8 @@ export interface EngineState {
   notices: ConversationNotice[];
   /** Notices seen, so each gets a distinct id after older ones fall out of the list. */
   noticeCount: number;
+  /** Worker delegations this conversation finished, as the engine reported them. */
+  delegations: DelegationRecord[];
   nextSteps: ParsedNextStep[];
   results: Record<string, Record<string, unknown>>;
   error: string;
@@ -115,6 +118,7 @@ export const emptyEngineState: EngineState = {
   memoryContext: null,
   notices: [],
   noticeCount: 0,
+  delegations: [],
   nextSteps: [],
   results: {},
   error: '',
@@ -243,6 +247,7 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
       next.memoryRuns = [];
       next.memoryContext = null;
       next.notices = [];
+      next.delegations = [];
     }
     if ((!state.messages.length || p['reset'] === true) && Array.isArray(p['replayMessages'])) {
       if (p['reset'] === true) {
@@ -276,6 +281,10 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   if (notice) {
     next.notices = appendNotice(state.notices, notice);
     next.noticeCount = state.noticeCount + 1;
+  }
+  if (event.type === 'delegate.completed') {
+    const delegation = delegationRecord(p, String(state.delegations.length));
+    if (delegation) next.delegations = appendDelegation(state.delegations, delegation);
   }
   // Memory frames are project-scoped; keep only this conversation's own.
   if (

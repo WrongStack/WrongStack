@@ -539,6 +539,7 @@ export function EngineWorkspace({
             connected={state.connected}
             command={command}
             onBack={() => setTab('chat')}
+            delegations={state.delegations}
           />
         </Suspense>
       ) : tab === 'processes' ? (

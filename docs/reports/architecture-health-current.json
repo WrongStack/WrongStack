@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T23:34:04.549Z",
+  "generatedAt": "2026-10-30T23:42:23.808Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5550,
-    "testFiles": 4834,
-    "sourceLines": 1217664,
+    "sourceFiles": 5552,
+    "testFiles": 4835,
+    "sourceLines": 1217797,
     "workspaceEdges": 222,
-    "moduleEdges": 16638,
+    "moduleEdges": 16642,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 172,
+    "testsWithoutTypecheck": 173,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1023
+    "testOnlyExports": 1024
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 356,
-      "testFiles": 172,
+      "sourceFiles": 358,
+      "testFiles": 173,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1481,6 +1481,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/dead-code-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/delegations.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30530,6 +30536,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/delegations.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/design-edit-draft.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32641,6 +32654,10 @@
     {
       "file": "apps/desktop-v2/src/conversation-notices.ts",
       "name": "NOTICE_LIMIT"
+    },
+    {
+      "file": "apps/desktop-v2/src/delegations.ts",
+      "name": "DELEGATION_LIMIT"
     },
     {
       "file": "apps/desktop-v2/src/editor-indent.ts",

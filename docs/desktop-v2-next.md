@@ -406,7 +406,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
   a recently-ended list exist, 2026-10-29; printed local URLs open as previews). Browser
   selection, preview controls, watcher and batch-process integration remain incomplete.
 - Usage needs profile aggregation (project token totals by model exist, 2026-10-29), persisted historical model/billing attribution,
-  auxiliary-worker inclusion, tier/TTL-aware pricing and broader restart/reconnect coverage.
+  auxiliary-worker inclusion (the usage page lists finished worker delegations with the engine's cost estimates, 2026-10-31; whether the conversation counters already include light-subagent tokens, which share the container token counter, is not established), tier/TTL-aware pricing and broader restart/reconnect coverage.
   Last provider request, current context, cumulative usage and estimated pricing remain separate.
 
 Entry points: `AutomationWorkspace.tsx`, `AutomationEnvironmentEditor.tsx`,
