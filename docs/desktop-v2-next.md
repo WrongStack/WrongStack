@@ -311,14 +311,18 @@ leaves these user-facing engine operations unused. Session/project lifecycle, te
 transport messages (`session.new/resume/save/delete`, `projects.*`, `terminal.*`, `ping`,
 `*.subscribe`) are covered by the desktop's native paths and are not gaps.
 
-- (`autonomy.switch`, the next-steps auto-continue and `mode.switch` / `modes.list` landed
-  2026-10-30; see the validation log.)
-- (The agent browser live view `browser.live.*` and `browser.policy` landed 2026-10-30.)
+Landed 2026-10-30: `autonomy.switch` with the next-steps auto-continue, `mode.switch` /
+`modes.list`, `connections.service_action`, `provider.update` / `provider.clear_models` /
+`provider.undo_clear`, `browser.live.*` and `browser.policy` (see the validation log).
+`key.update` is the same upsert as `key.add`; `chronicle.facet` is covered by
+`chronicle.facets`.
+
+Deliberately not offered:
+
 - `collab.*`: multi-participant control, annotations and tool injection. They need a
-  participant/identity model in the desktop first.
-- `completion.request` (inline editor completion). `key.update` is the same upsert as
-  `key.add`, which the desktop uses; `chronicle.facet` is covered by `chronicle.facets`.
-  `provider.update` / `provider.clear_models` / `provider.undo_clear` landed 2026-10-30.
+  participant/identity model, which a single-user desktop does not have.
+- `completion.request`: WebUI's inline code completion for its Monaco editor. The desktop file
+  editor is a plain text area; inline completion needs an editor with completion widgets first.
 
 ### P1: finish conversation parity while preserving simplicity
 
