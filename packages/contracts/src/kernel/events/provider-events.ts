@@ -174,6 +174,17 @@ export interface ProviderEventMap {
       | undefined;
   };
   /**
+   * The fallback extension moved a conversation back from its fallback model to its primary
+   * (the half-open recovery probe). The next request goes to `to`; if it fails, the chain
+   * engages again and `provider.fallback` follows.
+   */
+  'provider.primary_restored': {
+    sessionId?: string | undefined;
+    from: { providerId: string; model: string };
+    to: { providerId: string; model: string };
+    timestamp: number;
+  };
+  /**
    * The fallback extension deferred a half-open primary recovery probe because
    * the target model's known context window cannot fit the current request.
    * The active fallback stays selected; no doomed primary request is sent.

@@ -223,3 +223,38 @@ describe('live fallbackStickiness', () => {
     expect(switched).toEqual([]);
   });
 });
+
+describe('primary restore', () => {
+  it('announces the move back to the primary so clients show the model that serves', async () => {
+    const config = cfg({ fallbackStickiness: { stickyFallbackTurns: 0, primaryProbeInterval: 0 } });
+    const events = new EventBus();
+    const restored: unknown[] = [];
+    events.on('provider.primary_restored', (payload) => restored.push(payload));
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider: (id) => fakeProvider(id),
+      events,
+    });
+    const session = '2026-08-26/sess_01TESTFALLBACKRESILIENCE0';
+    const ctx = {
+      provider: fakeProvider('p1'),
+      model: 'm1',
+      activeRunSessionId: session,
+    } as never as {
+      provider: { id: string };
+      model: string;
+    };
+    let calls = 0;
+    await (ext.wrapProviderRunner as any)(ctx, { model: 'm1' }, async () => {
+      calls += 1;
+      if (calls === 1)
+        throw new ProviderError('overloaded', 529, true, 'p1', { kind: 'overloaded' });
+      return { content: [{ type: 'text', text: 'ok' }] } as never;
+    });
+    expect(ctx.model).not.toBe('m1');
+    const fallback = { providerId: ctx.provider.id, model: ctx.model };
+    await (ext.beforeRun as any)(ctx);
+    expect(ctx.model).toBe('m1');
+    expect(restored).toMatchObject([{ from: fallback, to: { providerId: 'p1', model: 'm1' } }]);
+  });
+});

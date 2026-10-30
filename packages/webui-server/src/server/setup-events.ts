@@ -431,6 +431,26 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     });
   });
 
+  on('provider.primary_restored', (e) => {
+    broadcast(clients, {
+      type: 'provider.primary_restored',
+      payload: sessionPayload({
+        sessionId: e.sessionId,
+        from: e.from,
+        to: e.to,
+        timestamp: e.timestamp,
+      }),
+    });
+    // Journaled like the hop it undoes: later turns come from the primary again.
+    appendForCurrentSession(e.sessionId, {
+      type: 'model_switched',
+      ts: new Date().toISOString(),
+      from: e.from,
+      to: e.to,
+      reason: 'fallback',
+    });
+  });
+
   on('provider.model_switched', (e) => {
     broadcast(clients, {
       type: 'provider.model_switched',

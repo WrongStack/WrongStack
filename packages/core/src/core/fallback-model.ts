@@ -201,9 +201,16 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
           markPrimaryFailure(cfg);
           return;
         }
+        const restoredFrom = { providerId: ctx.provider.id, model: ctx.model };
         ctx.provider = primaryProvider;
         ctx.model = primary.model;
         await deps.onModelSwitch?.(primary.providerId, primary.model);
+        deps.events.emit('provider.primary_restored', {
+          sessionId: resolveEventSessionId(ctx),
+          from: restoredFrom,
+          to: { providerId: primary.providerId, model: primary.model },
+          timestamp: now(),
+        });
         // The next provider call is the half-open primary probe. If it
         // succeeds, onPrimarySuccess will either partially clear (allowing
         // another probe) or fully reset the ladder (after recoveryTarget
