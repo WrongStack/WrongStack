@@ -546,3 +546,43 @@
   overflow: auto;
   white-space: pre-wrap;
 }
+.memory-injections {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  min-width: 0;
+}
+.memory-injections > header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.memory-injections ol,
+.memory-injections ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.memory-injections summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.memory-injections p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.memory-injections ul li {
+  display: grid;
+  gap: 2px;
+  border-left: 2px solid var(--border);
+  padding-left: 8px;
+  overflow-wrap: anywhere;
+}
+.memory-injection-query {
+  color: var(--muted);
+  font-style: italic;
+}

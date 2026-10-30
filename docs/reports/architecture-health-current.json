@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T20:29:16.973Z",
+  "generatedAt": "2026-10-30T20:35:00.147Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5541,
-    "testFiles": 4827,
-    "sourceLines": 1216480,
+    "sourceFiles": 5543,
+    "testFiles": 4828,
+    "sourceLines": 1216708,
     "workspaceEdges": 222,
-    "moduleEdges": 16612,
+    "moduleEdges": 16618,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 167,
+    "testsWithoutTypecheck": 168,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1016
+    "testOnlyExports": 1017
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 347,
-      "testFiles": 167,
+      "sourceFiles": 349,
+      "testFiles": 168,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1793,6 +1793,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/mcp-tasks-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/memory-injections.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30852,6 +30858,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/memory-injections.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/modal-backdrop.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32222,7 +32235,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1149,
+      "lines": 1151,
       "relativeImports": 32
     },
     {
@@ -32254,7 +32267,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1149,
+      "lines": 1151,
       "relativeImports": 32
     },
     {
@@ -32652,6 +32665,10 @@
     {
       "file": "apps/desktop-v2/src/MailboxUnread.tsx",
       "name": "mailboxUnreadSummary"
+    },
+    {
+      "file": "apps/desktop-v2/src/memory-injections.ts",
+      "name": "MEMORY_RUN_LIMIT"
     },
     {
       "file": "apps/desktop-v2/src/Modal.tsx",

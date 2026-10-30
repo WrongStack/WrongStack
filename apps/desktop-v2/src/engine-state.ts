@@ -7,6 +7,13 @@ import {
 import { type ComposerAttachment, transcriptAttachments } from './composer-attachments.js';
 import { contentText, entries, record } from './engine-values.js';
 import { parseInputRequest } from './input-form-model.js';
+import {
+  appendMemoryRun,
+  type MemoryContext,
+  type MemoryInjectorRun,
+  memoryContextSnapshot,
+  memoryInjectorRun,
+} from './memory-injections.js';
 
 export { contentText, entries, record } from './engine-values.js';
 export interface EngineEvent {
@@ -63,6 +70,9 @@ export interface EngineState {
   activity: EngineEvent[];
   /** Each finished turn's tool events, by the id of the assistant message that ended it. */
   turnActivity: Record<string, EngineEvent[]>;
+  /** This conversation's SAGE injector runs, newest last, and the latest request's memories. */
+  memoryRuns: MemoryInjectorRun[];
+  memoryContext: MemoryContext | null;
   nextSteps: ParsedNextStep[];
   results: Record<string, Record<string, unknown>>;
   error: string;
@@ -92,6 +102,8 @@ export const emptyEngineState: EngineState = {
   specDetails: {},
   activity: [],
   turnActivity: {},
+  memoryRuns: [],
+  memoryContext: null,
   nextSteps: [],
   results: {},
   error: '',
@@ -217,6 +229,8 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
     if (p['reset'] === true) {
       next.nextSteps = [];
       next.turnActivity = {};
+      next.memoryRuns = [];
+      next.memoryContext = null;
     }
     if ((!state.messages.length || p['reset'] === true) && Array.isArray(p['replayMessages'])) {
       if (p['reset'] === true) {
@@ -246,6 +260,16 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   }
   // The fallback chain moved the conversation to another model, or back to its primary: show
   // the model that actually serves the next request.
+  // Memory frames are project-scoped; keep only this conversation's own.
+  if (
+    event.type === 'memory.event' &&
+    (typeof p['sessionId'] !== 'string' || p['sessionId'] === next.sessionId)
+  ) {
+    const run = memoryInjectorRun(p);
+    if (run) next.memoryRuns = appendMemoryRun(state.memoryRuns, run);
+    const context = memoryContextSnapshot(p);
+    if (context) next.memoryContext = context;
+  }
   if (event.type === 'provider.fallback' || event.type === 'provider.primary_restored') {
     const to = p['to'] as Record<string, unknown> | undefined;
     if (to && typeof to['providerId'] === 'string' && typeof to['model'] === 'string') {

@@ -8,6 +8,8 @@ import type { EngineCommand } from './engine-operations';
 import { contentText, entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
+import type { MemoryContext, MemoryInjectorRun } from './memory-injections';
+import { SessionMemoryInjections } from './SessionMemoryInjections';
 
 export function SessionContextPanel({
   command,
@@ -15,12 +17,17 @@ export function SessionContextPanel({
   maxContext,
   initialAction,
   onClose,
+  memoryRuns = [],
+  memoryContext = null,
 }: {
   command: EngineCommand;
   running: boolean;
   maxContext: number;
   initialAction?: 'compact' | 'compact-aggressive' | 'repair' | 'clear' | undefined;
   onClose: () => void;
+  /** SAGE injector runs and the latest request's memories, as the engine reported them. */
+  memoryRuns?: MemoryInjectorRun[] | undefined;
+  memoryContext?: MemoryContext | null | undefined;
 }) {
   const [snapshot, setSnapshot] = useState<Record<string, unknown> | null>(null),
     [instructions, setInstructions] = useState<string | null>(null),
@@ -277,6 +284,7 @@ export function SessionContextPanel({
             </section>
           </>
         )}
+        <SessionMemoryInjections runs={memoryRuns} context={memoryContext} />
         <footer>
           <button
             type="button"

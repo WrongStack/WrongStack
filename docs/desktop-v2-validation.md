@@ -5252,3 +5252,18 @@ staged; the other session's edits stay untouched.
   clean. A real Goal run reaching a mirror board in the desktop needs a native pass with a
   model-backed Goal run; that has not been run yet.
 
+### SAGE memory in the context inspector (2026-10-30)
+
+- The engine already broadcast `memory.*` kernel events as `memory.event` frames; the desktop
+  ignored them. The conversation state now keeps this conversation's `memory.injector_run`
+  decisions (30 newest, once per run id; frames carrying another session id are dropped) and the
+  latest `memory.context_snapshot`, and clears both when the conversation is reset.
+- "Context & instructions" shows "Memory in context": how many SAGE memories the latest request
+  carried and how many entered or left, then each injector run newest first with its outcome
+  (including runs that injected nothing or failed), the tool or trigger, the query preview,
+  candidates and eligible counts, the score bar, characters added, rejected counts by gate and the
+  injected memories with kind and score. Only what the engine reported is shown.
+- Checks: `memory-injections.test.ts` (run parsing, session filter, duplicates, bound, context
+  snapshot, reset); desktop typecheck clean. No native step yet: the fixtures do not seed SAGE
+  memories, so a real injection has not been exercised in the desktop.
+
