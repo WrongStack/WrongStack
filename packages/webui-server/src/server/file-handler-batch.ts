@@ -45,19 +45,49 @@ async function exists(file: string): Promise<boolean> {
   }
 }
 
+/** How long a rename waits out another process's handle on Windows. */
+const RENAME_RETRY_MS = 3000;
+const TRANSIENT_RENAME_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
+
+/**
+ * Windows refuses to rename a folder while any file inside it is open (a watcher, the search
+ * indexer or antivirus reading a file that was just written) and reports EPERM. Such handles are
+ * short-lived, so the rename is retried for a bounded time. A target that now exists is a real
+ * conflict and is reported at once; other platforms rename once.
+ */
+async function renameSettled(from: string, to: string): Promise<void> {
+  const deadline = Date.now() + RENAME_RETRY_MS;
+  for (let wait = 20; ; wait = Math.min(wait * 2, 250)) {
+    try {
+      await fs.rename(from, to);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? '';
+      if (
+        process.platform !== 'win32' ||
+        !TRANSIENT_RENAME_CODES.has(code) ||
+        Date.now() >= deadline ||
+        (await exists(to))
+      )
+        throw error;
+      await new Promise((done) => setTimeout(done, wait));
+    }
+  }
+}
+
 /** Renames in order; on a failure, renames the completed ones back and rethrows. */
 async function renameAll(steps: readonly Step[]): Promise<void> {
   const done: Step[] = [];
   try {
     for (const step of steps) {
-      await fs.rename(step.from, step.to);
+      await renameSettled(step.from, step.to);
       done.push(step);
     }
   } catch (error) {
     const unrestored: string[] = [];
     for (const step of done.reverse()) {
       try {
-        await fs.rename(step.to, step.from);
+        await renameSettled(step.to, step.from);
       } catch {
         unrestored.push(step.from);
       }

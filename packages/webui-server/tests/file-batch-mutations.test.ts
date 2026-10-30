@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { watch } from 'node:fs';
+import { mkdir, mkdtemp, open, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -137,3 +138,41 @@ it('refuses to copy a folder that contains a link', async () => {
   expect(refused.payload).toMatchObject({ success: false, error: expect.stringMatching(/link/) });
   expect(await listing('lib')).toEqual([]);
 });
+
+// Windows refuses to rename a folder while any file inside it is open, and reports EPERM. A
+// watcher, the search indexer or antivirus opening a freshly copied file is enough, so a copy
+// must wait out such a short-lived handle instead of failing the whole batch.
+it.runIf(process.platform === 'win32')(
+  'copies a folder while another process briefly holds a file in the copy open',
+  async () => {
+    for (let index = 0; index < 20; index++)
+      await writeFile(join(dir, 'full', `f${index}.txt`), `file ${index}`);
+    const held: Promise<void>[] = [];
+    const watcher = watch(join(dir, 'lib'), { recursive: true }, (_event, name) => {
+      const file = String(name ?? '');
+      if (!file.startsWith('.wrongstack-copy-') || !file.endsWith('keep.txt') || held.length)
+        return;
+      held.push(
+        open(join(dir, 'lib', file), 'r')
+          .then(async (handle) => {
+            await new Promise((done) => setTimeout(done, 600));
+            await handle.close();
+          })
+          .catch(() => undefined),
+      );
+    });
+    try {
+      const copied = await call('files.copy_many', { items: [{ from: 'full', to: 'lib/full' }] });
+      expect(held).toHaveLength(1);
+      expect(copied.payload['error']).toBeUndefined();
+      expect(copied.payload).toMatchObject({ success: true });
+      expect(await listing('lib/full')).toHaveLength(21);
+      expect((await listing('lib')).filter((name) => name.startsWith('.wrongstack-copy-'))).toEqual(
+        [],
+      );
+    } finally {
+      watcher.close();
+      await Promise.all(held);
+    }
+  },
+);
