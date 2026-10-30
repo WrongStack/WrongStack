@@ -4855,3 +4855,24 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `session-worklist.test.ts` (plan and task parsing, empty state, progress and
   controls) was written with the change. Desktop suite **624 PASS**, typecheck and Biome PASS.
   No engine change. No native step yet.
+
+### Jev (TypeSafe) settings
+
+- The engine's `jev.get/set/test/check` (account route, key, model, endpoint, timeout,
+  per-judgment switches, content logging, a connection test and an account check of each
+  judgment; replies `jev.state` without secret values, provider errors replaced by generic
+  messages) had no desktop UI; the WebUI has one. Settings → Brain now includes "Jev
+  judgments":
+  - enable/disable;
+  - account status and key source (stored, environment or not set);
+  - route, model, custom endpoint and timeout, with an explicit save;
+  - a password field that writes a new key to the profile's encrypted configuration, and
+    "Remove stored key";
+  - each judgment's switch and readiness;
+  - content logging;
+  - "Test connection" and "Check judgments", with the report of passed and failed cases.
+  Recent engine activity is shown with time, outcome, duration and reason. Engine messages
+  and errors are shown.
+- Checks: desktop `jev-settings.test.ts` (state parsing including checks, activity and
+  defaults) was written with the change. Desktop suite **625 PASS**, typecheck and Biome PASS.
+  No engine change. No native step: it needs a TypeSafe account.
