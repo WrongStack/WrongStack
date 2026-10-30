@@ -4603,3 +4603,32 @@ staged; the other session's edits stay untouched.
   typecheck and Biome PASS.
 - No native step: the native Goal fixture uses the local provider without a token budget; the
   token path is covered by the run test above.
+
+### MCP secret environment and header administration
+
+- `@wrongstack/mcp`: `updateMcp` (and `addMcp`) now restore masked header values the way they
+  already restored masked env values: a header sent back as `MCP_ENV_MASK` keeps its stored
+  value, a mask for an unknown key is dropped, and a key left out is removed. `listMcp` now
+  projects `headers` (raw, as it already did for env).
+- webui-server: the `mcp.list` view shows `headers` with every value masked; header values
+  are credentials far more often than not. Env keeps its existing key/value secret detection.
+  New capability `mcp.masked-headers`: an older engine would store the mask literally, so the
+  desktop edits these maps only when the capability is advertised.
+- Desktop: the MCP connection editor has an Environment section (and HTTP headers for remote
+  transports or when headers exist). Each stored key can be kept, replaced (password input) or
+  removed, and new keys added. Names are validated: env identifiers, header token characters,
+  duplicates (case-insensitive for headers). Values cannot be empty, longer than 4,096
+  characters, the reserved mask, or a header value with line breaks. Before saving, the
+  connection is read again; if the stored map changed, the save is refused and the edit kept.
+  After saving, keys and visible values are read back. Hidden values are never received or
+  rendered. The older "Stored environment names" list remains for engines without the
+  capability.
+- Checks: RED then GREEN in mcp `manage.test.ts` (a masked `Authorization` kept, a header
+  added, an omitted header removed, `listMcp` projects headers); the whole mcp suite
+  **1112 PASS**. RED then GREEN in webui-server `mcp-env-redaction.test.ts` (header names
+  shown, every value masked, the secret absent from the serialized view); MCP route tests 16
+  PASS, typecheck and Biome PASS. webui-protocol 261 PASS. Desktop `mcp-secret-map.test.ts`
+  (payload for keep/replace/remove/add, validation, no hidden value rendered) was written with
+  the change. Desktop suite **600 PASS**, typecheck and Biome PASS.
+- No native step yet: the native MCP fixture has no secret-bearing connection. Planned for the
+  final native pass.
