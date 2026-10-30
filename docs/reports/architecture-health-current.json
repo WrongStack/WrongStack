@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T23:50:53.401Z",
+  "generatedAt": "2026-10-30T23:53:33.324Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 45,
     "sourceFiles": 5552,
     "testFiles": 4835,
-    "sourceLines": 1217846,
+    "sourceLines": 1217889,
     "workspaceEdges": 222,
     "moduleEdges": 16642,
     "nonCommandSlashImports": 0,
@@ -32257,7 +32257,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 701,
+      "lines": 718,
       "relativeImports": 8
     },
     {
@@ -32302,7 +32302,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 736,
+      "lines": 746,
       "relativeImports": 15
     },
     {
@@ -32468,6 +32468,11 @@
       "relativeImports": 11
     },
     {
+      "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
+      "lines": 746,
+      "relativeImports": 15
+    },
+    {
       "file": "packages/coordination/src/sqlite-mailbox.ts",
       "lines": 737,
       "relativeImports": 14
@@ -32476,11 +32481,6 @@
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 737,
       "relativeImports": 3
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 736,
-      "relativeImports": 15
     },
     {
       "file": "packages/vibeui/src/components/provider-manager.tsx",
@@ -32511,6 +32511,11 @@
       "file": "packages/webui/src/components/MemoryManager/useMemoryManagerState.ts",
       "lines": 720,
       "relativeImports": 9
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
+      "lines": 718,
+      "relativeImports": 8
     },
     {
       "file": "packages/plugins/src/audit/index.ts",
@@ -32569,11 +32574,6 @@
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
-      "lines": 703,
-      "relativeImports": 6
-    },
-    {
-      "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
     }

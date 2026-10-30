@@ -31,6 +31,7 @@ export function ProjectSessionHistory({
   onPrepare,
   onNewSession,
   onOpenFile,
+  focusSessionId = '',
 }: {
   projectId: string;
   carrierId: string;
@@ -40,6 +41,8 @@ export function ProjectSessionHistory({
   onPrepare: (id: string, text: string) => Promise<boolean>;
   onNewSession: () => void;
   onOpenFile: (path: string) => void;
+  /** A core session to select when the page opens, e.g. from a Chronicle event. */
+  focusSessionId?: string | undefined;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const { state: viewState, controller: viewStore } = useHistoryView(projectId);
@@ -169,7 +172,14 @@ export function ProjectSessionHistory({
   useEffect(() => {
     if (!viewState.ready) return;
     const saved = viewStore.snapshot().value;
-    void load(0, undefined, saved.selectedId || saved.anchorId || undefined, true);
+    if (focusSessionId)
+      viewStore.change({ selectedId: focusSessionId, anchorId: focusSessionId, query: '' });
+    void load(
+      0,
+      undefined,
+      focusSessionId || saved.selectedId || saved.anchorId || undefined,
+      true,
+    );
   }, [load, viewState.ready, viewStore]);
   useEffect(() => {
     let active = true;

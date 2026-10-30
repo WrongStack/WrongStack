@@ -5399,3 +5399,13 @@ staged; the other session's edits stay untouched.
 - Checks: `delegations.test.ts`; desktop 173 files / 682 tests; typecheck clean. Not exercised
   natively (needs a delegation by a real model).
 
+### Chronicle event to conversation history (2026-10-31)
+
+- A Chronicle event whose scope names a session now offers "Open conversation history". It opens
+  this project's history page anchored and selected on that core session id; an id the catalog
+  no longer holds falls back to the first page with the existing "no longer in this catalog"
+  notice. The focus applies to that visit only.
+- Checks: desktop typecheck clean. Not added to the native evidence step: leaving Chronicle there
+  resets its filters before the step's remaining checks; the fixture's event names a session
+  (`fixture-story`) that no catalog holds, so it would only exercise the fallback.
+

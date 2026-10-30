@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-30T23:50:53.401Z
+**Generated:** 2026-10-30T23:53:33.324Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 45 |
 | Production source files | 5552 |
-| Production source lines | 1217846 |
+| Production source lines | 1217889 |
 | Test files | 4835 |
 | Workspace dependency edges | 222 |
 | Relative module edges | 16642 |
@@ -117,15 +117,16 @@ None.
 | 754 | `packages/client/src/client.ts` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
 | 747 | `apps/desktop-v2/src/ProjectKanban.tsx` |
+| 746 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 737 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
-| 736 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 729 | `packages/tools/src/process-registry.ts` |
 | 725 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 724 | `packages/coordination/src/agent-monitor.ts` |
 | 720 | `packages/tools/src/read.ts` |
 | 720 | `packages/webui/src/components/MemoryManager/useMemoryManagerState.ts` |
+| 718 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 715 | `packages/plugins/src/audit/index.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 712 | `packages/webui-server/src/server/pref-helpers.ts` |
@@ -138,7 +139,6 @@ None.
 | 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
-| 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
 
 ## Exports only tests reference
 

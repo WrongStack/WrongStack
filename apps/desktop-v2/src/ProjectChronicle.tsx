@@ -6,6 +6,7 @@ import {
   Download,
   FileCode2,
   GitBranch,
+  History,
   LoaderCircle,
   RefreshCw,
   Search,
@@ -36,9 +37,12 @@ const facetFields = ['eventType', 'outcome', 'providerId', 'modelId', 'agentId']
 export function ProjectChronicle({
   command,
   onOpenFile,
+  onOpenSession,
 }: {
   command: EngineCommand;
   onOpenFile: (path: string) => void;
+  /** Opens this project's conversation history at a core session id. */
+  onOpenSession?: ((sessionId: string) => void) | undefined;
 }) {
   const [draft, setDraft] = useState(initialChronicleFilters),
     [filters, setFilters] = useState(initialChronicleFilters);
@@ -525,6 +529,7 @@ export function ProjectChronicle({
             onTrace={() => void trace(selected)}
             onClose={() => setSelected(null)}
             onOpenFile={onOpenFile}
+            onOpenSession={onOpenSession}
           />
         ) : (
           <aside className="chronicle-inspector chronicle-inspector-empty">
@@ -583,11 +588,13 @@ function ChronicleDetail({
   onTrace,
   onClose,
   onOpenFile,
+  onOpenSession,
 }: {
   event: Record<string, unknown>;
   onTrace: () => void;
   onClose: () => void;
   onOpenFile: (path: string) => void;
+  onOpenSession?: ((sessionId: string) => void) | undefined;
 }) {
   const resource = record(event['resource']),
     scope = record(event['scope']),
@@ -624,6 +631,16 @@ function ChronicleDetail({
         >
           <FileCode2 size={14} />
           Open project file
+        </button>
+      )}
+      {onOpenSession && typeof scope['sessionId'] === 'string' && scope['sessionId'] && (
+        <button
+          type="button"
+          className="button secondary small"
+          onClick={() => onOpenSession(scope['sessionId'] as string)}
+        >
+          <History size={14} />
+          Open conversation history
         </button>
       )}
       <dl className="chronicle-event-facts">

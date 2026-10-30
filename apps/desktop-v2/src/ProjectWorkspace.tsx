@@ -126,7 +126,12 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
     [memoryTarget, setMemoryTarget] = useState('');
   // Cross-links between run mirror boards and the Goal/SDD views that own the runs.
   const [kanbanFocus, setKanbanFocus] = useState<KanbanFocus | null>(null),
-    [goalTarget, setGoalTarget] = useState('');
+    [goalTarget, setGoalTarget] = useState(''),
+    [historyTarget, setHistoryTarget] = useState('');
+  // A history focus applies to the visit it was made for.
+  useEffect(() => {
+    if (vm.projectPage !== 'history') setHistoryTarget('');
+  }, [vm.projectPage]);
   const setFileTarget = (path: string, line = 0, endLine = 0) =>
     setFileTargetState({ path, line, endLine });
   useEffect(() => {
@@ -159,6 +164,10 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           onOpenFile={(path) => {
             setFileTarget(path);
             vm.setProjectPage('files');
+          }}
+          onOpenSession={(sessionId) => {
+            setHistoryTarget(sessionId);
+            vm.setProjectPage('history');
           }}
         />
       ) : vm.projectPage === 'mailbox' ? (
@@ -237,7 +246,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
       ) : vm.projectPage === 'history' ? (
         <Suspense fallback={<p role="status">Opening project session history…</p>}>
           <ProjectSessionHistory
-            key={project.id}
+            key={`${project.id}:${historyTarget}`}
+            focusSessionId={historyTarget}
             projectId={project.id}
             carrierId={state.sessionId}
             command={command}
