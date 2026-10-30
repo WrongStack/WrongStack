@@ -5065,3 +5065,22 @@ staged; the other session's edits stay untouched.
   project roots, with and without a recursive `fs.watch` on the project) never failed. The cause
   is still unknown; the engine now reports a non-missing `lstat` error as itself and the native
   harness prints the dialog message before cleanup, so the next occurrence is diagnosable.
+
+### Message every live runtime of a project (2026-10-30)
+
+- An HTTP audit of the engine routes against the desktop found one user-facing gap, the fleet
+  broadcast (`POST /api/fleet/broadcast`); `/api/auth/status` and `/api/health` are transport
+  routes and SAGE search is covered by `memory.sage.*`.
+- The engine route chose its targets from the host process's own registered session and, when
+  the host was not one (the standalone engine), fell back to every non-stale session of every
+  project, so a broadcast could reach other projects' leaders. It now scopes by the host's own
+  session's project, else the host project root, and addresses nothing when neither is known
+  (`d4c35d2ce`, `fleetBroadcastTargets`, `fleet-broadcast-targets.test.ts`; the test was
+  written with the change, no separate RED run).
+- The desktop's Live fleet page has "Message all runtimes…" (`7a0217708`). It does not use the
+  fleet route: it re-reads this project's runtimes, keeps the active and idle ones, and sends one
+  high-priority steering message to each through the per-session mailbox route the single
+  message already uses, then reports how many mailboxes received it and names the ones that did
+  not. Delivery does not confirm execution, which the result says.
+- Checks: desktop `fleet-broadcast.test.ts`, suite **640 PASS**, typecheck and Biome PASS;
+  `api-router.gaps.test.ts` and the targets test PASS. Not in a native scenario yet.
