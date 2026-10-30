@@ -414,6 +414,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     container,
     events,
     logger,
+    // The leader's context is the one this process-wide updater serves (the desktop runs one
+    // conversation per engine): a hop re-resolves its context window and compaction ceiling.
+    onModelSwitch: (providerId) => updateAutoCompactionMaxContext(agent.ctx.provider, providerId),
   });
   if (config.features.memory && config.features.memoryConsolidation !== false) {
     const consSage = getSageService(memoryStore) as ConsolidatorSage | undefined;

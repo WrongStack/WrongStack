@@ -115,6 +115,11 @@ export interface ConversationFallbackDeps extends BuildConversationProviderDeps 
   container: Container;
   events: EventBus;
   logger?: Logger | undefined;
+  /**
+   * Called after a hop or a primary restore moved the agent to another model, with that
+   * model. The host refreshes what depends on the model (context window, auto-compaction).
+   */
+  onModelSwitch?: ((providerId: string, modelId: string) => Promise<void>) | undefined;
 }
 
 /**
@@ -140,6 +145,7 @@ export function installConversationFallback(agent: Agent, deps: ConversationFall
         return (await buildConversationProvider(deps, config, providerId, model ?? '')).provider;
       },
       events: deps.events,
+      ...(deps.onModelSwitch ? { onModelSwitch: deps.onModelSwitch } : {}),
       ...(deps.logger ? { logger: deps.logger } : {}),
       fallbackGate: createFallbackGate(deps.events),
       fallbackGateSeconds: CONVERSATION_FALLBACK_GATE_SECONDS,

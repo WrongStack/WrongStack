@@ -149,6 +149,8 @@ function harness(configOverrides: Partial<Config> = {}) {
 
   return {
     sessionAgents,
+    template,
+    deps: { providerRegistry: providers, container, events, getConfig: () => liveConfig },
     setConfig: (next: Partial<Config>) => {
       liveConfig = { ...liveConfig, ...next } as Config;
     },
@@ -210,5 +212,20 @@ describe('standalone session agents carry the fallback-model extension', () => {
     await agent.extensions.runBeforeRun(agent.ctx as never, 'next turn' as never);
     expect(agent.ctx.provider.id).toBe('primary');
     expect(agent.ctx.model).toBe('p-model');
+  });
+
+  it('tells the host which model a hop moved to, so it can refresh the context window', async () => {
+    const { template, deps } = harness();
+    const switched: string[] = [];
+    const { installConversationFallback } = await import('../src/server/conversation-fallback.js');
+    installConversationFallback(template, {
+      ...deps,
+      onModelSwitch: async (providerId, modelId) => {
+        switched.push(`${providerId}/${modelId}`);
+      },
+    });
+    await template.extensions.wrapProviderRunner(innerRunner)(template.ctx, request);
+    expect(template.ctx.provider.id).toBe('backup');
+    expect(switched).toEqual(['backup/b-model']);
   });
 });
