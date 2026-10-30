@@ -4687,3 +4687,25 @@ staged; the other session's edits stay untouched.
   `parseLinesIntoTasks`, blanks, single-marker removal) was written with the change. Desktop
   suite **607 PASS**, typecheck and Biome PASS. No engine change.
 - No native step yet; planned for the final native pass.
+
+### Managed worktrees page
+
+- The engine's worktree surface (`worktree.state`, `worktree.scan` → `worktree.orphans`,
+  `worktree.diff`, `worktree.merge`, `worktree.remove`, `worktree.cleanup`; managed
+  `wstack/ap/*` branches only, every change refused while a run owns the worktree or another
+  process runs SDD) had no desktop UI. A project page "Worktrees" (overview link) shows:
+  - worktrees in use by runs: owner, status, base, size, conflicts and last error;
+  - leftovers no live run owns: a checkout or a branch without one.
+- Each worktree offers "View changes" (commits ahead and uncommitted per-file counts). For
+  leftovers: "Merge" into its base branch in the project checkout (confirmation; conflicts
+  are listed), "Remove" (confirmation, says uncommitted work is lost), and "Clean up all
+  leftovers", disabled with the engine's reason while a run is live. Results are broadcast
+  without request ids. The page shows the first result frame newer than the one seen when the
+  request was sent, and treats it as the newest result, not proof of ownership.
+- The desktop never creates worktrees, and this work did not create any; the page only acts
+  on worktrees the engine already manages.
+- Checks: desktop `worktree-model.test.ts` (state/leftover parsing, cleanup/merge outcome text
+  including refusals and conflicts, diff summary, initial render) was written with the change.
+  Desktop suite **610 PASS**, typecheck and Biome PASS. No engine change.
+- No native step yet: it needs a fixture project with a leftover managed worktree. Planned for
+  the final native pass.
