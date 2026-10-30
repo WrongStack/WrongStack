@@ -322,6 +322,12 @@ export class GoalWebSocketHandler {
     return {
       ...buildGoalState(this.graph, activePhaseId, this.runStatus),
       ...(this.goalId ? { readOnly: this.readOnly } : {}),
+      // `goal.revert` works only from the baseline this engine captured for the run; a
+      // client must not offer it otherwise (the request would be refused).
+      revert:
+        this.worktrees && this.runBase && this.projectRoot
+          ? { branch: this.runBase.branch, sha: this.runBase.sha }
+          : null,
     };
   }
 

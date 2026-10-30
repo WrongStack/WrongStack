@@ -623,6 +623,21 @@ describe('GoalWebSocketHandler — stop, clear, revert', () => {
     handler.dispose();
   });
 
+  it('reports in the state that no revert is available without a git baseline', async () => {
+    const { handler, ws } = makeHandler();
+    handler.addClient(ws as unknown as WebSocket);
+    await handler.handleMessage(ws as unknown as WebSocket, {
+      type: 'goal.start',
+      payload: { goal: 'goal without a baseline' },
+    });
+    await new Promise((r) => setTimeout(r, 30));
+    const state = ws.sent.filter((m) => m.type === 'goal.state').at(-1)?.payload as
+      | Record<string, unknown>
+      | undefined;
+    expect(state).toHaveProperty('revert', null);
+    handler.dispose();
+  });
+
   it('refuses a revert without a captured git baseline', async () => {
     const { handler, ws } = makeHandler();
     handler.addClient(ws as unknown as WebSocket);
