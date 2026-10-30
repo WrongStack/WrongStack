@@ -19,6 +19,7 @@ import { CodeAtlas } from './CodeAtlas';
 import { projectHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import { FileWorkspace } from './FileWorkspace';
+import { MailboxUnread } from './MailboxUnread';
 import { isLive, type Project } from './model';
 import { ProjectChronicle } from './ProjectChronicle';
 import { ProjectGoals } from './ProjectGoals';
@@ -331,7 +332,13 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           </Suspense>
         </section>
       ) : (
-        <ProjectOverview project={project} vm={vm} command={command} http={http} />
+        <ProjectOverview
+          project={project}
+          vm={vm}
+          command={command}
+          http={http}
+          mailboxActivity={state.results['mailbox.event']}
+        />
       )}
     </div>
   );
@@ -341,11 +348,14 @@ function ProjectOverview({
   vm,
   command,
   http,
+  mailboxActivity,
 }: {
   project: Project;
   vm: DesktopController;
   command: ReturnType<typeof useProjectEngine>['command'];
   http: ReturnType<typeof projectHttp>;
+  /** The latest mailbox event; a change re-reads the unread count. */
+  mailboxActivity: unknown;
 }) {
   const [memories, setMemories] = useState<number | null>(null),
     [boards, setBoards] = useState<Record<string, unknown>[]>([]),
@@ -510,6 +520,7 @@ function ProjectOverview({
           <div>
             <strong>Mailbox</strong>
             <span>Read project correspondence, receipts and agent replies.</span>
+            <MailboxUnread command={command} trigger={mailboxActivity} />
           </div>
           <ArrowRight size={16} />
         </button>

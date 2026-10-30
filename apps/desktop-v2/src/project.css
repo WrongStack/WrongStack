@@ -1910,3 +1910,12 @@
     width: 100%;
   }
 }
+.project-secondary-links .mailbox-unread {
+  margin-top: 4px;
+  color: var(--accent);
+}
+.project-secondary-links .mailbox-unread strong {
+  display: inline;
+  margin: 0;
+  font-size: 10px;
+}

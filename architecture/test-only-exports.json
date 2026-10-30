@@ -60,6 +60,10 @@
       "MailboxDraftStore",
       "mailDraftCodec"
     ],
+    "apps/desktop-v2/src/MailboxUnread.tsx": [
+      "MAILBOX_UNREAD_PAGE",
+      "mailboxUnreadSummary"
+    ],
     "apps/desktop-v2/src/Modal.tsx": [
       "outsideBox"
     ],
