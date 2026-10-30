@@ -38,6 +38,7 @@ import { FallbackPolicySettings, RoutingPolicySettings } from './ModelPolicySett
 import { LimitsPolicySettings, TierPolicySettings } from './ResourcePolicySettings';
 import { prepareSettingsPatch, sameSetting } from './settings-save-model';
 import './settings-policy.css';
+import { ConfigDoctor } from './ConfigDoctor';
 import { ModelCatalogSettings } from './ModelCatalogSettings';
 import { ModelVisibilitySettings } from './ModelVisibilitySettings';
 import { ProviderDiagnostics } from './ProviderDiagnostics';
@@ -407,6 +408,14 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             <>
               <ProviderHealth state={state} command={command} />
               <ProviderDiagnostics state={state} send={send} />
+              <ConfigDoctor
+                command={command}
+                onApplied={() =>
+                  setNotice(
+                    'The profile configuration was repaired. Open settings forms still show the values read before; reload them before saving.',
+                  )
+                }
+              />
             </>
           ) : section === 'instructions' ? (
             <UserInstructionsSettings

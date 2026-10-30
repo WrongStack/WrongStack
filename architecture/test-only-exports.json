@@ -28,6 +28,9 @@
     "apps/desktop-v2/src/composer-attachments.ts": [
       "attachmentBytes"
     ],
+    "apps/desktop-v2/src/ConfigDoctor.tsx": [
+      "configDoctorReport"
+    ],
     "apps/desktop-v2/src/context-editor-model.ts": [
       "removalProposal"
     ],

@@ -277,3 +277,27 @@
   min-width: 0;
   flex: 1;
 }
+.config-doctor {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+.config-doctor h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+}
+.config-doctor-actions,
+.config-doctor-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.config-doctor-changes {
+  max-height: 220px;
+  overflow: auto;
+  font-size: 11px;
+}

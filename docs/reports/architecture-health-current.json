@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T08:13:13.873Z",
+  "generatedAt": "2026-10-30T08:15:09.110Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5507,
-    "testFiles": 4798,
-    "sourceLines": 1211896,
+    "sourceFiles": 5508,
+    "testFiles": 4799,
+    "sourceLines": 1212052,
     "workspaceEdges": 222,
-    "moduleEdges": 16512,
+    "moduleEdges": 16515,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 142,
+    "testsWithoutTypecheck": 143,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 994
+    "testOnlyExports": 995
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 315,
-      "testFiles": 142,
+      "sourceFiles": 316,
+      "testFiles": 143,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1415,6 +1415,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/composer-resources-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/config-doctor.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30237,6 +30243,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/config-doctor.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/context-editor-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32128,6 +32141,10 @@
     {
       "file": "apps/desktop-v2/src/composer-attachments.ts",
       "name": "attachmentBytes"
+    },
+    {
+      "file": "apps/desktop-v2/src/ConfigDoctor.tsx",
+      "name": "configDoctorReport"
     },
     {
       "file": "apps/desktop-v2/src/context-editor-model.ts",
