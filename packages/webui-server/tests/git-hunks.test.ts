@@ -285,3 +285,51 @@ it('stages and unstages selected lines of added and deleted files through the in
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('stages content hunks of a file whose mode also changed, leaving the mode alone', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'wrongstack-hunks-mode-'));
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true });
+  const frames: { type: string; payload: Record<string, any> }[] = [];
+  const ws = { readyState: 1, send: (text: string) => frames.push(JSON.parse(text)) };
+  const invoke = async (payload: Record<string, unknown>, apply = false) => {
+    frames.length = 0;
+    await handleGitHunks(ws as never, root, payload, apply);
+    return frames.at(-1)!.payload;
+  };
+  try {
+    git('init');
+    const original = Array.from({ length: 45 }, (_, i) => `line ${i + 1}`).join('\n') + '\n';
+    await writeFile(join(root, 'tool.sh'), original);
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=Native Test',
+      '-c',
+      'user.email=native@example.invalid',
+      '-c',
+      'core.hooksPath=disabled',
+      'commit',
+      '-m',
+      'fixture',
+    );
+    await writeFile(
+      join(root, 'tool.sh'),
+      original.replace('line 3\n', 'first change\n').replace('line 39\n', 'second change\n'),
+    );
+    git('add', 'tool.sh');
+    git('update-index', '--chmod=+x', 'tool.sh');
+    const view = await invoke({ path: 'tool.sh', layer: 'staged' });
+    expect(view.hunks).toHaveLength(2);
+    expect(view.modeChange).toEqual({ from: '100644', to: '100755' });
+    const result = await invoke(
+      { path: 'tool.sh', layer: 'staged', patchId: view.patchId, hunk: 1 },
+      true,
+    );
+    expect(result.ok).toBe(true);
+    expect(git('show', ':tool.sh')).toBe(original.replace('line 3\n', 'first change\n'));
+    expect(git('ls-files', '-s', 'tool.sh')).toMatch(/^100755 /);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

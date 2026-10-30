@@ -147,7 +147,17 @@ async function reviewedPatch(projectRoot: string, path: string, staged: boolean)
   // Mode changes, binary and combined merge patches need separate semantics; they keep their
   // whole-file controls. An added or deleted text file (one hunk) supports line selection only:
   // its lines are staged by writing the resulting index content directly.
-  const special = /^(?:old mode|new mode|Binary files|GIT binary patch)/m.test(patch);
+  const oldMode = /^old mode (100644|100755)$/m.exec(patch)?.[1];
+  const newMode = /^new mode (100644|100755)$/m.exec(patch)?.[1];
+  // A text file whose mode also changed keeps per-hunk staging: its content hunks are applied
+  // with the mode lines removed and the index's current mode on the `index` line, so they never
+  // change the mode; the mode itself stays with the whole-file controls.
+  const modeChange =
+    oldMode && newMode && !/^(?:Binary files|GIT binary patch)/m.test(patch)
+      ? { from: oldMode, to: newMode }
+      : undefined;
+  const special =
+    !modeChange && /^(?:old mode|new mode|Binary files|GIT binary patch)/m.test(patch);
   const added = /^new file mode (100644|100755)$/m.exec(patch);
   const deleted = /^deleted file mode (100644|100755)$/m.exec(patch);
   const fileChange =
@@ -159,8 +169,18 @@ async function reviewedPatch(projectRoot: string, path: string, staged: boolean)
     (!special &&
       !added &&
       !deleted &&
-      /^index [a-f0-9]+\.\.[a-f0-9]+ 100(?:644|755)$/m.test(patch));
-  const header = starts.length ? patch.slice(0, starts[0]) : '';
+      (modeChange
+        ? /^index [a-f0-9]+\.\.[a-f0-9]+$/m.test(patch)
+        : /^index [a-f0-9]+\.\.[a-f0-9]+ 100(?:644|755)$/m.test(patch)));
+  const rawHeader = starts.length ? patch.slice(0, starts[0]) : '';
+  const header = modeChange
+    ? rawHeader
+        .replace(/^(?:old|new) mode \d+\n/gm, '')
+        .replace(
+          /^(index [a-f0-9]+\.\.[a-f0-9]+)$/m,
+          `$1 ${staged ? modeChange.to : modeChange.from}`,
+        )
+    : rawHeader;
   const hunks = available
     ? starts.map((start, id) => ({
         id,
@@ -173,6 +193,7 @@ async function reviewedPatch(projectRoot: string, path: string, staged: boolean)
     root,
     header,
     fileChange,
+    modeChange,
     patchId: createHash('sha256').update(patch).digest('hex'),
     hunks,
     reason: !patch
@@ -299,6 +320,7 @@ export async function handleGitHunks(
           patchId: review.patchId,
           hunks: review.hunks,
           reason: review.reason,
+          ...(review.modeChange ? { modeChange: review.modeChange } : {}),
         },
       });
       return;
