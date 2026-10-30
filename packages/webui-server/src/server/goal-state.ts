@@ -83,6 +83,14 @@ export function buildGoalState(
         ? p.assignedAgents.filter((agent) => typeof agent === 'string')
         : [],
       isActive: p.id === currentActiveId,
+      // Each verification gate attempt with the checker's output, as the orchestrator recorded it.
+      verificationAttempts: Array.isArray(p.metadata?.['verificationAttempts'])
+        ? p.metadata['verificationAttempts']
+        : [],
+      integrationStatus:
+        typeof p.metadata?.['integrationStatus'] === 'string'
+          ? p.metadata['integrationStatus']
+          : undefined,
       // Every phase carries its full task list so the board can render each
       // phase as a column (not just the selected one).
       tasks: nodes.map(mapTask),

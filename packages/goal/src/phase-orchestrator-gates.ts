@@ -64,6 +64,38 @@ export async function acquirePhaseWorktree(
   return true;
 }
 
+/** Output kept per verification attempt, and attempts kept per phase. */
+const VERIFY_OUTPUT_LIMIT = 4000;
+const VERIFY_ATTEMPT_LIMIT = 10;
+
+/**
+ * Record one verification verdict on the phase, so the outcome and the checker's output survive
+ * with the saved graph instead of living only in transient events. Newest attempts are kept.
+ */
+function recordVerification(
+  phase: PhaseNode,
+  attempt: number,
+  verdict: { ok: boolean; output?: string | undefined },
+): void {
+  const previous = Array.isArray(phase.metadata?.['verificationAttempts'])
+    ? (phase.metadata['verificationAttempts'] as unknown[])
+    : [];
+  // A new gate run (attempt 0) starts a fresh record.
+  const kept = attempt === 0 ? [] : previous;
+  phase.metadata = {
+    ...phase.metadata,
+    verificationAttempts: [
+      ...kept,
+      {
+        attempt,
+        ok: verdict.ok,
+        at: Date.now(),
+        ...(verdict.output ? { output: verdict.output.slice(-VERIFY_OUTPUT_LIMIT) } : {}),
+      },
+    ].slice(-VERIFY_ATTEMPT_LIMIT),
+  };
+}
+
 /**
  * Run the verification gate for a phase whose tasks all succeeded. Verifies in
  * the phase's worktree; on failure, runs the repair pass and re-verifies, up to
@@ -90,6 +122,7 @@ export async function runPhaseVerifyGate(
       verdict = { ok: false, output: toErrorMessage(err) };
     }
     if (isStopped()) return { ok: false, output: 'stopped before verification completed' };
+    recordVerification(phase, attempt, verdict);
     if (verdict.ok) return { ok: true };
 
     int.emit('phase.verifyFailed', {
