@@ -73,6 +73,7 @@ export type ProjectPage =
   | 'automations'
   | 'chronicle'
   | 'mailbox'
+  | 'worktrees'
   | 'kit'
   | 'techstack'
   | 'deadcode'
@@ -293,6 +294,7 @@ export function useDesktop() {
                 'automations',
                 'chronicle',
                 'mailbox',
+                'worktrees',
                 'kit',
                 'techstack',
                 'deadcode',

@@ -7,6 +7,7 @@ import {
   Brain,
   CalendarClock,
   Folder,
+  GitBranch,
   Mail,
   Network,
   Plus,
@@ -27,6 +28,7 @@ import { ProjectKanban } from './ProjectKanban';
 import { ProjectKnowledge } from './ProjectKnowledge';
 import { ProjectMailbox } from './ProjectMailbox';
 import { ProjectSdd } from './ProjectSdd';
+import { ProjectWorktrees } from './ProjectWorktrees';
 import { PromptWorkspace } from './PromptWorkspace';
 import {
   projectFormDraftStorage,
@@ -158,6 +160,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         />
       ) : vm.projectPage === 'mailbox' ? (
         <ProjectMailbox key={project.id} command={command} projectId={project.id} state={state} />
+      ) : vm.projectPage === 'worktrees' ? (
+        <ProjectWorktrees key={project.id} state={state} send={send} />
       ) : vm.projectPage === 'live-fleet' ? (
         <Suspense fallback={<p role="status">Opening live project fleet…</p>}>
           <ProjectLiveFleet
@@ -521,6 +525,14 @@ function ProjectOverview({
             <strong>Mailbox</strong>
             <span>Read project correspondence, receipts and agent replies.</span>
             <MailboxUnread command={command} trigger={mailboxActivity} />
+          </div>
+          <ArrowRight size={16} />
+        </button>
+        <button type="button" onClick={() => vm.setProjectPage('worktrees')}>
+          <GitBranch size={21} />
+          <div>
+            <strong>Worktrees</strong>
+            <span>Inspect, merge or remove the isolated checkouts runs leave behind.</span>
           </div>
           <ArrowRight size={16} />
         </button>

@@ -1,0 +1,46 @@
+.project-worktrees {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+.project-worktrees h3 {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 550;
+}
+.worktree-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.worktree-list > li {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.worktree-list > li > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.worktree-list span {
+  font-size: 11px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.worktree-actions,
+.worktree-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.worktree-diff ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 11px;
+}

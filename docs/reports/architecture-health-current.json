@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T08:08:31.960Z",
+  "generatedAt": "2026-10-30T08:13:13.873Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5505,
-    "testFiles": 4797,
-    "sourceLines": 1211532,
+    "sourceFiles": 5507,
+    "testFiles": 4798,
+    "sourceLines": 1211896,
     "workspaceEdges": 222,
-    "moduleEdges": 16507,
+    "moduleEdges": 16512,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 141,
+    "testsWithoutTypecheck": 142,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 994
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 313,
-      "testFiles": 141,
+      "sourceFiles": 315,
+      "testFiles": 142,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2105,6 +2105,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/word-diff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/worktree-model.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31034,6 +31040,13 @@
           "root-node"
         ],
         "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/worktree-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
       }
     ],
     "multipleTypechecks": []
@@ -31450,6 +31463,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ProjectWorktrees.tsx",
+      "specifier": "./worktrees.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/PromptWorkspace.tsx",
       "specifier": "./composer-resources.css",
       "syntax": "import"
@@ -31807,6 +31825,11 @@
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
       "lines": 891,
       "relativeImports": 7
+    },
+    {
+      "file": "apps/desktop-v2/src/useDesktop.ts",
+      "lines": 702,
+      "relativeImports": 9
     }
   ],
   "hotspots": [
@@ -32056,9 +32079,9 @@
       "relativeImports": 6
     },
     {
-      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 701,
-      "relativeImports": 8
+      "file": "apps/desktop-v2/src/useDesktop.ts",
+      "lines": 702,
+      "relativeImports": 9
     }
   ],
   "testOnlyExports": [
