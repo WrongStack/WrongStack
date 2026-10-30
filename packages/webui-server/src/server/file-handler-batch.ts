@@ -37,8 +37,11 @@ async function exists(file: string): Promise<boolean> {
   try {
     await fs.lstat(file);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    // Only a missing path is "does not exist"; a lock or permission error is reported as itself.
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+    throw error;
   }
 }
 
