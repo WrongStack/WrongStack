@@ -167,6 +167,31 @@ export async function exerciseNativeLiveFleet({
       (row) => row.subject === 'interrupt' && row.body === 'Native reviewed cooperative interrupt',
     ),
   );
+  // One message to every live runtime of this project reaches each of them and no other project.
+  await panel().getByRole('button', { name: 'Message all runtimes…', exact: true }).click();
+  await panel()
+    .getByLabel('Message to every live runtime in this project', { exact: true })
+    .fill('Native fleet broadcast.');
+  await panel().getByRole('button', { name: 'Send to all', exact: true }).click();
+  await panel()
+    .getByRole('status')
+    .filter({ hasText: /^Delivered to \d+ session mailbox/ })
+    .waitFor();
+  for (const session of [first, second])
+    assert.ok(
+      (
+        await http(project, `/api/sessions/${encodeURIComponent(session.coreId)}/mailbox`)
+      ).thread.some((row) => row.body === 'Native fleet broadcast.' && row.type === 'steer'),
+      `Broadcast reached ${session.coreId}`,
+    );
+  assert.equal(
+    // The mailbox route resolves any registered session, so this project's engine reads it.
+    (
+      await http(project, `/api/sessions/${encodeURIComponent(foreign.coreId)}/mailbox`)
+    ).thread.some((row) => row.body === 'Native fleet broadcast.'),
+    false,
+    'The broadcast stayed inside the project',
+  );
   await page.setViewportSize({ width: 800, height: 640 });
   await panel().getByRole('heading', { name: 'Live fleet', exact: true }).scrollIntoViewIfNeeded();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

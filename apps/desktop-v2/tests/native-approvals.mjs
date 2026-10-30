@@ -100,6 +100,13 @@ export async function exerciseNativeApprovals({
   await card().getByRole('button', { name: 'Allow once', exact: true }).click();
   await card().waitFor({ state: 'detached' });
   assert.match(await result('allow'), /exit_code.?[=:]\s*0|"exitCode"\s*:\s*0/i);
+  // The finished turn keeps its tool work with its answer, and it opens the activity view.
+  const turnTools = page.locator('.native-chat-messages .turn-tools').last();
+  const turnSummary = turnTools.locator(':scope > summary');
+  await turnSummary.filter({ hasText: /Worked with \d+ tool calls?/ }).waitFor();
+  await turnSummary.click();
+  await turnTools.locator('.activity-entry').first().waitFor();
+  await turnSummary.click();
   await send('deny');
   await card().waitFor({ timeout: 60000 });
   await card().getByRole('button', { name: 'Deny', exact: true }).click();

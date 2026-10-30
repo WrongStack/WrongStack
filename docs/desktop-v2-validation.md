@@ -5135,7 +5135,9 @@ staged; the other session's edits stay untouched.
   message, per-turn tool work, the bounded conversation window, activity input views and PDF
   saving. The full matrix (default plus 31 scopes, `--release --bundled`) passed **32 of 32**,
   20:09 to 20:42. Logs: `.temp_files/desktop-v2-native/full4/`.
-- The harness does not yet assert the new surfaces themselves (turn summaries, earlier-message
-  loading, fleet message, tool input views, PDF save); this run proves they did not break the
-  existing native workflows.
+- Native steps were then added for two of the new surfaces and passed on the same build
+  (20:47 to 20:51): the approvals step checks that the finished turn shows "Worked with 1 tool
+  call · exec" and opens its activity entry; the live fleet step sends "Message all runtimes",
+  then reads both runtimes' mailboxes (a steering message each) and the other project's runtime
+  (none). Earlier-message loading, the tool input views and PDF save are not asserted natively.
 
