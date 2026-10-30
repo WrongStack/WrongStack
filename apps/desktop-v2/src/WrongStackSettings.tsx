@@ -48,6 +48,7 @@ import { request } from './platform';
 import { ReviewPolicySettings } from './ReviewPolicySettings';
 import { RuntimeGate } from './RuntimeGate';
 import { reviewPolicyIssue } from './review-policy-model';
+import { SystemPromptPresets } from './SystemPromptPresets';
 import './review-policy.css';
 import { SkillLibrary } from './SkillLibrary';
 import { changedSettings, type SettingField, settingsSections } from './settings-fields';
@@ -418,11 +419,14 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               />
             </>
           ) : section === 'instructions' ? (
-            <UserInstructionsSettings
-              command={command}
-              value={instructionDraft}
-              onChange={setInstructionDraft}
-            />
+            <>
+              <UserInstructionsSettings
+                command={command}
+                value={instructionDraft}
+                onChange={setInstructionDraft}
+              />
+              <SystemPromptPresets command={command} />
+            </>
           ) : section === 'tool-access' ? (
             <ToolAccessSettings command={command} />
           ) : heading ? (
