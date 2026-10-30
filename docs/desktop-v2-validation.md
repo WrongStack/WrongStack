@@ -5380,5 +5380,7 @@ staged; the other session's edits stay untouched.
   Ctrl/Cmd chords are left to the textarea.
 - Checks: `editor-pairs.test.ts`; desktop 172 files / 680 tests; typecheck clean. The native
   `--files` step now types a call with a quoted argument, steps over the closers, removes an
-  empty pair, moves a line and undoes the move; it runs in the next batched native pass.
+  empty pair, moves a line and undoes the move. Native on build `403ff83c9466-9547b1ca283f`:
+  `files` passed (89 s) and `composer` passed (208 s) with the conversation notices in place, both
+  on the first run.
 
