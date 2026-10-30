@@ -288,6 +288,9 @@ export function createSessionCheckpointHandlers(
             onMessagesReplaced: (messages) =>
               rehydrateContextEvidenceFromMessages(target, messages),
           });
+          // Replacing the messages queued a journal entry; acknowledge only once it is on disk,
+          // so a revision read after this reply stays valid for the next review.
+          await target.session.flush?.();
           sendTo(ws, {
             type: 'key.operation_result',
             payload: {
@@ -377,6 +380,8 @@ export function createSessionCheckpointHandlers(
             });
             return;
           }
+          // As for a rewind: the replaced messages are journaled before the acknowledgement.
+          await target.session.flush?.();
           sendTo(ws, {
             type: 'key.operation_result',
             payload: {
