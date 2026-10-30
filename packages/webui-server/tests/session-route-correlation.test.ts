@@ -102,4 +102,37 @@ describe('session context acknowledgement routing', () => {
     await handleSessionRoute(socket, { type: 'context.debug', payload: {} } as never, handlers);
     expect(actual).toBe(socket);
   });
+  it('correlates context mode listing and mutations with the asking request', async () => {
+    const sent: Record<string, unknown>[] = [];
+    const socket = {
+      readyState: 1,
+      send: (data: string) => sent.push(JSON.parse(data)),
+    } as unknown as WebSocket;
+    const reply = (type: string, payload: Record<string, unknown>) => async (ws: WebSocket) => {
+      ws.send(JSON.stringify({ type, payload }));
+    };
+    const handlers = {
+      listContextModes: reply('context.modes.list', { activeId: 'balanced', modes: [] }),
+      createContextMode: reply('key.operation_result', { success: true, message: 'Created' }),
+      switchContextMode: reply('key.operation_result', { success: true, message: 'Switched' }),
+      updateContextMode: reply('key.operation_result', { success: true, message: 'Updated' }),
+      deleteContextMode: reply('key.operation_result', { success: false, message: 'In use' }),
+    } as unknown as SessionRouteHandlers;
+    const types = [
+      'context.modes.list',
+      'context.mode.create',
+      'context.mode.switch',
+      'context.mode.update',
+      'context.mode.delete',
+    ];
+    for (const [index, type] of types.entries())
+      await handleSessionRoute(
+        socket,
+        { type, payload: { requestId: `r${index}`, id: 'm' } } as never,
+        handlers,
+      );
+    expect(sent.map((message) => (message['payload'] as { requestId?: string }).requestId)).toEqual(
+      ['r0', 'r1', 'r2', 'r3', 'r4'],
+    );
+  });
 });
