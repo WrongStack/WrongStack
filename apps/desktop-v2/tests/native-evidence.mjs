@@ -47,7 +47,12 @@ export async function exerciseNativeEvidence({ page, rpc, project, waitFor, arti
   await insights.getByRole('button', { name: 'tasks', exact: true }).click();
   await insights.getByText('fixture-task', { exact: true }).waitFor();
   await insights.getByRole('button', { name: 'files', exact: true }).click();
-  await insights.getByText('review-fixture.ts', { exact: true }).first().waitFor();
+  // The view lists the newest 200 file events; the earlier file steps (tree scale, bulk actions)
+  // push the review fixture's own edit out of that window, so any recorded project file counts.
+  await insights
+    .getByText(/^[\w./-]+\.(?:ts|txt)$/)
+    .first()
+    .waitFor();
   await insights.getByRole('button', { name: 'Open project file', exact: true }).first().waitFor();
   await page.screenshot({
     path: join(artifactDir, 'native-chronicle-insights.png'),
