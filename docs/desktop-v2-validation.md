@@ -4769,3 +4769,17 @@ staged; the other session's edits stay untouched.
   project-over-profile selection, issues) was written with the change. Desktop suite
   **616 PASS**, typecheck and Biome PASS. No engine change. No native step yet; it writes the
   profile's instruction files, so the native pass needs an isolated profile.
+
+### Agent todo list in the conversation
+
+- The engine broadcasts the session's todo list (`todos.updated`, also answering `todos.get`)
+  and offers `todo.update`, `todos.remove` and `todos.clear`. The desktop showed no todo list.
+  A collapsible "Todo list" panel above the composer now shows progress ("1 of 3 done ·
+  <active item>") and the items. While the agent is not running, an item's status can be
+  changed or the item removed. The list can be cleared after a confirmation, but only when it
+  holds no Kanban-bound items, which the engine refuses to change by hand. Such items are
+  labelled as board tasks and have no actions. Engine refusals are shown.
+- Checks: desktop `session-todos.test.ts` (parsing, managed items, progress, no panel without
+  todos, no actions or clear for Kanban-bound items) was written with the change. Desktop
+  suite **618 PASS**, typecheck and Biome PASS. No engine change.
+- No native step yet; planned for the final native pass (a real turn that writes todos).
