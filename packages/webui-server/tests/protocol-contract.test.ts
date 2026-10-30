@@ -46,7 +46,17 @@ describe('surface protocol contract', () => {
     // +3: session-scoped MCP task list, retry and cooperative cancellation.
     // +1: desktop-owned project content search.
     // +4: native Git hunks/apply and merge-conflict read/resolve.
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(303);
+    // +1: session.redo (redo the newest rewind).
+    // +3: files.move_many / files.delete_many / files.copy_many (all-or-nothing batches).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(307);
+    expect(CLIENT_MESSAGE_TYPES).toEqual(
+      expect.arrayContaining([
+        'session.redo',
+        'files.move_many',
+        'files.delete_many',
+        'files.copy_many',
+      ]),
+    );
     expect(CLIENT_MESSAGE_TYPES).toContain('files.search');
     expect(CLIENT_MESSAGE_TYPES).toEqual(
       expect.arrayContaining([
@@ -66,7 +76,11 @@ describe('surface protocol contract', () => {
     // +3: correlated MCP task list, operation result and task-change notification.
     // +1: correlated content-search reply.
     // +2: native Git hunk and merge-conflict snapshots.
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(312);
+    // +3: files.moved_many / files.deleted_many / files.copied_many (batch replies).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(315);
+    expect(SERVER_MESSAGE_TYPES).toEqual(
+      expect.arrayContaining(['files.moved_many', 'files.deleted_many', 'files.copied_many']),
+    );
     expect(SERVER_MESSAGE_TYPES).toContain('files.search');
     expect(SERVER_MESSAGE_TYPES).toEqual(
       expect.arrayContaining(['mcp.tasks.list', 'mcp.tasks.result', 'mcp.tasks.changed']),
