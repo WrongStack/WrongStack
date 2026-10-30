@@ -166,9 +166,3 @@
   overflow-wrap: anywhere;
   font-size: 12px;
 }
-.tool-diff-removed {
-  color: var(--danger, #b42318);
-}
-.tool-diff-added {
-  color: var(--success, #067647);
-}

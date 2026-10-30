@@ -21,9 +21,10 @@ describe('tool-specific input views', () => {
         input: { path: 'a.ts', old_string: 'x = 1', new_string: 'x = 2', replace_all: true },
       }),
     );
-    expect(html).toContain('- x = 1');
-    expect(html).toContain('+ x = 2');
-    expect(html).toContain('every occurrence');
+    expect(html).toContain('x = 1');
+    expect(html).toContain('x = 2');
+    expect(html).toContain('a.ts');
+    expect(html).toContain('Every occurrence is replaced.');
   });
 
   it('previews a full write and counts the remaining lines', () => {

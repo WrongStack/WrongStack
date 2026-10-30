@@ -1,3 +1,4 @@
+import { DiffPreview } from './DiffPreview';
 import { StructuredToolValue } from './ToolApprovalCard';
 import { toolInputView } from './tool-input-view';
 
@@ -7,20 +8,12 @@ export function ToolInputView({ name, input }: { name: string; input: unknown })
   if (view.kind === 'edit')
     return (
       <div className="tool-input-view">
-        <code>{view.path}</code>
-        {view.all && <small> · every occurrence</small>}
-        <pre className="tool-diff">
-          {view.removed.map((line, index) => (
-            <span key={`r${index}`} className="tool-diff-removed">
-              {`- ${line}\n`}
-            </span>
-          ))}
-          {view.added.map((line, index) => (
-            <span key={`a${index}`} className="tool-diff-added">
-              {`+ ${line}\n`}
-            </span>
-          ))}
-        </pre>
+        {view.all && <small>Every occurrence is replaced.</small>}
+        <DiffPreview
+          before={view.removed.join('\n')}
+          after={view.added.join('\n')}
+          path={view.path}
+        />
       </div>
     );
   if (view.kind === 'write')
