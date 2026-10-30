@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T21:25:49.255Z",
+  "generatedAt": "2026-10-30T21:31:32.035Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5543,
-    "testFiles": 4828,
-    "sourceLines": 1216739,
+    "sourceFiles": 5546,
+    "testFiles": 4829,
+    "sourceLines": 1217227,
     "workspaceEdges": 222,
-    "moduleEdges": 16618,
+    "moduleEdges": 16629,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 168,
+    "testsWithoutTypecheck": 169,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1017
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 349,
-      "testFiles": 168,
+      "sourceFiles": 352,
+      "testFiles": 169,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1685,6 +1685,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/journal-paging.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/kanban-board-actions.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30732,6 +30738,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/kanban-board-actions.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-board-dialog.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32160,7 +32173,7 @@
     },
     {
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
-      "lines": 822,
+      "lines": 826,
       "relativeImports": 8
     },
     {
@@ -32195,8 +32208,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 708,
-      "relativeImports": 9
+      "lines": 747,
+      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
@@ -32316,13 +32329,13 @@
       "relativeImports": 13
     },
     {
-      "file": "apps/desktop-v2/src/ProjectMemory.tsx",
+      "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
       "lines": 826,
       "relativeImports": 8
     },
     {
-      "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
-      "lines": 822,
+      "file": "apps/desktop-v2/src/ProjectMemory.tsx",
+      "lines": 826,
       "relativeImports": 8
     },
     {
@@ -32384,6 +32397,11 @@
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 750,
       "relativeImports": 8
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
+      "lines": 747,
+      "relativeImports": 11
     },
     {
       "file": "packages/coordination/src/sqlite-mailbox.ts",
@@ -32449,11 +32467,6 @@
       "file": "packages/vibeui/src/components/memory-browser.tsx",
       "lines": 709,
       "relativeImports": 12
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 708,
-      "relativeImports": 9
     },
     {
       "file": "packages/core/src/core/agent-tools.ts",

@@ -5308,3 +5308,23 @@ staged; the other session's edits stay untouched.
 - Not covered natively: the Goal/SDD mirror boards (needs a model-backed Goal run) and the SAGE
   injection inspector (fixtures seed no memories).
 
+### Kanban board actions and card transfer (2026-10-30)
+
+- A route audit found user-facing Kanban operations the desktop never sent: `kanban.duplicate`,
+  `kanban.delete`, `kanban.board.history`, `kanban.task.copy` and `kanban.task.transfer`.
+- The board header now has "Board actions":
+  - "Duplicate board…" takes a title and whether to copy the cards (and the completed ones);
+    copies start unassigned. It is disabled on Goal/SDD mirror boards, because the engine copies
+    the board's tags and the run mirror could then adopt the copy.
+  - "Board history" lists the engine's board log for this board, or for all boards including
+    deleted ones, newest first (200 entries at most).
+  - "Delete board…" states that the cards and activity go permanently and only a deletion record
+    stays in the project history, warns when the board mirrors a run, and enables the delete only
+    after the exact title is typed. The engine still refuses a live session's board.
+- The task inspector can copy or move a card to another project board. The card keeps its
+  column; dependencies on the source board are not carried. A move is a copy followed by a
+  removal in the engine, so a failed move says the card can be on both boards.
+- Checks: `kanban-board-actions.test.ts`; desktop 169 files / 670 tests; typecheck clean. The
+  native project Kanban step now duplicates "Desktop roadmap" twice, reads the history, moves a
+  card between the copies and deletes both copies; it runs in the next batched native pass.
+

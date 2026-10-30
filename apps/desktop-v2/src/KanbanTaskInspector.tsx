@@ -10,7 +10,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
@@ -42,6 +42,7 @@ export function KanbanTaskInspector({
   onMove,
   onSave,
   onDelete,
+  transfer,
 }: {
   task: Row | null;
   board: Row;
@@ -55,6 +56,8 @@ export function KanbanTaskInspector({
   onMove: (id: string) => void;
   onSave: (draft: Row) => void;
   onDelete: () => void;
+  /** Copy or move this card to another board. */
+  transfer?: ReactNode;
 }) {
   const [title, setTitle] = useState(text(task?.['title']));
   const [baseline] = useState(task);
@@ -783,6 +786,7 @@ export function KanbanTaskInspector({
               </div>
             </dl>
           </details>
+          {lens === 'definition' && transfer}
           <div className="task-danger-zone" hidden={lens !== 'definition'}>
             {removing ? (
               <>

@@ -15,10 +15,12 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { KanbanBoardActions } from './KanbanBoardActions';
 import { BoardDialog } from './KanbanBoardDialog';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
 import { KanbanQueueHealth } from './KanbanQueueHealth';
 import { KanbanTaskInspector } from './KanbanTaskInspector';
+import { KanbanTaskTransfer } from './KanbanTaskTransfer';
 import { type BoardSource, boardSource, type RunFocus, runBoardId } from './kanban-board-source';
 import { Modal } from './Modal';
 import './kanban.css';
@@ -267,6 +269,24 @@ export function ProjectKanban({
               >
                 <ShieldCheck size={15} />
               </button>
+              {board && boardId && (
+                <KanbanBoardActions
+                  command={command}
+                  board={board}
+                  disabled={busy}
+                  onDuplicated={async (created) => {
+                    await loadBoards();
+                    setSelected(null);
+                    setBoardId(created);
+                  }}
+                  onDeleted={async () => {
+                    setSelected(null);
+                    setBoard(null);
+                    setBoardId('');
+                    await loadBoards();
+                  }}
+                />
+              )}
             </div>
           </div>
           {focusNote && <p role="status">{focusNote}</p>}
@@ -544,6 +564,25 @@ export function ProjectKanban({
                     await loadBoards();
                   }}
                   onSelect={(task) => startTask(task)}
+                  transfer={
+                    selected ? (
+                      <KanbanTaskTransfer
+                        command={command}
+                        boardId={boardId}
+                        taskId={String(selected['id'])}
+                        boards={boards}
+                        disabled={busy}
+                        onDone={async (_target, moved) => {
+                          if (moved) {
+                            setEditing(false);
+                            setSelected(null);
+                          }
+                          await loadBoard();
+                          await loadBoards();
+                        }}
+                      />
+                    ) : undefined
+                  }
                   columns={columns}
                   columnId={draftColumn}
                   busy={busy}

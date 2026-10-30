@@ -303,6 +303,77 @@ export async function exerciseNativeProjects({
   await taskList
     .getByRole('button', { name: 'Build a shared project memory map', exact: true })
     .waitFor();
+  // Board actions: duplicate with and without cards, read the history, move a card between the
+  // copies and delete both copies by typing their titles. The original board is not touched.
+  const boardAction = async (name) => {
+    const menu = page.locator('details.kanban-board-actions');
+    if (!(await menu.evaluate((element) => element.open))) await menu.locator('summary').click();
+    await menu.getByRole('button', { name, exact: true }).click();
+  };
+  const duplicate = async (title, withCards) => {
+    await boardAction('Duplicate board…');
+    const form = page.getByRole('dialog', { name: 'Duplicate board', exact: true });
+    await form.getByLabel('New board title', { exact: true }).fill(title);
+    const cards = form.getByRole('checkbox', { name: /Copy its \d+ cards/ });
+    if ((await cards.isChecked()) !== withCards) await cards.click();
+    await form.getByRole('button', { name: 'Duplicate board', exact: true }).click();
+    await form.waitFor({ state: 'detached' });
+    await page.locator('.board-current-title').filter({ hasText: title }).waitFor();
+  };
+  await duplicate('Roadmap copy A', true);
+  await boardAction('Board history');
+  const historyDialog = page.getByRole('dialog', { name: 'Board history', exact: true });
+  await historyDialog
+    .getByRole('list', { name: 'Board history entries', exact: true })
+    .getByText('Copied from Desktop roadmap', { exact: false })
+    .waitFor();
+  await page.keyboard.press('Escape');
+  await historyDialog.waitFor({ state: 'detached' });
+  await boardList.getByRole('button', { name: 'Desktop roadmap', exact: true }).click();
+  await duplicate('Roadmap copy B', false);
+  assert.match(
+    await boardList.getByRole('button', { name: 'Roadmap copy B', exact: true }).innerText(),
+    /0 tasks/,
+  );
+  await boardList.getByRole('button', { name: 'Roadmap copy A', exact: true }).click();
+  await taskList
+    .getByRole('button', { name: 'Build a shared project memory map', exact: true })
+    .click();
+  const transfer = page.getByRole('region', { name: 'Copy or move to another board', exact: true });
+  await transfer.getByLabel('Another board').selectOption({ label: 'Roadmap copy B' });
+  await transfer.getByRole('button', { name: 'Move card', exact: true }).click();
+  await waitFor(
+    async () =>
+      /1 tasks/.test(
+        await boardList.getByRole('button', { name: 'Roadmap copy B', exact: true }).innerText(),
+      ) &&
+      /0 tasks/.test(
+        await boardList.getByRole('button', { name: 'Roadmap copy A', exact: true }).innerText(),
+      ),
+    'Card moved between board copies',
+  );
+  for (const title of ['Roadmap copy A', 'Roadmap copy B']) {
+    await boardList.getByRole('button', { name: title, exact: true }).click();
+    await page.locator('.board-current-title').filter({ hasText: title }).waitFor();
+    await boardAction('Delete board…');
+    const confirm = page.getByRole('dialog', { name: 'Delete board', exact: true });
+    const remove = confirm.getByRole('button', { name: 'Delete board permanently', exact: true });
+    assert.equal(await remove.isDisabled(), true, 'Deleting needs the typed title');
+    await confirm.getByLabel('Type the board title to confirm', { exact: true }).fill(title);
+    await remove.click();
+    await confirm.waitFor({ state: 'detached' });
+    await boardList
+      .getByRole('button', { name: title, exact: true })
+      .waitFor({ state: 'detached' });
+  }
+  await boardList.getByRole('button', { name: 'Desktop roadmap', exact: true }).click();
+  assert.match(
+    await boardList.getByRole('button', { name: 'Desktop roadmap', exact: true }).innerText(),
+    /1 tasks/,
+  );
+  await taskList
+    .getByRole('button', { name: 'Build a shared project memory map', exact: true })
+    .waitFor();
   await page.screenshot({
     path: join(artifactDir, 'native-kanban-board-list.png'),
     fullPage: true,
