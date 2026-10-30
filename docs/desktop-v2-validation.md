@@ -5391,9 +5391,11 @@ staged; the other session's edits stay untouched.
   desktop ignored it. The conversation state keeps them (50 newest, once per delegation id, other
   sessions' frames dropped, cleared on reset), and the usage page lists them under "Worker
   delegations" with totals. A delegation without an estimate is counted as such, never as $0.
-- Not claimed: whether the conversation's own counters already include these workers' tokens.
-  Light subagents resolve the container's `TokenCounter`, which may be the leader's, so the page
-  does not say either way.
+- Worker tokens are not part of the conversation's own counters: light subagents resolve
+  `TOKENS.TokenCounter`, which the runtime container binds to its own `DefaultTokenCounter`
+  (`runtime/src/container.ts`), while the conversation's `Context` gets the separate instance made
+  in `pre-context-services.ts`; the WebUI host overrides only `SystemPromptBuilder` in the
+  container. The page now says so (follow-up, 2026-10-31).
 - Checks: `delegations.test.ts`; desktop 173 files / 682 tests; typecheck clean. Not exercised
   natively (needs a delegation by a real model).
 

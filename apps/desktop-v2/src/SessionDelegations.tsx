@@ -23,7 +23,8 @@ export function SessionDelegations({ delegations }: { delegations: DelegationRec
         {seconds(totals.durationMs)}
         {totals.costUsd === null ? '' : ` · estimated ${usd(totals.costUsd)}`}
         {totals.unpriced ? ` · ${totals.unpriced} without a cost estimate` : ''}. As reported when
-        each delegation finished.
+        each delegation finished; worker tokens are counted by the workers, not in the conversation
+        counters above.
       </p>
       <ol aria-label="Finished delegations">
         {delegations
