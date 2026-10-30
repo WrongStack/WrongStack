@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T09:59:49.725Z",
+  "generatedAt": "2026-10-30T10:28:53.557Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 45,
     "sourceFiles": 5527,
-    "testFiles": 4814,
-    "sourceLines": 1214966,
+    "testFiles": 4815,
+    "sourceLines": 1214980,
     "workspaceEdges": 222,
     "moduleEdges": 16573,
     "nonCommandSlashImports": 0,
@@ -1113,7 +1113,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 322,
-      "testFiles": 353,
+      "testFiles": 354,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1147,7 +1147,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 353
+          "testFiles": 354
         }
       ]
     },
@@ -26525,6 +26525,12 @@
       },
       {
         "file": "packages/webui-server/tests/session-recovery-desktop.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/session-redo-flush.test.ts",
         "projects": [
           "root-node"
         ]

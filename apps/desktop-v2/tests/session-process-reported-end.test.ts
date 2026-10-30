@@ -53,6 +53,11 @@ describe('engine-reported process ends', () => {
       text: 'Terminated on request · SIGTERM',
       failed: true,
     });
+    // Windows reports a terminated process by its exit code, without a signal.
+    expect(endLabel({ ...base!, exitCode: 1, killed: true })).toEqual({
+      text: 'Terminated on request · exit code 1',
+      failed: true,
+    });
     expect(endLabel(base!)).toEqual({ text: 'Exit not reported', failed: null });
     expect(endLabel({ ...base!, killed: true }).failed).toBeNull();
   });

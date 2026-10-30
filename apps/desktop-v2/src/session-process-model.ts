@@ -91,6 +91,9 @@ export function reportedEnded(
 }
 /** How an ended process finished, as reported; an unreported exit is never shown as success. */
 export function endLabel(end: ReportedEnd): { text: string; failed: boolean | null } {
+  // Windows reports a terminated process by its exit code rather than a signal.
+  if (end.killed && end.exitCode !== null)
+    return { text: `Terminated on request · exit code ${end.exitCode}`, failed: true };
   if (end.exitCode !== null)
     return end.exitCode === 0
       ? { text: 'Exit code 0', failed: false }
