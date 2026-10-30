@@ -538,3 +538,34 @@
   margin: 0;
   font-size: 12px;
 }
+.goal-phase-verification {
+  margin: 6px 0;
+  font-size: 12px;
+  min-width: 0;
+}
+.goal-phase-verification > summary {
+  cursor: pointer;
+}
+.goal-phase-verification ol {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.goal-phase-verification li {
+  border-left: 3px solid var(--border);
+  padding-left: 8px;
+  min-width: 0;
+}
+.goal-phase-verification li.failed {
+  border-left-color: var(--danger);
+}
+.goal-phase-verification pre {
+  margin: 4px 0 0;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T21:44:40.041Z",
+  "generatedAt": "2026-10-30T21:49:32.404Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5546,
-    "testFiles": 4829,
-    "sourceLines": 1217245,
+    "sourceFiles": 5547,
+    "testFiles": 4832,
+    "sourceLines": 1217356,
     "workspaceEdges": 222,
-    "moduleEdges": 16630,
+    "moduleEdges": 16633,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 169,
+    "testsWithoutTypecheck": 170,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1017
+    "testOnlyExports": 1018
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 352,
-      "testFiles": 169,
+      "sourceFiles": 353,
+      "testFiles": 170,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -405,7 +405,7 @@
       "name": "@wrongstack/goal",
       "dir": "packages/goal",
       "sourceFiles": 23,
-      "testFiles": 23,
+      "testFiles": 24,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -420,7 +420,7 @@
         {
           "path": "packages/goal/tsconfig.test.json",
           "error": null,
-          "testFiles": 23
+          "testFiles": 24
         }
       ]
     },
@@ -1113,7 +1113,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 322,
-      "testFiles": 355,
+      "testFiles": 356,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1147,7 +1147,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 355
+          "testFiles": 356
         }
       ]
     },
@@ -1637,6 +1637,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/goal-budget-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/goal-phase-verification.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13013,6 +13019,12 @@
       },
       {
         "file": "packages/goal/tests/phase-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-verification-record.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25582,6 +25594,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/goal-state-verification.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/goal-verify-typecheck-hardening.test.ts",
         "projects": [
           "root-node"
@@ -30682,6 +30700,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/goal-phase-verification.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/goal-revert.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32203,8 +32228,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 994,
-      "relativeImports": 8
+      "lines": 996,
+      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectKanban.tsx",
@@ -32295,8 +32320,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 994,
-      "relativeImports": 8
+      "lines": 996,
+      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
@@ -32630,6 +32655,10 @@
     {
       "file": "apps/desktop-v2/src/GitHunkReview.tsx",
       "name": "modeChangeNote"
+    },
+    {
+      "file": "apps/desktop-v2/src/GoalPhaseVerification.tsx",
+      "name": "phaseVerificationAttempts"
     },
     {
       "file": "apps/desktop-v2/src/GoalRevert.tsx",

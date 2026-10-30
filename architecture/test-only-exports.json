@@ -74,6 +74,9 @@
     "apps/desktop-v2/src/GitHunkReview.tsx": [
       "modeChangeNote"
     ],
+    "apps/desktop-v2/src/GoalPhaseVerification.tsx": [
+      "phaseVerificationAttempts"
+    ],
     "apps/desktop-v2/src/GoalRevert.tsx": [
       "goalRevertBaseline",
       "goalRevertOutcome"

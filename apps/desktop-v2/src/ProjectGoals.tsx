@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineSend } from './engine-operations';
 import { type EngineState, entries, record } from './engine-state';
+import { GoalPhaseVerification } from './GoalPhaseVerification';
 import { GoalRevert } from './GoalRevert';
 import { matchingGoalAssessment } from './goal-assessment';
 import { goalBudgetPayload, goalBudgetText } from './goal-budget-model';
@@ -676,6 +677,7 @@ export function ProjectGoals({
                         {reportedCount(phase['taskCount'])} tasks ·{' '}
                         {label(phase['priority'], 'priority not reported')} priority
                       </small>
+                      <GoalPhaseVerification phase={phase} />
                       <div className="goal-tasks">
                         {entries(phase['tasks']).map((item) => (
                           <button

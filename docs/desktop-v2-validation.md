@@ -5332,3 +5332,20 @@ staged; the other session's edits stay untouched.
   card between the copies and deletes both copies. Native `default` on build
   `0be382dd74fc-8211c70eeed6` passed with it on the first run (581 s).
 
+### Goal phase verification record (2026-10-30)
+
+- The phase verification gate ran the checker, emitted `phase.verifying` / `phase.verifyFailed`
+  and repaired, but the WebUI Goal run gives the orchestrator no event bus, so those events went
+  nowhere and the saved graph kept only the final failure message. The gate now records every
+  attempt on the phase (`metadata.verificationAttempts`: attempt, verdict, time and the last
+  4,000 characters of the checker's output; 10 attempts at most; a new gate run starts a fresh
+  record), so it is saved with the graph. Proof: `phase-verification-record.test.ts` failed
+  before the change (no record) and passes after it; goal package 23 files / 216 tests.
+- `buildGoalState` projects each phase's `verificationAttempts` and `integrationStatus`
+  (`goal-state-verification.test.ts`). The desktop Goal view shows them under each phase:
+  "Verification failed · 2 attempts" opens to each check with its output, and the integration
+  state (merged, needs review, merge failed) when recorded (`goal-phase-verification.test.ts`).
+- Goal cost budgets stay open: the engine counts tokens for Goal agents but prices none of their
+  requests, so a currency limit would have nothing real to compare against.
+- Not exercised natively: it needs a model-backed Goal run with verification enabled.
+
