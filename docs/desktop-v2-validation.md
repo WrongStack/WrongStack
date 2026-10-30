@@ -4632,3 +4632,27 @@ staged; the other session's edits stay untouched.
   the change. Desktop suite **600 PASS**, typecheck and Biome PASS.
 - No native step yet: the native MCP fixture has no secret-bearing connection. Planned for the
   final native pass.
+
+### MCP OAuth sign-in
+
+- The engine already had the MCP OAuth flow over the WebSocket: `mcp.auth.status`,
+  `mcp.auth.login`, `mcp.auth.logout` (login and logout cross the trust boundary), dynamic
+  client registration and a loopback redirect receiver on the engine's machine. The desktop
+  did not use it.
+- Desktop: each remote (URL) connection in Connected tools has an "Authorization" panel. The
+  status is read only when the panel is opened, and shows signed-in scopes, token expiry and
+  whether a refresh is possible. "Sign in" sends `mcp.auth.login` with an optional client ID
+  and scopes. It opens the returned authorization page in the system browser only when it is
+  https (or loopback http), and also offers it as a link. The panel then polls
+  `mcp.auth.status` every 2 seconds until it is `authorized`, leaves `pending`, or reaches
+  the engine's pending expiry (10 minutes when none is reported). "Stop waiting" stops
+  polling. "Sign out" asks first and says the provider may keep its grant, because the
+  engine's logout removes only the local credentials (RFC 7009 revocation is not
+  implemented). Refusals arrive as `mcp.operation_result` and are shown. Tokens never reach
+  the window.
+- Checks: desktop `mcp-auth-model.test.ts` (status parsing ignores extra fields, summaries
+  for each state, expiry and refresh, the https/loopback rule, scopes, no status request
+  before the panel opens). It was written with the change. Desktop suite **604 PASS**,
+  typecheck and Biome PASS. No engine change.
+- No native step yet: it needs a real or fixture OAuth authorization server. Planned for the
+  final native pass.
