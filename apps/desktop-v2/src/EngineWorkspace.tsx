@@ -146,6 +146,24 @@ export function EngineWorkspace({
     if (!state.inputs.length && following.current)
       end.current?.scrollIntoView({ block: 'nearest' });
   }, [state.messages, state.inputs, state.approvals]);
+  // A panel opening under the conversation shrinks it, and a card can grow after it renders;
+  // while following, keep the newest content in view through those changes too.
+  useEffect(() => {
+    const pane = chatPane.current;
+    if (!pane || typeof ResizeObserver === 'undefined' || typeof MutationObserver === 'undefined')
+      return;
+    const keep = () => {
+      if (following.current) end.current?.scrollIntoView({ block: 'nearest' });
+    };
+    const resize = new ResizeObserver(keep);
+    resize.observe(pane);
+    const mutation = new MutationObserver(keep);
+    mutation.observe(pane, { childList: true, subtree: true });
+    return () => {
+      resize.disconnect();
+      mutation.disconnect();
+    };
+  }, [tab]);
   const resolved = state.results['user.input_resolved']?.['requestId'];
   useEffect(() => {
     if (typeof resolved === 'string') onInputDraftChange(`${id}:${resolved}`, null);
