@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T20:14:12.085Z",
+  "generatedAt": "2026-10-30T20:15:27.844Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 45,
     "sourceFiles": 5538,
     "testFiles": 4825,
-    "sourceLines": 1216034,
+    "sourceLines": 1216038,
     "workspaceEdges": 222,
     "moduleEdges": 16602,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 165,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1018
+    "testOnlyExports": 1016
   },
   "errors": [],
   "packageCycles": [],
@@ -32668,15 +32668,7 @@
     },
     {
       "file": "apps/desktop-v2/src/recovery-log.ts",
-      "name": "MAX_RECOVERY_RECORDS"
-    },
-    {
-      "file": "apps/desktop-v2/src/recovery-log.ts",
-      "name": "mergeRecoveryRecords"
-    },
-    {
-      "file": "apps/desktop-v2/src/recovery-log.ts",
-      "name": "parseRecoveryLog"
+      "name": "createRecoveryLog"
     },
     {
       "file": "apps/desktop-v2/src/requirement-record-draft.ts",

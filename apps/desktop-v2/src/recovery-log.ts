@@ -26,7 +26,7 @@ export interface RecoveryRecord {
 }
 export type SavedRecoveryLog = SavedSessionLog<RecoveryRecord>;
 
-export const MAX_RECOVERY_RECORDS = 50;
+const MAX_RECOVERY_RECORDS = 50;
 const MAX_FILES = 100;
 const MAX_ERRORS = 20;
 const MAX_TEXT = 2000;
@@ -41,7 +41,7 @@ const strings = (value: unknown, max: number) =>
   value.length <= max &&
   value.every((item) => typeof item === 'string' && item.length <= MAX_TEXT);
 
-export function parseRecoveryLog(value: unknown): RecoveryRecord[] {
+function parseRecoveryLog(value: unknown): RecoveryRecord[] {
   if (value === null) return [];
   const data = value as Partial<SavedRecoveryLog> | undefined;
   if (
@@ -77,7 +77,7 @@ export function parseRecoveryLog(value: unknown): RecoveryRecord[] {
 }
 
 /** Newest first, one entry per id, bounded. */
-export function mergeRecoveryRecords(...lists: readonly RecoveryRecord[][]): RecoveryRecord[] {
+function mergeRecoveryRecords(...lists: readonly RecoveryRecord[][]): RecoveryRecord[] {
   const byId = new Map<string, RecoveryRecord>();
   for (const item of lists.flat()) if (!byId.has(item.id)) byId.set(item.id, item);
   return [...byId.values()].sort((a, b) => b.at - a.at).slice(0, MAX_RECOVERY_RECORDS);
@@ -160,9 +160,13 @@ export function recoveryLogKey(projectId: string, sessionId: string) {
   return sessionLogKey('session-recovery-log', projectId, sessionId);
 }
 
-export const recoveryLog = new DurableSessionLog<RecoveryRecord>({
-  label: 'Recovery records',
-  parse: parseRecoveryLog,
-  merge: mergeRecoveryRecords,
-  serialize: (entries) => ({ version: 1, entries }),
-});
+/** A recovery log with its own memory; the desktop shares `recoveryLog`. */
+export function createRecoveryLog() {
+  return new DurableSessionLog<RecoveryRecord>({
+    label: 'Recovery records',
+    parse: parseRecoveryLog,
+    merge: mergeRecoveryRecords,
+    serialize: (entries) => ({ version: 1, entries }),
+  });
+}
+export const recoveryLog = createRecoveryLog();

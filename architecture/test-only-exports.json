@@ -132,9 +132,7 @@
       "probeOutcome"
     ],
     "apps/desktop-v2/src/recovery-log.ts": [
-      "MAX_RECOVERY_RECORDS",
-      "mergeRecoveryRecords",
-      "parseRecoveryLog"
+      "createRecoveryLog"
     ],
     "apps/desktop-v2/src/requirement-record-draft.ts": [
       "parseRecordDraft"
