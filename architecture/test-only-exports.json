@@ -12,6 +12,9 @@
     "apps/desktop-v2/src/automation-draft.ts": [
       "NEW_AUTOMATION"
     ],
+    "apps/desktop-v2/src/autonomy-model.ts": [
+      "DEFAULT_AUTO_CONTINUE_LIMIT"
+    ],
     "apps/desktop-v2/src/availability-model.ts": [
       "scheduleMinute"
     ],

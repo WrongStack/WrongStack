@@ -4900,3 +4900,21 @@ staged; the other session's edits stay untouched.
   `mcp.operation_result` message ("Discovered N tools from …" or the failure) is shown, and
   the list is read again. No new test: this wires an existing action through the existing
   `action` helper. Desktop typecheck and Biome PASS. No engine change.
+
+### Conversation continuation mode and auto-continue
+
+- `autonomy.switch` had no desktop control and suggested next steps were never continued
+  automatically. The composer toolbar now has a continuation-mode select (Manual, Suggest next
+  steps, Continue automatically, Eternal, Eternal parallel). Only the user changes it; the
+  engine also saves the choice as the default for new conversations, which the control's title
+  says. The desktop never switches the mode itself.
+- When a turn ends with suggestions, the mode is `auto`, YOLO or YOLO+ is on and the
+  consecutive automatic continuations are below `autoProceedMaxIterations` (0 = unlimited, the
+  engine's value when unset), a 5 s countdown submits one step: the one marked `auto`, else the
+  first. The marker is a preference, not a gate (WebUI parity). Cancel, typing a draft, adding
+  a reference or attachment, a pending question or approval, or a new set of suggestions stops
+  it. Any message the user sends resets the count.
+- Checks: desktop `autonomy-model.test.ts` (mode/YOLO/limit parsing, the gate, the `auto`
+  preference, the countdown and mode list markup) was written with the change; no separate RED
+  run. Desktop suite **630 PASS**, typecheck and Biome PASS. No engine change. The countdown is
+  not in a native scenario yet (native runs are batched at the end).

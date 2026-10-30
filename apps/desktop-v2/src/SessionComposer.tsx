@@ -18,6 +18,9 @@ import {
   X,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { AutoContinue } from './AutoContinue';
+import { AutonomyControl } from './AutonomyControl';
+import { autoContinueStep, sessionAutonomy } from './autonomy-model';
 import { BtwReceipts } from './BtwReceipts';
 import { btwReceiptKey, btwReceipts, type SavedBtwReceipts } from './btw-receipts';
 import { ComposerAttachments, useComposerAttachments } from './ComposerAttachments';
@@ -305,7 +308,10 @@ export function SessionComposer({
     setTopic(null);
     resolve?.(choice);
   };
+  // Consecutive automatic continuations; any message the user sends resets the count.
+  const autoContinued = useRef(0);
   const beginSubmission = async (text: string, selected: SubmitMode, forceRefine = false) => {
+    autoContinued.current = 0;
     if (checkingTopic.current || busy.current) return;
     checkingTopic.current = true;
     setError('');
@@ -560,6 +566,33 @@ export function SessionComposer({
             onAdd={(text) => input.replace(appendToDraft(currentDraft.current, text))}
           />
         )}
+      {!state.running &&
+        !state.hydrating &&
+        !state.inputs.length &&
+        !state.approvals.length &&
+        !draft.trim() &&
+        !references.length &&
+        !attachments.length &&
+        (() => {
+          const continuation = sessionAutonomy(state.results['prefs.updated']);
+          const step = autoContinueStep({
+            ...continuation,
+            count: autoContinued.current,
+            steps: state.nextSteps,
+          });
+          return step ? (
+            <AutoContinue
+              stepKey={state.nextSteps.map((item) => `${item.index}:${item.text}`).join('|')}
+              text={step.text}
+              onSubmit={(text) => {
+                autoContinued.current += 1;
+                void deliver(text, 'steer').catch(() => {
+                  // deliver() reports its own error in the composer.
+                });
+              }}
+            />
+          ) : null;
+        })()}
       <BtwReceipts
         sessionId={state.sessionId}
         command={command}
@@ -745,6 +778,11 @@ export function SessionComposer({
             command={command}
             send={send}
             onSettings={onSettings}
+          />
+          <AutonomyControl
+            mode={sessionAutonomy(state.results['prefs.updated']).mode}
+            command={command}
+            disabled={!state.connected || state.needsSetup}
           />
           <div className="composer-actions">
             <button

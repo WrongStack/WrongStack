@@ -311,9 +311,8 @@ leaves these user-facing engine operations unused. Session/project lifecycle, te
 transport messages (`session.new/resume/save/delete`, `projects.*`, `terminal.*`, `ping`,
 `*.subscribe`) are covered by the desktop's native paths and are not gaps.
 
-- `autonomy.switch` / `mode.switch` / `modes.list`: a per-conversation autonomy and agent-mode
-  switch, plus the next-steps auto-submit that depends on it. Autonomy is user-owned: the
-  desktop may offer the switch, but must never change the mode itself.
+- `mode.switch` / `modes.list`: the agent-mode switch. (`autonomy.switch` and the next-steps
+  auto-continue landed 2026-10-30; see the validation log.)
 - `browser.live.watch/unwatch/pick`, `browser.policy`: live browser view, element pick and
   network policy (session processes: browser selection, preview controls, watcher).
 - `collab.*`: multi-participant control, annotations and tool injection. They need a

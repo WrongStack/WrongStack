@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T09:11:49.372Z",
+  "generatedAt": "2026-10-30T09:36:13.786Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5519,
-    "testFiles": 4809,
-    "sourceLines": 1213855,
+    "sourceFiles": 5522,
+    "testFiles": 4810,
+    "sourceLines": 1214060,
     "workspaceEdges": 222,
-    "moduleEdges": 16549,
+    "moduleEdges": 16556,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 151,
+    "testsWithoutTypecheck": 152,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1002
+    "testOnlyExports": 1003
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 325,
-      "testFiles": 151,
+      "sourceFiles": 328,
+      "testFiles": 152,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1325,6 +1325,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/automation-units.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/autonomy-model.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30198,6 +30204,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/autonomy-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/availability-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31357,6 +31370,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/AutoContinue.tsx",
+      "specifier": "./next-steps.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "specifier": "./automation-workspace.css",
       "syntax": "import"
@@ -31977,8 +31995,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1089,
-      "relativeImports": 27
+      "lines": 1127,
+      "relativeImports": 30
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -32008,14 +32026,14 @@
       "relativeImports": 34
     },
     {
+      "file": "apps/desktop-v2/src/SessionComposer.tsx",
+      "lines": 1127,
+      "relativeImports": 30
+    },
+    {
       "file": "packages/webui/src/components/codemap-model.ts",
       "lines": 1098,
       "relativeImports": 0
-    },
-    {
-      "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1089,
-      "relativeImports": 27
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
@@ -32263,6 +32281,10 @@
     {
       "file": "apps/desktop-v2/src/automation-draft.ts",
       "name": "NEW_AUTOMATION"
+    },
+    {
+      "file": "apps/desktop-v2/src/autonomy-model.ts",
+      "name": "DEFAULT_AUTO_CONTINUE_LIMIT"
     },
     {
       "file": "apps/desktop-v2/src/availability-model.ts",
