@@ -4709,3 +4709,19 @@ staged; the other session's edits stay untouched.
   Desktop suite **610 PASS**, typecheck and Biome PASS. No engine change.
 - No native step yet: it needs a fixture project with a leftover managed worktree. Planned for
   the final native pass.
+
+### Configuration check (config doctor)
+
+- The engine's `config.doctor` was not used by the desktop. It compares the active profile
+  configuration with the canonical defaults (missing settings added, settings with an
+  incompatible JSON type replaced; provider and model never invented), and when applying,
+  first writes a timestamped backup of the exact file.
+- Desktop: Settings → Provider diagnostics has "Configuration check". It previews the changes
+  (path, added or replaced) and repairs them after a confirmation. The confirmation names the
+  file and says that unsaved edits in open settings forms are not included. The result shows
+  the backup path, and the settings page then says to reload its forms before saving.
+  Engine refusals (doctor unavailable, unreadable file) are shown.
+- Checks: desktop `config-doctor.test.ts` (result parsing, no invented apply, backup path) was
+  written with the change. Desktop suite **611 PASS**, typecheck and Biome PASS. No engine
+  change. No native step yet: an apply writes the real profile configuration, so the native
+  pass needs an isolated profile.
