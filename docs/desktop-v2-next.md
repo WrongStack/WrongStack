@@ -304,6 +304,24 @@ have real workflows; the work below closes their missing actions, durability and
     auto-compaction ceiling, because the host's updater is process-wide;
   - native acceptance with a real failing provider.
 
+### Engine messages the desktop still does not send (audit 2026-10-30)
+
+A strict scan of the client protocol (exact literal or template prefix in `apps/desktop-v2/src`)
+leaves these user-facing engine operations unused. Session/project lifecycle, terminals and
+transport messages (`session.new/resume/save/delete`, `projects.*`, `terminal.*`, `ping`,
+`*.subscribe`) are covered by the desktop's native paths and are not gaps.
+
+- `autonomy.switch` / `mode.switch` / `modes.list`: a per-conversation autonomy and agent-mode
+  switch, plus the next-steps auto-submit that depends on it. Autonomy is user-owned: the
+  desktop may offer the switch, but must never change the mode itself.
+- `browser.live.watch/unwatch/pick`, `browser.policy`: live browser view, element pick and
+  network policy (session processes: browser selection, preview controls, watcher).
+- `collab.*`: multi-participant control, annotations and tool injection. They need a
+  participant/identity model in the desktop first.
+- `chronicle.facet`, `connections.service_action`, `completion.request` (inline editor
+  completion), `provider.clear_models` / `provider.undo_clear` / `provider.update` (the
+  desktop does not show the saved model allowlist and wire config they change), `key.update`.
+
 ### P1: finish conversation parity while preserving simplicity
 
 Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing behavior.
