@@ -17,6 +17,7 @@ import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { resolveWstackPaths, toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
+import { recordConversationPrimary } from './conversation-fallback.js';
 import {
   type ConversationOperations,
   createConversationOperations,
@@ -136,6 +137,9 @@ export async function applyEmbeddedModelSwitch(
 
     agentContext.provider = nextProvider;
     agentContext.model = modelId;
+    // This conversation's own primary, for any fallback-model extension on it:
+    // the persisted global selection is the LAST tab's pick, not this one's.
+    recordConversationPrimary(agentContext, providerId, modelId);
     // The host's `onMaxContextResolved` is PROCESS-WIDE: it rewrites the shared
     // `effectiveMaxContext` ref, the leader context's meta (window size and
     // context-window policy), the shared auto-compactor's ceiling, and it

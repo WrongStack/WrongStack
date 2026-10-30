@@ -68,6 +68,7 @@ import { createBackendBrain } from './backend-brain.js';
 import type { AgentServices, AgentServicesInput } from './backend-services-types.js';
 import { setupWebUICodebaseIndexing } from './codebase-indexing.js';
 import { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
+import { installConversationFallback } from './conversation-fallback.js';
 import { createSessionAgentManager } from './create-session-agent-manager.js';
 import { discoverMailboxBridgeForWebui } from './discover-mailbox-bridge.js';
 import { GoalWebSocketHandler } from './goal-ws-handler.js';
@@ -402,6 +403,18 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     extensions: agent.extensions,
     hasTool: (name) => agent.tools.get(name) !== undefined,
   });
+  // Model fallback (CLI parity: provider-runtime-setup.ts). The template agent
+  // gets its own instance; every per-tab agent gets one in
+  // createSessionAgentManager.
+  const getLiveConfig = () => input.getConfig?.() ?? input.config;
+  installConversationFallback(agent, {
+    getConfig: getLiveConfig,
+    providerRegistry,
+    modelsRegistry,
+    container,
+    events,
+    logger,
+  });
   if (config.features.memory && config.features.memoryConsolidation !== false) {
     const consSage = getSageService(memoryStore) as ConsolidatorSage | undefined;
     agent.extensions.register(
@@ -559,6 +572,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     config,
     getConfig: input.getConfig,
     toolExecutor,
+    logger,
   });
   const getAgentForSession = (sessionId?: string): Agent => sessionAgents.get(sessionId);
 

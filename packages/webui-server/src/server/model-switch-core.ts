@@ -1,9 +1,7 @@
-import type { ProviderConfig } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
-import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
 import { patchConfig } from './boot.js';
+import { buildConversationProvider, recordConversationPrimary } from './conversation-fallback.js';
 import { loadSavedProviders } from './provider-config-io.js';
-import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import type { WebuiCallbacks, WebuiDeps, WebuiMutableState } from './route-contracts.js';
 import { broadcast } from './ws-utils.js';
 
@@ -67,26 +65,15 @@ export function createApplyModelSwitch(
       }
       const cur = state.getConfig();
       const newCfg = patchConfig(cur, { provider: newProvider, model: newModel });
-      const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
-      const factoryType = providerCfg.type ?? newProvider;
-      // WrongProxy / WrongTrace: rewrite the switched provider's base URL
-      // through the shared helper so the live WebUI session honors the
-      // proxy toggle, same as the CLI's `/model` switch path. `newCfg.baseUrl`
-      // is the fallback when the saved cfg carries no explicit baseUrl.
-      const routedCfg = routeProviderCfgThroughProxy(providerCfg, newCfg.baseUrl, newProvider);
-      const built = deps.providerRegistry.has(factoryType)
-        ? deps.providerRegistry.create({ ...routedCfg, type: newProvider } as never, factoryType)
-        : makeProviderFromConfig(newProvider, { ...routedCfg, type: factoryType });
-      // Overlay the target model's catalog facts. A freshly constructed provider
-      // only has the wire-family baseline, so without this the session keeps the
-      // previous model's context window and loses `maxOutput` entirely.
-      const newProv = deps.modelsRegistry
-        ? await withCatalogCapabilities(deps.modelsRegistry, newProvider, built, {
-            ...routedCfg,
-            type: routedCfg.type ?? newProvider,
-            model: newModel,
-          })
-        : built;
+      // Saved provider entry + WrongProxy routing + the target model's catalog
+      // facts — the same construction every fallback hop uses
+      // (conversation-fallback.ts), so a switch and a hop build identically.
+      const { provider: newProv, routedCfg } = await buildConversationProvider(
+        { providerRegistry: deps.providerRegistry, modelsRegistry: deps.modelsRegistry },
+        newCfg,
+        newProvider,
+        newModel,
+      );
       // Persist only after the target provider has been constructed. A failed
       // build must leave both the live session and durable selection untouched.
       await cb.updateGlobalConfig((config) => {
@@ -101,6 +88,9 @@ export function createApplyModelSwitch(
       deps.configStore.update({ provider: newProvider, model: newModel });
       targetCtx.model = newModel;
       targetCtx.provider = newProv;
+      // The tab's own primary: the fallback extension restores THIS, not the
+      // global selection another tab may have moved since.
+      recordConversationPrimary(targetCtx, newProvider, newModel);
       // Capability refresh is best-effort after the atomic live swap. It must
       // never sit on the acknowledgement boundary: refresh() may make a
       // network request to models.dev, while the selected provider/model is

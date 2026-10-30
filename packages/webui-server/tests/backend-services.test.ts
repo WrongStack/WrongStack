@@ -190,6 +190,11 @@ vi.mock('../src/server/codebase-indexing.js', () => ({
 vi.mock('../src/server/discover-mailbox-bridge.js', () => ({
   discoverMailboxBridgeForWebui: vi.fn(async () => undefined),
 }));
+// The fallback wiring itself is proven against a real Agent in
+// session-agent-fallback-model.test.ts; here only the template call is checked.
+vi.mock('../src/server/conversation-fallback.js', () => ({
+  installConversationFallback: vi.fn(),
+}));
 vi.mock('../src/server/model-catalog.js', () => ({
   resolveProviderModelMetadata: vi.fn(async () => null),
 }));
@@ -201,6 +206,7 @@ import { createBrainRuntime, createStrategyCompactor } from '@wrongstack/core/ex
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import { createAgentServices } from '../src/server/backend-services.js';
+import { installConversationFallback } from '../src/server/conversation-fallback.js';
 import { resolveProviderModelMetadata } from '../src/server/model-catalog.js';
 
 function makeInput(): any {
@@ -297,6 +303,24 @@ function makeInput(): any {
 }
 
 describe('createAgentServices', () => {
+  it('gives the template agent its own fallback-model extension, wired to the live config', async () => {
+    const input = makeInput();
+    const liveConfig = { ...input.config, model: 'gpt-live' };
+    input.getConfig = () => liveConfig;
+    vi.mocked(installConversationFallback).mockClear();
+
+    const services = await createAgentServices(input);
+
+    expect(installConversationFallback).toHaveBeenCalledTimes(1);
+    const [agent, deps] = vi.mocked(installConversationFallback).mock.calls[0] ?? [];
+    expect(agent).toBe(services.agent);
+    expect(deps?.getConfig()).toBe(liveConfig);
+    expect(deps?.providerRegistry).toBe(input.providerRegistry);
+    expect(deps?.container).toBe(input.container);
+    expect(deps?.events).toBe(input.events);
+    expect(deps?.logger).toBe(input.logger);
+  });
+
   it('resolves the Brain Jev account from the latest host config', async () => {
     const input = makeInput();
     await createAgentServices(input);

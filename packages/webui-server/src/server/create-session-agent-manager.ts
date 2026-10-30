@@ -1,5 +1,6 @@
 import { DEFAULT_TOOLS_CONFIG } from '@wrongstack/contracts/types';
 import { Agent, Context } from '@wrongstack/core/agent';
+import { installConversationFallback } from './conversation-fallback.js';
 
 import {
   createSessionAgentRegistry,
@@ -24,6 +25,7 @@ export function createSessionAgentManager({
   config,
   getConfig,
   toolExecutor,
+  logger,
 }: {
   agent: import('@wrongstack/core/agent').Agent;
   MAX_CONCURRENT_SESSION_AGENTS: 4;
@@ -45,6 +47,7 @@ export function createSessionAgentManager({
   /** The live config; a new session starts on its identity variant. */
   getConfig?: (() => import('@wrongstack/contracts/types').Config) | undefined;
   toolExecutor: import('@wrongstack/core/execution').ToolExecutor;
+  logger?: import('@wrongstack/contracts/types').Logger | undefined;
 }) {
   const sessionAgents = createSessionAgentRegistry({
     template: agent,
@@ -80,7 +83,7 @@ export function createSessionAgentManager({
         }),
       });
       Object.assign(sessionCtx.meta, inheritedSessionMeta(context.meta));
-      return new Agent({
+      const sessionAgent = new Agent({
         container,
         tools: toolRegistry,
         providers: providerRegistry,
@@ -101,6 +104,17 @@ export function createSessionAgentManager({
         toolExecutor,
         tracer: agent.tracer,
       });
+      // Its OWN fallback-model extension: the extension keeps per-instance
+      // state, and one tab failing over must not move another tab's model.
+      installConversationFallback(sessionAgent, {
+        getConfig: () => getConfig?.() ?? config,
+        providerRegistry,
+        modelsRegistry,
+        container,
+        events,
+        logger,
+      });
+      return sessionAgent;
     },
   });
   return { sessionAgents };

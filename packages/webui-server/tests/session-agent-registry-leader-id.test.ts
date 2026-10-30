@@ -57,6 +57,12 @@ vi.mock('@wrongstack/core/infrastructure', () => ({
   },
 }));
 
+// This file's Agent double has no extension registry; the per-tab fallback
+// wiring is proven against a real Agent in session-agent-fallback-model.test.ts.
+vi.mock('../src/server/conversation-fallback.js', () => ({
+  installConversationFallback: vi.fn(),
+}));
+
 const { createSessionAgentRegistry } = await import('../src/server/session-agent-registry.js');
 const { createSessionAgentManager } = await import('../src/server/create-session-agent-manager.js');
 const { isLeaderAgentId } = await import('../../coordination/src/leader-delivery-attach.js');
