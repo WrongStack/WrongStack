@@ -19,10 +19,23 @@ import { BoardDialog } from './KanbanBoardDialog';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
 import { KanbanQueueHealth } from './KanbanQueueHealth';
 import { KanbanTaskInspector } from './KanbanTaskInspector';
+import { type BoardSource, boardSource, type RunFocus, runBoardId } from './kanban-board-source';
 import { Modal } from './Modal';
 import './kanban.css';
 
-export function ProjectKanban({ command }: { command: EngineCommand }) {
+/** A run whose mirror board should be shown; `nonce` distinguishes repeated requests. */
+export type KanbanFocus = RunFocus & { nonce: number };
+
+export function ProjectKanban({
+  command,
+  focus = null,
+  onOpenSource,
+}: {
+  command: EngineCommand;
+  focus?: KanbanFocus | null | undefined;
+  /** Opens the Goal or SDD view that owns a mirror board's run. */
+  onOpenSource?: ((source: BoardSource) => void) | undefined;
+}) {
   const [boards, setBoards] = useState<Record<string, unknown>[]>([]);
   const [boardId, setBoardId] = useState('');
   const [view, setView] = useState<'board' | 'list'>('board');
@@ -42,6 +55,8 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
     stage: string;
   } | null>(null);
   const [note, setNote] = useState('');
+  const [focusNote, setFocusNote] = useState('');
+  const handledFocus = useRef(0);
   const generation = useRef(0);
   const activeBoard = useRef(boardId);
   activeBoard.current = boardId;
@@ -73,6 +88,19 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
       );
     }
   }, [boardId, command]);
+  // A run opened from Goals shows the board its mirror keeps, once the boards are listed.
+  useEffect(() => {
+    if (!focus || handledFocus.current === focus.nonce || !boards.length) return;
+    handledFocus.current = focus.nonce;
+    const id = runBoardId(boards, focus);
+    if (id) {
+      setBoardId(id);
+      setFocusNote('');
+    } else
+      setFocusNote(
+        'This goal has no mirror board yet. Its board appears here once the run has started.',
+      );
+  }, [focus, boards]);
   useEffect(() => {
     void loadBoards().catch((error: unknown) =>
       setError(String(error instanceof Error ? error.message : error)),
@@ -114,6 +142,7 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
       .includes(search.toLowerCase()),
   );
   const completed = tasks.filter((task) => task['status'] === 'completed').length;
+  const source = boardSource(board);
   const startTask = (task: Record<string, unknown> | null, columnId?: string) => {
     if (busy) return;
     setSelected(task);
@@ -240,6 +269,22 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
               </button>
             </div>
           </div>
+          {focusNote && <p role="status">{focusNote}</p>}
+          {source && (
+            <p className="kanban-board-source">
+              Mirrors {source.system === 'goal' ? 'a Goal run' : 'an SDD run'}
+              {source.phaseId ? ` · phase ${source.phaseId}` : ''}. The run updates these cards.
+              {onOpenSource && (
+                <button
+                  type="button"
+                  className="button secondary small"
+                  onClick={() => onOpenSource(source)}
+                >
+                  {source.system === 'goal' ? 'Open goal' : 'Open SDD'}
+                </button>
+              )}
+            </p>
+          )}
           {board && boardId && (
             <KanbanQueueHealth
               command={command}

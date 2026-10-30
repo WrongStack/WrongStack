@@ -5233,3 +5233,22 @@ staged; the other session's edits stay untouched.
   native Kanban execution step now runs the audit and checks the reported result; it runs in
   the next batched native pass.
 
+### Goal and SDD runs mirrored into Kanban (2026-10-30)
+
+- Engine: the CLI-hosted WebUI mirrored Goal phases and SDD runs into project boards
+  (`createKanbanRunMirror`), but the standalone engine the desktop runs passed no board-state
+  callback to the Goal handler and created no mirror, so desktop runs never appeared on a board.
+  `createAgentServices` now takes `broadcastToClients`; with it (and a project root) it creates
+  the mirror, hands the Goal handler its `onGoalState` tap (SDD snapshots arrive through the event
+  bus) and disposes the mirror with the other realtime handlers. `startWebUI` passes it a
+  broadcast to the connected clients. Test: `backend-services.test.ts` (no mirror without a
+  broadcast; with one, the Goal tap reaches the mirror; dispose once).
+- Desktop: a mirror board says which kind of run it mirrors (and its phase) and offers "Open
+  goal" / "Open SDD"; "Open goal board" on a selected goal opens the board of its running phase,
+  or the run's most recently updated board, and says so when the run has no board yet. Run
+  identity comes from the mirror's tags (`goal`/`sdd`, `run:<id>`, `phase:<id>`); a goal's id is
+  its graph id. Test: `kanban-board-source.test.ts`.
+- Checks: `webui-server` 355 files / 3393 tests; desktop 167 files / 664 tests; both typechecks
+  clean. A real Goal run reaching a mirror board in the desktop needs a native pass with a
+  model-backed Goal run; that has not been run yet.
+

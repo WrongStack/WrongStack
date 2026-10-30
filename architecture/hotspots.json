@@ -167,8 +167,12 @@
       "relativeImports": 8
     },
     "apps/desktop-v2/src/ProjectGoals.tsx": {
-      "lines": 968,
-      "relativeImports": 7
+      "lines": 994,
+      "relativeImports": 8
+    },
+    "apps/desktop-v2/src/ProjectKanban.tsx": {
+      "lines": 708,
+      "relativeImports": 9
     },
     "apps/desktop-v2/src/ProjectKnowledge.tsx": {
       "lines": 939,

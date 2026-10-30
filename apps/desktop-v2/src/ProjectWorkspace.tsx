@@ -24,7 +24,7 @@ import { MailboxUnread } from './MailboxUnread';
 import { isLive, type Project } from './model';
 import { ProjectChronicle } from './ProjectChronicle';
 import { ProjectGoals } from './ProjectGoals';
-import { ProjectKanban } from './ProjectKanban';
+import { type KanbanFocus, ProjectKanban } from './ProjectKanban';
 import { ProjectKnowledge } from './ProjectKnowledge';
 import { ProjectMailbox } from './ProjectMailbox';
 import { ProjectSdd } from './ProjectSdd';
@@ -124,6 +124,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
   // A line, when known, opens the file scrolled to and marking that source line.
   const [fileTarget, setFileTargetState] = useState({ path: '', line: 0, endLine: 0 }),
     [memoryTarget, setMemoryTarget] = useState('');
+  // Cross-links between run mirror boards and the Goal/SDD views that own the runs.
+  const [kanbanFocus, setKanbanFocus] = useState<KanbanFocus | null>(null),
+    [goalTarget, setGoalTarget] = useState('');
   const setFileTarget = (path: string, line = 0, endLine = 0) =>
     setFileTargetState({ path, line, endLine });
   useEffect(() => {
@@ -292,9 +295,24 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
       ) : vm.projectPage === 'memory' ? (
         <ProjectKnowledge command={command} http={http} initialMemoryId={memoryTarget} />
       ) : vm.projectPage === 'kanban' ? (
-        <ProjectKanban command={command} />
+        <ProjectKanban
+          command={command}
+          focus={kanbanFocus}
+          onOpenSource={(source) => {
+            if (source.system === 'goal') setGoalTarget(source.runId);
+            vm.setProjectPage(source.system === 'goal' ? 'goals' : 'sdd');
+          }}
+        />
       ) : vm.projectPage === 'goals' ? (
-        <ProjectGoals state={state} send={send} onKanban={() => vm.setProjectPage('kanban')} />
+        <ProjectGoals
+          state={state}
+          send={send}
+          initialGoalId={goalTarget}
+          onKanban={(focus) => {
+            setKanbanFocus(focus ? { ...focus, nonce: Date.now() } : null);
+            vm.setProjectPage('kanban');
+          }}
+        />
       ) : vm.projectPage === 'sdd' ? (
         <ProjectSdd
           state={state}

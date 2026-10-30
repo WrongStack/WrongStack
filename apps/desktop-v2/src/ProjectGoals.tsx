@@ -16,6 +16,7 @@ import { type EngineState, entries, record } from './engine-state';
 import { GoalRevert } from './GoalRevert';
 import { matchingGoalAssessment } from './goal-assessment';
 import { goalBudgetPayload, goalBudgetText } from './goal-budget-model';
+import type { RunFocus } from './kanban-board-source';
 import { ProjectMission } from './ProjectMission';
 import './project-goals.css';
 
@@ -32,12 +33,16 @@ export function ProjectGoals({
   state,
   send,
   onKanban,
+  initialGoalId = '',
 }: {
   state: EngineState;
   send: EngineSend;
-  onKanban: () => void;
+  /** Opens Kanban; with a focus, on the board that mirrors that goal's run. */
+  onKanban: (focus?: RunFocus) => void;
+  /** Goal to select when the page opens, e.g. from its mirror board. */
+  initialGoalId?: string | undefined;
 }) {
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(initialGoalId);
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
@@ -558,8 +563,29 @@ export function ProjectGoals({
                   readOnly={readOnly}
                 />
               )}
-              <button type="button" className="button secondary" onClick={onKanban}>
-                Open Kanban
+              <button
+                type="button"
+                className="button secondary"
+                title={
+                  selected
+                    ? 'Open the board that mirrors this goal’s run, once the run has started'
+                    : undefined
+                }
+                onClick={() =>
+                  onKanban(
+                    selected
+                      ? {
+                          system: 'goal',
+                          runId: selected,
+                          phaseId: phases.find((phase) => phase['status'] === 'running')?.['id'] as
+                            | string
+                            | undefined,
+                        }
+                      : undefined,
+                  )
+                }
+              >
+                {selected ? 'Open goal board' : 'Open Kanban'}
               </button>
             </div>
           </div>

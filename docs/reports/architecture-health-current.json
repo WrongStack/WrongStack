@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T20:19:30.274Z",
+  "generatedAt": "2026-10-30T20:29:16.973Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5540,
-    "testFiles": 4826,
-    "sourceLines": 1216323,
+    "sourceFiles": 5541,
+    "testFiles": 4827,
+    "sourceLines": 1216480,
     "workspaceEdges": 222,
-    "moduleEdges": 16608,
+    "moduleEdges": 16612,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 166,
+    "testsWithoutTypecheck": 167,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1016
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 346,
-      "testFiles": 166,
+      "sourceFiles": 347,
+      "testFiles": 167,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1691,6 +1691,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/kanban-board-dialog.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/kanban-board-source.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30727,6 +30733,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/kanban-board-source.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-boundary-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32164,8 +32177,13 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 968,
-      "relativeImports": 7
+      "lines": 994,
+      "relativeImports": 8
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
+      "lines": 708,
+      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
@@ -32251,8 +32269,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 968,
-      "relativeImports": 7
+      "lines": 994,
+      "relativeImports": 8
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
@@ -32420,6 +32438,11 @@
       "relativeImports": 12
     },
     {
+      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
+      "lines": 708,
+      "relativeImports": 9
+    },
+    {
       "file": "packages/core/src/core/agent-tools.ts",
       "lines": 708,
       "relativeImports": 11
@@ -32463,11 +32486,6 @@
       "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
-    },
-    {
-      "file": "apps/desktop-v2/src/useDesktop.ts",
-      "lines": 702,
-      "relativeImports": 9
     }
   ],
   "testOnlyExports": [
