@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-30T20:08:10.744Z
+**Generated:** 2026-10-30T20:14:12.085Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 45 |
-| Production source files | 5535 |
-| Production source lines | 1215694 |
-| Test files | 4824 |
+| Production source files | 5538 |
+| Production source lines | 1216034 |
+| Test files | 4825 |
 | Workspace dependency edges | 222 |
-| Relative module edges | 16593 |
+| Relative module edges | 16602 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 164 |
+| Tests without TypeScript test-project coverage | 165 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 341 | 164 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 344 | 165 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/goal | 23 | 23 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
 | @wrongstack/hq | 62 | 42 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
@@ -142,13 +142,13 @@ None.
 
 ## Exports only tests reference
 
-- 1015 runtime exports are referenced by tests and by no other production file.
+- 1018 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 164 test files are not included in a package TypeScript test project.
+- 165 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

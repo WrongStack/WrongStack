@@ -33,7 +33,9 @@ import type { InputDraft } from './input-form-model';
 import { MarkdownContent } from './MarkdownContent';
 import { markdownTarget } from './markdown-target';
 import { ProjectSessionTools } from './ProjectSessionTools';
-import { openExternal, sessionObjectDraftStorage } from './platform';
+import { openExternal, projectFormDraftStorage, sessionObjectDraftStorage } from './platform';
+import { recoveryLog, recoveryLogKey, type SavedRecoveryLog } from './recovery-log';
+import type { ProjectFormDraftStorage } from './requirement-draft';
 import { SessionActivity } from './SessionActivity';
 import { SessionBrowser } from './SessionBrowser';
 import { SessionComposer } from './SessionComposer';
@@ -127,6 +129,17 @@ export function EngineWorkspace({
   useEffect(() => {
     if (tab !== 'files' && tab !== 'changes') setFileTarget('');
   }, [tab]);
+  // Recovery operations started here persist per project session so they survive a restart.
+  useEffect(() => {
+    if (!projectId || !state.sessionId) return;
+    const sessionId = state.sessionId;
+    void recoveryLogKey(projectId, sessionId).then((key) =>
+      recoveryLog.attach(
+        sessionId,
+        projectFormDraftStorage(projectId, key) as ProjectFormDraftStorage<SavedRecoveryLog>,
+      ),
+    );
+  }, [projectId, state.sessionId]);
   const [toolsOpen, setToolsOpen] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const chatPane = useRef<HTMLDivElement>(null);

@@ -1,5 +1,5 @@
+import { DurableSessionLog, sessionLogKey } from './durable-session-log';
 import { record } from './engine-values';
-import type { ProjectFormDraftStorage } from './requirement-draft';
 
 /** A BTW note this window sent to a session's leader through the project mailbox. */
 export interface SentBtw {
@@ -17,10 +17,8 @@ const MAX_PER_SESSION = 50;
 const MAX_TEXT = 4000;
 
 /** One native slot per project session, so sessions never overwrite each other's notes. */
-export async function btwReceiptKey(projectId: string, sessionId: string) {
-  const source = JSON.stringify(['btw-receipts', projectId, sessionId]);
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(source));
-  return `btw-receipts:${[...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+export function btwReceiptKey(projectId: string, sessionId: string) {
+  return sessionLogKey('btw-receipts', projectId, sessionId);
 }
 
 export function parseBtwReceipts(value: unknown): SentBtw[] {
@@ -56,104 +54,25 @@ export function mergeBtw(...lists: readonly SentBtw[][]): SentBtw[] {
   return [...byId.values()].sort((a, b) => b.sentAt - a.sentAt).slice(0, MAX_PER_SESSION);
 }
 
-interface SessionReceipts {
-  notes: SentBtw[];
-  storage?: ProjectFormDraftStorage<SavedBtwReceipts> | undefined;
-  revision: number;
-  loaded?: Promise<void> | undefined;
-  error: string;
-}
-
 /**
  * Notes sent from this desktop, newest first, per session. Mailbox records carry no session,
  * so only ids captured at send time are tracked. With a project storage attached they survive
  * a restart; the list is append-only, so a save that lost a revision race re-reads, merges by
  * message id and retries instead of dropping either side.
  */
-export class BtwReceiptStore {
-  private sessions = new Map<string, SessionReceipts>();
-  private listeners = new Set<() => void>();
-  subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  };
-  private entry(sessionId: string) {
-    let entry = this.sessions.get(sessionId);
-    if (!entry) {
-      entry = { notes: EMPTY, revision: 0, error: '' };
-      this.sessions.set(sessionId, entry);
-    }
-    return entry;
-  }
-  private set(sessionId: string, patch: Partial<SessionReceipts>) {
-    this.sessions.set(sessionId, { ...this.entry(sessionId), ...patch });
-    for (const listener of this.listeners) listener();
-  }
-  list = (sessionId: string): SentBtw[] => this.sessions.get(sessionId)?.notes ?? EMPTY;
-  error = (sessionId: string): string => this.sessions.get(sessionId)?.error ?? '';
-  /** Loads saved receipts once per session; notes recorded before the load are kept. */
-  attach(sessionId: string, storage: ProjectFormDraftStorage<SavedBtwReceipts>) {
-    const current = this.entry(sessionId);
-    if (current.loaded) return current.loaded;
-    const loaded = storage
-      .get()
-      .then(async (saved) => {
-        const stored = parseBtwReceipts(saved.value);
-        const notes = mergeBtw(this.list(sessionId), stored);
-        this.set(sessionId, { notes, revision: saved.revision, error: '' });
-        // Notes recorded while loading are written back with the saved ones.
-        if (notes.length !== stored.length) await this.persist(sessionId);
-      })
-      .catch((error) => {
-        // A later attach may retry the load.
-        this.sessions.set(sessionId, { ...this.entry(sessionId), loaded: undefined });
-        this.set(sessionId, { error: `BTW receipts could not be loaded: ${String(error)}` });
-      });
-    this.set(sessionId, { storage, loaded });
-    return loaded;
-  }
-  async record(sessionId: string, note: SentBtw) {
-    this.set(sessionId, {
-      notes: mergeBtw([{ ...note, text: note.text.slice(0, MAX_TEXT) }], this.list(sessionId)),
+export class BtwReceiptStore extends DurableSessionLog<SentBtw, SavedBtwReceipts> {
+  constructor() {
+    super({
+      label: 'BTW receipts',
+      parse: parseBtwReceipts,
+      merge: mergeBtw,
+      serialize: (notes) => ({ version: 1, notes }),
     });
-    const { loaded } = this.entry(sessionId);
-    if (loaded) await loaded;
-    await this.persist(sessionId);
   }
-  private async persist(sessionId: string) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const { storage, revision } = this.entry(sessionId);
-      if (!storage) return;
-      const notes = this.list(sessionId);
-      try {
-        const next = await storage.save({ version: 1, notes }, revision);
-        this.set(sessionId, { revision: next, error: '' });
-        return;
-      } catch (error) {
-        if (!String(error).includes('DRAFT_CONFLICT')) {
-          this.set(sessionId, { error: `BTW receipts were not saved: ${String(error)}` });
-          return;
-        }
-        try {
-          const saved = await storage.get();
-          this.set(sessionId, {
-            notes: mergeBtw(this.list(sessionId), parseBtwReceipts(saved.value)),
-            revision: saved.revision,
-          });
-        } catch (reload) {
-          this.set(sessionId, { error: `BTW receipts were not saved: ${String(reload)}` });
-          return;
-        }
-      }
-    }
-    this.set(sessionId, {
-      error: 'BTW receipts kept changing in another window and were not saved here.',
-    });
+  override record(sessionId: string, note: SentBtw) {
+    return super.record(sessionId, { ...note, text: note.text.slice(0, MAX_TEXT) });
   }
 }
-const EMPTY: SentBtw[] = [];
 export const btwReceipts = new BtwReceiptStore();
 
 /**

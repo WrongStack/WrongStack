@@ -1,9 +1,11 @@
 import { ArrowLeft, Clock3, FileCode, RefreshCw, RotateCcw, Search } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CopyButton } from './CopyButton';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
+import { RecoveryRecords } from './RecoveryRecords';
+import { recoveryLog, redoRecord, rewindRecord, unfinishedRecord } from './recovery-log';
 import {
   checkpointBoundaries,
   checkpointMatches,
@@ -56,6 +58,10 @@ export function SessionRecovery({
   const [search, setSearch] = useState(''),
     [kind, setKind] = useState(''),
     [limit, setLimit] = useState(100);
+  const records = useSyncExternalStore(recoveryLog.subscribe, () => recoveryLog.list(sessionId));
+  const recordsError = useSyncExternalStore(recoveryLog.subscribe, () =>
+    recoveryLog.error(sessionId),
+  );
   const generation = useRef(0),
     mounted = useRef(true),
     mutation = useRef(false);
@@ -102,6 +108,9 @@ export function SessionRecovery({
     if (!confirm || busy || mutation.current || running || !revision) return;
     const target = confirm;
     const retry = retrying;
+    const operation = retry ? 'retry' : 'rewind';
+    let requested = false,
+      observed: ReturnType<typeof recoveryResult> = null;
     mutation.current = true;
     setBusy(true);
     setError('');
@@ -113,42 +122,60 @@ export function SessionRecovery({
       if (
         fresh['journalRevision'] !== revision ||
         !checkpointMatches(checkpoints, recoveryCheckpoints(fresh['checkpoints']))
-      )
-        throw Error(
-          'The session changed after this review. Close this dialog and refresh checkpoints.',
+      ) {
+        const message =
+          'The session changed after this review. Close this dialog and refresh checkpoints.';
+        void recoveryLog.record(
+          sessionId,
+          unfinishedRecord(operation, 'refused', target.promptIndex, message),
         );
+        throw Error(message);
+      }
+      requested = true;
       const reply = await command(
         'session.rewind',
         { checkpointIndex: target.promptIndex, expectedJournalRevision: revision },
         ['key.operation_result'],
         { timeoutMs: 120000 },
       );
-      if (!mounted.current) return;
-      const observed = recoveryResult(reply);
+      observed = recoveryResult(reply);
       if (!observed)
         throw Error(
           'The engine acknowledged rewind without a detailed result. Refresh and inspect the journal before another action.',
         );
-      setResult(observed);
-      setConfirm(null);
-      setRetrying(false);
-      if (retry && onRetryPrompt) {
-        const plan = retryPlan(observed);
-        if ('reason' in plan) setRetryNote(plan.reason);
+      const rewound = observed;
+      let note = '';
+      if (retry && onRetryPrompt && !mounted.current)
+        note = 'Not sent: the history view closed before the prompt could be sent again.';
+      else if (retry && onRetryPrompt) {
+        const plan = retryPlan(rewound);
+        if ('reason' in plan) note = plan.reason;
         else
           try {
             await onRetryPrompt(plan.text);
-            if (mounted.current) setRetryNote('The prompt was sent again.');
+            note = 'The prompt was sent again.';
           } catch (failure) {
-            if (mounted.current)
-              setRetryNote(
-                `The rewind completed, but sending again failed: ${failure instanceof Error ? failure.message : String(failure)}. Use Edit and resend.`,
-              );
+            note = `The rewind completed, but sending again failed: ${failure instanceof Error ? failure.message : String(failure)}. Use Edit and resend.`;
           }
       }
+      void recoveryLog.record(sessionId, rewindRecord(rewound, operation, note));
       if (!mounted.current) return;
+      setResult(rewound);
+      setRetryNote(note);
+      setConfirm(null);
+      setRetrying(false);
       await load();
     } catch (error) {
+      if (requested && !observed)
+        void recoveryLog.record(
+          sessionId,
+          unfinishedRecord(
+            operation,
+            'failed',
+            target.promptIndex,
+            error instanceof Error ? error.message : String(error),
+          ),
+        );
       if (mounted.current) {
         setError(error instanceof Error ? error.message : String(error));
         setRevision('');
@@ -167,21 +194,26 @@ export function SessionRecovery({
     mutation.current = true;
     setBusy(true);
     setError('');
+    let observed: ReturnType<typeof redoResult> = null;
     try {
       const reply = await command('session.redo', {}, ['key.operation_result'], {
         timeoutMs: 120000,
       });
-      if (!mounted.current) return;
-      const observed = redoResult(reply);
+      observed = redoResult(reply);
       if (!observed)
         throw Error(
           'The engine acknowledged the redo without a detailed result. Refresh and inspect the journal.',
         );
+      void recoveryLog.record(sessionId, redoRecord(observed));
+      if (!mounted.current) return;
       setRedone(observed);
       setResult(null);
       await load();
     } catch (error) {
-      if (mounted.current) setError(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      if (!observed)
+        void recoveryLog.record(sessionId, unfinishedRecord('redo', 'failed', null, message));
+      if (mounted.current) setError(message);
     } finally {
       mutation.current = false;
       if (mounted.current) setBusy(false);
@@ -308,6 +340,7 @@ export function SessionRecovery({
           ))}
         </section>
       )}
+      <RecoveryRecords records={records} error={recordsError} onOpenFile={onOpenFile} />
       {inspect && (
         <>
           <div className="recovery-identity">

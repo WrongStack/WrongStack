@@ -5195,3 +5195,22 @@ staged; the other session's edits stay untouched.
   limit; this matches WebUI and the user-owned autonomy rule, and is visible in the composer's
   continuation-mode control.
 
+### Durable recovery-operation records (2026-10-30)
+
+- Every rewind, retry and redo started from the History & recovery view now leaves a record per
+  project session (`recovery-log.ts`, shown by `RecoveryRecords.tsx`): operation, checkpoint,
+  time, outcome, restored or re-applied files (the first 100 paths and the full count), file
+  errors, removed journal events and the retry note. Records survive a restart and merge by id
+  with another window instead of overwriting it (50 per session).
+- Outcomes are only what was observed: `completed` and `partial` come from the engine's result;
+  `refused` means the window found the session changed after review and never asked the engine;
+  `failed` means the engine request returned no result, so what changed is unknown and is not
+  guessed. A retry whose view closed before sending records that nothing was sent.
+- The storage and merge logic of BTW receipts moved into `DurableSessionLog`
+  (`durable-session-log.ts`), now shared by both; BTW keys, messages and behaviour are unchanged
+  (its persistence tests pass unmodified).
+- Checks: `recovery-log.test.ts` (results, bounds, malformed data, merge, restart and
+  two-window merge, session keys); desktop suite 165 files / 659 tests; typecheck clean. The
+  native recovery step now opens the records after redo and the second rewind; it runs in the
+  next batched native pass.
+

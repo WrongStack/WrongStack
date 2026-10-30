@@ -271,6 +271,18 @@ export async function exerciseNativeSessionRecovery({
     .click();
   await screen.getByRole('heading', { name: 'Rewind completed', exact: true }).waitFor();
   assert.equal(await readFile(file, 'utf8'), 'before recovery prompts');
+  // Each operation leaves a durable record, newest first, as the engine reported it.
+  const records = screen.locator('details.recovery-records');
+  await records.locator('summary').click();
+  const recorded = records.getByRole('list', { name: 'Recovery operations', exact: true });
+  await recorded
+    .locator(':scope > li')
+    .first()
+    .filter({ hasText: /^Rewind · checkpoint/ })
+    .waitFor();
+  await recorded.locator(':scope > li').filter({ hasText: 'Redo last rewind' }).first().waitFor();
+  assert.match(await recorded.locator(':scope > li').first().innerText(), /Completed/);
+  await records.locator('summary').click();
   // The rewound prompt is offered for editing; the composer's unsent draft is kept unless the
   // replacement is chosen explicitly.
   const rewoundPrompt = screen.locator('.recovery-rewound-prompt');

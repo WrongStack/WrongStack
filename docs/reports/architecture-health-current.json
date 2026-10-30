@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T20:08:10.744Z",
+  "generatedAt": "2026-10-30T20:14:12.085Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5535,
-    "testFiles": 4824,
-    "sourceLines": 1215694,
+    "sourceFiles": 5538,
+    "testFiles": 4825,
+    "sourceLines": 1216034,
     "workspaceEdges": 222,
-    "moduleEdges": 16593,
+    "moduleEdges": 16602,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 164,
+    "testsWithoutTypecheck": 165,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1015
+    "testOnlyExports": 1018
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 341,
-      "testFiles": 164,
+      "sourceFiles": 344,
+      "testFiles": 165,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1955,6 +1955,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/provider-settings-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/recovery-log.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31023,6 +31029,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/recovery-log.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/refinement-draft.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32652,6 +32665,18 @@
     {
       "file": "apps/desktop-v2/src/ProviderProbe.tsx",
       "name": "probeOutcome"
+    },
+    {
+      "file": "apps/desktop-v2/src/recovery-log.ts",
+      "name": "MAX_RECOVERY_RECORDS"
+    },
+    {
+      "file": "apps/desktop-v2/src/recovery-log.ts",
+      "name": "mergeRecoveryRecords"
+    },
+    {
+      "file": "apps/desktop-v2/src/recovery-log.ts",
+      "name": "parseRecoveryLog"
     },
     {
       "file": "apps/desktop-v2/src/requirement-record-draft.ts",

@@ -131,6 +131,11 @@
     "apps/desktop-v2/src/ProviderProbe.tsx": [
       "probeOutcome"
     ],
+    "apps/desktop-v2/src/recovery-log.ts": [
+      "MAX_RECOVERY_RECORDS",
+      "mergeRecoveryRecords",
+      "parseRecoveryLog"
+    ],
     "apps/desktop-v2/src/requirement-record-draft.ts": [
       "parseRecordDraft"
     ],
