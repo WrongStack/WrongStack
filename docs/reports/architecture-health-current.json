@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T19:12:46.926Z",
+  "generatedAt": "2026-10-30T19:14:36.592Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5533,
-    "testFiles": 4822,
-    "sourceLines": 1215567,
+    "sourceFiles": 5534,
+    "testFiles": 4823,
+    "sourceLines": 1215615,
     "workspaceEdges": 222,
-    "moduleEdges": 16587,
+    "moduleEdges": 16590,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 162,
+    "testsWithoutTypecheck": 163,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1014
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 339,
-      "testFiles": 162,
+      "sourceFiles": 340,
+      "testFiles": 163,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1919,6 +1919,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-usage-summary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/prompt-recall.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30969,6 +30975,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/prompt-recall.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/provider-connection-wiring.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32152,8 +32165,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1133,
-      "relativeImports": 31
+      "lines": 1155,
+      "relativeImports": 32
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -32184,8 +32197,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1133,
-      "relativeImports": 31
+      "lines": 1155,
+      "relativeImports": 32
     },
     {
       "file": "packages/webui/src/components/codemap-model.ts",

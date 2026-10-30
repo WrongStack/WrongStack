@@ -9,6 +9,7 @@ import {
   withReference,
 } from './composer-resources-model';
 import type { ChatMessage } from './engine-state';
+import { recallHistory } from './journal-recall';
 
 export function useComposerInput({
   draft,
@@ -16,6 +17,7 @@ export function useComposerInput({
   references,
   onReferencesChange,
   messages,
+  recall = [],
   projectId,
   textarea,
 }: {
@@ -24,6 +26,8 @@ export function useComposerInput({
   references: ComposerFileReference[];
   onReferencesChange: (refs: ComposerFileReference[]) => void;
   messages: ChatMessage[];
+  /** Older prompts from the project's durable journal, newest first, recalled after this conversation's. */
+  recall?: readonly string[];
   projectId: string;
   textarea: RefObject<HTMLTextAreaElement | null>;
 }) {
@@ -102,14 +106,10 @@ export function useComposerInput({
     }
     const element = textarea.current;
     if (!element || shift || !['ArrowUp', 'ArrowDown'].includes(key)) return false;
-    const promptHistory = [
-      ...new Set(
-        messages
-          .filter((message) => message.role === 'user')
-          .map((message) => message.text)
-          .reverse(),
-      ),
-    ].slice(0, 50);
+    const promptHistory = recallHistory(
+      messages.filter((message) => message.role === 'user').map((message) => message.text),
+      recall,
+    );
     const item = history.current;
     if (item.index >= 0 && item.emitted !== draft) item.index = -1;
     if (

@@ -5150,3 +5150,15 @@ staged; the other session's edits stay untouched.
 - Checks: `tool-input-view.test.ts` extended (read range, search options, replace preview/write,
   exec quoting), desktop suite **650 PASS**, typecheck and Biome PASS.
 
+### Durable prompt recall (2026-10-30)
+
+- Up-arrow recall used only this conversation's transcript, so a new conversation (or one replayed
+  after a rewind) had nothing to recall. It now continues past this conversation's prompts into
+  the project's prompt journal: the newest 50 original (`raw_user`) entries are read once when the
+  conversation opens, de-duplicated against the transcript, up to 100 recalled prompts in all.
+  Without a journal (disabled or unavailable) recall stays within the conversation. Journal reads
+  stay project-owned; prompts from other projects are never offered.
+- Checks: desktop `prompt-recall.test.ts` (order, de-duplication, blank entries, journal parsing),
+  suite **652 PASS**, typecheck and Biome PASS. Native composer recall to be re-run on the next
+  build.
+

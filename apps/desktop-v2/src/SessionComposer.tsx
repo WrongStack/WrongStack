@@ -42,6 +42,7 @@ import {
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
+import { journalRecallTexts, RECALL_JOURNAL_LIMIT } from './journal-recall';
 import { Modal } from './Modal';
 import { NextStepsPanel } from './NextStepsPanel';
 import { PromptRefinement } from './PromptRefinement';
@@ -151,11 +152,32 @@ export function SessionComposer({
   const optionsMenu = useDetailsDismiss();
   const [mcpContent, setMcpContent] = useState(false);
   const [topic, setTopic] = useState<{ reason: string; nextTopic: string } | null>(null);
+  // Up-arrow recall continues past this conversation into the project's durable prompt journal.
+  const [journalRecall, setJournalRecall] = useState<string[]>([]);
+  useEffect(() => {
+    if (!state.sessionId) return;
+    let current = true;
+    void command(
+      'prompts.journal',
+      { filter: { limit: RECALL_JOURNAL_LIMIT, category: 'raw_user' } },
+      ['prompts.journal'],
+    )
+      .then((result) => {
+        if (current) setJournalRecall(journalRecallTexts(result));
+      })
+      .catch(() => {
+        // Without a journal, recall stays within this conversation.
+      });
+    return () => {
+      current = false;
+    };
+  }, [command, state.sessionId]);
   const input = useComposerInput({
     draft,
     onDraftChange,
     references,
     onReferencesChange,
+    recall: journalRecall,
     messages: state.messages.map((message) => ({
       ...message,
       text: splitReferenceMessage(message.text).text,
