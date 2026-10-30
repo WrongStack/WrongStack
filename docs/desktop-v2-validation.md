@@ -4725,3 +4725,23 @@ staged; the other session's edits stay untouched.
   written with the change. Desktop suite **611 PASS**, typecheck and Biome PASS. No engine
   change. No native step yet: an apply writes the real profile configuration, so the native
   pass needs an isolated profile.
+
+### Goal run revert
+
+- The engine's `goal.revert` (stop the run, remove its managed worktrees, revert every commit
+  made on the base branch since the baseline captured for the run with new revert commits,
+  then clear the run) had no desktop control, and clients could not tell when it would work.
+  The Goal state now carries `revert: {branch, sha}` when this engine holds the baseline and
+  worktree manager for the run, and `revert: null` otherwise. A baseline saved in an older
+  graph is not reported, because the handler would refuse it.
+- Desktop: "Revert run" appears next to the run controls only with a reported baseline. The
+  confirmation names the branch and short sha, says revert commits are added (history is not
+  rewritten) and that other commits on that branch since the baseline are reverted too. The
+  result line reports the reverted count or the engine's refusal. `goal.reverted` has no goal
+  id, so the first result newer than the request is shown.
+- Checks: RED then GREEN in webui-server `goal-ws-handler.gaps.test.ts` (a run without a
+  baseline reports `revert: null`); all 92 Goal/AutoPhase tests PASS, typecheck PASS. The
+  positive path (a captured baseline) needs a Git fixture and is not covered by a new engine
+  test. Desktop `goal-revert.test.ts` (baseline validation, hidden without one, outcome text)
+  was written with the change. Desktop suite **613 PASS**, typecheck and Biome PASS.
+- No native step yet: a native revert needs a disposable Git fixture project.
