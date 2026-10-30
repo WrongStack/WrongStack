@@ -126,15 +126,27 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
       .getByRole('list', { name: 'Rename preview', exact: true })
       .getByText('bulk-ops/d-old.txt → d-new.txt', { exact: true })
       .waitFor();
+    // The batch is all or nothing: one existing target refuses it and nothing is renamed.
     await rename.getByRole('button', { name: 'Rename 3', exact: true }).click();
-    await page.getByText(/^Renamed 2 of 3 items\. Failed: bulk-ops\/f-old\.txt \(/).waitFor();
-    for (const name of ['d-new.txt', 'e-new.txt', 'f-old.txt'])
-      assert.equal(await exists(join(source, name)), true, `${name} exists after the rename`);
-    for (const name of ['d-old.txt', 'e-old.txt'])
-      assert.equal(await exists(join(source, name)), false, `${name} was renamed`);
+    await rename.getByText(/f-new\.txt already exists\. No item was changed\.$/).waitFor();
+    for (const name of ['d-old.txt', 'e-old.txt', 'f-old.txt'])
+      assert.equal(await exists(join(source, name)), true, `${name} was not renamed`);
     assert.equal(await readFile(join(source, 'f-new.txt'), 'utf8'), 'f-new.txt\n');
-    await bar.getByText('1 selected', { exact: true }).waitFor();
-    await bar.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    await rename.getByRole('button', { name: 'Cancel', exact: true }).click();
+    // Without the conflict all three are renamed and leave the selection.
+    await rm(join(source, 'f-new.txt'));
+    await bar.getByText('3 selected', { exact: true }).waitFor();
+    await bar.getByRole('button', { name: 'Rename selected…', exact: true }).click();
+    const renameAll = page.getByRole('dialog', { name: 'Rename 3 selected items', exact: true });
+    await renameAll.getByLabel('Find in names', { exact: true }).fill('-old');
+    await renameAll.getByLabel('Replace in names', { exact: true }).fill('-new');
+    await renameAll.getByRole('button', { name: 'Rename 3', exact: true }).click();
+    await page.getByText('Renamed 3 of 3 items.', { exact: true }).waitFor();
+    for (const name of ['d', 'e', 'f']) {
+      assert.equal(await exists(join(source, `${name}-old.txt`)), false, `${name}-old renamed`);
+      assert.equal(await readFile(join(source, `${name}-new.txt`), 'utf8'), `${name}-old.txt\n`);
+    }
+    assert.equal(await bar.count(), 0, 'Renamed items leave the selection');
 
     // Ctrl-click picks an item outside selection mode.
     await page.getByRole('button', { name: 'Done selecting', exact: true }).click();
