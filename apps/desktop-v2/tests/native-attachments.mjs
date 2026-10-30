@@ -155,7 +155,8 @@ export async function exerciseNativeAttachments({
     direct.composerPrompt.includes('README.md'),
     'Restored file reference reaches the engine',
   );
-  assert.equal(await tray().count(), 0);
+  // The provider can see the prompt before the composer has cleared its sent files.
+  await waitFor(async () => (await tray().count()) === 0, 'Sent files leave the tray', 20000);
   await waitFor(
     async () => {
       const saved = await savedDraft();
