@@ -4672,3 +4672,18 @@ staged; the other session's edits stay untouched.
   numeric and ISO stamps, fallbacks, "100+") was written with the change. Desktop suite
   **606 PASS**, typecheck and Biome PASS.
 - No native step yet; planned for the final native pass with a mailbox fixture message.
+
+### Kanban boards from a task list
+
+- The engine's `kanban.generate` (board from text: each non-empty line becomes a task in the
+  first column with medium priority, with one leading "-", "*" or "#" removed) was unused by
+  the desktop. The board dialog now offers "An empty board" or "Tasks from a list". The list
+  mode previews the tasks exactly as the engine will parse them (first 50, with a count), says
+  that nothing else is inferred, and creates the board with one `kanban.generate`. The new
+  board then opens. No model is involved; model-generated decomposition remains open.
+- `BoardDialog` moved out of `ProjectKanban.tsx` into `KanbanBoardDialog.tsx` (703 → 644
+  lines).
+- Checks: desktop `kanban-board-dialog.test.ts` (line parsing matches the engine's
+  `parseLinesIntoTasks`, blanks, single-marker removal) was written with the change. Desktop
+  suite **607 PASS**, typecheck and Biome PASS. No engine change.
+- No native step yet; planned for the final native pass.
