@@ -5326,5 +5326,6 @@ staged; the other session's edits stay untouched.
   removal in the engine, so a failed move says the card can be on both boards.
 - Checks: `kanban-board-actions.test.ts`; desktop 169 files / 670 tests; typecheck clean. The
   native project Kanban step now duplicates "Desktop roadmap" twice, reads the history, moves a
-  card between the copies and deletes both copies; it runs in the next batched native pass.
+  card between the copies and deletes both copies. Native `default` on build
+  `0be382dd74fc-8211c70eeed6` passed with it on the first run (581 s).
 
