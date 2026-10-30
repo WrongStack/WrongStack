@@ -4656,3 +4656,19 @@ staged; the other session's edits stay untouched.
   typecheck and Biome PASS. No engine change.
 - No native step yet: it needs a real or fixture OAuth authorization server. Planned for the
   final native pass.
+
+### Mailbox unread notice on the project overview
+
+- The project overview's Mailbox entry shows "N unread · newest from X: subject" when
+  messages nobody has read are waiting. The count is read with
+  `mailbox.messages {unreadOnly: true, limit: 100}` when the overview opens, and again 300 ms
+  after each `mailbox.event` (the `mailbox.*` broadcast, which also covers
+  `mailbox.received`). A full page shows "100+". Completed messages and messages with a read
+  receipt are not counted. "Unread" means the mailbox's aggregate view (nobody has read it);
+  it does not prove that a worker acted. A failed read hides the notice, and the Mailbox page
+  keeps reporting errors. No engine change. System (OS) notifications are not added: they
+  would need a new Tauri notification plugin dependency.
+- Checks: desktop `mailbox-unread.test.ts` (unread-only counting, newest by timestamp with
+  numeric and ISO stamps, fallbacks, "100+") was written with the change. Desktop suite
+  **606 PASS**, typecheck and Biome PASS.
+- No native step yet; planned for the final native pass with a mailbox fixture message.
