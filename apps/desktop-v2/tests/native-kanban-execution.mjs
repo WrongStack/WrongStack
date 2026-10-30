@@ -101,6 +101,18 @@ export async function exerciseNativeTaskExecution({
     .waitFor();
   await page.keyboard.press('Escape');
   await boardBoundary.waitFor({ state: 'detached' });
+  // Queue health is read without changing the board; an audit is a confirmed, reported action.
+  const health = page.getByRole('region', { name: 'Queue health', exact: true });
+  await health.getByText('Ready to start', { exact: false }).waitFor();
+  await health.getByRole('button', { name: 'Audit queue…', exact: true }).click();
+  await page.getByRole('button', { name: 'Audit and repair', exact: true }).click();
+  await health
+    .getByRole('status')
+    .filter({
+      hasText:
+        /^(Queue healthy|Needs attention|Supervisor disabled).* cards reconciled · \d+ expired/,
+    })
+    .waitFor();
   await section('Execution').click();
   const calls = providerFixture.calls.length;
   await page.getByRole('button', { name: 'Dispatch agent', exact: true }).click();

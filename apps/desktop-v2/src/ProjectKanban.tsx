@@ -17,6 +17,7 @@ import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { BoardDialog } from './KanbanBoardDialog';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
+import { KanbanQueueHealth } from './KanbanQueueHealth';
 import { KanbanTaskInspector } from './KanbanTaskInspector';
 import { Modal } from './Modal';
 import './kanban.css';
@@ -239,6 +240,23 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
               </button>
             </div>
           </div>
+          {board && boardId && (
+            <KanbanQueueHealth
+              command={command}
+              boardId={boardId}
+              revision={board}
+              disabled={busy}
+              onOpenTask={(taskId) => {
+                const task = tasks.find((item) => item['id'] === taskId);
+                if (task) setSelected(task);
+                else setError('That card is no longer on this board. Refresh the board.');
+              }}
+              onAudited={async () => {
+                await loadBoards();
+                await loadBoard();
+              }}
+            />
+          )}
           {boundaryOpen && board && (
             <Modal title="Board resource boundary" onClose={() => setBoundaryOpen(false)}>
               <KanbanBoundaryEditor

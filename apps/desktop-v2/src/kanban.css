@@ -664,3 +664,52 @@
   margin: 6px 0 0;
   padding-left: 20px;
 }
+.kanban-health {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--raised);
+  padding: 8px 12px;
+  margin: 0 0 12px;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+.kanban-health > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.kanban-health > header > button {
+  margin-left: auto;
+}
+.kanban-health-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+}
+.kanban-health-counts b {
+  color: var(--text);
+}
+.kanban-health-issue > summary {
+  cursor: pointer;
+}
+.kanban-health-issue p {
+  margin: 4px 0;
+  color: var(--muted);
+}
+.kanban-health-task {
+  display: block;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  padding: 2px 0;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}

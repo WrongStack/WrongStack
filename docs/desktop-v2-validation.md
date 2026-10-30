@@ -5214,3 +5214,22 @@ staged; the other session's edits stay untouched.
   native recovery step now opens the records after redo and the second rewind; it runs in the
   next batched native pass.
 
+### Kanban queue health and audit (2026-10-30)
+
+- Each project board shows its queue health from `kanban.health`, a read that changes nothing:
+  ready to start, queued, running, in review, blocked and failed, plus only the problem buckets
+  the engine reported (expired assignments, leases about to lapse, waiting on dependencies,
+  failed with retries left, parked after verification). Cards in a bucket open in the
+  inspector. Health is read again whenever the board reloads.
+- "Audit queue…" sends `kanban.supervisor.audit` only after a confirmation that says what it
+  does: cards move to the state their assignment implies and, by the board's recovery mode,
+  cards with an expired worker lease return to the queue (managed boards change only through
+  their own transitions). The result line repeats the engine's report (status, reconciled
+  cards, returned assignments, or the audit error); a reply without a result says so.
+- `kanban.supervisor.status` is not used for passive display: without a hosted supervisor the
+  standalone route runs the same reconcile and recovery as the audit. `kanban.run.start`
+  answers "unavailable in this standalone runtime", so it is not offered.
+- Checks: `kanban-health.test.ts`; desktop suite 166 files / 662 tests; typecheck clean. The
+  native Kanban execution step now runs the audit and checks the reported result; it runs in
+  the next batched native pass.
+
