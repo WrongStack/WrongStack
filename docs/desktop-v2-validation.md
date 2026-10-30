@@ -5128,3 +5128,14 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `tool-input-view.test.ts` (edit lines and markup, write preview count, command,
   generic fallback), suite **646 PASS**, typecheck and Biome PASS. Not in a native scenario yet.
 
+### Native acceptance after the 2026-10-30 follow-up increments
+
+- Rebuilt engine, Tauri release and portable (`7a89e8c757ba-f02a546a25be`) from the committed tree
+  including the fallback state refresh, `provider.primary_restored`, the project-scoped fleet
+  message, per-turn tool work, the bounded conversation window, activity input views and PDF
+  saving. The full matrix (default plus 31 scopes, `--release --bundled`) passed **32 of 32**,
+  20:09 to 20:42. Logs: `.temp_files/desktop-v2-native/full4/`.
+- The harness does not yet assert the new surfaces themselves (turn summaries, earlier-message
+  loading, fleet message, tool input views, PDF save); this run proves they did not break the
+  existing native workflows.
+
