@@ -209,6 +209,9 @@ export async function exerciseNativeProjects({
   await page.getByLabel('Task estimated hours', { exact: true }).fill('3.5');
   await page.getByLabel('Task cost ceiling', { exact: true }).fill('15');
   await page.getByRole('button', { name: 'Save task', exact: true }).click();
+  // The inspector closes once the save is acknowledged. Reopening before that reads the old
+  // inspector (the board ignores task clicks while busy) and it closes under the next step.
+  await page.getByLabel('Task cost ceiling', { exact: true }).waitFor({ state: 'detached' });
   await taskList
     .getByRole('button', { name: 'Build a shared project memory map', exact: true })
     .click();
