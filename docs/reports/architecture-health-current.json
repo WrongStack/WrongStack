@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T07:50:32.339Z",
+  "generatedAt": "2026-10-30T07:55:28.449Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5501,
-    "testFiles": 4794,
-    "sourceLines": 1211011,
+    "sourceFiles": 5503,
+    "testFiles": 4795,
+    "sourceLines": 1211343,
     "workspaceEdges": 222,
-    "moduleEdges": 16497,
+    "moduleEdges": 16502,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 138,
+    "testsWithoutTypecheck": 139,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 991
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 309,
-      "testFiles": 138,
+      "sourceFiles": 311,
+      "testFiles": 139,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1667,6 +1667,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/markdown-content.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/mcp-auth-model.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30507,6 +30513,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/mcp-auth-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/mcp-binary.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31293,6 +31306,11 @@
     {
       "from": "apps/desktop-v2/src/main.tsx",
       "specifier": "./skills.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/McpAuthorization.tsx",
+      "specifier": "./mcp-connection.css",
       "syntax": "import"
     },
     {

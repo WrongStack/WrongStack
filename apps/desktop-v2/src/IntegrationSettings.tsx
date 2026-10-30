@@ -2,6 +2,7 @@ import { Check, Link2, Plug, Plus, Power, RefreshCw, Server, Trash2, X } from 'l
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { McpAuthorization } from './McpAuthorization';
 
 const McpContentBrowser = lazy(() =>
   import('./McpContentBrowser').then((module) => ({ default: module.McpContentBrowser })),
@@ -160,6 +161,9 @@ export function IntegrationSettings({
                     ))}
                   </div>
                 </details>
+              )}
+              {typeof server['url'] === 'string' && server['url'] && (
+                <McpAuthorization name={name} command={command} />
               )}
               <footer>
                 <button

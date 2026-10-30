@@ -82,3 +82,24 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+.mcp-authorization {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+.mcp-authorization > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.mcp-authorization-advanced label {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+.mcp-authorization-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
