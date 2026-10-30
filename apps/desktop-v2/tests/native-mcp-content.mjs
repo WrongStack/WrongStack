@@ -509,7 +509,16 @@ export async function exerciseNativeMcpComposer({
     await draft.waitFor();
     assert.ok((await draft.inputValue()).includes('the native composer'));
     assert.equal(fixture.calls.filter((row) => row.method === 'tools/call').length, 0);
-    assert.equal(page.context().pages().length, 1);
+    // As above: WebView2's downloads flyout is not an app window.
+    const windows = page
+      .context()
+      .pages()
+      .map((item) => item.url());
+    assert.deepEqual(
+      windows.filter((url) => !url.startsWith('edge://downloads')),
+      [page.url()],
+      `Open pages: ${windows.join(', ')}`,
+    );
     await profile('mcp.remove', {});
     console.log(
       'PASS: native composer explicitly reads MCP resources/resolves prompt arguments, appends attributed text to the existing durable draft without invoking a tool or sending a message',
