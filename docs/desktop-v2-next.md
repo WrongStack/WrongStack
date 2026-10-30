@@ -301,8 +301,9 @@ have real workflows; the work below closes their missing actions, durability and
   "Model fallback in the desktop engine"). Still open:
   - per-tab agents of the CLI-hosted WebUI (`packages/cli/src/webui-server/session-agents.ts`,
     registry default path) still get no fallback extension;
-  - a fallback hop does not refresh the conversation's context-window meta or the
-    auto-compaction ceiling, because the host's updater is process-wide;
+  - a fallback hop in a CLI-hosted per-tab agent does not refresh that tab's context window:
+    the host's updater is process-wide and serves the leader (in the standalone engine each
+    desktop conversation is the leader, so its hops and restores do refresh it, 2026-10-30);
   - native acceptance with a real failing provider.
 
 ### Engine messages the desktop still does not send (audit 2026-10-30)

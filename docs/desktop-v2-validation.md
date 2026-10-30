@@ -5036,3 +5036,32 @@ staged; the other session's edits stay untouched.
 - Package checks after the fixes: desktop suite **637 PASS**, typecheck and Biome PASS on changed
   files; full `packages/webui-server` suite (`WRONGSTACK_VITEST_MAX_WORKERS=2`) **3387 tests /
   354 files PASS**; cargo engine tests PASS.
+
+### Fallback model state follows the chain (2026-10-30)
+
+- A fallback hop or a primary restore did not refresh the conversation's context window or the
+  auto-compaction ceiling, and the desktop kept showing the primary model while a fallback
+  served it. Changes:
+  - `installConversationFallback` takes `onModelSwitch`; the leader's extension calls the
+    engine's max-context updater with the new model on every hop and restore (`0ee2f3fce`).
+  - The fallback extension now emits `provider.primary_restored` (new kernel event, broadcast as a
+    server message and journaled as `model_switched` with reason `fallback`) when it moves back
+    to the primary (`bcea42960`). `provider.fallback` was the only signal before, so no client
+    could tell that the primary was serving again.
+  - The desktop updates the shown provider and model on `provider.fallback` and
+    `provider.primary_restored` for its own conversation (`e0454f923`).
+- Checks, each failing RED first: `session-agent-fallback-model.test.ts` (the hook receives the
+  hop target), core `fallback-resilience.test.ts` (restore announces from/to), desktop
+  `engine-fallback-model.test.ts` (hop, foreign-session frame ignored, restore). Core
+  `tests/core` **1075 PASS**, `webui-protocol` **261 PASS**, protocol contract (server catalog
+  316) PASS, desktop suite **638 PASS**, typecheck of contracts/core/webui-server PASS.
+- Still open: a CLI-hosted per-tab agent's context window on a hop (foreign CLI work), and
+  native acceptance with a real failing provider.
+
+### Intermittent bulk folder copy refusal: not reproduced
+
+- The native bulk folder copy failed twice with "bulk-dest/tree does not exist" across about ten
+  runs. A standalone loop calling the real `handleFilesCopyMany` 800 times (plain and `\\?\`
+  project roots, with and without a recursive `fs.watch` on the project) never failed. The cause
+  is still unknown; the engine now reports a non-missing `lstat` error as itself and the native
+  harness prints the dialog message before cleanup, so the next occurrence is diagnosable.
