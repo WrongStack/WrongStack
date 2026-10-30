@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T19:14:36.592Z",
+  "generatedAt": "2026-10-30T19:17:21.438Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 45,
     "sourceFiles": 5534,
-    "testFiles": 4823,
-    "sourceLines": 1215615,
+    "testFiles": 4824,
+    "sourceLines": 1215648,
     "workspaceEdges": 222,
     "moduleEdges": 16590,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 163,
+    "testsWithoutTypecheck": 164,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1014
+    "testOnlyExports": 1015
   },
   "errors": [],
   "packageCycles": [],
@@ -386,7 +386,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 340,
-      "testFiles": 163,
+      "testFiles": 164,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1625,6 +1625,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/git-graph.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/git-mode-change.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30632,6 +30638,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/git-mode-change.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/goal-budget-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32543,6 +32556,10 @@
     {
       "file": "apps/desktop-v2/src/FleetBroadcast.tsx",
       "name": "broadcastTargets"
+    },
+    {
+      "file": "apps/desktop-v2/src/GitHunkReview.tsx",
+      "name": "modeChangeNote"
     },
     {
       "file": "apps/desktop-v2/src/GoalRevert.tsx",

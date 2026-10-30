@@ -5162,3 +5162,16 @@ staged; the other session's edits stay untouched.
   suite **652 PASS**, typecheck and Biome PASS. Native composer recall to be re-run on the next
   build.
 
+### Content hunks of a file whose mode also changed (2026-10-30)
+
+- A text file with a mode change (for example made executable while edited) offered no hunk or
+  line staging at all. `git.hunks` now keeps per-hunk and per-line staging for it: the applied
+  patch drops the `old mode`/`new mode` lines and carries the index's current mode on its `index`
+  line, so content hunks never change the mode; the reply reports `modeChange`, and the desktop
+  says the mode stays with the whole-file controls. Binary patches keep whole-file controls only.
+- Checks: `git-hunks.test.ts` gains a real repository case that failed RED first (no hunks were
+  offered): a staged edit plus `update-index --chmod=+x`, two hunks reported with the mode change,
+  one unstaged; the index keeps the other hunk and mode 100755. Desktop `git-mode-change.test.ts`,
+  suite **653 PASS**, typecheck and Biome PASS. On Windows the worktree layer does not report mode
+  changes (`core.fileMode=false`), so the staged layer is the reachable case there.
+

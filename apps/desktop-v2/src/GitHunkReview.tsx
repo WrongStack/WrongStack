@@ -1,9 +1,17 @@
 import { LoaderCircle, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
-import { entries } from './engine-values';
+import { entries, record } from './engine-values';
 import { Modal } from './Modal';
 import './git-hunk-review.css';
+
+/** The note for a file whose mode changed as well as its content (`git.hunks` `modeChange`). */
+export function modeChangeNote(value: unknown): string {
+  const change = record(value);
+  return typeof change['from'] === 'string' && typeof change['to'] === 'string'
+    ? `The file mode also changes (${change['from']} → ${change['to']}). These hunks change content only; stage the mode with the whole-file controls.`
+    : '';
+}
 
 export function GitHunkReview({
   path,
@@ -123,6 +131,9 @@ export function GitHunkReview({
           <p role="alert" className="session-error">
             {error}
           </p>
+        )}
+        {!loading && modeChangeNote(result['modeChange']) && (
+          <p className="field-help">{modeChangeNote(result['modeChange'])}</p>
         )}
         {loading ? (
           <p role="status">
