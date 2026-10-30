@@ -61,10 +61,14 @@ export interface EngineState {
   sddAgentText: string;
   specDetails: Record<string, Record<string, unknown>>;
   activity: EngineEvent[];
+  /** Each finished turn's tool events, by the id of the assistant message that ended it. */
+  turnActivity: Record<string, EngineEvent[]>;
   nextSteps: ParsedNextStep[];
   results: Record<string, Record<string, unknown>>;
   error: string;
 }
+/** Tool events kept per finished turn for the inline record. */
+export const TURN_ACTIVITY_LIMIT = 120;
 export const emptyEngineState: EngineState = {
   hydrating: false,
   pendingUserMessages: {},
@@ -87,6 +91,7 @@ export const emptyEngineState: EngineState = {
   sddAgentText: '',
   specDetails: {},
   activity: [],
+  turnActivity: {},
   nextSteps: [],
   results: {},
   error: '',
@@ -209,7 +214,10 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
           ? p['needsSetup']
           : !p['provider'] || p['provider'] === 'unconfigured' || !p['model'],
     };
-    if (p['reset'] === true) next.nextSteps = [];
+    if (p['reset'] === true) {
+      next.nextSteps = [];
+      next.turnActivity = {};
+    }
     if ((!state.messages.length || p['reset'] === true) && Array.isArray(p['replayMessages'])) {
       if (p['reset'] === true) {
         next.running = false;
@@ -358,6 +366,14 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
     next.inputs = state.inputs.filter((item) => item.id !== p['requestId']);
   if (event.type === 'run.result') {
     next.running = false;
+    const answer = next.messages.findLast((message) => message.role === 'assistant');
+    const runStart = state.activity.findLastIndex((entry) => entry.type === 'run.result') + 1;
+    const tools = state.activity
+      .slice(runStart)
+      .filter((entry) => entry.type.startsWith('tool.'))
+      .slice(-TURN_ACTIVITY_LIMIT);
+    if (answer && tools.length && !next.turnActivity[answer.id])
+      next.turnActivity = { ...next.turnActivity, [answer.id]: tools };
     if (p['status'] === 'done') {
       const parsed = parseNextSteps(contentText(p['finalText'])).steps;
       const start = state.activity.findLastIndex((entry) => entry.type === 'run.result') + 1;

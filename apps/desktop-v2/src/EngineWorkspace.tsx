@@ -42,6 +42,7 @@ import { SessionTodos } from './SessionTodos';
 import { SessionWorklist } from './SessionWorklist';
 import { inlineUsageEstimate } from './session-usage-model';
 import { ToolApprovalCard } from './ToolApprovalCard';
+import { TurnTools } from './TurnTools';
 import type { ProjectPage } from './useDesktop';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
@@ -360,6 +361,15 @@ export function EngineWorkspace({
                       <AttachmentPreview items={message.attachments} />
                     )}
                   </div>
+                  {state.turnActivity[message.id] && (
+                    <TurnTools
+                      events={state.turnActivity[message.id]!}
+                      onOpenFile={(path) => {
+                        setFileTarget(path);
+                        setTab('files');
+                      }}
+                    />
+                  )}
                 </article>
               ))}
             {state.inputs.map((request) => (

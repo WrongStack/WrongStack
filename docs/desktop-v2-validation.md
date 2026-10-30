@@ -5084,3 +5084,17 @@ staged; the other session's edits stay untouched.
   not. Delivery does not confirm execution, which the result says.
 - Checks: desktop `fleet-broadcast.test.ts`, suite **640 PASS**, typecheck and Biome PASS;
   `api-router.gaps.test.ts` and the targets test PASS. Not in a native scenario yet.
+
+### Tool work kept with each turn (2026-10-30)
+
+- Tool activity was shown only while a run was active; once the turn ended it left the
+  conversation and stayed only under Activity. The reducer now keeps each finished run's tool
+  events (up to 120, from the 200-event live window) by the id of the answer that ended the run,
+  and every such answer shows "Worked with N tool calls · read ×2 · edit" with failures counted;
+  opening it shows the same compact activity view as the live run. The record is rebuilt from the
+  event log on reload and cleared when a rewind replays the conversation. Turns restored from an
+  older journal (no live events) show no summary.
+- Checks: desktop `turn-tools.test.ts` (attachment to the answer, summary text, no record for a
+  turn without tools) was written with the change; no separate RED run. Suite **641 PASS**,
+  typecheck and Biome PASS. Not in a native scenario yet.
+

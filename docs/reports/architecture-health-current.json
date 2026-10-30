@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T17:31:55.246Z",
+  "generatedAt": "2026-10-30T18:00:52.144Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5528,
-    "testFiles": 4818,
-    "sourceLines": 1215221,
+    "sourceFiles": 5530,
+    "testFiles": 4819,
+    "sourceLines": 1215301,
     "workspaceEdges": 222,
-    "moduleEdges": 16576,
+    "moduleEdges": 16581,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 158,
+    "testsWithoutTypecheck": 159,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1013
   },
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 334,
-      "testFiles": 158,
+      "sourceFiles": 336,
+      "testFiles": 159,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2183,6 +2183,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/tool-approval.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/turn-tools.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31247,6 +31253,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/tool-approval.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/turn-tools.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
