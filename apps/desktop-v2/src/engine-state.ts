@@ -236,6 +236,15 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
     next.needsSetup = false;
     next.error = '';
   }
+  // The fallback chain moved the conversation to another model, or back to its primary: show
+  // the model that actually serves the next request.
+  if (event.type === 'provider.fallback' || event.type === 'provider.primary_restored') {
+    const to = p['to'] as Record<string, unknown> | undefined;
+    if (to && typeof to['providerId'] === 'string' && typeof to['model'] === 'string') {
+      next.provider = to['providerId'];
+      next.model = to['model'];
+    }
+  }
   if (event.type === 'desktop.user_message') {
     const id = String(p['id']);
     if (typeof p['requestId'] === 'string') {
