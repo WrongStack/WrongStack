@@ -38,6 +38,7 @@ import { FallbackPolicySettings, RoutingPolicySettings } from './ModelPolicySett
 import { LimitsPolicySettings, TierPolicySettings } from './ResourcePolicySettings';
 import { prepareSettingsPatch, sameSetting } from './settings-save-model';
 import './settings-policy.css';
+import { BrainDecisions } from './BrainDecisions';
 import { ConfigDoctor } from './ConfigDoctor';
 import { ModelCatalogSettings } from './ModelCatalogSettings';
 import { ModelVisibilitySettings } from './ModelVisibilitySettings';
@@ -382,6 +383,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
           {loaded && brainOpened && (
             <div hidden={section !== 'brain'}>
               <BrainPolicySettings command={command} />
+              <BrainDecisions command={command} />
             </div>
           )}
           {!loaded ? (
