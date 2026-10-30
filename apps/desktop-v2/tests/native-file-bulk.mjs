@@ -99,7 +99,7 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
       [],
       'No hidden copy remains',
     );
-    await bar.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    assert.equal(await bar.count(), 0, 'Copied items leave the selection');
     // A text-only folder copies with its nested structure.
     await mkdir(join(target, 'tree', 'inner'), { recursive: true });
     await writeFile(join(target, 'tree', 'one.txt'), 'one\n');
