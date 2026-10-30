@@ -4876,3 +4876,18 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `jev-settings.test.ts` (state parsing including checks, activity and
   defaults) was written with the change. Desktop suite **625 PASS**, typecheck and Biome PASS.
   No engine change. No native step: it needs a TypeSafe account.
+
+### Saved provider endpoint check
+
+- `provider.probe` (an OpenAI-compatible `/v1/models` request to a saved connection's base URL
+  with its active key; replies with status, HTTP status, time, model count and scrubbed
+  detail, and never throws) had no desktop control. Each saved connection in Providers &
+  models now has "Check endpoint" (8 s timeout). The result line says reachable, unreachable,
+  timed out, HTTP error, unexpected response, or "no endpoint URL" for built-in providers.
+  It is a reachability check only: no prompt is sent and it does not prove a model works.
+  A failed probe arrives as an `ok:false` reply, which the transport raises; the status in
+  that reply is still shown.
+- Checks: desktop `provider-probe.test.ts` (outcome text for success, failure and built-in
+  providers) was written with the change. Desktop suite **626 PASS**, typecheck and Biome
+  PASS. No engine change. `provider.clear_models` / `provider.undo_clear` are still not
+  offered: the desktop does not show the saved model allowlist they change.
