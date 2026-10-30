@@ -132,7 +132,8 @@ export function KanbanQueueHealth({
             The audit moves cards to the state their assignment implies and, using this board’s
             recovery mode, returns cards whose worker lease has expired to the queue. Cards with a
             live lease keep their assignment; managed boards change only through their own
-            transitions.
+            transitions. Depending on the board’s supervisor mode, the audit can also ask a model to
+            review the active cards; a review that does not finish is reported as a failed audit.
           </p>
           <div className="modal-actions">
             <button

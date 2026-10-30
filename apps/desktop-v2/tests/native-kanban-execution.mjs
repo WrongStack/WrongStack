@@ -102,6 +102,8 @@ export async function exerciseNativeTaskExecution({
   await page.keyboard.press('Escape');
   await boardBoundary.waitFor({ state: 'detached' });
   // Queue health is read without changing the board; an audit is a confirmed, reported action.
+  // A hosted agentic supervisor also asks the model for card reviews, which the fixture model
+  // does not write, so the reported status may be a failure; the result line must still appear.
   const health = page.getByRole('region', { name: 'Queue health', exact: true });
   await health.getByText('Ready to start', { exact: false }).waitFor();
   await health.getByRole('button', { name: 'Audit queue…', exact: true }).click();
@@ -109,8 +111,7 @@ export async function exerciseNativeTaskExecution({
   await health
     .getByRole('status')
     .filter({
-      hasText:
-        /^(Queue healthy|Needs attention|Supervisor disabled).* cards reconciled · \d+ expired/,
+      hasText: / cards reconciled · \d+ expired assignments returned to the queue$/,
     })
     .waitFor();
   await section('Execution').click();

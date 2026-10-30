@@ -49,9 +49,27 @@ export async function exerciseNativeSessionAgentPlan({
   const marker = '[native-agent-plan-draft] Keep this local chat draft.';
   const open = async () => {
     const options = page.locator('.composer-options');
-    if (!(await options.evaluate((element) => element.open)))
-      await options.getByLabel('Composer options', { exact: true }).click();
-    await options.getByRole('button', { name: 'Agent model plan', exact: true }).click();
+    const button = options.getByRole('button', { name: 'Agent model plan', exact: true });
+    // After a reload the composer reconnects and can re-render, closing the menu; reopen it
+    // until the plan action is available.
+    try {
+      await waitFor(
+        async () => {
+          if (!(await options.evaluate((element) => element.open)))
+            await options.getByLabel('Composer options', { exact: true }).click();
+          return (await button.count()) > 0 && (await button.isEnabled());
+        },
+        'Agent model plan is available',
+        45000,
+      );
+    } catch (error) {
+      const text = async (selector) =>
+        (await page.locator(selector).allTextContents()).join(' | ') || '-';
+      throw Error(
+        `${error instanceof Error ? error.message : error}. Composer error: ${await text('.composer-error')}; notice: ${await text('.composer-notice')}; stop run: ${await page.getByRole('button', { name: 'Stop run', exact: true }).count()}; send disabled: ${await page.locator('.composer-send').isDisabled()}; plan buttons: ${await button.count()}`,
+      );
+    }
+    await button.click();
     await dialog().getByRole('spinbutton', { name: 'Model lane count', exact: true }).waitFor();
   };
   const save = async () => {

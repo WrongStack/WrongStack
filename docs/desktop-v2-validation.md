@@ -5065,6 +5065,7 @@ staged; the other session's edits stay untouched.
   project roots, with and without a recursive `fs.watch` on the project) never failed. The cause
   is still unknown; the engine now reports a non-missing `lstat` error as itself and the native
   harness prints the dialog message before cleanup, so the next occurrence is diagnosable.
+- Resolved 2026-10-30, see "Bulk folder copy: Windows EPERM on the final rename" below.
 
 ### Message every live runtime of a project (2026-10-30)
 
@@ -5266,4 +5267,22 @@ staged; the other session's edits stay untouched.
 - Checks: `memory-injections.test.ts` (run parsing, session filter, duplicates, bound, context
   snapshot, reset); desktop typecheck clean. No native step yet: the fixtures do not seed SAGE
   memories, so a real injection has not been exercised in the desktop.
+
+### Bulk folder copy: Windows EPERM on the final rename (2026-10-30)
+
+- The diagnostics caught the next occurrence (native `default`, build `b2f637e5c411`): the dialog
+  reported `EPERM: operation not permitted, rename '…\bulk-ops\.wrongstack-copy-…-0' ->
+  '…\bulk-ops\tree'. No item was changed.` The earlier "does not exist" refusals were the same
+  batch failing differently on its next attempt.
+- Cause: `files.copy_many` copies into a hidden sibling folder and then renames it into place.
+  Windows refuses to rename a folder while any file inside it is open and reports EPERM; a file
+  watcher, the search indexer or antivirus reading a file that was just written is enough. A
+  standalone probe confirmed it (rename with a child file open: EPERM; after closing: renamed).
+- Proof: `file-batch-mutations.test.ts` "copies a folder while another process briefly holds a
+  file in the copy open" (Windows only) opens one copied file from a recursive watcher for
+  600 ms during a real `files.copy_many`. Before the fix it failed 3 of 3 runs with that EPERM.
+- Fix: the batch renames (copy, move, delete staging and their rollbacks) retry EPERM, EACCES
+  and EBUSY on Windows for up to 3 s with a short backoff, stop at once when the target now
+  exists, and rename once on other platforms. The test then passed 5 of 5 runs with its file;
+  `webui-server` typecheck clean.
 
