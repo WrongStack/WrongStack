@@ -4748,3 +4748,24 @@ staged; the other session's edits stay untouched.
 - Side effect: running Biome on `project-goals.css` reformatted the whole file (it was compact
   one-line CSS that already failed Biome's format check). The commit therefore carries a
   formatting-only rewrite of that file besides the new rules; no rule changed.
+
+### Instruction presets (system prompt presets)
+
+- The engine's `system_prompt.presets.*` operations (get, create, save, activate, delete,
+  validate, preview) were not used by the desktop. A preset is an edited copy of one built-in
+  instruction variant (Lite, Standard, Pro, Scout, Quick), kept in the profile and selected per
+  variant for the profile or for this project (the project choice wins).
+- Desktop: Settings → Instructions has "Instruction presets". For each variant it shows what is
+  in use here (built-in, profile or project) and offers profile and project choices (choosing
+  "Built-in instructions" / "Use the profile choice" clears that scope). Presets can be
+  created from a built-in variant, edited, checked (`validate`), previewed against the current
+  session's tools and tier (`preview`, newest request only), saved, and deleted after a
+  confirmation. Saves send the read revision, so the engine refuses a preset changed
+  elsewhere. When the built-in text changed since a preset was based on it, the editor shows
+  the current built-in text, and saving with "I reviewed the updated built-in text" records it
+  as the new base without changing the preset text. Engine errors arrive in the reply's
+  `error` and are shown.
+- Checks: desktop `system-prompt-presets.test.ts` (catalog parsing and unknown variants,
+  project-over-profile selection, issues) was written with the change. Desktop suite
+  **616 PASS**, typecheck and Biome PASS. No engine change. No native step yet; it writes the
+  profile's instruction files, so the native pass needs an isolated profile.
