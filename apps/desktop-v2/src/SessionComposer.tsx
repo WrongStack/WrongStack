@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { AgentModeControl } from './AgentModeControl';
 import { AutoContinue } from './AutoContinue';
 import { AutonomyControl } from './AutonomyControl';
 import { autoContinueStep, sessionAutonomy } from './autonomy-model';
@@ -783,6 +784,11 @@ export function SessionComposer({
             mode={sessionAutonomy(state.results['prefs.updated']).mode}
             command={command}
             disabled={!state.connected || state.needsSetup}
+          />
+          <AgentModeControl
+            command={command}
+            announced={String(state.results['session.start']?.['mode'] ?? '')}
+            disabled={!state.connected || state.running}
           />
           <div className="composer-actions">
             <button

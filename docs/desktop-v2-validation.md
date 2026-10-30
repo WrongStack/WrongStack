@@ -4918,3 +4918,14 @@ staged; the other session's edits stay untouched.
   preference, the countdown and mode list markup) was written with the change; no separate RED
   run. Desktop suite **630 PASS**, typecheck and Biome PASS. No engine change. The countdown is
   not in a native scenario yet (native runs are batched at the end).
+
+### Agent mode per conversation
+
+- `modes.list` / `mode.switch` had no desktop control. When the engine has installed modes, the
+  composer toolbar shows an agent-mode select (Default mode plus each installed mode; the title
+  is the mode's description). It is disabled while the agent runs. The engine records the
+  switch as `mode_changed` in this conversation's transcript and re-announces the session with
+  the new mode; the control prefers that announced mode and otherwise the mode store's active
+  one. An engine without a mode store, or with no installed modes, shows nothing.
+- Checks: `agentModes` parsing was added to `autonomy-model.test.ts` with the change; no
+  separate RED run. Desktop suite **631 PASS**, typecheck and Biome PASS. No engine change.

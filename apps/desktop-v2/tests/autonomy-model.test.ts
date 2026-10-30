@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { agentModes } from '../src/AgentModeControl';
 import { AutoContinue } from '../src/AutoContinue';
 import { AutonomyControl } from '../src/AutonomyControl';
 import {
@@ -54,5 +55,31 @@ describe('conversation continuation', () => {
     expect(html).toContain('Continuation: not reported');
     for (const label of ['Manual', 'Suggest next steps', 'Continue automatically', 'Eternal'])
       expect(html).toContain(label);
+  });
+});
+
+describe('agent modes', () => {
+  it('lists installed modes without the built-in default and reads the active one', () => {
+    expect(
+      agentModes({
+        modes: [
+          { id: 'default', name: 'Default' },
+          { id: 'review', name: 'Reviewer', description: 'Read-only review' },
+          { id: 'plain' },
+          { name: 'no id' },
+        ],
+        activeId: 'review',
+      }),
+    ).toEqual({
+      modes: [
+        { id: 'review', name: 'Reviewer', description: 'Read-only review' },
+        { id: 'plain', name: 'plain', description: '' },
+      ],
+      activeId: 'review',
+    });
+    expect(agentModes({ modes: [], error: 'Mode store not available' })).toEqual({
+      modes: [],
+      activeId: 'default',
+    });
   });
 });

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T09:36:13.786Z",
+  "generatedAt": "2026-10-30T09:38:33.037Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5522,
+    "sourceFiles": 5523,
     "testFiles": 4810,
-    "sourceLines": 1214060,
+    "sourceLines": 1214155,
     "workspaceEdges": 222,
-    "moduleEdges": 16556,
+    "moduleEdges": 16559,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 152,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1003
+    "testOnlyExports": 1004
   },
   "errors": [],
   "packageCycles": [],
@@ -385,7 +385,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 328,
+      "sourceFiles": 329,
       "testFiles": 152,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -31995,8 +31995,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1127,
-      "relativeImports": 30
+      "lines": 1133,
+      "relativeImports": 31
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -32027,8 +32027,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1127,
-      "relativeImports": 30
+      "lines": 1133,
+      "relativeImports": 31
     },
     {
       "file": "packages/webui/src/components/codemap-model.ts",
@@ -32262,6 +32262,10 @@
     }
   ],
   "testOnlyExports": [
+    {
+      "file": "apps/desktop-v2/src/AgentModeControl.tsx",
+      "name": "agentModes"
+    },
     {
       "file": "apps/desktop-v2/src/appearance.ts",
       "name": "hslHex"
