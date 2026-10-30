@@ -2,6 +2,7 @@ import { Save, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { McpSecretMapEditor } from './McpSecretMapEditor';
 import { Modal } from './Modal';
 import { prepareSettingsPatch, sameSetting } from './settings-save-model';
 import './mcp-connection.css';
@@ -22,12 +23,15 @@ export function McpConnectionEditor({
   onClose,
   onSaved,
   onRefresh,
+  secretMaps = false,
 }: {
   server: Record<string, unknown>;
   command: EngineCommand;
   onClose: () => void;
   onSaved: () => void;
   onRefresh: () => void;
+  /** The engine keeps masked env and header values on update (`mcp.masked-headers`). */
+  secretMaps?: boolean | undefined;
 }) {
   const [snapshot, setSnapshot] = useState(server),
     [base, setBase] = useState(() => editable(server)),
@@ -210,7 +214,28 @@ export function McpConnectionEditor({
             Start lazily when a capability is needed
           </label>
         </fieldset>
-        {Object.keys(record(snapshot['env'])).length > 0 && (
+        {secretMaps &&
+          (['env', 'headers'] as const)
+            .filter(
+              (kind) =>
+                kind === 'env' ||
+                draft.transport !== 'stdio' ||
+                Object.keys(record(snapshot[kind])).length > 0,
+            )
+            .map((kind) => (
+              <McpSecretMapEditor
+                key={`${kind}:${JSON.stringify(Object.entries(record(snapshot[kind])))}`}
+                kind={kind}
+                name={name}
+                map={record(snapshot[kind])}
+                command={command}
+                onSaved={(after) => {
+                  setSnapshot((current) => ({ ...current, [kind]: after }));
+                  onRefresh();
+                }}
+              />
+            ))}
+        {!secretMaps && Object.keys(record(snapshot['env'])).length > 0 && (
           <details>
             <summary>Stored environment names</summary>
             <p>

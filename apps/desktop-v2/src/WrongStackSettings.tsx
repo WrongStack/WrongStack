@@ -395,7 +395,14 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
           ) : section === 'models' || section === 'brain' ? null : section === 'skills' ? (
             <SkillLibrary command={command} scope="profile" />
           ) : section === 'integrations' ? (
-            <IntegrationSettings command={command} />
+            <IntegrationSettings
+              command={command}
+              capabilities={
+                Array.isArray(state.results['session.start']?.['protocolCapabilities'])
+                  ? (state.results['session.start']['protocolCapabilities'] as unknown[])
+                  : []
+              }
+            />
           ) : section === 'health' ? (
             <>
               <ProviderHealth state={state} command={command} />

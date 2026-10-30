@@ -53,3 +53,32 @@
 .mcp-connection-review > button {
   margin: 8px 8px 0 0;
 }
+.mcp-secret-map {
+  display: grid;
+  gap: 8px;
+}
+.mcp-secret-map ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mcp-secret-map li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.mcp-secret-map li code {
+  min-width: 10ch;
+}
+.mcp-secret-map li.mcp-secret-removed span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.mcp-secret-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

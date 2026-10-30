@@ -10,7 +10,14 @@ const McpConnectionEditor = lazy(() =>
   import('./McpConnectionEditor').then((module) => ({ default: module.McpConnectionEditor })),
 );
 
-export function IntegrationSettings({ command }: { command: EngineCommand }) {
+export function IntegrationSettings({
+  command,
+  capabilities = [],
+}: {
+  command: EngineCommand;
+  /** Protocol capabilities of the connected engine. */
+  capabilities?: readonly unknown[] | undefined;
+}) {
   const [servers, setServers] = useState<Record<string, unknown>[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(''),
@@ -270,6 +277,7 @@ export function IntegrationSettings({ command }: { command: EngineCommand }) {
             key={String(editing['name'])}
             server={editing}
             command={command}
+            secretMaps={capabilities.includes('mcp.masked-headers')}
             onRefresh={() => void load().catch((error) => setError(String(error)))}
             onClose={() => setEditing(null)}
             onSaved={() => {
