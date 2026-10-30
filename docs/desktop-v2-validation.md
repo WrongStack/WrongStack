@@ -5286,3 +5286,25 @@ staged; the other session's edits stay untouched.
   exists, and rename once on other platforms. The test then passed 5 of 5 runs with its file;
   `webui-server` typecheck clean.
 
+### Native follow-up: recovery records, queue audit and bulk copy (2026-10-30)
+
+- Builds `b2f637e5c411-225ec865bfbf` and, after the bulk copy fix, `15ad0bde69c2-8211c70eeed6`.
+  `recovery` passed (26 s) including the new recovery-records check after redo and the second
+  rewind. `composer` passed (203 s). `default` passed on its fifth run (516 s), with the bulk
+  folder copy and the Kanban queue audit step.
+- Failures on the way, in order:
+  - The bulk folder copy failed with EPERM (fixed in the engine, see the entry above).
+  - The second opening of "Agent model plan" after a page reload failed three times. The
+    diagnostics showed the menu button missing, not disabled: the composer reconnects and
+    re-renders after a reload, which closes the options menu. The step now reopens the menu
+    until the action is available (45 s), and on failure prints the composer error, notice,
+    running state, send state and how many plan buttons exist. This is a harness fix; whether
+    the product should keep the menu open across a reconnect was not changed.
+  - The queue audit reported "Audit failed: Missing or stale card reviews: <card>". This is the
+    engine's real answer: the hosted supervisor in agentic mode asks the model to review active
+    cards, and the fixture model writes none. The UI showed it as intended. The native step now
+    requires the reported result line whatever its status, and the confirmation text says that
+    an audit can ask a model to review cards and that an unfinished review is a failed audit.
+- Not covered natively: the Goal/SDD mirror boards (needs a model-backed Goal run) and the SAGE
+  injection inspector (fixtures seed no memories).
+
