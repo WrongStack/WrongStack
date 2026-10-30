@@ -4956,3 +4956,25 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `provider-connection-wiring.test.ts` (list parsing, the saved allowlist and
   endpoint projection) was written with the change; no separate RED run. Desktop suite
   **634 PASS**, typecheck and Biome PASS. No engine change.
+
+### Agent browser live view
+
+- `browser.live.*` had no desktop view. When the conversation's agent has a browser open, an
+  "Agent browser" panel appears above the composer. Opening it starts `browser.live.watch`;
+  closing it (or leaving the conversation) sends `browser.live.unwatch`. With several browsers a
+  select chooses which one. The panel shows the page URL, the live picture, and the recent
+  console and network entries from `browser.live.details`.
+- Frames do not go through the conversation's event log. The engine screencast sends up to ten
+  frames a second; the native bridge (`src-tauri/src/engine.rs`) keeps only the newest
+  `browser.live.frame` in memory with a sequence number and never writes frames to
+  `<session>.events.jsonl`. The panel reads it with the new host command
+  `engine.browser_frame {id, after}` every 150 ms while open.
+- Clicking the picture sends `browser.live.pick` with the normalized point (90 s timeout) and
+  shows the element (tag, role, selector, text). "Add to message" appends the element context to
+  the draft with the same untrusted-context note as WebUI. Unlike WebUI, the cropped element
+  image is not attached. No input is sent to the page.
+- Checks: cargo `engine::tests::live_browser_frames_bypass_the_event_log` and desktop
+  `session-browser.test.ts` (list/details parsing, selection prompt) were written with the
+  change; no separate RED run. Cargo engine tests 3/3, desktop suite **636 PASS**, typecheck and
+  Biome PASS. No engine change. A native scenario needs a real agent browser and is part of the
+  final pass.

@@ -17,6 +17,7 @@ import { CopyButton } from './CopyButton';
 import type { ComposerAttachment } from './composer-attachments';
 import type { SubmitMode } from './composer-model';
 import {
+  appendToDraft,
   type ComposerFileReference,
   referenceKey,
   referenceLabel,
@@ -34,6 +35,7 @@ import { markdownTarget } from './markdown-target';
 import { ProjectSessionTools } from './ProjectSessionTools';
 import { openExternal, sessionObjectDraftStorage } from './platform';
 import { SessionActivity } from './SessionActivity';
+import { SessionBrowser } from './SessionBrowser';
 import { SessionComposer } from './SessionComposer';
 import { SessionRecovery } from './SessionRecovery';
 import { SessionTodos } from './SessionTodos';
@@ -410,6 +412,13 @@ export function EngineWorkspace({
           <FallbackPicker state={state} send={send} />
           <SessionTodos state={state} command={command} />
           <SessionWorklist state={state} command={command} />
+          <SessionBrowser
+            id={id}
+            state={state}
+            send={send}
+            command={command}
+            onAddToPrompt={(text) => void onDraftChange(appendToDraft(draft, text))}
+          />
           {state.inputs.length > 0 ? (
             <div className="input-waiting-controls">
               <span>Answer the form to continue.</span>

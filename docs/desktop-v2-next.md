@@ -313,8 +313,8 @@ transport messages (`session.new/resume/save/delete`, `projects.*`, `terminal.*`
 
 - (`autonomy.switch`, the next-steps auto-continue and `mode.switch` / `modes.list` landed
   2026-10-30; see the validation log.)
-- `browser.live.watch/unwatch/pick`, `browser.policy`: live browser view, element pick and
-  network policy (session processes: browser selection, preview controls, watcher).
+- `browser.policy` (`/browser`, `/network` network allowances). The live view
+  (`browser.live.list/watch/unwatch/pick`) landed 2026-10-30.
 - `collab.*`: multi-participant control, annotations and tool injection. They need a
   participant/identity model in the desktop first.
 - `completion.request` (inline editor completion). `key.update` is the same upsert as

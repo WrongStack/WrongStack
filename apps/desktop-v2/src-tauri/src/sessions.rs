@@ -164,6 +164,14 @@ impl HostState {
                     p["operationId"].as_str(),
                 )
             }
+            "engine.browser_frame" => {
+                let live = self.live.lock().map_err(err)?;
+                Ok(live
+                    .get(field(p, "id")?)
+                    .and_then(|s| s.engine.as_ref())
+                    .ok_or("Engine is still starting")?
+                    .live_frame(p["after"].as_u64().unwrap_or(0)))
+            }
             "engine.identity" => {
                 let live = self.live.lock().map_err(err)?;
                 Ok(live

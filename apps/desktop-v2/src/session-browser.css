@@ -1,0 +1,32 @@
+.session-browser select {
+  margin: 6px 0;
+}
+.session-browser-frame {
+  display: block;
+  max-width: 100%;
+  margin: 6px 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: crosshair;
+}
+.session-browser-frame img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.session-browser-selection {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.session-browser-selection code {
+  overflow-wrap: anywhere;
+}
+.session-browser-log ol {
+  max-height: 200px;
+  overflow: auto;
+  font-size: 11px;
+}

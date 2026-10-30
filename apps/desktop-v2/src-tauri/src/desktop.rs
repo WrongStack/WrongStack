@@ -144,6 +144,7 @@ async fn host_request(
         "engine.http",
         "engine.events",
         "engine.identity",
+        "engine.browser_frame",
         "settings.save",
         "draft.save",
         "draft.get",

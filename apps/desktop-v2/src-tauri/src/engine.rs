@@ -22,7 +22,15 @@ pub struct Engine {
     sender: SyncSender<Value>,
     pub connected: AtomicBool,
     identity: Mutex<Value>,
+    /// The newest `browser.live.frame` and its sequence number. A screencast sends up to ten
+    /// frames a second; they are kept in memory only, never in the event log on disk.
+    live_frame: Mutex<(u64, Value)>,
     path: PathBuf,
+}
+
+/// Whether an engine message is a live browser frame that bypasses the event log.
+pub(crate) fn is_live_frame(message: &Value) -> bool {
+    message["type"] == "browser.live.frame"
 }
 
 fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
@@ -38,10 +46,23 @@ fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{scope_message, Engine};
+    use super::{is_live_frame, scope_message, Engine};
     use serde_json::json;
     use std::fs;
     use uuid::Uuid;
+
+    #[test]
+    fn live_browser_frames_bypass_the_event_log() {
+        assert!(is_live_frame(
+            &json!({"type": "browser.live.frame", "payload": {"data": "x"}})
+        ));
+        assert!(!is_live_frame(
+            &json!({"type": "browser.live.details", "payload": {}})
+        ));
+        assert!(!is_live_frame(
+            &json!({"type": "session.start", "payload": {}})
+        ));
+    }
 
     #[test]
     fn project_requests_preserve_project_scope_and_session_requests_bind_identity() {
@@ -121,6 +142,7 @@ impl Engine {
             sender,
             connected: AtomicBool::new(true),
             identity: Mutex::new(json!({})),
+            live_frame: Mutex::new((0, Value::Null)),
             path: path.into(),
         });
         let owner = Arc::clone(&engine);
@@ -145,6 +167,11 @@ impl Engine {
                     match socket.read() {
                         Ok(Message::Text(text)) => {
                             let message: Value = serde_json::from_str(&text).map_err(err)?;
+                            if is_live_frame(&message) {
+                                let mut frame = owner.live_frame.lock().map_err(err)?;
+                                *frame = (frame.0 + 1, message["payload"].clone());
+                                continue;
+                            }
                             if message["type"] == "session.start" {
                                 let mut identity = owner.identity.lock().map_err(err)?;
                                 *identity = message["payload"].clone();
@@ -194,6 +221,19 @@ impl Engine {
         }
         self.sender.try_send(message).map_err(err)?;
         Ok(Value::Null)
+    }
+    /// The newest live browser frame when it is newer than `after`, else null.
+    pub fn live_frame(&self, after: u64) -> Value {
+        self.live_frame
+            .lock()
+            .map(|frame| {
+                if frame.0 > after && !frame.1.is_null() {
+                    json!({"seq": frame.0, "frame": frame.1})
+                } else {
+                    Value::Null
+                }
+            })
+            .unwrap_or(Value::Null)
     }
     pub fn identity(&self) -> Value {
         self.identity

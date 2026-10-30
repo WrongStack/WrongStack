@@ -137,6 +137,11 @@
     "apps/desktop-v2/src/SddDependencyGraph.tsx": [
       "sddGraphElements"
     ],
+    "apps/desktop-v2/src/SessionBrowser.tsx": [
+      "liveBrowserDetails",
+      "liveBrowsers",
+      "selectionPrompt"
+    ],
     "apps/desktop-v2/src/SessionRecovery.tsx": [
       "RewoundPrompt"
     ],

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T09:53:02.831Z",
+  "generatedAt": "2026-10-30T09:57:46.344Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5525,
-    "testFiles": 4812,
-    "sourceLines": 1214536,
+    "sourceFiles": 5526,
+    "testFiles": 4813,
+    "sourceLines": 1214812,
     "workspaceEdges": 222,
-    "moduleEdges": 16565,
+    "moduleEdges": 16570,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 154,
+    "testsWithoutTypecheck": 155,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1006
+    "testOnlyExports": 1009
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 331,
-      "testFiles": 154,
+      "sourceFiles": 332,
+      "testFiles": 155,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2045,6 +2045,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-agent-plan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-browser.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31056,6 +31062,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/session-browser.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/session-layout.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31698,6 +31711,11 @@
     {
       "from": "apps/desktop-v2/src/SessionAgentPlan.tsx",
       "specifier": "./session-agent-plan.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SessionBrowser.tsx",
+      "specifier": "./session-browser.css",
       "syntax": "import"
     },
     {
@@ -32508,6 +32526,18 @@
     {
       "file": "apps/desktop-v2/src/SddDependencyGraph.tsx",
       "name": "sddGraphElements"
+    },
+    {
+      "file": "apps/desktop-v2/src/SessionBrowser.tsx",
+      "name": "liveBrowserDetails"
+    },
+    {
+      "file": "apps/desktop-v2/src/SessionBrowser.tsx",
+      "name": "liveBrowsers"
+    },
+    {
+      "file": "apps/desktop-v2/src/SessionBrowser.tsx",
+      "name": "selectionPrompt"
     },
     {
       "file": "apps/desktop-v2/src/SessionRecovery.tsx",
