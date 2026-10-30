@@ -56,6 +56,9 @@
     "apps/desktop-v2/src/input-form-model.ts": [
       "answerFor"
     ],
+    "apps/desktop-v2/src/KanbanBoardDialog.tsx": [
+      "boardListTasks"
+    ],
     "apps/desktop-v2/src/mailbox-draft.ts": [
       "MailboxDraftStore",
       "mailDraftCodec"

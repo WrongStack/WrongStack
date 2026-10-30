@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { BoardDialog } from './KanbanBoardDialog';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
 import { KanbanTaskInspector } from './KanbanTaskInspector';
 import { Modal } from './Modal';
@@ -535,6 +536,17 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
               setCreating(false);
             })
           }
+          onGenerate={(title, list) =>
+            void run(async () => {
+              const reply = await command('kanban.generate', { title, description: list }, [
+                'kanban.generate',
+              ]);
+              const saved = record(reply['data']);
+              await loadBoards();
+              setBoardId(String(saved['id']));
+              setCreating(false);
+            })
+          }
         />
       )}
       {move && (
@@ -565,77 +577,6 @@ export function ProjectKanban({ command }: { command: EngineCommand }) {
         />
       )}
     </section>
-  );
-}
-function BoardDialog({
-  busy,
-  onClose,
-  onCreate,
-}: {
-  busy: boolean;
-  onClose: () => void;
-  onCreate: (title: string, description: string) => void;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    ref.current?.showModal();
-  }, []);
-  const [title, setTitle] = useState(''),
-    [description, setDescription] = useState('');
-  return (
-    <dialog ref={ref} className="modal" aria-label="Create project board" onCancel={onClose}>
-      <header>
-        <div>
-          <span className="eyebrow">PROJECT PLANNING</span>
-          <h2>A place for the work.</h2>
-        </div>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Cancel board creation"
-          onClick={onClose}
-        >
-          <X size={16} />
-        </button>
-      </header>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          onCreate(title.trim(), description);
-        }}
-      >
-        <label>
-          Board name
-          <input
-            aria-label="Board name"
-            required
-            autoFocus
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Product roadmap"
-          />
-        </label>
-        <label>
-          Description
-          <textarea
-            aria-label="Board description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            rows={3}
-            placeholder="What does this board help your project accomplish?"
-          />
-        </label>
-        <footer>
-          <button type="button" className="button secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="button primary" disabled={busy || !title.trim()}>
-            <Plus size={14} />
-            Create board
-          </button>
-        </footer>
-      </form>
-    </dialog>
   );
 }
 function TransitionDialog({

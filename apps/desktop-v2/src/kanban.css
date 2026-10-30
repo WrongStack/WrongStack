@@ -643,3 +643,24 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+.board-create-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  border: 0;
+  padding: 0;
+}
+.board-create-mode label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.board-create-preview {
+  max-height: 200px;
+  overflow: auto;
+  font-size: 12px;
+}
+.board-create-preview ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}

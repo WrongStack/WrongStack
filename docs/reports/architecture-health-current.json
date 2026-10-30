@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T07:59:28.397Z",
+  "generatedAt": "2026-10-30T08:08:31.960Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5504,
-    "testFiles": 4796,
-    "sourceLines": 1211437,
+    "sourceFiles": 5505,
+    "testFiles": 4797,
+    "sourceLines": 1211532,
     "workspaceEdges": 222,
-    "moduleEdges": 16506,
+    "moduleEdges": 16507,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 140,
+    "testsWithoutTypecheck": 141,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 993
+    "testOnlyExports": 994
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 312,
-      "testFiles": 140,
+      "sourceFiles": 313,
+      "testFiles": 141,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1613,6 +1613,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/journal-paging.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/kanban-board-dialog.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30456,6 +30462,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/kanban-board-dialog.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-boundary-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31751,11 +31764,6 @@
       "relativeImports": 6
     },
     {
-      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 704,
-      "relativeImports": 6
-    },
-    {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
       "lines": 939,
       "relativeImports": 9
@@ -32033,11 +32041,6 @@
       "relativeImports": 5
     },
     {
-      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 704,
-      "relativeImports": 6
-    },
-    {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
@@ -32051,6 +32054,11 @@
       "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
+      "lines": 701,
+      "relativeImports": 8
     }
   ],
   "testOnlyExports": [
@@ -32145,6 +32153,10 @@
     {
       "file": "apps/desktop-v2/src/input-form-model.ts",
       "name": "answerFor"
+    },
+    {
+      "file": "apps/desktop-v2/src/KanbanBoardDialog.tsx",
+      "name": "boardListTasks"
     },
     {
       "file": "apps/desktop-v2/src/mailbox-draft.ts",
