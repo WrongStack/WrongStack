@@ -122,6 +122,9 @@
     "apps/desktop-v2/src/SessionRecovery.tsx": [
       "RewoundPrompt"
     ],
+    "apps/desktop-v2/src/SessionWorklist.tsx": [
+      "planItems"
+    ],
     "apps/desktop-v2/src/usePersistedFields.tsx": [
       "fieldsCodec"
     ],

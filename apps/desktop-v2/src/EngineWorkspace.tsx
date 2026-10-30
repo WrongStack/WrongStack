@@ -37,6 +37,7 @@ import { SessionActivity } from './SessionActivity';
 import { SessionComposer } from './SessionComposer';
 import { SessionRecovery } from './SessionRecovery';
 import { SessionTodos } from './SessionTodos';
+import { SessionWorklist } from './SessionWorklist';
 import { inlineUsageEstimate } from './session-usage-model';
 import { ToolApprovalCard } from './ToolApprovalCard';
 import type { ProjectPage } from './useDesktop';
@@ -408,6 +409,7 @@ export function EngineWorkspace({
           )}
           <FallbackPicker state={state} send={send} />
           <SessionTodos state={state} command={command} />
+          <SessionWorklist state={state} command={command} />
           {state.inputs.length > 0 ? (
             <div className="input-waiting-controls">
               <span>Answer the form to continue.</span>
