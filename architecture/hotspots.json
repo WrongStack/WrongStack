@@ -191,8 +191,8 @@
       "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectSdd.tsx": {
-      "lines": 766,
-      "relativeImports": 11
+      "lines": 780,
+      "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectSessionHistory.tsx": {
       "lines": 736,

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T21:31:32.035Z",
+  "generatedAt": "2026-10-30T21:44:40.041Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 45,
     "sourceFiles": 5546,
     "testFiles": 4829,
-    "sourceLines": 1217227,
+    "sourceLines": 1217245,
     "workspaceEdges": 222,
-    "moduleEdges": 16629,
+    "moduleEdges": 16630,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -32233,8 +32233,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 766,
-      "relativeImports": 11
+      "lines": 780,
+      "relativeImports": 12
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
@@ -32359,6 +32359,11 @@
       "relativeImports": 8
     },
     {
+      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
+      "lines": 780,
+      "relativeImports": 12
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
       "lines": 778,
       "relativeImports": 10
@@ -32372,11 +32377,6 @@
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 766,
-      "relativeImports": 11
     },
     {
       "file": "packages/webui-server/src/server/provider-routes.ts",

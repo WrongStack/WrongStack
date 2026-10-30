@@ -12,6 +12,7 @@ import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineHttp } from './engine-http';
 import type { EngineSend } from './engine-operations';
 import { type EngineState, entries, record } from './engine-state';
+import type { RunFocus } from './kanban-board-source';
 import { ProjectRequirements } from './ProjectRequirements';
 import type { RequirementDraftStorage } from './requirement-draft';
 import type { RequirementRecordDraftStorageFactory } from './requirement-record-draft';
@@ -34,6 +35,7 @@ export function ProjectSdd({
   draftStorage,
   recordDraftStorage,
   resourceInputStorage,
+  onKanban,
 }: {
   state: EngineState;
   send: EngineSend;
@@ -41,6 +43,8 @@ export function ProjectSdd({
   draftStorage?: RequirementDraftStorage;
   recordDraftStorage?: RequirementRecordDraftStorageFactory;
   resourceInputStorage?: (formKey: string) => FormDraftStorage;
+  /** Opens Kanban on the board that mirrors an SDD run. */
+  onKanban?: ((focus: RunFocus) => void) | undefined;
 }) {
   const [view, setView] = useState<'requirements' | 'interview' | 'specs' | 'runs'>('interview');
   const [transfer, setTransfer] = useState<string | null>(null);
@@ -633,6 +637,16 @@ export function ProjectSdd({
                 <h2>{text(board['title'], 'SDD run')}</h2>
                 <div className="sdd-actions">
                   <span className="sdd-chip">{readable(board['status'])}</span>
+                  {onKanban && (
+                    <button
+                      type="button"
+                      className="button secondary"
+                      title="Open the Kanban board that mirrors this run"
+                      onClick={() => onKanban({ system: 'sdd', runId })}
+                    >
+                      Open run board
+                    </button>
+                  )}
                   {board['status'] === 'running' && (
                     <button
                       type="button"

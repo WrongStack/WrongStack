@@ -100,7 +100,7 @@ export function ProjectKanban({
       setFocusNote('');
     } else
       setFocusNote(
-        'This goal has no mirror board yet. Its board appears here once the run has started.',
+        `This ${focus.system === 'goal' ? 'goal' : 'SDD run'} has no mirror board yet. Its board appears here once the run updates it.`,
       );
   }, [focus, boards]);
   useEffect(() => {

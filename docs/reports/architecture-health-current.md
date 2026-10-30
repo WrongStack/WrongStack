@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-30T21:31:32.035Z
+**Generated:** 2026-10-30T21:44:40.041Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 45 |
 | Production source files | 5546 |
-| Production source lines | 1217227 |
+| Production source lines | 1217245 |
 | Test files | 4829 |
 | Workspace dependency edges | 222 |
-| Relative module edges | 16629 |
+| Relative module edges | 16630 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
@@ -108,10 +108,10 @@ None.
 | 800 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 786 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
+| 780 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 778 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 777 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 766 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 766 | `packages/webui-server/src/server/provider-routes.ts` |
 | 756 | `packages/cli/src/fleet/host-skill-companion.ts` |
 | 754 | `packages/client/src/client.ts` |

@@ -5249,6 +5249,9 @@ staged; the other session's edits stay untouched.
   or the run's most recently updated board, and says so when the run has no board yet. Run
   identity comes from the mirror's tags (`goal`/`sdd`, `run:<id>`, `phase:<id>`); a goal's id is
   its graph id. Test: `kanban-board-source.test.ts`.
+- The SDD page's current board has "Open run board", which opens the board tagged with that
+  run's id (the mirror tags SDD boards with the snapshot's `runId`), or says the run has no board
+  yet (2026-10-30).
 - Checks: `webui-server` 355 files / 3393 tests; desktop 167 files / 664 tests; both typechecks
   clean. A real Goal run reaching a mirror board in the desktop needs a native pass with a
   model-backed Goal run; that has not been run yet.

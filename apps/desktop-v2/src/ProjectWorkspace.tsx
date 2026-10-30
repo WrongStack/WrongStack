@@ -321,6 +321,10 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           draftStorage={requirementDrafts}
           recordDraftStorage={recordDraftStorage}
           resourceInputStorage={resourceInputStorage}
+          onKanban={(focus) => {
+            setKanbanFocus({ ...focus, nonce: Date.now() });
+            vm.setProjectPage('kanban');
+          }}
         />
       ) : vm.projectPage === 'atlas' ? (
         <CodeAtlas
