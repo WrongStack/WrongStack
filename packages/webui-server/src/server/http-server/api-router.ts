@@ -239,7 +239,7 @@ export async function handleApiRoutes(
 
   if (url.pathname === '/api/fleet/broadcast' && req.method === 'POST') {
     if (requireAccessToken && !accessTokenOk) return unauthorized(res);
-    await handleApiFleetBroadcast(res, req, deps.globalRoot);
+    await handleApiFleetBroadcast(res, req, deps.globalRoot, deps.projectRoot);
     return true;
   }
 

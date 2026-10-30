@@ -432,6 +432,38 @@ export async function handleApiSessionInterrupt(
   }
 }
 
+/** Same directory, ignoring separator style and (on Windows) case. */
+function sameProjectRoot(a: string, b: string): boolean {
+  const norm = (value: string) => {
+    const plain = value
+      .replace(/^\\\\\?\\/, '')
+      .replace(/\\/g, '/')
+      .replace(/\/+$/, '');
+    return process.platform === 'win32' ? plain.toLowerCase() : plain;
+  };
+  return norm(a) === norm(b);
+}
+
+/**
+ * The sessions a fleet broadcast reaches: non-stale sessions of the host's own project. The
+ * project is the host process's own registered session's, else the host's project root. With
+ * neither known nothing is addressed — a broadcast must never reach other projects' leaders.
+ */
+export function fleetBroadcastTargets<
+  T extends { pid: number; projectSlug: string; projectRoot: string; status: string },
+>(all: readonly T[], hostPid: number, projectRoot: string | undefined): T[] {
+  const mySlug = all.find((s) => s.pid === hostPid)?.projectSlug;
+  return all
+    .filter((s) => s.status !== 'stale')
+    .filter((s) =>
+      mySlug
+        ? s.projectSlug === mySlug
+        : projectRoot
+          ? sameProjectRoot(s.projectRoot, projectRoot)
+          : false,
+    );
+}
+
 /**
  * POST /api/fleet/broadcast — send one message to every live session's leader.
  *
@@ -444,6 +476,7 @@ export async function handleApiFleetBroadcast(
   res: http.ServerResponse,
   req: http.IncomingMessage,
   globalRoot: string | undefined,
+  projectRoot?: string | undefined,
 ): Promise<void> {
   if (!globalRoot) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -475,12 +508,8 @@ export async function handleApiFleetBroadcast(
     const registry = getSessionRegistry(globalRoot);
     const probe = registryFailureSink('broadcast');
     const all = await registry.list({ onProjectFailure: probe.onProjectFailure });
-    // Scope to the WebUI host's own project (its pid's entry), like the live
-    // status poll does. Fall back to every non-stale session if not found.
-    const mySlug = all.find((s) => s.pid === process.pid)?.projectSlug;
-    const targets = all
-      .filter((s) => s.status !== 'stale')
-      .filter((s) => (mySlug ? s.projectSlug === mySlug : true));
+    // Scope to the WebUI host's own project, like the live status poll does.
+    const targets = fleetBroadcastTargets(all, process.pid, projectRoot);
     if (targets.length === 0) {
       // `list()` swallowed a per-project failure, so "no live sessions" and
       // "the catalog could not be read" are indistinguishable here. Report

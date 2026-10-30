@@ -198,6 +198,7 @@ describe('handleApiRoutes — session and fleet routes', () => {
       expect.anything(),
       expect.anything(),
       '/global',
+      '/proj',
     );
   });
 
