@@ -166,3 +166,8 @@
   overflow-wrap: anywhere;
   font-size: 12px;
 }
+.tool-input-files {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+}

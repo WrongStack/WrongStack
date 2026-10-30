@@ -42,6 +42,50 @@ describe('tool-specific input views', () => {
       cwd: 'pkg',
     });
     expect(toolInputView('edit', { path: 'a.ts' })).toEqual({ kind: 'generic' });
-    expect(toolInputView('grep', { pattern: 'x' })).toEqual({ kind: 'generic' });
+    expect(toolInputView('fetch', { url: 'https://x.test' })).toEqual({ kind: 'generic' });
+  });
+});
+
+describe('read, search, replace and exec views', () => {
+  it('describes a read range', () => {
+    expect(toolInputView('read', { path: 'a.ts', offset: 10, limit: 5 })).toEqual({
+      kind: 'read',
+      path: 'a.ts',
+      range: 'lines 10–14',
+    });
+    expect(toolInputView('read', { path: 'a.ts' })).toMatchObject({ range: 'whole file' });
+  });
+
+  it('describes a search with its scope and options', () => {
+    expect(
+      toolInputView('grep', {
+        pattern: 'TODO',
+        path: 'src',
+        glob: '*.ts',
+        case_insensitive: true,
+        context_lines: 2,
+      }),
+    ).toEqual({
+      kind: 'search',
+      tool: 'grep',
+      pattern: 'TODO',
+      path: 'src',
+      details: ['files *.ts', 'ignore case', '±2 lines'],
+    });
+  });
+
+  it('says whether a replace only previews', () => {
+    expect(
+      toolInputView('replace', { pattern: 'a', replacement: 'b', files: ['x.ts'] }),
+    ).toMatchObject({ kind: 'replace', files: ['x.ts'], details: ['preview only'] });
+    expect(
+      toolInputView('replace', { pattern: 'a', replacement: '', files: 'y.ts', dry_run: false }),
+    ).toMatchObject({ files: ['y.ts'], details: ['writes files'] });
+  });
+
+  it('shows an exec call as one command line, quoting only what needs it', () => {
+    expect(
+      toolInputView('exec', { command: 'git', args: ['commit', '-m', 'two words'], cwd: 'repo' }),
+    ).toEqual({ kind: 'command', command: 'git commit -m "two words"', cwd: 'repo' });
   });
 });

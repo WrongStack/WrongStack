@@ -5141,3 +5141,12 @@ staged; the other session's edits stay untouched.
   then reads both runtimes' mailboxes (a steering message each) and the other project's runtime
   (none). Earlier-message loading, the tool input views and PDF save are not asserted natively.
 
+### More tool-specific input views (2026-10-30)
+
+- The activity view now also gives `exec` one command line (arguments quoted only when needed),
+  `read` its path and line range, `grep`/`glob` the pattern, path and options, and `replace` its
+  pattern, replacement, files and whether it only previews (the tool's default) or writes. Other
+  tools keep the generic structured view.
+- Checks: `tool-input-view.test.ts` extended (read range, search options, replace preview/write,
+  exec quoting), desktop suite **650 PASS**, typecheck and Biome PASS.
+
