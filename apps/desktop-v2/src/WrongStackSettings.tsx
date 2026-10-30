@@ -40,6 +40,7 @@ import { prepareSettingsPatch, sameSetting } from './settings-save-model';
 import './settings-policy.css';
 import { BrainDecisions } from './BrainDecisions';
 import { ConfigDoctor } from './ConfigDoctor';
+import { JevSettings } from './JevSettings';
 import { ModelCatalogSettings } from './ModelCatalogSettings';
 import { ModelVisibilitySettings } from './ModelVisibilitySettings';
 import { ProviderDiagnostics } from './ProviderDiagnostics';
@@ -384,6 +385,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             <div hidden={section !== 'brain'}>
               <BrainPolicySettings command={command} />
               <BrainDecisions command={command} />
+              <JevSettings command={command} />
             </div>
           )}
           {!loaded ? (

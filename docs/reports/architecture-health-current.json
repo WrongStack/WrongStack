@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T09:02:06.071Z",
+  "generatedAt": "2026-10-30T09:04:32.166Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5517,
-    "testFiles": 4807,
-    "sourceLines": 1213417,
+    "sourceFiles": 5518,
+    "testFiles": 4808,
+    "sourceLines": 1213758,
     "workspaceEdges": 222,
-    "moduleEdges": 16543,
+    "moduleEdges": 16546,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 149,
+    "testsWithoutTypecheck": 150,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1000
+    "testOnlyExports": 1001
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 323,
-      "testFiles": 149,
+      "sourceFiles": 324,
+      "testFiles": 150,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1625,6 +1625,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/input-form-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/jev-settings.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30536,6 +30542,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/jev-settings.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/journal-export.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31393,6 +31406,11 @@
     {
       "from": "apps/desktop-v2/src/GitHunkReview.tsx",
       "specifier": "./git-hunk-review.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/JevSettings.tsx",
+      "specifier": "./brain-policy.css",
       "syntax": "import"
     },
     {
@@ -32324,6 +32342,10 @@
     {
       "file": "apps/desktop-v2/src/input-form-model.ts",
       "name": "answerFor"
+    },
+    {
+      "file": "apps/desktop-v2/src/JevSettings.tsx",
+      "name": "jevState"
     },
     {
       "file": "apps/desktop-v2/src/KanbanBoardDialog.tsx",
