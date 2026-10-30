@@ -4841,3 +4841,17 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `brain-decisions.test.ts` (status parsing, newest-first order, each decision
   type) was written with the change. Desktop suite **622 PASS**, typecheck and Biome PASS. No
   engine change. No native step yet.
+
+### Session plan and task lists
+
+- The engine keeps a per-session plan (`plan.get`, `plan.item.update`, `plan.updated`) and
+  task list (`tasks.get`, `task.update`, `tasks.updated`). The desktop showed neither. Next
+  to the todo list above the composer, collapsible "Plan" and "Tasks" panels now appear when
+  they have items. They show progress, and each item's status can be changed while the agent
+  is not running: plan open/in progress/done, task pending/in progress/blocked/review/
+  failed/completed. An unknown stored status is kept as an option, not overwritten. Engine
+  refusals are shown. Applying plan templates is not offered: the engine exposes no list of
+  template names.
+- Checks: desktop `session-worklist.test.ts` (plan and task parsing, empty state, progress and
+  controls) was written with the change. Desktop suite **624 PASS**, typecheck and Biome PASS.
+  No engine change. No native step yet.
