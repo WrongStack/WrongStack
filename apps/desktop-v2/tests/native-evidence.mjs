@@ -93,7 +93,14 @@ export async function exerciseNativeEvidence({ page, rpc, project, waitFor, arti
   );
   await manifest.getByText('9 earlier messages are not itemised', { exact: false }).waitFor();
   assert.ok((await manifest.innerText()).includes('read, edit'));
+  // Drop the provider filter and apply the search so the tool event type is offered again.
+  await page.getByLabel('Chronicle eventType').selectOption('');
   await page.getByLabel('Search Chronicle', { exact: true }).fill('Native Chronicle');
+  await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
+  await page
+    .getByLabel('Chronicle eventType')
+    .locator('option[value="tool.completed"]')
+    .waitFor({ state: 'attached' });
   await page.getByLabel('Chronicle eventType').selectOption('tool.completed');
   await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
   await waitFor(
