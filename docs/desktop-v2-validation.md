@@ -4827,3 +4827,17 @@ staged; the other session's edits stay untouched.
     written with the change. Desktop suite **620 PASS**, typecheck and Biome PASS.
 - Limits: listed in the next-steps follow-up (CLI-hosted per-tab agents; no context-window
   refresh on a hop). No native step yet: it needs a provider fixture that fails retryably.
+
+### Brain decisions and direct questions
+
+- `brain.status` (ceiling, mode, decision log filtered to this conversation plus unattributed
+  entries, with the deciding tier when recorded) and `brain.ask` (a direct question to the
+  configured arbiter, answered with `brain.answer`) were not used by the desktop. Settings →
+  Brain now ends with "Decisions": the current auto-decision ceiling and mode (read-only),
+  the 50 newest decisions, and "Ask the Brain", which shows an answer, the question it would
+  hand to you, or a refusal. Asking can cost a provider call, as the Brain decides.
+  `brain.risk` is deliberately not offered: it changes only the live in-memory ceiling and
+  is not persisted.
+- Checks: desktop `brain-decisions.test.ts` (status parsing, newest-first order, each decision
+  type) was written with the change. Desktop suite **622 PASS**, typecheck and Biome PASS. No
+  engine change. No native step yet.
