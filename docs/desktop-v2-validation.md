@@ -4745,3 +4745,6 @@ staged; the other session's edits stay untouched.
   test. Desktop `goal-revert.test.ts` (baseline validation, hidden without one, outcome text)
   was written with the change. Desktop suite **613 PASS**, typecheck and Biome PASS.
 - No native step yet: a native revert needs a disposable Git fixture project.
+- Side effect: running Biome on `project-goals.css` reformatted the whole file (it was compact
+  one-line CSS that already failed Biome's format check). The commit therefore carries a
+  formatting-only rewrite of that file besides the new rules; no rule changed.
