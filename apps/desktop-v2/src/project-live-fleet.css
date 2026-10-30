@@ -239,3 +239,13 @@
     grid-template-columns: 1fr;
   }
 }
+.fleet-broadcast {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.fleet-broadcast form,
+.fleet-broadcast label {
+  display: grid;
+  gap: 6px;
+}

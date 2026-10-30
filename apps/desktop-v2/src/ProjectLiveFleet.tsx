@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineHttp } from './engine-http';
 import { record } from './engine-values';
 import { FleetActivity } from './FleetActivity';
+import { FleetBroadcast } from './FleetBroadcast';
 import { fleetMailboxAddress, fleetNodeId, projectFleet } from './live-fleet-model';
 import { Modal } from './Modal';
 import type { Session } from './model';
@@ -279,6 +280,7 @@ export function ProjectLiveFleet({
           Refresh live fleet
         </button>
       </header>
+      {sessions.length > 0 && <FleetBroadcast http={http} read={read} onSent={() => void load()} />}
       <div className="live-fleet-metrics">
         <span>
           <strong>{sessions.length}</strong> runtimes

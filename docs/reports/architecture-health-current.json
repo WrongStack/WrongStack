@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T17:27:12.417Z",
+  "generatedAt": "2026-10-30T17:31:55.246Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5527,
-    "testFiles": 4816,
-    "sourceLines": 1215058,
+    "sourceFiles": 5528,
+    "testFiles": 4818,
+    "sourceLines": 1215221,
     "workspaceEdges": 222,
-    "moduleEdges": 16573,
+    "moduleEdges": 16576,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 157,
+    "testsWithoutTypecheck": 158,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1010
+    "testOnlyExports": 1013
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 333,
-      "testFiles": 157,
+      "sourceFiles": 334,
+      "testFiles": 158,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1113,7 +1113,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 322,
-      "testFiles": 354,
+      "testFiles": 355,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1147,7 +1147,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 354
+          "testFiles": 355
         }
       ]
     },
@@ -1601,6 +1601,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/file-tree-rows.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/fleet-broadcast.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25408,6 +25414,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/fleet-broadcast-targets.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/fleet-control-endpoints.test.ts",
         "projects": [
           "root-node"
@@ -30562,6 +30574,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/fleet-broadcast.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/fleet-policy-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32451,6 +32470,14 @@
     {
       "file": "apps/desktop-v2/src/feature-catalog.ts",
       "name": "desktopFeatures"
+    },
+    {
+      "file": "apps/desktop-v2/src/FleetBroadcast.tsx",
+      "name": "broadcastSummary"
+    },
+    {
+      "file": "apps/desktop-v2/src/FleetBroadcast.tsx",
+      "name": "broadcastTargets"
     },
     {
       "file": "apps/desktop-v2/src/GoalRevert.tsx",
@@ -35715,6 +35742,10 @@
     {
       "file": "packages/webui-server/src/server/handlers/worklist-handlers.ts",
       "name": "handlePlanGet"
+    },
+    {
+      "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
+      "name": "fleetBroadcastTargets"
     },
     {
       "file": "packages/webui-server/src/server/pref-config-write.ts",

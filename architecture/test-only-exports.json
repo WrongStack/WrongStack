@@ -67,6 +67,10 @@
     "apps/desktop-v2/src/feature-catalog.ts": [
       "desktopFeatures"
     ],
+    "apps/desktop-v2/src/FleetBroadcast.tsx": [
+      "broadcastSummary",
+      "broadcastTargets"
+    ],
     "apps/desktop-v2/src/GoalRevert.tsx": [
       "goalRevertBaseline",
       "goalRevertOutcome"
@@ -1848,6 +1852,9 @@
     ],
     "packages/webui-server/src/server/handlers/worklist-handlers.ts": [
       "handlePlanGet"
+    ],
+    "packages/webui-server/src/server/http-server/api-handlers.ts": [
+      "fleetBroadcastTargets"
     ],
     "packages/webui-server/src/server/pref-config-write.ts": [
       "writeGlobalConfigFile"
