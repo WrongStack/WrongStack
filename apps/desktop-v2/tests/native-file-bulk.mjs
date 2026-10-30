@@ -167,6 +167,11 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
   } finally {
     await rm(source, { recursive: true, force: true });
     await rm(target, { recursive: true, force: true });
-    await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
+    // A dialog left open by a failed step must not replace that failure with a cleanup timeout.
+    await page.keyboard.press('Escape').catch(() => {});
+    await page
+      .getByRole('button', { name: 'Refresh file manager', exact: true })
+      .click({ timeout: 5000 })
+      .catch(() => {});
   }
 }
