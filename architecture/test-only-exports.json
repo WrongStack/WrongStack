@@ -30,6 +30,9 @@
     "apps/desktop-v2/src/BrainDecisions.tsx": [
       "brainAnswerText"
     ],
+    "apps/desktop-v2/src/BrowserNetworkPolicy.tsx": [
+      "browserPolicyState"
+    ],
     "apps/desktop-v2/src/btw-receipts.ts": [
       "BtwReceiptStore",
       "parseBtwReceipts"

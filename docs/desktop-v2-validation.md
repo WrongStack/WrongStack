@@ -4978,3 +4978,17 @@ staged; the other session's edits stay untouched.
   change; no separate RED run. Cargo engine tests 3/3, desktop suite **636 PASS**, typecheck and
   Biome PASS. No engine change. A native scenario needs a real agent browser and is part of the
   final pass.
+
+### Browser and network access
+
+- `browser.policy` (the `/browser` / `/network` command) had no desktop control, so a desktop
+  user could not let the agent reach a local dev server. Settings → Tool access now has
+  "Browser and network access": the browser setup line, the project's allowed private origins
+  with Remove, an origin field with Allow, "Allow every loopback port" and "Install Chromium"
+  (10-minute timeout, then the status is read again). The engine's own parser normalizes
+  `localhost:3000` shorthand and saves the project policy file; the change applies immediately.
+  The status is parsed from the engine's text reply; an unexpected format leaves the list empty
+  and the engine's message is still shown.
+- Checks: desktop `browser-network-policy.test.ts` failed RED first (the origin list after a
+  save is not at a line start) and passed after the parser fix. Desktop suite **637 PASS**,
+  typecheck and Biome PASS. No engine change.

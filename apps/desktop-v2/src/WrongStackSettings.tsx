@@ -40,6 +40,7 @@ import { prepareSettingsPatch, sameSetting } from './settings-save-model';
 import './settings-policy.css';
 import { BackgroundServices } from './BackgroundServices';
 import { BrainDecisions } from './BrainDecisions';
+import { BrowserNetworkPolicy } from './BrowserNetworkPolicy';
 import { ConfigDoctor } from './ConfigDoctor';
 import { JevSettings } from './JevSettings';
 import { ModelCatalogSettings } from './ModelCatalogSettings';
@@ -434,7 +435,10 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               <SystemPromptPresets command={command} />
             </>
           ) : section === 'tool-access' ? (
-            <ToolAccessSettings command={command} />
+            <>
+              <ToolAccessSettings command={command} />
+              <BrowserNetworkPolicy command={command} />
+            </>
           ) : heading ? (
             <>
               <header className="settings-section-heading">
