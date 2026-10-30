@@ -4,6 +4,7 @@ import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
 import { ProviderOAuth } from './ProviderOAuth';
+import { ProviderProbe } from './ProviderProbe';
 import { buildProviderSave, providerChoices, providerModels } from './provider-settings-model';
 import './provider-management.css';
 
@@ -361,6 +362,7 @@ export function ProviderSettings({
                         </div>
                       </fieldset>
                     )}
+                    <ProviderProbe providerId={provider.id} command={command} />
                   </article>
                 ))}
             </div>

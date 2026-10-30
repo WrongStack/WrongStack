@@ -106,6 +106,9 @@
       "quotaPercent",
       "QuotaReading"
     ],
+    "apps/desktop-v2/src/ProviderProbe.tsx": [
+      "probeOutcome"
+    ],
     "apps/desktop-v2/src/requirement-record-draft.ts": [
       "parseRecordDraft"
     ],

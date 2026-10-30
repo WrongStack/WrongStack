@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T09:04:32.166Z",
+  "generatedAt": "2026-10-30T09:10:46.096Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5518,
-    "testFiles": 4808,
-    "sourceLines": 1213758,
+    "sourceFiles": 5519,
+    "testFiles": 4809,
+    "sourceLines": 1213846,
     "workspaceEdges": 222,
-    "moduleEdges": 16546,
+    "moduleEdges": 16549,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 150,
+    "testsWithoutTypecheck": 151,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1001
+    "testOnlyExports": 1002
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 324,
-      "testFiles": 150,
+      "sourceFiles": 325,
+      "testFiles": 151,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1889,6 +1889,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/provider-health.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/provider-probe.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30850,6 +30856,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/provider-probe.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/provider-settings-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32402,6 +32415,10 @@
     {
       "file": "apps/desktop-v2/src/ProviderHealth.tsx",
       "name": "QuotaReading"
+    },
+    {
+      "file": "apps/desktop-v2/src/ProviderProbe.tsx",
+      "name": "probeOutcome"
     },
     {
       "file": "apps/desktop-v2/src/requirement-record-draft.ts",
