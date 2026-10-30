@@ -3,12 +3,25 @@ import { useEffect, useRef, useState } from 'react';
 import {
   attachmentDataUrl,
   type ComposerAttachment,
+  decodeAttachment,
   isPdf,
   processAttachmentFile,
   validateAttachments,
 } from './composer-attachments';
 import { Modal } from './Modal';
 import './composer-attachments.css';
+
+/** Writes an attachment's bytes through the window's download flow (PDFs cannot be shown inline). */
+function saveAttachment(item: ComposerAttachment): void {
+  const url = URL.createObjectURL(
+    new Blob([decodeAttachment(item)], { type: item.mediaType || 'application/octet-stream' }),
+  );
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = item.name || 'attachment.pdf';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export function AttachmentPreview({
   items,
@@ -29,6 +42,16 @@ export function AttachmentPreview({
                 {item.name}
                 <small>PDF · {(item.bytes / 1024).toFixed(0)} KB</small>
               </span>
+              {interactive && item.data && (
+                <button
+                  type="button"
+                  className="button secondary small"
+                  aria-label={`Save ${item.name}`}
+                  onClick={() => saveAttachment(item)}
+                >
+                  Save
+                </button>
+              )}
             </span>
           ) : !interactive ? (
             <div className="attachment-image" key={i}>

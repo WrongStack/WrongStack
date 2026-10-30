@@ -17,6 +17,13 @@ export const attachmentLimits = {
 };
 const imageTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 export const isPdf = (item: { mediaType: string }) => item.mediaType === 'application/pdf';
+/** The attachment's decoded bytes. */
+export function decodeAttachment(item: Pick<WSUserMessageImage, 'data'>): Uint8Array<ArrayBuffer> {
+  const text = atob(item.data);
+  const bytes = new Uint8Array(new ArrayBuffer(text.length));
+  for (let index = 0; index < text.length; index++) bytes[index] = text.charCodeAt(index);
+  return bytes;
+}
 export const attachmentDataUrl = (item: WSUserMessageImage) =>
   `data:${item.mediaType};base64,${item.data}`;
 export function wireAttachments(items: readonly ComposerAttachment[]): WSUserMessageImage[] {

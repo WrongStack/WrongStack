@@ -5110,3 +5110,11 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `transcript-window.test.ts` (hidden count), suite **642 PASS**, typecheck and
   Biome PASS. Not in a native scenario yet.
 
+### Save a PDF attached to a message (2026-10-30)
+
+- PDFs in sent messages showed only their name and size. Each one that still carries its bytes now
+  has Save, which writes the exact decoded bytes through the window's download flow (the window
+  CSP keeps PDFs from rendering inline, as for MCP content). Images keep their full-size preview.
+- Checks: desktop `attachment-bytes.test.ts` (exact base64 round trip, including NUL and 0xFF),
+  suite **643 PASS**, typecheck and Biome PASS. Not in a native scenario yet.
+
