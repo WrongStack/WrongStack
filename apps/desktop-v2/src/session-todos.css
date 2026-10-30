@@ -43,3 +43,20 @@
   display: flex;
   gap: 6px;
 }
+.fallback-picker {
+  display: grid;
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--warning, var(--accent));
+  border-radius: 7px;
+  font-size: 12px;
+}
+.fallback-picker p {
+  margin: 0;
+}
+.fallback-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

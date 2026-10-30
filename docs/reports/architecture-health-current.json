@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T08:26:37.111Z",
+  "generatedAt": "2026-10-30T08:57:34.109Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5512,
-    "testFiles": 4802,
-    "sourceLines": 1212822,
+    "sourceFiles": 5515,
+    "testFiles": 4805,
+    "sourceLines": 1213103,
     "workspaceEdges": 222,
-    "moduleEdges": 16527,
+    "moduleEdges": 16536,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 146,
+    "testsWithoutTypecheck": 147,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 997
+    "testOnlyExports": 998
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 320,
-      "testFiles": 146,
+      "sourceFiles": 321,
+      "testFiles": 147,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -741,8 +741,8 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 35,
-      "testFiles": 36,
+      "sourceFiles": 36,
+      "testFiles": 37,
       "workspaceDependencies": [
         "@wrongstack/builtin-plugins",
         "@wrongstack/chronicle",
@@ -767,7 +767,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 36
+          "testFiles": 37
         }
       ]
     },
@@ -1112,8 +1112,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 321,
-      "testFiles": 352,
+      "sourceFiles": 322,
+      "testFiles": 353,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1147,7 +1147,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 352
+          "testFiles": 353
         }
       ]
     },
@@ -1517,6 +1517,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/execution-policy-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/fallback-picker.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17038,6 +17044,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/fallback-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/governance-bootstrap.test.ts",
         "projects": [
           "root-node"
@@ -26332,6 +26344,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/session-agent-fallback-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/session-agent-registry-leader-id.test.ts",
         "projects": [
           "root-node"
@@ -30380,6 +30398,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/fallback-picker.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/feature-parity.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31315,6 +31340,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/FallbackPicker.tsx",
+      "specifier": "./session-todos.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/FileContentSearch.tsx",
       "specifier": "./file-content-search.css",
       "syntax": "import"
@@ -32214,6 +32244,10 @@
     {
       "file": "apps/desktop-v2/src/engine-state.ts",
       "name": "reduceEngine"
+    },
+    {
+      "file": "apps/desktop-v2/src/FallbackPicker.tsx",
+      "name": "fallbackPending"
     },
     {
       "file": "apps/desktop-v2/src/feature-actions.ts",

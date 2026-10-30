@@ -42,6 +42,9 @@
     "apps/desktop-v2/src/engine-state.ts": [
       "reduceEngine"
     ],
+    "apps/desktop-v2/src/FallbackPicker.tsx": [
+      "fallbackPending"
+    ],
     "apps/desktop-v2/src/feature-actions.ts": [
       "actionPayload",
       "featureActions"

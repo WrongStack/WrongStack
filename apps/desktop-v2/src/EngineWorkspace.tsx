@@ -25,6 +25,7 @@ import {
 } from './composer-resources-model';
 import { EngineDataView } from './EngineDataView';
 import { type EngineState, record } from './engine-state';
+import { FallbackPicker } from './FallbackPicker';
 import { workspaceFilePath } from './file-model';
 import { InputRequestCard } from './InputRequestCard';
 import type { InputDraft } from './input-form-model';
@@ -405,6 +406,7 @@ export function EngineWorkspace({
               </button>
             </div>
           )}
+          <FallbackPicker state={state} send={send} />
           <SessionTodos state={state} command={command} />
           {state.inputs.length > 0 ? (
             <div className="input-waiting-controls">
