@@ -1,0 +1,57 @@
+{
+  "suite": "polyglot",
+  "finishedAt": "2026-10-30T10:52:17.603Z",
+  "fingerprint": {
+    "cliVersion": "1.3.0",
+    "toolNames": [
+      "bash",
+      "edit",
+      "glob",
+      "grep",
+      "read",
+      "write"
+    ],
+    "maxIterations": 40,
+    "yolo": true,
+    "subsetId": "polyglot:7adc0f98d56c",
+    "toolManifestHash": "a7a1313e8f22",
+    "configHash": "d281b7d34253",
+    "profile": "lean",
+    "hash": "e5513df3ac47"
+  },
+  "cells": [
+    {
+      "cell": {
+        "label": "k3.1-pro",
+        "provider": "kimi-for-coding",
+        "model": "k3.1-pro"
+      },
+      "taskCount": 40,
+      "attemptCount": 120,
+      "repeats": 3,
+      "incompleteCount": 0,
+      "flakyTaskCount": 0,
+      "passAnyRate": 1,
+      "passAllRate": 1,
+      "gradedCount": 120,
+      "passRate": 1,
+      "editApplyRate": 0.9865771812080537,
+      "avgCostUsd": 0,
+      "avgTokensIn": 11185.475,
+      "avgTokensOut": 2345.95,
+      "avgTokensTotal": 40300.49166666667,
+      "avgSubagentTokens": 0,
+      "tokensPerSolve": 40300.49166666667,
+      "p50Iterations": 4,
+      "p50ElapsedMs": 74797.09585000001,
+      "timeoutRate": 0,
+      "totalRateLimitRetries": 0,
+      "totalSubagentSpawns": 0
+    }
+  ],
+  "progress": {
+    "planned": 120,
+    "completed": 120,
+    "interrupted": false
+  }
+}
