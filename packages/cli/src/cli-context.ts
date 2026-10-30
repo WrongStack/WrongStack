@@ -118,7 +118,7 @@ export async function initializeCli(
     // Release TUI startup capture before entering a server's lifetime wait.
     // HQ does not return until shutdown, so restoring output after initializeCli
     // resolves would hide its connection banner until Ctrl+C.
-    if (menuResult.mode !== 'tui-repl') options.onNonTuiLaunch?.();
+    if (menuResult.mode !== 'tui' && menuResult.mode !== 'tui-repl') options.onNonTuiLaunch?.();
     // Re-parse so the downstream short-circuits see the augmented
     // surface flags and any user-typed --port / --host.
     const augmentedFlags = parseArgs(effectiveArgv).flags;

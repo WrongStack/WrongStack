@@ -51,6 +51,7 @@ import { PromptLibraryModal } from '../../src/components/PromptLibraryModal.js';
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   transport.listeners.clear();
   transport.insert.mockClear();
   transport.deferContent = false;
@@ -58,6 +59,44 @@ afterEach(() => {
 });
 
 describe('prompt detail levels', () => {
+  it('keeps a variable field mounted and focused while its name is edited', () => {
+    render(<PromptLibraryModal />);
+    fireEvent.click(screen.getByRole('button', { name: 'activity:promptLib.newPrompt' }));
+    fireEvent.click(screen.getByRole('button', { name: 'activity:promptLib.addVar' }));
+    const name = screen.getByRole('textbox', { name: 'activity:promptLib.varNamePlaceholder' });
+    name.focus();
+    fireEvent.change(name, { target: { value: 'workspace' } });
+    expect(document.activeElement).toBe(name);
+    expect(screen.getByRole('textbox', { name: 'activity:promptLib.varNamePlaceholder' })).toBe(
+      name,
+    );
+  });
+
+  it('updates the selected favorite without reloading its preview or resetting its level', () => {
+    const send = vi.spyOn(client, 'send');
+    render(<PromptLibraryModal />);
+    fireEvent.click(screen.getByText(prompt.title));
+    const level = screen.getByRole('combobox', { name: 'activity:promptLib.detailLevel' });
+    fireEvent.change(level, { target: { value: 'advanced' } });
+    const star = screen.getByTitle('activity:promptLib.toggleFavoriteTitle');
+    expect(star.textContent).toBe('☆');
+    fireEvent.click(star);
+    expect(star.textContent).toBe('★');
+    expect(send).toHaveBeenCalledWith({
+      type: 'prompts.favorite',
+      payload: { slug: prompt.slug, favorite: true },
+    });
+    fireEvent.click(star);
+    expect(star.textContent).toBe('☆');
+    expect(send).toHaveBeenCalledWith({
+      type: 'prompts.favorite',
+      payload: { slug: prompt.slug, favorite: false },
+    });
+    expect((level as HTMLSelectElement).value).toBe('advanced');
+    expect(transport.requests).toHaveLength(1);
+    send.mockRestore();
+  });
+
   it.each([undefined, 'foreign-request'])('ignores unowned content replies (%s)', (foreignId) => {
     transport.deferContent = true;
     render(<PromptLibraryModal />);

@@ -190,7 +190,7 @@ export function WorkbenchTopbar({
   return (
     <>
       {/* ── Mobile Compact Header (<md) ── */}
-      <div className="ws-topbar flex shrink-0 items-center justify-between border-b border-border/70 bg-card/85 px-2.5 py-1.5 shadow-sm backdrop-blur-xl md:hidden">
+      <div className="ws-topbar flex shrink-0 items-center justify-between gap-1.5 border-b border-border/70 bg-card/85 px-2.5 py-1.5 shadow-sm backdrop-blur-xl md:hidden">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             type="button"
@@ -202,10 +202,9 @@ export function WorkbenchTopbar({
             <Menu className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-xs font-semibold">{projectName || 'WrongStack'}</span>
-              <span className="rounded bg-muted/60 px-1 py-0.5 text-[10px] text-muted-foreground font-mono">
-                {t(`activity:topbar.view.${currentView}`, { defaultValue: viewLabel(currentView) })}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+                {projectName || 'WrongStack'}
               </span>
               {isLoading && (
                 <span className="inline-flex items-center gap-0.5 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-foreground">
@@ -213,6 +212,9 @@ export function WorkbenchTopbar({
                 </span>
               )}
             </div>
+            <span className="block truncate font-mono text-[10px] text-muted-foreground">
+              {t(`activity:topbar.view.${currentView}`, { defaultValue: viewLabel(currentView) })}
+            </span>
             {appVersion && (
               <div className="mt-0.5 flex min-w-0">
                 <VersionBadge
@@ -234,7 +236,7 @@ export function WorkbenchTopbar({
           <button
             type="button"
             onClick={toggleTheme}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            className="hidden h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground min-[480px]:inline-flex"
             title={
               effectiveTheme === 'dark'
                 ? t('activity:topbar.switchToLight', 'Switch to light theme')
@@ -259,6 +261,18 @@ export function WorkbenchTopbar({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={toggleTheme} className="gap-2 min-[480px]:hidden">
+                {effectiveTheme === 'dark' ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+                <span>
+                  {effectiveTheme === 'dark'
+                    ? t('activity:topbar.switchToLight', 'Switch to light theme')
+                    : t('activity:topbar.switchToDark', 'Switch to dark theme')}
+                </span>
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={onPalette} className="gap-2">
                 <Command className="h-4 w-4" />
                 <span>{t('activity:topbar.command')}</span>

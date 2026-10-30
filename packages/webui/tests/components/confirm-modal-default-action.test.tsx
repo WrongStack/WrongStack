@@ -37,3 +37,28 @@ it('distinguishes dismiss from the same-context button', async () => {
 
   await expect(decision).resolves.toBe('dismiss');
 });
+
+it.each(['confirm', 'cancel'] as const)(
+  'keeps the focused button in charge when the default is %s',
+  async (defaultAction) => {
+    render(<ConfirmModalHost />);
+    let decision!: ReturnType<typeof confirmModalChoice>;
+    await act(async () => {
+      decision = confirmModalChoice({
+        title: 'Review deletion',
+        confirmLabel: 'Delete record',
+        cancelLabel: 'Keep record',
+        danger: true,
+        defaultAction,
+      });
+    });
+    const name = defaultAction === 'confirm' ? 'Keep record' : 'Delete record';
+    const button = screen.getByRole('button', { name });
+    button.focus();
+    // JSDOM does not synthesize native button activation from keydown.
+    // The browser matrix exercises the real Enter -> click default action.
+    fireEvent.keyDown(button, { key: 'Enter' });
+    fireEvent.click(button);
+    await expect(decision).resolves.toBe(defaultAction === 'confirm' ? 'cancel' : 'confirm');
+  },
+);

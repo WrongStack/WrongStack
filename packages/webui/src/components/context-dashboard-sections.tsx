@@ -124,7 +124,7 @@ export function PressureSection({
       </div>
 
       {/* Threshold axis */}
-      <div className="relative h-4 mt-1">
+      <div className="relative h-8 mt-1">
         <div className="absolute inset-x-0 top-0 h-2 rounded-full overflow-hidden flex">
           {ZONES.map((z) => {
             const width = ((z.to - z.from) / 100) * 100;
@@ -137,12 +137,12 @@ export function PressureSection({
             );
           })}
         </div>
-        <div className="absolute top-3 text-[10px] text-muted-foreground flex w-full">
+        <div className="absolute top-3 flex w-full justify-between gap-1 text-[10px] text-muted-foreground">
           <span>0%</span>
-          <span className="ml-[56%]">soft</span>
-          <span className="ml-[12%]">hard</span>
-          <span className="ml-[8%]">max</span>
-          <span className="ml-auto">100%</span>
+          <span>soft</span>
+          <span>hard</span>
+          <span>max</span>
+          <span>100%</span>
         </div>
       </div>
 
@@ -150,7 +150,7 @@ export function PressureSection({
       <div className="relative h-5 mt-1">
         <div
           className="absolute top-0 -translate-x-1/2 flex flex-col items-center transition-all duration-500"
-          style={{ left: `${Math.min(95, pct)}%` }}
+          style={{ left: `${Math.max(5, Math.min(95, pct))}%` }}
         >
           <span
             className={cn(

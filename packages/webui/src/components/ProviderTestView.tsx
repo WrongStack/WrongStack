@@ -256,8 +256,15 @@ export function ProviderTestView(): React.ReactElement {
             {t('activity:providerTest.tagline')}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => openMainView('settings')}>
-          <Settings className="mr-1.5 h-4 w-4" /> {t('activity:providerTest.settings')}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+          aria-label={t('activity:providerTest.settings')}
+          onClick={() => openMainView('settings')}
+        >
+          <Settings className="h-4 w-4 sm:mr-1.5" />{' '}
+          <span className="hidden sm:inline">{t('activity:providerTest.settings')}</span>
         </Button>
         <Button
           variant="ghost"

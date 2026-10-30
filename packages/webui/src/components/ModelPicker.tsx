@@ -3,6 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ModelCandidate } from '@/hooks/useProviderModels';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { AnchoredPopover } from './ui/anchored-popover';
 
 /**
  * ModelPicker — a compact searchable {provider/model} combobox used across the
@@ -33,14 +34,23 @@ export function ModelPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const ref = useRef<HTMLFieldSetElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const popupId = useId();
+  const closeWithFocus = () => {
+    setOpen(false);
+    ref.current?.querySelector('button')?.focus();
+  };
 
   useEffect(() => {
     if (!open) return;
-    inputRef.current?.focus();
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (
+        ref.current &&
+        !ref.current.contains(e.target as Node) &&
+        !panelRef.current?.contains(e.target as Node)
+      )
+        setOpen(false);
     };
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
@@ -65,8 +75,7 @@ export function ModelPicker({
         if (event.key === 'Escape' && open) {
           event.preventDefault();
           event.stopPropagation();
-          setOpen(false);
-          ref.current?.querySelector('button')?.focus();
+          closeWithFocus();
         }
       }}
     >
@@ -94,11 +103,15 @@ export function ModelPicker({
       </button>
 
       {open && (
-        <div
+        <AnchoredPopover
+          anchorRef={ref}
+          panelRef={panelRef}
+          initialFocusRef={inputRef}
+          width="anchor"
           id={popupId}
-          className="ws-picker-popover absolute z-50 mt-1 max-h-72 w-full min-w-0 overflow-hidden border border-border/80 bg-popover sm:min-w-[240px]"
+          className="ws-picker-popover flex min-w-0 flex-col overflow-hidden border-border/80 p-0"
         >
-          <div className="flex items-center gap-1.5 border-b border-border/70 bg-muted/20 px-2 py-1.5">
+          <div className="flex shrink-0 items-center gap-1.5 border-b border-border/70 bg-muted/20 px-2 py-1.5">
             <input
               ref={inputRef}
               value={query}
@@ -117,13 +130,13 @@ export function ModelPicker({
               </button>
             )}
           </div>
-          <div className="max-h-60 overflow-y-auto py-1">
+          <div className="min-h-0 max-h-60 overflow-y-auto py-1">
             {onReset && (
               <button
                 type="button"
                 onClick={() => {
                   onReset();
-                  setOpen(false);
+                  closeWithFocus();
                 }}
                 className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
@@ -138,7 +151,7 @@ export function ModelPicker({
                   type="button"
                   onClick={() => {
                     onPick(c.model, c.provider);
-                    setOpen(false);
+                    closeWithFocus();
                   }}
                   className={cn(
                     'flex w-full items-start gap-1.5 px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted',
@@ -178,7 +191,7 @@ export function ModelPicker({
               </div>
             )}
           </div>
-        </div>
+        </AnchoredPopover>
       )}
     </fieldset>
   );

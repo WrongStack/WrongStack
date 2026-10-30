@@ -9,7 +9,13 @@ vi.mock('@/i18n', () => ({
   i18n: {
     language: 'en',
     getResource: (_language: string, _namespace: string, section: string) =>
-      section === 'general' ? { theme: { heading: 'Color theme' } } : undefined,
+      section === 'general'
+        ? { theme: { heading: 'Color theme' } }
+        : section === 'features'
+          ? { autoReviewDebounceLabel: 'Debounce interval' }
+          : section === 'agent'
+            ? { routingReasoningModeAria: 'Reasoning route mode' }
+            : undefined,
   },
 }));
 
@@ -49,6 +55,42 @@ function Fixture() {
 }
 
 describe('SettingsNavigation', () => {
+  function ReviewFixture() {
+    return (
+      <Tabs defaultValue="general">
+        <SettingsNavigation
+          tabs={[
+            ...tabs,
+            ...['chimera', 'context', 'routing'].map((id) => ({
+              id,
+              icon: <span />,
+              labelKey: `settings:tabs.${id}`,
+            })),
+          ]}
+          activeTab="general"
+          onSelect={vi.fn()}
+        />
+      </Tabs>
+    );
+  }
+
+  it('finds review settings in their actual tab instead of the context tab', () => {
+    render(<ReviewFixture />);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'search' }), {
+      target: { value: 'Debounce interval' },
+    });
+    expect(screen.getByRole('tab', { name: 'chimera' })).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'context' })).toBeNull();
+  });
+
+  it('finds the model-routing tab from a setting label', () => {
+    render(<ReviewFixture />);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'search' }), {
+      target: { value: 'Reasoning route mode' },
+    });
+    expect(screen.getByRole('tab', { name: 'routing' })).toBeTruthy();
+  });
+
   it('filters sections, preserves tab semantics, and clears the query after navigation', () => {
     render(<Fixture />);
     expect(screen.getByRole('tab', { name: 'general' }).getAttribute('aria-selected')).toBe('true');

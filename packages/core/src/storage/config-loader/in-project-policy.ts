@@ -21,6 +21,8 @@ const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   'launch',
   'nextPrediction',
   'hints',
+  // Same class as 'hints': display-only startup output toggle, no behaviour.
+  'startupAnnounce',
   'debugStream',
   'configScope',
   'maxConcurrent',
@@ -181,6 +183,7 @@ const KNOWN_CONFIG_TOP_LEVEL_KEY_LIST = [
   'cwd',
   'autonomy',
   'hints',
+  'startupAnnounce',
   'debugStream',
   'configScope',
   'indexing',

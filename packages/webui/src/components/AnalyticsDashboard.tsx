@@ -147,9 +147,9 @@ function StatCard({
   color?: string;
 }) {
   return (
-    <div className="ws-metric flex items-start gap-3 border border-border/70 bg-card/75 p-4 shadow-sm">
+    <div className="ws-metric flex min-w-0 flex-col items-start gap-3 border border-border/70 bg-card/75 p-4 shadow-sm sm:flex-row">
       <div className={`ws-metric-icon mt-0.5 ${color}`}>{icon}</div>
-      <div className="min-w-0">
+      <div className="min-w-0 max-w-full break-words">
         <div className="ws-metric-value text-foreground">{value}</div>
         <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
         {sub ? <div className="mt-1 text-xs text-muted-foreground/70">{sub}</div> : null}

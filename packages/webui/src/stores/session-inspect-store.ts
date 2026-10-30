@@ -2,6 +2,7 @@ import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { create } from 'zustand';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from './config-store';
+import { useUIStore } from './ui-store';
 
 interface InspectEvent {
   ts: string;
@@ -78,6 +79,13 @@ export function ensureInspectHandlerInstalled(): void {
   const ws = getWSClient(wsUrl);
   ws.on('session.inspect', (msg) => {
     const payload = msg.payload as (SessionInspectData & { error?: string }) | undefined;
+    const ui = useUIStore.getState();
+    if (
+      ui.currentView !== 'session-inspect' ||
+      !ui.inspectSessionId ||
+      payload?.id !== ui.inspectSessionId
+    )
+      return;
     const store = useSessionInspectStore.getState();
     if (payload?.error) {
       store.setError(toErrorMessage(payload.error));

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ModelPicker } from '../../src/components/ModelPicker.js';
 import { FallbackEditor } from '../../src/components/FallbackEditor.js';
+import { ModelPicker } from '../../src/components/ModelPicker.js';
 import { SddTaskDrawer } from '../../src/components/SddTaskDrawer.js';
 import type { ModelCandidate } from '../../src/hooks/useProviderModels.js';
 import type { BoardTaskItem } from '../../src/stores/index.js';
@@ -15,9 +15,11 @@ describe('ModelPicker', () => {
   it('opens, lists candidates, and emits the chosen model + provider', () => {
     const onPick = vi.fn();
     render(<ModelPicker candidates={CANDIDATES} onPick={onPick} />);
-    fireEvent.click(screen.getByText('Run default')); // trigger
+    const trigger = screen.getByRole('button', { name: 'Run default' });
+    fireEvent.click(trigger);
     fireEvent.click(screen.getByText('GPT-5'));
     expect(onPick).toHaveBeenCalledWith('gpt-5', 'openai');
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('filters candidates by query', () => {

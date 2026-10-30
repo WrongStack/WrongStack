@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   Cpu,
   FileCode2,
   History,
@@ -21,7 +22,7 @@ import {
   Wrench,
   XCircle,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { PageMotif } from '@/components/PageMotif';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
@@ -145,6 +146,7 @@ export function SessionInspectView() {
 
   const [eventFilter, setEventFilter] = useState('');
   const [timelineCollapsed, setTimelineCollapsed] = useState(false);
+  const timelineId = useId();
 
   // Ensure the ws handler is installed before sending the request.
   useEffect(() => {
@@ -262,14 +264,14 @@ export function SessionInspectView() {
               <ArrowLeft className="h-3.5 w-3.5" />
               {t('activity:sessionInspect.backToSessions')}
             </button>
-            <div className="flex items-center gap-2">
-              <h1 className="truncate tracking-tight" title={displayName}>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="max-w-full truncate tracking-tight" title={displayName}>
                 {displayName}
               </h1>
               {payload.outcome ? (
                 <span
                   className={cn(
-                    'inline-flex items-center border px-1.5 py-0.5 text-[10px] font-semibold uppercase',
+                    'inline-flex shrink-0 items-center border px-1.5 py-0.5 text-[10px] font-semibold uppercase',
                     badge.cls,
                   )}
                 >
@@ -278,7 +280,10 @@ export function SessionInspectView() {
               ) : null}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-              <span className="font-mono">
+              <span
+                className="min-w-0 max-w-full truncate font-mono"
+                title={`${payload.provider}/${payload.model}`}
+              >
                 {payload.provider}/{payload.model}
               </span>
               <span className="inline-flex items-center gap-1">
@@ -312,7 +317,7 @@ export function SessionInspectView() {
             type="button"
             onClick={handleRefresh}
             disabled={!wsConnected}
-            className="inline-flex h-8 items-center gap-1 border border-border/70 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-muted disabled:opacity-40"
+            className="inline-flex h-8 shrink-0 items-center gap-1 border border-border/70 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-muted disabled:opacity-40"
             title={t('activity:sessionInspect.refresh')}
           >
             <RotateCw className="h-3.5 w-3.5" />
@@ -363,21 +368,21 @@ export function SessionInspectView() {
         </div>
 
         {/* ── Two-column body ─────────────────────────────────────── */}
-        <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           {/* ── Left: Event timeline ───────────────────────────────── */}
           <section className="min-w-0 border border-border/70 bg-card/70">
-            <div className="flex items-center justify-between border-b border-border/70 px-4 py-2.5">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 px-4 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <History className="h-4 w-4 shrink-0 text-primary" />
+                <h2 className="min-w-0 text-sm font-semibold">
                   {t('activity:sessionInspect.eventTimeline')}
                 </h2>
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                   {filteredEvents.length} / {payload.events.length}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
+              <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+                <div className="relative min-w-0 flex-1 sm:flex-none">
                   <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="search"
@@ -385,20 +390,23 @@ export function SessionInspectView() {
                     onChange={(e) => setEventFilter(e.target.value)}
                     placeholder={t('activity:sessionInspect.filterEvents')}
                     aria-label={t('activity:sessionInspect.filterEvents')}
-                    className="h-7 w-36 border border-border/60 bg-background pl-7 pr-2 text-[11px] outline-none focus:border-primary"
+                    className="h-7 w-full border border-border/60 bg-background pl-7 pr-2 text-[11px] outline-none focus:border-primary sm:w-36"
                   />
                 </div>
                 <button
                   type="button"
+                  aria-label={t('activity:sessionInspect.eventTimeline')}
+                  aria-expanded={!timelineCollapsed}
+                  aria-controls={timelineCollapsed ? undefined : timelineId}
                   onClick={() => setTimelineCollapsed(!timelineCollapsed)}
-                  className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
                 >
-                  {timelineCollapsed ? 'Expand' : 'Collapse'}
+                  <ChevronDown className={cn('h-3.5 w-3.5', !timelineCollapsed && 'rotate-180')} />
                 </button>
               </div>
             </div>
             {!timelineCollapsed && (
-              <div className="divide-y divide-border/60">
+              <div id={timelineId} className="divide-y divide-border/60">
                 {filteredEvents.length === 0 ? (
                   <div className="px-4 py-8 text-center text-xs text-muted-foreground">
                     {t('activity:sessionInspect.noEventsMatchTheFilter')}
@@ -438,7 +446,7 @@ export function SessionInspectView() {
           </section>
 
           {/* ── Right: Tool breakdown + File changes ───────────────── */}
-          <aside className="flex flex-col gap-4">
+          <aside className="flex min-w-0 flex-col gap-4">
             {/* Tool breakdown */}
             {sortedTools.length > 0 ? (
               <section className="border border-border/70 bg-card/70">
@@ -483,7 +491,10 @@ export function SessionInspectView() {
                         <div className="truncate font-mono font-medium" title={fe.filePath}>
                           {fe.filePath}
                         </div>
-                        <div className="mt-0.5 text-[10px] text-muted-foreground">
+                        <div
+                          className="mt-0.5 truncate text-[10px] text-muted-foreground"
+                          title={fe.toolName}
+                        >
                           {fe.toolName}
                         </div>
                       </div>
@@ -525,10 +536,10 @@ function StatCard({
   errorCount?: number | undefined;
 }) {
   return (
-    <div className="border border-border/70 bg-card/70 px-3 py-2.5">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        <Icon className="h-3 w-3" />
-        {label}
+    <div className="min-w-0 border border-border/70 bg-card/70 px-3 py-2.5">
+      <div className="flex min-w-0 flex-col items-start gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:flex-row sm:items-center sm:gap-1.5">
+        <Icon className="h-3 w-3 shrink-0" />
+        <span className="min-w-0 max-w-full [overflow-wrap:anywhere]">{label}</span>
       </div>
       <div className="mt-1 flex items-baseline gap-1.5">
         <span className="font-mono text-lg font-semibold tabular-nums">{value}</span>

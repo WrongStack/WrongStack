@@ -90,9 +90,14 @@ export async function applyBootLaunchChoices(
 
     // Build saved preferences from config so the prompt can offer a one-line
     // "Continue with these?" summary instead of re-asking every question.
+    // When reuseLast is active and the surface was already chosen in the
+    // top-level launch menu (or via --tui / --no-tui), align the saved mode
+    // so runLaunchPrompts does not treat a TUI↔REPL switch as a flag override
+    // that re-opens the YOLO/Autonomy prompts.
     const lastChoices = config.launch
       ? {
-          mode: config.launch.mode ?? 'tui',
+          mode:
+            (!flags['webui'] && reuseLast && modePinned ? modePinned : config.launch.mode) ?? 'tui',
           yolo: config.yolo ?? true,
           autonomy: config.launch.autonomy ?? 'auto',
         }

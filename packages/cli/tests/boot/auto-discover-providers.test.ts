@@ -152,6 +152,67 @@ describe('discoverAndMergeProviders', () => {
     expect(warn.mock.calls.flat().join(' ')).not.toMatch(/unreachable|secret-response-body/);
   });
 
+  it.each(['kimi', 'chatgpt-api'])(
+    'keeps cached %s models without a startup warning when OAuth sign-in expires',
+    async (strategy) => {
+      const id = strategy === 'kimi' ? 'kimi-for-coding' : 'openai-chatgpt';
+      const saved = {
+        type: id,
+        apiKeys: [
+          {
+            label: 'personal',
+            createdAt: '',
+            authMethod: 'oauth' as const,
+            oauthStrategyId: strategy,
+            apiKey: 'cached-access',
+            refreshToken: `revoked-${strategy}`,
+            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+            oauthClientId: 'test-client',
+            scope: 'chatgpt.tokens.use.direct',
+          },
+        ],
+      };
+      const config = cfgWith({ [id]: saved });
+      const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
+      const registry = fakeRegistry();
+      // Valid control: the account catalog is fetched and cached normally.
+      await discoverAndMergeProviders({
+        config,
+        registry: registry as never,
+        cacheDir,
+        logger: logger as never,
+        fetchImpl: modelsResponse(['account-model']),
+      });
+      expect(logger.info).toHaveBeenCalledOnce();
+      expect(logger.warn).not.toHaveBeenCalled();
+      saved.apiKeys[0]!.expiresAt = new Date(0).toISOString();
+      const revoked: typeof fetch = vi.fn(async () =>
+        Response.json({ error: 'invalid_grant' }, { status: 400 }),
+      );
+      await discoverAndMergeProviders({
+        config,
+        registry: registry as never,
+        cacheDir,
+        logger: logger as never,
+        fetchImpl: revoked,
+      });
+      expect(revoked).toHaveBeenCalledOnce();
+      expect(Object.keys(registry.merged.at(-1)?.[id]?.models ?? {})).toEqual(['account-model']);
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('invalid_grant'));
+      // A missing catalog is actionable and must still surface the auth error.
+      await fs.unlink(path.join(cacheDir, 'discovered-models-cache.json'));
+      await discoverAndMergeProviders({
+        config,
+        registry: registry as never,
+        cacheDir,
+        logger: logger as never,
+        fetchImpl: revoked,
+      });
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('no cache available'));
+    },
+  );
+
   it('discards catalog results if the account changes while the request is pending', async () => {
     const saved = {
       type: 'kimi-for-coding',

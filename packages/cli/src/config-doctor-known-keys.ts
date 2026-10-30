@@ -55,6 +55,7 @@ export const KNOWN_TOP_LEVEL_KEYS = [
   'cwd',
   'autonomy',
   'hints',
+  'startupAnnounce',
   'debugStream',
   'configScope',
   'indexing',

@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 487,
+      "files": 489,
       "typeOnly": 367,
-      "runtimeOrMixed": 149
+      "runtimeOrMixed": 151
     },
     "@wrongstack/core/agent-catalog": {
       "files": 1,
@@ -14,9 +14,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/boot": {
-      "files": 4,
+      "files": 5,
       "typeOnly": 0,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 5
     },
     "@wrongstack/core/brain": {
       "files": 22,
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 16
     },
     "@wrongstack/core/execution": {
-      "files": 106,
+      "files": 107,
       "typeOnly": 25,
-      "runtimeOrMixed": 97
+      "runtimeOrMixed": 98
     },
     "@wrongstack/core/execution/refine-decisions": {
       "files": 2,
@@ -64,9 +64,9 @@
       "runtimeOrMixed": 14
     },
     "@wrongstack/core/infrastructure": {
-      "files": 65,
+      "files": 66,
       "typeOnly": 8,
-      "runtimeOrMixed": 60
+      "runtimeOrMixed": 61
     },
     "@wrongstack/core/kernel": {
       "files": 1,
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 186,
-      "typeOnly": 76,
-      "runtimeOrMixed": 113
+      "files": 188,
+      "typeOnly": 77,
+      "runtimeOrMixed": 114
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -129,9 +129,9 @@
       "runtimeOrMixed": 14
     },
     "@wrongstack/core/security": {
-      "files": 259,
+      "files": 260,
       "typeOnly": 25,
-      "runtimeOrMixed": 237
+      "runtimeOrMixed": 238
     },
     "@wrongstack/core/session-catalog": {
       "files": 18,
@@ -154,9 +154,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 188,
-      "typeOnly": 54,
-      "runtimeOrMixed": 166
+      "files": 189,
+      "typeOnly": 55,
+      "runtimeOrMixed": 167
     },
     "@wrongstack/core/tasking": {
       "files": 45,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 23
     },
     "@wrongstack/core/utils": {
-      "files": 936,
+      "files": 937,
       "typeOnly": 69,
-      "runtimeOrMixed": 904
+      "runtimeOrMixed": 905
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -199,9 +199,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/utils/residency-labels": {
-      "files": 4,
-      "typeOnly": 4,
-      "runtimeOrMixed": 1
+      "files": 6,
+      "typeOnly": 5,
+      "runtimeOrMixed": 3
     },
     "@wrongstack/core/utils/sage-kinds": {
       "files": 6,
@@ -821,12 +821,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/wiring/eternal-command-handlers.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/wiring/fallback-gate.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1561,6 +1555,12 @@
       "file": "packages/runtime/src/container.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/fallback-gate.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -2728,6 +2728,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/conversation-fallback.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/conversation-operations.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3118,6 +3124,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/session-agent-fallback-model.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/tests/session-agent-registry-variant-seed.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3167,6 +3179,12 @@
     {
       "specifier": "@wrongstack/core/boot",
       "file": "packages/cli/src/cli-main-boot.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/boot",
+      "file": "packages/cli/tests/boot-system-prompt-default.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4120,6 +4138,12 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
+      "file": "packages/webui-server/tests/session-agent-fallback-model.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
       "file": "packages/webui-server/tests/session-context-ops-per-session.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4657,6 +4681,12 @@
       "file": "packages/webui-server/src/server/start-webui-shutdown.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/webui-server/tests/session-agent-fallback-model.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
@@ -6628,6 +6658,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/src/server/conversation-fallback.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/src/server/create-session-agent-manager.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -6709,6 +6745,12 @@
       "file": "packages/webui-server/tests/saved-provider.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/session-agent-fallback-model.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -8362,6 +8404,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/tests/session-agent-fallback-model.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/tests/session-yolo-plus-per-tab.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9918,7 +9966,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/src/server/session-checkpoint-handlers.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -10051,6 +10099,12 @@
       "file": "packages/webui-server/tests/session-recovery-desktop.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/session-redo-flush.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -16066,6 +16120,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/goal-mission-conditional.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/tests/goal-ws-handler.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16397,6 +16457,18 @@
     {
       "specifier": "@wrongstack/core/utils/next-steps",
       "file": "packages/webui-protocol/src/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/residency-labels",
+      "file": "apps/desktop-v2/src/context-residency-model.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/residency-labels",
+      "file": "apps/desktop-v2/src/ContextResidency.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -113,7 +113,7 @@ export async function promptModeArrow(deps: RunLaunchMenuDeps): Promise<ArrowPic
     };
 
     const cancel = (): void => {
-      settle({ cancelled: true, mode: 'tui-repl' }, color.dim('  Goodbye!\n'));
+      settle({ cancelled: true, mode: 'tui' }, color.dim('  Goodbye!\n'));
     };
 
     const stopCountdown = (): void => {
@@ -159,7 +159,7 @@ export async function promptModeArrow(deps: RunLaunchMenuDeps): Promise<ArrowPic
     };
 
     const onClose = (): void => {
-      settle({ cancelled: true, mode: 'tui-repl' }, '');
+      settle({ cancelled: true, mode: 'tui' }, '');
     };
 
     try {

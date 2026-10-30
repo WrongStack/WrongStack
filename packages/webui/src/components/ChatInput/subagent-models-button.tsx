@@ -5,6 +5,7 @@ import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { type LocalPrefs, useLocalPrefs } from '@/stores/local-prefs';
 import { useSessionStore } from '@/stores/session-store';
+import { ComposerPopover } from './composer-popover';
 import { SubagentModelPickerDialog } from './subagent-model-picker-dialog.js';
 
 /**
@@ -48,6 +49,7 @@ export function SubagentModelsButton() {
   const [open, setOpen] = useState(false);
   const [pickerLane, setPickerLane] = useState<number | null>(null);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const plan = useLocalPrefs((s) => s.subagentModelPlan);
   const sessionProvider = useSessionStore((s) => s.session?.provider);
   const sessionModel = useSessionStore((s) => s.session?.model);
@@ -61,12 +63,17 @@ export function SubagentModelsButton() {
       // portal-rendered dialog must also be ignored — the dialog's own
       // backdrop / Escape handling dismisses it, and Radix portals the
       // content outside `wrapRef`.
-      if (wrapRef.current?.contains(target)) return;
+      if (wrapRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       if (target instanceof Element && target.closest('[role="dialog"]')) return;
       setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        if (pickerLane !== null) return;
+        event.preventDefault();
+        setOpen(false);
+        wrapRef.current?.querySelector('button')?.focus();
+      }
     };
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -74,7 +81,7 @@ export function SubagentModelsButton() {
       document.removeEventListener('mousedown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [open]);
+  }, [open, pickerLane]);
 
   const current = plan ?? { enabled: true, lock: true, slots: [] };
   // A plan the server has never stored arrives with no lanes; show the default
@@ -141,12 +148,7 @@ export function SubagentModelsButton() {
       </button>
 
       {open && (
-        <div
-          // `w-80` is the comfortable width; the clamp keeps the popover inside
-          // the viewport when the chat column is narrow (side panel open, phone
-          // width) instead of pushing a horizontal scrollbar onto the page.
-          className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-popover p-3 shadow-lg"
-        >
+        <ComposerPopover anchorRef={wrapRef} panelRef={panelRef}>
           <div className="mb-2 flex items-start justify-between gap-2">
             <div>
               <p className="text-xs font-semibold">{t('activity:chatInput.subagentModelsTitle')}</p>
@@ -254,7 +256,7 @@ export function SubagentModelsButton() {
           <p className="mt-2 text-[10px] leading-tight text-muted-foreground">
             {t('activity:chatInput.subagentModelsRoutingNote')}
           </p>
-        </div>
+        </ComposerPopover>
       )}
 
       {pickerLane !== null && (

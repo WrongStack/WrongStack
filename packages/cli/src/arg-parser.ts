@@ -69,8 +69,8 @@ export const BOOLEAN_FLAGS = new Set([
   'require-token',
   'no-check',
   'no-models-refresh',
-  // Keeps the profile's own system prompt in a headless single-shot launch
-  // (boot/headless-harness-defaults.ts); `wstack bench run` reads it too.
+  // Keeps the profile's own system prompt instead of the CLI Quick default;
+  // headless runs also keep the tool coach. `wstack bench run` reads it too.
   'host-profile',
   'no-tool-coach',
   // (removed: 'director' and 'no-director' — Director Mode is always on)

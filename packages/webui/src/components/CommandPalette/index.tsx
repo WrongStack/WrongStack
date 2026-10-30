@@ -85,6 +85,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -497,7 +498,15 @@ export function CommandPalette() {
         onOpenAutoFocus={(e) => {
           // Focus the search input instead of the dialog container.
           e.preventDefault();
+          returnFocusRef.current =
+            document.activeElement instanceof HTMLElement ? document.activeElement : null;
           inputRef.current?.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          if (returnFocusRef.current?.isConnected) {
+            event.preventDefault();
+            returnFocusRef.current.focus();
+          }
         }}
       >
         {/* Visually-hidden accessible title/description so Radix's a11y

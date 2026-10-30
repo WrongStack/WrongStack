@@ -17,7 +17,7 @@ export function TaskEventLog({
     <section
       className={cn(
         'rounded-lg border border-border/70 bg-background/45',
-        expanded && 'col-span-2',
+        expanded && 'sm:col-span-2',
       )}
     >
       <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">

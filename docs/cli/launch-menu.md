@@ -1,6 +1,6 @@
 # Launch Menu
 
-The `wstack` CLI shows a four-option interactive launch menu when invoked
+The `wstack` CLI shows a five-option interactive launch menu when invoked
 on a TTY with no surface flag. This document explains the menu, its
 fallback rules, and how to opt out.
 
@@ -27,22 +27,23 @@ In every other case the menu is silently skipped and the historical
 ```
   ✱ WrongStack launch mode
   ? Choose how to run WrongStack:
-    1) TUI / REPL  (interactive terminal; TUI is the default)
-    2) WebUI       (browser-based project UI; port 3456)
-    3) VibeUI      (focused coding workspace; port 3476)
-    4) HQ          (project-independent HQ dashboard; port 3499)
-  [1-4, q to quit] (auto 1 in 8s)
+    1) TUI     (interactive terminal; default)
+    2) REPL    (line-by-line terminal prompt)
+    3) WebUI   (browser-based project UI; port 3456)
+    4) VibeUI  (focused coding workspace; port 3476)
+    5) HQ      (project-independent HQ dashboard; port 3499)
+  [1-5, q to quit] (auto 1 in 8s)
 ```
 
-- A numeric answer (`1`–`4`) picks the surface.
+- A numeric answer (`1`–`5`) picks the surface.
 
 SimpleUI was retired and replaced by VibeUI; `wstack simpleui` / `--simpleui` now open VibeUI.
-The menu no longer lists SimpleUI; VibeUI moved to option 3.
+The menu no longer lists SimpleUI; VibeUI moved to option 4.
 
 - `q` (or `quit`) cancels — the CLI exits with code 0.
 - Any other input (or a timeout) falls back to the first option
-  (TUI/REPL).
-- For modes 2/3/4 the menu then prompts for an optional port (Enter
+  (TUI).
+- For modes 3/4/5 the menu then prompts for an optional port (Enter
   uses the surface's documented default) and host.
 
 ### Default ports

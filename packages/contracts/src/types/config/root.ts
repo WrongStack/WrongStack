@@ -281,6 +281,13 @@ export interface Config {
   autonomy?: AutonomyConfig | undefined;
   /** Show rotating launch hints on startup. Default: true. Set to false to suppress. */
   hints?: boolean | undefined;
+  /**
+   * Print the Director/fleet startup announcement ("Director mode enabled",
+   * roster, fleet root → manifest/scratchpad/subagents paths, resume budget).
+   * Default: true. Set to false for a quiet boot — wiring is unaffected,
+   * only the printed card is suppressed.
+   */
+  startupAnnounce?: boolean | undefined;
   /** Raw SSE stream debugging — hex-dump every byte received from providers to stderr. */
   debugStream?: boolean | undefined;
   /**

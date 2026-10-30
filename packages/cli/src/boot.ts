@@ -21,6 +21,7 @@ import { activateRestrictedMode } from './boot/restricted-mode.js';
 import { announceSafeMode } from './boot/safe-mode.js';
 import { parseOutputFormat } from './boot/stream-json.js';
 import { resolveJsonSchemaFlag } from './boot/structured-output.js';
+import { isSystemPromptPinned } from './boot/system-prompt-menu.js';
 import {
   resolveLaunchAllowedTools,
   resolveToolRestriction,
@@ -132,6 +133,20 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
     stdinIsTTY: isStdinTTY(),
     stdoutIsTTY: process.stdout.isTTY === true,
   });
+
+  // CLI sessions use Quick unless this launch explicitly selects a variant
+  // or requests the saved host profile. Pin before config loading so the
+  // prompt builder, tool surface and startup-menu gate all see the same choice.
+  const firstArgument = positional[0];
+  if (
+    !flags['webui'] &&
+    !flags['hq'] &&
+    flags['host-profile'] !== true &&
+    (firstArgument === undefined || firstArgument === 'quick' || !subcommands[firstArgument]) &&
+    !isSystemPromptPinned(flags)
+  ) {
+    flags['system-quick'] = true;
+  }
 
   let bootResult;
   try {

@@ -306,7 +306,7 @@ export function TechStackView() {
       <header className="ws-page-header shrink-0 border-b border-border/70">
         <PageMotif kind="system" />
         <div className="flex flex-wrap items-start gap-3">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 basis-48">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="">{t('activity:techStack.techstack')}</h1>
               <span className="border border-info/35 bg-info/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-info">

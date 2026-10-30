@@ -148,6 +148,24 @@ describe('applyLaunchMenuToArgv', () => {
     ).toEqual(['--no-banner']);
   });
 
+  it('appends --tui for tui results', () => {
+    expect(
+      applyLaunchMenuToArgv(['--yolo'], {
+        mode: 'tui',
+        cancelled: false,
+      }),
+    ).toEqual(['--yolo', '--tui']);
+  });
+
+  it('appends --no-tui for repl results', () => {
+    expect(
+      applyLaunchMenuToArgv(['--yolo'], {
+        mode: 'repl',
+        cancelled: false,
+      }),
+    ).toEqual(['--yolo', '--no-tui']);
+  });
+
   it('returns argv unchanged for tui-repl results', () => {
     expect(
       applyLaunchMenuToArgv(['--yolo'], {
@@ -225,7 +243,9 @@ describe('toPersistedMenuChoice', () => {
     expect(toPersistedMenuChoice({ mode: 'webui', cancelled: true })).toBeUndefined();
   });
 
-  it('returns undefined for tui-repl results (owned by inner prompts)', () => {
+  it('returns undefined for tui / repl / tui-repl results (owned by inner prompts)', () => {
+    expect(toPersistedMenuChoice({ mode: 'tui', cancelled: false })).toBeUndefined();
+    expect(toPersistedMenuChoice({ mode: 'repl', cancelled: false })).toBeUndefined();
     expect(toPersistedMenuChoice({ mode: 'tui-repl', cancelled: false })).toBeUndefined();
   });
 
@@ -305,8 +325,8 @@ describe('runLaunchMenu', () => {
 
   it('selects webui with the user-typed port', async () => {
     const renderer = makeRenderer();
-    // Mode pick (2), port (3500), host (Enter → default)
-    const reader = makeReader(['2', '3500', '']);
+    // Mode pick (3), port (3500), host (Enter → default)
+    const reader = makeReader(['3', '3500', '']);
     const result = await runLaunchMenu({
       argv: [],
       flags: {},
@@ -322,7 +342,7 @@ describe('runLaunchMenu', () => {
 
   it('falls back to default port on Enter', async () => {
     const renderer = makeRenderer();
-    const reader = makeReader(['4', '', '']);
+    const reader = makeReader(['5', '', '']);
     const result = await runLaunchMenu({
       argv: [],
       flags: {},
@@ -351,7 +371,7 @@ describe('runLaunchMenu', () => {
     expect(result!.cancelled).toBe(true);
   });
 
-  it('falls back to tui-repl when user enters garbage', async () => {
+  it('falls back to tui when user enters garbage', async () => {
     const renderer = makeRenderer();
     const reader = makeReader(['banana']);
     const result = await runLaunchMenu({
@@ -362,7 +382,7 @@ describe('runLaunchMenu', () => {
       reader,
     });
     expect(result).not.toBeNull();
-    expect(result!.mode).toBe('tui-repl');
+    expect(result!.mode).toBe('tui');
     expect(result!.cancelled).toBe(false);
   });
 
@@ -377,11 +397,11 @@ describe('runLaunchMenu', () => {
       reader,
     });
     expect(result).not.toBeNull();
-    expect(result!.mode).toBe('tui-repl');
+    expect(result!.mode).toBe('tui');
     expect(result!.cancelled).toBe(false);
   });
 
-  it('skips port/host prompts for tui-repl', async () => {
+  it('skips port/host prompts for tui and repl', async () => {
     const renderer = makeRenderer();
     const reader = makeReader(['1']);
     const result = await runLaunchMenu({
@@ -392,10 +412,23 @@ describe('runLaunchMenu', () => {
       reader,
     });
     expect(result).not.toBeNull();
-    expect(result!.mode).toBe('tui-repl');
+    expect(result!.mode).toBe('tui');
     expect(result!.port).toBeUndefined();
     // Only ONE readLine call (the mode prompt) — no port/host follow-ups.
     expect((reader.readLine as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+
+    const replReader = makeReader(['2']);
+    const replResult = await runLaunchMenu({
+      argv: [],
+      flags: {},
+      positional: [],
+      renderer,
+      reader: replReader,
+    });
+    expect(replResult).not.toBeNull();
+    expect(replResult!.mode).toBe('repl');
+    expect(replResult!.port).toBeUndefined();
+    expect((replReader.readLine as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
   });
 
   it('summary gate "Y" reuses lastChoice without re-asking the mode prompt', async () => {
@@ -419,8 +452,8 @@ describe('runLaunchMenu', () => {
 
   it('summary gate "n" falls through to the numbered menu', async () => {
     const renderer = makeRenderer();
-    // 'n' → re-prompt mode (3) → port (Enter) → host (Enter)
-    const reader = makeReader(['n', '3', '', '']);
+    // 'n' → re-prompt mode (4) → port (Enter) → host (Enter)
+    const reader = makeReader(['n', '4', '', '']);
     const result = await runLaunchMenu({
       argv: [],
       flags: {},
@@ -431,7 +464,7 @@ describe('runLaunchMenu', () => {
     });
     expect(result).not.toBeNull();
     expect(result!.mode).toBe('vibeui');
-    expect(result!.port).toBe(3476); // default VibeUI port, now menu entry 3
+    expect(result!.port).toBe(3476); // default VibeUI port, now menu entry 4
   });
 
   it('summary gate "q" cancels', async () => {
@@ -451,8 +484,8 @@ describe('runLaunchMenu', () => {
 
   it('re-prompts on invalid port then accepts a valid one', async () => {
     const renderer = makeRenderer();
-    // Mode (2) → invalid port → valid port → host (Enter)
-    const reader = makeReader(['2', '99999', '3500', '']);
+    // Mode (3) → invalid port → valid port → host (Enter)
+    const reader = makeReader(['3', '99999', '3500', '']);
     const result = await runLaunchMenu({
       argv: [],
       flags: {},

@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { registerOpenModal } from '@/lib/open-modal-registry';
 import { cn } from '@/lib/utils';
@@ -89,10 +89,21 @@ export function SearchOverlay() {
 
   /** Close and hand focus back to the chat textarea — without this, keyboard
    *  users are left with no focused element after Escape/✕. */
-  const close = () => {
+  const close = useCallback(() => {
     setOpen(false);
     requestAnimationFrame(() => document.querySelector('textarea')?.focus());
-  };
+  }, [setOpen]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      close();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, close]);
 
   // Inject ::highlight() CSS rules once on mount. lightningcss warns about
   // ::highlight() being an unrecognized pseudo-element, so we bypass it
@@ -221,7 +232,7 @@ export function SearchOverlay() {
 
   return (
     <div className="absolute top-2 right-4 z-30 w-[28rem] max-w-[calc(100%-2rem)] rounded-lg border bg-popover ws-dialog">
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:flex-nowrap">
         <Search className="h-4 w-4 text-muted-foreground shrink-0" />
         <input
           ref={inputRef}
@@ -244,9 +255,9 @@ export function SearchOverlay() {
             }
           }}
           placeholder={t('activity:search.placeholder')}
-          className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 basis-[calc(100%-1.5rem)] bg-transparent text-base placeholder:text-muted-foreground sm:basis-auto sm:text-sm"
         />
-        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+        <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
           {hits.length === 0 ? (query ? '0' : '') : `${activeHit + 1} / ${hits.length}`}
         </span>
         <button
@@ -254,7 +265,7 @@ export function SearchOverlay() {
           onClick={() => step(-1)}
           disabled={hits.length === 0}
           className={cn(
-            'p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed',
+            'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed sm:h-auto sm:w-auto sm:p-1',
           )}
           title={t('activity:search.prevHit')}
           aria-label={t('activity:search.prevHit')}
@@ -266,7 +277,7 @@ export function SearchOverlay() {
           onClick={() => step(1)}
           disabled={hits.length === 0}
           className={cn(
-            'p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed',
+            'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed sm:h-auto sm:w-auto sm:p-1',
           )}
           title={t('activity:search.nextHit')}
           aria-label={t('activity:search.nextHit')}
@@ -276,7 +287,7 @@ export function SearchOverlay() {
         <button
           type="button"
           onClick={close}
-          className="p-1 rounded hover:bg-muted text-muted-foreground"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted sm:h-auto sm:w-auto sm:p-1"
           title={t('activity:search.close')}
           aria-label={t('activity:search.close')}
         >

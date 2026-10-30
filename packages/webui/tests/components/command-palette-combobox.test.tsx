@@ -44,6 +44,24 @@ describe('CommandPalette combobox contract', () => {
     useUIStore.setState({ paletteOpen: false });
   });
 
+  it('returns focus to its opener after Escape', async () => {
+    render(
+      <>
+        <button type="button" onClick={() => useUIStore.getState().setPaletteOpen(true)}>
+          Open palette
+        </button>
+        <CommandPalette />
+      </>,
+    );
+    const opener = screen.getByRole('button', { name: 'Open palette' });
+    opener.focus();
+    fireEvent.click(opener);
+    const input = await screen.findByRole('combobox');
+    fireEvent.keyDown(input, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+
   it('exposes the search input as a combobox wired to its listbox', async () => {
     const input = await openPalette();
 

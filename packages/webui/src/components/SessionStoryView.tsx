@@ -189,7 +189,7 @@ export function SessionStoryView() {
             </span>
           </div>
           <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
+            <div className="min-w-0 max-w-full break-words">
               <p className="mb-2 text-xs uppercase tracking-[.25em] text-info">
                 {t('activity:story.heroEyebrow')}
               </p>
@@ -204,7 +204,7 @@ export function SessionStoryView() {
                 · {t('activity:story.heroSubline')}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               <button
                 type="button"
                 aria-pressed={motion}

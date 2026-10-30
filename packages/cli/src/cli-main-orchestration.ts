@@ -210,6 +210,7 @@ export async function wireCliOrchestration(
     manifestPath,
     sharedScratchpadPath,
     subagentSessionsRoot,
+    announce: state.config.startupAnnounce !== false,
   });
 
   const {

@@ -123,7 +123,11 @@ export function ConfirmModalHost() {
   useEffect(() => {
     if (!request) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (
+        e.key === 'Enter' &&
+        !e.defaultPrevented &&
+        !(e.target instanceof Element && e.target.closest('button'))
+      ) {
         e.preventDefault();
         useConfirmModalStore.getState().settle(request.defaultAction !== 'cancel');
       }

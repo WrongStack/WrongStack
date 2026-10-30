@@ -34,6 +34,7 @@ export const SOURCE_GLYPH: Record<string, string> = {
 
 /** A variable row in the authoring form (enum kept as a CSV string for editing). */
 interface VarDraft {
+  id: string;
   name: string;
   description: string;
   required: boolean;

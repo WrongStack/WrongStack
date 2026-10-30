@@ -25,7 +25,7 @@ export interface HistoryViewOptions {
 }
 
 export interface SessionHistoryGroup {
-  label: 'favorites' | 'today' | 'yesterday' | 'thisWeek' | 'earlier';
+  label: 'favorites' | 'today' | 'yesterday' | 'thisWeek' | 'earlier' | 'tokens' | 'activity';
   rows: SessionHistoryEntry[];
   favorite?: boolean | undefined;
 }

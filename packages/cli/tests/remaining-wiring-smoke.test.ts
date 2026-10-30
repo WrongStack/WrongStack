@@ -225,6 +225,22 @@ describe('remaining CLI wiring boundaries', () => {
     expect(
       infoLines.some((l) => l.includes('Director mode enabled') && l.includes('→ D:/fleet')),
     ).toBe(true);
+
+    // Quiet boot (config startupAnnounce: false): wiring unchanged, zero lines.
+    infoLines.length = 0;
+    await ensureDirectorAndAnnounce({
+      multiAgentHost: multiAgentHost as never,
+      priorFleetState: undefined,
+      renderer,
+      toolRegistry: toolRegistry as never,
+      flags: {},
+      fleetRoot: 'D:/fleet',
+      manifestPath: 'D:/manifest',
+      sharedScratchpadPath: 'D:/scratchpad',
+      subagentSessionsRoot: 'D:/subagents',
+      announce: false,
+    });
+    expect(infoLines).toEqual([]);
   });
 
   it('wires session runtime, manages reasoning configs and pipeline warnings', async () => {

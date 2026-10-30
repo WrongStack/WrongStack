@@ -40,7 +40,8 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'ws-dialog ws-modal fixed left-[50%] top-[50%] z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-5 overflow-y-auto overscroll-contain border border-border bg-card p-5 sm:p-6',
+        'ws-dialog ws-modal fixed left-[50%] top-[50%] z-50 grid min-w-0 max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-5 overflow-y-auto overscroll-contain border border-border bg-card p-5 sm:p-6',
+        showCloseButton && '[&>.ws-dialog-title]:mr-8',
         className,
       )}
       {...props}
@@ -79,7 +80,10 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn('text-lg font-semibold leading-snug text-balance', className)}
+    className={cn(
+      'ws-dialog-title min-w-0 [overflow-wrap:anywhere] text-lg font-semibold leading-snug text-balance',
+      className,
+    )}
     {...props}
   />
 ));
@@ -91,7 +95,10 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn('text-sm leading-relaxed text-muted-foreground', className)}
+    className={cn(
+      'min-w-0 [overflow-wrap:anywhere] text-sm leading-relaxed text-muted-foreground',
+      className,
+    )}
     {...props}
   />
 ));

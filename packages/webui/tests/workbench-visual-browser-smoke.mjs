@@ -8,8 +8,14 @@ import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
 import { createServer } from 'vite';
 import { checkComposerLayout } from './fixtures/composer-layout-checks.mjs';
+import { checkHistoryLayout } from './fixtures/history-layout-checks.mjs';
+import { checkInspectionLayout } from './fixtures/inspection-layout-checks.mjs';
+import { checkNavigationLayout } from './fixtures/navigation-layout-checks.mjs';
 import { checkNextSteps } from './fixtures/next-steps-checks.mjs';
+import { checkOverlayLayout } from './fixtures/overlay-layout-checks.mjs';
+import { checkPromptLayout } from './fixtures/prompt-layout-checks.mjs';
 import { checkProviderBrands } from './fixtures/provider-brand-checks.mjs';
+import { checkResponsiveLayout } from './fixtures/responsive-layout-checks.mjs';
 import { assertSquareCorners } from './fixtures/square-corner-check.mjs';
 import { checkWorkbenchInteractions } from './fixtures/workbench-interaction-checks.mjs';
 
@@ -20,7 +26,23 @@ const interactionsOnly = process.env.WEBUI_VISUAL_INTERACTIONS_ONLY === '1';
 const providersOnly = process.env.WEBUI_VISUAL_PROVIDERS_ONLY === '1';
 const composerOnly = process.env.WEBUI_VISUAL_COMPOSER_ONLY === '1';
 const nextStepsOnly = process.env.WEBUI_VISUAL_NEXT_STEPS_ONLY === '1';
-const skipGeneral = interactionsOnly || providersOnly || composerOnly || nextStepsOnly;
+const responsiveOnly = process.env.WEBUI_VISUAL_RESPONSIVE_ONLY === '1';
+const overlaysOnly = process.env.WEBUI_VISUAL_OVERLAYS_ONLY === '1';
+const navigationOnly = process.env.WEBUI_VISUAL_NAVIGATION_ONLY === '1';
+const promptsOnly = process.env.WEBUI_VISUAL_PROMPTS_ONLY === '1';
+const historyOnly = process.env.WEBUI_VISUAL_HISTORY_ONLY === '1';
+const inspectionOnly = process.env.WEBUI_VISUAL_INSPECTION_ONLY === '1';
+const skipGeneral =
+  interactionsOnly ||
+  providersOnly ||
+  composerOnly ||
+  nextStepsOnly ||
+  responsiveOnly ||
+  overlaysOnly ||
+  navigationOnly ||
+  promptsOnly ||
+  historyOnly ||
+  inspectionOnly;
 const virtualId = 'virtual:workbench-visual-smoke';
 const source = `
 import React from 'react';
@@ -40,6 +62,11 @@ import { seedWorkbenchVisualData } from '/tests/fixtures/workbench-visual.ts';
 import { InteractionWorkbench, seedInteractionWorkbench } from '/tests/fixtures/InteractionWorkbench.tsx';
 import { ProviderBrandWorkbench } from '/tests/fixtures/ProviderBrandWorkbench.tsx';
 import { NextStepsWorkbench, seedNextStepsWorkbench } from '/tests/fixtures/NextStepsWorkbench.tsx';
+import { OverlayReviewWorkbench, seedOverlayReview } from '/tests/fixtures/OverlayReviewWorkbench.tsx';
+import { NavigationReviewWorkbench, seedNavigationReview } from '/tests/fixtures/NavigationReviewWorkbench.tsx';
+import { PromptReviewWorkbench, seedPromptReview } from '/tests/fixtures/PromptReviewWorkbench.tsx';
+import { HistoryReviewWorkbench, seedHistoryReview } from '/tests/fixtures/HistoryReviewWorkbench.tsx';
+import { InspectionReviewWorkbench, seedInspectionReview } from '/tests/fixtures/InspectionReviewWorkbench.tsx';
 import { ChatInput } from '/src/components/ChatInput.tsx';
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from '/src/components/ui/dialog.tsx';
 import { Button } from '/src/components/ui/button.tsx';
@@ -62,8 +89,13 @@ const params = new URLSearchParams(location.search);
 if (params.has('composer') || params.has('nextsteps')) Object.defineProperty(client, 'isConnected', { get: () => useConfigStore.getState().wsConnected });
 if (params.has('interactions')) seedInteractionWorkbench();
 if (params.has('nextsteps')) seedNextStepsWorkbench();
+if (params.has('overlay-review')) seedOverlayReview();
+if (params.has('navigation-review')) seedNavigationReview();
+const promptReview = params.has('prompt-review') ? seedPromptReview() : {};
+const historyReview = params.has('history-review') ? seedHistoryReview() : {};
+if (params.has('inspection-review')) seedInspectionReview();
 useUIStore.setState({ currentView: params.get('view') || 'chat', sidebarOpen: false });
-window.fixture = { ui: useUIStore, prefs: useLocalPrefs, config: useConfigStore, chat: useChatStore, sent, views: ['chat', ...Object.keys(VIEW_REGISTRY)], ...(params.has('dense') ? seedWorkbenchVisualData() : {}) };
+window.fixture = { ui: useUIStore, prefs: useLocalPrefs, config: useConfigStore, chat: useChatStore, sent, ...promptReview, ...historyReview, views: ['chat', ...Object.keys(VIEW_REGISTRY)], ...(params.has('dense') ? seedWorkbenchVisualData() : {}) };
 const theme = params.get('theme') || 'dark';
 function Fixture() {
   const currentView = useUIStore(s => s.currentView);
@@ -72,7 +104,7 @@ function Fixture() {
       <ActivityBar />
       <main id="main-content" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <WorkbenchTopbar currentView={currentView} projectName="WrongStack" isLoading={false} iteration={null} onPalette={() => {}} onSettings={() => useUIStore.getState().setCurrentView('settings')} />
-        {params.has('nextsteps') ? <NextStepsWorkbench /> : params.has('provider-brands') ? <ProviderBrandWorkbench /> : params.has('interactions') ? <InteractionWorkbench /> : params.has('views') ? <div className="relative flex min-h-0 min-w-0 flex-1 flex-col"><ViewRouter sessionId={null} /></div> : <>
+        {params.has('inspection-review') ? <InspectionReviewWorkbench /> : params.has('history-review') ? <HistoryReviewWorkbench /> : params.has('prompt-review') ? <PromptReviewWorkbench /> : params.has('navigation-review') && !params.has('views') ? <NavigationReviewWorkbench /> : params.has('overlay-review') && !params.has('views') ? <OverlayReviewWorkbench /> : params.has('nextsteps') ? <NextStepsWorkbench /> : params.has('provider-brands') ? <ProviderBrandWorkbench /> : params.has('interactions') ? <InteractionWorkbench /> : params.has('views') ? <div className="relative flex min-h-0 min-w-0 flex-1 flex-col"><ViewRouter sessionId={null} /></div> : <>
         <div className="ws-chat-surface mx-3 mt-3 flex-1 min-h-0 overflow-auto border border-border">
           <WelcomeScreen />
           <div className="mx-auto flex max-w-4xl flex-wrap gap-3 px-6 pb-6" data-testid="primitives">
@@ -346,7 +378,15 @@ try {
     }
   }
   const interactions =
-    providersOnly || composerOnly || nextStepsOnly
+    providersOnly ||
+    composerOnly ||
+    nextStepsOnly ||
+    responsiveOnly ||
+    overlaysOnly ||
+    navigationOnly ||
+    promptsOnly ||
+    historyOnly ||
+    inspectionOnly
       ? []
       : await checkWorkbenchInteractions(
           browser,
@@ -355,7 +395,15 @@ try {
           errors,
         );
   const providers =
-    interactionsOnly || composerOnly || nextStepsOnly
+    interactionsOnly ||
+    composerOnly ||
+    nextStepsOnly ||
+    responsiveOnly ||
+    overlaysOnly ||
+    navigationOnly ||
+    promptsOnly ||
+    historyOnly ||
+    inspectionOnly
       ? []
       : await checkProviderBrands(
           browser,
@@ -364,7 +412,15 @@ try {
           errors,
         );
   const composer =
-    interactionsOnly || providersOnly || nextStepsOnly
+    interactionsOnly ||
+    providersOnly ||
+    nextStepsOnly ||
+    responsiveOnly ||
+    overlaysOnly ||
+    navigationOnly ||
+    promptsOnly ||
+    historyOnly ||
+    inspectionOnly
       ? []
       : await checkComposerLayout(
           browser,
@@ -373,7 +429,15 @@ try {
           errors,
         );
   const nextSteps =
-    interactionsOnly || providersOnly || composerOnly
+    interactionsOnly ||
+    providersOnly ||
+    composerOnly ||
+    responsiveOnly ||
+    overlaysOnly ||
+    navigationOnly ||
+    promptsOnly ||
+    historyOnly ||
+    inspectionOnly
       ? []
       : await checkNextSteps(
           browser,
@@ -381,7 +445,66 @@ try {
           output,
           errors,
         );
+  const responsive =
+    skipGeneral && !responsiveOnly
+      ? []
+      : await checkResponsiveLayout(
+          browser,
+          `http://127.0.0.1:${address.port}/__workbench_visual`,
+          output,
+          errors,
+        );
   assert.deepEqual(errors, [], 'Browser runtime errors');
+  const overlays =
+    skipGeneral && !overlaysOnly
+      ? []
+      : await checkOverlayLayout(
+          browser,
+          `http://127.0.0.1:${address.port}/__workbench_visual`,
+          output,
+          errors,
+        );
+  assert.deepEqual(errors, [], 'Browser runtime errors in overlays');
+  const navigation =
+    skipGeneral && !navigationOnly
+      ? []
+      : await checkNavigationLayout(
+          browser,
+          `http://127.0.0.1:${address.port}/__workbench_visual`,
+          output,
+          errors,
+        );
+  assert.deepEqual(errors, [], 'Browser runtime errors in navigation');
+  const prompts =
+    skipGeneral && !promptsOnly
+      ? []
+      : await checkPromptLayout(
+          browser,
+          `http://127.0.0.1:${address.port}/__workbench_visual`,
+          output,
+          errors,
+        );
+  assert.deepEqual(errors, [], 'Browser runtime errors in prompt library');
+  const history =
+    skipGeneral && !historyOnly
+      ? []
+      : await checkHistoryLayout(
+          browser,
+          `http://127.0.0.1:${address.port}/__workbench_visual`,
+          output,
+          errors,
+        );
+  assert.deepEqual(errors, [], 'Browser runtime errors in session history');
+  const inspection =
+    skipGeneral && !inspectionOnly
+      ? []
+      : await checkInspectionLayout(
+          browser,
+          `http://127.0.0.1:${address.port}/__workbench_visual`,
+          output,
+          errors,
+        );
+  assert.deepEqual(errors, [], 'Browser runtime errors in inspection and confirmations');
   console.log(
     JSON.stringify(
       {
@@ -390,6 +513,12 @@ try {
         providers,
         composer,
         nextSteps,
+        responsive,
+        overlays,
+        navigation,
+        prompts,
+        history,
+        inspection,
         routedChecks: routed.length,
         registeredViews: [...new Set(routed.map((item) => item.view))],
         errors,

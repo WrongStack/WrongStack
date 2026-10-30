@@ -251,9 +251,19 @@
 
   .ws-code-toolbar > div {
     border-radius: 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
   }
   .ws-code-live-controls {
     border-radius: 0;
+  }
+  .ws-code-live-controls > label {
+    min-width: 0;
+  }
+  .ws-code-live-controls select {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .ws-sdd-tabs {

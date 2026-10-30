@@ -348,7 +348,11 @@ async function resolveWorkdir(
   }
   const fold = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
   const rel = path.relative(fold(root), fold(target));
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+  // Canonical escape test (same predicate as shell-open.ts, session-rewinder.ts,
+  // paths.ts escapesRoot): `..scratch` is a legal IN-ROOT first segment, so a
+  // bare startsWith('..') misreads it as a parent traversal and wrongly rejects
+  // a workdir the server actually serves.
+  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
     return {
       error: `workdir "${workdir}" is outside the project this server serves (${root}); start \`wstack tools serve\` in the task's directory`,
     };

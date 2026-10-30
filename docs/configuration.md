@@ -378,11 +378,14 @@ prompt cache stays valid. Spawn-capable tools are still withheld from a solo
 session.
 
 Launched from a folder that is not a project (no manifest, no
-`.wrongstack/AGENTS.md`, no git), the CLI startup menu and the WebUI new-session
-picker preselect Scout. Choosing it there applies to that launch or session only;
-the saved profile default is unchanged.
+`.wrongstack/AGENTS.md`, no git), the WebUI new-session picker preselects Scout.
+The CLI startup menu does the same when enabled with `--host-profile`. Choosing
+it there applies to that launch or session only; the saved profile default is
+unchanged.
 
-CLI flags override this setting for one launch:
+CLI sessions default directly to Quick and skip the system-prompt picker.
+Use `--host-profile` to keep the saved profile prompt, or explicitly select a
+variant for one launch. These flags do not overwrite the saved setting:
 
 ```bash
 wstack --system-pro

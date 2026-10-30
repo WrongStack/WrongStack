@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { messageSearchText, SearchOverlay } from '../../src/components/SearchOverlay';
 import type { ChatMessage } from '../../src/stores';
@@ -15,6 +15,27 @@ function msg(overrides: Partial<ChatMessage>): ChatMessage {
 }
 
 import { i18n } from '../../src/i18n';
+
+it('closes search from result-navigation controls and restores the chat input focus', async () => {
+  await i18n.changeLanguage('en');
+  useChatStore.setState({ messages: [msg({ content: 'Review the workspace' })] });
+  useUIStore.setState({ searchOpen: true, searchQuery: 'workspace' });
+  render(
+    <>
+      <textarea aria-label="Search focus return" />
+      <SearchOverlay />
+    </>,
+  );
+  const next = screen.getByRole('button', { name: i18n.t('activity:search.nextHit') });
+  next.focus();
+  fireEvent.keyDown(next, { key: 'Escape' });
+  expect(useUIStore.getState().searchOpen).toBe(false);
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Search focus return' }),
+    ),
+  );
+});
 
 describe('messageSearchText', () => {
   // Pin the language before rendering: the component renders t()-derived

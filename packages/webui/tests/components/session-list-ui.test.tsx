@@ -86,6 +86,76 @@ describe('SessionList workspace', () => {
     expect(props.renameSession).toHaveBeenCalledWith('session-1', 'Operator history');
   });
 
+  it('cancels an edited session name with Escape without saving', () => {
+    const props = renderWorkspace();
+    fireEvent.click(screen.getByTitle('Rename'));
+    const input = screen.getByLabelText('Session name');
+    fireEvent.change(input, { target: { value: 'Cancelled draft' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByLabelText('Session name')).toBeNull();
+    expect(props.renameSession).not.toHaveBeenCalled();
+  });
+
+  it.each(['tokens', 'activity'])('preserves %s ordering across different time groups', (sort) => {
+    const now = Date.now();
+    renderWorkspace({
+      historyEntries: [
+        entry({ id: 'recent-small', tokenTotal: 10, toolCallCount: 1, fileChangeCount: 0 }),
+        entry({
+          id: 'older-large',
+          tokenTotal: 9000,
+          toolCallCount: 50,
+          fileChangeCount: 8,
+          startedAt: new Date(now - 40 * 86_400_000).toISOString(),
+          endedAt: new Date(now - 40 * 86_400_000 + 60_000).toISOString(),
+        }),
+      ],
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort sessions' }), {
+      target: { value: sort },
+    });
+    expect(
+      Array.from(document.querySelectorAll('[data-session-id]')).map((row) =>
+        row.getAttribute('data-session-id'),
+      ),
+    ).toEqual(['older-large', 'recent-small']);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort sessions' }), {
+      target: { value: 'recent' },
+    });
+    expect(
+      Array.from(document.querySelectorAll('[data-session-id]')).map((row) =>
+        row.getAttribute('data-session-id'),
+      ),
+    ).toEqual(['recent-small', 'older-large']);
+  });
+
+  it('keeps the no-match state visible after switching to a metric sort', () => {
+    renderWorkspace({ historyQuery: 'no-matching-conversation' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort sessions' }), {
+      target: { value: 'tokens' },
+    });
+    expect(screen.getByText('No matches')).toBeDefined();
+    expect(document.querySelectorAll('[data-session-id]')).toHaveLength(0);
+  });
+
+  it('retains pinned groups ahead of metric-ranked unpinned sessions', () => {
+    useUIStore.setState({ favoriteSessionIds: ['pinned-small'] });
+    renderWorkspace({
+      historyEntries: [
+        entry({ id: 'pinned-small', tokenTotal: 10 }),
+        entry({ id: 'unpinned-large', tokenTotal: 9000 }),
+      ],
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort sessions' }), {
+      target: { value: 'tokens' },
+    });
+    expect(
+      Array.from(document.querySelectorAll('[data-session-id]')).map((row) =>
+        row.getAttribute('data-session-id'),
+      ),
+    ).toEqual(['pinned-small', 'unpinned-large']);
+  });
+
   it('pins locally and resumes through an explicit workspace action', () => {
     const props = renderWorkspace();
     fireEvent.click(screen.getByTitle('Mark as favorite'));

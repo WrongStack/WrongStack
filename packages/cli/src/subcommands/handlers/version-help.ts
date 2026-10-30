@@ -38,7 +38,7 @@ export const helpCmd: SubcommandHandler = async (_args, deps) => {
     ...section('Start', [
       ['wstack', 'Interactive session (REPL or TUI, picked at launch)'],
       ['wstack "<task>"', 'Run one task and exit (also: --prompt "<task>")'],
-      ['wstack quick', 'Straight into the TUI with saved defaults'],
+      ['wstack quick', 'Straight into the TUI with the Quick prompt'],
       ['wstack webui | vibeui', 'Browser UI / focused coding workspace'],
       ['wstack hq', 'HQ command center across projects and machines'],
       ['wstack remote <user@host:/path>', 'Run on a remote machine over SSH; WebUI tunneled here'],
@@ -89,7 +89,11 @@ export const helpCmd: SubcommandHandler = async (_args, deps) => {
       ['--provider <id> --model <id>', 'Provider and model for this run'],
       ['--fallback-model <a,b,...>', 'Models to fall back to when the primary is unavailable'],
       ['--effort <level>', 'Reasoning effort: none|minimal|low|medium|high|xhigh|max'],
-      ['--system-prompt lite|pro|scout|quick|default', 'Bundled system-prompt variant'],
+      [
+        '--system-prompt lite|pro|scout|quick|default',
+        'System-prompt variant (CLI default: quick)',
+      ],
+      ['--host-profile', 'Use the saved profile prompt instead of the CLI Quick default'],
       [
         '--append-system-prompt <text> | --append-system-prompt-file <path>',
         'Add instructions to the host agent prompt for this run',
@@ -115,10 +119,6 @@ export const helpCmd: SubcommandHandler = async (_args, deps) => {
       [
         '--output-format text|json|stream-json',
         'stream-json: init, assistant, tool_result, result lines',
-      ],
-      [
-        '--host-profile',
-        'Headless runs default to Quick prompt, basic tools, no tool coach; keep your profile',
       ],
       ['--no-tool-coach', 'No [TOOL COACH] advice folded into turns'],
       ['--include-partial-messages', 'stream-json: add text_delta lines'],

@@ -29,6 +29,8 @@ export async function ensureDirectorAndAnnounce(args: {
   manifestPath: string | undefined;
   sharedScratchpadPath: string | undefined;
   subagentSessionsRoot: string | undefined;
+  /** Print the startup card? Config `startupAnnounce: false` passes false; wiring is unaffected. */
+  announce?: boolean | undefined;
 }): Promise<Director | null> {
   const {
     multiAgentHost,
@@ -42,10 +44,14 @@ export async function ensureDirectorAndAnnounce(args: {
     subagentSessionsRoot,
   } = args;
 
+  // `announce: false` mutes the whole startup card: every report() call below
+  // becomes a no-op while the Director wiring itself still runs unchanged.
   const report =
-    flags.tui === true && flags['no-tui'] !== true && flags.webui !== true
-      ? (message: string) => args.logger?.info(message, { event: 'tui.startup.director' })
-      : (message: string) => renderer.writeInfo(message);
+    args.announce === false
+      ? () => {}
+      : flags.tui === true && flags['no-tui'] !== true && flags.webui !== true
+        ? (message: string) => args.logger?.info(message, { event: 'tui.startup.director' })
+        : (message: string) => renderer.writeInfo(message);
 
   const director = await multiAgentHost.ensureDirector();
   if (director) {

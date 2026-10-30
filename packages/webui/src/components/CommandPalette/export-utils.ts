@@ -67,16 +67,19 @@ export function downloadChatAsMarkdown(): void {
       const status = m.isError ? '❌' : m.toolResult !== undefined ? '✅' : '⏳';
       lines.push(`### 🔧 Tool: \`${m.toolName ?? 'unknown'}\` ${status}`);
       if (m.toolInput !== undefined) {
-        lines.push('```json');
-        lines.push(JSON.stringify(m.toolInput, null, 2));
-        lines.push('```');
+        const input = JSON.stringify(m.toolInput, null, 2);
+        const fence = markdownFence(input);
+        lines.push(`${fence}json`);
+        lines.push(input);
+        lines.push(fence);
       }
       if (m.toolResult) {
+        const fence = markdownFence(m.toolResult);
         lines.push('<details><summary>Output</summary>');
         lines.push('');
-        lines.push('```');
+        lines.push(fence);
         lines.push(m.toolResult);
-        lines.push('```');
+        lines.push(fence);
         lines.push('</details>');
       }
       lines.push('');
@@ -143,11 +146,13 @@ export function downloadChatAsHtml(): void {
   const html = `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${safeTitle} — chat export</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 920px; margin: 24px auto; padding: 0 16px; }
   h1 { font-size: 20px; margin-bottom: 4px; }
+  h1, .meta, .bubble header { overflow-wrap: anywhere; }
   .meta { color: #666; font-size: 12px; margin-bottom: 24px; }
   .bubble { margin: 12px 0; padding: 10px 14px; border-radius: 10px; border: 1px solid #ddd; }
   .bubble header { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #666; margin-bottom: 6px; }

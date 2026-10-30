@@ -106,7 +106,9 @@ export async function discoverAndMergeProviders(opts: {
         if (accountCatalog) cfg.models = Object.keys(cached.provider.models);
         const merge = discoveryOverlay(target, cached.provider, cached.fetchedAt);
         opts.registry.mergeOverlay(merge.payload, merge.options);
-        opts.logger?.warn(
+        // A cached catalog is a successful boot fallback. Keep renewal/outage
+        // diagnostics available without warning on every normal launch.
+        opts.logger?.debug(
           `auto-discovery for "${id}" failed; using ${
             Object.keys(cached.provider.models).length
           } cached models from ${cached.fetchedAt} (${failureReason})`,

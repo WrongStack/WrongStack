@@ -4,18 +4,20 @@
  * positional subcommand, on an interactive TTY.
  *
  * The menu asks the user **once** which top-level surface to launch:
- *   1) TUI / REPL  — interactive terminal (the historical default)
- *   2) WebUI       — browser-based project UI (port 3456 by default)
- *   3) VibeUI      — focused coding workspace (port 3476 by default)
- *   4) HQ          — project-independent HQ dashboard (port 3499)
+ *   1) TUI     — full-screen interactive terminal (the historical default)
+ *   2) REPL    — line-by-line terminal prompt
+ *   3) WebUI   — browser-based project UI (port 3456 by default)
+ *   4) VibeUI  — focused coding workspace (port 3476 by default)
+ *   5) HQ      — project-independent HQ dashboard (port 3499)
  *
  * It returns either:
  *   - `null`         — caller should fall through to the historical
  *                       boot() flow unchanged (menu skipped).
  *   - `LaunchChoice` — caller should honor the selection:
- *                       * `tui-repl` → proceed to boot() with no flag
- *                         changes (the inner pre-launch prompts still
- *                         ask TUI vs REPL + YOLO + autonomy).
+ *                       * `tui` → caller injects `--tui` into argv.
+ *                       * `repl` → caller injects `--no-tui` into argv.
+ *                       * `tui-repl` → legacy fallback; proceed to boot()
+ *                         with no flag changes.
  *                       * `webui` / `vibeui` → caller injects the
  *                         surface flag + chosen port into argv.
  *                       * `hq` → caller dispatches to the HQ
@@ -52,7 +54,7 @@ const DEFAULT_HOST = '127.0.0.1';
 const HQ_DEFAULT_HOST = HQ_CLI_DEFAULT_HOST;
 
 function bindsPort(mode: LaunchMenuMode): mode is NetworkLaunchMode {
-  return mode !== 'tui-repl';
+  return mode !== 'tui' && mode !== 'repl' && mode !== 'tui-repl';
 }
 
 function defaultHostFor(mode: NetworkLaunchMode): string {
@@ -147,7 +149,7 @@ export async function runLaunchMenu(deps: RunLaunchMenuDeps): Promise<LaunchMenu
   let choice: LaunchMenuChoice;
   if (arrowPick) {
     if (arrowPick.cancelled) {
-      return { mode: 'tui-repl', cancelled: true };
+      return { mode: 'tui', cancelled: true };
     }
     choice = { mode: arrowPick.mode };
   } else {
@@ -168,13 +170,13 @@ export async function runLaunchMenu(deps: RunLaunchMenuDeps): Promise<LaunchMenu
 
     if (answer === 'q' || answer === 'quit') {
       renderer.write(color.dim('  Goodbye!\n'));
-      return { mode: 'tui-repl', cancelled: true };
+      return { mode: 'tui', cancelled: true };
     }
 
     const picked = MODE_OPTIONS.find((o) => String(o.key) === answer || o.mode === answer);
-    // Anything unrecognized falls back to the first option (TUI/REPL),
+    // Anything unrecognized falls back to the first option (TUI),
     // matching the timeout default — the menu is best-effort.
-    choice = picked ? { mode: picked.mode } : { mode: 'tui-repl' };
+    choice = picked ? { mode: picked.mode } : { mode: 'tui' };
   }
 
   // For modes that bind a port/host, ask once and persist the answer.
@@ -316,6 +318,10 @@ function finalize(choice: LaunchMenuChoice, ports: typeof DEFAULT_PORTS): Launch
 
 function describeMode(mode: LaunchMenuMode): string {
   switch (mode) {
+    case 'tui':
+      return 'TUI';
+    case 'repl':
+      return 'REPL';
     case 'tui-repl':
       return 'TUI / REPL';
     case 'webui':
@@ -339,6 +345,8 @@ function describeMode(mode: LaunchMenuMode): string {
  * downstream `boot()` call should consume.
  *
  * Behaviour:
+ *   - `tui`       → appends `--tui`.
+ *   - `repl`      → appends `--no-tui`.
  *   - `tui-repl`  → unchanged argv; pre-launch prompts ask TUI vs REPL.
  *   - `webui`     → appends `--webui --port=<n> [--host=<h>]`.
  *   - `vibeui`    → appends `--vibeui --port=<n> [--host=<h>]`.
@@ -354,6 +362,12 @@ export function applyLaunchMenuToArgv(argv: string[], result: LaunchMenuResult):
   if (result.cancelled) return argv;
   const out = [...argv];
   switch (result.mode) {
+    case 'tui':
+      out.push('--tui');
+      return out;
+    case 'repl':
+      out.push('--no-tui');
+      return out;
     case 'tui-repl':
       return out;
     case 'webui':
@@ -383,7 +397,7 @@ export function applyLaunchMenuToArgv(argv: string[], result: LaunchMenuResult):
  * Convert a {@link LaunchMenuResult} into the shape we persist to
  * `config.launch.menuChoice`. Returns `undefined` for cancellations
  * (we don't want to overwrite a saved choice with nothing) and for
- * `tui-repl` (the inner pre-launch prompts already persist
+ * `tui` / `repl` / `tui-repl` (the inner pre-launch prompts already persist
  * `config.launch.mode` for the TUI/REPL decision).
  *
  * Port validation mirrors `promptPort`'s 1–65535 range — if a
@@ -393,7 +407,8 @@ export function applyLaunchMenuToArgv(argv: string[], result: LaunchMenuResult):
  */
 export function toPersistedMenuChoice(result: LaunchMenuResult): LaunchMenuChoice | undefined {
   if (result.cancelled) return undefined;
-  if (result.mode === 'tui-repl') return undefined;
+  if (result.mode === 'tui' || result.mode === 'repl' || result.mode === 'tui-repl')
+    return undefined;
   const port =
     typeof result.port === 'number' &&
     Number.isFinite(result.port) &&

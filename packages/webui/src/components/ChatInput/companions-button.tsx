@@ -5,12 +5,14 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useLocalPrefs } from '@/stores/local-prefs';
+import { ComposerPopover } from './composer-popover';
 
 export function CompanionsButton() {
   const { t } = useAppTranslation();
   const { updatePrefs } = useWebSocket();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const { memoryCompanionEnabled, exploreCompanionEnabled, skillCompanionEnabled } = useLocalPrefs(
     useShallow((s) => ({
@@ -25,11 +27,15 @@ export function CompanionsButton() {
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
       if (!target) return;
-      if (wrapRef.current?.contains(target)) return;
+      if (wrapRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        wrapRef.current?.querySelector('button')?.focus();
+      }
     };
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -130,9 +136,10 @@ export function CompanionsButton() {
       </button>
 
       {open && (
-        <div
+        <ComposerPopover
+          anchorRef={wrapRef}
+          panelRef={panelRef}
           data-testid="composer-companions-popover"
-          className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-popover p-3 shadow-lg"
         >
           <div className="mb-2.5 flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
@@ -201,7 +208,7 @@ export function CompanionsButton() {
               </div>
             ))}
           </div>
-        </div>
+        </ComposerPopover>
       )}
     </span>
   );

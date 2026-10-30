@@ -254,10 +254,10 @@ export function NotificationMenu({
       <DropdownMenuContent
         align="end"
         sideOffset={6}
-        className="w-80 sm:w-96 max-w-[calc(100vw-1rem)] p-0 rounded-xl border border-border/80 bg-card/95 backdrop-blur-xl ws-dialog overflow-hidden text-card-foreground"
+        className="flex min-h-0 w-80 sm:w-96 max-w-[calc(100vw-1rem)] flex-col p-0 rounded-xl border border-border/80 bg-card/95 backdrop-blur-xl ws-dialog overflow-hidden text-card-foreground"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/60 px-3.5 py-2.5 bg-muted/30">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 px-3.5 py-2.5 bg-muted/30">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-xs text-foreground">
               {t('toasts:menu.title', { defaultValue: 'Notifications' })}
@@ -269,7 +269,7 @@ export function NotificationMenu({
             ) : null}
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 whitespace-nowrap">
             <button
               type="button"
               disabled={!notifications.some((n) => !n.read)}
@@ -294,7 +294,7 @@ export function NotificationMenu({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 border-b border-border/50 bg-background/50 px-3 py-1.5 text-xs">
+        <div className="flex shrink-0 items-center gap-2 border-b border-border/50 bg-background/50 px-3 py-1.5 text-xs">
           <span className="shrink-0 text-muted-foreground">
             {t('toasts:menu.filterType', { defaultValue: 'Show' })}
           </span>
@@ -326,7 +326,7 @@ export function NotificationMenu({
         </div>
 
         {/* Read-status tabs apply within the selected type. */}
-        <div className="flex border-b border-border/50 bg-background/50 px-3 py-1.5 gap-1.5 text-xs">
+        <div className="flex shrink-0 border-b border-border/50 bg-background/50 px-3 py-1.5 gap-1.5 text-xs">
           <button
             type="button"
             onClick={() => setTab('all')}
@@ -357,7 +357,7 @@ export function NotificationMenu({
         {/* biome-ignore lint/a11y/useSemanticElements: rows are role="menuitem" divs; a <ul> would require <li> children. */}
         <div
           role="list"
-          className="max-h-[340px] overflow-y-auto divide-y divide-border/30"
+          className="min-h-0 max-h-[340px] overflow-y-auto divide-y divide-border/30"
           aria-label={t('toasts:menu.title', { defaultValue: 'Notifications' })}
         >
           {filteredNotifications.length === 0 ? (

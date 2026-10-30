@@ -184,10 +184,16 @@ export function SessionList({
     () => visibleEntries.slice((activePage - 1) * pageSize, activePage * pageSize),
     [activePage, pageSize, visibleEntries],
   );
-  const groupedHistory = useMemo(
-    () => groupSessionHistory(pagedEntries, favoriteSessionIds),
-    [favoriteSessionIds, pagedEntries],
-  );
+  const groupedHistory = useMemo<SessionHistoryGroup[]>(() => {
+    if (sort === 'recent') return groupSessionHistory(pagedEntries, favoriteSessionIds);
+    // Date buckets would reorder the page after its explicit metric sort.
+    const pinned = pagedEntries.filter((entry) => favoriteSessionIds.includes(entry.id));
+    const unpinned = pagedEntries.filter((entry) => !favoriteSessionIds.includes(entry.id));
+    const groups: SessionHistoryGroup[] = [];
+    if (pinned.length > 0) groups.push({ label: 'favorites', favorite: true, rows: pinned });
+    if (unpinned.length > 0) groups.push({ label: sort, rows: unpinned });
+    return groups;
+  }, [favoriteSessionIds, pagedEntries, sort]);
   // Workspace pages lay the time groups out as two columns; balance them
   // around one continuous timeline so neither column sits empty or ragged.
   // The sidebar keeps a single stacked flow (its column wrapper is
@@ -411,7 +417,9 @@ export function SessionList({
                         )}
                       >
                         {group.favorite ? <Star className="h-3 w-3 fill-current" /> : null}
-                        {t(`activity:sessions.group.${group.label}`)}
+                        {group.label === 'tokens' || group.label === 'activity'
+                          ? t(`activity:sessions.sort.${group.label}`)
+                          : t(`activity:sessions.group.${group.label}`)}
                         <span className="ml-1 font-mono font-normal text-muted-foreground">
                           {group.rows.length}
                         </span>
@@ -429,7 +437,10 @@ export function SessionList({
                             <article
                               key={entry.id}
                               className={cn(
-                                'ws-session-history-row group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] bg-card transition-colors',
+                                'ws-session-history-row group grid min-w-0 bg-card transition-colors',
+                                workspace
+                                  ? 'grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto]'
+                                  : 'grid-cols-[minmax(0,1fr)_auto]',
                                 entry.isCurrent
                                   ? 'border-l-2 border-l-primary bg-primary/5'
                                   : 'border-l-2 border-l-transparent hover:bg-muted/45',

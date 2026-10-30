@@ -310,7 +310,7 @@ export interface LaunchConfig {
  */
 export interface LaunchMenuChoice {
   /** Which top-level surface the user picked from the menu. */
-  mode: 'tui-repl' | 'webui' | 'vibeui' | 'hq';
+  mode: 'tui' | 'repl' | 'tui-repl' | 'webui' | 'vibeui' | 'hq';
   /** Port override the user typed (defaults to the surface's default). */
   port?: number | undefined;
   /** Host override the user typed (defaults to 127.0.0.1). */

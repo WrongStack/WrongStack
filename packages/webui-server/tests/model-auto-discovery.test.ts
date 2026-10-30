@@ -225,7 +225,8 @@ describe('model-auto-discovery', () => {
     });
 
     expect(registry.mergeOverlay).toHaveBeenCalledWith({ vllm: cachedProvider }, {});
-    expect(logger.warn).toHaveBeenCalledWith(
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('using 1 cached models from 2026-09-07T12:00:00.000Z'),
     );
   });

@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageMotif } from '@/components/PageMotif';
 import { usePagination } from '@/hooks/usePagination';
+import { useViewport } from '@/hooks/useViewport';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
@@ -46,6 +47,7 @@ import {
   signalTotal,
 } from './chronicle-event-detail.js';
 import { Pagination } from './ui/pagination';
+import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
 const facetFields = ['eventType', 'providerId', 'modelId', 'outcome', 'resourceKind'] as const;
 const DEFAULT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
@@ -69,9 +71,11 @@ const signals: Array<{ id: Signal; labelKey: string; icon: React.ReactNode }> = 
 
 export function ChronicleDashboard() {
   const { t } = useAppTranslation();
+  const { isMobile } = useViewport();
   const client = getWSClient();
   const [events, setEvents] = useState<ChronicleEventView[]>([]);
   const [selected, setSelected] = useState<ChronicleEventView | null>(null);
+  const selectedTrigger = useRef<HTMLElement | null>(null);
   const [facets, setFacets] = useState<Record<string, ChronicleFacetValue[]>>({});
   const [query, setQuery] = useState<ChronicleQuery>(defaultQuery());
   const [draft, setDraft] = useState({
@@ -256,6 +260,8 @@ export function ChronicleDashboard() {
     run(defaultQuery());
   };
   const open = (event: ChronicleEventView) => {
+    selectedTrigger.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setSelected(event);
     setGraph(null);
     if (client.supportsCapability('chronicle.graph'))
@@ -264,15 +270,59 @@ export function ChronicleDashboard() {
         payload: { seed: { eventId: event.eventId }, hops: 2, maxNodes: 250 },
       });
   };
+  const closeDetail = useCallback(() => {
+    setSelected(null);
+    if (!isMobile) selectedTrigger.current?.focus();
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!selected || isMobile) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.key !== 'Escape') return;
+      if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return;
+      event.preventDefault();
+      closeDetail();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [selected, isMobile, closeDetail]);
+
+  const detailContent = selected ? (
+    <>
+      <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border bg-card px-4 py-3">
+        <div className="min-w-0 flex-1">
+          {isMobile ? (
+            <SheetTitle className="text-xs font-semibold leading-snug">
+              {t('activity:chronicle.evidenceLineage')}
+            </SheetTitle>
+          ) : (
+            <h2 className="text-xs font-semibold">{t('activity:chronicle.evidenceLineage')}</h2>
+          )}
+          <div className="mt-0.5 break-all font-mono text-[9px] text-muted-foreground">
+            #{selected.sequence} · {selected.eventId}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={closeDetail}
+          aria-label={t('common:action.close')}
+          className="flex h-8 w-8 shrink-0 items-center justify-center border border-transparent hover:border-border hover:bg-muted"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <Detail event={selected} graph={graph} />
+    </>
+  ) : null;
 
   return (
     <div className="flex h-full min-h-0 bg-background" data-testid="chronicle-dashboard">
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0">
         <header className="ws-page-header border-b border-border/70">
           <PageMotif kind="chart" />
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1 basis-64">
+              <div className="flex flex-wrap items-center gap-2">
                 <BrainCircuit className="h-5 w-5 text-primary" />
                 <h1 className="tracking-tight">{t('activity:chronicle.codingIntelligence')}</h1>
                 <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold tracking-wider text-foreground">
@@ -588,21 +638,21 @@ export function ChronicleDashboard() {
           ))}
         </section>
 
-        <div className="grid grid-cols-[92px_minmax(190px,1.25fr)_110px_minmax(180px,1fr)_minmax(140px,.8fr)_24px] gap-3 border-b border-border/60 bg-muted/20 px-4 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <span>{t('activity:chronicle.time')}</span>
-          <span>{t('activity:chronicle.signal')}</span>
-          <span>{t('activity:chronicle.outcome')}</span>
-          <span>{t('activity:chronicle.modelAgent')}</span>
-          <span>{t('activity:chronicle.resource')}</span>
-          <span />
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div className="min-h-60 flex-1 overflow-auto">
+          <div className="sticky top-0 z-10 grid min-w-[828px] grid-cols-[92px_minmax(190px,1.25fr)_110px_minmax(180px,1fr)_minmax(140px,.8fr)_24px] gap-3 border-b border-border/60 bg-card px-4 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span>{t('activity:chronicle.time')}</span>
+            <span>{t('activity:chronicle.signal')}</span>
+            <span>{t('activity:chronicle.outcome')}</span>
+            <span>{t('activity:chronicle.modelAgent')}</span>
+            <span>{t('activity:chronicle.resource')}</span>
+            <span />
+          </div>
           {error ? (
             <Empty text={error} />
           ) : !loading && visible.length === 0 ? (
             <Empty text="No coding evidence matches these filters." />
           ) : (
-            <div className="divide-y divide-border/40">
+            <div className="min-w-[828px] divide-y divide-border/40">
               {eventPage.pageItems.map((event) => (
                 <EventRow
                   key={event.eventId}
@@ -622,26 +672,33 @@ export function ChronicleDashboard() {
           itemLabel="events"
         />
       </main>
-      {selected && (
-        <aside className="w-[440px] max-w-[48vw] shrink-0 overflow-auto border-l border-border bg-card/60 shadow-[-12px_0_32px_hsl(var(--background)/.35)]">
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
-            <div>
-              <div className="text-xs font-semibold">{t('activity:chronicle.evidenceLineage')}</div>
-              <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
-                #{selected.sequence} · {selected.eventId}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelected(null)}
-              className="rounded p-1 hover:bg-muted"
+      {selected &&
+        (isMobile ? (
+          <Sheet
+            open
+            onOpenChange={(open) => {
+              if (!open) closeDetail();
+            }}
+          >
+            <SheetContent
+              data-chronicle-detail
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                selectedTrigger.current?.focus();
+              }}
+              side="right"
+              showCloseButton={false}
+              aria-describedby={undefined}
+              className="w-full overflow-y-auto sm:max-w-md"
             >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <Detail event={selected} graph={graph} />
-        </aside>
-      )}
+              {detailContent}
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <aside className="w-[440px] max-w-[48vw] shrink-0 overflow-auto border-l border-border bg-card/60 shadow-[-12px_0_32px_hsl(var(--background)/.35)]">
+            {detailContent}
+          </aside>
+        ))}
     </div>
   );
 }

@@ -58,6 +58,18 @@ describe('boot launch choices', () => {
     expect(mocks.prompts).not.toHaveBeenCalled();
   });
 
+  it('aligns lastChoices.mode with a launch-menu REPL selection when reuseLast is on', async () => {
+    const input = fixture({ isInteractiveTTY: true, flags: { 'no-tui': true } });
+    await applyBootLaunchChoices(input);
+    expect(mocks.prompts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modePinned: 'repl',
+        reuseLast: true,
+        lastChoices: expect.objectContaining({ mode: 'repl' }),
+      }),
+    );
+  });
+
   it('preserves the saved TUI preference when WebUI pins the current launch to REPL', async () => {
     const input = fixture({ isInteractiveTTY: true, flags: { webui: true, 'no-tui': true } });
     await applyBootLaunchChoices(input);

@@ -148,6 +148,8 @@ export function PromptLibraryModal() {
   );
 
   const selectedContent = variants?.[level] ?? content;
+  const selectedFavorite =
+    prompts.find((p) => p.slug === selected?.slug)?.favorite ?? selected?.favorite ?? false;
   const doInsert = useCallback(() => {
     if (!selected || !content) return;
     client?.send({ type: 'prompts.used', payload: { slug: selected.slug } });
@@ -155,12 +157,10 @@ export function PromptLibraryModal() {
   }, [selected, content, selectedContent, varValues, requestPromptInsert, client]);
 
   const toggleFavorite = useCallback(
-    (p: PromptMeta) => {
+    (slug: string, favorite: boolean) => {
       if (!client) return;
-      client.send({ type: 'prompts.favorite', payload: { slug: p.slug, favorite: !p.favorite } });
-      setPrompts((prev) =>
-        prev.map((x) => (x.slug === p.slug ? { ...x, favorite: !x.favorite } : x)),
-      );
+      client.send({ type: 'prompts.favorite', payload: { slug, favorite } });
+      setPrompts((prev) => prev.map((x) => (x.slug === slug ? { ...x, favorite } : x)));
     },
     [client],
   );
@@ -339,11 +339,15 @@ export function PromptLibraryModal() {
                   className={`flex w-full flex-col items-start gap-0.5 border-b border-border/50 px-3 py-2 text-left hover:bg-accent ${selected?.slug === p.slug ? 'bg-accent' : ''}`}
                 >
                   <div className="flex w-full items-center gap-1 text-sm">
-                    <span>{SOURCE_GLYPH[p.source] ?? '•'}</span>
-                    <span className="font-medium">{p.title}</span>
-                    {p.favorite && <span className="text-warning">★</span>}
+                    <span className="shrink-0">{SOURCE_GLYPH[p.source] ?? '•'}</span>
+                    <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
+                      {p.title}
+                    </span>
+                    {p.favorite && <span className="shrink-0 text-warning">★</span>}
                   </div>
-                  <div className="line-clamp-1 text-xs text-muted-foreground">{p.description}</div>
+                  <div className="line-clamp-1 w-full text-xs text-muted-foreground">
+                    {p.description}
+                  </div>
                 </button>
               ))}
               {filtered.length === 0 && (
@@ -433,6 +437,7 @@ export function PromptLibraryModal() {
                           vars: [
                             ...d.vars,
                             {
+                              id: safeId(),
                               name: '',
                               description: '',
                               required: true,
@@ -448,10 +453,7 @@ export function PromptLibraryModal() {
                     </button>
                   </div>
                   {draft.vars.map((v, i) => (
-                    <div
-                      key={v.name || `var-${i}`}
-                      className="space-y-1 rounded border border-border/60 p-1.5"
-                    >
+                    <div key={v.id} className="space-y-1 rounded border border-border/60 p-1.5">
                       <div className="flex gap-1">
                         <input
                           value={v.name}
@@ -465,7 +467,7 @@ export function PromptLibraryModal() {
                           }
                           placeholder={t('activity:promptLib.varNamePlaceholder')}
                           aria-label={t('activity:promptLib.varNamePlaceholder')}
-                          className="w-1/3 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
+                          className="min-w-0 w-1/3 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
                         />
                         <input
                           value={v.description}
@@ -479,7 +481,7 @@ export function PromptLibraryModal() {
                           }
                           placeholder={t('activity:promptLib.varDescPlaceholder')}
                           aria-label={t('activity:promptLib.varDescPlaceholder')}
-                          className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
+                          className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
                         />
                         <button
                           type="button"
@@ -492,8 +494,8 @@ export function PromptLibraryModal() {
                           ✕
                         </button>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-1 text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <label className="flex shrink-0 items-center gap-1 text-muted-foreground">
                           <input
                             type="checkbox"
                             checked={v.required}
@@ -508,7 +510,7 @@ export function PromptLibraryModal() {
                           />
                           {t('activity:promptLib.required')}
                         </label>
-                        <label className="flex items-center gap-1 text-muted-foreground">
+                        <label className="flex shrink-0 items-center gap-1 text-muted-foreground">
                           <input
                             type="checkbox"
                             checked={v.multiline}
@@ -535,7 +537,7 @@ export function PromptLibraryModal() {
                           }
                           placeholder={t('activity:promptLib.enumPlaceholder')}
                           aria-label={t('activity:promptLib.enumPlaceholder')}
-                          className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
+                          className="min-w-0 w-full rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary sm:w-auto sm:flex-1"
                         />
                       </div>
                     </div>
@@ -566,11 +568,11 @@ export function PromptLibraryModal() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => toggleFavorite(selected)}
+                    onClick={() => toggleFavorite(selected.slug, !selectedFavorite)}
                     className="text-lg"
                     title={t('activity:promptLib.toggleFavoriteTitle')}
                   >
-                    {selected.favorite ? '★' : '☆'}
+                    {selectedFavorite ? '★' : '☆'}
                   </button>
                 </div>
                 <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-3">

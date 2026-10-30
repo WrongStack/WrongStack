@@ -139,7 +139,8 @@ export async function discoverAndMergeWebuiProviders(opts: {
         if (accountCatalog) cfg.models = Object.keys(cached.provider.models);
         const merge = discoveryOverlay(target, cached.provider, cached.fetchedAt);
         registry.mergeOverlay(merge.payload, merge.options);
-        opts.logger?.warn?.(
+        // Match CLI boot: a usable cached catalog does not need a warning.
+        opts.logger?.debug?.(
           `auto-discovery for "${id}" failed; using ${
             Object.keys(cached.provider.models).length
           } cached models from ${cached.fetchedAt} (${failureReason})`,

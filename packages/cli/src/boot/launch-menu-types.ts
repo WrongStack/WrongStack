@@ -10,7 +10,7 @@ export type LaunchMenuMode = LaunchMenuChoice['mode'];
 //   WebUI / VibeUI:   packages/webui-server/src/server/port-utils.ts
 //   HQ:               packages/cli/src/hq-server.ts (DEFAULT_PORT)
 /** Surfaces that bind a TCP listener and therefore need a port/host prompt. */
-export type NetworkLaunchMode = Exclude<LaunchMenuMode, 'tui-repl'>;
+export type NetworkLaunchMode = Exclude<LaunchMenuMode, 'tui' | 'repl' | 'tui-repl'>;
 
 export const DEFAULT_PORTS: Record<NetworkLaunchMode, number> = {
   webui: 3456,
@@ -28,27 +28,34 @@ export const MODE_OPTIONS: ReadonlyArray<{
 }> = [
   {
     key: 1,
-    mode: 'tui-repl',
-    label: 'TUI / REPL',
+    mode: 'tui',
+    label: 'TUI',
     hint: 'interactive terminal (default)',
     icon: '⌨',
   },
   {
     key: 2,
+    mode: 'repl',
+    label: 'REPL',
+    hint: 'line-by-line terminal prompt',
+    icon: '❯',
+  },
+  {
+    key: 3,
     mode: 'webui',
     label: 'WebUI',
     hint: `browser-based project UI (port ${DEFAULT_PORTS.webui})`,
     icon: '🌐',
   },
   {
-    key: 3,
+    key: 4,
     mode: 'vibeui',
     label: 'VibeUI',
     hint: `focused coding workspace (port ${DEFAULT_PORTS.vibeui})`,
     icon: '✦',
   },
   {
-    key: 4,
+    key: 5,
     mode: 'hq',
     label: 'HQ',
     hint: `project-independent dashboard (port ${HQ_DEFAULT_PORT})`,

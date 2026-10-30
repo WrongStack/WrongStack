@@ -321,6 +321,32 @@ describe('wstack tools serve — REST tool gateway', () => {
     }
   });
 
+  it('accepts an in-root workdir whose first segment merely begins with ".."', async () => {
+    // Canonical escape test (shell-open-dotdot regression class): a directory
+    // NAMED `..scratch` is inside the project; only `..` climbing or an
+    // absolute relative result is a traversal. The loose startsWith('..')
+    // predicate misread such workdirs as escapes and refused every tool call
+    // for a task rooted there.
+    await fs.mkdir(path.join(root, '..scratch', 'build'), { recursive: true });
+    await fs.writeFile(path.join(root, '..scratch', 'build', 'inner.txt'), 'dotdot root\n');
+    await fs.mkdir(path.join(root, 'plain', 'build'), { recursive: true });
+    await fs.writeFile(path.join(root, 'plain', 'build', 'inner.txt'), 'plain root\n');
+    const { url } = await start();
+    for (const workdir of [
+      path.join(root, '..scratch', 'build'),
+      path.join('..scratch', 'build'),
+      path.join(root, 'plain', 'build'),
+    ]) {
+      const res = await req(`${url}v1/tools/read/call`, {
+        body: { input: { path: 'inner.txt' }, workdir },
+      });
+      expect(res.status, workdir).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body, workdir).toMatchObject({ ok: true, tool: 'read' });
+      expect(String(body['content']), workdir).toContain('inner.txt');
+    }
+  });
+
   it('answers 429 instead of piling up calls past the concurrency cap', async () => {
     let release: () => void = () => {};
     const { url } = await start({

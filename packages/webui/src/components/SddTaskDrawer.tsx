@@ -176,13 +176,13 @@ export function SddTaskDrawer({
       <div
         className={cn(
           'min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain',
-          expanded ? 'grid grid-cols-2 content-start gap-4 p-5' : 'space-y-3 p-3',
+          expanded ? 'grid grid-cols-1 content-start gap-4 p-5 sm:grid-cols-2' : 'space-y-3 p-3',
         )}
       >
         <h3
           className={cn(
-            'text-sm font-semibold leading-snug text-foreground',
-            expanded && 'col-span-2 text-lg',
+            'min-w-0 [overflow-wrap:anywhere] text-sm font-semibold leading-snug text-foreground',
+            expanded && 'text-lg sm:col-span-2',
           )}
         >
           {task.title}
@@ -193,13 +193,13 @@ export function SddTaskDrawer({
           <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/45 p-2">
             <span
               className={cn(
-                'flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white',
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white',
                 running ? 'bg-warning sdd-agent-live' : 'bg-muted-foreground',
               )}
             >
               {agentInitials(task.agentName)}
             </span>
-            <div className="leading-tight">
+            <div className="min-w-0 [overflow-wrap:anywhere] leading-tight">
               <div className="text-xs font-medium text-foreground">{task.agentName}</div>
               <div className="text-[10px] text-muted-foreground">
                 {running ? t('activity:sddTask.workingOn') : t('activity:sddTask.assigned')}
@@ -381,11 +381,11 @@ export function SddTaskDrawer({
 
         {/* description */}
         {task.description && (
-          <div className={cn(expanded && 'col-span-2')}>
+          <div className={cn(expanded && 'sm:col-span-2')}>
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               {t('activity:sddTask.description')}
             </div>
-            <p className="whitespace-pre-wrap rounded-md bg-muted p-2 text-[11px] leading-relaxed text-foreground">
+            <p className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere] rounded-md bg-muted p-2 text-[11px] leading-relaxed text-foreground">
               {task.description}
             </p>
           </div>

@@ -138,7 +138,7 @@ export function ProviderKeyCard({
           className="h-10 w-10"
         />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold">{popular.name}</h3>
             {saved && (
               <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
