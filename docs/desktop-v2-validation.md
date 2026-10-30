@@ -4929,3 +4929,16 @@ staged; the other session's edits stay untouched.
   one. An engine without a mode store, or with no installed modes, shows nothing.
 - Checks: `agentModes` parsing was added to `autonomy-model.test.ts` with the change; no
   separate RED run. Desktop suite **631 PASS**, typecheck and Biome PASS. No engine change.
+
+### Background services
+
+- `connections.health` was only a raw catalog query and `connections.service_action` had no
+  control. Settings → Health now lists the project's background services (session catalog,
+  Chronicle, code index, memory, Kanban, mailbox, plus the WebUI transport and governance) with
+  status, release, owner pid and last error. A service that runs a different release than the
+  engine says so. Services the engine controls have Restart and Stop (Stop asks first); the
+  WebUI transport and governance (`control: 'none'`) have none. The engine's policy authorizes
+  each action and a refusal is shown; the list is read again after every action.
+- Checks: desktop `background-services.test.ts` (report parsing, which services are
+  controllable) was written with the change; no separate RED run. Desktop suite **632 PASS**,
+  typecheck and Biome PASS. No engine change. Not in a native scenario yet.

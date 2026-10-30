@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T09:38:33.037Z",
+  "generatedAt": "2026-10-30T09:50:07.900Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5523,
-    "testFiles": 4810,
-    "sourceLines": 1214155,
+    "sourceFiles": 5524,
+    "testFiles": 4811,
+    "sourceLines": 1214340,
     "workspaceEdges": 222,
-    "moduleEdges": 16559,
+    "moduleEdges": 16562,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 152,
+    "testsWithoutTypecheck": 153,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1004
+    "testOnlyExports": 1005
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 329,
-      "testFiles": 152,
+      "sourceFiles": 330,
+      "testFiles": 153,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1337,6 +1337,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/availability-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/background-services.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30218,6 +30224,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/background-services.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/brain-decisions.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31380,6 +31393,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/BackgroundServices.tsx",
+      "specifier": "./brain-policy.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/BrainDecisions.tsx",
       "specifier": "./brain-policy.css",
       "syntax": "import"
@@ -32293,6 +32311,10 @@
     {
       "file": "apps/desktop-v2/src/availability-model.ts",
       "name": "scheduleMinute"
+    },
+    {
+      "file": "apps/desktop-v2/src/BackgroundServices.tsx",
+      "name": "backgroundServices"
     },
     {
       "file": "apps/desktop-v2/src/brain-targets-model.ts",

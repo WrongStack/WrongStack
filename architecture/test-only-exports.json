@@ -21,6 +21,9 @@
     "apps/desktop-v2/src/availability-model.ts": [
       "scheduleMinute"
     ],
+    "apps/desktop-v2/src/BackgroundServices.tsx": [
+      "backgroundServices"
+    ],
     "apps/desktop-v2/src/brain-targets-model.ts": [
       "brainTargetsWire"
     ],

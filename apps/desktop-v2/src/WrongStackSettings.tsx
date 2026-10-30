@@ -38,6 +38,7 @@ import { FallbackPolicySettings, RoutingPolicySettings } from './ModelPolicySett
 import { LimitsPolicySettings, TierPolicySettings } from './ResourcePolicySettings';
 import { prepareSettingsPatch, sameSetting } from './settings-save-model';
 import './settings-policy.css';
+import { BackgroundServices } from './BackgroundServices';
 import { BrainDecisions } from './BrainDecisions';
 import { ConfigDoctor } from './ConfigDoctor';
 import { JevSettings } from './JevSettings';
@@ -413,6 +414,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             <>
               <ProviderHealth state={state} command={command} />
               <ProviderDiagnostics state={state} send={send} />
+              <BackgroundServices command={command} />
               <ConfigDoctor
                 command={command}
                 onApplied={() =>
