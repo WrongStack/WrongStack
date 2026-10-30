@@ -15,6 +15,17 @@ export async function exerciseNativeNextSteps({ page, artifactDir, waitFor, prov
   await panel.getByText('Suggested next steps').waitFor({ timeout: 60000 });
   await panel.locator('summary').click();
   await panel.getByText('[native-composer-nextstep-selected] Inspect the result').waitFor();
+  // Continue automatically (with YOLO) offers a cancellable countdown; cancelling sends nothing.
+  const mode = page.getByRole('combobox', { name: 'Continuation mode', exact: true });
+  const quiet = providerFixture.calls.length;
+  await mode.selectOption('auto');
+  const countdown = page.locator('.auto-continue');
+  await countdown.filter({ hasText: /^Continuing in \d s with:/ }).waitFor();
+  await countdown.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await countdown.waitFor({ state: 'detached' });
+  await page.waitForTimeout(6000);
+  assert.equal(providerFixture.calls.length, quiet, 'A cancelled countdown sends nothing');
+  await mode.selectOption('off');
   await input.fill('Keep this constraint.');
   await panel.getByLabel('[native-composer-nextstep-selected] Inspect the result').check();
   const before = providerFixture.calls.length;

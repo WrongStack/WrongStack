@@ -241,15 +241,18 @@ await writeFile(
   join(dir, 'wrongstack/profiles/default/config.json'),
   JSON.stringify({
     skills: { readClaudeSkills: false, foreignSources: false },
-    ...(executionPolicyOnly
-      ? {
-          autonomy: {
+    // The product default continues suggested next steps on its own (`auto` with YOLO); the
+    // harness drives every turn itself, so its conversations start in manual mode.
+    autonomy: {
+      defaultMode: 'off',
+      ...(executionPolicyOnly
+        ? {
             yolo: false,
             yoloPlus: false,
             yoloConfirm: { 'bulk-delete': false, 'git-history': false },
-          },
-        }
-      : {}),
+          }
+        : {}),
+    },
     ...(brainPolicyOnly
       ? {
           brain: {

@@ -5157,7 +5157,10 @@ staged; the other session's edits stay untouched.
   the project's prompt journal: the newest 50 original (`raw_user`) entries are read once when the
   conversation opens, de-duplicated against the transcript, up to 100 recalled prompts in all.
   Without a journal (disabled or unavailable) recall stays within the conversation. Journal reads
-  stay project-owned; prompts from other projects are never offered.
+  stay project-owned: the first version read the journal through the conversation engine, which
+  the native composer-resources step refused ("Project resource reads never go through the
+  conversation engine"); it now reads through the project engine with a hidden, short-lived
+  loader that is removed after one read, as the composer's file and skill pickers do.
 - Checks: desktop `prompt-recall.test.ts` (order, de-duplication, blank entries, journal parsing),
   suite **652 PASS**, typecheck and Biome PASS. Native composer recall to be re-run on the next
   build.
@@ -5174,4 +5177,21 @@ staged; the other session's edits stay untouched.
   one unstaged; the index keeps the other hunk and mode 100755. Desktop `git-mode-change.test.ts`,
   suite **653 PASS**, typecheck and Biome PASS. On Windows the worktree layer does not report mode
   changes (`core.fileMode=false`), so the staged layer is the reachable case there.
+
+### Native follow-up: recall, exec view and auto-continue (2026-10-30)
+
+- Build `6226f424515a-2f17c852f615`. `default` and `composer` failed first on three things:
+  the journal read through the conversation engine (fixed in the product, above); the approvals
+  step looked for the exec argument as its own text node, which the new one-line exec view no
+  longer renders (the step now checks the command line contains it); and the product default
+  `autonomy.defaultMode: 'auto'` with YOLO now makes the desktop continue suggested next steps on
+  its own after 5 s, as WebUI does, which inserted unplanned turns into the scripted session.
+- The harness profile now starts conversations in manual mode (`autonomy.defaultMode: 'off'`, as
+  the live fleet and MCP task fixtures already did), and the next-steps step switches to
+  "Continue automatically", waits for the countdown, cancels it and checks that no provider call
+  followed before switching back. `default` and `composer` then passed (21:55 to 22:07).
+- Product note: with the shipped defaults a desktop conversation now auto-continues suggested
+  steps without a limit (`autoProceedMaxIterations` 0) unless the user picks another mode or
+  limit; this matches WebUI and the user-owned autonomy rule, and is visible in the composer's
+  continuation-mode control.
 

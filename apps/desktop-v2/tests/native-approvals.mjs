@@ -142,9 +142,11 @@ export async function exerciseNativeApprovals({
     .filter({ hasText: 'desktopfixture.first' })
     .first();
   await execution.locator('summary').click();
+  // An exec input reads as one command line that still names every argument.
   await execution
     .getByRole('region', { name: 'Tool input', exact: true })
-    .getByText('desktopfixture.first', { exact: true })
+    .locator('.tool-command')
+    .filter({ hasText: 'desktopfixture.first' })
     .waitFor();
   await execution.getByRole('heading', { name: /^Output(?: preview)?$/ }).waitFor();
   assert.match(await execution.innerText(), /exit_code.?[=:]\s*0/i);
