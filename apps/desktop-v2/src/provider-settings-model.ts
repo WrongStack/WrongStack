@@ -12,6 +12,10 @@ export interface ProviderChoice {
     authMethod?: string | undefined;
     expiresAt?: string | undefined;
   }>;
+  /** Saved model allowlist; null when every catalog model is offered. */
+  models?: string[] | null;
+  /** Saved endpoint override; empty when the provider's own endpoint is used. */
+  baseUrl?: string;
 }
 export function providerChoices(state: EngineState): ProviderChoice[] {
   const choices = new Map<string, ProviderChoice>();
@@ -33,6 +37,10 @@ export function providerChoices(state: EngineState): ProviderChoice[] {
       name: known?.name ?? row['id'],
       family: String(row['family'] ?? known?.family ?? ''),
       saved: true,
+      models: Array.isArray(row['models'])
+        ? row['models'].filter((model): model is string => typeof model === 'string')
+        : null,
+      baseUrl: typeof row['baseUrl'] === 'string' ? row['baseUrl'] : '',
       keys: entries(row['apiKeys']).map((key) => ({
         label: String(key['label']),
         maskedKey: String(key['maskedKey'] ?? '••••'),

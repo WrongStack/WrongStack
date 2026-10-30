@@ -41,3 +41,19 @@
   gap: 6px;
   margin-top: 6px;
 }
+.provider-wiring {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.provider-wiring summary {
+  cursor: pointer;
+}
+.provider-wiring-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.provider-wiring-form label {
+  display: grid;
+  gap: 4px;
+}

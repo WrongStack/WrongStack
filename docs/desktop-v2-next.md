@@ -317,9 +317,9 @@ transport messages (`session.new/resume/save/delete`, `projects.*`, `terminal.*`
   network policy (session processes: browser selection, preview controls, watcher).
 - `collab.*`: multi-participant control, annotations and tool injection. They need a
   participant/identity model in the desktop first.
-- `chronicle.facet` (the desktop uses `chronicle.facets`), `completion.request` (inline editor
-  completion), `provider.clear_models` / `provider.undo_clear` / `provider.update` (the
-  desktop does not show the saved model allowlist and wire config they change), `key.update`.
+- `completion.request` (inline editor completion). `key.update` is the same upsert as
+  `key.add`, which the desktop uses; `chronicle.facet` is covered by `chronicle.facets`.
+  `provider.update` / `provider.clear_models` / `provider.undo_clear` landed 2026-10-30.
 
 ### P1: finish conversation parity while preserving simplicity
 

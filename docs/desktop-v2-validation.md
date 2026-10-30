@@ -4942,3 +4942,17 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `background-services.test.ts` (report parsing, which services are
   controllable) was written with the change; no separate RED run. Desktop suite **632 PASS**,
   typecheck and Biome PASS. No engine change. Not in a native scenario yet.
+
+### Saved connection models and endpoint
+
+- `provider.update`, `provider.clear_models` and `provider.undo_clear` had no desktop control,
+  and the saved model allowlist was not shown. Each saved connection in Providers & models now
+  has "Models and endpoint": the allowlist (or "all catalog models") and the endpoint override.
+  Edit takes a model list (lines or commas) and an endpoint URL; only changed fields are sent,
+  and an empty list clears the allowlist instead of saving an empty one. "Allow every catalog
+  model" clears it, with an Undo that restores the previous list while the panel stays open.
+  The engine validates the endpoint (the same check `provider_manage` uses) and reports
+  refusals; family, environment variables and cloud settings are not edited here.
+- Checks: desktop `provider-connection-wiring.test.ts` (list parsing, the saved allowlist and
+  endpoint projection) was written with the change; no separate RED run. Desktop suite
+  **634 PASS**, typecheck and Biome PASS. No engine change.

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
+import { ProviderConnectionWiring } from './ProviderConnectionWiring';
 import { ProviderOAuth } from './ProviderOAuth';
 import { ProviderProbe } from './ProviderProbe';
 import { buildProviderSave, providerChoices, providerModels } from './provider-settings-model';
@@ -363,6 +364,7 @@ export function ProviderSettings({
                       </fieldset>
                     )}
                     <ProviderProbe providerId={provider.id} command={command} />
+                    <ProviderConnectionWiring provider={provider} command={command} />
                   </article>
                 ))}
             </div>

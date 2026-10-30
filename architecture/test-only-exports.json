@@ -110,6 +110,9 @@
     "apps/desktop-v2/src/ProjectUsageSummary.tsx": [
       "readUsageSummary"
     ],
+    "apps/desktop-v2/src/ProviderConnectionWiring.tsx": [
+      "parseModelList"
+    ],
     "apps/desktop-v2/src/ProviderHealth.tsx": [
       "mergeQuotaSnapshots",
       "quotaPercent",
