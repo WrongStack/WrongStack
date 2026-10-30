@@ -1,0 +1,45 @@
+.session-todos {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.session-todos > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-todos ol {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.session-todos li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.session-todos li > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.session-todos li.todo-completed > span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.session-todos li small {
+  color: var(--muted);
+}
+.session-todos-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}

@@ -35,6 +35,7 @@ import { openExternal, sessionObjectDraftStorage } from './platform';
 import { SessionActivity } from './SessionActivity';
 import { SessionComposer } from './SessionComposer';
 import { SessionRecovery } from './SessionRecovery';
+import { SessionTodos } from './SessionTodos';
 import { inlineUsageEstimate } from './session-usage-model';
 import { ToolApprovalCard } from './ToolApprovalCard';
 import type { ProjectPage } from './useDesktop';
@@ -404,6 +405,7 @@ export function EngineWorkspace({
               </button>
             </div>
           )}
+          <SessionTodos state={state} command={command} />
           {state.inputs.length > 0 ? (
             <div className="input-waiting-controls">
               <span>Answer the form to continue.</span>
