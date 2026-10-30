@@ -214,6 +214,15 @@ export function IntegrationSettings({
                 )}
                 <button
                   type="button"
+                  className="button secondary small"
+                  disabled={Boolean(busy) || server['enabled'] === false}
+                  title="Restart the connection and read its tool list from the live server"
+                  onClick={() => void action(name, 'mcp.discover')}
+                >
+                  Refresh tools
+                </button>
+                <button
+                  type="button"
                   className="icon-button danger"
                   aria-label={`Remove ${name}`}
                   disabled={Boolean(busy)}

@@ -4891,3 +4891,12 @@ staged; the other session's edits stay untouched.
   providers) was written with the change. Desktop suite **626 PASS**, typecheck and Biome
   PASS. No engine change. `provider.clear_models` / `provider.undo_clear` are still not
   offered: the desktop does not show the saved model allowlist they change.
+
+### MCP tool refresh
+
+- `mcp.discover` (restart a connection and, for a lazy server, wake it so the tool list comes
+  from the live server rather than its cached manifest; trust-boundary checked) had no desktop
+  control. Each enabled connection in Connected tools now has "Refresh tools". The engine's
+  `mcp.operation_result` message ("Discovered N tools from …" or the failure) is shown, and
+  the list is read again. No new test: this wires an existing action through the existing
+  `action` helper. Desktop typecheck and Biome PASS. No engine change.
