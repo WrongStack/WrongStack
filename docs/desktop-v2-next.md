@@ -1,6 +1,7 @@
 # Desktop v2: continuation and remaining delivery work
 
-Updated: 2026-10-29 (second pass). This is the handoff for the next implementation agent.
+Updated: 2026-10-30. This is the handoff for the next implementation agent. The full native
+acceptance matrix passed on the committed build (see the validation log, 2026-10-30).
 
 ## Start here
 
@@ -416,8 +417,9 @@ and `SessionUsage.tsx`.
 
 - Screen-reader behavior, long localized labels and consistent light/dark/theme rendering.
   Dialogs (Escape, backdrop click, focus return), the file context menu and the composer
-  options popover own the keyboard, and a high contrast mode exists (2026-10-29); all of it
-  still awaits the final native pass.
+  options popover own the keyboard, and a high contrast mode exists (2026-10-29). The full
+  native-smoke matrix passed on 2026-10-30 (32/32), but it does not exercise screen readers or
+  long localized labels; those still need a manual pass.
 - Exercise actual multiple windows and multiple simultaneous projects/sessions under queue,
   refinement, model-switch, approval, draft and reconnect load. IPC-injected peer writes and
   two controller/SQLite connections do not replace concurrent WebView stress.

@@ -4992,3 +4992,47 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `browser-network-policy.test.ts` failed RED first (the origin list after a
   save is not at a line start) and passed after the parser fix. Desktop suite **637 PASS**,
   typecheck and Biome PASS. No engine change.
+
+## Final native acceptance pass (2026-10-30)
+
+- Build: engine (`build:engine`), Tauri release (`tauri build --no-bundle`) and portable staging
+  from the committed tree. Portable identity `ab54107ac8a6-0b0eda4acd3b`; bundled engine and
+  portable checksums verified by the harness.
+- Command, per scope: `bun apps/desktop-v2/tests/native-smoke.mjs --release --bundled [--scope]`
+  for the default suite and all 31 scope flags (`composer`, `history`, `recovery`, `files`,
+  `settings`, `sage`, `atlas`, `brain-policy`, `fleet-policy`, `execution-policy`,
+  `refinement-policy`, `roster`, `fleet`, `automation`, `mcp`, `mcp-tasks`, `processes`, `goals`,
+  `sdd`, `design`, `deadcode`, `techstack`, `kit`, `mailbox`, `models`, `model-profiles`,
+  `model-draft-restart`, `chimera`, `chronicle`, `skills`, `usage`). The runner kept the machine
+  awake (`SetThreadExecutionState`). Result: **32 of 32 exit 0**, 14:03 to 14:35. Logs:
+  `.temp_files/desktop-v2-native/full3/`.
+- The first pass on the earlier build (`329ad590e40c`) failed 7 scopes. Product defects found and
+  fixed, each with a unit or handler test written RED first:
+  - Engine: `context.modes.list` and `context.mode.*` replies did not carry the request id, so the
+    desktop's context modes section never received an answer (`e5bed2da9`,
+    `session-route-correlation.test.ts`).
+  - Engine: a rewind or redo was acknowledged before its `messages_replaced` journal entry was
+    flushed, so the journal revision the desktop read afterwards changed and the next rewind was
+    refused as stale (`ca2e09e70`, `session-redo-flush.test.ts`).
+  - Desktop: on Windows a process the user terminated reports exit code 1 without a signal and
+    was shown as a failure; it is now "Terminated on request · exit code N" (`4cf29e80f`).
+  - Desktop: the conversation stopped following when a panel opened under it or a card grew after
+    rendering, so new approval actions could be out of view (`7d744e6ca`; observers keep the newest
+    content in view while following). Covered by the native approvals step.
+  - Engine diagnostics: a batch file source that cannot be read is reported with its real error
+    instead of "does not exist" (`1c0598aa0`).
+- Native steps that had never run since they were written and were corrected to the shipped
+  contracts: Kanban save then reopen (wait for the inspector to close), bulk copy and bulk rename
+  (both are all-or-nothing and processed items leave the selection), the attachment tray clears
+  asynchronously after a send, the MCP window check ignores WebView2's downloads flyout, and
+  Chronicle filter choices come from the applied filters (apply before choosing). The Chronicle
+  file insight check now accepts any recent project file: the view lists the newest 200 file
+  events and earlier steps push the review fixture out of it.
+- Not established: the bulk folder copy failed twice with "bulk-dest/tree does not exist" and
+  passed in every other run; the cause was not reproduced. The engine now reports the underlying
+  error and the harness prints an open dialog's message before cleanup, so a recurrence is
+  diagnosable. The pass does not cover screen readers, long localized labels, real concurrent
+  multi-window stress, an installed-app replacement or hosted CI.
+- Package checks after the fixes: desktop suite **637 PASS**, typecheck and Biome PASS on changed
+  files; full `packages/webui-server` suite (`WRONGSTACK_VITEST_MAX_WORKERS=2`) **3387 tests /
+  354 files PASS**; cargo engine tests PASS.
