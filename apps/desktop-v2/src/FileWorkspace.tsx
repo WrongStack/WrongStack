@@ -31,6 +31,7 @@ import { DraftMergeChoices } from './DraftMergeChoices';
 import { EditorFindBar } from './EditorFindBar';
 import { lineCommentMarker, toggleLineComment } from './editor-comment';
 import { editorKeyEdit, replacementRange } from './editor-indent';
+import { editorPairEdit } from './editor-pairs';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
@@ -1445,8 +1446,13 @@ export function FileWorkspace({
                               event.currentTarget.selectionEnd,
                               marker,
                             )
-                          : editorKeyEdit(event, document.content);
-                        if (edit) {
+                          : (editorPairEdit(event, document.content, active) ??
+                            editorKeyEdit(event, document.content));
+                        if (edit?.text === document.content) {
+                          // Typing over a closing character only moves the caret.
+                          event.preventDefault();
+                          event.currentTarget.setSelectionRange(edit.start, edit.end);
+                        } else if (edit) {
                           event.preventDefault();
                           pendingSelection.current = { start: edit.start, end: edit.end };
                           // insertText keeps the edit in the textarea's own undo history; the

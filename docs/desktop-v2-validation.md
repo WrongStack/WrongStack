@@ -5368,3 +5368,17 @@ staged; the other session's edits stay untouched.
   0 ms. An "allow more turns" button would never win, so none is offered; changing that is an
   engine policy decision about iteration budgets.
 
+### Code editor pairs and line moves (2026-10-31)
+
+- Typing `(`, `[` or `{` inserts the closing bracket when the caret is before whitespace, a
+  closing bracket, `,` or `;`; with a one-line selection it wraps the selection. Quotes pair the
+  same way in code files only, never after a letter or digit (apostrophes), and not in Markdown,
+  text and other prose files. Typing a closer that is already next to the caret steps over it,
+  and Backspace between an empty pair removes both halves.
+- Alt+Up / Alt+Down move the touched lines past their neighbour; Shift+Alt+Down duplicates them.
+- Every edit goes through `insertText`, so Ctrl+Z undoes it like typing. IME composition and
+  Ctrl/Cmd chords are left to the textarea.
+- Checks: `editor-pairs.test.ts`; desktop 172 files / 680 tests; typecheck clean. The native
+  `--files` step now types a call with a quoted argument, steps over the closers, removes an
+  empty pair, moves a line and undoes the move; it runs in the next batched native pass.
+

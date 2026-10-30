@@ -208,6 +208,23 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   assert.equal(await editor().inputValue(), '  // function x() {\n  //   a\n  //   b\n  // }');
   await page.keyboard.press('Control+/');
   assert.equal(await editor().inputValue(), '  function x() {\n    a\n    b\n  }');
+  // Brackets and quotes close themselves, a typed closer steps over, Backspace removes an empty
+  // pair, and Alt+Up moves the line; all undoable through the textarea history.
+  await editor().fill('call\nnext');
+  await editor().evaluate((input) => input.setSelectionRange(4, 4));
+  await page.keyboard.type('("x');
+  assert.equal(await editor().inputValue(), 'call("x")\nnext');
+  await page.keyboard.type('")');
+  assert.equal(await editor().inputValue(), 'call("x")\nnext');
+  assert.equal(await editor().evaluate((input) => input.selectionStart), 9);
+  await page.keyboard.type('[');
+  await page.keyboard.press('Backspace');
+  assert.equal(await editor().inputValue(), 'call("x")\nnext');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Alt+ArrowUp');
+  assert.equal(await editor().inputValue(), 'next\ncall("x")');
+  await page.keyboard.press('Control+z');
+  assert.equal(await editor().inputValue(), 'call("x")\nnext');
   await editor().fill('export const unsaved = true;\n');
   await waitFor(async () => {
     const drafts = await page.evaluate(

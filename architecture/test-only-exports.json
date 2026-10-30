@@ -57,6 +57,12 @@
       "newlineWithIndent",
       "outdentLines"
     ],
+    "apps/desktop-v2/src/editor-pairs.ts": [
+      "backspacePair",
+      "duplicateLines",
+      "moveLines",
+      "pairEdit"
+    ],
     "apps/desktop-v2/src/engine-state.ts": [
       "reduceEngine"
     ],
