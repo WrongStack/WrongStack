@@ -293,24 +293,16 @@ have real workflows; the work below closes their missing actions, durability and
 | Runtime policies: Brain/Fleet/Execution/Refinement/Review settings | Cross-runtime policy refresh, advanced fleet lifecycle/dispatch/probe policies, Brain decision inspection and actual council execution/quality, Shadow, advanced security-rule/display policy editing, and session-specific effective routing. | Actual worker/council decisions and effective settings in the owning runtime. Saving configured policy does not prove dispatch or model behavior. |
 | Durable secondary forms | Mailbox compose and automation job drafts are restart-durable (2026-10-29 validation entries). Unapplied environment dialog edits are also kept per job (2026-10-29). | Native ownership, bounded versioned envelopes, load/ack/error states, stale-window comparison, explicit discard and cleanup only after successful domain writes. Reuse `DurableFormDraft` (`durable-form-draft.ts`, first used by Project Kit parameters) without putting project forms into profile/session storage. |
 
-### P1 engine finding: no model fallback chain in the desktop engine (2026-10-30)
+### P1 engine follow-up: model fallback outside the standalone engine
 
-- The desktop runs `startWebUI` from `@wrongstack/webui-server` (`apps/desktop-v2/engine/main.ts`).
-  That standalone engine never registers `createFallbackModelExtension`: the CLI registers it
-  in `packages/cli/src/wiring/provider-runtime-setup.ts` together with
-  `createFallbackGate`, but `packages/webui-server/src/server/backend-services.ts` only
-  builds a fallback-aware memory-curator call. So a desktop session gets no configured
-  fallback chain or fallback profile, and `provider.fallback_pending` (and so
-  `model.fallback_choice`) never occurs.
-- Separately, session agents created by `session-agent-registry.ts` and
-  `create-session-agent-manager.ts` construct `new Agent(...)` without `extensions`, so each
-  gets a fresh `ExtensionRegistry`. Additional conversation tabs therefore lack the
-  template agent's extensions, including fallback, in the CLI-hosted WebUI as well.
-- Fix direction (needs a deliberate design, not a quick patch): move the gate into a shared
-  package; register the fallback extension per session agent with that session's provider
-  and model state (max-context and reasoning refresh on switch, as the CLI does); then add
-  the desktop fallback picker for `provider.fallback_pending` with its countdown. Prove it
-  with an engine test that a failing provider engages the chain for a non-leader session.
+- The standalone engine (what the desktop runs) now gives every conversation agent its own
+  fallback-model extension, and the desktop answers its gate (2026-10-30, validation entry
+  "Model fallback in the desktop engine"). Still open:
+  - per-tab agents of the CLI-hosted WebUI (`packages/cli/src/webui-server/session-agents.ts`,
+    registry default path) still get no fallback extension;
+  - a fallback hop does not refresh the conversation's context-window meta or the
+    auto-compaction ceiling, because the host's updater is process-wide;
+  - native acceptance with a real failing provider.
 
 ### P1: finish conversation parity while preserving simplicity
 

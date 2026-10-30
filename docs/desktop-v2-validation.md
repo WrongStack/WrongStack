@@ -4783,3 +4783,47 @@ staged; the other session's edits stay untouched.
   todos, no actions or clear for Kanban-bound items) was written with the change. Desktop
   suite **618 PASS**, typecheck and Biome PASS. No engine change.
 - No native step yet; planned for the final native pass (a real turn that writes todos).
+
+### Model fallback in the desktop engine
+
+- Finding: the standalone engine (`startWebUI`, which the desktop runs) never registered
+  `createFallbackModelExtension`. Only the CLI did. Configured fallback chains and profiles
+  therefore never engaged in the desktop, and per-tab agents (`new Agent` without
+  `extensions`) had no fallback extension anywhere.
+- Engine (commit `2da90dc34`, implemented by a subagent and reviewed here):
+  - The CLI's fallback gate moved unchanged to `@wrongstack/runtime` (`createFallbackGate`);
+    `packages/cli/src/wiring/fallback-gate.ts` re-exports it. Biome also re-sorted the existing
+    exports of `runtime/src/index.ts`, which already failed its ordering check.
+  - New `webui-server/src/server/conversation-fallback.ts`. `installConversationFallback`
+    gives the template agent (`backend-services.ts`) and every per-tab agent
+    (`create-session-agent-manager.ts`) their own extension instance: separate cooldown and
+    sticky state per tab. It uses the gate (7 s default), the live config, the profile
+    manager and status tracker from the container.
+  - The primary a tab restores is the tab's own last choice, recorded in context meta
+    `fallbackPrimaryTarget` on every model switch (`model-switch-core.ts`,
+    `applyEmbeddedModelSwitch`). It is not the global selection, which any tab's switch moves.
+  - Fallback hops build providers with `buildConversationProvider`: the provider entry, proxy
+    routing and catalog capabilities, now shared with the live model switch, which builds
+    identically. It persists nothing and changes no context.
+  - The memory-curator call still excludes `fallback-model`.
+- Desktop: `FallbackPicker` shows above the composer while the gate waits
+  (`provider.fallback_pending`). It names the failed model and status, and counts down to the
+  first candidate. "Switch now" sends `autoSwitch`; picking another candidate sends
+  `model.fallback_choice` with that model. It hides once answered or once the countdown has
+  passed.
+- Checks:
+  - RED: `expected [] to include 'fallback-model'`, then GREEN in webui-server
+    `session-agent-fallback-model.test.ts`. A real Agent, Context, EventBus, registries and
+    `createSessionAgentManager` are used, with only the providers faked. A non-leader tab
+    emits `provider.fallback_pending` with its own sessionId and is answered by the fallback;
+    tabs fail over independently; the next turn restores the tab's own primary.
+  - Rechecked here: those tests plus backend-services, registry and model-switch/fallback
+    suites 32 PASS; runtime gate 3 PASS; CLI fallback-gate 9 PASS; webui-server typecheck
+    PASS. The subagent reported the full webui-server suite as 3384/3385, the one failure
+    being `protocol-contract.test.ts`. That count assertion was left stale by this session's
+    earlier protocol additions (`session.redo`, three batch file types and their replies) and
+    is fixed in `8a42f7a66`.
+  - Desktop `fallback-picker.test.ts` (request parsing, deadline, expired request hidden) was
+    written with the change. Desktop suite **620 PASS**, typecheck and Biome PASS.
+- Limits: listed in the next-steps follow-up (CLI-hosted per-tab agents; no context-window
+  refresh on a hop). No native step yet: it needs a provider fixture that fails retryably.
