@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineSend } from './engine-operations';
 import { type EngineState, entries, record } from './engine-state';
+import { GoalRevert } from './GoalRevert';
 import { matchingGoalAssessment } from './goal-assessment';
 import { goalBudgetPayload, goalBudgetText } from './goal-budget-model';
 import { ProjectMission } from './ProjectMission';
@@ -547,6 +548,16 @@ export function ProjectGoals({
                     <Square size={14} /> Stop
                   </button>
                 ))}
+              {selected && (
+                <GoalRevert
+                  key={selected}
+                  goalId={selected}
+                  goal={goal}
+                  state={state}
+                  send={send}
+                  readOnly={readOnly}
+                />
+              )}
               <button type="button" className="button secondary" onClick={onKanban}>
                 Open Kanban
               </button>

@@ -49,6 +49,10 @@
     "apps/desktop-v2/src/feature-catalog.ts": [
       "desktopFeatures"
     ],
+    "apps/desktop-v2/src/GoalRevert.tsx": [
+      "goalRevertBaseline",
+      "goalRevertOutcome"
+    ],
     "apps/desktop-v2/src/graph-model.ts": [
       "memoryGraph"
     ],

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T08:15:09.110Z",
+  "generatedAt": "2026-10-30T08:18:08.360Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5508,
-    "testFiles": 4799,
-    "sourceLines": 1212052,
+    "sourceFiles": 5509,
+    "testFiles": 4800,
+    "sourceLines": 1212186,
     "workspaceEdges": 222,
-    "moduleEdges": 16515,
+    "moduleEdges": 16519,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 143,
+    "testsWithoutTypecheck": 144,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 995
+    "testOnlyExports": 997
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 316,
-      "testFiles": 143,
+      "sourceFiles": 317,
+      "testFiles": 144,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1583,6 +1583,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/goal-budget-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/goal-revert.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30439,6 +30445,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/goal-revert.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/graph-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31791,8 +31804,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 957,
-      "relativeImports": 6
+      "lines": 968,
+      "relativeImports": 7
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
@@ -31878,8 +31891,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 957,
-      "relativeImports": 6
+      "lines": 968,
+      "relativeImports": 7
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
@@ -32177,6 +32190,14 @@
     {
       "file": "apps/desktop-v2/src/feature-catalog.ts",
       "name": "desktopFeatures"
+    },
+    {
+      "file": "apps/desktop-v2/src/GoalRevert.tsx",
+      "name": "goalRevertBaseline"
+    },
+    {
+      "file": "apps/desktop-v2/src/GoalRevert.tsx",
+      "name": "goalRevertOutcome"
     },
     {
       "file": "apps/desktop-v2/src/graph-model.ts",
