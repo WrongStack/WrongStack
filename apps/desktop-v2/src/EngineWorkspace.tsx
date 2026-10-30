@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttachmentPreview } from './ComposerAttachments';
+import { ConversationNotices } from './ConversationNotices';
 import { CopyButton } from './CopyButton';
 import type { ComposerAttachment } from './composer-attachments';
 import type { SubmitMode } from './composer-model';
@@ -471,6 +472,7 @@ export function EngineWorkspace({
               </button>
             </div>
           )}
+          <ConversationNotices key={state.sessionId} notices={state.notices} />
           <FallbackPicker state={state} send={send} />
           <SessionTodos state={state} command={command} />
           <SessionWorklist state={state} command={command} />

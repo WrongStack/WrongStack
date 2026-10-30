@@ -5349,3 +5349,22 @@ staged; the other session's edits stay untouched.
   requests, so a currency limit would have nothing real to compare against.
 - Not exercised natively: it needs a model-backed Goal run with verification enabled.
 
+### Conversation notices (2026-10-31)
+
+- A scan of the frames the engine broadcasts found 45 types the desktop never handled. Six of
+  them tell the user something about the conversation that no message shows, and now appear as
+  dismissible notices above the composer:
+  - `run.result` with status `max_iterations` ("The run stopped at its iteration limit after N
+    turns", pointing at `tools.maxIterations`);
+  - `tool.loop_detected` when the engine cut the turn (a `steer` nudge shows nothing);
+  - `session.damaged`;
+  - `compaction.failed`;
+  - `provider.model_rerouted` when the served model differs from the requested one;
+  - `provider.active_blocked`, with the fallback the engine tries.
+- Notices follow the conversation filter (another session's frames are dropped), keep 10 at
+  most with distinct ids, and clear when the conversation is reset (`conversation-notices.test.ts`).
+- `iteration.limit_reached` carries `grant`/`deny`, but no client can answer it: with automatic
+  extension on, the engine grants +100 on the next tick, and with the allowance spent it waits
+  0 ms. An "allow more turns" button would never win, so none is offered; changing that is an
+  engine policy decision about iteration budgets.
+

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T21:49:32.404Z",
+  "generatedAt": "2026-10-30T23:23:57.002Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5547,
-    "testFiles": 4832,
-    "sourceLines": 1217356,
+    "sourceFiles": 5549,
+    "testFiles": 4833,
+    "sourceLines": 1217502,
     "workspaceEdges": 222,
-    "moduleEdges": 16633,
+    "moduleEdges": 16636,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 170,
+    "testsWithoutTypecheck": 171,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1018
+    "testOnlyExports": 1019
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 353,
-      "testFiles": 170,
+      "sourceFiles": 355,
+      "testFiles": 171,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1469,6 +1469,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/context-residency-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/conversation-notices.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30504,6 +30510,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/conversation-notices.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/dead-code-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32611,6 +32624,10 @@
     {
       "file": "apps/desktop-v2/src/context-editor-model.ts",
       "name": "removalProposal"
+    },
+    {
+      "file": "apps/desktop-v2/src/conversation-notices.ts",
+      "name": "NOTICE_LIMIT"
     },
     {
       "file": "apps/desktop-v2/src/editor-indent.ts",

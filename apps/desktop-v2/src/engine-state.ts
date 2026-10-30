@@ -5,6 +5,11 @@ import {
   projectNextStepsToolInput,
 } from '@wrongstack/webui-protocol';
 import { type ComposerAttachment, transcriptAttachments } from './composer-attachments.js';
+import {
+  appendNotice,
+  type ConversationNotice,
+  conversationNotice,
+} from './conversation-notices.js';
 import { contentText, entries, record } from './engine-values.js';
 import { parseInputRequest } from './input-form-model.js';
 import {
@@ -73,6 +78,10 @@ export interface EngineState {
   /** This conversation's SAGE injector runs, newest last, and the latest request's memories. */
   memoryRuns: MemoryInjectorRun[];
   memoryContext: MemoryContext | null;
+  /** Engine reports about this conversation that need the user's attention, newest last. */
+  notices: ConversationNotice[];
+  /** Notices seen, so each gets a distinct id after older ones fall out of the list. */
+  noticeCount: number;
   nextSteps: ParsedNextStep[];
   results: Record<string, Record<string, unknown>>;
   error: string;
@@ -104,6 +113,8 @@ export const emptyEngineState: EngineState = {
   turnActivity: {},
   memoryRuns: [],
   memoryContext: null,
+  notices: [],
+  noticeCount: 0,
   nextSteps: [],
   results: {},
   error: '',
@@ -231,6 +242,7 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
       next.turnActivity = {};
       next.memoryRuns = [];
       next.memoryContext = null;
+      next.notices = [];
     }
     if ((!state.messages.length || p['reset'] === true) && Array.isArray(p['replayMessages'])) {
       if (p['reset'] === true) {
@@ -260,6 +272,11 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   }
   // The fallback chain moved the conversation to another model, or back to its primary: show
   // the model that actually serves the next request.
+  const notice = conversationNotice(event.type, p, `${event.type}:${state.noticeCount}`);
+  if (notice) {
+    next.notices = appendNotice(state.notices, notice);
+    next.noticeCount = state.noticeCount + 1;
+  }
   // Memory frames are project-scoped; keep only this conversation's own.
   if (
     event.type === 'memory.event' &&

@@ -319,3 +319,35 @@
     min-height: 50px;
   }
 }
+.conversation-notices {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.conversation-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--raised);
+  padding: 8px 10px;
+  font-size: 12px;
+  min-width: 0;
+}
+.conversation-notice p {
+  flex: 1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.conversation-notice small {
+  color: var(--muted);
+}
+.conversation-notice.warning,
+.conversation-notice.error {
+  border-left-color: var(--danger);
+}
+.conversation-notice.info {
+  border-left-color: var(--accent);
+}

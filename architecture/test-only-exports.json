@@ -49,6 +49,9 @@
     "apps/desktop-v2/src/context-editor-model.ts": [
       "removalProposal"
     ],
+    "apps/desktop-v2/src/conversation-notices.ts": [
+      "NOTICE_LIMIT"
+    ],
     "apps/desktop-v2/src/editor-indent.ts": [
       "indentLines",
       "newlineWithIndent",
