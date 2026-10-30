@@ -167,7 +167,11 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
   } finally {
     await rm(source, { recursive: true, force: true });
     await rm(target, { recursive: true, force: true });
-    // A dialog left open by a failed step must not replace that failure with a cleanup timeout.
+    // A dialog left open by a failed step must not replace that failure with a cleanup timeout;
+    // its message is printed first so the failure stays diagnosable.
+    const open = page.locator('dialog[open] .session-error, dialog[open] [role="alert"]');
+    for (const text of await open.allInnerTexts().catch(() => []))
+      console.error(`Bulk dialog message: ${text}`);
     await page.keyboard.press('Escape').catch(() => {});
     await page
       .getByRole('button', { name: 'Refresh file manager', exact: true })
