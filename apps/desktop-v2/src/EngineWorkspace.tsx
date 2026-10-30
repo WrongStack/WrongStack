@@ -73,6 +73,9 @@ export type EngineTab =
   | 'mailbox'
   | 'kanban';
 export type { EngineSend } from './engine-operations';
+
+import { hiddenMessageCount, TRANSCRIPT_WINDOW } from './transcript-window';
+
 export function EngineWorkspace({
   id,
   sessionTitle,
@@ -130,6 +133,10 @@ export function EngineWorkspace({
   const following = useRef(true);
   const [showLatest, setShowLatest] = useState(false);
   const [showConversation, setShowConversation] = useState(false);
+  // Long conversations render their newest messages; earlier ones load on request.
+  const [shownMessages, setShownMessages] = useState(TRANSCRIPT_WINDOW);
+  useEffect(() => setShownMessages(TRANSCRIPT_WINDOW), [id]);
+  const hiddenMessages = hiddenMessageCount(state.messages.length, shownMessages);
   const hadQuestions = useRef(false);
   useEffect(() => {
     if (state.inputs.length) {
@@ -344,8 +351,22 @@ export function EngineWorkspace({
                 {!state.connected && <LoaderCircle size={18} className="spin" />}
               </div>
             )}
+            {(!state.inputs.length || showConversation) && hiddenMessages > 0 && (
+              <button
+                type="button"
+                className="button secondary small chat-earlier"
+                onClick={() => {
+                  // Keep the reader's place: loading earlier messages must not jump to the end.
+                  following.current = false;
+                  setShownMessages((count) => count + TRANSCRIPT_WINDOW);
+                }}
+              >
+                Show {Math.min(TRANSCRIPT_WINDOW, hiddenMessages)} earlier messages (
+                {hiddenMessages} not shown)
+              </button>
+            )}
             {(!state.inputs.length || showConversation) &&
-              state.messages.map((message) => (
+              state.messages.slice(hiddenMessages).map((message) => (
                 <article className={`chat-message ${message.role}`} key={message.id}>
                   <header className={message.role === 'user' ? 'user-chat-label' : undefined}>
                     <span>{message.role === 'user' ? 'YOU' : 'WRONGSTACK'}</span>

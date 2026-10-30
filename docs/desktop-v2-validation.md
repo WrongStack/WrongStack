@@ -5098,3 +5098,15 @@ staged; the other session's edits stay untouched.
   turn without tools) was written with the change; no separate RED run. Suite **641 PASS**,
   typecheck and Biome PASS. Not in a native scenario yet.
 
+### Bounded conversation rendering (2026-10-30)
+
+- Every message of a conversation was rendered as Markdown at once, so a long session grew the
+  DOM without bound. The chat now renders the newest 150 messages; "Show 150 earlier messages
+  (N not shown)" adds earlier ones without jumping to the end (following pauses, and the browser's
+  scroll anchoring keeps the reader's place). The window resets when another conversation opens.
+  Questions, approvals, run activity and the follow behavior are unchanged.
+- This bounds rendering; it is not full virtualization (a single very long message still renders
+  whole, and scrolling back through hundreds of loaded messages keeps them mounted).
+- Checks: desktop `transcript-window.test.ts` (hidden count), suite **642 PASS**, typecheck and
+  Biome PASS. Not in a native scenario yet.
+

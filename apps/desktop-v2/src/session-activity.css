@@ -149,3 +149,7 @@
     flex-wrap: wrap;
   }
 }
+.chat-earlier {
+  justify-self: center;
+  margin: 4px auto 12px;
+}
