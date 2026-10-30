@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T18:04:13.720Z",
+  "generatedAt": "2026-10-30T18:06:20.277Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 45,
-    "sourceFiles": 5531,
-    "testFiles": 4821,
-    "sourceLines": 1215360,
+    "sourceFiles": 5533,
+    "testFiles": 4822,
+    "sourceLines": 1215460,
     "workspaceEdges": 222,
-    "moduleEdges": 16582,
+    "moduleEdges": 16586,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 161,
+    "testsWithoutTypecheck": 162,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1013
+    "testOnlyExports": 1014
   },
   "errors": [],
   "packageCycles": [],
@@ -385,8 +385,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 337,
-      "testFiles": 161,
+      "sourceFiles": 339,
+      "testFiles": 162,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2189,6 +2189,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/tool-approval.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/tool-input-view.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31278,6 +31284,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/tool-input-view.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/transcript-window.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32653,6 +32666,10 @@
     {
       "file": "apps/desktop-v2/src/SessionWorklist.tsx",
       "name": "planItems"
+    },
+    {
+      "file": "apps/desktop-v2/src/tool-input-view.ts",
+      "name": "WRITE_PREVIEW_LINES"
     },
     {
       "file": "apps/desktop-v2/src/usePersistedFields.tsx",

@@ -155,6 +155,9 @@
     "apps/desktop-v2/src/SessionWorklist.tsx": [
       "planItems"
     ],
+    "apps/desktop-v2/src/tool-input-view.ts": [
+      "WRITE_PREVIEW_LINES"
+    ],
     "apps/desktop-v2/src/usePersistedFields.tsx": [
       "fieldsCodec"
     ],

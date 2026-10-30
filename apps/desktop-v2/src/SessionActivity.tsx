@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import type { EngineEvent } from './engine-state';
 import { activityRows } from './session-activity-model';
 import { StructuredToolValue } from './ToolApprovalCard';
+import { ToolInputView } from './ToolInputView';
 import './session-activity.css';
 
 function readableOutput(value: string): unknown {
@@ -135,7 +136,11 @@ export function SessionActivity({
               {row.input !== undefined && (
                 <section className="approval-arguments" aria-label="Tool input">
                   <strong>Input</strong>
-                  <StructuredToolValue value={row.input} />
+                  {row.kind === 'tool' ? (
+                    <ToolInputView name={row.title} input={row.input} />
+                  ) : (
+                    <StructuredToolValue value={row.input} />
+                  )}
                 </section>
               )}
               {row.progress.length > 0 && (

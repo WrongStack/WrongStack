@@ -5118,3 +5118,13 @@ staged; the other session's edits stay untouched.
 - Checks: desktop `attachment-bytes.test.ts` (exact base64 round trip, including NUL and 0xFF),
   suite **643 PASS**, typecheck and Biome PASS. Not in a native scenario yet.
 
+### Tool-specific input views in activity (2026-10-30)
+
+- Every tool's input was shown as a generic structured value. The activity view (live run, each
+  turn's kept record and the Activity tab) now shows `edit` as the file path with removed and
+  added lines (and "every occurrence" for `replace_all`), `write` as the path with the first 40
+  lines and a count of the rest, and `bash` as its command and working directory. Malformed or
+  other tools keep the generic view. Approval cards are unchanged.
+- Checks: desktop `tool-input-view.test.ts` (edit lines and markup, write preview count, command,
+  generic fallback), suite **646 PASS**, typecheck and Biome PASS. Not in a native scenario yet.
+
