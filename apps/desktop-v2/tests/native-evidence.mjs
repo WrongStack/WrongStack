@@ -68,7 +68,13 @@ export async function exerciseNativeEvidence({ page, rpc, project, waitFor, arti
     'Chronicle cursor pagination',
   );
   // A provider request event shows the prompt manifest it recorded as structured sections.
+  // Filter choices come from the applied filters, so clear the search and apply it first.
   await page.getByLabel('Search Chronicle', { exact: true }).fill('');
+  await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
+  await page
+    .getByLabel('Chronicle eventType')
+    .locator('option[value="provider.attempt.started"]')
+    .waitFor({ state: 'attached' });
   await page.getByLabel('Chronicle eventType').selectOption('provider.attempt.started');
   await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
   await waitFor(
