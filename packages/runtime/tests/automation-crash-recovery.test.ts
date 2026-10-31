@@ -6,9 +6,11 @@ vi.mock('../src/docker-workspace.js', async (original) => ({
   ...(await original<typeof import('../src/docker-workspace.js')>()),
   systemDocker: vi.fn(async (args: string[]) => {
     docker.calls.push(args);
-    return args[0] === 'inspect'
-      ? { code: 0, stdout: `${'a'.repeat(64)} lease-1\n`, stderr: '' }
-      : { code: 0, stdout: '', stderr: '' };
+    if (args[0] === 'inspect')
+      return { code: 0, stdout: `${'a'.repeat(64)} lease-1\n`, stderr: '' };
+    if (args[0] === 'network' && args[1] === 'inspect')
+      return { code: 0, stdout: `${'d'.repeat(64)} lease-1\n`, stderr: '' };
+    return { code: 0, stdout: '', stderr: '' };
   }),
 }));
 
@@ -75,6 +77,49 @@ describe('automation recovery after a worker crash', () => {
   it('treats a forwarded environment variable as a credential', async () => {
     await recover({ envNames: ['GITHUB_TOKEN'] });
     expect(docker.calls.find((args) => args[0] !== 'inspect')?.[0]).toBe('rm');
+  });
+  it('removes the services and network once the workspace itself was removed', async () => {
+    // Real crash with a Redis service: the workspace went, but the stopped service and the run's
+    // network stayed with nothing left to use or clean them.
+    const environment = {
+      version: 1,
+      name: 'redis-sandbox',
+      image: 'trusted:1',
+      setupCommands: [],
+      setupTimeoutMs: 120_000,
+      services: [
+        { name: 'redis', image: 'redis:7', command: [], healthCommand: ['ping'], envNames: [] },
+      ],
+      caches: [],
+      ports: [],
+    };
+    const finished = await recover({ envNames: ['GITHUB_TOKEN'], environment });
+    const mutations = docker.calls.filter(
+      (args) => args[0] !== 'inspect' && !(args[0] === 'network' && args[1] === 'inspect'),
+    );
+    expect(mutations).toEqual([
+      ['rm', '--force', '--volumes', 'a'.repeat(64)],
+      ['rm', '--force', '--volumes', 'a'.repeat(64)],
+      ['network', 'rm', 'd'.repeat(64)],
+    ]);
+    expect(finished[0]?.[2]).toMatchObject({ status: 'interrupted' });
+  });
+  it('keeps services and network beside a kept workspace', async () => {
+    const environment = {
+      version: 1,
+      name: 'redis-sandbox',
+      image: 'trusted:1',
+      setupCommands: [],
+      setupTimeoutMs: 120_000,
+      services: [
+        { name: 'redis', image: 'redis:7', command: [], healthCommand: ['ping'], envNames: [] },
+      ],
+      caches: [],
+      ports: [],
+    };
+    await recover({ envNames: [], environment });
+    expect(docker.calls.filter((args) => args[0] === 'stop')).toHaveLength(2);
+    expect(docker.calls.some((args) => args[0] === 'rm' || args[1] === 'rm')).toBe(false);
   });
   it('still stops and keeps partial work when no credential reached the container', async () => {
     const finished = await recover({ envNames: [] });

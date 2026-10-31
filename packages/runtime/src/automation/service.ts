@@ -258,7 +258,8 @@ export class AutomationService {
       // A container that received a credential is removed, never kept: its configuration
       // holds the forwarded values (see runDockerWorkspace).
       const credentialed = !!run.job.credentials?.length || !!run.job.envNames?.length;
-      let removed = false;
+      let removed = false,
+        kept = false;
       try {
         const probe = await systemDocker(
           [
@@ -282,10 +283,17 @@ export class AutomationService {
           );
           if (stop.code !== 0) continue;
           removed = credentialed;
+          kept = !credentialed;
         }
         if (
           run.job.environment &&
-          !(await stopEnvironmentServices(run.job.environment, run.id, run.leaseId, systemDocker))
+          !(await stopEnvironmentServices(
+            run.job.environment,
+            run.id,
+            run.leaseId,
+            systemDocker,
+            kept,
+          ))
         )
           continue;
         await this.store.finish(

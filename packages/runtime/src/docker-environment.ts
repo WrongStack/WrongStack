@@ -321,11 +321,17 @@ async function stopOrRemoveService(
     return false;
   }
 }
+/**
+ * Recovery of a run whose worker died. While its workspace is kept, services are stopped and
+ * kept beside it (a service that received a credential is still removed). Once the workspace is
+ * gone, nothing can use them: services and the owned network are removed.
+ */
 export async function stopEnvironmentServices(
   profile: EnvironmentProfile,
   id: string,
   owner: string,
   runner: DockerCommandRunner,
+  workspaceKept = true,
 ): Promise<boolean> {
   validateEnvironmentProfile(profile);
   for (const service of profile.services)
@@ -334,9 +340,27 @@ export async function stopEnvironmentServices(
         `wrongstack-service-${id}-${service.name}`,
         owner,
         runner,
-        service.envNames.length > 0,
+        !workspaceKept || service.envNames.length > 0,
       ))
     )
       return false;
-  return true;
+  if (workspaceKept || (!profile.services.length && !profile.ports.length)) return true;
+  try {
+    const probe = await runner(
+      [
+        'network',
+        'inspect',
+        '--format',
+        `{{.Id}} {{ index .Labels "${OWNER}" }}`,
+        `wrongstack-env-${id}`,
+      ],
+      { timeoutMs: 10_000 },
+    );
+    if (probe.code !== 0) return /No such network|not found/i.test(probe.stderr);
+    const [networkId, marker] = probe.stdout.trim().split(/\s+/);
+    if (!immutable.test(networkId ?? '') || marker !== owner) return false;
+    return (await runner(['network', 'rm', networkId!], { timeoutMs: 10_000 })).code === 0;
+  } catch {
+    return false;
+  }
 }
