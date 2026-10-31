@@ -267,6 +267,45 @@ describe('Docker workspace ownership', () => {
       expect(calls).toHaveLength(0);
     },
   );
+  it('keeps the conversation checkpoint but not the injected profile credential', async () => {
+    // The container's home holds the injected provider key (encrypted) next to the vault key
+    // that decrypts it. A continuation re-injects credentials, so the checkpoint must not keep
+    // a decryptable copy of the profile key on the host.
+    const { dir, runner } = await fixture();
+    const conversationDir = path.join(dir, 'conversations', 'subject-1');
+    const { mkdir, readdir } = await import('node:fs/promises');
+    const wrapped: DockerCommandRunner = async (args, opts) => {
+      if (args[0] === 'cp' && String(args[1]).includes(':/home/node/.wrongstack/.')) {
+        const home = args[2]!;
+        await mkdir(path.join(home, 'profiles', 'default'), { recursive: true });
+        await mkdir(path.join(home, 'config-history'), { recursive: true });
+        await mkdir(path.join(home, 'projects', 'p'), { recursive: true });
+        await writeFile(path.join(home, '.key'), 'vault-key');
+        await writeFile(path.join(home, 'profiles', 'default', 'config.json'), '{"k":"enc:x"}');
+        await writeFile(path.join(home, 'profiles', 'default', 'statusline.json'), '{}');
+        await writeFile(path.join(home, 'config-history', 'profiles-default.json'), '{}');
+        await writeFile(path.join(home, 'projects', 'p', 'session.jsonl'), '{"turn":1}\n');
+        return { code: 0, stdout: '', stderr: '' };
+      }
+      return runner(args, opts);
+    };
+    const result = await runDockerWorkspace({
+      projectRoot: dir,
+      image: 'trusted:1',
+      command: 'wstack',
+      providerConfigs: { 'zai-coding-plan': { type: 'zai-coding-plan', apiKey: 'test-key' } },
+      conversationDirectory: conversationDir,
+      runner: wrapped,
+    });
+    expect(result.exitCode).toBe(0);
+    expect(
+      await readFile(path.join(conversationDir, 'projects', 'p', 'session.jsonl'), 'utf8'),
+    ).toBe('{"turn":1}\n');
+    expect((await readdir(conversationDir)).sort()).toEqual(['profiles', 'projects']);
+    expect(await readdir(path.join(conversationDir, 'profiles', 'default'))).toEqual([
+      'statusline.json',
+    ]);
+  });
   it('atomically replaces an existing non-empty conversationDirectory on subsequent runs', async () => {
     const { dir, runner } = await fixture();
     const conversationDir = path.join(dir, 'conversations', 'pr-42');
