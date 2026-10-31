@@ -5523,3 +5523,45 @@ staged; the other session's edits stay untouched.
 - Not covered: the desktop UI during a real delegation (native tests are batched for the end),
   ACP workers, and several tabs delegating at once.
 
+### Real automation run to a published pull request (2026-10-31)
+
+- Setup: a Linux `wstack` binary built from this tree (`build-binaries.mjs --target=bun-linux-x64`)
+  in the image `wrongstack-automation:acceptance` (node 22 slim, git, `wstack`); a new private
+  repository `ersinkoc/wrongstack-automation-sandbox` whose `stats.mjs` has an off-by-one in
+  `mean()` that `node test.mjs` catches. The job was added with the source CLI:
+  `--provider zai-coding-plan --model glm-5.3-flash --credential
+  ZHIPU_API_KEY=zai-coding-plan/default --yolo --verify "node test.mjs"` (the key is resolved from
+  the profile at run time, never stored in the job), then `run` and `serve`.
+- Defects found on the way, each fixed with a test that fails without the fix:
+  - Every job with `--credential` stopped before the agent ran: after the credential home was
+    written as the workspace user (a 0700 directory), a root `chown -R` failed with "Permission
+    denied", because the container keeps only the CHOWN capability. The re-own was redundant
+    and is gone (`docker-workspace.test.ts`).
+  - No run from a Windows host could prepare a PR: `docker cp` from NTFS marks every file 0755,
+    so the container's source tree (all 100755) never equalled the committed tree. The snapshot
+    now sets `core.fileMode false` when the host is Windows, as Git for Windows does; reproduced
+    exactly with `git mktree` before the fix (`docker-workspace.test.ts`).
+  - The CLI refused its own runs when the shell spelled the project root in another case
+    (`D:\...` vs the real `d:\...`): it now compares real paths like the store does; and
+    `pr-publish <run> --plan <fingerprint>` never passed the fingerprint, because `--plan` is also
+    a global boolean switch; the positional after the run id is now read
+    (`automation-preview.test.ts`).
+  - `pr-check` rejected every repository that has a commit status (here a CodeRabbit app): it
+    required a `sha` on each status entry, which GitHub's combined status never has (the commit
+    is at the top level). The top-level sha is now bound to the published head; the test
+    fixtures use the recorded live shape (`automation-pull-request-status-sha.test.ts`).
+- Separate, not a defect: the host CLI writes `.gitignore` and `.wrongstack/project.json` into a
+  project the first time it runs there, and the PR source check correctly refuses an uncommitted
+  tree; they were committed to the sandbox.
+- Result (run `5e6e18b7`): the model fixed `mean()` (4 requests, 34 s); the container exited 0 and
+  was removed; `node test.mjs` passed independently on the same image identity; source tree
+  `8dcc846` equals the committed tree; `pr-prepare` left the local index, HEAD and branches
+  unchanged; `pr-publish` (GitHub token from `gh auth token` in the environment only) opened draft
+  PR #1 on `wrongstack/automation/5e6e18b7-...`, whose commit tree `1b4dcc2` equals the
+  independently verified candidate tree and whose parent is the base commit; publishing again
+  returned the same PR; `pr-check` reported the CodeRabbit status as passed.
+- Checks: runtime 37 files / 389 tests; the CLI automation and argument-parser tests 85 passed;
+  runtime and CLI typechecks clean; architecture health PASS.
+- Not covered: `pr-follow-up` against a real failing check, updating a published PR, the desktop
+  `AutomationPublication` flow over the engine, and restart while a run is active.
+
