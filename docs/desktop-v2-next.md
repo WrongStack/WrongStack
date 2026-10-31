@@ -301,9 +301,8 @@ have real workflows; the work below closes their missing actions, durability and
   "Model fallback in the desktop engine"). Still open:
   - per-tab agents of the CLI-hosted WebUI get their own fallback extension (2026-10-31,
     `2a289e482`);
-  - a fallback hop in a CLI-hosted per-tab agent does not refresh that tab's context window:
-    the host's updater is process-wide and serves the leader (in the standalone engine each
-    desktop conversation is the leader, so its hops and restores do refresh it, 2026-10-30);
+  - a tab's model switch or fallback hop now resolves that tab's own context window, in the
+    standalone engine and the CLI-hosted WebUI (2026-10-31, `15217f0b1`);
   - native acceptance with a real failing provider.
 
 ### Engine messages the desktop still does not send (audit 2026-10-30)

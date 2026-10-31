@@ -5715,3 +5715,23 @@ staged; the other session's edits stay untouched.
   tests 148/148; CLI and engine typechecks clean; architecture health PASS. Commit `2a289e482`.
 - Still open: a hop in such a tab does not refresh that tab's compaction ceiling (the updater is
   process-wide and serves the leader), and acceptance with a real failing provider.
+
+### Each tab's own context window after a switch or hop (2026-10-31)
+
+- Defect: the standalone engine's context-window updater is built around the leader's context.
+  A model switch in any other tab wrote that tab's window into the leader's meta, the shared
+  compactor and a `ctx.max_context` event under the leader's session, while the tab kept the
+  window it copied from the leader when it was created. Compaction reads a context's own
+  `effectiveMaxContext` first, so a tab moved from a 1M to a 200k model kept compacting against
+  1M, and the leader against 200k. The CLI-hosted WebUI already handled explicit switches per
+  tab, but a fallback hop in a tab left the copied window.
+- Change: the updater takes the conversation it resolves for; only the leader's resolution
+  touches the process-wide consumers; switches pass the switching conversation, and fallback
+  hops pass their tab (standalone) or write the hop model's window into the tab (CLI-hosted).
+- Tests that failed before the change: `max-context-updater-tab-target.test.ts` and the hop case
+  in `embedded-session-agents-fallback.test.ts`; `routes-composition-coverage.test.ts` now
+  requires the switching conversation to be passed. Engine suite 3412 tests: all pass except
+  `project-history-search`, which timed out under full-suite load (65 s) and passes alone (5/5);
+  CLI `tests/webui-server` 140/140; engine and CLI typechecks clean; architecture health PASS.
+  Commit `15217f0b1`.
+- Still open: native acceptance with a real failing provider.
