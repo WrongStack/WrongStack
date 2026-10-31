@@ -106,7 +106,7 @@ describe('project goals', () => {
     expect(html).toContain('Verification: passed');
     expect(html).toContain('Legacy goal');
     expect(html).toContain('— / — tasks');
-    expect(html).toContain('Verification: Not reported');
+    expect(html).toContain('Verification: —');
     expect(html).not.toContain('Invalid goal');
   });
 });

@@ -379,3 +379,44 @@
   font-weight: 600;
   letter-spacing: 0;
 }
+
+/* Every project tool sits in the same frame: the page content pads it once. */
+.project-page-content
+:is(
+  .project-agent-roster,
+  .project-chimera,
+  .project-chronicle,
+  .project-dead-code,
+  .project-design-studio,
+  .project-goals,
+  .project-kit,
+  .project-sdd,
+  .project-history,
+  .project-techstack,
+  .project-mailbox,
+  .project-live-fleet
+) {
+  padding: 0;
+}
+
+/* Optional resume limits stay folded until asked for. */
+.goal-resume-budget > summary {
+  cursor: pointer;
+  padding: 8px 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.goal-resume-budget[open] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.goal-resume-budget > input {
+  width: 110px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--text);
+}

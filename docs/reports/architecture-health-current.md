@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-31T15:33:23.708Z
+**Generated:** 2026-10-31T15:51:50.130Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 46 |
 | Production source files | 5554 |
-| Production source lines | 1218616 |
+| Production source lines | 1218619 |
 | Test files | 4842 |
 | Workspace dependency edges | 233 |
 | Relative module edges | 16654 |
@@ -26,7 +26,6 @@
 - apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectGoals.tsx: hotspot shrunk from 1019 to 1016 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectKanban.tsx: hotspot shrunk from 747 to 744 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change
@@ -106,7 +105,7 @@ None.
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1151 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1098 | `packages/webui/src/components/codemap-model.ts` |
-| 1016 | `apps/desktop-v2/src/ProjectGoals.tsx` |
+| 1019 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 927 | `apps/desktop-v2/src/ProjectKnowledge.tsx` |
 | 917 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |

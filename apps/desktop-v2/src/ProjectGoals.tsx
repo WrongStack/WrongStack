@@ -21,7 +21,7 @@ import type { RunFocus } from './kanban-board-source';
 import { ProjectMission } from './ProjectMission';
 import './project-goals.css';
 
-const label = (value: unknown, fallback = 'Not reported') =>
+const label = (value: unknown, fallback = '—') =>
   typeof value === 'string' && value ? value : fallback;
 const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
 const reportedCount = (value: unknown) =>
@@ -482,7 +482,8 @@ export function ProjectGoals({
               )}
               {['stopped', 'failed'].includes(status) && !readOnly && (
                 // New limits replace the saved budget when the run resumes; blank keeps it.
-                <span className="goal-resume-budget">
+                <details className="goal-resume-budget">
+                  <summary>Limits for the resumed run</summary>
                   <input
                     type="number"
                     min={1}
@@ -518,7 +519,7 @@ export function ProjectGoals({
                     value={resumeCost}
                     onChange={(e) => setResumeCost(e.target.value)}
                   />
-                </span>
+                </details>
               )}
               {['paused', 'stopped', 'failed'].includes(status) && (
                 <button
@@ -694,8 +695,10 @@ export function ProjectGoals({
                       </div>
                       <small>
                         {reportedCount(phase['completedTasks'])} /{' '}
-                        {reportedCount(phase['taskCount'])} tasks ·{' '}
-                        {label(phase['priority'], 'priority not reported')} priority
+                        {reportedCount(phase['taskCount'])} tasks
+                        {typeof phase['priority'] === 'string' &&
+                          phase['priority'] &&
+                          ` · ${phase['priority']} priority`}
                       </small>
                       <GoalPhaseVerification phase={phase} />
                       <div className="goal-tasks">

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T15:33:23.708Z",
+  "generatedAt": "2026-10-31T15:51:50.130Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 46,
     "sourceFiles": 5554,
     "testFiles": 4842,
-    "sourceLines": 1218616,
+    "sourceLines": 1218619,
     "workspaceEdges": 233,
     "moduleEdges": 16654,
     "nonCommandSlashImports": 0,
@@ -30,7 +30,6 @@
     "apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectGoals.tsx: hotspot shrunk from 1019 to 1016 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectKanban.tsx: hotspot shrunk from 747 to 744 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change",
@@ -32353,7 +32352,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1016,
+      "lines": 1019,
       "relativeImports": 9
     },
     {
@@ -32440,7 +32439,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1016,
+      "lines": 1019,
       "relativeImports": 9
     },
     {

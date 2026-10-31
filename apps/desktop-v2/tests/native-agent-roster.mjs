@@ -463,7 +463,12 @@ export async function exerciseNativeAgentRoster({
   assert.equal(child.budget.maxToolCalls, 77);
   await catalog().getByRole('button', { name: 'Inheritance map', exact: true }).click();
   await page.getByRole('region', { name: 'Project role inheritance graph', exact: true }).waitFor();
-  assert.equal(await page.locator('.roster-inheritance .react-flow__edge').count(), 2);
+  // React Flow draws edges after it measures the nodes.
+  await waitFor(
+    async () => (await page.locator('.roster-inheritance .react-flow__edge').count()) === 2,
+    'Inheritance graph draws both base-role edges',
+    10000,
+  );
   await page.screenshot({
     path: join(artifactDir, 'native-agent-roster-inheritance.png'),
     fullPage: true,
