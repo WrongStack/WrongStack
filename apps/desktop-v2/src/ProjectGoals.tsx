@@ -61,7 +61,9 @@ export function ProjectGoals({
     [budgetTokens, setBudgetTokens] = useState(''),
     [resumeTasks, setResumeTasks] = useState(''),
     [resumeMinutes, setResumeMinutes] = useState(''),
-    [resumeTokens, setResumeTokens] = useState('');
+    [resumeTokens, setResumeTokens] = useState(''),
+    [budgetCost, setBudgetCost] = useState(''),
+    [resumeCost, setResumeCost] = useState('');
   const [action, setAction] = useState('');
   const [error, setError] = useState('');
   const [stopConfirm, setStopConfirm] = useState(false);
@@ -183,7 +185,7 @@ export function ProjectGoals({
     if (!title.trim()) return;
     let budget: ReturnType<typeof goalBudgetPayload>;
     try {
-      budget = goalBudgetPayload(budgetTasks, budgetMinutes, budgetTokens);
+      budget = goalBudgetPayload(budgetTasks, budgetMinutes, budgetTokens, budgetCost);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       return;
@@ -416,6 +418,18 @@ export function ProjectGoals({
                 onChange={(e) => setBudgetTokens(e.target.value)}
               />
             </label>
+            <label title="Estimated USD from the model catalog's prices for each task agent response, checked before each task. A response whose model has no price stops the run, because the limit can no longer be checked.">
+              Cost limit (USD)
+              <input
+                type="number"
+                min={0.01}
+                step={0.01}
+                inputMode="decimal"
+                value={budgetCost}
+                placeholder="No limit"
+                onChange={(e) => setBudgetCost(e.target.value)}
+              />
+            </label>
           </div>
           <div className="goal-create-actions">
             <button type="button" className="button secondary" onClick={() => setCreating(false)}>
@@ -498,6 +512,15 @@ export function ProjectGoals({
                     value={resumeTokens}
                     onChange={(e) => setResumeTokens(e.target.value)}
                   />
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    aria-label="Cost limit in USD for the resumed run"
+                    placeholder="USD"
+                    value={resumeCost}
+                    onChange={(e) => setResumeCost(e.target.value)}
+                  />
                 </span>
               )}
               {['paused', 'stopped', 'failed'].includes(status) && (
@@ -511,7 +534,7 @@ export function ProjectGoals({
                       budget =
                         status === 'paused'
                           ? undefined
-                          : goalBudgetPayload(resumeTasks, resumeMinutes, resumeTokens);
+                          : goalBudgetPayload(resumeTasks, resumeMinutes, resumeTokens, resumeCost);
                     } catch (e) {
                       setError(e instanceof Error ? e.message : String(e));
                       return;

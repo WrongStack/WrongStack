@@ -8,7 +8,8 @@ export function goalBudgetPayload(
   maxTasks: string,
   maxMinutes: string,
   maxTokens = '',
-): { maxTasks?: number; maxMinutes?: number; maxTokens?: number } | undefined {
+  maxCostUsd = '',
+): { maxTasks?: number; maxMinutes?: number; maxTokens?: number; maxCostUsd?: number } | undefined {
   const parse = (value: string, label: string, max: number, whole: boolean) => {
     if (!value.trim()) return undefined;
     const number = Number(value);
@@ -18,17 +19,24 @@ export function goalBudgetPayload(
       number > max ||
       (whole && !Number.isInteger(number))
     )
-      throw Error(`${label} must be ${whole ? 'a whole number' : 'a number'} from 1 to ${max}.`);
+      throw Error(
+        whole
+          ? `${label} must be a whole number from 1 to ${max}.`
+          : `${label} must be a number above 0 and at most ${max}.`,
+      );
     return number;
   };
   const tasks = parse(maxTasks, 'The task limit', 10_000, true);
   const minutes = parse(maxMinutes, 'The run-time limit', 7 * 24 * 60, false);
   const tokens = parse(maxTokens, 'The token limit', 1_000_000_000_000, true);
-  if (tasks === undefined && minutes === undefined && tokens === undefined) return undefined;
+  const cost = parse(maxCostUsd, 'The cost limit', 1_000_000, false);
+  if (tasks === undefined && minutes === undefined && tokens === undefined && cost === undefined)
+    return undefined;
   return {
     ...(tasks !== undefined ? { maxTasks: tasks } : {}),
     ...(minutes !== undefined ? { maxMinutes: minutes } : {}),
     ...(tokens !== undefined ? { maxTokens: tokens } : {}),
+    ...(cost !== undefined ? { maxCostUsd: cost } : {}),
   };
 }
 
@@ -44,6 +52,13 @@ export function goalBudgetText(budget: unknown, usage: unknown): string {
     typeof limits['maxMinutes'] === 'number' ? `${minutes} of ${limits['maxMinutes']} min` : '',
     typeof limits['maxTokens'] === 'number'
       ? `${(typeof used['tokens'] === 'number' ? used['tokens'] : 0).toLocaleString('en-US')} of ${limits['maxTokens'].toLocaleString('en-US')} tokens`
+      : '',
+    typeof limits['maxCostUsd'] === 'number'
+      ? `~$${(typeof used['costUsd'] === 'number' ? used['costUsd'] : 0).toFixed(2)} of $${limits['maxCostUsd']} estimated${
+          typeof used['unpricedResponses'] === 'number' && used['unpricedResponses'] > 0
+            ? ` (${used['unpricedResponses']} unpriced responses)`
+            : ''
+        }`
       : '',
   ].filter(Boolean);
   return parts.length ? `Budget: ${parts.join(' · ')}` : '';

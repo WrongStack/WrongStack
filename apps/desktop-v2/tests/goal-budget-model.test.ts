@@ -8,6 +8,7 @@ it('builds the optional budget and refuses values the engine would ignore', () =
   expect(() => goalBudgetPayload('2.5', '')).toThrow('whole number');
   expect(() => goalBudgetPayload('0', '')).toThrow('from 1');
   expect(() => goalBudgetPayload('', 'soon')).toThrow('run-time limit');
+  expect(() => goalBudgetPayload('', '0')).toThrow('above 0');
 });
 
 it('describes the budget and its usage only when a budget is set', () => {
@@ -28,4 +29,15 @@ it('carries a token limit and shows token usage', () => {
   expect(goalBudgetText({ maxTokens: 1_000 }, { tasks: 0, elapsedMs: 0 })).toBe(
     'Budget: 0 of 1,000 tokens',
   );
+});
+
+it('carries a cost limit and shows the estimate with unpriced responses', () => {
+  expect(goalBudgetPayload('', '', '', '2.5')).toEqual({ maxCostUsd: 2.5 });
+  expect(() => goalBudgetPayload('', '', '', '-1')).toThrow('cost limit');
+  expect(goalBudgetText({ maxCostUsd: 2.5 }, { tasks: 1, elapsedMs: 0, costUsd: 0.4567 })).toBe(
+    'Budget: ~$0.46 of $2.5 estimated',
+  );
+  expect(
+    goalBudgetText({ maxCostUsd: 1 }, { tasks: 1, elapsedMs: 0, costUsd: 0, unpricedResponses: 2 }),
+  ).toBe('Budget: ~$0.00 of $1 estimated (2 unpriced responses)');
 });

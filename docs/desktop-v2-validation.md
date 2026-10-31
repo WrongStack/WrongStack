@@ -5409,3 +5409,28 @@ staged; the other session's edits stay untouched.
   resets its filters before the step's remaining checks; the fixture's event names a session
   (`fixture-story`) that no catalog holds, so it would only exercise the fallback.
 
+### Goal cost budgets (2026-10-31)
+
+- Iteration limits first: the shipped `tools.maxIterations` is 0 and the agent loop treats 0 as no
+  hard limit (`agent-loop.ts`, `effectiveLimit > 0`), so with the user's unlimited settings the
+  iteration-limit notice never appears; the desktop's "Iteration budget" and "Automatic
+  continuation budget" fields already say that 0 means unlimited.
+- Engine (`goal`): `GoalBudget.maxCostUsd` (above 0, at most $1,000,000) with
+  `budgetUsage.costUsd` and `budgetUsage.unpricedResponses`. Before each task the run stops
+  cleanly (resumable) when the estimate reached the limit, or when any response had no catalog
+  price, because the limit could then no longer be checked; an unknown price is never counted
+  as $0 (`goal-budget.test.ts`).
+- Engine (`webui-server`): the Goal task meter now reports each `provider.response` with its
+  provider and model. The standalone host prices it with the same catalog rates and formula as
+  `stats.get` (`resolveProviderModelMetadata`, `getCostRates`, `computeUsageCost`); a model whose
+  catalog entry has no `cost` is unpriced. Prices resolve asynchronously and each task start
+  waits for the ones already reported (`goal-run-budget.test.ts`: stops after the estimate passes
+  $0.50; stops at the first unpriced response). Like the token budget, the task that crosses the
+  limit finishes. Tier- and cache-TTL-aware rates are not applied, as in `stats.get`.
+- Desktop: "Cost limit (USD)" on the Goal form and on resume; the budget line shows
+  "~$0.46 of $2.5 estimated" and the unpriced response count (`goal-budget-model.test.ts`).
+- Checks: goal 23 files / 218 tests; desktop 173 files / 683 tests; both typechecks clean;
+  `webui-server` full run 3395 passed and 2 failed (`context-modes-desktop.test.ts`,
+  `sage-validity-review.test.ts`), and both passed twice when rerun alone (4/4), so they are
+  treated as load-dependent and were not changed. Not exercised with a real priced model.
+

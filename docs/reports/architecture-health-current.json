@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T23:53:33.324Z",
+  "generatedAt": "2026-10-31T00:02:35.785Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 45,
     "sourceFiles": 5552,
     "testFiles": 4835,
-    "sourceLines": 1217889,
+    "sourceLines": 1218041,
     "workspaceEdges": 222,
-    "moduleEdges": 16642,
+    "moduleEdges": 16644,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -32267,7 +32267,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 996,
+      "lines": 1019,
       "relativeImports": 9
     },
     {
@@ -32353,14 +32353,14 @@
       "relativeImports": 0
     },
     {
+      "file": "apps/desktop-v2/src/ProjectGoals.tsx",
+      "lines": 1019,
+      "relativeImports": 9
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
       "lines": 997,
       "relativeImports": 10
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 996,
-      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
