@@ -5772,3 +5772,22 @@ staged; the other session's edits stay untouched.
   here); it is an auxiliary call, not the conversation.
 - Not covered: other providers' vocabularies against real endpoints (only Z.AI was available),
   and a leader's own effort override (`leader.effort_changed`) followed by a reset.
+
+### Leader's own effort override in the engine (2026-10-31)
+
+- Gap: the standalone engine applied a leader's effort override in the request pipeline,
+  restored it on resume, forwarded `leader.effort_changed` and the desktop displayed it, but the
+  engine never registered `leader_effort_set`. It is now registered after the canonical tools
+  (CLI parity), honouring `tools.disabledTools`, not exposed directly (as in the CLI).
+  Tests: `leader-effort-tool.test.ts` (real tool and override helpers: set, reset, event,
+  journal, disabled) and `backend-services.test.ts` (registration; failed before the change).
+  Commit `157f5c771`.
+- Real Z.AI through the engine (`effort.mjs leader`, same recording proxy): session effort `max`.
+  The leader found the tool through discovery and set `low` ("acceptance check");
+  `leader.effort_changed` arrived for the session, and every following conversation request
+  carried `reasoning_effort: low`, including the next turn's. After `reset` the event arrived
+  with no effort and requests carried `max` again.
+- Still missing in the engine: the other management tools the CLI registers with it
+  (`favorite_manage`, fallback chain/profile management, `agent_model_assign`,
+  `provider_manage`, `provider_key_set`, `leader_model_set`, `model_tier_set`,
+  `system_config_view`).
