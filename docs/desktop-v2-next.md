@@ -102,6 +102,32 @@ whose ownership and resolved target directory you have verified.
 
 ## Latest completed implementation: preserve and build upon it
 
+### UI tour at two window widths (2026-11-01)
+
+Every top-level screen, all 21 settings sections and all 17 project tools were opened in the
+debug Tauri shell at 1440x900 and 900x720, with no horizontal overflow at either width. The tour
+was a throwaway script, not a harness scope. Findings fixed in `188f8f131`:
+
+- At 1000px and narrower, the settings section list is replaced by one grouped picker
+  (`SettingsSectionSelect.tsx`). Before, the list filled the screen above the section it opened.
+- The wide settings list has no per-item chevrons, has tighter rows, and the blank band above it
+  is gone.
+- The sidebar search stays on one line.
+- The file explorer no longer shows "This folder is empty" while the tree is still loading.
+- Session, project and model counts use the singular for one.
+
+Left as they are:
+
+- The project navigation appears in the sidebar once a session is selected. This moves the tree
+  under a stationary pointer, so the hover can look like a selected item.
+- The Changes footer note can run past its pane at 1440px.
+
+Debug-mode orphans: the debug engine is `bun …/engine/main.ts`, and its command line does not
+contain the test data directory. Owned-process cleanup that matches only on the command line
+therefore misses the engine. The engine then keeps per-project daemons for temporary
+`wrongstack-desktop-v2-*` directories alive. To find leftovers, look for bun processes whose
+children name such a directory.
+
 ### Context price tiers
 
 The native model catalog now has a structured context-price tier editor and saved-price view.
