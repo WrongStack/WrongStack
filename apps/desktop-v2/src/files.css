@@ -843,6 +843,17 @@
 .file-review-tray > div {
   padding: 0 18px;
 }
+.file-review-tray > small,
+.file-review-tray > p {
+  display: block;
+  margin: 0;
+  padding: 0 18px 10px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.file-review-tray > small {
+  color: var(--muted);
+}
 .file-review-tray article {
   position: relative;
   padding: 10px 25px 10px 0;
