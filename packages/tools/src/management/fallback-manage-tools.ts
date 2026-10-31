@@ -42,7 +42,10 @@ import {
 import type { ModelTierSetToolOptions } from './model-tier-set-tool.js';
 import { createModelTierSetTool } from './model-tier-set-tool.js';
 
-export type { FallbackManageToolOptions } from './fallback-manage-tool-options.js';
+export type {
+  FallbackManageToolOptions,
+  ManageToolCallerContext,
+} from './fallback-manage-tool-options.js';
 export * from './fallback-system-config-view-tool.js';
 export {
   AGENT_MODEL_ASSIGN_TOOL_NAME,

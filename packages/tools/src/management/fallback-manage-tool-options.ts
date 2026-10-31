@@ -1,6 +1,14 @@
 import type { Config } from '@wrongstack/contracts/types/config';
 import type { Logger } from '@wrongstack/contracts/types/logger';
 
+/**
+ * The calling conversation's tool context, as far as the management tools read it. A host with
+ * one conversation per tab keys per-conversation state on `eventSessionId()` / `session.id`.
+ */
+export type ManageToolCallerContext =
+  | { eventSessionId?: (() => string) | undefined; session?: { id?: string } }
+  | undefined;
+
 export interface FallbackManageToolOptions {
   /** Returns the live config (re-read each call so changes are honored). */
   getConfig: () => Config;
@@ -27,9 +35,7 @@ export interface FallbackManageToolOptions {
          * The calling conversation's tool context. A host with one conversation per tab
          * switches the tab that called the tool (`eventSessionId()` / `session.id`).
          */
-        context?:
-          | { eventSessionId?: (() => string) | undefined; session?: { id?: string } }
-          | undefined,
+        context?: ManageToolCallerContext,
       ) => Promise<string | null>)
     | undefined;
   /** Optional logger for internal warnings. */

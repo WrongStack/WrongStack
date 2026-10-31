@@ -177,12 +177,8 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
   // The leader's provider/model/fallback management tools (CLI parity). A write is persisted
   // through the serialized config writer and applied live; a model switch targets the tab whose
   // leader called the tool, through the same switch `model.switch` uses.
-  const switchModelForTool = createApplyModelSwitch(
-    state,
-    deps,
-    cb,
-    createSessionContextResolver(deps),
-  );
+  const sessionContextForTool = createSessionContextResolver(deps);
+  const switchModelForTool = createApplyModelSwitch(state, deps, cb, sessionContextForTool);
   registerEngineManagementTools({
     toolRegistry: deps.toolRegistry,
     getConfig: () => state.getConfig(),
@@ -193,6 +189,11 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
     persist: (mutate) => cb.updateGlobalConfig(mutate, 'management tool'),
     switchModel: switchModelForTool,
     modelsRegistry: deps.modelsRegistry,
+    events,
+    sessionModel: (sessionId) => {
+      const ctx = sessionContextForTool(sessionId);
+      return { provider: ctx.provider.id, model: ctx.model };
+    },
   });
   const { stopEmptySessionCleanup, offSessionRenamed } = setupStandaloneSessionMaintenance({
     state,

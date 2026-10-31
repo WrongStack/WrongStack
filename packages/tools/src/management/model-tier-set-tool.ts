@@ -30,7 +30,10 @@ import {
   listTierIds,
   resolveTier,
 } from '@wrongstack/coordination';
-import type { FallbackManageToolOptions } from './fallback-manage-tool-options.js';
+import type {
+  FallbackManageToolOptions,
+  ManageToolCallerContext,
+} from './fallback-manage-tool-options.js';
 
 export const LEADER_TIER_SET_TOOL_NAME = 'leader_tier_set';
 
@@ -45,21 +48,31 @@ export interface LeaderTierProposal {
 }
 
 export interface ModelTierSetToolOptions extends FallbackManageToolOptions {
-  /** Tier the leader is currently running at, when the host tracks one. */
-  getCurrentTier?: (() => string | undefined) | undefined;
+  /**
+   * Tier the leader is currently running at, when the host tracks one. Every per-conversation
+   * input receives the calling conversation's context, for hosts with one conversation per tab.
+   */
+  getCurrentTier?: ((context?: ManageToolCallerContext) => string | undefined) | undefined;
   /** Current conversation size in tokens — the quantity a switch re-reads. */
-  getContextTokens?: (() => number | undefined) | undefined;
+  getContextTokens?: ((context?: ManageToolCallerContext) => number | undefined) | undefined;
+  /**
+   * The model the calling conversation runs, when it can differ from the profile default
+   * (`config.provider` / `config.model`). The economic guard prices the switch from it.
+   */
+  getCurrentModel?:
+    | ((context?: ManageToolCallerContext) => { provider: string; model: string } | undefined)
+    | undefined;
   /**
    * Turns since the last tier switch. Hosts that do not track this should
    * return a large number so the dwell guard does not block the first switch.
    */
-  getTurnsSinceTierSwitch?: (() => number | undefined) | undefined;
+  getTurnsSinceTierSwitch?: ((context?: ManageToolCallerContext) => number | undefined) | undefined;
   /** Published per-1M-token prices and window for a provider/model pair. */
   getModelEconomics?:
     | ((providerId: string, modelId: string) => Promise<TierModelEconomics | undefined>)
     | undefined;
   /** Record that the leader is now on `tier` (resets the dwell counter). */
-  onTierSwitched?: ((tier: string) => void) | undefined;
+  onTierSwitched?: ((tier: string, context?: ManageToolCallerContext) => void) | undefined;
   /** Surface a proposal to the user. Called only in 'propose' mode. */
   onTierProposed?: ((proposal: LeaderTierProposal) => void | Promise<void>) | undefined;
 }
@@ -131,7 +144,7 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
         );
       }
 
-      const currentTier = opts.getCurrentTier?.();
+      const currentTier = opts.getCurrentTier?.(ctx);
       const policy = leaderTierPolicy(config);
 
       if (input.action === 'show') {
@@ -188,11 +201,15 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
       // "saves nothing" and would silently refuse EVERY downgrade. Treat an
       // unknown context as "no pricing data" instead, so the policy falls back
       // to its structural guards rather than to a fail-closed no-op.
-      const contextTokens = opts.getContextTokens?.();
+      const contextTokens = opts.getContextTokens?.(ctx);
+      const from = opts.getCurrentModel?.(ctx) ?? {
+        provider: config.provider,
+        model: config.model,
+      };
       const haveContext = typeof contextTokens === 'number' && contextTokens > 0;
       const [fromEconomics, toEconomics] = haveContext
         ? await Promise.all([
-            opts.getModelEconomics?.(config.provider, config.model) ?? Promise.resolve(undefined),
+            opts.getModelEconomics?.(from.provider, from.model) ?? Promise.resolve(undefined),
             opts.getModelEconomics?.(targetProvider, targetModel) ?? Promise.resolve(undefined),
           ])
         : [undefined, undefined];
@@ -203,7 +220,7 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
         contextTokens: haveContext ? contextTokens : 0,
         // A host that does not track switches must not be permanently blocked
         // by the dwell guard, so an unknown count reads as "long ago".
-        turnsSinceSwitch: opts.getTurnsSinceTierSwitch?.() ?? Number.MAX_SAFE_INTEGER,
+        turnsSinceSwitch: opts.getTurnsSinceTierSwitch?.(ctx) ?? Number.MAX_SAFE_INTEGER,
         economics: { from: fromEconomics ?? {}, to: toEconomics ?? {} },
       });
 
@@ -246,7 +263,7 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
         cfg['model'] = targetModel;
         if (resolved.fallbackModels?.length) cfg['fallbackModels'] = [...resolved.fallbackModels];
       });
-      opts.onTierSwitched?.(input.tier);
+      opts.onTierSwitched?.(input.tier, ctx);
 
       const liveNote = opts.switchProviderAndModel
         ? ''
