@@ -129,6 +129,13 @@ export class GoalWebSocketHandler {
     /** Fresh isolated worker factory; task execution never shares the chat Context when provided. */
     private taskAgentFactory?: AgentFactory | undefined,
     private readonly goalId?: string | undefined,
+    /** Prices a task agent response for Goal cost budgets; null when the model has no price. */
+    private readonly priceUsage?:
+      | ((
+          usage: import('@wrongstack/contracts/types').Usage,
+          source: { providerId: string; model: string },
+        ) => Promise<number | null>)
+      | undefined,
   ) {
     this.store = new PhaseStore({ baseDir: storeDir });
     this.persistence = new GoalRunPersistence(this.store);
@@ -162,6 +169,7 @@ export class GoalWebSocketHandler {
           this.onBoardState,
           this.taskAgentFactory,
           selectedId,
+          this.priceUsage,
         ).internals(),
       ))
     )
@@ -250,7 +258,12 @@ export class GoalWebSocketHandler {
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
-    onUsage?: ((usage: import('@wrongstack/contracts/types').Usage) => void) | undefined,
+    onUsage?:
+      | ((
+          usage: import('@wrongstack/contracts/types').Usage,
+          source: { providerId: string; model: string },
+        ) => void)
+      | undefined,
   ): Promise<unknown> {
     return executeGoalTask(this.goalWorkerHost(), task, phaseId, env, signal, onUsage);
   }
@@ -386,6 +399,7 @@ export class GoalWebSocketHandler {
       assessAbort: this.assessAbort,
       stopBroadcast: this.stopBroadcast,
       persistence: this.persistence,
+      priceUsage: this.priceUsage,
       handleStop: this.handleStop,
       worktrees: this.worktrees,
       runBase: this.runBase,

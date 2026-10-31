@@ -52,6 +52,12 @@ export interface GoalWsHandlerInternals extends GoalWsRunControlsHost {
   readonly onBoardState: ((graphId: string, state: Record<string, unknown>) => void) | undefined;
   store: PhaseStore;
   persistence: GoalRunPersistence;
+  readonly priceUsage:
+    | ((
+        usage: import('@wrongstack/contracts/types').Usage,
+        source: { providerId: string; model: string },
+      ) => Promise<number | null>)
+    | undefined;
   worktrees: WorktreeManager | null;
   addClient(ws: WebSocket): void;
   dispose(): void;
@@ -67,7 +73,12 @@ export interface GoalWsHandlerInternals extends GoalWsRunControlsHost {
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
-    onUsage?: ((usage: import('@wrongstack/contracts/types').Usage) => void) | undefined,
+    onUsage?:
+      | ((
+          usage: import('@wrongstack/contracts/types').Usage,
+          source: { providerId: string; model: string },
+        ) => void)
+      | undefined,
   ): Promise<unknown>;
   runRepairPhase(
     phase: PhaseNode,

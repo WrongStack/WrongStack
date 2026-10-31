@@ -51,6 +51,16 @@ export interface GoalRunHost {
   readonly projectRoot: string | undefined;
   readonly context: Context;
   readonly persistence: GoalRunPersistence;
+  /**
+   * Estimated USD for one provider response from the model catalog; null when the model has no
+   * catalog price. Without it no response is priced.
+   */
+  readonly priceUsage?:
+    | ((
+        usage: import('@wrongstack/contracts/types').Usage,
+        source: { providerId: string; model: string },
+      ) => Promise<number | null>)
+    | undefined;
   runRepairPhase(
     phase: PhaseNode,
     failure: string,
@@ -62,7 +72,12 @@ export interface GoalRunHost {
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
     signal?: AbortSignal | undefined,
-    onUsage?: ((usage: import('@wrongstack/contracts/types').Usage) => void) | undefined,
+    onUsage?:
+      | ((
+          usage: import('@wrongstack/contracts/types').Usage,
+          source: { providerId: string; model: string },
+        ) => void)
+      | undefined,
   ): Promise<unknown>;
   runChimeraReview(
     task: import('@wrongstack/contracts/types').TaskNode,
@@ -268,6 +283,20 @@ export async function startGoalRun(
   if (graph.runError?.startsWith('Budget reached')) graph.runError = undefined;
   const usage = graph.budgetUsage;
   usage.tokens ??= 0;
+  // Prices resolve asynchronously; each task start waits for the ones already reported.
+  let pricing: Promise<void> = Promise.resolve();
+  const price = (
+    reported: import('@wrongstack/contracts/types').Usage,
+    source: { providerId: string; model: string },
+  ) => {
+    const priceUsage = host.priceUsage;
+    if (!priceUsage) return;
+    pricing = pricing.then(async () => {
+      const cost = await priceUsage(reported, source).catch(() => null);
+      if (cost === null) usage.unpricedResponses = (usage.unpricedResponses ?? 0) + 1;
+      else usage.costUsd = (usage.costUsd ?? 0) + cost;
+    });
+  };
   let accruedAt = Date.now();
   const accrue = () => {
     const now = Date.now();
@@ -281,6 +310,7 @@ export async function startGoalRun(
     ctx: {
       executeTask: async (task, phaseId, env, signal) => {
         accrue();
+        await pricing;
         const exceeded = goalBudgetExceeded(graph.budget, usage);
         if (exceeded) {
           // stop() leaves this task pending (resumable) rather than failed.
@@ -297,8 +327,9 @@ export async function startGoalRun(
           phaseId,
           taskEnv,
           signal,
-          (reported) => {
+          (reported, source) => {
             usage.tokens = (usage.tokens ?? 0) + goalUsageTokens(reported);
+            price(reported, source);
           },
         );
         host.logger.info(`[Goal] [${phaseId}] Completed: ${task.title}`);

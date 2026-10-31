@@ -76,6 +76,9 @@ export function buildGoalRunHost(self: GoalWsHandlerInternals): GoalRunHost {
     get context() {
       return self.context;
     },
+    get priceUsage() {
+      return self.priceUsage;
+    },
     get persistence() {
       return self.persistence;
     },

@@ -15,6 +15,12 @@ export interface GoalBudget {
    * limit finishes.
    */
   maxTokens?: number | undefined;
+  /**
+   * Estimated provider cost in USD, from the model catalog's prices for each task agent response.
+   * A response whose price is unknown makes the budget uncheckable, so the run stops there rather
+   * than counting it as free.
+   */
+  maxCostUsd?: number | undefined;
 }
 
 export interface GoalBudgetUsage {
@@ -22,6 +28,10 @@ export interface GoalBudgetUsage {
   elapsedMs: number;
   /** Absent on runs saved before token counting. */
   tokens?: number | undefined;
+  /** Estimated USD of the priced responses; absent on runs saved before cost counting. */
+  costUsd?: number | undefined;
+  /** Responses whose model had no catalog price. */
+  unpricedResponses?: number | undefined;
 }
 
 /** Tokens one provider response counts against a Goal budget. */
@@ -41,6 +51,7 @@ export function goalUsageTokens(usage: {
 const MAX_TASKS = 10_000;
 const MAX_MINUTES = 7 * 24 * 60;
 const MAX_TOKENS = 1_000_000_000_000;
+const MAX_COST_USD = 1_000_000;
 
 /** A budget from untrusted input; undefined when it sets no valid limit. */
 export function parseGoalBudget(value: unknown): GoalBudget | undefined {
@@ -53,10 +64,12 @@ export function parseGoalBudget(value: unknown): GoalBudget | undefined {
   const maxTasks = limit(raw['maxTasks'], MAX_TASKS);
   const maxMinutes = limit(raw['maxMinutes'], MAX_MINUTES);
   const maxTokens = limit(raw['maxTokens'], MAX_TOKENS);
+  const maxCostUsd = limit(raw['maxCostUsd'], MAX_COST_USD);
   const budget: GoalBudget = {
     ...(maxTasks !== undefined ? { maxTasks: Math.floor(maxTasks) } : {}),
     ...(maxMinutes !== undefined ? { maxMinutes } : {}),
     ...(maxTokens !== undefined ? { maxTokens: Math.floor(maxTokens) } : {}),
+    ...(maxCostUsd !== undefined ? { maxCostUsd } : {}),
   };
   return Object.keys(budget).length ? budget : undefined;
 }
@@ -72,5 +85,11 @@ export function goalBudgetExceeded(
     return `Budget reached: ${Math.floor(usage.elapsedMs / 60_000)} of ${budget.maxMinutes} minutes of run time used.`;
   if (budget?.maxTokens !== undefined && (usage.tokens ?? 0) >= budget.maxTokens)
     return `Budget reached: ${(usage.tokens ?? 0).toLocaleString('en-US')} of ${budget.maxTokens.toLocaleString('en-US')} provider tokens used.`;
+  if (budget?.maxCostUsd !== undefined) {
+    if ((usage.unpricedResponses ?? 0) > 0)
+      return `Budget reached: the cost of ${usage.unpricedResponses} provider responses is unknown, so the $${budget.maxCostUsd} cost limit cannot be checked.`;
+    if ((usage.costUsd ?? 0) >= budget.maxCostUsd)
+      return `Budget reached: an estimated $${(usage.costUsd ?? 0).toFixed(4)} of $${budget.maxCostUsd} spent.`;
+  }
   return undefined;
 }

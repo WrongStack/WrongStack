@@ -26,7 +26,7 @@ export async function executeGoalTask(
   phaseId: string,
   env?: { cwd?: string | undefined; branch?: string | undefined },
   signal?: AbortSignal | undefined,
-  onUsage?: ((usage: Usage) => void) | undefined,
+  onUsage?: ((usage: Usage, source: { providerId: string; model: string }) => void) | undefined,
 ): Promise<unknown> {
   /** Reports the provider usage of this task's agent run (Goal token budgets). */
   // Embedders' factories may omit the bus despite the type; such a task is simply not metered.
@@ -34,7 +34,11 @@ export async function executeGoalTask(
     onUsage && typeof events?.on === 'function'
       ? events.on('provider.response', (event) => {
           try {
-            onUsage(event.usage);
+            // The model and provider let a Goal price this response against its cost budget.
+            onUsage(event.usage, {
+              providerId: String(event.ctx?.provider?.id ?? ''),
+              model: String(event.model ?? ''),
+            });
           } catch {
             // A budget observer must not break the task run.
           }

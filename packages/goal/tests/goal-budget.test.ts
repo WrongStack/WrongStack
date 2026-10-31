@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { goalBudgetExceeded, goalUsageTokens, parseGoalBudget } from '../src/goal-budget.js';
 import { PhaseGraphBuilder } from '../src/phase-graph-builder.js';
 import { PhaseStore } from '../src/phase-store.js';
@@ -58,4 +58,25 @@ it('counts provider tokens against a token budget', () => {
   );
   // Runs saved before token counting have no token usage yet.
   expect(goalBudgetExceeded(budget, { tasks: 9, elapsedMs: 0 })).toBeUndefined();
+});
+
+describe('goal cost budget', () => {
+  it('parses a positive USD limit', () => {
+    expect(parseGoalBudget({ maxCostUsd: 2.5 })).toEqual({ maxCostUsd: 2.5 });
+    expect(parseGoalBudget({ maxCostUsd: 0 })).toBeUndefined();
+    expect(parseGoalBudget({ maxCostUsd: Number.POSITIVE_INFINITY })).toBeUndefined();
+  });
+  it('stops at the estimated cost and fails closed on unpriced responses', () => {
+    const budget = { maxCostUsd: 1 };
+    expect(goalBudgetExceeded(budget, { tasks: 1, elapsedMs: 0, costUsd: 0.5 })).toBeUndefined();
+    expect(goalBudgetExceeded(budget, { tasks: 1, elapsedMs: 0, costUsd: 1.2 })).toMatch(
+      /^Budget reached: an estimated \$1\.2000 of \$1 spent\.$/,
+    );
+    expect(
+      goalBudgetExceeded(budget, { tasks: 1, elapsedMs: 0, costUsd: 0.1, unpricedResponses: 2 }),
+    ).toMatch(/cost of 2 provider responses is unknown/);
+    expect(goalBudgetExceeded(undefined, { tasks: 1, elapsedMs: 0, unpricedResponses: 2 })).toBe(
+      undefined,
+    );
+  });
 });

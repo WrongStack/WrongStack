@@ -81,6 +81,7 @@ import { buildSddWizardDeps } from './sdd-wizard-wiring.js';
 import { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
 import { SpecsWebSocketHandler } from './specs-ws-handler.js';
 import { TerminalWebSocketHandler } from './terminal-ws-handler.js';
+import { computeUsageCost, getCostRates } from './usage-cost.js';
 import { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import { errMessage } from './ws-utils.js';
 
@@ -492,6 +493,20 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     projectRoot,
     kanbanRunMirror ? (graphId, state) => kanbanRunMirror.onGoalState(graphId, state) : undefined,
     subagentFactory,
+    undefined,
+    // Goal cost budgets price each task agent response with the same catalog rates as `stats.get`;
+    // a model without a catalog price stays unpriced (null), never $0.
+    async (usage, source) => {
+      if (!source.providerId || !source.model) return null;
+      const metadata = await resolveProviderModelMetadata(
+        modelsRegistry,
+        source.providerId,
+        source.model,
+        (input.getConfig?.() ?? config).providers?.[source.providerId],
+      ).catch(() => undefined);
+      if (!metadata || !(metadata as { cost?: unknown }).cost) return null;
+      return computeUsageCost(usage, getCostRates(metadata));
+    },
   );
   const specsHandler = new SpecsWebSocketHandler(wpaths.projectSpecs, wpaths.projectTaskGraphs);
   const sddBoardHandler = new SddBoardWebSocketHandler(
