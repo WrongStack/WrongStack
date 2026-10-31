@@ -5751,3 +5751,24 @@ staged; the other session's edits stay untouched.
   daemons were removed.
 - Not covered: the picker clicked in the native window (native tests are batched at the end), and
   a provider that fails mid-stream rather than on connect.
+
+### Session reasoning effort on the real Z.AI wire (2026-10-31)
+
+- Setup (`.temp_files/zai-acceptance/effort.mjs`): the standalone engine on a throwaway
+  `WRONGSTACK_HOME` whose copied profile points `zai-coding-plan` at a local proxy in front of
+  `https://api.z.ai`. The proxy forwards unchanged and records only each request body's reasoning
+  fields, message roles and counts, plus the reasoning tokens the model reports (no headers or
+  credentials). Before each turn the effort was set exactly as `SessionModelControls.tsx` does
+  (`prefs.update {reasoningEffort}`, then `prefs.get` to confirm it).
+- The engine offered the catalog levels `low`, `high`, `max` for `glm-5.3-flash`
+  (`effortSupported: true`). Every conversation request carried `thinking: {type: enabled}` and
+  the chosen `reasoning_effort` (`low`, `high`, `max`); Z.AI answered 200 to each and reported
+  0 reasoning tokens at `low` against 105–216 at `high`/`max` for the same one-word task.
+- `auto` follows the project setting, and a session pick is also saved as the default a new tab
+  starts from (`prefs-handlers.ts`), so `auto` sent the last pick: `max` after `low, high, max`,
+  and `low` in a separate `low, auto` run.
+- Observed, not changed: the background memory consolidator's request (its own system prompt, no
+  tools) runs at the default `max` whatever the session effort (76–148 reasoning tokens per turn
+  here); it is an auxiliary call, not the conversation.
+- Not covered: other providers' vocabularies against real endpoints (only Z.AI was available),
+  and a leader's own effort override (`leader.effort_changed`) followed by a reset.
