@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T21:43:06.204Z",
+  "generatedAt": "2026-10-31T23:01:02.597Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5557,
-    "testFiles": 4844,
-    "sourceLines": 1219240,
+    "sourceFiles": 5558,
+    "testFiles": 4845,
+    "sourceLines": 1219304,
     "workspaceEdges": 233,
-    "moduleEdges": 16668,
+    "moduleEdges": 16669,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 174,
+    "testsWithoutTypecheck": 175,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1023
   },
@@ -399,8 +399,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 358,
-      "testFiles": 174,
+      "sourceFiles": 359,
+      "testFiles": 175,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2257,6 +2257,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-save-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/settings-section-select.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31482,6 +31488,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-save-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/settings-section-select.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

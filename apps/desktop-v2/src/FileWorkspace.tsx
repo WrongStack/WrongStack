@@ -1686,7 +1686,7 @@ export function FileWorkspace({
                     {visible.length - folderLimit} not shown
                   </button>
                 )}
-                {!visible.length && (
+                {!visible.length && loading !== 'tree' && (
                   <div className="file-quiet-state">
                     <FolderOpen size={30} />
                     <h3>{search ? 'No files match this search' : 'This folder is empty'}</h3>

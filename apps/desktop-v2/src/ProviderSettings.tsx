@@ -244,7 +244,7 @@ export function ProviderSettings({
             </label>
             <p className="provider-hint">
               {selected
-                ? `${models.length} models available in this provider's catalog.`
+                ? `${models.length} ${models.length === 1 ? 'model' : 'models'} available in this provider's catalog.`
                 : 'Saved connections and the engine catalog appear here.'}
             </p>
             <button

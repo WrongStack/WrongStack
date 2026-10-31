@@ -23,7 +23,12 @@ export function ProjectViews({ vm }: { vm: DesktopController }) {
                 <span>
                   {snapshot.sessions.filter((s) => s.projectId === p.id && isLive(s)).length} active
                 </span>
-                <span>{snapshot.sessions.filter((s) => s.projectId === p.id).length} sessions</span>
+                <span>
+                  {snapshot.sessions.filter((s) => s.projectId === p.id).length}{' '}
+                  {snapshot.sessions.filter((s) => s.projectId === p.id).length === 1
+                    ? 'session'
+                    : 'sessions'}
+                </span>
               </div>
               <footer>
                 <button

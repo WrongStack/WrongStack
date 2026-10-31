@@ -30,10 +30,11 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
       <div className="workspace-overview">
         <span>
           <i className="status-dot running" />
-          <strong>{active.length}</strong> active sessions
+          <strong>{active.length}</strong> active {active.length === 1 ? 'session' : 'sessions'}
         </span>
         <span>
-          <strong>{snapshot.projects.length}</strong> projects
+          <strong>{snapshot.projects.length}</strong>{' '}
+          {snapshot.projects.length === 1 ? 'project' : 'projects'}
         </span>
         {attention.length > 0 && (
           <button type="button" onClick={() => setFilter('attention')}>
@@ -93,7 +94,10 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
               </span>
               <h2>{item.name}</h2>
               <span>
-                {sessions.filter((session) => session.projectId === item.id).length} sessions
+                {countLabel(
+                  sessions.filter((session) => session.projectId === item.id).length,
+                  'session',
+                )}
               </span>
             </div>
             <button
@@ -153,4 +157,8 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
       )}
     </section>
   );
+}
+
+function countLabel(count: number, noun: string): string {
+  return `${count} ${count === 1 ? noun : `${noun}s`}`;
 }

@@ -82,6 +82,19 @@
   padding: 7px 9px;
   font-size: 12px;
 }
+/* A narrow sidebar keeps the search on one line: the label shortens, the shortcut stays whole. */
+.explorer .quick-search span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.explorer .quick-search kbd {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .project-views {
   display: flex;
   flex-direction: column;
@@ -363,6 +376,40 @@
 }
 
 /* Settings: grouped navigation and plain headings. */
+.workspace-shell .settings-workspace {
+  margin-top: 0;
+}
+.workspace-shell .wrongstack-settings-heading + .settings-workspace {
+  margin-top: 20px;
+}
+.workspace-shell .settings-navigation > button {
+  padding: 8px 10px;
+  margin-bottom: 1px;
+}
+.settings-section-select {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .workspace-shell .settings-navigation {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .workspace-shell .settings-navigation > button,
+  .workspace-shell .settings-navigation > .settings-nav-group {
+    display: none;
+  }
+  .settings-section-select {
+    display: block;
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--raised);
+    color: var(--text);
+    font-size: 13px;
+  }
+}
 .settings-nav-group {
   display: block;
   padding: 14px 10px 4px;

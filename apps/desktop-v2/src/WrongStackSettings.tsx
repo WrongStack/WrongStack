@@ -5,7 +5,6 @@ import {
   Brain,
   CalendarDays,
   Check,
-  ChevronRight,
   Coins,
   Gauge,
   KeyRound,
@@ -31,6 +30,7 @@ import { fleetPolicyIssue } from './fleet-policy-model';
 import { IntegrationSettings } from './IntegrationSettings';
 import { RefinementPolicySettings } from './RefinementPolicySettings';
 import { prepareRefinementPolicyPatch } from './refinement-policy-model';
+import { SettingsSectionSelect } from './SettingsSectionSelect';
 import { ToolAccessSettings } from './ToolAccessSettings';
 import { type InstructionDraft, UserInstructionsSettings } from './UserInstructionsSettings';
 import './settings-management.css';
@@ -241,6 +241,11 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
         <h2>Loading your WrongStack profile…</h2>
       </div>
     );
+  const openSection = (id: string) => {
+    if (id === 'models') setModelsOpened(true);
+    if (id === 'brain') setBrainOpened(true);
+    setSection(id);
+  };
   return (
     <section className="wrongstack-settings" aria-label="WrongStack settings">
       {/* The header row already names this page; only the way back gets a row of its own. */}
@@ -351,21 +356,23 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             )
             .map(({ id, title, Icon, group }, index, shown) => (
               <Fragment key={id}>
+                {index === 0 && (
+                  <SettingsSectionSelect
+                    sections={shown}
+                    section={section}
+                    onSelect={openSection}
+                  />
+                )}
                 {shown[index - 1]?.group !== group && (
                   <small className="settings-nav-group">{group}</small>
                 )}
                 <button
                   type="button"
                   aria-current={section === id ? 'page' : undefined}
-                  onClick={() => {
-                    if (id === 'models') setModelsOpened(true);
-                    if (id === 'brain') setBrainOpened(true);
-                    setSection(id);
-                  }}
+                  onClick={() => openSection(id)}
                 >
                   <Icon size={16} />
                   <span>{title}</span>
-                  <ChevronRight size={12} />
                 </button>
               </Fragment>
             ))}
