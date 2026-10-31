@@ -5911,3 +5911,26 @@ staged; the other session's edits stay untouched.
 - The first run failed usefully: the usage scenario had left `alternate-refiner` selected, so the
   engine recognised the conversation as already on `budget` and refused the same-tier switch.
   The scenario now starts the profile on the premium model.
+
+### A Kanban board launched as a Goal or SDD run (2026-10-31)
+
+- Gap: the standalone engine answered `kanban.run.start` with "unavailable in this standalone
+  runtime" and the desktop had no control for it. The CLI's implementation moved into
+  webui-server (`createKanbanRunStart`), used by both hosts: the board is exported to a task graph
+  that keeps its task ids, a Goal run binds back to the same board through the run mirror, and an
+  SDD run uses the worker factory (the engine has one). The engine's run mirror is now part of its
+  services and route deps (`c81d1c8c9`).
+- Desktop: the board menu has **Run board…** (disabled for a mirror board or a board without
+  cards), a confirmation naming the card count and token cost, Goal or SDD, and for Goal whether
+  to continue through the phases without asking. A started run is noted on the board
+  (`635f05e1b`).
+- Tests: `kanban-run-start.test.ts` with real boards on disk — a Goal run carries the board's
+  title and every card as a task template and binds to the board; a missing board, an empty
+  board, a missing engine choice and an SDD run without worker agents are refused. Engine suite
+  3430/3430, CLI WebUI-host tests 140/140, desktop typecheck and unit tests pass.
+- Native (`--goals`, debug build): a new board with one card, **Run board…** → Goal → **Start
+  run**; the note "A Goal run started from this board." appears and the board shows "Mirrors a
+  Goal run" with **Open goal**. Result `PASS`; screenshots `native-kanban-run-dialog.png`,
+  `native-kanban-run.png`.
+- Not covered: an SDD run launched from the desktop board (needs real worker execution), and the
+  mirror note still shows the raw phase id.
