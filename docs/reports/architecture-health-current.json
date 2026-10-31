@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T14:36:08.301Z",
+  "generatedAt": "2026-10-31T15:00:37.068Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 46,
     "sourceFiles": 5554,
     "testFiles": 4842,
-    "sourceLines": 1218655,
+    "sourceLines": 1218579,
     "workspaceEdges": 233,
     "moduleEdges": 16654,
     "nonCommandSlashImports": 0,
@@ -24,7 +24,20 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1023
   },
-  "errors": [],
+  "errors": [
+    "apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectAgentRoster.tsx: hotspot shrunk from 1562 to 1559 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectGoals.tsx: hotspot shrunk from 1019 to 1016 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectKanban.tsx: hotspot shrunk from 747 to 744 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 777 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -32300,7 +32313,7 @@
     },
     {
       "file": "apps/desktop-v2/src/CodeAtlas.tsx",
-      "lines": 917,
+      "lines": 914,
       "relativeImports": 11
     },
     {
@@ -32320,37 +32333,37 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1562,
+      "lines": 1559,
       "relativeImports": 16
     },
     {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 778,
+      "lines": 775,
       "relativeImports": 10
     },
     {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 718,
+      "lines": 715,
       "relativeImports": 8
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 786,
+      "lines": 783,
       "relativeImports": 8
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1019,
+      "lines": 1016,
       "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 747,
+      "lines": 744,
       "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
-      "lines": 939,
+      "lines": 927,
       "relativeImports": 9
     },
     {
@@ -32360,7 +32373,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectMemory.tsx",
-      "lines": 826,
+      "lines": 823,
       "relativeImports": 8
     },
     {
@@ -32370,12 +32383,12 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 780,
+      "lines": 777,
       "relativeImports": 12
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 746,
+      "lines": 743,
       "relativeImports": 15
     },
     {
@@ -32390,7 +32403,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
-      "lines": 891,
+      "lines": 889,
       "relativeImports": 7
     },
     {
@@ -32407,7 +32420,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1562,
+      "lines": 1559,
       "relativeImports": 16
     },
     {
@@ -32427,7 +32440,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1019,
+      "lines": 1016,
       "relativeImports": 9
     },
     {
@@ -32437,18 +32450,18 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
-      "lines": 939,
+      "lines": 927,
       "relativeImports": 9
-    },
-    {
-      "file": "apps/desktop-v2/src/CodeAtlas.tsx",
-      "lines": 917,
-      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
       "lines": 917,
       "relativeImports": 16
+    },
+    {
+      "file": "apps/desktop-v2/src/CodeAtlas.tsx",
+      "lines": 914,
+      "relativeImports": 11
     },
     {
       "file": "packages/tools/src/codebase-index/infra-parser.ts",
@@ -32457,7 +32470,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
-      "lines": 891,
+      "lines": 889,
       "relativeImports": 7
     },
     {
@@ -32472,7 +32485,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectMemory.tsx",
-      "lines": 826,
+      "lines": 823,
       "relativeImports": 8
     },
     {
@@ -32492,18 +32505,13 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 786,
+      "lines": 783,
       "relativeImports": 8
     },
     {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 780,
+      "lines": 777,
       "relativeImports": 12
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 778,
-      "relativeImports": 10
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
@@ -32514,6 +32522,11 @@
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
+      "lines": 775,
+      "relativeImports": 10
     },
     {
       "file": "packages/webui-server/src/server/provider-routes.ts",
@@ -32537,12 +32550,12 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 747,
+      "lines": 744,
       "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 746,
+      "lines": 743,
       "relativeImports": 15
     },
     {
@@ -32587,7 +32600,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 718,
+      "lines": 715,
       "relativeImports": 8
     },
     {

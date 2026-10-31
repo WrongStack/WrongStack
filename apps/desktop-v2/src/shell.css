@@ -305,3 +305,56 @@
   font-weight: 600;
   letter-spacing: 0;
 }
+
+/* Project tools: a plain title and one muted line, the same size on every page. Scoped under the
+   shell so lazily loaded page styles cannot win the cascade. */
+.workspace-shell
+:is(
+  .studio-heading,
+  .roster-hero,
+  .history-heading,
+  .sage-page-heading,
+  .project-overview-heading
+) {
+  align-items: flex-start;
+  margin: 4px 0 18px;
+  padding: 0;
+}
+.workspace-shell
+  :is(
+    .studio-heading,
+    .roster-hero,
+    .history-heading,
+    .sage-page-heading,
+    .project-overview-heading
+  )
+  h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.2px;
+}
+.workspace-shell
+  :is(
+    .studio-heading,
+    .roster-hero,
+    .history-heading,
+    .sage-page-heading,
+    .project-overview-heading
+  )
+  > div
+  > p {
+  max-width: 720px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.project-context-bar {
+  min-height: 40px;
+  padding-block: 4px;
+}
+.workspace-shell .project-page-content {
+  padding-top: 16px;
+}

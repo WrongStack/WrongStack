@@ -44,7 +44,7 @@ export async function exerciseNativeSageValidity({
     .getByRole('navigation', { name: `${project.name} workspace` })
     .getByRole('button', { name: 'Memory', exact: true })
     .click();
-  await page.getByRole('heading', { name: 'SAGE Memory.', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'SAGE Memory', exact: true }).waitFor();
   const title = 'Native conditional SAGE boundary.';
   await page.getByRole('button', { name: 'New memory', exact: true }).first().click();
   await page.getByLabel('Memory text', { exact: true }).fill(title);

@@ -200,10 +200,7 @@ export function ProjectDeadCode({
     <section className="project-dead-code" aria-label="Project dead-code workspace">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">REVIEW FIRST, CLEAN UP WITH EVIDENCE</span>
-          <h1>
-            Dead Code<span className="heading-dot">.</span>
-          </h1>
+          <h1>Dead Code</h1>
           <p>Inspect reachability, review exact diffs, verify changes and keep a path back.</p>
         </div>
         <ScanSearch size={30} />

@@ -365,10 +365,7 @@ export function ProjectAgentRoster({
     <section className="project-agent-roster" aria-label="Project agent roster">
       <header className="roster-hero">
         <div>
-          <span className="eyebrow">PROJECT AGENTS · {projectName}</span>
-          <h1>
-            Agent roster<span className="heading-dot">.</span>
-          </h1>
+          <h1>Agent roster</h1>
           <p>
             Role identities, project runtime policy and accumulated learning. This catalog describes
             agents available to the engine.

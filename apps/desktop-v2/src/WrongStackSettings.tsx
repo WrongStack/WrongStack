@@ -245,10 +245,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     <section className="wrongstack-settings" aria-label="WrongStack settings">
       <header className="wrongstack-settings-heading">
         <div>
-          <span className="eyebrow">WRONGSTACK · ACTIVE PROFILE</span>
-          <h1>
-            WrongStack settings<span className="heading-dot">.</span>
-          </h1>
+          <h1>WrongStack settings</h1>
           <p>Models, capabilities, and defaults shared with your WrongStack tools.</p>
         </div>
         {vm.settingsReturnSession && (

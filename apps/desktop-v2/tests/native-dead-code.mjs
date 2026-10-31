@@ -109,7 +109,7 @@ export async function exerciseNativeDeadCode({
     .click();
   await screen.getByText('1 file restored.', { exact: true }).waitFor();
   assert.equal(await readFile(file, 'utf8'), source);
-  await screen.getByRole('heading', { name: 'Dead Code.', exact: true }).scrollIntoViewIfNeeded();
+  await screen.getByRole('heading', { name: 'Dead Code', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({
     path: join(artifactDir, 'native-dead-code-recovery.png'),
     fullPage: true,

@@ -222,10 +222,7 @@ export function ProjectGoals({
     <section className="project-goals" aria-label="Project Goals">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">A DIRECTION FOR THE WHOLE PROJECT</span>
-          <h1>
-            Goals<span className="heading-dot">.</span>
-          </h1>
+          <h1>Goals</h1>
           <p>Plan missions, follow their phases and inspect work across the project.</p>
         </div>
         <div className="goal-header-actions">

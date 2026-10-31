@@ -140,10 +140,7 @@ export function SessionUsage({
     <section className="session-usage" aria-label="Conversation usage and cost">
       <header className="session-usage-heading">
         <div>
-          <span className="eyebrow">THIS CONVERSATION · ENGINE COUNTERS</span>
-          <h1>
-            Usage & cost<span className="heading-dot">.</span>
-          </h1>
+          <h1>Usage & cost</h1>
           <strong className="usage-conversation-title">{sessionTitle}</strong>
           <p>
             Understand token traffic, cache behavior and estimates without leaving your

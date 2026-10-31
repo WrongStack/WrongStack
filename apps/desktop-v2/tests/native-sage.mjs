@@ -81,7 +81,7 @@ export async function exerciseNativeSage({ page, waitFor, artifactDir, project, 
     .getByRole('button')
     .filter({ hasText: 'Vector Memory' })
     .click();
-  await page.getByRole('heading', { name: 'Vector Memory.', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Vector Memory', exact: true }).waitFor();
   await page
     .getByRole('heading', { name: 'Vector Memory is not enabled for this project.', exact: true })
     .waitFor();

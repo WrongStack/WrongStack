@@ -286,10 +286,7 @@ export function ProjectSessionHistory({
     <section className="project-history" aria-label="Project session history">
       <header className="history-heading">
         <div>
-          <span className="eyebrow">PROJECT CONVERSATION LIBRARY</span>
-          <h1>
-            Session history<span className="heading-dot">.</span>
-          </h1>
+          <h1>Session history</h1>
           <p>
             Find earlier work, read the recorded conversation and return to an open desktop session.
           </p>

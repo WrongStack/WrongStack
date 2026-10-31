@@ -387,7 +387,7 @@ export async function exerciseNativeChimera({
   await screen.getByText('Full review report', { exact: true }).click();
   await screen.getByRole('heading', { name: 'Native recorded review', exact: true }).waitFor();
   await screen
-    .getByRole('heading', { name: 'Chimera Reviews.', exact: true })
+    .getByRole('heading', { name: 'Chimera Reviews', exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(artifactDir, 'native-chimera-reviews.png'), fullPage: true });
   await page.setViewportSize({ width: 800, height: 640 });

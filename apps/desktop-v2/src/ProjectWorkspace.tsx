@@ -75,16 +75,13 @@ export function ProjectWorkspace({ project, vm }: { project: Project; vm: Deskto
         <button
           type="button"
           className="project-home-button"
+          title={project.root.replace(/^\\\\\?\\/, '')}
           onClick={() => vm.setProjectPage('overview')}
         >
           <ArrowLeft size={14} />
           <Folder size={15} />
           <strong>{project.name}</strong>
         </button>
-        <span className="project-context-label">PROJECT WORKSPACE</span>
-        <small className="project-context-path" title={project.root}>
-          {project.root.replace(/^\\\\\?\\/, '')}
-        </small>
         <button
           type="button"
           className="button secondary small"
@@ -355,10 +352,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         <section className="project-automations">
           <header className="studio-heading">
             <div>
-              <span className="eyebrow">WORK THAT KEEPS MOVING</span>
-              <h1>
-                Automations<span className="heading-dot">.</span>
-              </h1>
+              <h1>Automations</h1>
               <p>Scheduled jobs and repeatable workflows for {project.name}.</p>
             </div>
           </header>
@@ -425,12 +419,7 @@ function ProjectOverview({
     <section className="project-overview">
       <header className="project-overview-heading">
         <div>
-          <span className="eyebrow">YOUR PROJECT, CONNECTED</span>
-          <h1>
-            {project.name}
-            <span className="heading-dot">.</span>
-          </h1>
-          <p>A shared home for the knowledge, work, and code behind every conversation.</p>
+          <h1>{project.name}</h1>
         </div>
       </header>
       <div className="project-destination-grid">

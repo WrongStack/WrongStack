@@ -218,10 +218,7 @@ export function ProjectChronicle({
     <section className="project-chronicle" aria-label="Project Chronicle">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">THE EVIDENCE BEHIND YOUR PROJECT</span>
-          <h1>
-            Chronicle<span className="heading-dot">.</span>
-          </h1>
+          <h1>Chronicle</h1>
           <p>
             Follow work across agents, files, tools, and conversations. Keep every outcome in
             context.

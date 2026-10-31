@@ -21,7 +21,7 @@ export async function exerciseNativeProjects({
   );
   await page.getByRole('heading', { name: project.name + '.', exact: true }).waitFor();
   await projectTool('Memory').click();
-  await page.getByRole('heading', { name: 'SAGE Memory.', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'SAGE Memory', exact: true }).waitFor();
   assert.equal(await page.getByLabel('Memory status', { exact: true }).inputValue(), 'all');
   assert.equal(
     await page.getByRole('region', { name: 'SAGE relationship graph', exact: true }).count(),
@@ -34,7 +34,7 @@ export async function exerciseNativeProjects({
     'Full record library is not loaded on entry',
   );
   await page.getByRole('button', { name: 'Library', exact: true }).click();
-  assert.equal(await page.getByRole('heading', { name: 'Vector Memory.', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('heading', { name: 'Vector Memory', exact: true }).count(), 0);
   await page
     .locator('.memory-library')
     .getByRole('button', { name: 'A SAGE decision awaiting revalidation.', exact: true })

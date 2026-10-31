@@ -218,7 +218,7 @@ export async function exerciseNativeProjectHistory({
   await transcript.getByText('Recorded reasoning', { exact: true }).click();
   await transcript.getByText('Recorded reasoning fixture.', { exact: true }).waitFor();
   await screen
-    .getByRole('heading', { name: 'Session history.', exact: true })
+    .getByRole('heading', { name: 'Session history', exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(artifactDir, 'native-project-history.png'), fullPage: true });
   await page.setViewportSize({ width: 800, height: 640 });

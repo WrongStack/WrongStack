@@ -278,10 +278,7 @@ export function ProjectMemory({
     <section className="memory-studio" aria-label="Project memory">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">KNOWLEDGE THAT STAYS WITH THE PROJECT</span>
-          <h1>
-            SAGE Memory<span className="heading-dot">.</span>
-          </h1>
+          <h1>SAGE Memory</h1>
           <p>Durable project knowledge, evidence, lifecycle, and controlled agent injection.</p>
         </div>
         <button type="button" className="button primary" onClick={newMemory} disabled={busy}>

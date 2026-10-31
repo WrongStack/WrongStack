@@ -179,10 +179,7 @@ export function ProjectKanban({
     <section className="kanban-studio" aria-label="Project kanban">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">PLAN TOGETHER. KEEP THE WORK MOVING.</span>
-          <h1>
-            Kanban<span className="heading-dot">.</span>
-          </h1>
+          <h1>Kanban</h1>
           <p>A project board shared by your agents, sessions, and next ideas.</p>
         </div>
         <button type="button" className="button secondary" onClick={() => setCreating(true)}>

@@ -124,10 +124,7 @@ export function ProjectKit({
     <section className="project-kit" aria-label="Project Kit workspace">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">CAPABILITIES BUILT FOR THIS PROJECT</span>
-          <h1>
-            Project Kit<span className="heading-dot">.</span>
-          </h1>
+          <h1>Project Kit</h1>
           <p>
             Understand the contract, review the evidence, and prepare an exact revision for your
             agent.

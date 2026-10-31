@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-31T14:36:08.301Z
+**Generated:** 2026-10-31T15:00:37.068Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 46 |
 | Production source files | 5554 |
-| Production source lines | 1218655 |
+| Production source lines | 1218579 |
 | Test files | 4842 |
 | Workspace dependency edges | 233 |
 | Relative module edges | 16654 |
@@ -21,7 +21,18 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectAgentRoster.tsx: hotspot shrunk from 1562 to 1559 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectGoals.tsx: hotspot shrunk from 1019 to 1016 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectKanban.tsx: hotspot shrunk from 747 to 744 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 777 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change
 
 ## Workspace packages
 
@@ -91,34 +102,34 @@ None.
 | Lines | File |
 |---:|---|
 | 2018 | `apps/desktop-v2/src/FileWorkspace.tsx` |
-| 1562 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
+| 1559 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1151 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1098 | `packages/webui/src/components/codemap-model.ts` |
-| 1019 | `apps/desktop-v2/src/ProjectGoals.tsx` |
+| 1016 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
-| 939 | `apps/desktop-v2/src/ProjectKnowledge.tsx` |
-| 917 | `apps/desktop-v2/src/CodeAtlas.tsx` |
+| 927 | `apps/desktop-v2/src/ProjectKnowledge.tsx` |
 | 917 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
+| 914 | `apps/desktop-v2/src/CodeAtlas.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
-| 891 | `apps/desktop-v2/src/SkillLibrary.tsx` |
+| 889 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 833 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 826 | `apps/desktop-v2/src/KanbanTaskInspector.tsx` |
-| 826 | `apps/desktop-v2/src/ProjectMemory.tsx` |
+| 823 | `apps/desktop-v2/src/ProjectMemory.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
-| 786 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
-| 780 | `apps/desktop-v2/src/ProjectSdd.tsx` |
-| 778 | `apps/desktop-v2/src/ProjectChimera.tsx` |
+| 783 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
+| 777 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 777 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
+| 775 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 766 | `packages/webui-server/src/server/provider-routes.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 754 | `packages/client/src/client.ts` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
-| 747 | `apps/desktop-v2/src/ProjectKanban.tsx` |
-| 746 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
+| 744 | `apps/desktop-v2/src/ProjectKanban.tsx` |
+| 743 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 737 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
@@ -127,7 +138,7 @@ None.
 | 724 | `packages/coordination/src/agent-monitor.ts` |
 | 720 | `packages/tools/src/read.ts` |
 | 720 | `packages/webui/src/components/MemoryManager/useMemoryManagerState.ts` |
-| 718 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
+| 715 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 715 | `packages/plugins/src/audit/index.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 712 | `packages/webui-server/src/server/pref-helpers.ts` |

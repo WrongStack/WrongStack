@@ -136,10 +136,7 @@ export function ProjectTechStack({
     <section className="project-techstack" aria-label="Project TechStack workspace">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">DEPENDENCIES WITH EVIDENCE</span>
-          <h1>
-            TechStack<span className="heading-dot">.</span>
-          </h1>
+          <h1>TechStack</h1>
           <p>See what the project uses, where versions come from, and what needs attention.</p>
         </div>
         <button

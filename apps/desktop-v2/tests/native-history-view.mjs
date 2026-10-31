@@ -98,7 +98,7 @@ export async function exerciseNativeHistoryView({
   await screen.getByLabel('History outcome', { exact: true }).selectOption('');
   await screen.getByRole('button', { name: 'Open history ' + oldest, exact: true }).waitFor();
   await screen
-    .getByRole('heading', { name: 'Session history.', exact: true })
+    .getByRole('heading', { name: 'Session history', exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({
     path: join(artifactDir, 'native-history-restored-view.png'),

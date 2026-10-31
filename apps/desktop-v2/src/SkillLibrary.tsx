@@ -314,9 +314,7 @@ export function SkillLibrary({
           <span className="eyebrow">
             {scope === 'project' ? 'PROJECT CAPABILITIES' : 'WRONGSTACK PROFILE CAPABILITIES'}
           </span>
-          <h1>
-            Skills<span className="heading-dot">.</span>
-          </h1>
+          <h1>Skills</h1>
           <p>
             Discover the instructions your agents can use. Build and maintain the knowledge behind
             their work.

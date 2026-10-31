@@ -37,22 +37,8 @@
   gap: 9px;
   font-size: 12px;
 }
-.project-context-label {
-  font-size: 8px;
-  letter-spacing: 1.1px;
-  color: var(--accent);
-  padding: 5px 7px;
-  background: var(--accent-soft);
-  border-radius: 4px;
-}
-.project-context-path {
+.project-context-bar > .button {
   margin-left: auto;
-  font-size: 9px;
-  color: var(--subtle);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 45%;
 }
 .project-page-content {
   flex: 1;
@@ -1736,9 +1722,6 @@
   .project-secondary-links {
     grid-template-columns: 1fr;
     gap: 12px;
-  }
-  .project-context-path {
-    display: none;
   }
   .memory-layout,
   .atlas-layout {

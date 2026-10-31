@@ -155,10 +155,7 @@ export function ProjectSdd({
     <section className="project-sdd" aria-label="Project SDD">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">FROM INTENT TO VERIFIED WORK</span>
-          <h1>
-            SDD<span className="heading-dot">.</span>
-          </h1>
+          <h1>SDD</h1>
           <p>Shape requirements, inspect specifications and follow project execution.</p>
         </div>
         <button

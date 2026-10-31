@@ -80,10 +80,7 @@ export function SageAudience({
     <section className="sage-management">
       <header className="sage-page-heading">
         <div>
-          <span className="eyebrow">PROJECT KNOWLEDGE · CONTROLLED INJECTION</span>
-          <h1>
-            Audience<span className="heading-dot">.</span>
-          </h1>
+          <h1>Audience</h1>
           <p>
             See which project knowledge is eligible for agent roles and task types. General memories
             remain eligible for every audience.

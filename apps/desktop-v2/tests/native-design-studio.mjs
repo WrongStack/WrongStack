@@ -132,7 +132,7 @@ export async function exerciseNativeDesignStudio({
   assert.ok(scan.filesWithNoSignal >= 1);
   await screen.getByText(/files had no matching UI signals/).waitFor();
   await screen
-    .getByRole('heading', { name: 'Design Studio.', exact: true })
+    .getByRole('heading', { name: 'Design Studio', exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(artifactDir, 'native-design-studio.png'), fullPage: true });
   await page.setViewportSize({ width: 800, height: 640 });

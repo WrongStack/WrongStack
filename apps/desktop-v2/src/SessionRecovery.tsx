@@ -241,9 +241,7 @@ export function SessionRecovery({
       <header className="recovery-heading">
         <div>
           <span className="eyebrow">THIS CONVERSATION · RECORDED HISTORY</span>
-          <h2>
-            History & recovery<span className="heading-dot">.</span>
-          </h2>
+          <h2>History & recovery</h2>
           <p>
             Inspect the journal, follow file activity, or return to a recorded prompt checkpoint.
           </p>

@@ -171,10 +171,7 @@ function SageReview({ command, onOpen }: { command: EngineCommand; onOpen: (id: 
     <section className="sage-management">
       <header className="sage-page-heading">
         <div>
-          <span className="eyebrow">HUMAN REVIEW · PROJECT KNOWLEDGE</span>
-          <h1>
-            Review queue<span className="heading-dot">.</span>
-          </h1>
+          <h1>Review queue</h1>
           <p>Inspect the evidence before accepting a proposal or keeping existing knowledge.</p>
         </div>
         <button
@@ -448,10 +445,7 @@ function SageHealth({ command, onOpen }: { command: EngineCommand; onOpen: (id: 
     <section className="sage-management">
       <header className="sage-page-heading">
         <div>
-          <span className="eyebrow">SAGE DOCTOR · LIVE STORE REPORT</span>
-          <h1>
-            Health & maintenance<span className="heading-dot">.</span>
-          </h1>
+          <h1>Health & maintenance</h1>
           <p>Inspect the store, retrieval usefulness, evidence gaps, and maintenance ownership.</p>
         </div>
         <button
@@ -648,10 +642,7 @@ function SageRetrieval({
     <section className="sage-management">
       <header className="sage-page-heading">
         <div>
-          <span className="eyebrow">WHY THIS KNOWLEDGE WAS RETRIEVED</span>
-          <h1>
-            Retrieval analysis<span className="heading-dot">.</span>
-          </h1>
+          <h1>Retrieval analysis</h1>
           <p>Inspect SAGE’s lexical, semantic and final ranking signals for a project query.</p>
         </div>
       </header>
@@ -784,10 +775,7 @@ function VectorMemory({
     <section className="sage-management">
       <header className="sage-page-heading">
         <div>
-          <span className="eyebrow">OPTIONAL EMBEDDING STORE</span>
-          <h1>
-            Vector Memory<span className="heading-dot">.</span>
-          </h1>
+          <h1>Vector Memory</h1>
           <p>Inspect vector-backed retrieval and verified links to durable SAGE records.</p>
         </div>
       </header>

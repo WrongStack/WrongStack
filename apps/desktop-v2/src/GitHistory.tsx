@@ -256,7 +256,6 @@ export function GitHistory({
           {detail ? (
             <>
               <header>
-                <span className="eyebrow">COMMITTED CHANGE</span>
                 <h1>{String(detail['body'] ?? '').split('\n')[0]}</h1>
                 <p>
                   {String(detail['author'])} <span>{String(detail['email'])}</span> ·{' '}

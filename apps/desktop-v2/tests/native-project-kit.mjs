@@ -131,7 +131,7 @@ export async function exerciseNativeProjectKit({
   await workspace.getByText('Keeps supplied names', { exact: true }).first().waitFor();
   await page.screenshot({ path: join(artifactDir, 'native-project-kit.png'), fullPage: true });
   await workspace
-    .getByRole('heading', { name: 'Project Kit.', exact: true })
+    .getByRole('heading', { name: 'Project Kit', exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({
     path: join(artifactDir, 'native-project-kit-overview.png'),

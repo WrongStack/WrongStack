@@ -237,10 +237,7 @@ function ChimeraContent({
     <section className="project-chimera" aria-label="Project Chimera reviews">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">FINDINGS, EVIDENCE AND FOLLOW-THROUGH</span>
-          <h1>
-            Chimera Reviews<span className="heading-dot">.</span>
-          </h1>
+          <h1>Chimera Reviews</h1>
           <p>
             Review the project’s reports across recorded sessions and track each finding to an
             explicit outcome.

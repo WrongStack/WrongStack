@@ -239,10 +239,7 @@ export function CodeAtlas({
     <section className="atlas-studio" aria-label="Project code atlas">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">SEE HOW YOUR PROJECT FITS TOGETHER</span>
-          <h1>
-            Code Atlas<span className="heading-dot">.</span>
-          </h1>
+          <h1>Code Atlas</h1>
           <p className="atlas-intro">
             Follow a dependency. Find a boundary. Understand the code before changing it.
           </p>

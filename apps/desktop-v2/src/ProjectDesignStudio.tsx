@@ -258,10 +258,7 @@ export function ProjectDesignStudio({
     <section className="project-design-studio" aria-label="Project Design Studio">
       <header className="studio-heading">
         <div>
-          <span className="eyebrow">A VISUAL LANGUAGE FOR YOUR PROJECT</span>
-          <h1>
-            Design Studio<span className="heading-dot">.</span>
-          </h1>
+          <h1>Design Studio</h1>
           <p>
             Explore real light and dark themes, shape their details, and write the theme into your
             project.
