@@ -68,7 +68,10 @@ export async function exerciseNativeTopicBoundary({
   try {
     await call('prefs.update', { enhanceEnabled: true }, ['key.operation_result']);
     await call('prefs.get', {}, ['prefs.updated']);
-    await waitFor(async () => await page.getByLabel('Refine before sending', { exact: true }).isChecked(), 'Topic refinement preference visible in the composer');
+    await waitFor(
+      async () => await page.getByLabel('Refine before sending', { exact: true }).isChecked(),
+      'Topic refinement preference visible in the composer',
+    );
     const fresh = '[native-composer-topic-fresh] New topic: build an unrelated astronomy notebook.';
     await send(fresh);
     await choose().waitFor();

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { openProjectView } from './native-project-navigation.mjs';
 
 /**
  * Resource input typed on a recorded requirement but not yet saved survives an
@@ -23,10 +24,7 @@ export async function exerciseNativeResourceInput({ page, project, intakeId, wai
   );
   page = await restartUi();
   await page.locator('.project-item').filter({ hasText: project.name }).click();
-  await page
-    .getByRole('navigation', { name: `${project.name} workspace` })
-    .getByRole('button', { name: 'SDD', exact: true })
-    .click();
+  await openProjectView(page, project, 'SDD');
   await page
     .getByRole('region', { name: 'Project SDD' })
     .getByRole('button', { name: 'Requirements', exact: true })

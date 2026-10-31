@@ -312,7 +312,9 @@ async function exerciseDraftAdministration({
     .getByText(/second \(name when saved\)/)
     .waitFor();
   await group('Unrecognized draft').getByText('forged-model', { exact: true }).waitFor();
-  await group('Unrecognized draft').getByText(/Owner not verified/).waitFor();
+  await group('Unrecognized draft')
+    .getByText(/Owner not verified/)
+    .waitFor();
   assert.equal(
     await group('This profile').count(),
     0,

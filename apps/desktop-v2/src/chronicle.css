@@ -435,14 +435,6 @@
   font-size: 10px;
   overflow-wrap: anywhere;
 }
-.project-tool-links > .project-chronicle-link {
-  grid-column: 1 / -1;
-  flex-direction: row;
-  gap: 9px;
-  justify-content: flex-start;
-  padding: 11px;
-  font-size: 10px;
-}
 @media (max-width: 1150px) {
   .project-chronicle {
     padding: 28px;

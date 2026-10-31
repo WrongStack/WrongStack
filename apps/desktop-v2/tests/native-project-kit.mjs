@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { exerciseNativeKitParameters } from './native-kit-parameters.mjs';
-import { revealProjectTools } from './native-project-navigation.mjs';
+import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
 
 export async function exerciseNativeProjectKit({
   page,
@@ -61,10 +61,7 @@ export async function exerciseNativeProjectKit({
   const open = async (owner) => {
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await revealProjectTools(page, owner);
-    await page
-      .getByRole('navigation', { name: `${owner.name} workspace` })
-      .getByRole('button', { name: 'Project Kit', exact: true })
-      .click();
+    await openProjectView(page, owner, 'Project Kit');
     await page.getByRole('region', { name: 'Project Kit workspace' }).waitFor();
   };
   const http = async (resource) => {

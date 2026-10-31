@@ -473,7 +473,9 @@ export async function exerciseNativeAutomationManagement({
   await workspace().getByRole('button', { name: 'Delete', exact: true }).click();
   const confirmDelete = page.getByRole('dialog', { name: 'Delete automation', exact: true });
   await confirmDelete.getByRole('button', { name: 'Delete automation', exact: true }).click();
-  await workspace().getByText(/^Deleted .+ run records\.$/).waitFor();
+  await workspace()
+    .getByText(/^Deleted .+ run records\.$/)
+    .waitFor();
   assert.equal(
     await workspace().getByRole('button', { name: 'Queue run', exact: true }).count(),
     0,

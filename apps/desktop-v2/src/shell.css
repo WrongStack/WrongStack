@@ -1,0 +1,276 @@
+/* Application shell in WebUI's calm layout: icon rail, one project/session list, one header row.
+   Colors come from the shared brand tokens only, so every palette and mode applies. */
+
+.sidebar {
+  width: 272px;
+  padding: 0;
+  flex-direction: row;
+  background: var(--sidebar);
+}
+
+.rail {
+  width: 52px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0;
+  border-right: 1px solid var(--border);
+  background: var(--base);
+}
+.rail-brand {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 10px;
+}
+.rail-brand .brand-mark {
+  width: 28px;
+  height: auto;
+}
+.rail-brand img {
+  width: 28px;
+  height: auto;
+  image-rendering: pixelated;
+}
+.rail-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+.rail-button:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.rail-button.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.rail-count {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+}
+.rail-spacer {
+  flex: 1;
+}
+
+.explorer {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px 8px;
+}
+.explorer .quick-search {
+  margin: 0 0 12px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+.project-views {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.project-views > button,
+.rail-tools > .rail-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: auto;
+  padding: 7px 9px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+}
+.rail-tools > .rail-button::after {
+  content: "More tools";
+}
+.project-views > button:hover,
+.rail-tools > .rail-button:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.project-views > button[aria-current="page"],
+.rail-tools > .rail-button.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.rail-tools {
+  position: relative;
+}
+.rail-popover {
+  position: absolute;
+  z-index: 20;
+  left: calc(100% + 6px);
+  top: -6px;
+  width: 210px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--text) 14%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.rail-popover button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+.rail-popover button:hover,
+.rail-popover button[aria-current="page"] {
+  background: var(--accent-soft);
+}
+
+.explorer-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 9px 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.explorer-caption button {
+  display: flex;
+  color: var(--muted);
+}
+.explorer .project-tree {
+  flex: 1;
+  overflow-y: auto;
+}
+.explorer .project-branch-heading {
+  display: flex;
+  align-items: center;
+}
+.explorer .project-item {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.explorer .project-item.selected {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.explorer .project-new-session {
+  display: flex;
+  padding: 5px;
+  color: var(--muted);
+  border-radius: 5px;
+}
+.explorer .tree-session {
+  padding: 5px 9px 5px 33px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.explorer .tree-session.chosen {
+  background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+  color: var(--text);
+}
+.explorer .tree-session small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+}
+.explorer .add-project {
+  padding: 8px 9px;
+  font-size: 12px;
+}
+
+.workspace-shell {
+  width: calc(100% - 272px);
+  margin-left: 272px;
+}
+.topbar {
+  height: 48px;
+  padding: 0 16px;
+  gap: 12px;
+}
+.topbar .topbar-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-context {
+  color: var(--muted);
+  font-weight: 450;
+}
+.topbar-context::after {
+  content: "/";
+  margin-left: 8px;
+}
+.topbar-right {
+  gap: 6px;
+}
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  margin: 0 4px 0 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.connection-dot.running {
+  background: hsl(var(--ws-success));
+}
+
+@media (max-width: 1000px) {
+  .sidebar {
+    width: 222px;
+  }
+  .workspace-shell {
+    width: calc(100% - 222px);
+    margin-left: 222px;
+  }
+}
+@media (max-width: 800px) {
+  .sidebar {
+    width: 196px;
+  }
+  .workspace-shell {
+    width: calc(100% - 196px);
+    margin-left: 196px;
+  }
+  .explorer {
+    padding: 10px 6px 6px;
+  }
+  .explorer .quick-search kbd {
+    display: none;
+  }
+}

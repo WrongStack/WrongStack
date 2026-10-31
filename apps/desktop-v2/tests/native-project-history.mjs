@@ -4,7 +4,7 @@ import { join, resolve, sep } from 'node:path';
 import { DefaultSessionStore } from '../../../packages/core/dist/storage/index.js';
 import { resolveWstackPaths, sessionScopedPath } from '../../../packages/core/dist/utils/index.js';
 import { exerciseNativeHistoryPaging } from './native-history-paging.mjs';
-import { revealProjectTools } from './native-project-navigation.mjs';
+import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
 
 export async function exerciseNativeProjectHistory({
   page,
@@ -175,10 +175,7 @@ export async function exerciseNativeProjectHistory({
   const open = async (owner = project) => {
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await revealProjectTools(page, owner);
-    await page
-      .getByRole('navigation', { name: `${owner.name} workspace` })
-      .getByRole('button', { name: 'Session history', exact: true })
-      .click();
+    await openProjectView(page, owner, 'Session history');
     await page.getByRole('region', { name: 'Project session history' }).waitFor();
   };
   await open();

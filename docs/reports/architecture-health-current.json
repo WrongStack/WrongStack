@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T12:54:21.073Z",
+  "generatedAt": "2026-10-31T14:24:08.676Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5555,
+    "sourceFiles": 5554,
     "testFiles": 4842,
-    "sourceLines": 1218833,
+    "sourceLines": 1218670,
     "workspaceEdges": 233,
-    "moduleEdges": 16656,
+    "moduleEdges": 16654,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -386,7 +386,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 358,
+      "sourceFiles": 357,
       "testFiles": 173,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -31890,6 +31890,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/main.tsx",
+      "specifier": "./shell.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/McpAuthorization.tsx",
       "specifier": "./mcp-connection.css",
       "syntax": "import"
@@ -31997,11 +32002,6 @@
     {
       "from": "apps/desktop-v2/src/ProjectTechStack.tsx",
       "specifier": "./project-techstack.css",
-      "syntax": "import"
-    },
-    {
-      "from": "apps/desktop-v2/src/ProjectToolsMenu.tsx",
-      "specifier": "./project-tools-menu.css",
       "syntax": "import"
     },
     {

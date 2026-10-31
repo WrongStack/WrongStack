@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { openProjectView } from './native-project-navigation.mjs';
 
 export async function exerciseNativeRequirementRecordDrafts({
   page,
@@ -29,10 +30,7 @@ export async function exerciseNativeRequirementRecordDrafts({
   const reopen = async () => {
     page = await restartUi();
     await page.locator('.project-item').filter({ hasText: project.name }).click();
-    await page
-      .getByRole('navigation', { name: `${project.name} workspace` })
-      .getByRole('button', { name: 'SDD', exact: true })
-      .click();
+    await openProjectView(page, project, 'SDD');
     await page
       .getByRole('region', { name: 'Project SDD' })
       .getByRole('button', { name: 'Requirements', exact: true })

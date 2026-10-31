@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { resolveWstackPaths } from '../../../packages/persistence/dist/index.js';
 import { SpecStore, TaskGraphStore } from '../../../packages/sdd/dist/index.js';
+import { openProjectView } from './native-project-navigation.mjs';
 import { exerciseNativeRequirements } from './native-requirements.mjs';
 
 export async function exerciseNativeSdd({
@@ -66,10 +67,7 @@ export async function exerciseNativeSdd({
     createdAt: now,
     updatedAt: now,
   });
-  await page
-    .getByRole('navigation', { name: `${project.name} workspace` })
-    .getByRole('button', { name: 'SDD', exact: true })
-    .click();
+  await openProjectView(page, project, 'SDD');
   const sdd = page.getByRole('region', { name: 'Project SDD' });
   await sdd.getByRole('button', { name: /Specifications/ }).click();
   await sdd.getByRole('button', { name: /Native project specification/ }).click({ timeout: 60000 });

@@ -4,6 +4,7 @@ import {
   getSharedProjectMailbox,
   resolveProjectDir,
 } from '../../../packages/coordination/dist/index.js';
+import { openProjectView } from './native-project-navigation.mjs';
 
 export async function exerciseNativeMailbox({
   page,
@@ -39,10 +40,7 @@ export async function exerciseNativeMailbox({
   };
   const open = async (owner) => {
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
-    await page
-      .getByRole('navigation', { name: `${owner.name} workspace` })
-      .getByRole('button', { name: 'Mailbox', exact: true })
-      .click();
+    await openProjectView(page, owner, 'Mailbox');
     await page
       .getByRole('region', { name: 'Project mailbox' })
       .getByRole('textbox', { name: 'Search mailbox messages', exact: true })

@@ -7,7 +7,7 @@ import {
   JsonlReportStore,
 } from '../../../packages/builtin-plugins/dist/index.js';
 import { resolveWstackPaths } from '../../../packages/core/dist/utils/index.js';
-import { revealProjectTools } from './native-project-navigation.mjs';
+import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
 
 export async function exerciseNativeChimera({
   page,
@@ -45,10 +45,7 @@ export async function exerciseNativeChimera({
   const open = async (owner) => {
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await revealProjectTools(page, owner);
-    await page
-      .getByRole('navigation', { name: `${owner.name} workspace` })
-      .getByRole('button', { name: 'Chimera Reviews', exact: true })
-      .click();
+    await openProjectView(page, owner, 'Chimera Reviews');
     await page.getByRole('region', { name: 'Project Chimera reviews' }).waitFor();
   };
   const count = (await rpc('snapshot')).sessions.length;

@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { openProjectView } from './native-project-navigation.mjs';
 
 export async function exerciseNativeChronicleInsights({ page, rpc, project, artifactDir }) {
-  await page
-    .getByRole('navigation', { name: `${project.name} workspace` })
-    .getByRole('button', { name: 'Chronicle', exact: true })
-    .click();
+  await openProjectView(page, project, 'Chronicle');
   const insights = page.locator('.chronicle-insights');
   await insights.locator('summary').click();
   await insights

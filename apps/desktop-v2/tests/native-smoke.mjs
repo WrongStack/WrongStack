@@ -46,6 +46,7 @@ import { exerciseNativeNextSteps } from './native-next-steps.mjs';
 import { exerciseNativeProcesses } from './native-processes.mjs';
 import { exerciseNativeProjectHistory } from './native-project-history.mjs';
 import { exerciseNativeProjectKit } from './native-project-kit.mjs';
+import { openProjectView } from './native-project-navigation.mjs';
 import { exerciseNativeProjects } from './native-projects.mjs';
 import { exerciseNativeProviderHealth } from './native-provider-health.mjs';
 import { exerciseNativeRefinementPolicy } from './native-refinement-policy.mjs';
@@ -418,7 +419,7 @@ const launch = async () => {
   page.setDefaultNavigationTimeout(30000);
   page.on('pageerror', (error) => errors.push(error.message));
   await page.locator('.main-content').waitFor();
-  await page.getByText('Local engine connected', { exact: true }).waitFor();
+  await page.getByRole('status', { name: 'Local engine connected', exact: true }).waitFor();
   endpoint = JSON.parse(await readFile(join(dir, 'host.json'), 'utf8'));
   return browser;
 };
@@ -763,10 +764,7 @@ try {
       artifacts: artifactDir,
     };
   } else if (atlasOnly) {
-    await page
-      .getByRole('navigation', { name: `${a.name} workspace` })
-      .getByRole('button', { name: 'Code Atlas', exact: true })
-      .click();
+    await openProjectView(page, a, 'Code Atlas');
     await page.getByRole('button', { name: 'Index project', exact: true }).click();
     await waitFor(
       async () => {
@@ -1371,7 +1369,7 @@ try {
     await page.locator('.xterm-screen').waitFor();
     await page.screenshot({ path: join(artifactDir, 'native-sessions.png'), fullPage: true });
     await page.reload();
-    await page.getByText('Local engine connected', { exact: true }).waitFor();
+    await page.getByRole('status', { name: 'Local engine connected', exact: true }).waitFor();
     assert.equal(
       (await rpc('snapshot')).sessions.filter(
         (s) => s.kind === 'terminal' && s.status === 'running',
@@ -1806,13 +1804,13 @@ try {
         .getByRole('navigation', { name: 'Main navigation' })
         .getByRole('button', { name: 'Mission control' })
         .click();
-      await page.getByRole('heading', { name: 'Mission control.' }).waitFor();
+      await page.getByRole('heading', { name: 'Mission control', exact: true }).waitFor();
       assert.equal(await page.locator('.session-card').count(), 4);
       await page
         .getByRole('navigation', { name: 'Main navigation' })
         .getByRole('button', { name: 'Projects' })
         .click();
-      await page.getByRole('heading', { name: 'Your projects.' }).waitFor();
+      await page.getByRole('heading', { name: 'Projects', exact: true }).waitFor();
       assert.equal(await page.locator('.project-card').count(), 3);
       await page
         .getByRole('navigation', { name: 'Main navigation' })

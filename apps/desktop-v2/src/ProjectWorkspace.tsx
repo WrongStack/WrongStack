@@ -10,7 +10,6 @@ import {
   GitBranch,
   Mail,
   Network,
-  Plus,
   Target,
   Terminal,
   Workflow,
@@ -433,10 +432,6 @@ function ProjectOverview({
           </h1>
           <p>A shared home for the knowledge, work, and code behind every conversation.</p>
         </div>
-        <button type="button" className="button primary" onClick={() => vm.newSession(project.id)}>
-          <Plus size={15} />
-          New session
-        </button>
       </header>
       <div className="project-destination-grid">
         <button

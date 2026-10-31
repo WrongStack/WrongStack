@@ -81,32 +81,6 @@
   color: var(--muted);
   font-size: 12px;
 }
-.project-tool-links {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 3px;
-  padding: 8px 0 12px 20px;
-}
-.project-tool-links button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 3px;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  background: var(--base);
-  border-radius: 5px;
-  font-size: 9px;
-}
-.project-tool-links [aria-current] {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent-border);
-}
-.sidebar > nav .nav-item:last-child {
-  grid-column: 1 / -1;
-}
 .studio-heading,
 .project-overview-heading,
 .wrongstack-settings-heading {

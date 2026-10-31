@@ -1,15 +1,4 @@
-import {
-  Bell,
-  Box,
-  ChevronRight,
-  ExternalLink,
-  Moon,
-  Plus,
-  Radio,
-  ShieldCheck,
-  Sun,
-  X,
-} from 'lucide-react';
+import { Bell, ExternalLink, Moon, Plus, Radio, Sun, X } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { FleetPanel } from './FleetPanel';
 import { ProjectViews } from './ProjectViews';
@@ -42,7 +31,6 @@ export function App() {
     run,
     newSession,
     currentProject,
-    active,
     attention,
     currentSession,
     setSelected,
@@ -55,36 +43,44 @@ export function App() {
         className={`workspace-shell ${focused ? 'workspace-focused' : ''} ${section === 'project' ? 'project-focused' : ''} ${section === 'wrongstack' ? 'settings-focused' : ''}`}
       >
         <header className="topbar">
-          <div className="breadcrumbs">
-            <Box size={15} />
-            <span>Workspace</span>
-            <ChevronRight size={13} />
-            <strong>
-              {section === 'wrongstack'
-                ? 'WrongStack settings'
-                : (currentProject?.name ??
-                  {
-                    fleet: 'Mission control',
-                    projects: 'Projects',
-                    activity: 'Activity',
-                    engine: 'Settings',
-                    project: 'Project workspace',
-                    wrongstack: 'WrongStack settings',
-                  }[section])}
-            </strong>
-            {focused && (
+          <h1 className="topbar-title">
+            {focused ? (
               <>
-                <ChevronRight size={13} />
-                <strong className="breadcrumb-session">{currentSession.title}</strong>
+                <span className="topbar-context">{currentProject?.name}</span>
+                <span className="breadcrumb-session">{currentSession.title}</span>
               </>
+            ) : section === 'wrongstack' ? (
+              'WrongStack settings'
+            ) : section === 'project' && currentProject ? (
+              currentProject.name
+            ) : (
+              {
+                fleet: 'Mission control',
+                projects: 'Projects',
+                activity: 'Activity',
+                engine: 'Appearance',
+                project: 'Project',
+                wrongstack: 'WrongStack settings',
+              }[section]
             )}
-          </div>
+          </h1>
           <div className="topbar-right">
-            {focused && (
+            {currentProject && !focused && section !== 'wrongstack' && (
+              <button
+                type="button"
+                className="icon-button"
+                title="Open in its own window"
+                aria-label="Project window"
+                onClick={() => void run(() => openProjectWindow(currentProject.id))}
+              >
+                <ExternalLink size={15} />
+              </button>
+            )}
+            {section !== 'wrongstack' && section !== 'engine' && (
               <button
                 type="button"
                 className="button secondary small"
-                disabled={pending}
+                disabled={!native || !snapshot.projects.length || pending}
                 onClick={() => newSession()}
               >
                 <Plus size={14} />
@@ -100,14 +96,11 @@ export function App() {
             >
               {vm.mode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <span className="local-badge">
-              <span className={`status-dot ${connected ? 'running' : 'stopped'}`} />
-              LOCAL
-            </span>
             <button
               type="button"
               className="icon-button"
               title="Sessions needing attention"
+              aria-label="Sessions needing attention"
               onClick={() => {
                 setFilter('attention');
                 setProject(null);
@@ -115,9 +108,15 @@ export function App() {
                 setSelected(null);
               }}
             >
-              <Bell size={17} />
+              <Bell size={16} />
               {attention.length > 0 && <span className="notification-dot" />}
             </button>
+            <span
+              className={`connection-dot ${connected ? 'running' : 'stopped'}`}
+              role="status"
+              title={connected ? 'Local engine connected' : 'Local engine disconnected'}
+              aria-label={connected ? 'Local engine connected' : 'Local engine disconnected'}
+            />
           </div>
         </header>
         {error && (
@@ -135,61 +134,6 @@ export function App() {
           </div>
         )}
         <main className="main-content">
-          {!focused && section !== 'project' && section !== 'wrongstack' && (
-            <div className="page-heading">
-              <div>
-                <div className="eyebrow">
-                  <span className="tiny-cross">+</span>{' '}
-                  {section === 'engine' ? 'WORKSPACE PREFERENCES' : 'YOUR WORKSPACE'}
-                </div>
-                <h1>
-                  {(focused ? currentSession.title : currentProject?.name) ??
-                    {
-                      fleet: 'Mission control',
-                      projects: 'Your projects',
-                      activity: 'Activity timeline',
-                      engine: 'Your workspace, your way',
-                      project: 'Project workspace',
-                      wrongstack: 'WrongStack settings',
-                    }[section]}
-                  <span className="heading-dot">.</span>
-                </h1>
-                <p>
-                  {currentProject
-                    ? currentProject.root.replace(/^\\\\\?\\/, '')
-                    : section === 'fleet'
-                      ? 'Every project. Every session. One clear picture.'
-                      : section === 'projects'
-                        ? 'Independent codebases. A shared command center.'
-                        : section === 'activity'
-                          ? 'A persistent record of your workspace sessions.'
-                          : 'Appearance and preferences for every project.'}
-                </p>
-              </div>
-              <div className="heading-actions">
-                {currentProject && (
-                  <button
-                    type="button"
-                    className="button secondary"
-                    onClick={() => void run(() => openProjectWindow(currentProject.id))}
-                  >
-                    <ExternalLink size={14} />
-                    Project window
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="button primary"
-                  disabled={!native || !snapshot.projects.length || pending}
-                  onClick={() => newSession()}
-                >
-                  <Plus size={16} />
-                  New session
-                </button>
-              </div>
-            </div>
-          )}
-
           <Suspense fallback={<div className="runtime-state">Opening your workspace…</div>}>
             {section === 'fleet' &&
               (focused ? <SessionWorkbench vm={vm} /> : <FleetPanel vm={vm} />)}
@@ -200,21 +144,6 @@ export function App() {
             {section === 'wrongstack' && <WrongStackSettings vm={vm} />}
           </Suspense>
         </main>
-        <footer className="statusbar">
-          <div>
-            <span className={`status-dot ${connected ? 'running' : 'stopped'}`} />
-            <span>{connected ? 'All systems local' : 'Native host disconnected'}</span>
-            <span className="statusbar-separator" />
-            <span>{snapshot.projects.length} projects</span>
-            <span>{active.length} active sessions</span>
-          </div>
-          <div>
-            <ShieldCheck size={12} />
-            <span>Your machine. Your models. Your work.</span>
-            <span className="statusbar-separator" />
-            <span>WrongStack Desktop v2</span>
-          </div>
-        </footer>
       </div>
       <WorkspaceDialogs vm={vm} />
     </div>

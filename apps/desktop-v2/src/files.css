@@ -1008,27 +1008,6 @@
   padding: 0;
   overflow: hidden;
 }
-.project-files-shortcuts {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 4px;
-}
-.project-files-shortcuts > button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  flex: 1;
-  font-size: 9px;
-  padding: 7px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--muted);
-}
-.project-files-shortcuts > button.active-project-tool {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
 @media (max-width: 1100px) {
   .file-workspace-body {
     grid-template-columns: 195px minmax(0, 1fr);

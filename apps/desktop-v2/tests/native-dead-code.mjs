@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { revealProjectTools } from './native-project-navigation.mjs';
+import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
 
 export async function exerciseNativeDeadCode({
   page,
@@ -29,10 +29,7 @@ export async function exerciseNativeDeadCode({
   const open = async (owner) => {
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await revealProjectTools(page, owner);
-    await page
-      .getByRole('navigation', { name: `${owner.name} workspace` })
-      .getByRole('button', { name: 'Dead Code', exact: true })
-      .click();
+    await openProjectView(page, owner, 'Dead Code');
     await page.getByRole('region', { name: 'Project dead-code workspace' }).waitFor();
   };
   const count = (await rpc('snapshot')).sessions.length;

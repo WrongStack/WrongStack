@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TechStackStore } from '../../../packages/techstack/dist/index.js';
-import { revealProjectTools } from './native-project-navigation.mjs';
+import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
 
 export async function exerciseNativeTechStack({
   page,
@@ -24,10 +24,7 @@ export async function exerciseNativeTechStack({
   const open = async (owner) => {
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await revealProjectTools(page, owner);
-    await page
-      .getByRole('navigation', { name: `${owner.name} workspace` })
-      .getByRole('button', { name: 'TechStack', exact: true })
-      .click();
+    await openProjectView(page, owner, 'TechStack');
     await page.getByRole('region', { name: 'Project TechStack workspace' }).waitFor();
   };
   const count = (await rpc('snapshot')).sessions.length;

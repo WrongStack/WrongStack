@@ -15,23 +15,6 @@
   padding: 9px;
   background: var(--base);
 }
-.sidebar > nav {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
-}
-.nav-item {
-  padding: 9px 8px;
-  gap: 7px;
-  font-size: 11px;
-  margin: 0;
-}
-.nav-item .nav-count {
-  display: none;
-}
-.nav-item:nth-child(-n + 2) {
-  grid-column: 1 / -1;
-}
 .project-caption {
   margin-top: 28px;
 }

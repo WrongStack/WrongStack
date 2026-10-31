@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { requirementSubmissionFingerprint } from '../src/requirement-draft.ts';
+import { openProjectView } from './native-project-navigation.mjs';
 
 const savedDraft = (page, projectId) =>
   page.evaluate(
@@ -13,10 +14,7 @@ const savedDraft = (page, projectId) =>
   );
 const openRequirements = async (page, project) => {
   await page.locator('.project-item').filter({ hasText: project.name }).click();
-  await page
-    .getByRole('navigation', { name: `${project.name} workspace` })
-    .getByRole('button', { name: 'SDD', exact: true })
-    .click();
+  await openProjectView(page, project, 'SDD');
   const sdd = page.getByRole('region', { name: 'Project SDD' });
   await sdd.getByRole('button', { name: 'Requirements', exact: true }).click();
   const requirements = sdd.getByRole('region', { name: 'Project requirements' });
@@ -79,7 +77,7 @@ export async function exerciseNativeRequirementDrafts({
   );
   const errors = [];
   other.on('pageerror', (error) => errors.push(error.message));
-  await other.getByText('Local engine connected', { exact: true }).waitFor({ timeout: 60000 });
+  await other.getByRole('status', { name: 'Local engine connected', exact: true }).waitFor({ timeout: 60000 });
   const remote = await openRequirements(other, project);
   assert.equal(await remote.getByLabel('Original request', { exact: true }).inputValue(), original);
   const mainText = 'First window owns the saved requirement draft.';

@@ -3,7 +3,7 @@ import { access, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { buildProviderSave } from '../src/provider-settings-model.ts';
 import { fixtureKey, fixtureModel } from './local-provider.mjs';
-import { revealProjectTools } from './native-project-navigation.mjs';
+import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
 import {
   exerciseNativeRosterCreateDraft,
   exerciseNativeRosterDocumentDrafts,
@@ -87,10 +87,7 @@ export async function exerciseNativeAgentRoster({
   const open = async (owner) => {
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await revealProjectTools(page, owner);
-    await page
-      .getByRole('navigation', { name: `${owner.name} workspace` })
-      .getByRole('button', { name: 'Agent Roster', exact: true })
-      .click();
+    await openProjectView(page, owner, 'Agent Roster');
     await page.getByRole('heading', { name: 'Agent roster.', exact: true }).waitFor();
     await catalog().getByLabel('Search project agent roles', { exact: true }).fill('');
     await catalog().getByLabel('Agent role filter', { exact: true }).selectOption('all');

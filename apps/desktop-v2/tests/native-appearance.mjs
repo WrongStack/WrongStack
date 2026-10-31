@@ -67,9 +67,15 @@ export async function exerciseNativeAppearance({ page, rpc, waitFor, artifactDir
             return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
           };
           const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-          const button = getComputedStyle(document.querySelector('.primary'));
+          // A probe in the real button style: the check is about the primary token, not about
+          // which page happens to show a primary button.
+          const probe = document.createElement('button');
+          probe.className = 'button primary';
+          probe.textContent = 'Probe';
+          document.body.append(probe);
+          const button = getComputedStyle(probe);
           const body = getComputedStyle(document.body);
-          return {
+          const measured = {
             accent: button.backgroundColor,
             exactPrimary: rgba(button.backgroundColor) === rgba('hsl(' + primary + ')'),
             exactSecondary:
@@ -82,6 +88,8 @@ export async function exerciseNativeAppearance({ page, rpc, waitFor, artifactDir
             button: ratio(luminance(button.color), luminance(button.backgroundColor)),
             body: ratio(luminance(body.color), luminance(body.backgroundColor)),
           };
+          probe.remove();
+          return measured;
         },
         {
           primary: palette[mode.toLowerCase()].primary,

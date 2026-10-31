@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { PhaseGraphBuilder, PhaseStore } from '../../../packages/goal/dist/index.js';
 import { resolveWstackPaths } from '../../../packages/persistence/dist/index.js';
+import { openProjectView } from './native-project-navigation.mjs';
 
 export async function exerciseNativeGoals({
   page,
@@ -65,10 +66,7 @@ export async function exerciseNativeGoals({
   }, 'Saved goal in project engine catalog');
   assert.ok(catalog, 'The project engine must discover its saved goal');
 
-  await page
-    .getByRole('navigation', { name: `${project.name} workspace` })
-    .getByRole('button', { name: 'Goals', exact: true })
-    .click();
+  await openProjectView(page, project, 'Goals');
   const workspace = page.getByRole('region', { name: 'Project Goals' });
   const mission = workspace.getByRole('region', { name: 'Persistent project mission' });
   await mission.getByText('No persistent mission has been set for this project.').waitFor();

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { openProjectView } from './native-project-navigation.mjs';
 export async function exerciseNativeAtlas({
   page,
   rpc,
@@ -8,11 +9,7 @@ export async function exerciseNativeAtlas({
   artifactDir,
   boundariesOnly = false,
 }) {
-  const tool = (name) =>
-    page
-      .getByRole('navigation', { name: `${project.name} workspace` })
-      .getByRole('button', { name, exact: true });
-  await tool('Code Atlas').click();
+  await openProjectView(page, project, 'Code Atlas');
   await page.getByRole('button', { name: 'Select @fixture/alpha', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Select @fixture/large', exact: true }).dblclick();
   const canonical = await rpc('project.http', {

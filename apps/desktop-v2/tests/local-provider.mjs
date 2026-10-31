@@ -204,14 +204,15 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
               prompt_tokens_details: { cached_tokens: 480 },
             }
           : { prompt_tokens: 100, completion_tokens: 5, total_tokens: 105 };
-      // The real engine may append a context note as a user-role message after
-      // tool output. Find the actual test prompt rather than that generated note.
+      // The real engine appends runtime blocks as user-role messages after tool output
+      // (the leader's mission anchor, the fleet pulse); they quote the running task,
+      // marker included. Only a message that starts with the marker is the prompt.
       const lastUser =
         body.messages?.findLastIndex(
           (message) =>
             message.role === 'user' &&
             typeof message.content === 'string' &&
-            /\[native-clarify-(?:submit|cancel)\]/.test(message.content),
+            /^\s*\[native-clarify-(?:submit|cancel)\]/.test(message.content),
         ) ?? -1;
       const content = String(body.messages?.[lastUser]?.content ?? '');
       const challenge = content.includes('[native-clarify-submit]')

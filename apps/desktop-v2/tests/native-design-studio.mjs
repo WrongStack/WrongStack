@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { resolveSemanticTune } from '../../../packages/core/src/execution/design-tune.ts';
 import { exerciseNativeDesignDrafts } from './native-design-drafts.mjs';
-import { revealProjectTools } from './native-project-navigation.mjs';
+import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
 
 export async function exerciseNativeDesignStudio({
   page,
@@ -40,10 +40,7 @@ export async function exerciseNativeDesignStudio({
   const open = async (owner) => {
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await revealProjectTools(page, owner);
-    await page
-      .getByRole('navigation', { name: `${owner.name} workspace` })
-      .getByRole('button', { name: 'Design Studio', exact: true })
-      .click();
+    await openProjectView(page, owner, 'Design Studio');
     await page.getByRole('region', { name: 'Project Design Studio', exact: true }).waitFor();
   };
   const count = (await rpc('snapshot')).sessions.length;

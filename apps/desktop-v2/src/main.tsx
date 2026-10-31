@@ -16,6 +16,8 @@ import './atlas.css';
 import './chronicle.css';
 import './git-history.css';
 import './skills.css';
+// Last: the application shell overrides the older sidebar and header rules.
+import './shell.css';
 
 applyAppearance(
   cachedAppearance(),
