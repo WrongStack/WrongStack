@@ -5897,3 +5897,17 @@ staged; the other session's edits stay untouched.
   landed on, an immediate tier change is refused by the dwell guard and allowed one turn later;
   fails against the previous engine code. Engine suite 3427 of 3428 with the known
   `project-history-search` load timeout, which passes alone (5/5).
+
+### Native acceptance: a proposed leader tier, accepted from the conversation (2026-10-31)
+
+- Scenario `native-tier-proposal.mjs`, run inside the `--usage` scope (debug build): a profile
+  with `modelTiers` (budget = `alternate-refiner`, premium = the fixture model) in `propose`
+  mode. The fixture leader calls the real `leader_tier_set` for `budget`; the tool answers
+  "Proposed … NOT been changed" and the saved selection stays on the premium model. The notice
+  "WrongStack proposes the budget tier: desktop-local/alternate-refiner." appears above the
+  composer; **Switch to budget** closes it, the composer shows `alternate-refiner` and the saved
+  selection follows. Result `PASS` (scope `session-usage`); screenshots
+  `native-tier-proposal.png` and `native-tier-proposal-accepted.png`.
+- The first run failed usefully: the usage scenario had left `alternate-refiner` selected, so the
+  engine recognised the conversation as already on `budget` and refused the same-tier switch.
+  The scenario now starts the profile on the premium model.
