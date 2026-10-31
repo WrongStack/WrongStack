@@ -10,7 +10,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineHttp } from './engine-http';
-import type { EngineSend } from './engine-operations';
+import type { EngineCommand, EngineSend } from './engine-operations';
 import { type EngineState, entries, record } from './engine-state';
 import type { RunFocus } from './kanban-board-source';
 import { ProjectRequirements } from './ProjectRequirements';
@@ -18,6 +18,7 @@ import type { RequirementDraftStorage } from './requirement-draft';
 import type { RequirementRecordDraftStorageFactory } from './requirement-record-draft';
 import { SddDependencyGraph } from './SddDependencyGraph';
 import { SddLifecycle } from './SddLifecycle';
+import { RunOptions, runModelPayload, type SddRunModel } from './SddRunOptions';
 import { SddTaskDetails } from './SddTaskDetails';
 import './project-sdd.css';
 
@@ -36,9 +37,12 @@ export function ProjectSdd({
   recordDraftStorage,
   resourceInputStorage,
   onKanban,
+  command,
 }: {
   state: EngineState;
   send: EngineSend;
+  /** Reads the profile's providers and catalog models for the worker model choice. */
+  command?: EngineCommand | undefined;
   http: EngineHttp;
   draftStorage?: RequirementDraftStorage;
   recordDraftStorage?: RequirementRecordDraftStorageFactory;
@@ -59,6 +63,7 @@ export function ProjectSdd({
   const [slots, setSlots] = useState(4);
   const [isolate, setIsolate] = useState(false);
   const [decompose, setDecompose] = useState(false);
+  const [runModel, setRunModel] = useState<SddRunModel>({ provider: '', model: '' });
   const lastError = useRef(state.results['sdd.spec.error']);
   const lastRun = useRef(state.results['sdd.run.started']);
   const submittedAnswer = useRef<{ text: string; previousCount: number } | null>(null);
@@ -147,6 +152,7 @@ export function ProjectSdd({
         parallelSlots: slots,
         worktrees: isolate,
         planDecompose: decompose,
+        ...runModelPayload(runModel),
       },
       'SDD run',
     );
@@ -398,6 +404,9 @@ export function ProjectSdd({
                       setIsolate={setIsolate}
                       decompose={decompose}
                       setDecompose={setDecompose}
+                      model={runModel}
+                      setModel={setRunModel}
+                      command={command}
                     />
                     {confirm === 'start' ? (
                       <div className="sdd-actions">
@@ -568,6 +577,9 @@ export function ProjectSdd({
                     setIsolate={setIsolate}
                     decompose={decompose}
                     setDecompose={setDecompose}
+                    model={runModel}
+                    setModel={setRunModel}
+                    command={command}
                   />
                   {confirm === 'run-spec' ? (
                     <div className="sdd-actions">
@@ -729,48 +741,5 @@ export function ProjectSdd({
         </div>
       )}
     </section>
-  );
-}
-
-function RunOptions({
-  slots,
-  setSlots,
-  isolate,
-  setIsolate,
-  decompose,
-  setDecompose,
-}: {
-  slots: number;
-  setSlots: (n: number) => void;
-  isolate: boolean;
-  setIsolate: (v: boolean) => void;
-  decompose: boolean;
-  setDecompose: (v: boolean) => void;
-}) {
-  return (
-    <div className="sdd-options">
-      <label>
-        Parallel workers
-        <input
-          type="number"
-          min={1}
-          max={16}
-          value={slots}
-          onChange={(e) => setSlots(Math.max(1, Math.min(16, Number(e.target.value) || 1)))}
-        />
-      </label>
-      <label>
-        <input type="checkbox" checked={isolate} onChange={(e) => setIsolate(e.target.checked)} />{' '}
-        Isolate work in Git worktrees
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={decompose}
-          onChange={(e) => setDecompose(e.target.checked)}
-        />{' '}
-        Decompose plan before execution
-      </label>
-    </div>
   );
 }

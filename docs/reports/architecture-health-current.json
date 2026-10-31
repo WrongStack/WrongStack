@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T21:21:26.331Z",
+  "generatedAt": "2026-10-31T21:43:06.204Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5556,
-    "testFiles": 4843,
-    "sourceLines": 1219132,
+    "sourceFiles": 5557,
+    "testFiles": 4844,
+    "sourceLines": 1219240,
     "workspaceEdges": 233,
-    "moduleEdges": 16665,
+    "moduleEdges": 16668,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 173,
+    "testsWithoutTypecheck": 174,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1023
   },
@@ -33,7 +33,8 @@
     "apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 777 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change"
   ],
@@ -398,8 +399,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 357,
-      "testFiles": 173,
+      "sourceFiles": 358,
+      "testFiles": 174,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2154,6 +2155,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/sage-validity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/sdd-run-options.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31362,6 +31369,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/sdd-run-options.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/selection-line-range.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32388,8 +32402,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 777,
-      "relativeImports": 12
+      "lines": 746,
+      "relativeImports": 13
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
@@ -32514,11 +32528,6 @@
       "relativeImports": 8
     },
     {
-      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 777,
-      "relativeImports": 12
-    },
-    {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
       "lines": 777,
       "relativeImports": 8
@@ -32557,6 +32566,11 @@
       "file": "apps/desktop-v2/src/ProjectKanban.tsx",
       "lines": 748,
       "relativeImports": 11
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
+      "lines": 746,
+      "relativeImports": 13
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",

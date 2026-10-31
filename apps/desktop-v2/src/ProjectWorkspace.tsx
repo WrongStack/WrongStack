@@ -323,6 +323,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         <ProjectSdd
           state={state}
           send={send}
+          command={command}
           http={http}
           draftStorage={requirementDrafts}
           recordDraftStorage={recordDraftStorage}

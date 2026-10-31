@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-31T21:21:26.331Z
+**Generated:** 2026-10-31T21:43:06.204Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 46 |
-| Production source files | 5556 |
-| Production source lines | 1219132 |
-| Test files | 4843 |
+| Production source files | 5557 |
+| Production source lines | 1219240 |
+| Test files | 4844 |
 | Workspace dependency edges | 233 |
-| Relative module edges | 16665 |
+| Relative module edges | 16668 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 173 |
+| Tests without TypeScript test-project coverage | 174 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -29,7 +29,8 @@
 - apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 777 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change
 
@@ -48,7 +49,7 @@
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 357 | 173 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 358 | 174 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -119,7 +120,6 @@ None.
 | 800 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 783 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
-| 777 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 777 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 775 | `apps/desktop-v2/src/ProjectChimera.tsx` |
@@ -128,6 +128,7 @@ None.
 | 754 | `packages/client/src/client.ts` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
 | 748 | `apps/desktop-v2/src/ProjectKanban.tsx` |
+| 746 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 743 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 737 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
@@ -159,7 +160,7 @@ None.
 
 ## TypeScript test coverage debt
 
-- 173 test files are not included in a package TypeScript test project.
+- 174 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.
