@@ -5568,6 +5568,40 @@ staged; the other session's edits stay untouched.
   session state and no credential file. The two earlier runs' copies were deleted by hand.
 - Checks: runtime 37 files / 390 tests; the CLI automation and argument-parser tests 85 passed;
   runtime and CLI typechecks clean; architecture health PASS.
-- Not covered: `pr-follow-up` against a real failing check, updating a published PR, the desktop
-  `AutomationPublication` flow over the engine, and restart while a run is active.
+- Security review of that cleanup: the checkpoint is written by the agent inside the container, so
+  a `profiles` entry could be a link to a host directory and the cleanup would have deleted that
+  directory's `config.json` files. Links are now removed, never followed; a test with a junction
+  (Windows) or symlink to a host profile failed before the fix (`docker-workspace.test.ts`).
+- Not covered here: CI repair and PR update (next entry), the desktop `AutomationPublication`
+  flow over the engine, and restart while a run is active.
+
+### Real CI repair updating the published pull request (2026-10-31)
+
+- Setup: PR #1 from the entry above. A failing commit status `ci/stats-edge-cases` ("mean([]) must
+  throw RangeError('mean of an empty list'); it returns NaN") was posted on its head `cd85c517`
+  through the GitHub statuses API, as an external CI would; the base branch was not touched, since
+  a repair requires an unchanged base.
+- `pr-check` reported `failed` with that status and its description as details; `pr-follow-up
+  <run> --ci <fingerprint>` queued run `4df2d009` continuing `5e6e18b7` (same subject, previous
+  conversation, `--continue`). Asking again returned the same follow-up run.
+- The repair run (Z.AI in Docker, 55 s) added the empty-list check on top of the earlier fix; the
+  frozen check `node test.mjs` passed independently; new tree `9a63d18`; its conversation
+  checkpoint holds no key, vault key or profile config.
+- `pr-prepare` produced a plan that targets PR #1 and its head `cd85c517` on the original branch;
+  `pr-publish` uploaded commit `c158f64` (tree `9a63d18`, parent `cd85c517`) and moved the branch
+  with GitHub's expected-head update. The PR's head became `c158f64`; it stayed a draft.
+- Defect found: the first publish still failed with "PR identity, draft state or head differs":
+  GitHub's PR view reported the previous head right after the ref moved. Retrying the same plan
+  recovered the receipt from the recorded publication commit without a second commit. Publish now
+  re-reads the PR for up to about ten seconds while it still shows the previous head; any other
+  head is refused at once (`automation-pull-request.test.ts`, scenario `lagging-pr-head`, which
+  failed with the live message before the fix). Commit `367a98c49`.
+- `pr-check` on the repair run: the new head `c158f64` has the CodeRabbit check, passed. The
+  failing status was posted by hand on the old head only; no CI ran the edge case on the new head,
+  so "passed" here means the hosted checks that exist, not an external verification of the repair.
+- Checks: runtime 37 files / 392 tests, typecheck clean; architecture report regenerated from a
+  clean copy of the commit (an earlier regeneration had absorbed another session's untracked
+  test files).
+- Not covered: the desktop `AutomationPublication` flow over the engine, a CI provider that runs
+  real jobs (GitHub Actions) on the sandbox, and restart while a run is active.
 

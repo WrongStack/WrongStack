@@ -395,7 +395,8 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 - Automations already have structured management/environment/evidence/publication interfaces.
   Finish service/health/cache lifecycle and restart behavior (a real Docker run with a profile
   credential, independent checks, PR prepare, publish and check to a private repository passed,
-  2026-10-31); PR update and CI follow-up against a real failing check, the desktop publication
+  2026-10-31; a CI repair from a real failing commit status then updated that same draft PR,
+  2026-10-31); CI follow-up against real hosted jobs (GitHub Actions), the desktop publication
   flow over the engine; signed GitHub delivery (two-run comparison from recorded results exists, 2026-10-29); event
   sample authoring and durable secondary forms. Successful management requests do not establish
   successful external runs. Jobs can be deleted at their reviewed revision (2026-10-29).
