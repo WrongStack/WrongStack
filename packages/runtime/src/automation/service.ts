@@ -255,6 +255,10 @@ export class AutomationService {
       // Unknown Docker state leaves the lease visible and prevents a duplicate
       // subject dispatch. A confirmed missing container can be interrupted too.
       const name = `wrongstack-${run.id}`;
+      // A container that received a credential is removed, never kept: its configuration
+      // holds the forwarded values (see runDockerWorkspace).
+      const credentialed = !!run.job.credentials?.length || !!run.job.envNames?.length;
+      let removed = false;
       try {
         const probe = await systemDocker(
           [
@@ -270,10 +274,14 @@ export class AutomationService {
         } else {
           const [containerId, marker] = probe.stdout.trim().split(/\s+/);
           if (marker !== run.leaseId || !/^[a-f0-9]{64}$/.test(containerId ?? '')) continue;
-          const stop = await systemDocker(['stop', '--time', '2', containerId!], {
-            timeoutMs: 15_000,
-          });
+          const stop = await systemDocker(
+            credentialed
+              ? ['rm', '--force', '--volumes', containerId!]
+              : ['stop', '--time', '2', containerId!],
+            { timeoutMs: 15_000 },
+          );
           if (stop.code !== 0) continue;
+          removed = credentialed;
         }
         if (
           run.job.environment &&
@@ -285,8 +293,9 @@ export class AutomationService {
           run.leaseId,
           {
             status: 'interrupted',
-            error:
-              'Worker process exited. Partial Docker workspace, when present, is retained for recovery.',
+            error: removed
+              ? 'Worker process exited. The Docker workspace held a credential and was removed.'
+              : 'Worker process exited. Partial Docker workspace, when present, is retained for recovery.',
           },
           now,
         );

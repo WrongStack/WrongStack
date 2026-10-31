@@ -281,6 +281,8 @@ export async function runDockerWorkspace(
     ),
     ...options.env,
   };
+  const carriesCredentials =
+    Object.keys(forwardedEnv).length > 0 || Object.keys(options.providerConfigs ?? {}).length > 0;
   if (options.network !== undefined && options.network !== 'bridge' && options.network !== 'none')
     throw new Error('Unsupported Docker network');
   if (options.environment) {
@@ -646,7 +648,10 @@ export async function runDockerWorkspace(
         if (probe.code === 0 && marker === ownerToken && /^[a-f0-9]{64}$/.test(probedId ?? '')) {
           // Preserve partial work after a timeout, cancellation, or failed patch
           // export. Stop the owned container and leave it for explicit recovery.
-          const retained = result?.patch === null;
+          // Never keep a container that received a credential: its configuration holds every
+          // forwarded variable's value, which no later step can remove, and its home holds the
+          // injected key with the vault key that decrypts it.
+          const retained = result?.patch === null && !carriesCredentials;
           const cleaned = await runner(
             retained
               ? ['stop', '--time', '2', probedId!]

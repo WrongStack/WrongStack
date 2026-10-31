@@ -242,9 +242,13 @@ export class DockerEnvironment {
   /** No cancelled signal: cleanup still probes ownership after an aborted command. */
   async cleanup(mainState: 'removed' | 'retained' | 'unverified'): Promise<boolean> {
     let verified = mainState !== 'unverified';
-    for (const target of this.attempted.values()) {
-      if (!(await stopOrRemoveService(target, this.owner, this.runner, mainState === 'removed')))
-        verified = false;
+    for (const [service, target] of this.attempted) {
+      // A service that received a credential is removed even when the workspace is kept:
+      // its configuration holds the forwarded values.
+      const remove =
+        mainState === 'removed' ||
+        !!this.profile.services.find((item) => item.name === service)?.envNames.length;
+      if (!(await stopOrRemoveService(target, this.owner, this.runner, remove))) verified = false;
     }
     if (mainState === 'removed' && this.networkAttempted) {
       try {
@@ -326,7 +330,12 @@ export async function stopEnvironmentServices(
   validateEnvironmentProfile(profile);
   for (const service of profile.services)
     if (
-      !(await stopOrRemoveService(`wrongstack-service-${id}-${service.name}`, owner, runner, false))
+      !(await stopOrRemoveService(
+        `wrongstack-service-${id}-${service.name}`,
+        owner,
+        runner,
+        service.envNames.length > 0,
+      ))
     )
       return false;
   return true;

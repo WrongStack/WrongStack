@@ -3,9 +3,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { EnvironmentProfile, EnvironmentReceipt } from '@wrongstack/webui-protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type DockerCommandRunner, runDockerWorkspace } from '../src/docker-workspace.js';
 import { validateJobSpec } from '../src/automation/contracts.js';
 import { verifyAutomationPatch } from '../src/automation/verification.js';
+import { type DockerCommandRunner, runDockerWorkspace } from '../src/docker-workspace.js';
 
 const roots: string[] = [];
 const image = `sha256:${'c'.repeat(64)}`;
@@ -225,8 +225,16 @@ describe('workspace environment lifecycle', () => {
     });
     expect(calls.some((call) => call.args.includes('agent-test'))).toBe(false);
     expect(
-      calls.some((call) => call.args[0] === 'stop' && call.args.at(-1) === 'b'.repeat(64)),
+      calls.some((call) => call.args[0] === 'stop' && call.args.at(-1) === 'a'.repeat(64)),
     ).toBe(true);
+    // The service received DB_TEST_PASSWORD, which its configuration keeps: it is removed,
+    // not kept beside the workspace.
+    expect(calls.some((call) => call.args[0] === 'rm' && call.args.at(-1) === 'b'.repeat(64))).toBe(
+      true,
+    );
+    expect(
+      calls.some((call) => call.args[0] === 'stop' && call.args.at(-1) === 'b'.repeat(64)),
+    ).toBe(false);
   });
   it('refuses cleanup of a service replaced by another owner', async () => {
     const { root, calls, runner } = await fixture();

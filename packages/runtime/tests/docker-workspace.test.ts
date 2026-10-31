@@ -103,6 +103,38 @@ describe('Docker workspace ownership', () => {
     expect(calls.some((a) => a[0] === 'stop')).toBe(true);
     expect(calls.some((a) => a[0] === 'rm')).toBe(false);
   });
+  it.each([
+    ['a forwarded credential variable', { env: { ZHIPU_API_KEY: 'fixture-secret' } }],
+    [
+      'an injected provider config',
+      { providerConfigs: { zai: { type: 'openai', apiKey: 'enc:fixture' } } },
+    ],
+  ] as const)(
+    'removes instead of keeping an interrupted container that received %s',
+    async (_label, credential) => {
+      // The container's configuration keeps every forwarded value and its home keeps the injected
+      // key with the vault key; a kept container would hold them indefinitely.
+      const { dir, runner, calls } = await fixture();
+      const wrapped: DockerCommandRunner = async (args, opts) => {
+        if (args[0] === 'exec' && args.includes('wstack')) throw new Error('command timed out');
+        return runner(args, opts);
+      };
+      const result = await runDockerWorkspace({
+        projectRoot: dir,
+        image: 'trusted:1',
+        command: 'wstack',
+        runner: wrapped,
+        ...credential,
+      });
+      expect(result).toMatchObject({
+        patch: null,
+        cleanup: 'removed',
+        failure: 'command timed out',
+      });
+      expect(calls.some((a) => a[0] === 'stop')).toBe(false);
+      expect(calls.find((a) => a[0] === 'rm')?.at(-1)).toBe('a'.repeat(64));
+    },
+  );
   it('does not remove a prior generation after a stable run name collision', async () => {
     const { dir, runner, calls } = await fixture();
     const wrapped: DockerCommandRunner = async (args, opts) => {

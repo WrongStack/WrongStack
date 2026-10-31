@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T09:52:28.600Z",
+  "generatedAt": "2026-10-31T10:26:10.515Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5553,
-    "testFiles": 4837,
-    "sourceLines": 1218497,
+    "testFiles": 4838,
+    "sourceLines": 1218520,
     "workspaceEdges": 233,
     "moduleEdges": 16650,
     "nonCommandSlashImports": 0,
@@ -772,7 +772,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 36,
-      "testFiles": 37,
+      "testFiles": 38,
       "workspaceDependencies": [
         "@wrongstack/builtin-plugins",
         "@wrongstack/chronicle",
@@ -797,7 +797,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 37
+          "testFiles": 38
         }
       ]
     },
@@ -17112,6 +17112,12 @@
       },
       {
         "file": "packages/runtime/tests/automation-cancel-handoff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/automation-crash-recovery.test.ts",
         "projects": [
           "root-node"
         ]
