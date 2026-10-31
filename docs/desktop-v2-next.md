@@ -393,7 +393,8 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 ### P2: automation, MCP and supporting runtime tools
 
 - Automations already have structured management/environment/evidence/publication interfaces.
-  Finish service/health/cache lifecycle and restart behavior (a real Docker run with a profile
+  Finish service/health/cache lifecycle and restart behavior (a worker killed during a real run
+  is recovered as interrupted and its credentialed container removed, 2026-10-31; a real Docker run with a profile
   credential, independent checks, PR prepare, publish and check to a private repository passed,
   2026-10-31; a CI repair from a real failing commit status then updated that same draft PR,
   2026-10-31; the desktop's publication requests over the engine opened a second draft PR,

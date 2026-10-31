@@ -5626,5 +5626,33 @@ staged; the other session's edits stay untouched.
   `keeps_server_deadlines_longer_than_the_default_timeout`; Rust bridge tests 6/6, `cargo fmt`
   clean; clippy is not installed here). Commit `fc9af5e27`.
 - Not covered: clicking through `AutomationPublication.tsx` in the native window (native tests
-  are batched at the end), restart while a run is active, and a sandbox CI that runs real jobs.
+  are batched at the end), restart while a run is active (next entry), and a sandbox CI that runs
+  real jobs.
+
+### Worker killed during an active run (2026-10-31)
+
+- Setup: the credentialed sandbox job; `automation serve` started, and once its container was up
+  (about 10 s into the agent run) the whole worker process tree was killed with `taskkill /F /T`
+  (no shutdown path). A second worker was started on the same state directory.
+- Observed: the run stayed `running` under the dead worker's id while its container kept running;
+  when the 60-second lease expired, the new worker confirmed the old process was gone, matched the
+  container's owner label to the run's lease, stopped it and marked the run `interrupted`. No
+  duplicate dispatch happened.
+- Defect found: the stopped container was kept "for recovery" with no expiry. `docker inspect`
+  showed the provider key in plain text in its configuration (`--env ZHIPU_API_KEY` stores the
+  value), and its home held the encrypted key with the vault key beside it (checked without
+  printing values). The same retention applied to timeouts, cancellations and failed patch
+  exports, and to environment services with their own credential variables. A workspace that
+  received a forwarded variable or provider config is now removed instead of kept, both on its own
+  cleanup and in crash recovery; such services are removed even when the workspace is kept;
+  partial work is still kept when no credential reached the container. Tests fail without the fix
+  (`automation-crash-recovery.test.ts`, `docker-workspace.test.ts`,
+  `docker-environment.test.ts`). Commit `28de7b0b5`.
+- Repeated for real after the fix: the new worker removed the container at lease expiry and
+  recorded "The Docker workspace held a credential and was removed"; no container remained. The
+  container from the first attempt was removed by hand.
+- Boundary: while a run is active, its forwarded values are in the container configuration, so
+  anyone with access to this machine's Docker daemon can read them; that is the same trust as
+  the host account that stores the profile key.
+- Checks: runtime 38 files / 397 tests, typecheck clean, architecture health PASS.
 
