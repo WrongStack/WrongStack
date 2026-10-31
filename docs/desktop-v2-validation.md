@@ -5469,3 +5469,19 @@ staged; the other session's edits stay untouched.
   desktop conversations until that layer is shared; the user chose to extract it.
 - Not exercised with the real model: a cost limit actually reached.
 
+### Real Docker execution of the automation workspace (2026-10-31)
+
+- Docker Desktop server 29.9.2. Image `wrongstack-acceptance:git`: the local
+  `node:22.23.4-bookworm-slim` plus `git` (the runner needs `sh` and `git` in the image,
+  `.temp_files/docker-acceptance/Dockerfile`).
+- `.temp_files/docker-acceptance/run.mjs` calls `runDockerWorkspace` (`@wrongstack/runtime`) on a
+  temporary project with `network: 'none'`: the command read the copied host file, wrote
+  `created.txt` and ran `node --version`; exit 0; the returned patch adds `created.txt`; the
+  follow-up verification command exited 0; the image identity was captured; the host project's
+  files were unchanged; cleanup reported `removed` and `docker ps -a` no longer listed the
+  container. PASS.
+- A command that prints and exits 7 is reported as exit code 7 with its output, and its container
+  is removed as well.
+- Not covered: environment services, preview ports, an automation job dispatched through the
+  engine's automation routes with a model, and restart recovery of a running container.
+
