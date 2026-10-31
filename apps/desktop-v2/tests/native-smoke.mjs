@@ -35,6 +35,7 @@ import { exerciseNativeFleetPolicy } from './native-fleet-policy.mjs';
 import { exerciseNativeGitGraph } from './native-git-graph.mjs';
 import { exerciseNativeGoals } from './native-goals.mjs';
 import { exerciseNativeTaskExecution } from './native-kanban-execution.mjs';
+import { exerciseNativeKanbanRun } from './native-kanban-run.mjs';
 import { exerciseNativeLiveFleet } from './native-live-fleet.mjs';
 import { exerciseNativeMailbox } from './native-mailbox.mjs';
 import { exerciseNativeMcpComposer, exerciseNativeMcpContent } from './native-mcp-content.mjs';
@@ -1232,6 +1233,7 @@ try {
       artifactDir,
       wrongstackHome: env.WRONGSTACK_HOME,
     });
+    await exerciseNativeKanbanRun({ page, project: a, artifactDir });
     assert.deepEqual(errors, []);
     result = {
       result: 'PASS',

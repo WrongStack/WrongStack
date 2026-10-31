@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T20:38:28.834Z",
+  "generatedAt": "2026-10-31T20:41:09.055Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 46,
     "sourceFiles": 5556,
     "testFiles": 4843,
-    "sourceLines": 1218950,
+    "sourceLines": 1219043,
     "workspaceEdges": 233,
     "moduleEdges": 16665,
     "nonCommandSlashImports": 0,
@@ -30,7 +30,7 @@
     "apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectKanban.tsx: hotspot shrunk from 747 to 744 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 777 lines; review and update the ratchet in the same change",
@@ -32363,7 +32363,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 744,
+      "lines": 748,
       "relativeImports": 11
     },
     {
@@ -32555,7 +32555,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 744,
+      "lines": 748,
       "relativeImports": 11
     },
     {

@@ -282,6 +282,10 @@ export function ProjectKanban({
                     setBoardId('');
                     await loadBoards();
                   }}
+                  onRunStarted={async (note) => {
+                    setFocusNote(note);
+                    await loadBoard();
+                  }}
                 />
               )}
             </div>

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-10-31T20:38:28.834Z
+**Generated:** 2026-10-31T20:41:09.055Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 46 |
 | Production source files | 5556 |
-| Production source lines | 1218950 |
+| Production source lines | 1219043 |
 | Test files | 4843 |
 | Workspace dependency edges | 233 |
 | Relative module edges | 16665 |
@@ -26,7 +26,7 @@
 - apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectKanban.tsx: hotspot shrunk from 747 to 744 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 777 lines; review and update the ratchet in the same change
@@ -127,7 +127,7 @@ None.
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 754 | `packages/client/src/client.ts` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
-| 744 | `apps/desktop-v2/src/ProjectKanban.tsx` |
+| 748 | `apps/desktop-v2/src/ProjectKanban.tsx` |
 | 743 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 737 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |

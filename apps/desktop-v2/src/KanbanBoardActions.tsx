@@ -1,4 +1,4 @@
-import { Copy, History, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Copy, History, MoreHorizontal, Play, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
@@ -7,21 +7,24 @@ import { boardSource } from './kanban-board-source';
 import { Modal } from './Modal';
 import { recoveryDate } from './session-recovery-model';
 
-type Dialog = 'duplicate' | 'delete' | 'history' | null;
+type Dialog = 'duplicate' | 'delete' | 'history' | 'run' | null;
 
-/** Duplicate, inspect the history of, or permanently delete the selected board. */
+/** Run, duplicate, inspect the history of, or permanently delete the selected board. */
 export function KanbanBoardActions({
   command,
   board,
   disabled,
   onDuplicated,
   onDeleted,
+  onRunStarted,
 }: {
   command: EngineCommand;
   board: Record<string, unknown>;
   disabled: boolean;
   onDuplicated: (boardId: string) => Promise<void>;
   onDeleted: () => Promise<void>;
+  /** A Goal or SDD run started from this board (the note says which); it updates its cards. */
+  onRunStarted?: ((note: string) => Promise<void>) | undefined;
 }) {
   const boardId = String(board['id'] ?? '');
   const title = String(board['title'] ?? '');
@@ -35,6 +38,8 @@ export function KanbanBoardActions({
     [includeCompleted, setIncludeCompleted] = useState(false);
   const [typed, setTyped] = useState('');
   const [allBoards, setAllBoards] = useState(false);
+  const [engine, setEngine] = useState<'goal' | 'sdd'>('goal'),
+    [autonomous, setAutonomous] = useState(false);
   const [history, setHistory] = useState<ReturnType<typeof boardHistoryRows> | null>(null);
   const menu = useRef<HTMLDetailsElement>(null);
   const openDialog = (next: Dialog) => {
@@ -75,6 +80,20 @@ export function KanbanBoardActions({
           <MoreHorizontal size={15} />
         </summary>
         <div>
+          <button
+            type="button"
+            disabled={disabled || !!mirrored || !tasks.length}
+            title={
+              mirrored
+                ? 'This board already mirrors a run.'
+                : tasks.length
+                  ? undefined
+                  : 'Add cards before running the board.'
+            }
+            onClick={() => openDialog('run')}
+          >
+            <Play size={13} /> Run board…
+          </button>
           <button
             type="button"
             disabled={disabled || !!mirrored}
@@ -160,6 +179,76 @@ export function KanbanBoardActions({
               </button>
               <button type="submit" className="button primary" disabled={busy || !copyTitle.trim()}>
                 {busy ? 'Duplicating…' : 'Duplicate board'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {dialog === 'run' && (
+        <Modal title="Run board" onClose={close}>
+          <form
+            className="kanban-board-action-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void run(async () => {
+                await command(
+                  'kanban.run.start',
+                  { boardId, engine, ...(engine === 'goal' ? { autonomous } : {}) },
+                  ['kanban.run.start'],
+                  { timeoutMs: 60000 },
+                );
+                setDialog(null);
+                await onRunStarted?.(
+                  engine === 'goal'
+                    ? 'A Goal run started from this board.'
+                    : 'An SDD run started from this board.',
+                );
+              });
+            }}
+          >
+            <p className="field-help">
+              Starts a run from the {tasks.length} cards on “{title}”. The run updates these cards
+              as it works and uses your models, so it costs tokens.
+            </p>
+            <label className="kanban-check">
+              <input
+                type="radio"
+                name="kanban-run-engine"
+                checked={engine === 'goal'}
+                onChange={() => setEngine('goal')}
+              />
+              Goal: phases and tasks run in order
+            </label>
+            <label className="kanban-check">
+              <input
+                type="radio"
+                name="kanban-run-engine"
+                checked={engine === 'sdd'}
+                onChange={() => setEngine('sdd')}
+              />
+              SDD: worker agents run the tasks in worktrees
+            </label>
+            {engine === 'goal' && (
+              <label className="kanban-check">
+                <input
+                  type="checkbox"
+                  checked={autonomous}
+                  onChange={(event) => setAutonomous(event.target.checked)}
+                />
+                Continue through the phases without asking
+              </label>
+            )}
+            {error && (
+              <p role="alert" className="session-error">
+                {error}
+              </p>
+            )}
+            <div className="modal-actions">
+              <button type="button" className="button secondary" disabled={busy} onClick={close}>
+                Cancel
+              </button>
+              <button type="submit" className="button primary" disabled={busy}>
+                {busy ? 'Starting…' : 'Start run'}
               </button>
             </div>
           </form>
