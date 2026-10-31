@@ -3,7 +3,9 @@ import { startSharedHeapWatchdog } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import type { createAgentServices } from './backend-services.js';
 import { createConnectionHandler } from './connection-handler.js';
+import { registerEngineManagementTools } from './management-tools.js';
 import { createMessageDispatcher } from './message-dispatcher.js';
+import { createApplyModelSwitch, createSessionContextResolver } from './model-switch-core.js';
 import type { PendingConfirm } from './pending-confirms.js';
 import type { createPreContextServices } from './pre-context-services.js';
 import {
@@ -172,6 +174,26 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
   });
 
   const routes = buildRoutes(state, deps, cb);
+  // The leader's provider/model/fallback management tools (CLI parity). A write is persisted
+  // through the serialized config writer and applied live; a model switch targets the tab whose
+  // leader called the tool, through the same switch `model.switch` uses.
+  const switchModelForTool = createApplyModelSwitch(
+    state,
+    deps,
+    cb,
+    createSessionContextResolver(deps),
+  );
+  registerEngineManagementTools({
+    toolRegistry: deps.toolRegistry,
+    getConfig: () => state.getConfig(),
+    applyConfig: (next) => {
+      state.setConfig(next);
+      deps.configStore.replace(next);
+    },
+    persist: (mutate) => cb.updateGlobalConfig(mutate, 'management tool'),
+    switchModel: switchModelForTool,
+    modelsRegistry: deps.modelsRegistry,
+  });
   const { stopEmptySessionCleanup, offSessionRenamed } = setupStandaloneSessionMaintenance({
     state,
     clients,

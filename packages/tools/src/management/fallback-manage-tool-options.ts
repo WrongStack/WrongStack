@@ -20,7 +20,17 @@ export interface FallbackManageToolOptions {
    * config and reports that the live session keeps its current model.
    */
   switchProviderAndModel?:
-    | ((providerId: string, modelId: string) => Promise<string | null>)
+    | ((
+        providerId: string,
+        modelId: string,
+        /**
+         * The calling conversation's tool context. A host with one conversation per tab
+         * switches the tab that called the tool (`eventSessionId()` / `session.id`).
+         */
+        context?:
+          | { eventSessionId?: (() => string) | undefined; session?: { id?: string } }
+          | undefined,
+      ) => Promise<string | null>)
     | undefined;
   /** Optional logger for internal warnings. */
   logger?: Logger | undefined;

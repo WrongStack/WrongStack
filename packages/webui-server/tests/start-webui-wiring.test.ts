@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   shutdown: vi.fn(),
   deps: vi.fn(),
   security: vi.fn(),
+  managementTools: vi.fn(),
+  applyModelSwitch: vi.fn(),
 }));
 vi.mock('@wrongstack/core/utils', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wrongstack/core/utils')>()),
@@ -40,6 +42,13 @@ vi.mock('../src/server/start-webui-shutdown.js', () => ({ setupWebuiShutdown: mo
 vi.mock('../src/server/start-webui-deps.js', () => ({ createWebuiDeps: mocks.deps }));
 vi.mock('../src/server/start-webui-security.js', () => ({
   handleWebuiSecurityRejection: mocks.security,
+}));
+vi.mock('../src/server/management-tools.js', () => ({
+  registerEngineManagementTools: mocks.managementTools,
+}));
+vi.mock('../src/server/model-switch-core.js', () => ({
+  createApplyModelSwitch: vi.fn(() => mocks.applyModelSwitch),
+  createSessionContextResolver: vi.fn(() => vi.fn()),
 }));
 
 import {
@@ -95,6 +104,10 @@ describe('standalone WebUI runtime wiring', () => {
       input as unknown as Parameters<typeof wireStandaloneWebuiRuntime>[0],
     );
     const connection = mocks.connection.mock.results[0]!.value;
+    // The leader's management tools are registered with the per-tab model switch.
+    expect(mocks.managementTools).toHaveBeenCalledWith(
+      expect.objectContaining({ switchModel: mocks.applyModelSwitch }),
+    );
     expect(input.wssPrimary.on).toHaveBeenCalledWith('connection', connection);
     expect(input.wssSecondary.on).toHaveBeenCalledWith('connection', connection);
     session = { id: 'second', flush: vi.fn(async () => undefined) };

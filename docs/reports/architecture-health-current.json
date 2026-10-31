@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T12:06:44.153Z",
+  "generatedAt": "2026-10-31T12:54:21.073Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5554,
-    "testFiles": 4841,
-    "sourceLines": 1218722,
+    "sourceFiles": 5555,
+    "testFiles": 4842,
+    "sourceLines": 1218833,
     "workspaceEdges": 233,
-    "moduleEdges": 16654,
+    "moduleEdges": 16656,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -1142,8 +1142,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 324,
-      "testFiles": 359,
+      "sourceFiles": 325,
+      "testFiles": 360,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1178,7 +1178,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 359
+          "testFiles": 360
         }
       ]
     },
@@ -25908,6 +25908,12 @@
       },
       {
         "file": "packages/webui-server/tests/mailbox-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/management-tools.test.ts",
         "projects": [
           "root-node"
         ]

@@ -121,7 +121,7 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
     riskTier: 'standard',
     icon: 'settings',
 
-    async execute(input) {
+    async execute(input, ctx) {
       const config = opts.getConfig();
       const tiers = activeTierConfig(config);
       if (!tiers) {
@@ -233,7 +233,7 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
       }
 
       if (opts.switchProviderAndModel) {
-        const switchError = await opts.switchProviderAndModel(targetProvider, targetModel);
+        const switchError = await opts.switchProviderAndModel(targetProvider, targetModel, ctx);
         if (switchError) {
           throw new Error(
             `Could not switch to ${targetProvider}/${targetModel}: ${switchError}. Config was not changed.`,

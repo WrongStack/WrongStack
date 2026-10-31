@@ -78,7 +78,7 @@ export function createLeaderModelSetTool(
     mutating: true,
     riskTier: 'standard',
     icon: 'settings',
-    async execute(input) {
+    async execute(input, ctx) {
       const config = opts.getConfig();
 
       if (input.action === 'show') {
@@ -102,7 +102,7 @@ export function createLeaderModelSetTool(
           });
         }
         if (opts.switchProviderAndModel) {
-          const switchError = await opts.switchProviderAndModel(input.provider, input.model);
+          const switchError = await opts.switchProviderAndModel(input.provider, input.model, ctx);
           if (switchError) {
             throw new Error(
               `Could not switch to ${input.provider}/${input.model}: ${switchError}. Config was not changed.`,
@@ -146,7 +146,7 @@ export function createLeaderModelSetTool(
         }
         const rest = chain.slice(1);
         if (opts.switchProviderAndModel) {
-          const switchError = await opts.switchProviderAndModel(provider, model);
+          const switchError = await opts.switchProviderAndModel(provider, model, ctx);
           if (switchError) {
             throw new Error(
               `Could not switch to ${provider}/${model}: ${switchError}. Config was not changed.`,

@@ -835,7 +835,9 @@ describe('leader_model_set', () => {
       const result = await run(tool, { action: 'set', provider: 'openai', model: 'gpt-4o' });
       expect(result.status).toBe('ok');
       expect(result.message).not.toContain('live session keeps');
-      expect(switchProviderAndModel).toHaveBeenCalledWith('openai', 'gpt-4o');
+      // The calling conversation's tool context rides along, so a multi-tab host switches
+      // the tab that called the tool.
+      expect(switchProviderAndModel).toHaveBeenCalledWith('openai', 'gpt-4o', {});
       expect(opts.updateConfig).toHaveBeenCalled();
       const cfg = opts.getConfig() as unknown as { provider: string; model: string };
       expect(cfg.provider).toBe('openai');
@@ -858,7 +860,7 @@ describe('leader_model_set', () => {
       const tool = getTool(createFallbackManageTools(opts), LEADER_MODEL_SET_TOOL_NAME);
       const result = await run(tool, { action: 'profile', profile: 'fast' });
       expect(result.status).toBe('ok');
-      expect(switchProviderAndModel).toHaveBeenCalledWith('test-provider', 'test-model');
+      expect(switchProviderAndModel).toHaveBeenCalledWith('test-provider', 'test-model', {});
     });
   });
 });
