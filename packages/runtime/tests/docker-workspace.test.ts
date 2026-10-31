@@ -267,6 +267,37 @@ describe('Docker workspace ownership', () => {
       expect(calls).toHaveLength(0);
     },
   );
+  it('never follows a link out of the captured home when dropping credentials', async () => {
+    // The captured home is written by the agent inside the container. A `profiles` link (or a
+    // profile linked to a host directory) must not let the cleanup delete host config files.
+    const { dir, runner } = await fixture();
+    const { mkdir, readdir, symlink } = await import('node:fs/promises');
+    const hostProfiles = path.join(dir, 'host-profiles');
+    await mkdir(path.join(hostProfiles, 'default'), { recursive: true });
+    await writeFile(path.join(hostProfiles, 'default', 'config.json'), 'host config');
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    const conversationDir = path.join(dir, 'conversations', 'subject-2');
+    const wrapped: DockerCommandRunner = async (args, opts) => {
+      if (args[0] === 'cp' && String(args[1]).includes(':/home/node/.wrongstack/.')) {
+        const home = args[2]!;
+        await symlink(hostProfiles, path.join(home, 'profiles'), linkType);
+        await mkdir(path.join(home, 'other'), { recursive: true });
+        return { code: 0, stdout: '', stderr: '' };
+      }
+      return runner(args, opts);
+    };
+    await runDockerWorkspace({
+      projectRoot: dir,
+      image: 'trusted:1',
+      command: 'wstack',
+      conversationDirectory: conversationDir,
+      runner: wrapped,
+    });
+    expect(await readFile(path.join(hostProfiles, 'default', 'config.json'), 'utf8')).toBe(
+      'host config',
+    );
+    expect(await readdir(conversationDir)).toEqual(['other']);
+  });
   it('keeps the conversation checkpoint but not the injected profile credential', async () => {
     // The container's home holds the injected provider key (encrypted) next to the vault key
     // that decrypts it. A continuation re-injects credentials, so the checkpoint must not keep

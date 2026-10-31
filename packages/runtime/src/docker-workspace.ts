@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { cp, mkdtemp, readdir, realpath, rm } from 'node:fs/promises';
+import { cp, lstat, mkdtemp, readdir, realpath, rm } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
@@ -205,28 +205,38 @@ const SETUP = workspaceSnapshotSetup(process.platform);
  * Removes the injected profile credential from a captured CLI home: the vault key, every
  * profile config (and its backups) and the config history, which together decrypt the
  * provider key. A continuation run injects credentials again, so only conversation state stays.
+ *
+ * The home was written by the agent inside the container, so a link in it may point at the
+ * host. Links are removed, never followed; only real directories are listed (`rm` itself
+ * unlinks a link rather than deleting its target).
  */
 async function dropInjectedCredentials(home: string): Promise<void> {
   await rm(path.join(home, '.key'), { force: true });
   await rm(path.join(home, 'config-history'), { recursive: true, force: true });
-  let profiles: string[] = [];
-  try {
-    profiles = await readdir(path.join(home, 'profiles'));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-  for (const profile of profiles) {
-    const directory = path.join(home, 'profiles', profile);
-    let entries: string[];
-    try {
-      entries = await readdir(directory);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOTDIR') continue;
-      throw error;
-    }
-    for (const entry of entries)
+  const profilesDir = path.join(home, 'profiles');
+  if (!(await realDirectoryOrUnlink(profilesDir))) return;
+  for (const profile of await readdir(profilesDir)) {
+    const directory = path.join(profilesDir, profile);
+    if (!(await realDirectoryOrUnlink(directory))) continue;
+    for (const entry of await readdir(directory))
       if (entry.startsWith('config.json')) await rm(path.join(directory, entry), { force: true });
   }
+}
+
+/** True for a real directory; a link there is removed (not followed) and reads as false. */
+async function realDirectoryOrUnlink(target: string): Promise<boolean> {
+  let stats: Awaited<ReturnType<typeof lstat>>;
+  try {
+    stats = await lstat(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+  if (stats.isSymbolicLink()) {
+    await rm(target, { force: true });
+    return false;
+  }
+  return stats.isDirectory();
 }
 const PATCH = 'git add -A && git diff --cached --binary --no-ext-diff HEAD --';
 
