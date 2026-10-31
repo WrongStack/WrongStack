@@ -1418,7 +1418,7 @@ try {
     await page
       .getByRole('textbox', { name: 'Message WrongStack' })
       .fill('Keep this native session draft.');
-    await page.getByRole('button', { name: 'Fleet', exact: true }).click();
+    await page.getByRole('button', { name: 'Mission control', exact: true }).click();
     await page.locator('.session-card-main').filter({ hasText: 'Concurrent terminal' }).click();
     await page.locator('.session-tab-label').filter({ hasText: 'WrongStack engine proof' }).click();
     assert.equal(

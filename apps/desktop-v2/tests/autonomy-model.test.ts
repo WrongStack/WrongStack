@@ -52,7 +52,7 @@ describe('conversation continuation', () => {
     const html = renderToStaticMarkup(
       createElement(AutonomyControl, { mode: '', command, disabled: false }),
     );
-    expect(html).toContain('Continuation: not reported');
+    expect(html).toContain('>Continuation</option>');
     for (const label of ['Manual', 'Suggest next steps', 'Continue automatically', 'Eternal'])
       expect(html).toContain(label);
   });

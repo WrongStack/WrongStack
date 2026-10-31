@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, Square, Terminal, Workflow, X } from 'lucide-react';
+import { Plus, Square, Terminal, Workflow, X } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { CopyButton } from './CopyButton';
 import { EngineWorkspace } from './EngineWorkspace';
@@ -19,7 +19,6 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
     openSessionIds,
     jumpToSession,
     closeSessionTab,
-    showFleet,
     reportError,
     run,
     getDraft,
@@ -29,10 +28,6 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
   return (
     <section className="session-workbench" aria-label="Session workbench">
       <nav className="session-tabs" aria-label="Open sessions">
-        <button type="button" className="back-to-fleet" onClick={showFleet}>
-          <ArrowLeft size={14} />
-          Fleet
-        </button>
         {openSessionIds
           .map((id) => snapshot.sessions.find((s) => s.id === id))
           .filter((s) => s !== undefined)
@@ -49,7 +44,10 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
               >
                 {s.kind === 'terminal' ? <Terminal size={13} /> : <Workflow size={13} />}
                 <span>
-                  <small>{snapshot.projects.find((p) => p.id === s.projectId)?.name}</small>
+                  {/* Only a session from another project names its project. */}
+                  {s.projectId !== session.projectId && (
+                    <small>{snapshot.projects.find((p) => p.id === s.projectId)?.name}</small>
+                  )}
                   {s.title}
                 </span>
               </button>
@@ -72,6 +70,17 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
         >
           <Plus size={15} />
         </button>
+        {isLive(session) && (
+          <button
+            type="button"
+            className="session-stop"
+            title="Stop this session"
+            onClick={() => void run(() => request('session.kill', { id: session.id }))}
+          >
+            <Square size={10} />
+            Stop session
+          </button>
+        )}
       </nav>
       <section className="session-workspace focused-session">
         {session.error && <div className="session-error">{session.error}</div>}
@@ -146,22 +155,6 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             />
           </Suspense>
         )}
-        <footer>
-          <span className="session-workdir" title={session.workdir}>
-            {session.workdir.replace(/^\\\\\?\\/, '')}
-          </span>
-          {isLive(session) && (
-            <button
-              type="button"
-              className="session-stop"
-              title="Stop this session"
-              onClick={() => void run(() => request('session.kill', { id: session.id }))}
-            >
-              <Square size={10} />
-              Stop session
-            </button>
-          )}
-        </footer>
       </section>
     </section>
   );

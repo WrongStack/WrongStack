@@ -39,7 +39,7 @@ export function AutonomyControl({
             .finally(() => setBusy(false));
         }}
       >
-        {mode === '' && <option value="">Continuation: not reported</option>}
+        {mode === '' && <option value="">Continuation</option>}
         {AUTONOMY_MODES.map(([id, label]) => (
           <option key={id} value={id}>
             {label}

@@ -227,9 +227,6 @@
   background: var(--base);
   border-bottom-color: var(--base);
 }
-.back-to-fleet {
-  padding: 8px 8px 8px 0;
-}
 .new-session-tab {
   align-self: center;
 }
@@ -237,12 +234,6 @@
   border: 0;
   border-top: 1px solid var(--border);
   border-radius: 0;
-}
-.session-workspace > footer {
-  padding: 5px 16px;
-  border-top: 1px solid var(--border);
-  align-items: center;
-  font-size: 9px;
 }
 .session-stop {
   display: flex;

@@ -566,7 +566,7 @@ export function SessionComposer({
       )}
       {state.hydrating && (
         <p className="composer-notice" role="status">
-          Syncing session history… Your draft stays here.
+          Loading conversation…
         </p>
       )}
       {input.popup}

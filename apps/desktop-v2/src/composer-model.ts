@@ -44,12 +44,15 @@ export function sessionEffort(state: EngineState, suppressLeader = false) {
     options,
     unsupported:
       current !== 'auto' && levels.length > 0 && !levels.includes(current as ReasoningEffort),
+    autoLabel:
+      typeof start['projectReasoningEffort'] === 'string' &&
+      Object.hasOwn(effortNames, start['projectReasoningEffort'])
+        ? `Auto effort · ${effortNames[start['projectReasoningEffort'] as ReasoningEffort]}`
+        : 'Auto effort',
     hint:
       !suppressLeader && typeof leader?.['effort'] === 'string'
         ? `Leader: ${leader['effort']}`
-        : current === 'auto' && start['projectReasoningEffort']
-          ? `Project: ${start['projectReasoningEffort']}`
-          : '',
+        : '',
     reason: String(leader?.['reason'] ?? ''),
   };
 }

@@ -9,7 +9,6 @@ import {
   RefreshCw,
   Settings2,
   Square,
-  Workflow,
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttachmentPreview } from './ComposerAttachments';
@@ -220,7 +219,7 @@ export function EngineWorkspace({
           [
             { name: 'chat', label: 'Chat', Icon: MessageSquare },
             { name: 'files', label: 'Files', Icon: FolderCode },
-            { name: 'changes', label: 'Diff / review', Icon: GitCompareArrows },
+            { name: 'changes', label: 'Changes', Icon: GitCompareArrows },
           ] as const
         ).map(({ name, label, Icon }) => (
           <button
@@ -355,13 +354,7 @@ export function EngineWorkspace({
           >
             {!state.messages.length && !state.inputs.length && (
               <div className="native-chat-welcome">
-                <Workflow size={30} />
-                <span className="eyebrow">YOUR AGENT, IN YOUR WORKSPACE</span>
-                <h2>What are we building?</h2>
-                <p>
-                  Brief WrongStack. Watch the work here, review its tools, and approve requests
-                  without leaving this session.
-                </p>
+                <h2>What should we work on?</h2>
                 {!state.connected && <LoaderCircle size={18} className="spin" />}
               </div>
             )}
@@ -383,7 +376,7 @@ export function EngineWorkspace({
               state.messages.slice(hiddenMessages).map((message) => (
                 <article className={`chat-message ${message.role}`} key={message.id}>
                   <header className={message.role === 'user' ? 'user-chat-label' : undefined}>
-                    <span>{message.role === 'user' ? 'YOU' : 'WRONGSTACK'}</span>
+                    <span>{message.role === 'user' ? 'You' : 'WrongStack'}</span>
                     <CopyButton text={message.text} label="Copy message" />
                   </header>
                   <div className={message.role === 'user' ? 'user-chat-body' : undefined}>
@@ -652,12 +645,8 @@ function EngineUsage({ state, refresh }: { state: EngineState; refresh: () => vo
   const estimate = inlineUsageEstimate(stats);
   return (
     <div className="native-usage">
-      <span>{state.running ? 'RUNNING' : state.connected ? 'READY' : 'CONNECTING'}</span>
-      <span>
-        {typeof usage['input'] === 'number'
-          ? `${usage['input'].toLocaleString()} in`
-          : 'Usage not reported'}
-      </span>
+      <span>{state.running ? 'Working' : state.connected ? 'Ready' : 'Connecting'}</span>
+      {typeof usage['input'] === 'number' && <span>{usage['input'].toLocaleString()} in</span>}
       {typeof usage['output'] === 'number' && <span>{usage['output'].toLocaleString()} out</span>}
       {typeof estimate === 'number' && <span>Estimated ${estimate.toFixed(4)}</span>}
       <button

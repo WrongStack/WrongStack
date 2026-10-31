@@ -92,7 +92,7 @@ export function SessionModelControls({
             value={effort.current}
             onChange={(e) => void chooseEffort(e.target.value)}
           >
-            <option value="auto">Auto effort</option>
+            <option value="auto">{effort.autoLabel}</option>
             {effort.options.map((level) => (
               <option key={level} value={level}>
                 {effortNames[level]}
