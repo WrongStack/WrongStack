@@ -82,4 +82,33 @@ describe('conversation notices', () => {
     });
     expect(state.notices).toEqual([]);
   });
+  it('offers the switch a leader tier proposal names, and nothing for an incomplete one', () => {
+    let state = reduceEngine(start, {
+      type: 'model.tier_proposed',
+      payload: {
+        sessionId: 's1',
+        fromTier: 'premium',
+        toTier: 'budget',
+        target: { provider: 'zai', model: 'glm-5.3-flash' },
+        reason: 'Mechanical edits from here.',
+        projectedSavingsUsd: 0.4321,
+        reWarmCostUsd: 0.01,
+      },
+    });
+    state = reduceEngine(state, {
+      type: 'model.tier_proposed',
+      payload: { sessionId: 's1', toTier: 'budget', target: { provider: 'zai' } },
+    });
+    expect(state.notices).toHaveLength(1);
+    expect(state.notices[0]).toMatchObject({
+      severity: 'info',
+      text: 'WrongStack proposes the budget tier: zai/glm-5.3-flash.',
+      hint: 'Mechanical edits from here. Projected saving about $0.4321.',
+      action: {
+        label: 'Switch to budget',
+        type: 'model.switch',
+        payload: { provider: 'zai', model: 'glm-5.3-flash' },
+      },
+    });
+  });
 });

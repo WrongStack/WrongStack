@@ -9,6 +9,8 @@ export interface ConversationNotice {
   text: string;
   hint: string;
   at: number;
+  /** An engine request the user can make from the notice, such as accepting a proposal. */
+  action?: { label: string; type: string; payload: Record<string, unknown> } | undefined;
 }
 
 /** Notices kept per conversation, newest last. */
@@ -32,6 +34,27 @@ export function conversationNotice(
     hint,
     at,
   });
+  if (type === 'model.tier_proposed') {
+    const target = payload['target'] as Record<string, unknown> | undefined;
+    const provider = str(target?.['provider']),
+      model = str(target?.['model']),
+      tier = str(payload['toTier']);
+    if (!provider || !model || !tier) return null;
+    const savings = num(payload['projectedSavingsUsd']);
+    return {
+      ...notice(
+        'info',
+        `WrongStack proposes the ${tier} tier: ${provider}/${model}.`,
+        [
+          str(payload['reason']),
+          savings !== null && savings > 0 ? `Projected saving about $${savings.toFixed(4)}.` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
+      ),
+      action: { label: `Switch to ${tier}`, type: 'model.switch', payload: { provider, model } },
+    };
+  }
   if (type === 'run.result' && payload['status'] === 'max_iterations') {
     const turns = num(payload['iterations']);
     return notice(

@@ -465,7 +465,18 @@ export function EngineWorkspace({
               </button>
             </div>
           )}
-          <ConversationNotices key={state.sessionId} notices={state.notices} />
+          <ConversationNotices
+            key={state.sessionId}
+            notices={state.notices}
+            onAction={async (action) => {
+              try {
+                await command(action.type, action.payload, [`${action.type}_result`]);
+              } catch (error) {
+                onError(error);
+                throw error;
+              }
+            }}
+          />
           <FallbackPicker state={state} send={send} />
           <SessionTodos state={state} command={command} />
           <SessionWorklist state={state} command={command} />

@@ -3,8 +3,16 @@ import { useState } from 'react';
 import type { ConversationNotice } from './conversation-notices';
 
 /** Engine reports about this conversation, shown above the composer until dismissed. */
-export function ConversationNotices({ notices }: { notices: ConversationNotice[] }) {
+export function ConversationNotices({
+  notices,
+  onAction,
+}: {
+  notices: ConversationNotice[];
+  /** Makes a notice's engine request; the notice closes once it succeeds. */
+  onAction?: ((action: NonNullable<ConversationNotice['action']>) => Promise<void>) | undefined;
+}) {
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [busy, setBusy] = useState('');
   const shown = notices.filter((notice) => !dismissed.includes(notice.id));
   if (!shown.length) return null;
   return (
@@ -20,6 +28,23 @@ export function ConversationNotices({ notices }: { notices: ConversationNotice[]
             {notice.text}
             {notice.hint && <small> {notice.hint}</small>}
           </p>
+          {notice.action && onAction && (
+            <button
+              type="button"
+              className="button secondary small"
+              disabled={busy === notice.id}
+              onClick={() => {
+                const action = notice.action!;
+                setBusy(notice.id);
+                void onAction(action)
+                  .then(() => setDismissed((ids) => [...ids, notice.id]))
+                  .catch(() => {})
+                  .finally(() => setBusy(''));
+              }}
+            >
+              {notice.action.label}
+            </button>
+          )}
           <button
             type="button"
             className="icon-button"
