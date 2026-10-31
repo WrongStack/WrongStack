@@ -5701,3 +5701,17 @@ staged; the other session's edits stay untouched.
   attempt's leftovers were removed by hand.
 - Checks: runtime 38 files / 400 tests, typecheck clean, architecture health PASS.
 
+
+### Model fallback in CLI-hosted WebUI tabs (2026-10-31)
+
+- Every tab of the CLI-hosted WebUI after the first ran on an agent without a `fallback-model`
+  extension (the CLI registers one on its leader only), so a configured `fallbackModels` chain
+  never engaged there. Each tab agent now gets its own instance at creation, as in the standalone
+  engine, through the shared `installConversationFallback`.
+- Test with real Agent, Context, EventBus, registries and `createEmbeddedSessionAgents` (fake
+  providers): a second tab hops through the gate to the backup on a retryable primary failure,
+  and two tabs fail over independently; it failed before the change
+  (`embedded-session-agents-fallback.test.ts`). CLI `tests/webui-server` and the related engine
+  tests 148/148; CLI and engine typechecks clean; architecture health PASS. Commit `2a289e482`.
+- Still open: a hop in such a tab does not refresh that tab's compaction ceiling (the updater is
+  process-wide and serves the leader), and acceptance with a real failing provider.

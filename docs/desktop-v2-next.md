@@ -299,8 +299,8 @@ have real workflows; the work below closes their missing actions, durability and
 - The standalone engine (what the desktop runs) now gives every conversation agent its own
   fallback-model extension, and the desktop answers its gate (2026-10-30, validation entry
   "Model fallback in the desktop engine"). Still open:
-  - per-tab agents of the CLI-hosted WebUI (`packages/cli/src/webui-server/session-agents.ts`,
-    registry default path) still get no fallback extension;
+  - per-tab agents of the CLI-hosted WebUI get their own fallback extension (2026-10-31,
+    `2a289e482`);
   - a fallback hop in a CLI-hosted per-tab agent does not refresh that tab's context window:
     the host's updater is process-wide and serves the leader (in the standalone engine each
     desktop conversation is the leader, so its hops and restores do refresh it, 2026-10-30);
