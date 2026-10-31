@@ -5816,3 +5816,28 @@ staged; the other session's edits stay untouched.
 - Not covered: `leader_tier_set`'s economic and dwell guards, which the CLI feeds from
   `ctx.pct` and turn counts (the engine omits those optional inputs, so only the structural
   checks apply), and interactive key entry for `provider_key_set` (the engine has no stdin).
+
+### Calm shell and plain screens: clean release acceptance (2026-10-31)
+
+- UI commits `0a37f2320` (shell: icon rail, four pinned project views and a tools launcher, one
+  header row), `ac9c6b78a` (conversation screen), `fe29dfd70` (project tool headings),
+  `f8fe73f7f` (grouped settings, delays in seconds), `cecdb731e` (one frame for project tools,
+  folded goal limits), `03fd39be8` (session cards and project overview).
+- Build: committed tree `03fd39be8` exported with `git archive` to a separate folder, then
+  `bun install --frozen-lockfile`, `bun run build` and `build:native -- --no-bundle`. Portable
+  identity `d90377952f4d-2ccb47f2a8dc`.
+- Command: `bun apps/desktop-v2/tests/native-smoke.mjs --release --bundled [--scope]` for the
+  default suite and the 31 scope flags of the 2026-10-30 pass. First run: 29 of 32. The three
+  failures were stale test expectations, fixed in the test files only:
+  - `recovery` and `usage` waited for the old dotted panel headings;
+  - `default` assumed a light window before its dark capture, and waited for the removed
+    project heading on Project Beta;
+  - `usage` expected one provider answer per prompt. Since `f49a35d7b` the desktop conversation
+    is the leader, so a reply without `<nextsteps>` or `<nextsteps-complete/>` gets the priced
+    next-steps side request; the usage fixture now answers with `<nextsteps-complete/>`.
+  After the fixes `default`, `recovery` and `usage` pass: 32 of 32 on the clean release build.
+- The engine-acknowledgement timeouts (15 s) seen twice in long debug-mode default runs did not
+  occur on the clean release build. The debug engine runs from the working tree, which held
+  another session's uncommitted core changes at the time, so that combination is unattributed.
+- Debug-mode fixtures fixed on the way: the clarify and background-process fixtures (`ff43fe662`)
+  and the roster edge count (waits for React Flow to draw).
