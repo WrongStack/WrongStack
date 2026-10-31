@@ -1,6 +1,6 @@
 import { ArrowLeft, Coins, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DelegationRecord } from './delegations';
+import { type DelegationRecord, withWorkerEstimates } from './delegations';
 import type { EngineCommand } from './engine-operations';
 import { SessionDelegations } from './SessionDelegations';
 import {
@@ -14,6 +14,19 @@ import {
   usageSnapshot,
 } from './session-usage-model';
 import './session-usage.css';
+
+/** The estimate above plus the engine's estimates for this conversation's workers. */
+function WorkerTotal({ combined }: { combined: ReturnType<typeof withWorkerEstimates> }) {
+  if (!combined) return null;
+  return (
+    <p className="usage-worker-total">
+      With worker delegations: <strong>{usageMoney(combined.totalUsd)}</strong> ({combined.priced}{' '}
+      priced {combined.priced === 1 ? 'worker' : 'workers'}
+      {combined.unpriced ? `; ${combined.unpriced} without a cost estimate are not included` : ''}
+      ).
+    </p>
+  );
+}
 
 function PromptCard({
   label,
@@ -327,6 +340,9 @@ export function SessionUsage({
             {snapshot.pricing && (
               <>
                 <p>Known priced components: {usageMoney(snapshot.pricing.knownCostUsd)}</p>
+                <WorkerTotal
+                  combined={withWorkerEstimates(snapshot.pricing.estimateUsd, delegations)}
+                />
                 <div className="usage-table-scroll">
                   <table>
                     <thead>

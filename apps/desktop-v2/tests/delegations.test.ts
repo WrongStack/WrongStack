@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DELEGATION_LIMIT, delegationTotals } from '../src/delegations';
+import { DELEGATION_LIMIT, delegationTotals, withWorkerEstimates } from '../src/delegations';
 import { emptyEngineState, reduceEngine } from '../src/engine-state';
 
 const start = reduceEngine(emptyEngineState, {
@@ -49,5 +49,32 @@ describe('worker delegations', () => {
       payload: { sessionId: 's1', provider: 'p', model: 'm', reset: true },
     });
     expect(state.delegations).toEqual([]);
+  });
+});
+
+describe('conversation estimate with workers', () => {
+  const worker = (id: string, costUsd: number | null) => ({
+    id,
+    target: 'coder',
+    task: '',
+    ok: true,
+    status: 'done',
+    summary: '',
+    durationMs: 0,
+    iterations: 1,
+    toolCalls: 0,
+    costUsd,
+  });
+
+  it('adds the priced workers and counts the unpriced ones apart', () => {
+    expect(
+      withWorkerEstimates(0.5, [worker('a', 0.25), worker('b', null), worker('c', 0.1)]),
+    ).toEqual({ totalUsd: 0.85, priced: 2, unpriced: 1 });
+  });
+
+  it('has no total without a conversation estimate or any priced worker', () => {
+    expect(withWorkerEstimates(undefined, [worker('a', 0.25)])).toBeNull();
+    expect(withWorkerEstimates(0.5, [worker('b', null)])).toBeNull();
+    expect(withWorkerEstimates(0.5, [])).toBeNull();
   });
 });

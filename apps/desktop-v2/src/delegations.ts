@@ -67,3 +67,20 @@ export function delegationTotals(records: readonly DelegationRecord[]) {
     unpriced: records.length - priced.length,
   };
 }
+
+/**
+ * The conversation's estimate plus its workers' estimates. Null without a conversation estimate
+ * or without any priced worker: an unpriced worker is never counted as free.
+ */
+export function withWorkerEstimates(
+  conversationUsd: number | null | undefined,
+  records: readonly DelegationRecord[],
+): { totalUsd: number; priced: number; unpriced: number } | null {
+  const totals = delegationTotals(records);
+  if (typeof conversationUsd !== 'number' || totals.costUsd === null) return null;
+  return {
+    totalUsd: conversationUsd + totals.costUsd,
+    priced: totals.count - totals.unpriced,
+    unpriced: totals.unpriced,
+  };
+}
