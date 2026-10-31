@@ -5454,6 +5454,18 @@ staged; the other session's edits stay untouched.
 - Cost: every response was priced at $0 because the catalog entry for this coding-plan model
   carries a zero price (a model without a catalog price would have been counted as unpriced and
   stopped the cost-limited run). So the run proved the pricing path, not a non-zero estimate.
-- Not exercised with the real model: a failed verification followed by a repair, a cost limit
-  actually reached, delegations and SAGE injection.
+- Repair path (`run.mjs --repair`): the `typecheck` script also runs a release check under
+  `node_modules/.release-check` that the task never mentions (the model ran `check.mjs` itself in
+  a first attempt and fixed what it showed, so the extra requirement had to be out of its sight).
+  PASS: attempt 0 failed with the release check's output, the phase repair pass added
+  `subtract`, attempt 1 passed (51 s, 151,723 tokens).
+- Conversation (`conversation.mjs`): a real turn produced `memory.context_snapshot` frames on
+  every request and one `memory.injector_run` (`empty`, 0 candidates in the fresh project), the
+  frames the desktop's "Memory in context" section reads.
+- Gap found: the standalone engine registers no `delegate` tool. Asked to delegate, the model
+  reported it could not find one among 106 tools and read the file itself. The tool needs the
+  Director (`MultiAgentHost`, roster, subagent sessions, delegation tracker), which only the CLI
+  host builds (`packages/cli/src/fleet`). Desktop "Worker delegations" therefore stays empty for
+  desktop conversations until that layer is shared; the user chose to extract it.
+- Not exercised with the real model: a cost limit actually reached.
 
