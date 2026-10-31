@@ -5850,8 +5850,8 @@ staged; the other session's edits stay untouched.
   `index === 0` for turns), prices both models from the catalog (`catalogProviderIdFor`), and
   prices the switch from the calling conversation's own model instead of the profile default.
   A conversation's dwell window starts at its own switch, so its first switch is not held back,
-  as the tool's contract states. (The CLI counts the dwell from session start, so its first
-  switch waits `dwellTurns` turns; left unchanged.)
+  as the tool's contract states. (The CLI counted the dwell from session start, so its first
+  switch waited `dwellTurns` turns; it now starts at the first switch too, see the next entry.)
 - The tier tool's per-conversation inputs receive the caller's context (optional; the CLI is
   unchanged) and a `getCurrentModel` input names the model the economic guard prices from.
 - Tests: `management-tools.test.ts` — dwell held per conversation after its own switch and not
@@ -5961,3 +5961,11 @@ staged; the other session's edits stay untouched.
 - Tests: `delegations.test.ts` (sum of the priced workers with the unpriced counted apart; no
   total without a conversation estimate or any priced worker). Desktop 687 tests pass; typecheck
   clean. Not exercised natively (the usage fixture has no worker delegations).
+
+### CLI tier dwell starts at the first switch (2026-10-31)
+
+- The CLI's `leader_tier_set` counted the dwell window from session start, so the leader's first
+  tier switch waited `dwellTurns` (default 6) turns, against the tool's contract ("a host that
+  does not track switches must not be permanently blocked"). The count is now unknown until the
+  first switch, as in the engine. Test: `management-tools-wiring.test.ts` (no count before a
+  switch, 0 right after, 1 a turn later; fails against the previous wiring).
