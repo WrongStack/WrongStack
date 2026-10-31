@@ -5791,3 +5791,28 @@ staged; the other session's edits stay untouched.
   (`favorite_manage`, fallback chain/profile management, `agent_model_assign`,
   `provider_manage`, `provider_key_set`, `leader_model_set`, `model_tier_set`,
   `system_config_view`).
+
+### Leader management tools in the engine (2026-10-31)
+
+- Gap: the engine registered none of the CLI leader's provider/model/fallback management tools
+  (`leader_model_set`, `leader_tier_set`, `provider_manage`, `provider_key_set`,
+  `favorite_manage`, `fallback_chain_manage`, `fallback_profile_manage`,
+  `agent_model_assign`, `system_config_view`). They are now registered after the routes
+  (`management-tools.ts`, wired in `start-webui-wiring.ts`), honouring `tools.disabledTools`.
+  Writes use the engine's serialized, encryption-preserving config writer and apply to the live
+  config at once. The live switch receives the calling conversation's tool context, so the
+  leader switches its own tab through the `model.switch` path; the CLI ignores the argument.
+- Tests: `management-tools.test.ts` (real tools: registration, switch of the calling tab then
+  persist and apply, no change when the switch fails, live apply of a favorites write, disabled
+  tools), `start-webui-wiring.test.ts` (registration with the per-tab switch; failed before),
+  tools `fallback-manage-tools.test.ts` (context passed). Tools 5498 tests and engine 3420 tests
+  pass apart from two timing failures under full-suite load that pass alone
+  (`codebase-go-py-toolchain-parsers` 8/8; earlier `project-history-search` 5/5). Commit
+  `55a756d2c`.
+- Real Z.AI (`effort.mjs model`): on `glm-5.3-flash` the leader called `leader_model_set`
+  (`zai-coding-plan/glm-5.3`); the next request of the same turn went to `glm-5.3`,
+  `session.start` announced it for that session, the next turn stayed on it and the temp profile
+  recorded `zai-coding-plan/glm-5.3`.
+- Not covered: `leader_tier_set`'s economic and dwell guards, which the CLI feeds from
+  `ctx.pct` and turn counts (the engine omits those optional inputs, so only the structural
+  checks apply), and interactive key entry for `provider_key_set` (the engine has no stdin).

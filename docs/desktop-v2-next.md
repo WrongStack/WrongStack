@@ -336,9 +336,9 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
   switching (2026-10-29).
 - Session reasoning mode/preserve controls follow the catalog's documented policy (2026-10-30);
   Z.AI GLM-5.3's effort levels and a leader's own override and reset reach the real wire
-  (2026-10-31); prove other providers' vocabularies against real models. The engine still lacks
-  the CLI's other leader management tools (`leader_model_set`, `provider_manage`, fallback
-  chain/profile management and the rest of `createFallbackManageTools`). Do not manufacture
+  (2026-10-31); prove other providers' vocabularies against real models. The engine now has
+  the CLI leader's management tools (2026-10-31); `leader_tier_set` there lacks the CLI's
+  economic and dwell inputs. Do not manufacture
   support when the provider reports unknown.
 - Finish active worker assignment/topology and actual execution of session-owned model plans.
   Plan drafts are durable per session and saves are refused when the plan changed since it
