@@ -5861,5 +5861,27 @@ staged; the other session's edits stay untouched.
   5515 tests pass. The engine suite's one failure was the error-message parity check against the
   earlier `55a756d2c`; the switch error now goes through `toErrorMessage`, and the check passes.
   Commit `963137eb2`.
-- Not covered: a real-model tier switch through the desktop (needs a tiered profile), and a
-  user-facing surface for `propose` mode proposals in the desktop.
+- Not covered: a real-model tier switch through the desktop (needs a tiered profile). The
+  `propose`-mode surface followed in `ba4f9ae8f` / `10624c13b` (next entry).
+
+### Proposed leader tiers reach the conversation (2026-10-31)
+
+- Gap: in `propose` mode (the default) `leader_tier_set` hands its verdict to the host and
+  changes nothing, but no surface listened (CLI, WebUI and desktop alike), so a proposal lived
+  only in the tool result. The engine now broadcasts `model.tier_proposed` (new server message
+  type) tagged with the proposing conversation (`ba4f9ae8f`).
+- Desktop: a notice above the composer names the tier, its model, the leader's reason and the
+  projected saving, with **Switch to <tier>**, which switches this conversation through the
+  existing `model.switch` request and closes on `model.switch_result`; dismissing keeps the
+  model. Notices can carry one engine action (`10624c13b`). WebUI: the conversation gets a
+  message saying the model was not changed, plus a toast; its model picker applies it.
+- Tests: engine `management-tools.test.ts` (a propose verdict reaches the calling conversation
+  and no switch happens), desktop `conversation-notices.test.ts` (the notice and its action; an
+  incomplete proposal shows nothing), WebUI `ws-handlers-session-provider.test.ts` (handler
+  registered, message and toast), `protocol-contract.test.ts` (317 server types),
+  `ws-twoway-completeness.test.ts` (the new type has a client handler). Desktop 684 tests, WebUI
+  hook tests 1197, webui-protocol 261 pass; typecheck clean for tools, webui-server, webui, cli
+  and the desktop.
+- Limits: accepting through `model.switch` does not record the tier in the engine's tier state,
+  so `leader_tier_set show` still reports no active tier and the dwell window does not start;
+  the native click-through is not exercised.
