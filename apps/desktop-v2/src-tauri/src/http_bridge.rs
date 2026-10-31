@@ -62,21 +62,9 @@ impl EngineHttp {
             .request(Method::from_bytes(method.as_bytes()).map_err(err)?, url)
             .header("x-ws-token", &self.token)
             .header("accept", "application/json");
-        // Single-dependency research has a canonical 60-second server deadline.
-        // Preserve it rather than abandoning an accepted request after 30 seconds.
         let path = resource.split('?').next().unwrap_or_default();
-        if method == "POST"
-            && path.starts_with("/api/techstack/deps/")
-            && path.ends_with("/research")
-        {
-            request = request.timeout(Duration::from_secs(75));
-        }
-        if method == "POST" && ["/api/deadcode/scan", "/api/deadcode/preview"].contains(&path) {
-            request = request.timeout(Duration::from_secs(300));
-        }
-        if method == "POST" && path == "/api/deadcode/apply" {
-            // Verification can run several workspace typechecks (10 minutes each).
-            request = request.timeout(Duration::from_secs(3600));
+        if let Some(deadline) = server_deadline(method, path) {
+            request = request.timeout(deadline);
         }
         if !body.is_null() {
             if serde_json::to_vec(body).map_err(err)?.len() > 128 * 1024 {
@@ -125,6 +113,35 @@ impl EngineHttp {
         };
         Ok(json!({"status":status,"ok":(200..300).contains(&status),"data":data}))
     }
+}
+
+/// Requests whose server deadline is longer than the default 30 seconds keep that deadline,
+/// rather than abandoning an accepted request the engine is still completing.
+fn server_deadline(method: &str, path: &str) -> Option<Duration> {
+    if method != "POST" {
+        return None;
+    }
+    // Single-dependency research has a canonical 60-second server deadline.
+    if path.starts_with("/api/techstack/deps/") && path.ends_with("/research") {
+        return Some(Duration::from_secs(75));
+    }
+    if ["/api/deadcode/scan", "/api/deadcode/preview"].contains(&path) {
+        return Some(Duration::from_secs(300));
+    }
+    if path == "/api/deadcode/apply" {
+        // Verification can run several workspace typechecks (10 minutes each).
+        return Some(Duration::from_secs(3600));
+    }
+    // Pull-request operations call GitHub under a two-minute deadline, and publication waits
+    // for the PR view to show an updated head; a retry of the same plan is idempotent.
+    if let Some(rest) = path.strip_prefix("/api/automation/runs/") {
+        if let Some((_, operation)) = rest.split_once("/pr/") {
+            if ["prepare", "publish", "check", "follow-up"].contains(&operation) {
+                return Some(Duration::from_secs(150));
+            }
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -245,6 +262,28 @@ mod tests {
         assert!(bridge
             .request("CONNECT", "/api/jobs", &Value::Null, "selected", None)
             .is_err());
+    }
+    #[test]
+    fn keeps_server_deadlines_longer_than_the_default_timeout() {
+        let run = "/api/automation/runs/7e16130e-4876-4251-8629-7b7cfad7db35";
+        for operation in ["prepare", "publish", "check", "follow-up"] {
+            assert_eq!(
+                server_deadline("POST", &format!("{run}/pr/{operation}")),
+                Some(Duration::from_secs(150))
+            );
+        }
+        assert_eq!(server_deadline("GET", &format!("{run}/pr")), None);
+        assert_eq!(server_deadline("POST", &format!("{run}/cancel")), None);
+        assert_eq!(server_deadline("POST", &format!("{run}/pr/other")), None);
+        assert_eq!(
+            server_deadline("POST", "/api/techstack/deps/react/research"),
+            Some(Duration::from_secs(75))
+        );
+        assert_eq!(
+            server_deadline("POST", "/api/deadcode/apply"),
+            Some(Duration::from_secs(3600))
+        );
+        assert_eq!(server_deadline("POST", "/api/automation/state"), None);
     }
     #[test]
     fn reads_markdown_only_for_the_report_api_and_keeps_json_validation_elsewhere() {
