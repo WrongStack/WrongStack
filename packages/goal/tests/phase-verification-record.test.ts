@@ -43,6 +43,22 @@ describe('phase verification record', () => {
       expect.objectContaining({ attempt: 1, ok: true }),
     ]);
   });
+  it('records a check that found nothing to run as skipped', async () => {
+    const graph = await singlePhase();
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: {
+        executeTask: async () => {},
+        verifyPhase: async () => ({ ok: true, skipped: true, output: 'verify skipped' }),
+      },
+      autonomous: false,
+    });
+    await orch.start();
+    const phase = Array.from(graph.phases.values())[0]!;
+    expect(phase.metadata?.['verificationAttempts']).toEqual([
+      expect.objectContaining({ attempt: 0, ok: true, skipped: true, output: 'verify skipped' }),
+    ]);
+  });
   it('bounds the stored output', async () => {
     const graph = await singlePhase();
     const orch = new PhaseOrchestrator({

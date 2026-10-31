@@ -265,7 +265,12 @@ export interface PhaseExecutionContext {
     | ((
         phase: PhaseNode,
         env?: { cwd?: string | undefined; branch?: string | undefined },
-      ) => Promise<{ ok: boolean; output?: string | undefined }>)
+      ) => Promise<{
+        ok: boolean;
+        output?: string | undefined;
+        /** The checker found nothing to run (e.g. no scripts or no installed dependencies). */
+        skipped?: boolean | undefined;
+      }>)
     | undefined;
   /**
    * Optional repair pass. When `verifyPhase` fails, it is called with the

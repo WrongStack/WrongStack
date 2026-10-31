@@ -75,7 +75,7 @@ const VERIFY_ATTEMPT_LIMIT = 10;
 function recordVerification(
   phase: PhaseNode,
   attempt: number,
-  verdict: { ok: boolean; output?: string | undefined },
+  verdict: { ok: boolean; output?: string | undefined; skipped?: boolean | undefined },
 ): void {
   const previous = Array.isArray(phase.metadata?.['verificationAttempts'])
     ? (phase.metadata['verificationAttempts'] as unknown[])
@@ -89,6 +89,8 @@ function recordVerification(
       {
         attempt,
         ok: verdict.ok,
+        // A skipped check passed only because nothing could be checked.
+        ...(verdict.skipped ? { skipped: true } : {}),
         at: Date.now(),
         ...(verdict.output ? { output: verdict.output.slice(-VERIFY_OUTPUT_LIMIT) } : {}),
       },
@@ -115,7 +117,7 @@ export async function runPhaseVerifyGate(
     if (isStopped()) return { ok: false, output: 'stopped before verification completed' };
 
     int.emit('phase.verifying', { phaseId: phase.id, name: phase.name, attempt });
-    let verdict: { ok: boolean; output?: string | undefined };
+    let verdict: { ok: boolean; output?: string | undefined; skipped?: boolean | undefined };
     try {
       verdict = await int.ctx.verifyPhase(phase, env);
     } catch (err) {
