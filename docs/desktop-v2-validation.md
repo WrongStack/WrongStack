@@ -5656,3 +5656,27 @@ staged; the other session's edits stay untouched.
   the host account that stores the profile key.
 - Checks: runtime 38 files / 397 tests, typecheck clean, architecture health PASS.
 
+### Repair loop against real GitHub Actions (2026-10-31)
+
+- Setup: the sandbox's `main` gained `.github/workflows/ci.yml` (commit `72434cc`) with two jobs:
+  `node test.mjs`, and "mean of an empty list throws RangeError", whose failing step is named
+  "mean([]) must throw RangeError('mean of an empty list')". Both failed on `main`, as the bug is
+  there. The job prompt still asks only to make `node test.mjs` pass.
+- Run `796778b2` fixed the off-by-one only; draft PR #3 (head `98684ee`). Actions ran on the PR:
+  `node test.mjs` passed, the edge-case job failed; `pr-check` reported `failed` from those real
+  check runs.
+- First repair (`a2e02d1c`, from `pr-follow-up`): the agent added an empty-list `RangeError` with
+  its own message. The update of PR #3 (`7b8aa5f`) published on the first attempt (7 s, the
+  lagging-head wait included) and Actions failed again: the agent had only the job name. A
+  GitHub Actions check run carries no output summary or text (`details` was empty).
+- Change: for a failing `github-actions` check without output, `pr-check` reads that job, only
+  when it names the published head, and its failure annotations, and records the failed step
+  names and those messages in the bounded, untrusted details (`automation-pull-request.test.ts`,
+  recorded live shape; failed before the change). Commit `e37898b02`.
+- Second repair (`2f44cce8`): the feedback named "Failed step: mean([]) must throw
+  RangeError('mean of an empty list')"; the agent used that exact message; the PR #3 update
+  `b2a36af` passed both Actions jobs and CodeRabbit, and `pr-check` reported `passed`.
+- Checks: runtime 38 files / 398 tests, typecheck clean, architecture health PASS.
+- Not covered: job logs (the logs API answers with a redirect to another origin, which the
+  GitHub client refuses by design), and check suites from other CI apps without output text.
+

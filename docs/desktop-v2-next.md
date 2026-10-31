@@ -393,13 +393,13 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 ### P2: automation, MCP and supporting runtime tools
 
 - Automations already have structured management/environment/evidence/publication interfaces.
-  Finish service/health/cache lifecycle and restart behavior (a worker killed during a real run
-  is recovered as interrupted and its credentialed container removed, 2026-10-31; a real Docker run with a profile
-  credential, independent checks, PR prepare, publish and check to a private repository passed,
-  2026-10-31; a CI repair from a real failing commit status then updated that same draft PR,
-  2026-10-31; the desktop's publication requests over the engine opened a second draft PR,
-  2026-10-31); CI follow-up against real hosted jobs (GitHub Actions), native click-through of
-  `AutomationPublication.tsx`; signed GitHub delivery (two-run comparison from recorded results exists, 2026-10-29); event
+  Real runs on 2026-10-31 passed: a Docker run with a profile credential through independent
+  checks, PR prepare, publish and check to a private repository; CI repair loops that updated the
+  same draft PR, ending green against real GitHub Actions jobs; the desktop's publication
+  requests over the engine; and a worker killed mid-run, recovered as interrupted with its
+  credentialed container removed. Still open: service/health/cache lifecycle, native
+  click-through of `AutomationPublication.tsx`, signed GitHub delivery (two-run comparison from
+  recorded results exists, 2026-10-29), event
   sample authoring and durable secondary forms. Successful management requests do not establish
   successful external runs. Jobs can be deleted at their reviewed revision (2026-10-29).
 - MCP still needs advanced policy administration and native OAuth acceptance against a real
