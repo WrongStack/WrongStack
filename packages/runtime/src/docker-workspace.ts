@@ -182,8 +182,24 @@ export interface DockerWorkspaceResult {
     | undefined;
 }
 
-const SETUP =
-  'git init -q && git config user.name WrongStack && git config user.email sandbox@wrongstack.invalid && git add -A && git commit --allow-empty -qm "Workspace snapshot" && git rev-parse HEAD';
+/**
+ * Commits the copied project as the container's source snapshot. A Windows host has no
+ * executable bit and `docker cp` marks every copied file 0755, so the snapshot ignores file
+ * modes there, as Git for Windows does; otherwise the source tree (all 100755) could never
+ * match the host's committed tree and no run could prepare a pull request.
+ */
+function workspaceSnapshotSetup(hostPlatform: NodeJS.Platform): string {
+  return [
+    'git init -q',
+    'git config user.name WrongStack',
+    'git config user.email sandbox@wrongstack.invalid',
+    ...(hostPlatform === 'win32' ? ['git config core.fileMode false'] : []),
+    'git add -A',
+    'git commit --allow-empty -qm "Workspace snapshot"',
+    'git rev-parse HEAD',
+  ].join(' && ');
+}
+const SETUP = workspaceSnapshotSetup(process.platform);
 const PATCH = 'git add -A && git diff --cached --binary --no-ext-diff HEAD --';
 
 /**
@@ -427,18 +443,10 @@ export async function runDockerWorkspace(
       ]);
       const inject =
         'const fs=require("node:fs"),p=require("node:path");const base="/home/node/.wrongstack";const profile=p.join(base,"profiles/default");for(const v of [base,p.join(base,"profiles"),profile,p.join(profile,"config.json"),p.join(base,"config.json")]){try{if(fs.lstatSync(v).isSymbolicLink())throw new Error("Credential configuration path is a symlink")}catch(e){if(e.code!=="ENOENT")throw e}}fs.mkdirSync(profile,{recursive:true,mode:448});let cfg={};try{cfg=JSON.parse(fs.readFileSync(p.join(profile,"config.json"),"utf8"))}catch(e){if(e.code!=="ENOENT")throw e}const providers=JSON.parse(fs.readFileSync("/tmp/wrongstack-provider-config.json","utf8"));fs.writeFileSync(p.join(profile,"config.json"),JSON.stringify({...cfg,version:1,providers:{...cfg.providers,...providers}}),{mode:384});fs.chmodSync(p.join(profile,"config.json"),384);if(!fs.existsSync(p.join(base,"config.json")))fs.writeFileSync(p.join(base,"config.json"),JSON.stringify({version:1,activeProfile:"default"}),{mode:384});fs.unlinkSync("/tmp/wrongstack-provider-config.json");';
+      // Runs as the workspace user (1000), so everything it writes is already owned by that
+      // user. No root re-own afterwards: with every capability but CHOWN dropped, root cannot
+      // read the 0700 directories this creates, and `chown -R` there fails.
       await run(['exec', name, 'node', '-e', inject]);
-      await run([
-        'exec',
-        '--user',
-        '0:0',
-        name,
-        'chown',
-        '-R',
-        '--no-dereference',
-        '1000:1000',
-        '/home/node/.wrongstack',
-      ]);
     }
     const initial = await run(
       ['exec', '--workdir', '/workspace', name, '/bin/sh', '-c', SETUP],

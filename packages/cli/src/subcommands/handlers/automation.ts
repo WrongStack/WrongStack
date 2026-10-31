@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, unlink } from 'node:fs/promises';
+import { mkdir, readFile, realpath, unlink } from 'node:fs/promises';
 import * as path from 'node:path';
 import {
   atomicWrite,
@@ -18,11 +18,11 @@ import {
 } from '@wrongstack/runtime';
 import {
   exportAutomationJob,
+  exportEnvironmentProfile,
   importAutomationJob,
   parseAutomationCommands,
-  VERSIONED_AUTOMATION_TEMPLATES,
   parseEnvironmentProfile,
-  exportEnvironmentProfile,
+  VERSIONED_AUTOMATION_TEMPLATES,
 } from '@wrongstack/webui-protocol';
 import type { SubcommandHandler } from '../contracts.js';
 import { resolveAutomationCredentialBundle } from './automation-credentials.js';
@@ -112,9 +112,15 @@ export const automationCmd: SubcommandHandler = async (args, deps) => {
       const id = args[1];
       if (!id) throw new Error('Automation run ID is required');
       const run = (await store.snapshot()).runs.find((item) => item.id === id);
-      if (!run || path.resolve(run.job.projectRoot) !== path.resolve(deps.projectRoot))
+      // The store records each job's real path; resolve this project the same way so a
+      // differently cased shell path (`d:\...` vs `D:\...` on Windows) names the same project.
+      const root = await realpath(deps.projectRoot).catch(() => undefined);
+      if (!run || root === undefined || path.resolve(run.job.projectRoot) !== root)
         throw new Error('Automation run not found in this project');
       const requests = new AutomationPullRequests(store);
+      // `--plan` is also a global boolean switch (modeldiag), so `--plan <fingerprint>` leaves
+      // the fingerprint as the positional after the run id; `--plan=<fingerprint>` keeps it.
+      const planFingerprint = value('plan') ?? (flags['plan'] === true ? args[2] : undefined);
       const result =
         action === 'pr-prepare'
           ? await requests.prepare(id, {
@@ -123,7 +129,7 @@ export const automationCmd: SubcommandHandler = async (args, deps) => {
               title: value('title') ?? '',
             })
           : action === 'pr-publish'
-            ? await requests.publish(id, value('plan') ?? '')
+            ? await requests.publish(id, planFingerprint ?? '')
             : action === 'pr-check'
               ? await requests.check(id)
               : action === 'pr-follow-up'

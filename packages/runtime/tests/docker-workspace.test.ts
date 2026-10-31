@@ -147,6 +147,50 @@ describe('Docker workspace ownership', () => {
     expect(result.patch).toContain('diff --git');
     expect(await readFile(path.join(dir, 'original.txt'), 'utf8')).toBe('unchanged');
   });
+  it('injects profile credentials as the workspace user, never re-owning that 0700 home as root', async () => {
+    // Real Docker: the container drops every capability but CHOWN, so root cannot read the
+    // 0700 credential home that the workspace user (1000) creates. A root `chown -R` there
+    // fails with "Permission denied", which stopped every --credential job before it ran.
+    const { dir, runner, calls } = await fixture();
+    let homeOwnedBy1000 = false;
+    const wrapped: DockerCommandRunner = async (args, opts) => {
+      const asRoot = args[0] === 'exec' && args[1] === '--user' && args[2] === '0:0';
+      if (args[0] === 'exec' && !asRoot && args.includes('node')) homeOwnedBy1000 = true;
+      if (asRoot && homeOwnedBy1000 && args.includes('chown') && args.includes('-R'))
+        return {
+          code: 1,
+          stdout: '',
+          stderr: "chown: cannot read directory '/home/node/.wrongstack': Permission denied",
+        };
+      return runner(args, opts);
+    };
+    const result = await runDockerWorkspace({
+      projectRoot: dir,
+      image: 'trusted:1',
+      command: 'wstack',
+      providerConfigs: { 'zai-coding-plan': { type: 'zai-coding-plan', apiKey: 'test-key' } },
+      runner: wrapped,
+    });
+    expect(result.exitCode).toBe(0);
+    const inject = calls.find((a) => a[0] === 'exec' && a.includes('node'))!;
+    expect(inject.slice(0, 3)).not.toEqual(['exec', '--user', '0:0']);
+    // The key travels through a container file, never the command line.
+    expect(calls.some((a) => a.join(' ').includes('test-key'))).toBe(false);
+  });
+  it('records the snapshot without executable bits a Windows host never had', async () => {
+    // `docker cp` from NTFS marks every file 0755. Recorded as 100755, the source tree never
+    // matched the host's committed tree, so no run from a Windows host could prepare a PR.
+    // A POSIX host keeps real executable bits, so only a Windows host turns modes off.
+    const { dir, runner, calls } = await fixture();
+    await runDockerWorkspace({ projectRoot: dir, image: 'trusted:1', command: 'wstack', runner });
+    const setup = calls.map((a) => a.at(-1) ?? '').find((cmd) => cmd.startsWith('git init'))!;
+    if (process.platform === 'win32') {
+      expect(setup).toContain('git config core.fileMode false');
+      expect(setup.indexOf('core.fileMode false')).toBeLessThan(setup.indexOf('git add -A'));
+    } else {
+      expect(setup).not.toContain('core.fileMode');
+    }
+  });
   it('forwards only explicitly selected host environment values to Docker', async () => {
     vi.stubEnv('BUGHUNT_SELECTED_TOKEN', 'selected-value');
     vi.stubEnv('BUGHUNT_UNSELECTED_TOKEN', 'must-not-leak');

@@ -48,6 +48,80 @@ describe('headless dry run commands', () => {
     expect(await automationCmd(['pr-view', run.id], deps)).toBe(1);
     expect(write.mock.calls.flat().join('')).toContain('not found in this project');
   });
+  it('publishes with the fingerprint given as `--plan <fingerprint>`', async () => {
+    // `--plan` is also a global boolean switch (modeldiag), so the parser leaves the
+    // fingerprint as a positional; the documented form must still reach the publish check.
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-preview-'));
+    directories.push(dir);
+    const runtime = await import('@wrongstack/runtime');
+    const store = new runtime.AutomationStore(path.join(dir, 'state'));
+    const job = await store.add({
+      name: 'review',
+      projectRoot: dir,
+      image: 'trusted:1',
+      prompt: 'Fix',
+      envNames: [],
+      yolo: false,
+      enabled: true,
+      timeoutMs: 1000,
+    });
+    const run = await store.enqueue(job.id);
+    const fingerprint = 'f'.repeat(64);
+    const publish = vi
+      .spyOn(runtime.AutomationPullRequests.prototype, 'publish')
+      .mockResolvedValue({ plan: null, receipt: null, ci: null });
+    try {
+      const { parseArgs } = await import('../../src/arg-parser.js');
+      const parsed = parseArgs([
+        'automation',
+        'pr-publish',
+        run.id,
+        '--plan',
+        fingerprint,
+        '--data-dir',
+        store.directory,
+      ]);
+      const deps = {
+        renderer: { write: vi.fn() },
+        projectRoot: dir,
+        flags: parsed.flags,
+      } as unknown as SubcommandDeps;
+      expect(await automationCmd(parsed.positional.slice(1), deps)).toBe(0);
+      expect(publish).toHaveBeenCalledWith(run.id, fingerprint);
+    } finally {
+      publish.mockRestore();
+    }
+  });
+  it.runIf(process.platform === 'win32')(
+    'finds the run when the shell spells the same project root in another case',
+    async () => {
+      // The store records the real path; a shell cwd of `d:\...` vs `D:\...` (or any differently
+      // cased segment) is the same project and must not hide its runs.
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-preview-'));
+      directories.push(dir);
+      const { AutomationStore } = await import('@wrongstack/runtime');
+      const store = new AutomationStore(path.join(dir, 'state'));
+      const job = await store.add({
+        name: 'review',
+        projectRoot: dir,
+        image: 'trusted:1',
+        prompt: 'Fix',
+        envNames: [],
+        yolo: false,
+        enabled: true,
+        timeoutMs: 1000,
+      });
+      const run = await store.enqueue(job.id);
+      const write = vi.fn();
+      const deps = {
+        renderer: { write },
+        projectRoot: dir.toUpperCase(),
+        flags: { 'data-dir': store.directory },
+      } as unknown as SubcommandDeps;
+      expect(await automationCmd(['pr-view', run.id], deps)).toBe(0);
+      expect(write.mock.calls.flat().join('')).not.toContain('not found in this project');
+    },
+  );
   it.each([true, ''])(
     'refuses --verify=%j instead of silently creating an unverified job',
     async (verify) => {
@@ -134,7 +208,9 @@ describe('headless dry run commands', () => {
     });
   });
 });
+
 import { exportEnvironmentProfile } from '@wrongstack/webui-protocol';
+
 describe('environment profile CLI', () => {
   it('loads a reusable profile without starting Docker or persisting preview state', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-preview-'));

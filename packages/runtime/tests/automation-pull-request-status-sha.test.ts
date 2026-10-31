@@ -9,7 +9,7 @@ describe('AutomationPullRequests legacy status identity', () => {
     vi.unstubAllGlobals();
   });
 
-  it('rejects a legacy commit status whose sha differs from the published receipt', async () => {
+  async function check(statusSha: string) {
     const root = await mkdtemp(path.join(process.cwd(), '.temp_files', 'pr-status-sha-'));
     const runId = 'run-1';
     const commit = 'a'.repeat(40);
@@ -44,9 +44,13 @@ describe('AutomationPullRequests legacy status identity', () => {
       }
       if (route.includes('/check-runs?')) return Response.json({ total_count: 0, check_runs: [] });
       if (route.includes('/status?')) {
+        // GitHub's combined status names its commit once, at the top level; the entries carry
+        // no sha of their own (recorded from a live response, 2026-10-31).
         return Response.json({
+          sha: statusSha,
+          state: 'success',
           total_count: 1,
-          statuses: [{ context: 'legacy-ci', state: 'success', sha: 'b'.repeat(40) }],
+          statuses: [{ context: 'CodeRabbit', state: 'success', description: 'Review skipped' }],
         });
       }
       throw new Error(`unexpected route: ${route}`);
@@ -56,8 +60,17 @@ describe('AutomationPullRequests legacy status identity', () => {
       directory: root,
       snapshot: async () => ({ runs: [{ id: runId }] }),
     };
-    await expect(new AutomationPullRequests(store as never).check(runId)).rejects.toThrow(
-      'CI status is invalid',
-    );
+    return new AutomationPullRequests(store as never).check(runId);
+  }
+
+  it('reads a combined status in the shape GitHub returns it', async () => {
+    const view = await check('a'.repeat(40));
+    expect(view.ci?.checks).toEqual([
+      expect.objectContaining({ name: 'CodeRabbit', status: 'completed', conclusion: 'success' }),
+    ]);
+  });
+
+  it('rejects a combined status that names another commit than the published receipt', async () => {
+    await expect(check('b'.repeat(40))).rejects.toThrow('CI status is invalid');
   });
 });

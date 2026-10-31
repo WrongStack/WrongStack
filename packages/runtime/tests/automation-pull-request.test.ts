@@ -210,7 +210,9 @@ function github(f: Awaited<ReturnType<typeof fixture>>) {
               : remote.checks.slice((page - 1) * 100, page * 100),
         });
       if (route.includes('/status?'))
+        // GitHub's combined status: the commit at the top level, entries without a sha.
         return reply({
+          sha: remote.commit,
           total_count: remote.statuses.length,
           statuses: remote.statuses.slice((page - 1) * 100, page * 100),
         });
@@ -330,9 +332,9 @@ describe('verified automation to draft PR', () => {
       { name: 'tests', status: 'completed', conclusion: 'success', head_sha: remote.commit },
     ];
     expect((await f.requests.check(f.run.id)).ci?.status).toBe('passed');
-    remote.statuses = [{ context: 'legacy lint', state: 'pending', sha: remote.commit }];
+    remote.statuses = [{ context: 'legacy lint', state: 'pending' }];
     expect((await f.requests.check(f.run.id)).ci?.status).toBe('pending');
-    remote.statuses = [{ context: 'legacy lint', state: 'failure', sha: remote.commit }];
+    remote.statuses = [{ context: 'legacy lint', state: 'failure' }];
     expect((await f.requests.check(f.run.id)).ci?.status).toBe('failed');
     remote.statuses = [];
     remote.checkHead = 'f'.repeat(40);

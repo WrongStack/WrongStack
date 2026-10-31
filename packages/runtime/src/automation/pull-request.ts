@@ -458,9 +458,12 @@ export class AutomationPullRequests {
             throw new Error('CI check collection is incomplete');
         }
         for (let page = 1; page <= 10; page++) {
+          // The combined status names its commit once, at the top level; its entries carry
+          // no sha, so the identity check binds that top-level sha to the published head.
           const response = await api.request<{
+            sha: string;
             total_count: number;
-            statuses: Array<{ context: string; state: string; sha: string; description?: string }>;
+            statuses: Array<{ context: string; state: string; description?: string }>;
           }>(`${plan.repository}/commits/${receipt.commit}/status?per_page=100&page=${page}`);
           if (
             !response ||
@@ -474,7 +477,7 @@ export class AutomationPullRequests {
             throw new Error('CI status collection is incomplete');
           for (const status of response.statuses) {
             if (
-              status.sha !== receipt.commit ||
+              response.sha !== receipt.commit ||
               typeof status.context !== 'string' ||
               typeof status.state !== 'string'
             )
