@@ -516,7 +516,10 @@ export async function exerciseNativeProjects({
     path: join(artifactDir, 'native-wrongstack-settings.png'),
     fullPage: true,
   });
-  await page.getByRole('button', { name: 'Switch to dark mode', exact: true }).click();
+  // The window may already follow a dark system theme; the dark capture needs dark either way.
+  const dark = page.getByRole('button', { name: 'Switch to dark mode', exact: true });
+  if (await dark.count()) await dark.click();
+  await page.getByRole('button', { name: 'Switch to light mode', exact: true }).waitFor();
   await page.screenshot({
     path: join(artifactDir, 'native-wrongstack-settings-dark.png'),
     fullPage: true,

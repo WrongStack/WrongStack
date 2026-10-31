@@ -1821,7 +1821,10 @@ try {
       await page.getByRole('dialog').waitFor();
       await page.getByLabel('Search projects and sessions').fill('Project Beta');
       await page.getByRole('dialog').getByRole('button', { name: 'Project Beta' }).click();
-      await page.getByRole('heading', { name: 'Project Beta.' }).waitFor();
+      await page
+        .getByRole('banner')
+        .getByRole('heading', { name: 'Project Beta', exact: true })
+        .waitFor();
       await page.setViewportSize({ width: 800, height: 640 });
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),

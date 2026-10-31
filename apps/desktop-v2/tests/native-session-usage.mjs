@@ -170,7 +170,7 @@ export async function exerciseNativeSessionUsage({
   await panel().getByLabel('Live usage updates', { exact: true }).uncheck();
   await panel().getByRole('button', { name: 'Refresh usage', exact: true }).click();
   await panel()
-    .getByRole('heading', { name: 'Usage & cost.', exact: true })
+    .getByRole('heading', { name: 'Usage & cost', exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(artifactDir, 'native-session-usage.png'), fullPage: true });
   await page.setViewportSize({ width: 800, height: 640 });

@@ -152,7 +152,11 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
           ? 'Build the desktop composer and preserve the requested session boundaries.\n---\nImplement the desktop composer while keeping the requested session boundaries.'
           : composerInstruction.trim().startsWith('[native-composer-nextsteps]')
             ? `${fixtureMarkdown}\n\n<nextsteps>\n1. [native-composer-nextstep-selected] Inspect the result\n2. Run the checks\n</nextsteps>`
-            : fixtureMarkdown;
+            : // A leader turn without either marker gets a priced next-steps side request;
+              // usage proofs count exactly one provider answer per prompt.
+              /^\[native-usage-(cold|warm)\]/.test((userTexts.at(-1) ?? '').trim())
+              ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
+              : fixtureMarkdown;
       calls.push({
         path: request.url,
         authorized: request.headers.authorization === `Bearer ${fixtureKey}`,

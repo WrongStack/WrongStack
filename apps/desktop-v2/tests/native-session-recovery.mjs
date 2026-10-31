@@ -204,7 +204,7 @@ export async function exerciseNativeSessionRecovery({
   assert.equal(beforeRewind.retainedMessageCount, 4);
   assert.equal(beforeRewind.journalTokenTotal, 210);
   await screen
-    .getByRole('heading', { name: 'History & recovery.', exact: true })
+    .getByRole('heading', { name: 'History & recovery', exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(artifactDir, 'native-session-history.png'), fullPage: true });
   await screen
@@ -301,7 +301,7 @@ export async function exerciseNativeSessionRecovery({
     false,
   );
   await screen
-    .getByRole('heading', { name: 'History & recovery.', exact: true })
+    .getByRole('heading', { name: 'History & recovery', exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(artifactDir, 'native-session-recovery.png'), fullPage: true });
   await page.setViewportSize({ width: 800, height: 640 });
