@@ -5951,3 +5951,13 @@ staged; the other session's edits stay untouched.
   backend) 159/159; typecheck clean.
 - Not covered: cache TTL pricing (`cache_write_5m` / `cache_write_1h`), which needs the request's
   cache TTL from the provider.
+
+### Conversation estimate with its workers (2026-10-31)
+
+- The Usage & cost estimate card adds "With worker delegations: $X" when the conversation has an
+  estimate and at least one finished worker has the engine's cost estimate; workers without an
+  estimate are counted and named as not included, never as free (`withWorkerEstimates` in
+  `delegations.ts`). Worker tokens stay out of the conversation's counters, as before.
+- Tests: `delegations.test.ts` (sum of the priced workers with the unpriced counted apart; no
+  total without a conversation estimate or any priced worker). Desktop 687 tests pass; typecheck
+  clean. Not exercised natively (the usage fixture has no worker delegations).
