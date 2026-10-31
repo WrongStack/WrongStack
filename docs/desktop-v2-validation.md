@@ -5485,3 +5485,41 @@ staged; the other session's edits stay untouched.
 - Not covered: environment services, preview ports, an automation job dispatched through the
   engine's automation routes with a model, and restart recovery of a running container.
 
+### Worker delegation in the standalone engine (2026-10-31)
+
+- The CLI's fleet layer (`MultiAgentHost`, routing, ACP/WrongForge runners, companions) moved
+  into the `@wrongstack/fleet` package (`65acf7689`); the CLI imports it from there. Checked:
+  fleet and CLI source typechecks clean; the fleet-related CLI selection 772 passed, 1 skipped
+  (before the move: 737 passed, 1 skipped on 91 files; the difference is the moved test and a new
+  gateway test).
+- `installStandaloneDelegation` (`webui-server`) builds one fleet host per engine and registers
+  `delegate` for the leader (worker tool lists already hide it), with one `DelegationTracker`.
+  It honours `tools.disabledTools`; the engine logs "Worker delegation enabled" or why it is off.
+  Installed ACP agents are offered; WrongForge workers need the CLI's in-process tool gateway and
+  are not.
+- Auto-wake: the engine owns one `LeaderAutoWakeController` (the CLI never boots this path; the
+  ownership guard test now lists it and checks the CLI never imports it) and binds the WebUI
+  auto-wake host to its conversation path (user submit, run end, sessions displayed). Stopping a
+  conversation stops the workers it started; a resumed session gets back undelivered results.
+- Bug found by the real run and fixed: the boot session's leader `Context` had no `agentId`
+  (it read `'unknown'`), so the leader-only delivery drain skipped it. The woken turn received
+  only the "[AUTO-WAKE] … Review and continue." line, no `[DELEGATION RESULT]`, and the model
+  invented an answer. The context is now created as `leader` (CLI parity); the unit test fails
+  without the fix and passes with it.
+- Real Z.AI (`glm-5.3-flash` leader; the router sent the `verifier` worker to
+  `minimax-coding-plan`), `.temp_files/zai-acceptance/with-delegate-home.mjs`. The user's own
+  profile keeps `delegate` in `tools.disabledTools` (a deliberate setting, with a
+  `pre-delegate-disable` backup), so the run used a throwaway `WRONGSTACK_HOME` with copies of
+  the global and profile config and the vault key, `delegate` removed from the copy only; the
+  copy was deleted after each run and the fixture's project daemons were stopped.
+  - Blocking (`wait`): PASS. The worker ran (2 iterations, 1 tool call, 10.8 s) and the leader
+    answered in the same turn.
+  - Background (`--background`): PASS. The first turn ended right after delegating; the worker
+    finished (14.4 s); `delegation.delivery_pending` and `delegation.auto_wake_started` reached
+    the page; a new leader turn started on its own and relayed the worker's finding (`add` and
+    `multiply`), which the acceptance now checks.
+- Checks: `webui-server` 3,429 tests and the CLI architecture tests passed, 0 failed;
+  `webui-server` typecheck clean; architecture health PASS (report regenerated).
+- Not covered: the desktop UI during a real delegation (native tests are batched for the end),
+  ACP workers, and several tabs delegating at once.
+
