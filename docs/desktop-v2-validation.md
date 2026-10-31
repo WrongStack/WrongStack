@@ -5841,3 +5841,25 @@ staged; the other session's edits stay untouched.
   another session's uncommitted core changes at the time, so that combination is unattributed.
 - Debug-mode fixtures fixed on the way: the clarify and background-process fixtures (`ff43fe662`)
   and the roster edge count (waits for React Flow to draw).
+
+### Leader tier guards per conversation in the engine (2026-10-31)
+
+- Gap: the engine's `leader_tier_set` had no context size, turn count or prices, so every switch
+  was judged on the structural checks alone (ceiling, mode). It now keeps one state per
+  conversation fed by the engine's events (`ctx.pct` tokens; `iteration.started` with
+  `index === 0` for turns), prices both models from the catalog (`catalogProviderIdFor`), and
+  prices the switch from the calling conversation's own model instead of the profile default.
+  A conversation's dwell window starts at its own switch, so its first switch is not held back,
+  as the tool's contract states. (The CLI counts the dwell from session start, so its first
+  switch waits `dwellTurns` turns; left unchanged.)
+- The tier tool's per-conversation inputs receive the caller's context (optional; the CLI is
+  unchanged) and a `getCurrentModel` input names the model the economic guard prices from.
+- Tests: `management-tools.test.ts` — dwell held per conversation after its own switch and not
+  for a neighbour; a downgrade refused when that conversation's context exceeds the target
+  window's fill cap while another conversation passes; prices read for the conversation's model,
+  not the profile default. All three fail against the previous engine code and pass now. Tools
+  5515 tests pass. The engine suite's one failure was the error-message parity check against the
+  earlier `55a756d2c`; the switch error now goes through `toErrorMessage`, and the check passes.
+  Commit `963137eb2`.
+- Not covered: a real-model tier switch through the desktop (needs a tiered profile), and a
+  user-facing surface for `propose` mode proposals in the desktop.
