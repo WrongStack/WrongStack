@@ -113,6 +113,7 @@ export {
   validateContextEditorProposal,
 } from './context-editor.js';
 export { seedContextMeta } from './context-meta.js';
+export { installConversationFallback } from './conversation-fallback.js';
 export {
   type ConversationOperationsContext,
   type ConversationRunControl,

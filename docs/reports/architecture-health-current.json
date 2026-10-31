@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T11:03:55.060Z",
+  "generatedAt": "2026-10-31T11:10:42.411Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5553,
-    "testFiles": 4838,
-    "sourceLines": 1218588,
+    "testFiles": 4839,
+    "sourceLines": 1218607,
     "workspaceEdges": 233,
-    "moduleEdges": 16650,
+    "moduleEdges": 16651,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 617,
-      "testFiles": 676,
+      "testFiles": 677,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 676
+          "testFiles": 677
         }
       ]
     },
@@ -7344,6 +7344,12 @@
       },
       {
         "file": "packages/cli/tests/webui-server/cost-helpers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/webui-server/embedded-session-agents-fallback.test.ts",
         "projects": [
           "root-node"
         ]
