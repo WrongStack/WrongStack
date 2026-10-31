@@ -19,6 +19,7 @@ export {
   FAVORITE_MANAGE_TOOL_NAME,
   type FallbackManageToolOptions,
   LEADER_MODEL_SET_TOOL_NAME,
+  type LeaderTierProposal,
   type ManageToolCallerContext,
   PROVIDER_KEY_SET_TOOL_NAME,
   PROVIDER_MANAGE_TOOL_NAME,

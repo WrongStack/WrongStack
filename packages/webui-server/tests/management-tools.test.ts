@@ -96,25 +96,27 @@ describe('leader management tools in the standalone engine', () => {
 
 describe('leader_tier_set guards per conversation', () => {
   // Declaration order is the ladder: budget is the cheaper rung.
-  const tiers = {
+  const tiers = (mode = 'auto') => ({
     modelTiers: {
       enabled: true,
       levels: {
         budget: { provider: 'other', model: 'o-cheap' },
         premium: { provider: 'zai', model: 'glm-big' },
       },
-      leader: { mode: 'auto', dwellTurns: 2 },
+      leader: { mode, dwellTurns: 2 },
     },
-  } as never;
+  });
   const prices: Record<string, { cost: { input: number }; capabilities: { maxContext: number } }> =
     {
       'glm-a': { cost: { input: 0.05 }, capabilities: { maxContext: 200_000 } },
       'glm-big': { cost: { input: 10 }, capabilities: { maxContext: 1_000_000 } },
       'o-cheap': { cost: { input: 0.1 }, capabilities: { maxContext: 100_000 } },
     };
-  function tiered() {
+  function tiered(mode = 'auto') {
     const events = new EventBus();
     const priced: string[] = [];
+    const proposals: Array<[string | undefined, unknown]> = [];
+    const switched: string[] = [];
     const tools: RegisteredTool[] = [];
     let live = {
       provider: 'zai',
@@ -122,7 +124,7 @@ describe('leader_tier_set guards per conversation', () => {
       providers: { zai: { type: 'zai' }, other: { type: 'other' } },
       fallbackModels: [],
       tools: {},
-      ...(tiers as object),
+      ...tiers(mode),
     } as unknown as Config;
     registerEngineManagementTools({
       toolRegistry: { registerDefault: (tool: never) => tools.push(tool) } as never,
@@ -131,7 +133,10 @@ describe('leader_tier_set guards per conversation', () => {
         live = next;
       },
       persist: async () => {},
-      switchModel: async () => {},
+      switchModel: async (_provider, model) => {
+        switched.push(model);
+      },
+      onTierProposed: (sessionId, proposal) => proposals.push([sessionId, proposal]),
       events,
       // Every tab runs the premium model; the profile default is the cheap glm-a.
       sessionModel: () => ({ provider: 'zai', model: 'glm-big' }),
@@ -146,6 +151,8 @@ describe('leader_tier_set guards per conversation', () => {
     const tabCtx = (id: string) => ({ eventSessionId: () => id, session: { id }, meta: {} });
     return {
       priced,
+      proposals,
+      switched,
       turn: (id: string) => events.emit('iteration.started', { index: 0, sessionId: id } as never),
       size: (id: string, tokens: number) =>
         events.emit('ctx.pct', { sessionId: id, tokens, load: 0, maxContext: 0 } as never),
@@ -180,5 +187,20 @@ describe('leader_tier_set guards per conversation', () => {
     await h.set('tab-7', 'budget');
     expect(h.priced).toEqual(expect.arrayContaining(['glm-big', 'o-cheap']));
     expect(h.priced).not.toContain('glm-a');
+  });
+
+  it('hands a propose-mode verdict to the calling conversation without switching', async () => {
+    const h = tiered('propose');
+    await expect(h.set('tab-8', 'budget')).resolves.toMatchObject({ status: 'proposed' });
+    expect(h.switched).toEqual([]);
+    expect(h.proposals).toEqual([
+      [
+        'tab-8',
+        expect.objectContaining({
+          toTier: 'budget',
+          target: { provider: 'other', model: 'o-cheap' },
+        }),
+      ],
+    ]);
   });
 });

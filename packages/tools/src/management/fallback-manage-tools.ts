@@ -40,6 +40,9 @@ import {
   type LeaderEffortSetToolOptions,
 } from './leader-effort-set-tool.js';
 import type { ModelTierSetToolOptions } from './model-tier-set-tool.js';
+
+export type { LeaderTierProposal } from './model-tier-set-tool.js';
+
 import { createModelTierSetTool } from './model-tier-set-tool.js';
 
 export type {

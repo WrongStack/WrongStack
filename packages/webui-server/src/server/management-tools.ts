@@ -17,6 +17,7 @@ import { catalogProviderIdFor } from '@wrongstack/providers';
 import {
   createFallbackManageTools,
   LEADER_EFFORT_SET_TOOL_NAME,
+  type LeaderTierProposal,
   type ManageToolCallerContext,
 } from '@wrongstack/tools/management';
 
@@ -36,6 +37,13 @@ export interface EngineManagementToolsDeps {
    */
   events?: Pick<EventBus, 'on'> | undefined;
   /** The provider and model a conversation runs (its tab may differ from the profile default). */
+  /**
+   * A `propose`-mode tier verdict for a human to accept: the engine tells the conversation's
+   * clients (`model.tier_proposed`). The model is not changed.
+   */
+  onTierProposed?:
+    | ((sessionId: string | undefined, proposal: LeaderTierProposal) => void)
+    | undefined;
   sessionModel?:
     | ((sessionId?: string) => { provider: string; model: string } | undefined)
     | undefined;
@@ -105,6 +113,8 @@ export function registerEngineManagementTools(deps: EngineManagementToolsDeps): 
       const state = tierStates.get(callerSessionId(context) ?? '');
       return state?.switchedAtTurn === undefined ? undefined : state.turns - state.switchedAtTurn;
     },
+    onTierProposed: (proposal: LeaderTierProposal, context: ManageToolCallerContext) =>
+      deps.onTierProposed?.(callerSessionId(context), proposal),
     onTierSwitched: (tier: string, context: ManageToolCallerContext) => {
       const state = tierState(callerSessionId(context));
       if (!state) return;

@@ -23,6 +23,7 @@ import { setupStandaloneSessionMaintenance } from './start-webui-session-mainten
 import type { createRunLockControl } from './start-webui-session-runtime.js';
 import { setupWebuiShutdown } from './start-webui-shutdown.js';
 import type { ConnectedClient, WebUIOptions } from './types.js';
+import { broadcast } from './ws-utils.js';
 
 type PreContext = Awaited<ReturnType<typeof createPreContextServices>>;
 type AgentServices = Awaited<ReturnType<typeof createAgentServices>>;
@@ -190,6 +191,11 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
     switchModel: switchModelForTool,
     modelsRegistry: deps.modelsRegistry,
     events,
+    onTierProposed: (sessionId, proposal) =>
+      broadcast(state.getClients(), {
+        type: 'model.tier_proposed',
+        payload: { ...proposal, ...(sessionId ? { sessionId } : {}) },
+      }),
     sessionModel: (sessionId) => {
       const ctx = sessionContextForTool(sessionId);
       return { provider: ctx.provider.id, model: ctx.model };

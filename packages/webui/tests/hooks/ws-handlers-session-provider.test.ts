@@ -46,6 +46,9 @@ const {
 const { handleProviderModelRerouted } = await import(
   '../../src/hooks/ws-handlers/session-execution-handlers'
 );
+const { handleModelTierProposed } = await import(
+  '../../src/hooks/ws-handlers/tier-proposal-handler'
+);
 
 function msg(type: string, payload: unknown) {
   return { type, payload } as never;
@@ -465,6 +468,24 @@ describe('session ws-handlers — provider / delegate / context', () => {
     expect(toast.warn).toHaveBeenCalledWith('Rerouted to gpt-5.2');
     expect(chat()).toBe('Server answered with `gpt-5.2` instead of `gpt-5.3-codex` — flagged');
     expect(lastMessage()?.isError).toBe(true);
+  });
+
+  it('model.tier_proposed shows the proposal without claiming the model changed', () => {
+    expect(sessionHandlerMap['model.tier_proposed']).toBe(handleModelTierProposed);
+    handleModelTierProposed(
+      msg('model.tier_proposed', {
+        toTier: 'budget',
+        target: { provider: 'zai', model: 'glm-5.3-flash' },
+        reason: 'Mechanical edits from here.',
+        projectedSavingsUsd: 0.4,
+        reWarmCostUsd: 0.01,
+      }),
+    );
+    expect(toast.info).toHaveBeenCalledWith('Proposed tier: budget');
+    expect(chat()).toBe(
+      'WrongStack proposes the `budget` tier: `zai/glm-5.3-flash`. The model was not changed; ' +
+        'choose it in the model picker to accept. Mechanical edits from here.',
+    );
   });
 
   // ── loop guard ────────────────────────────────────────────────────────────

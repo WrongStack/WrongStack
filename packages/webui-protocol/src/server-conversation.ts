@@ -29,6 +29,7 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'iteration.started',
   'leader.effort_changed',
   'model.refine_result',
+  'model.tier_proposed',
   'modes.list',
   'provider.active_blocked',
   'provider.error',

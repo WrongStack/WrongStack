@@ -74,7 +74,9 @@ export interface ModelTierSetToolOptions extends FallbackManageToolOptions {
   /** Record that the leader is now on `tier` (resets the dwell counter). */
   onTierSwitched?: ((tier: string, context?: ManageToolCallerContext) => void) | undefined;
   /** Surface a proposal to the user. Called only in 'propose' mode. */
-  onTierProposed?: ((proposal: LeaderTierProposal) => void | Promise<void>) | undefined;
+  onTierProposed?:
+    | ((proposal: LeaderTierProposal, context?: ManageToolCallerContext) => void | Promise<void>)
+    | undefined;
 }
 
 const SCHEMA: JSONSchema = {
@@ -238,7 +240,7 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
       };
 
       if (verdict.mode === 'propose') {
-        await opts.onTierProposed?.(proposal);
+        await opts.onTierProposed?.(proposal, ctx);
         return {
           status: 'proposed',
           message:

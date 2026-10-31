@@ -194,6 +194,18 @@ export interface WSCodeAssistResult {
 
 export type WSServerMessage =
   | {
+      type: 'model.tier_proposed';
+      payload: {
+        sessionId?: string | undefined;
+        fromTier?: string | undefined;
+        toTier: string;
+        target: { provider: string; model: string };
+        reason: string;
+        projectedSavingsUsd: number;
+        reWarmCostUsd: number;
+      };
+    }
+  | {
       type: 'leader.effort_changed';
       payload: {
         sessionId?: string | undefined;

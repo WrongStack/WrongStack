@@ -47,6 +47,7 @@ import {
   handleSessionsList,
   handleToolLoopDetected,
 } from './session-execution-handlers';
+import { handleModelTierProposed } from './tier-proposal-handler';
 
 export {
   handleCompactionFailed,
@@ -101,6 +102,7 @@ export const sessionHandlerMap: Partial<Record<string, (msg: WSServerMessage) =>
   'provider.model_rerouted': handleProviderModelRerouted,
   'provider.model_switched': handleProviderModelSwitched,
   'leader.effort_changed': handleLeaderEffortChanged,
+  'model.tier_proposed': handleModelTierProposed,
   'provider.status_changed': handleProviderStatusChanged,
   'provider.active_blocked': handleProviderActiveBlocked,
   'provider.stream_error': handleProviderStreamError,

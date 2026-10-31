@@ -78,7 +78,7 @@ describe('surface protocol contract', () => {
     // +2: native Git hunk and merge-conflict snapshots.
     // +3: files.moved_many / files.deleted_many / files.copied_many (batch replies).
     // +1: provider.primary_restored (the fallback chain moved back to the primary).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(316);
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(317);
     expect(SERVER_MESSAGE_TYPES).toContain('provider.primary_restored');
     expect(SERVER_MESSAGE_TYPES).toEqual(
       expect.arrayContaining(['files.moved_many', 'files.deleted_many', 'files.copied_many']),
