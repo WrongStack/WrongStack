@@ -6,8 +6,8 @@
 
 import { EventBus } from '@wrongstack/contracts/kernel';
 import { type BrainDecision, FleetBus, FleetSupervisor } from '@wrongstack/coordination';
+import { setActiveFleetSupervisor } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { setActiveFleetSupervisor } from '../src/fleet/supervisor-registry.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildSupervisorCommand } from '../src/slash-commands/supervisor.js';
 

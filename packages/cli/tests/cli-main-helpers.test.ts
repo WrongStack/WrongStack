@@ -13,26 +13,23 @@ const mocks = vi.hoisted(() => ({
   ),
 }));
 
-vi.mock('../src/fleet/acp-wrongstack-bridge.js', () => ({
-  installedBridgeAgents: mocks.installedBridgeAgents,
-}));
-
-vi.mock('../src/fleet/wrongforge-runner.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/fleet/wrongforge-runner.js')>();
-  // The real wrongForgeModels reads the machine (~/.wrongforge key, a live
-  // server, the info cache), which would leak this host's WrongForge into
-  // assertions about the provider list.
-  return { ...actual, wrongForgeModels: mocks.wrongForgeModels };
+vi.mock('@wrongstack/fleet', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wrongstack/fleet')>();
+  return {
+    ...actual,
+    installedBridgeAgents: mocks.installedBridgeAgents,
+    // The real wrongForgeModels reads the machine (~/.wrongforge key, a live
+    // server, the info cache), which would leak this host's WrongForge into
+    // assertions about the provider list.
+    wrongForgeModels: mocks.wrongForgeModels,
+    refreshRuntimeModelCatalog: mocks.refreshRuntimeModelCatalog,
+  };
 });
 
 vi.mock('@wrongstack/coordination', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wrongstack/coordination')>();
   return { ...actual, getSharedProjectMailbox: mocks.getSharedProjectMailbox };
 });
-
-vi.mock('../src/context-limit.js', () => ({
-  refreshRuntimeModelCatalog: mocks.refreshRuntimeModelCatalog,
-}));
 
 vi.mock('../src/provider-helpers.js', () => ({
   buildPickableProviders: mocks.buildPickableProviders,

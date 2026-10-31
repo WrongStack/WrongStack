@@ -1,7 +1,7 @@
 import type { PermissionRequest } from '@wrongstack/acp';
 import type { PermissionDecision, Tool } from '@wrongstack/contracts/types';
+import { wrongstackAcpPermissionPolicy } from '@wrongstack/fleet';
 import { describe, expect, it, vi } from 'vitest';
-import { wrongstackAcpPermissionPolicy } from '../src/fleet/acp-permission-bridge.js';
 
 const ROOT = 'D:/proj';
 

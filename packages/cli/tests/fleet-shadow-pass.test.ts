@@ -26,8 +26,8 @@ import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execut
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { MultiAgentDeps } from '../src/multi-agent.js';
-import { MultiAgentHost } from '../src/multi-agent.js';
+import type { MultiAgentDeps } from '@wrongstack/fleet';
+import { MultiAgentHost } from '@wrongstack/fleet';
 
 function makeDeps(): MultiAgentDeps {
   const configStore = {

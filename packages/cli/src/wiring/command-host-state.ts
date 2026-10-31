@@ -27,12 +27,12 @@ import type {
   StatuslineOrder,
 } from '@wrongstack/core/statusline';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import type { MultiAgentHost } from '@wrongstack/fleet';
 import { SddRunRegistry } from '@wrongstack/sdd';
 import { createGoalHost } from '../goal-host.js';
 import type { HqCommandController } from '../hq-command-controller.js';
 import { killHqSessionFleet, spawnHqAgent, terminateHqAgent } from '../hq-fleet-control.js';
 import type { ReadlineInputReader } from '../input-reader.js';
-import type { MultiAgentHost } from '../multi-agent.js';
 import type { TerminalRenderer } from '../renderer.js';
 import {
   loadStatuslineDensities,

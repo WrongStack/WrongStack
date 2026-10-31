@@ -30,6 +30,7 @@ import {
 } from '@wrongstack/core/execution';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
+import { installedBridgeAgents, MultiAgentHost, wrongForgeDelegateEntry } from '@wrongstack/fleet';
 import {
   createMcpControlTool,
   createMcpUseTool,
@@ -37,10 +38,8 @@ import {
   SESSION_RENAME_TOOL_NAME,
 } from '@wrongstack/tools/management';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
-import { installedBridgeAgents } from '../fleet/acp-wrongstack-bridge.js';
 import { createSubagentWrongTraceHookRunner } from '../fleet/subagent-hook-runner.js';
-import { wrongForgeDelegateEntry } from '../fleet/wrongforge-runner.js';
-import { MultiAgentHost } from '../multi-agent.js';
+import { sharedWrongForgeGateway } from '../fleet/wrongforge-gateway.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
 import { buildProviderForId } from './provider-runtime.js';
@@ -103,8 +102,8 @@ interface BrainOrchestrationDeps {
   fleetRootForPromotion: string;
   maxConcurrent: number | undefined;
   maxSpawns?: number | undefined;
-  maxConcurrentSource?: import('../fleet/budget-source.js').FleetBudgetSource | undefined;
-  maxSpawnsSource?: import('../fleet/budget-source.js').FleetBudgetSource | undefined;
+  maxConcurrentSource?: import('@wrongstack/fleet').FleetBudgetSource | undefined;
+  maxSpawnsSource?: import('@wrongstack/fleet').FleetBudgetSource | undefined;
   effectiveMaxContextRef: { current: number };
   mcpRegistry: AnyObj;
   sessResult: AnyObj;
@@ -479,6 +478,8 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
         },
       ),
       ...(installToolBoundary ? { installToolBoundary } : {}),
+      // In-process tool gateway WrongForge workers call back into (CLI-only).
+      wrongForgeGateway: sharedWrongForgeGateway,
     },
     {
       manifestPath,

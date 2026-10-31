@@ -6,8 +6,8 @@ import type { BrainArbiter } from '@wrongstack/coordination';
 import { ParallelEternalEngine } from '@wrongstack/coordination';
 import type { Agent } from '@wrongstack/core/agent';
 import { EternalAutonomyEngine } from '@wrongstack/core/execution';
+import type { MultiAgentHost } from '@wrongstack/fleet';
 import type { JournalEntry } from '@wrongstack/goal';
-import type { MultiAgentHost } from '../multi-agent.js';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 

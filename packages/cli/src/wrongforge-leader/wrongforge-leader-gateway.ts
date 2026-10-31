@@ -20,10 +20,10 @@ import {
   subjectForToolInput,
   toErrorMessage,
 } from '@wrongstack/core/utils';
+import type { WrongForgeGatewaySpec } from '@wrongstack/fleet';
 import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import { confirmThroughEvents } from '../acp-leader/acp-leader-confirm.js';
 import type { AcpLeaderHost } from '../acp-leader/acp-leader-host.js';
-import type { WrongForgeGatewaySpec } from '../fleet/wrongforge-client.js';
 
 /**
  * Not offered: WrongForge reads with its own tools (a second copy only splits

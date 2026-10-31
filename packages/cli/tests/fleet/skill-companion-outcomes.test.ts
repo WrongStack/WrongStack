@@ -1,13 +1,13 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
 import {
   isSkillSuppressed,
   loadSkillOutcomes,
   recordSkillOutcomes,
   skillOutcomesPath,
-} from '../../src/fleet/skill-companion-outcomes.js';
+} from '@wrongstack/fleet';
+import { afterEach, describe, expect, it } from 'vitest';
 
 const roots: string[] = [];
 function root(): string {

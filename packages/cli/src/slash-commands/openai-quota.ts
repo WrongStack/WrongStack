@@ -35,12 +35,12 @@ import {
   quotaWindowLabel,
 } from '@wrongstack/core/quota';
 import { color } from '@wrongstack/core/utils';
+import { reportWrongForgeQuota } from '@wrongstack/fleet';
 import {
   readConfiguredProviderAccountQuota,
   readProviderAccountQuota,
   refreshProviderAccountQuota,
 } from '@wrongstack/providers';
-import { reportWrongForgeQuota } from '../fleet/wrongforge-quota.js';
 
 /** The provider this command reports on. */
 const PROVIDER_ID = 'openai-codex';

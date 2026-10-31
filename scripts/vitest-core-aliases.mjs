@@ -85,6 +85,8 @@ export function coreAliases(corePackageDir) {
   aliases['@wrongstack/builtin-plugins'] = resolve(corePackageDir, '../builtin-plugins/src');
   aliases['@wrongstack/agent-catalog'] = resolve(corePackageDir, '../agent-catalog/src');
   aliases['@wrongstack/coordination'] = resolve(corePackageDir, '../coordination/src');
+  // The fleet host, extracted from the CLI (src/fleet) on 2026-10-31.
+  aliases['@wrongstack/fleet'] = resolve(corePackageDir, '../fleet/src');
 
   // Bare alias LAST: prefix-matching means '@wrongstack/core' catches any
   // sub-path that wasn't explicitly aliased above, resolving to

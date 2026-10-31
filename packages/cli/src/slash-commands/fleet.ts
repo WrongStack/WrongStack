@@ -4,7 +4,7 @@ import type { SlashCommand } from '@wrongstack/contracts/types';
 import { dispatchAgent } from '@wrongstack/coordination';
 import { sandboxTierForAgent } from '@wrongstack/core/sandbox';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
-import { formatFleetBudgetLines } from '../fleet/host-status.js';
+import { formatFleetBudgetLines } from '@wrongstack/fleet';
 import type { SlashCommandContext } from './command-context.js';
 
 const PHASE_ORDER: { phase: AgentPhase; label: string }[] = [

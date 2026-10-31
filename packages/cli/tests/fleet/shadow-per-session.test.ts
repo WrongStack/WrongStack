@@ -8,9 +8,9 @@
  */
 import { EventBus } from '@wrongstack/contracts/kernel';
 import type { ConfigStore, SessionWriter, SubagentConfig } from '@wrongstack/contracts/types';
+import type { MultiAgentDeps, MultiAgentHostOptions } from '@wrongstack/fleet';
+import { HostShadowManager } from '@wrongstack/fleet';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { HostShadowManager } from '../../src/fleet/host-shadow-manager.js';
-import type { MultiAgentDeps, MultiAgentHostOptions } from '../../src/fleet/host-types.js';
 
 const HOST_SESSION = 'boot-session';
 const TAB_A = 'tab-a';

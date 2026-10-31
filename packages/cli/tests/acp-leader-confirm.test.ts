@@ -9,7 +9,8 @@ import type { Config, Tool } from '@wrongstack/contracts/types';
 import { scopedApprovalPattern } from '@wrongstack/core/security';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../src/fleet/acp-wrongstack-bridge.js', () => ({
+vi.mock('@wrongstack/fleet', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/fleet')>()),
   installedBridgeAgents: (acp: { agents?: Record<string, unknown> } | undefined) =>
     acp?.agents ? Object.keys(acp.agents) : [],
 }));

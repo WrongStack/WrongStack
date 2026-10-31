@@ -4,12 +4,10 @@
  * array-content path, the empty-content fallback, and the provider-throw
  * catch.
  */
+
+import { makeDispatchClassifier, makeProviderClassifier } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CommitLLMProvider } from '../src/services/commit-message.js';
-import {
-  makeDispatchClassifier,
-  makeProviderClassifier,
-} from '../src/services/dispatch-classifier.js';
 
 afterEach(() => vi.unstubAllGlobals());
 

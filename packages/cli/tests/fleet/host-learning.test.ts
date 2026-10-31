@@ -15,9 +15,9 @@ import {
   resetCaptureWindows,
 } from '@wrongstack/agent-catalog';
 import type { TaskResult } from '@wrongstack/contracts/types';
+import type { MultiAgentDeps } from '@wrongstack/fleet';
+import { HostLearningRoleTracker } from '@wrongstack/fleet';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { HostLearningRoleTracker } from '../../src/fleet/host-learning-tracker.js';
-import type { MultiAgentDeps } from '../../src/fleet/host-types.js';
 
 let projectRoot: string;
 

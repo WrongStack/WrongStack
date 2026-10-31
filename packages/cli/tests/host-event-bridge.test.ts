@@ -2,11 +2,9 @@
  * Host subagent event bridge — compact tool payloads at the fan-out boundary
  * so the leader EventBus never receives multi-MB write/edit bodies.
  */
+
+import { compactBridgeToolInput, installSubagentEventBridge } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import {
-  compactBridgeToolInput,
-  installSubagentEventBridge,
-} from '../src/fleet/host-event-bridge.js';
 
 describe('compactBridgeToolInput', () => {
   it('keeps path metadata and drops body fields with size signals', () => {

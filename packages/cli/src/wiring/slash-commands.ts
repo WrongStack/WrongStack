@@ -17,7 +17,7 @@ import type {
 import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import type { MultiAgentHost } from '../multi-agent.js';
+import type { MultiAgentHost } from '@wrongstack/fleet';
 import {
   ensureStatuslineConfig,
   loadStatuslineConfig,

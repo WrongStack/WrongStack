@@ -6,7 +6,7 @@ import { type AgentMonitorService, createAgentMonitorService } from '@wrongstack
 import type { EternalAutonomyEngine } from '@wrongstack/core/execution';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { expectDefined, sessionScopedPath } from '@wrongstack/core/utils';
-import { resolveFleetBudgetSources } from '../fleet/budget-source.js';
+import { resolveFleetBudgetSources } from '@wrongstack/fleet';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,8 +35,8 @@ export interface DirectorAutonomyResult {
   maxConcurrent: number | undefined;
   /** Lifetime spawn ceiling resolved from flag/env/profile/default. */
   maxSpawns: number;
-  maxConcurrentSource: import('../fleet/budget-source.js').FleetBudgetSource;
-  maxSpawnsSource: import('../fleet/budget-source.js').FleetBudgetSource;
+  maxConcurrentSource: import('@wrongstack/fleet').FleetBudgetSource;
+  maxSpawnsSource: import('@wrongstack/fleet').FleetBudgetSource;
   autonomyMode: import('../services/autonomy-mode.js').AutonomyMode;
   nextPredictEnabled: boolean;
   currentSuggestions: string[];

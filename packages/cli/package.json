@@ -58,6 +58,7 @@
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/coordination": "workspace:*",
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/fleet": "workspace:*",
     "@wrongstack/goal": "workspace:*",
     "@wrongstack/hq": "workspace:*",
     "@wrongstack/kanban": "workspace:*",

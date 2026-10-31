@@ -1,10 +1,10 @@
 import { EventBus } from '@wrongstack/contracts/kernel';
-import { describe, expect, it, vi } from 'vitest';
 import {
   registerCoordinatorLifecycleHandlers,
   registerDirectorBudgetAndContextBridges,
   registerDirectorSubagentLifecycleBridges,
-} from '../../src/fleet/host-director-event-bridges.js';
+} from '@wrongstack/fleet';
+import { describe, expect, it, vi } from 'vitest';
 
 /**
  * A subagent's events belong to the tab that spawned it.

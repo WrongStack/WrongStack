@@ -1,8 +1,8 @@
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Config, TaskNode } from '@wrongstack/contracts/types';
 import type { BrainArbiter } from '@wrongstack/coordination';
+import type { MultiAgentHost } from '@wrongstack/fleet';
 import type { PhaseGraph, PhaseOrchestrator, PhaseProgress } from '@wrongstack/goal';
-import type { MultiAgentHost } from './multi-agent.js';
 
 export interface GoalHostDeps {
   multiAgentHost: MultiAgentHost;

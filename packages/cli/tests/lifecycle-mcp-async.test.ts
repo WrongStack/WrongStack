@@ -2,7 +2,10 @@ import { MCPRegistry } from '@wrongstack/mcp';
 import { describe, expect, it, vi } from 'vitest';
 import { setupLifecycleAndPlugins } from '../src/wiring/lifecycle-plugins.js';
 
-vi.mock('@wrongstack/coordination', () => ({
+// Partial: lifecycle-plugins imports `@wrongstack/fleet`, whose modules read
+// other coordination exports at load time.
+vi.mock('@wrongstack/coordination', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/coordination')>()),
   getSharedProjectMailbox: vi.fn().mockReturnValue({}),
 }));
 

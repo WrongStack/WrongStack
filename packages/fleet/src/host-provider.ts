@@ -10,7 +10,7 @@ import {
   shouldRewriteFor,
 } from '@wrongstack/core/wiring/proxy-rewrite';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
-import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from '../context-limit.js';
+import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from './context-limit.js';
 import type { MultiAgentDeps } from './host-types.js';
 
 export async function buildHostSubagentProvider(

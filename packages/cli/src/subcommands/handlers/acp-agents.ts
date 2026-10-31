@@ -12,13 +12,13 @@ import {
   runEnsemble,
   runOneAcpTask,
 } from '@wrongstack/acp';
+import { wrongstackBridgeSetup } from '@wrongstack/fleet';
 import { formatAcpAgentList } from '../../acp-agent-list.js';
 import {
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
   refreshAcpRegistry,
 } from '../../acp-registry-cache.js';
-import { wrongstackBridgeSetup } from '../../fleet/acp-wrongstack-bridge.js';
 import type { SubcommandDeps } from '../contracts.js';
 
 /** User-config ACP command overrides (never sourced from in-project config). */

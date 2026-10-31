@@ -1,6 +1,6 @@
 import { getProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
+import { recordAcpRateLimit } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it } from 'vitest';
-import { recordAcpRateLimit } from '../src/fleet/acp-quota-reading.js';
 
 afterEach(() => resetProviderQuota());
 

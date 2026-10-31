@@ -1,2 +1,2 @@
-/** @deprecated Import dispatch classification from services/dispatch-classifier instead. */
-export * from '../services/dispatch-classifier.js';
+/** @deprecated Import dispatch classification from `@wrongstack/fleet` instead. */
+export { makeDispatchClassifier, makeProviderClassifier } from '@wrongstack/fleet';

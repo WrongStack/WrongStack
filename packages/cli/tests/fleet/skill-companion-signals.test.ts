@@ -5,15 +5,15 @@ import {
   parseSkillFrontmatter,
   validateSkillDocument,
 } from '@wrongstack/core/skills';
-import { describe, expect, it } from 'vitest';
-import { parseSkillCompanionPick } from '../../src/fleet/skill-companion-policy.js';
 import {
   editedPaths,
   evidenceSignature,
   fileFamily,
+  parseSkillCompanionPick,
   rankSkillCandidates,
   workTerms,
-} from '../../src/fleet/skill-companion-signals.js';
+} from '@wrongstack/fleet';
+import { describe, expect, it } from 'vitest';
 
 describe('Skill Companion signals', () => {
   it('expands brace groups, including nested ones', () => {

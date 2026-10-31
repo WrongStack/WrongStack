@@ -1,10 +1,7 @@
 import { applyProjectAgentConfig } from '@wrongstack/agent-catalog';
 import type { Tool } from '@wrongstack/contracts/types';
+import { constrainMemoryCompanion, memoryCompanionTools } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import {
-  constrainMemoryCompanion,
-  memoryCompanionTools,
-} from '../../src/fleet/memory-companion-policy.js';
 
 describe('Memory Companion role overrides', () => {
   it('reapplies read-only grants while honoring explicit budgets after system-role widening', () => {

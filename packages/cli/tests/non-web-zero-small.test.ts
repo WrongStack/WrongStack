@@ -50,11 +50,10 @@ vi.mock('../src/services/suggestion-store.js', () => ({
   setSuggestions: mocks.setSuggestions,
 }));
 
+import { buildAcpSubagentRunner, normalizeMaxConcurrent } from '@wrongstack/fleet';
 import { createReplFleetCallbacks } from '../src/execution-repl-fleet-callbacks.js';
 import { installStorageObservability } from '../src/execution-storage-observability.js';
 import { createTuiNextStepCallbacks } from '../src/execution-tui-next-step-callbacks.js';
-import { buildAcpSubagentRunner } from '../src/fleet/host-acp.js';
-import { normalizeMaxConcurrent } from '../src/fleet/host-concurrency.js';
 import { resolveKanbanDispatchRoute } from '../src/kanban-dispatch-route.js';
 import { quickCmd } from '../src/subcommands/handlers/quick.js';
 import { installDesignStudio } from '../src/wiring/design-studio.js';

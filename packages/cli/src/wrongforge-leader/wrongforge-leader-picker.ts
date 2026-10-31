@@ -6,10 +6,15 @@
  * The WebUI asks synchronously, so this reads the cached `/v1/info` list and
  * refreshes the cache in the background for the next look.
  */
+
+import {
+  readCachedWrongForgeInfo,
+  refreshWrongForgeInfoCache,
+  reportWrongForgeQuota,
+  resolveWrongForgeEndpoint,
+  WRONGFORGE_AGENT_ID,
+} from '@wrongstack/fleet';
 import type { PickableHostProvider } from '../acp-leader/acp-leader-picker.js';
-import { resolveWrongForgeEndpoint, WRONGFORGE_AGENT_ID } from '../fleet/wrongforge-client.js';
-import { readCachedWrongForgeInfo, refreshWrongForgeInfoCache } from '../fleet/wrongforge-info.js';
-import { reportWrongForgeQuota } from '../fleet/wrongforge-quota.js';
 
 /** The `wrongforge` entry, or none when no WrongForge is set up here or its models are unknown. */
 export function wrongForgeLeaderPickable(): PickableHostProvider[] {

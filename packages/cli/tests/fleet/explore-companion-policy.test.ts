@@ -1,12 +1,12 @@
 import type { SubagentConfig } from '@wrongstack/contracts/types';
 import { DEFAULT_EXPLORE_COMPANION_AGENT_ID, FLEET_ROSTER } from '@wrongstack/coordination';
-import { describe, expect, it } from 'vitest';
 import {
   constrainExploreCompanion,
   exploreCompanionSystemPrompt,
+  formatExploreNote,
   isExploreCompanion,
-} from '../../src/fleet/explore-companion-policy.js';
-import { formatExploreNote } from '../../src/fleet/host-explore-companion.js';
+} from '@wrongstack/fleet';
+import { describe, expect, it } from 'vitest';
 
 const template = FLEET_ROSTER[DEFAULT_EXPLORE_COMPANION_AGENT_ID] as SubagentConfig;
 

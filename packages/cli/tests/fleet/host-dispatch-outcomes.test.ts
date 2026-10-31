@@ -4,8 +4,8 @@ import * as path from 'node:path';
 import { summarizeDispatchLog } from '@wrongstack/agent-catalog';
 import { EventBus } from '@wrongstack/contracts/kernel';
 import type { Director } from '@wrongstack/coordination';
+import { createDispatchOutcomeRecorder } from '@wrongstack/fleet';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createDispatchOutcomeRecorder } from '../../src/fleet/host-dispatch-outcomes.js';
 
 let projectRoot: string;
 

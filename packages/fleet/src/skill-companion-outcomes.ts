@@ -18,11 +18,7 @@
  */
 
 import * as path from 'node:path';
-import {
-  readRoleFileForUpdate,
-  roleDir,
-  writeTextAtomically,
-} from '@wrongstack/agent-catalog';
+import { readRoleFileForUpdate, roleDir, writeTextAtomically } from '@wrongstack/agent-catalog';
 
 export const SUPPRESS_AT = 3;
 const ACCEPT_WEIGHT = 2;

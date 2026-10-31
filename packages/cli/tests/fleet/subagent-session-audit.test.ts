@@ -5,8 +5,8 @@ import { EventBus } from '@wrongstack/contracts/kernel';
 import type { SessionEvent } from '@wrongstack/contracts/types';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { createSessionEventBridge, DefaultSessionStore } from '@wrongstack/core/storage';
+import { installSubagentSessionAudit } from '@wrongstack/fleet';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installSubagentSessionAudit } from '../../src/fleet/host-subagent-session-audit.js';
 
 /**
  * The two record types a subagent's own transcript never contained.

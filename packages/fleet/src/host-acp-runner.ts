@@ -6,11 +6,18 @@ import {
   subagentYoloPlus,
   ToolCapabilities,
 } from '@wrongstack/core/security';
-import { isRestrictedMode } from '../boot/restricted-mode.js';
 import { publishAcpLiveProgress } from './acp-live-progress.js';
 import { wrongstackAcpPermissionPolicy } from './acp-permission-bridge.js';
 import { recordAcpRateLimit } from './acp-quota-reading.js';
 import type { BuildAcpSubagentRunnerOptions } from './host-acp.js';
+
+/**
+ * Mirrors the CLI's `isRestrictedMode({})` (boot/restricted-mode.ts) with no
+ * flags: `--restricted` is process-wide and carried by this env var.
+ */
+function isRestrictedProcess(): boolean {
+  return process.env['WRONGSTACK_RESTRICTED'] === '1';
+}
 
 export interface HostAcpRunnerHost {
   deps: import('./host-types.js').MultiAgentDeps;
@@ -33,6 +40,7 @@ export function acpCommandOpts(this: HostAcpRunnerHost): BuildAcpSubagentRunnerO
     acp = undefined;
   }
   const overrides = acp?.agents;
+  const gatewayFactory = this.deps.wrongForgeGateway;
   return {
     ...(overrides ? { overrides } : {}),
     projectRoot: this.deps.projectRoot,
@@ -54,24 +62,28 @@ export function acpCommandOpts(this: HostAcpRunnerHost): BuildAcpSubagentRunnerO
         evaluate: (tool, input, scope) => policy.evaluate(tool, input, scope),
         getTool: (name) => this.deps.toolRegistry.get(name),
         projectRoot: this.deps.projectRoot,
-        allowMcp: !isRestrictedMode({}),
+        allowMcp: !isRestrictedProcess(),
         onRefused: (call, reason) =>
           this.deps.container
             .safeResolve(TOKENS.Logger)
             ?.info(`acp worker ${ctx.subagentId}: refused ${call.tool} — ${reason}`),
       });
     },
-    wrongforgeGateway: async () => {
-      const { sharedWrongForgeGateway } = await import('./wrongforge-gateway.js');
-      const logger = this.deps.container.safeResolve(TOKENS.Logger);
-      return sharedWrongForgeGateway({
-        projectRoot: this.deps.projectRoot,
-        registry: this.deps.toolRegistry,
-        config: this.deps.configStore.get(),
-        yoloPlus: () => this.deps.configStore.get().autonomy?.yoloPlus === true,
-        log: (message) => logger?.debug(`wrongforge gateway: ${message}`),
-      });
-    },
+    // No factory wired = no gateway: the worker keeps its own read-side tools.
+    ...(gatewayFactory
+      ? {
+          wrongforgeGateway: async () => {
+            const logger = this.deps.container.safeResolve(TOKENS.Logger);
+            return gatewayFactory({
+              projectRoot: this.deps.projectRoot,
+              registry: this.deps.toolRegistry,
+              config: this.deps.configStore.get(),
+              yoloPlus: () => this.deps.configStore.get().autonomy?.yoloPlus === true,
+              log: (message) => logger?.debug(`wrongforge gateway: ${message}`),
+            });
+          },
+        }
+      : {}),
     publishLive: (ctx, task, event) => {
       if (event.type === 'rate_limit') {
         // Keyed by agent (claude-code), like the delegation that names it.

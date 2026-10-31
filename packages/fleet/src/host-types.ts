@@ -1,5 +1,6 @@
 import type { Container, EventBus } from '@wrongstack/contracts/kernel';
 import type {
+  Config,
   ConfigStore,
   ModelsRegistry,
   Renderer,
@@ -14,6 +15,25 @@ import type { BrainArbiter, ProviderModelStatusTracker } from '@wrongstack/coord
 import type { AgentPipelines, FallbackProfileManager } from '@wrongstack/core/agent';
 import type { HookRunner } from '@wrongstack/core/hooks';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { WrongForgeGatewaySpec } from './wrongforge-client.js';
+
+/** What the host hands the WrongForge tool-gateway factory for one task. */
+export interface WrongForgeGatewayOptions {
+  projectRoot: string;
+  registry: ToolRegistry;
+  config: Config;
+  yoloPlus?: (() => boolean) | undefined;
+  log?: ((message: string) => void) | undefined;
+}
+
+/**
+ * Starts (or reuses) the tool gateway a WrongForge worker calls back into.
+ * The gateway serves the host's tool surface over loopback HTTP, which lives
+ * outside this package; the embedder supplies it.
+ */
+export type WrongForgeGatewayFactory = (
+  opts: WrongForgeGatewayOptions,
+) => Promise<WrongForgeGatewaySpec>;
 
 export interface MultiAgentDeps {
   container: Container;
@@ -54,6 +74,13 @@ export interface MultiAgentDeps {
    * automation surface and must not silently replay on workers.
    */
   hookRunner?: HookRunner | undefined;
+  /**
+   * Tool gateway for WrongForge workers. The CLI passes its in-process,
+   * one-per-project gateway (`sharedWrongForgeGateway`). Absent, a WrongForge
+   * worker runs without one: it keeps its own read-side tools and cannot call
+   * back into WrongStack's.
+   */
+  wrongForgeGateway?: WrongForgeGatewayFactory | undefined;
 }
 
 /**

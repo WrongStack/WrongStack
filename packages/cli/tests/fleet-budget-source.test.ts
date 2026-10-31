@@ -1,5 +1,5 @@
+import { resolveFleetBudgetSources } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import { resolveFleetBudgetSources } from '../src/fleet/budget-source.js';
 
 describe('resolveFleetBudgetSources', () => {
   it('prefers CLI flag over env and profile', () => {

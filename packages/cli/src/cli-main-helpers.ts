@@ -2,6 +2,12 @@ import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Config, Logger, ModelsRegistry } from '@wrongstack/contracts/types';
 import { getSharedProjectMailbox, type MailboxAgentStatus } from '@wrongstack/coordination';
 import type { AgentPipelines } from '@wrongstack/core/agent';
+import {
+  installedBridgeAgents,
+  refreshRuntimeModelCatalog,
+  WRONGFORGE_AGENT_ID,
+  wrongForgeModels,
+} from '@wrongstack/fleet';
 import type {
   BootstrapGovernanceRuntimeOptions,
   GovernanceRuntimeBootstrapCloseResult,
@@ -13,9 +19,6 @@ import { sanitizeGovernanceMessage } from '@wrongstack/runtime/governance-saniti
 import { ACP_LEADER_PROVIDER_ID } from './acp-leader/acp-leader-provider.js';
 import { createGovernanceShadowBridge } from './boot/governance-shadow-bridge.js';
 import { createGovernanceTraceContext } from './boot/governance-trace-context.js';
-import { refreshRuntimeModelCatalog } from './context-limit.js';
-import { installedBridgeAgents } from './fleet/acp-wrongstack-bridge.js';
-import { WRONGFORGE_AGENT_ID, wrongForgeModels } from './fleet/wrongforge-runner.js';
 import { buildPickableProviders } from './provider-helpers.js';
 
 export const WRONGSTACK_GOVERNANCE_ENV = 'WRONGSTACK_GOVERNANCE';

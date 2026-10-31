@@ -1,7 +1,7 @@
 import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { SessionNoteHub } from '@wrongstack/coordination';
+import { registerAcpSteerInbox, steerMessage } from '@wrongstack/fleet';
 import { describe, expect, it, vi } from 'vitest';
-import { registerAcpSteerInbox, steerMessage } from '../src/fleet/acp-live-steer.js';
 
 const task: TaskSpec = { id: 't-1', description: 'fix it' };
 const ctx = (sessionId?: string) =>

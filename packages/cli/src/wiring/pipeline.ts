@@ -18,7 +18,7 @@ import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { createSessionEventBridge, resolveAuditLevel } from '@wrongstack/core/storage';
 import { estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
-import { resolveRuntimeMaxContext } from '../context-limit.js';
+import { resolveRuntimeMaxContext } from '@wrongstack/fleet';
 import { bootstrapMailboxBridgeAtStartup } from './mailbox-bridge-bootstrap.js';
 
 type CompactionDriver = ConstructorParameters<typeof AutoCompactionMiddleware>[0];

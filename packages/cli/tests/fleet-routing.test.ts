@@ -5,12 +5,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 describe('buildRoutingRunner', () => {
   it('exports the function', async () => {
-    const mod = await import('../src/fleet/routing.js');
+    const mod = await import('@wrongstack/fleet');
     expect(typeof mod.buildRoutingRunner).toBe('function');
   });
 
   it('returns a runner function', async () => {
-    const mod = await import('../src/fleet/routing.js');
+    const mod = await import('@wrongstack/fleet');
     const host = {
       makeSubagentFactory: vi.fn().mockReturnValue(vi.fn()),
       getDirector: vi.fn().mockReturnValue(undefined),
@@ -22,7 +22,7 @@ describe('buildRoutingRunner', () => {
   });
 
   it('delegates ACP tasks to buildACPRunner', async () => {
-    const mod = await import('../src/fleet/routing.js');
+    const mod = await import('@wrongstack/fleet');
     const acpRunner = vi.fn().mockResolvedValue({ status: 'completed' });
     const host = {
       makeSubagentFactory: vi.fn().mockReturnValue(vi.fn()),
@@ -42,7 +42,7 @@ describe('buildRoutingRunner', () => {
   });
 
   it('uses role for ACP cacheKey when available', async () => {
-    const mod = await import('../src/fleet/routing.js');
+    const mod = await import('@wrongstack/fleet');
     const acpRunner = vi.fn().mockResolvedValue({ status: 'completed' });
     const host = {
       makeSubagentFactory: vi.fn().mockReturnValue(vi.fn()),
@@ -60,7 +60,7 @@ describe('buildRoutingRunner', () => {
   });
 
   it('falls back to id for cacheKey when role and name are absent', async () => {
-    const mod = await import('../src/fleet/routing.js');
+    const mod = await import('@wrongstack/fleet');
     const acpRunner = vi.fn().mockResolvedValue({ status: 'completed' });
     const host = {
       makeSubagentFactory: vi.fn().mockReturnValue(vi.fn()),

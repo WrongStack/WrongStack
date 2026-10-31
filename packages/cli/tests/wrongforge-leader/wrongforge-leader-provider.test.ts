@@ -6,9 +6,9 @@ import path from 'node:path';
 import { EventBus, type EventMap } from '@wrongstack/contracts/kernel';
 import type { Config, Provider, Request, StreamEvent, Tool } from '@wrongstack/contracts/types';
 import { ProviderError } from '@wrongstack/contracts/types';
+import type { WfEvent } from '@wrongstack/fleet';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { type AcpLeaderHost, bindAcpLeaderHost } from '../../src/acp-leader/acp-leader-host.js';
-import type { WfEvent } from '../../src/fleet/wrongforge-client.js';
 import { startLeaderGateway } from '../../src/wrongforge-leader/wrongforge-leader-gateway.js';
 import { WrongForgeLeaderProvider } from '../../src/wrongforge-leader/wrongforge-leader-provider.js';
 

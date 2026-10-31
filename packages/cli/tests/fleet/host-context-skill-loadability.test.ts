@@ -20,9 +20,9 @@ import {
   saveProjectSkillAugmentation,
 } from '@wrongstack/agent-catalog';
 import type { SubagentConfig } from '@wrongstack/contracts/types';
+import type { MultiAgentDeps } from '@wrongstack/fleet';
+import { resolveHostSubagentSkillResolution } from '@wrongstack/fleet';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resolveHostSubagentSkillResolution } from '../../src/fleet/host-context.js';
-import type { MultiAgentDeps } from '../../src/fleet/host-types.js';
 
 let projectRoot: string;
 

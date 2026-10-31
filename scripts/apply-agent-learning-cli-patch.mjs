@@ -49,7 +49,7 @@ function rewrite(relPath, marker, contents) {
 
 // ── host-context.ts ─────────────────────────────────────────────────────────
 rewrite(
-  'packages/cli/src/fleet/host-context.ts',
+  'packages/fleet/src/host-context.ts',
   'resolveHostSubagentSkillResolution',
   `import {
   loadProjectSkillAugmentation,
@@ -242,7 +242,7 @@ export async function retrieveHostSubagentMemory(
 
 // ── host-learning.ts ────────────────────────────────────────────────────────
 rewrite(
-  'packages/cli/src/fleet/host-learning.ts',
+  'packages/fleet/src/host-learning.ts',
   'LearningSubject',
   `import {
   captureLearnedFromAgentOutputDetailed,
@@ -314,7 +314,7 @@ function describe(error: unknown): string {
 
 // ── host-learning-tracker.ts ────────────────────────────────────────────────
 rewrite(
-  'packages/cli/src/fleet/host-learning-tracker.ts',
+  'packages/fleet/src/host-learning-tracker.ts',
   'LearningSubject',
   `import type { TaskResult } from '@wrongstack/contracts/types';
 import { setBoundedLruEntry } from './host-helpers.js';
@@ -345,7 +345,7 @@ export class HostLearningRoleTracker {
 );
 
 // ── host-subagent-factory.ts ────────────────────────────────────────────────
-edit('packages/cli/src/fleet/host-subagent-factory.ts', 'skillResolution', [
+edit('packages/fleet/src/host-subagent-factory.ts', 'skillResolution', [
   [
     "import { resolveHostSubagentSkillContent, retrieveHostSubagentMemory } from './host-context.js';",
     "import { resolveHostSubagentSkillResolution, retrieveHostSubagentMemory } from './host-context.js';",
@@ -399,7 +399,7 @@ edit('packages/cli/src/fleet/host-subagent-factory.ts', 'skillResolution', [
 ]);
 
 // ── host.ts ─────────────────────────────────────────────────────────────────
-edit('packages/cli/src/fleet/host.ts', 'this.recordLearningRole(subagentId, subagentId)', [
+edit('packages/fleet/src/host.ts', 'this.recordLearningRole(subagentId, subagentId)', [
   [
     `  private recordLearningRole(subagentId: string, role: string): void {
     this.learningRoles.record(subagentId, role);

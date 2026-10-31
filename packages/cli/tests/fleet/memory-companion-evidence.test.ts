@@ -1,12 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { parseMemoryCompanionVerdict, snapshotMemoryEvidence } from '@wrongstack/fleet';
 import type { Sage } from '@wrongstack/sage';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  parseMemoryCompanionVerdict,
-  snapshotMemoryEvidence,
-} from '../../src/fleet/memory-companion-evidence.js';
 
 let root: string;
 beforeEach(async () => {

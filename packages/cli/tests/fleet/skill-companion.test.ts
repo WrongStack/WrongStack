@@ -18,18 +18,16 @@ import {
   readSkillCompanionState,
 } from '@wrongstack/core/skills';
 import { estimateTextTokens } from '@wrongstack/core/utils';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HostSkillCompanion } from '../../src/fleet/host-skill-companion.js';
-import {
-  loadSkillOutcomes,
-  recordSkillOutcomes,
-} from '../../src/fleet/skill-companion-outcomes.js';
 import {
   constrainSkillCompanion,
+  HostSkillCompanion,
   isSkillCompanion,
+  loadSkillOutcomes,
   parseSkillCompanionPick,
+  recordSkillOutcomes,
   SKILL_COMPANION_PROMPT,
-} from '../../src/fleet/skill-companion-policy.js';
+} from '@wrongstack/fleet';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function manifest(name: string, description: string): SkillManifest {
   return { name, description, path: `/skills/${name}/SKILL.md`, source: 'project' };

@@ -12,7 +12,7 @@ import {
 } from '@wrongstack/agent-catalog';
 import type { Config } from '@wrongstack/contracts/types';
 import { resolveSubagentModelTarget } from '@wrongstack/coordination';
-import { makeDispatchClassifier } from '../services/dispatch-classifier.js';
+import { makeDispatchClassifier } from './dispatch-classifier.js';
 import { buildHostSubagentProvider } from './host-provider.js';
 import type { MultiAgentDeps } from './host-types.js';
 

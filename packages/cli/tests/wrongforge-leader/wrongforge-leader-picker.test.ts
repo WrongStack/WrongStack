@@ -4,16 +4,11 @@ const resolveEndpoint = vi.fn();
 const refreshCache = vi.fn();
 const readCache = vi.fn();
 const readQuota = vi.fn(async (_opts: unknown) => true);
-vi.mock('../../src/fleet/wrongforge-quota.js', () => ({
+vi.mock('@wrongstack/fleet', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/fleet')>()),
   reportWrongForgeQuota: (opts: unknown) => readQuota(opts),
-}));
-
-vi.mock('../../src/fleet/wrongforge-client.js', () => ({
   WRONGFORGE_AGENT_ID: 'wrongforge',
   resolveWrongForgeEndpoint: () => resolveEndpoint(),
-}));
-
-vi.mock('../../src/fleet/wrongforge-info.js', () => ({
   readCachedWrongForgeInfo: () => readCache(),
   refreshWrongForgeInfoCache: (ep: unknown) => refreshCache(ep),
 }));

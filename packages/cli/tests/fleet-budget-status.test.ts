@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
 import {
   buildFleetHostStatus,
   type FleetBudgetView,
   formatFleetBudgetLines,
-} from '../src/fleet/host-status.js';
+} from '@wrongstack/fleet';
+import { describe, expect, it, vi } from 'vitest';
 import { buildFleetCommand } from '../src/slash-commands/fleet.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 

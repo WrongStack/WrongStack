@@ -12,8 +12,8 @@ import {
 } from '@wrongstack/coordination';
 import { loadDirectorState } from '@wrongstack/core/storage';
 import { color, expectDefined, isSessionTranscriptFileName } from '@wrongstack/core/utils';
-import { formatFleetBudgetLines } from '../fleet/host-status.js';
-import type { MultiAgentHost } from '../multi-agent.js';
+import type { MultiAgentHost } from '@wrongstack/fleet';
+import { formatFleetBudgetLines } from '@wrongstack/fleet';
 import { fmtTaskResultLine } from '../utils.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 

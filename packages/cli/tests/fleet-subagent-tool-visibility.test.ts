@@ -1,10 +1,10 @@
 import type { Tool } from '@wrongstack/contracts/types';
-import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SUBAGENT_HIDDEN_TOOLS,
   NEVER_SUBAGENT_TOOLS,
   selectSubagentTools,
-} from '../src/fleet/host-helpers.js';
+} from '@wrongstack/fleet';
+import { describe, expect, it } from 'vitest';
 
 /**
  * Two different strictness levels guard the subagent tool slice, and the

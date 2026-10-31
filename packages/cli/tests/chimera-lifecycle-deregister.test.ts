@@ -22,9 +22,8 @@
 import { EventBus } from '@wrongstack/contracts/kernel';
 import type { SubagentRunContext, SubagentRunOutcome, TaskSpec } from '@wrongstack/contracts/types';
 import { Director, mailboxSessionTag } from '@wrongstack/coordination';
+import { createFleetStatusBroadcaster } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { createFleetStatusBroadcaster } from '../src/fleet/status-broadcast.js';
 
 /** Owning session for coordinator-scoped work under test. */
 const TEST_SESSION_ID = 'sess_test';

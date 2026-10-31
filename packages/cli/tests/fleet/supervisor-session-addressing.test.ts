@@ -1,7 +1,7 @@
 import { EventBus } from '@wrongstack/contracts/kernel';
 import { sessionNoteHub } from '@wrongstack/coordination';
+import { createHostFleetSupervisor } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createHostFleetSupervisor } from '../../src/fleet/host-supervisor.js';
 
 /**
  * The supervisor watches ONE fleet but speaks to MANY conversations.

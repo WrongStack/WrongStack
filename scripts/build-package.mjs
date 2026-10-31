@@ -432,6 +432,11 @@ const profiles = {
   '@wrongstack/goal': {
     entries: { index: 'src/index.ts' },
   },
+  // Multi-agent fleet host (MultiAgentHost, delegation runtime, ACP/WrongForge
+  // workers, companions), extracted from the CLI (src/fleet) on 2026-10-31.
+  '@wrongstack/fleet': {
+    entries: { index: 'src/index.ts' },
+  },
   // Chronicle journal, metrics projection and its per-project daemon,
   // extracted from core (src/chronicle) on 2026-10-24. `project-server` is the
   // daemon entry the client spawns: it must stay at the dist ROOT next to the

@@ -23,7 +23,7 @@ import type { Message } from '@wrongstack/contracts/types';
 import { TopicShiftAdvisor, type TopicShiftDiagnostic } from '@wrongstack/core/execution';
 import { resolveTypeSafeAccount } from '@wrongstack/core/typesafe';
 import { color } from '@wrongstack/core/utils';
-import { resolveRuntimeMaxContext } from '../../context-limit.js';
+import { resolveRuntimeMaxContext } from '@wrongstack/fleet';
 import type { SubcommandDeps } from '../contracts.js';
 import { createProviderForId } from './modeldiag-eval.js';
 

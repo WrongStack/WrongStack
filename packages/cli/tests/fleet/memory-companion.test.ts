@@ -1,10 +1,10 @@
 import { EventBus } from '@wrongstack/contracts/kernel';
 import type { SubagentConfig, TaskResult } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/coordination';
+import type { MemoryEvidenceSnapshot } from '@wrongstack/fleet';
+import { HostMemoryCompanion } from '@wrongstack/fleet';
 import type { Sage, SageSurface } from '@wrongstack/sage';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HostMemoryCompanion } from '../../src/fleet/host-memory-companion.js';
-import type { MemoryEvidenceSnapshot } from '../../src/fleet/memory-companion-evidence.js';
 
 const quote = 'export const retryQuota = 3;';
 const evidence: MemoryEvidenceSnapshot = {

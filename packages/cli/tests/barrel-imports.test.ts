@@ -17,8 +17,8 @@ describe('barrel modules (import coverage)', () => {
     expect(mod.LOCAL_LLM_PRESETS).toBeDefined();
   });
 
-  it('multi-agent.ts re-exports types and classes', async () => {
-    const mod = await import('../src/multi-agent.js');
+  it('@wrongstack/fleet exports the multi-agent host', async () => {
+    const mod = await import('@wrongstack/fleet');
     expect(mod.MultiAgentHost).toBeDefined();
     expect(mod.buildRoutingRunner).toBeDefined();
   });

@@ -1,6 +1,6 @@
 import { resolveModelRuntime } from '@wrongstack/core/execution';
+import { WRONGFORGE_REASONING, wrongForgeRuntime } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import { WRONGFORGE_REASONING, wrongForgeRuntime } from '../../src/fleet/wrongforge-runtime.js';
 
 describe('WrongForge runtime contract', () => {
   it('preserves extended effort levels advertised by the running server', () => {

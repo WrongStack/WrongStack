@@ -28,7 +28,7 @@
     },
     "apps/desktop-v2": {
       "name": "@wrongstack/desktop-v2",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@fontsource-variable/geist": "5.3.0",
         "@tauri-apps/api": "2.12.4",
@@ -58,7 +58,7 @@
     },
     "apps/wrongstack": {
       "name": "wrongstack",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "bin": {
         "wstack": "./dist/index.js",
         "wrongstack": "./dist/index.js",
@@ -73,7 +73,7 @@
     },
     "packages/acp": {
       "name": "@wrongstack/acp",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@agentclientprotocol/sdk": "^2.0.0",
         "@wrongstack/contracts": "workspace:*",
@@ -89,7 +89,7 @@
     },
     "packages/agent-catalog": {
       "name": "@wrongstack/agent-catalog",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/persistence": "workspace:*",
@@ -102,7 +102,7 @@
     },
     "packages/bench": {
       "name": "@wrongstack/bench",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/core": "workspace:*",
       },
@@ -113,7 +113,7 @@
     },
     "packages/builtin-plugins": {
       "name": "@wrongstack/builtin-plugins",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -128,7 +128,7 @@
     },
     "packages/chronicle": {
       "name": "@wrongstack/chronicle",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -142,7 +142,7 @@
     },
     "packages/cli": {
       "name": "@wrongstack/cli",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "bin": {
         "wstack": "./dist/index.js",
         "wrongstack": "./dist/index.js",
@@ -157,6 +157,7 @@
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/coordination": "workspace:*",
         "@wrongstack/core": "workspace:*",
+        "@wrongstack/fleet": "workspace:*",
         "@wrongstack/goal": "workspace:*",
         "@wrongstack/hq": "workspace:*",
         "@wrongstack/kanban": "workspace:*",
@@ -199,7 +200,7 @@
     },
     "packages/client": {
       "name": "@wrongstack/client",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/webui-protocol": "workspace:*",
       },
@@ -213,7 +214,7 @@
     },
     "packages/codebase-index-mcp": {
       "name": "@wrongstack/codebase-index-mcp",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "bin": {
         "wstack-codebase-index-mcp": "./dist/cli.js",
       },
@@ -231,7 +232,7 @@
     },
     "packages/contracts": {
       "name": "@wrongstack/contracts",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/kanban": "workspace:*",
         "@wrongstack/primitives": "workspace:*",
@@ -243,7 +244,7 @@
     },
     "packages/coordination": {
       "name": "@wrongstack/coordination",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/agent-catalog": "workspace:*",
         "@wrongstack/contracts": "workspace:*",
@@ -259,7 +260,7 @@
     },
     "packages/core": {
       "name": "@wrongstack/core",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/agent-catalog": "workspace:*",
         "@wrongstack/contracts": "workspace:*",
@@ -277,9 +278,28 @@
         "@datadog/pprof": "5.20.0",
       },
     },
+    "packages/fleet": {
+      "name": "@wrongstack/fleet",
+      "version": "1.3.0",
+      "dependencies": {
+        "@wrongstack/acp": "workspace:*",
+        "@wrongstack/agent-catalog": "workspace:*",
+        "@wrongstack/contracts": "workspace:*",
+        "@wrongstack/coordination": "workspace:*",
+        "@wrongstack/core": "workspace:*",
+        "@wrongstack/providers": "workspace:*",
+        "@wrongstack/sage": "workspace:*",
+        "@wrongstack/sdd": "workspace:*",
+        "@wrongstack/worktree": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "^22.20.5",
+        "typescript": "^7.0.2",
+      },
+    },
     "packages/goal": {
       "name": "@wrongstack/goal",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -292,7 +312,7 @@
     },
     "packages/governance": {
       "name": "@wrongstack/governance",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/persistence": "workspace:*",
       },
@@ -304,7 +324,7 @@
     },
     "packages/hq": {
       "name": "@wrongstack/hq",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -319,7 +339,7 @@
     },
     "packages/kanban": {
       "name": "@wrongstack/kanban",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/persistence": "workspace:*",
         "@wrongstack/primitives": "workspace:*",
@@ -331,7 +351,7 @@
     },
     "packages/kanban-mcp": {
       "name": "@wrongstack/kanban-mcp",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "bin": {
         "wstack-kanban-mcp": "./dist/cli.js",
       },
@@ -351,7 +371,7 @@
     },
     "packages/mailbox-mcp": {
       "name": "@wrongstack/mailbox-mcp",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "bin": {
         "wstack-mailbox-mcp": "./dist/cli.js",
       },
@@ -368,7 +388,7 @@
     },
     "packages/mcp": {
       "name": "@wrongstack/mcp",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -383,7 +403,7 @@
     },
     "packages/persistence": {
       "name": "@wrongstack/persistence",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "devDependencies": {
         "@types/node": "^26.6.5",
         "typescript": "^7.0.2",
@@ -391,7 +411,7 @@
     },
     "packages/plug-lsp": {
       "name": "@wrongstack/plug-lsp",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "bin": {
         "wrongstack-lsp-setup": "./dist/setup.js",
       },
@@ -411,7 +431,7 @@
     },
     "packages/plugin-sdk": {
       "name": "@wrongstack/plugin-sdk",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -425,7 +445,7 @@
     },
     "packages/plugins": {
       "name": "@wrongstack/plugins",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/coordination": "workspace:*",
@@ -444,7 +464,7 @@
     },
     "packages/primitives": {
       "name": "@wrongstack/primitives",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "devDependencies": {
         "@types/node": "^26.6.5",
         "typescript": "^7.0.2",
@@ -452,7 +472,7 @@
     },
     "packages/providers": {
       "name": "@wrongstack/providers",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@ai-sdk/amazon-bedrock": "5.0.121",
         "@ai-sdk/anthropic": "4.0.85",
@@ -477,7 +497,7 @@
     },
     "packages/requirement-intake": {
       "name": "@wrongstack/requirement-intake",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/core": "workspace:*",
         "zod": "4.6.7",
@@ -489,7 +509,7 @@
     },
     "packages/requirement-intake-mcp": {
       "name": "@wrongstack/requirement-intake-mcp",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "bin": {
         "wstack-requirement-intake-mcp": "./dist/cli.js",
       },
@@ -506,7 +526,7 @@
     },
     "packages/runtime": {
       "name": "@wrongstack/runtime",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/builtin-plugins": "workspace:*",
         "@wrongstack/chronicle": "workspace:*",
@@ -531,7 +551,7 @@
     },
     "packages/sage": {
       "name": "@wrongstack/sage",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/coordination": "workspace:*",
@@ -548,7 +568,7 @@
     },
     "packages/sage-mcp": {
       "name": "@wrongstack/sage-mcp",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "bin": {
         "wstack-sage-mcp": "./dist/cli.js",
       },
@@ -566,7 +586,7 @@
     },
     "packages/sdd": {
       "name": "@wrongstack/sdd",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/coordination": "workspace:*",
@@ -584,7 +604,7 @@
     },
     "packages/security-scanner": {
       "name": "@wrongstack/security-scanner",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -596,7 +616,7 @@
     },
     "packages/techstack": {
       "name": "@wrongstack/techstack",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -610,7 +630,7 @@
     },
     "packages/telegram": {
       "name": "@wrongstack/telegram",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
       },
@@ -627,7 +647,7 @@
     },
     "packages/tools": {
       "name": "@wrongstack/tools",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@jitl/quickjs-singlefile-mjs-release-sync": "^0.32.0",
         "@msgpack/msgpack": "^3.1.3",
@@ -654,7 +674,7 @@
     },
     "packages/tui": {
       "name": "@wrongstack/tui",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/chronicle": "workspace:*",
         "@wrongstack/contracts": "workspace:*",
@@ -687,7 +707,7 @@
     },
     "packages/vector-memory": {
       "name": "@wrongstack/vector-memory",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -702,7 +722,7 @@
     },
     "packages/vibeui": {
       "name": "@wrongstack/vibeui",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/webui-protocol": "workspace:*",
         "@xyflow/react": "12.12.0",
@@ -726,7 +746,7 @@
     },
     "packages/webui": {
       "name": "@wrongstack/webui",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
         "@fontsource-variable/cascadia-code": "^5.3.0",
@@ -825,7 +845,7 @@
     },
     "packages/webui-hq": {
       "name": "@wrongstack/webui-hq",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@fontsource-variable/ibm-plex-sans": "^5.3.0",
         "@fontsource-variable/manrope": "^5.3.0",
@@ -882,7 +902,7 @@
     },
     "packages/webui-protocol": {
       "name": "@wrongstack/webui-protocol",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -897,7 +917,7 @@
     },
     "packages/webui-server": {
       "name": "@wrongstack/webui-server",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/agent-catalog": "workspace:*",
         "@wrongstack/builtin-plugins": "workspace:*",
@@ -931,7 +951,7 @@
     },
     "packages/worktree": {
       "name": "@wrongstack/worktree",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -944,7 +964,7 @@
     },
     "packages/wrongtrace": {
       "name": "@wrongstack/wrongtrace",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "undici-types": "^8.12.3",
       },
@@ -956,7 +976,7 @@
     },
     "website": {
       "name": "wrongstack-website",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "dependencies": {
         "@radix-ui/react-slot": "^1.3.3",
         "class-variance-authority": "^0.7.1",
@@ -1729,6 +1749,8 @@
     "@wrongstack/core": ["@wrongstack/core@workspace:packages/core"],
 
     "@wrongstack/desktop-v2": ["@wrongstack/desktop-v2@workspace:apps/desktop-v2"],
+
+    "@wrongstack/fleet": ["@wrongstack/fleet@workspace:packages/fleet"],
 
     "@wrongstack/goal": ["@wrongstack/goal@workspace:packages/goal"],
 

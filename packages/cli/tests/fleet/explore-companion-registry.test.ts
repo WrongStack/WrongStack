@@ -1,6 +1,6 @@
 import type { ExploreCompanion } from '@wrongstack/coordination';
+import { createExploreCompanionRegistry } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import { createExploreCompanionRegistry } from '../../src/fleet/host-explore-companion-registry.js';
 
 /**
  * One explore companion per live conversation.

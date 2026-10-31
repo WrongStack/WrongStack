@@ -40,6 +40,12 @@ import {
   type ToolRegistry,
 } from '@wrongstack/core/registry';
 import { toErrorMessage, type WstackPaths } from '@wrongstack/core/utils';
+import type { MaxContextBranch } from '@wrongstack/fleet';
+import {
+  describeMaxContextChange,
+  refreshRuntimeModelCatalog,
+  resolveRuntimeMaxContextDetailed,
+} from '@wrongstack/fleet';
 import {
   createVaultBackedMcpAuthorizationProviderFactory,
   elicitViaUserInput,
@@ -55,12 +61,6 @@ import type { EventWiring } from '../boot/event-wiring.js';
 import { effectiveMcpServers, parseLaunchMcpServers } from '../boot/mcp-config-flag.js';
 import { isRestrictedMode } from '../boot/restricted-mode.js';
 import { isSafeMode } from '../boot/safe-mode.js';
-import type { MaxContextBranch } from '../context-limit.js';
-import {
-  describeMaxContextChange,
-  refreshRuntimeModelCatalog,
-  resolveRuntimeMaxContextDetailed,
-} from '../context-limit.js';
 import {
   createLifecycleHooksExtension,
   createUserPromptSubmitMiddleware,

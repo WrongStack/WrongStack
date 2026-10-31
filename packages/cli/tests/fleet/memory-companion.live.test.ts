@@ -14,9 +14,9 @@ import {
   decryptConfigSecrets,
 } from '@wrongstack/core/security';
 import { CONFIG_BEHAVIOR_DEFAULTS, DefaultConfigStore } from '@wrongstack/core/storage';
+import { type MultiAgentDeps, MultiAgentHost } from '@wrongstack/fleet';
 import { createSageTurnMiddleware, SqliteMemoryPort } from '@wrongstack/sage';
 import { expect, it } from 'vitest';
-import { type MultiAgentDeps, MultiAgentHost } from '../../src/multi-agent.js';
 
 // Explicit opt-in: this calls the active profile's real model and consumes quota.
 it.skipIf(process.env.WRONGSTACK_MEMORY_LIVE !== '1')(

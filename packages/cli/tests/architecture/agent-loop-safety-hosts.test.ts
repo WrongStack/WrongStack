@@ -28,8 +28,8 @@ const PACKAGES = path.join(repositoryRoot, 'packages');
 /** Every file that constructs a core `Agent`, as `<package>/<path>`. */
 const HOSTS = [
   'cli/acp-server-agent.ts',
-  'cli/fleet/host-subagent-factory.ts',
   'cli/wiring/pipeline.ts',
+  'fleet/host-subagent-factory.ts',
   'runtime/fleet/light-subagent-factory.ts',
   'webui-server/server/backend-services.ts',
   'webui-server/server/create-session-agent-manager.ts',

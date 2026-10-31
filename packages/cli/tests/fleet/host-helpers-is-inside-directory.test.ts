@@ -1,6 +1,6 @@
 import * as path from 'node:path';
+import { isInsideDirectory } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import { isInsideDirectory } from '../../src/fleet/host-helpers.js';
 
 // `isInsideDirectory` used a bare `relative.startsWith('..')`, which misreads a
 // legal in-root first segment that begins with '..' as an escape. Canonical

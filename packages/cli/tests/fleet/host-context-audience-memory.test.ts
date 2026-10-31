@@ -4,9 +4,10 @@
  * raw (`- ${text}`), include stale and `contextPolicy: 'never'` rows, count
  * every matched row as injected, and query without the owning session.
  */
+
+import { retrieveHostSubagentMemory } from '@wrongstack/fleet';
 import { SAGE_RETRIEVAL_CAPABILITY, type Sage } from '@wrongstack/sage';
 import { describe, expect, it, vi } from 'vitest';
-import { retrieveHostSubagentMemory } from '../../src/fleet/host-context.js';
 
 function sage(id: string, text: string, overrides: Partial<Sage> = {}): Sage {
   return {

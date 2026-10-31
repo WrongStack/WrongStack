@@ -14,11 +14,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
+import { createParentSubagentSessionWriter, withParentFileSnapshots } from '@wrongstack/fleet';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  createParentSubagentSessionWriter,
-  withParentFileSnapshots,
-} from '../../src/fleet/host-session-writer.js';
 
 let tmp: string;
 let store: DefaultSessionStore;

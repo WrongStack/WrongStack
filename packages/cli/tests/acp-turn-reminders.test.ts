@@ -1,6 +1,6 @@
 import { pendingBtwCount, setBtwNote } from '@wrongstack/core/agent';
+import { acpBtwBlock, startAcpTurnReminders } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { acpBtwBlock, startAcpTurnReminders } from '../src/fleet/acp-turn-reminders.js';
 
 afterEach(() => vi.useRealTimers());
 

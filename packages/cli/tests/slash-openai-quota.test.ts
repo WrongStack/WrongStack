@@ -8,11 +8,12 @@
 
 import type { Provider, SlashCommand } from '@wrongstack/contracts/types';
 import { recordProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
+import { reportWrongForgeQuota } from '@wrongstack/fleet';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { reportWrongForgeQuota } from '../src/fleet/wrongforge-quota.js';
 
-vi.mock('../src/fleet/wrongforge-quota.js', () => ({
+vi.mock('@wrongstack/fleet', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/fleet')>()),
   reportWrongForgeQuota: vi.fn(async () => false),
 }));
 

@@ -9,8 +9,8 @@
 
 import { EventBus } from '@wrongstack/contracts/kernel';
 import type { Mailbox } from '@wrongstack/coordination';
+import { createFleetStatusBroadcaster } from '@wrongstack/fleet';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createFleetStatusBroadcaster } from '../src/fleet/status-broadcast.js';
 
 type SentMail = { to: string; type: string; subject: string; body: string; priority?: string };
 

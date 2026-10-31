@@ -1,11 +1,11 @@
 import type { ModelsRegistry, Provider } from '@wrongstack/contracts/types';
-import { describe, expect, it, vi } from 'vitest';
 import {
   describeMaxContextChange,
   refreshRuntimeModelCatalog,
   resolveRuntimeMaxContext,
   resolveRuntimeMaxContextDetailed,
-} from '../src/context-limit.js';
+} from '@wrongstack/fleet';
+import { describe, expect, it, vi } from 'vitest';
 
 /**
  * Minimal fake catalog: the canonical `anthropic` and `openai` providers expose

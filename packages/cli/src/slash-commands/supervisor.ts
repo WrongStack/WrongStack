@@ -14,7 +14,7 @@
  */
 import type { SlashCommand } from '@wrongstack/contracts/types';
 import { color } from '@wrongstack/core/utils';
-import { getActiveFleetSupervisor } from '../fleet/supervisor-registry.js';
+import { getActiveFleetSupervisor } from '@wrongstack/fleet';
 import type { SlashCommandContext } from './command-context.js';
 
 function fmtAge(at: number): string {

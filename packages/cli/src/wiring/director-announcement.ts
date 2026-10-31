@@ -2,7 +2,7 @@ import type { Logger } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/coordination';
 import { FLEET_ROSTER } from '@wrongstack/coordination';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { MultiAgentHost } from '../fleet/host.js';
+import type { MultiAgentHost } from '@wrongstack/fleet';
 
 /**
  * Phase: director activation + announcement (card #7C slice 4).

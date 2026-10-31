@@ -3,8 +3,8 @@ import {
   recordProviderQuota,
   resetProviderQuota,
 } from '@wrongstack/core/quota';
+import { reportWrongForgeQuota } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { reportWrongForgeQuota } from '../../src/fleet/wrongforge-quota.js';
 
 let id = 0;
 const endpoint = () => ({ url: `http://wrongforge.test/${++id}`, apiKey: 'wf-test-0123456789' });

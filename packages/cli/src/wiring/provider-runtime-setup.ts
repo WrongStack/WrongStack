@@ -18,10 +18,10 @@ import {
 } from '@wrongstack/core/storage';
 import { readJsonObjectFile, type WstackPaths } from '@wrongstack/core/utils';
 import { createProxyInstantApply } from '@wrongstack/core/wiring/proxy-rewrite';
+import { WRONGFORGE_AGENT_ID } from '@wrongstack/fleet';
 import { unavailableProviderCredentials, withCatalogCapabilities } from '@wrongstack/providers';
 import { getSageService } from '@wrongstack/sage';
 import { ACP_LEADER_PROVIDER_ID } from '../acp-leader/acp-leader-provider.js';
-import { WRONGFORGE_AGENT_ID } from '../fleet/wrongforge-client.js';
 import { createFallbackGate } from './fallback-gate.js';
 import { resolveRawProviderConnection } from './provider-runtime.js';
 

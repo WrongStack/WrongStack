@@ -1,0 +1,55 @@
+{
+  "name": "@wrongstack/fleet",
+  "version": "1.3.0",
+  "private": true,
+  "license": "MIT",
+  "description": "WrongStack multi-agent fleet host: MultiAgentHost, the delegation runtime, ACP and WrongForge workers, and the explore, memory and skill companions. Built on @wrongstack/coordination and @wrongstack/core.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WrongStack/WrongStack.git",
+    "directory": "packages/fleet"
+  },
+  "homepage": "https://github.com/WrongStack/WrongStack#readme",
+  "bugs": {
+    "url": "https://github.com/WrongStack/WrongStack/issues"
+  },
+  "author": "ECOSTACK TECHNOLOGY OÜ",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@wrongstack/acp": "workspace:*",
+    "@wrongstack/agent-catalog": "workspace:*",
+    "@wrongstack/contracts": "workspace:*",
+    "@wrongstack/coordination": "workspace:*",
+    "@wrongstack/core": "workspace:*",
+    "@wrongstack/providers": "workspace:*",
+    "@wrongstack/sage": "workspace:*",
+    "@wrongstack/sdd": "workspace:*",
+    "@wrongstack/worktree": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -8,7 +8,7 @@ import {
   startTechStackConsumer,
 } from '@wrongstack/coordination';
 import type { DefaultLogger } from '@wrongstack/core/infrastructure';
-import type { MultiAgentHost } from '../multi-agent.js';
+import type { MultiAgentHost } from '@wrongstack/fleet';
 
 /**
  * Upper bound on how long session teardown will wait for an in-flight

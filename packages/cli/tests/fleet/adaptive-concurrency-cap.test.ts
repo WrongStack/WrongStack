@@ -12,8 +12,8 @@ import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execut
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { type MultiAgentDeps, MultiAgentHost } from '@wrongstack/fleet';
 import { describe, expect, it, vi } from 'vitest';
-import { type MultiAgentDeps, MultiAgentHost } from '../../src/multi-agent.js';
 
 function makeDeps(adaptiveConcurrency: Record<string, unknown>): MultiAgentDeps {
   const container = new Container();

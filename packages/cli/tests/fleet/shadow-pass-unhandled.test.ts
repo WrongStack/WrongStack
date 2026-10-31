@@ -17,9 +17,9 @@
 import { EventBus } from '@wrongstack/contracts/kernel';
 import type { ConfigStore, SessionWriter } from '@wrongstack/contracts/types';
 import { FleetCostCapError, FleetSpawnBudgetError } from '@wrongstack/coordination';
+import type { MultiAgentDeps, MultiAgentHostOptions } from '@wrongstack/fleet';
+import { HostShadowManager } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HostShadowManager } from '../../src/fleet/host-shadow-manager.js';
-import type { MultiAgentDeps, MultiAgentHostOptions } from '../../src/fleet/host-types.js';
 
 function managerWith(spawnError: () => Error): { events: EventBus; attempts: () => number } {
   const events = new EventBus();

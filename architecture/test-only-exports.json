@@ -382,20 +382,20 @@
     "packages/cli/src/fleet-statusline.ts": [
       "renderFleetLine"
     ],
-    "packages/cli/src/fleet/acp-wrongstack-bridge.ts": [
+    "packages/fleet/src/acp-wrongstack-bridge.ts": [
       "bridgeNote",
       "bridgeTaskKickoff",
       "wstackLaunch",
       "wstackToolsCommand"
     ],
-    "packages/cli/src/fleet/host-explore-companion.ts": [
+    "packages/fleet/src/host-explore-companion.ts": [
       "formatExploreNote"
     ],
-    "packages/cli/src/fleet/host-helpers.ts": [
+    "packages/fleet/src/host-helpers.ts": [
       "DEFAULT_SUBAGENT_HIDDEN_TOOLS",
       "NEVER_SUBAGENT_TOOLS"
     ],
-    "packages/cli/src/fleet/skill-companion-outcomes.ts": [
+    "packages/fleet/src/skill-companion-outcomes.ts": [
       "skillOutcomesPath"
     ],
     "packages/cli/src/fleet/wrongforge-gateway.ts": [
@@ -461,9 +461,6 @@
     ],
     "packages/cli/src/sage-connect.ts": [
       "setTomlMcpServer"
-    ],
-    "packages/cli/src/services/dispatch-classifier.ts": [
-      "makeProviderClassifier"
     ],
     "packages/cli/src/settings-menu.ts": [
       "resolveActualTarget",

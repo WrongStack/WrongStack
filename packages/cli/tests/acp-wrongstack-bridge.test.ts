@@ -2,7 +2,6 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
-import { describe, expect, it } from 'vitest';
 import {
   bridgeNote,
   bridgeTaskKickoff,
@@ -10,7 +9,8 @@ import {
   onPath,
   wrongstackBridgeSetup,
   wstackLaunch,
-} from '../src/fleet/acp-wrongstack-bridge.js';
+} from '@wrongstack/fleet';
+import { describe, expect, it } from 'vitest';
 
 const ROOT = '/work/project';
 const task: TaskSpec = { id: 't-42', description: 'fix the flaky test' };

@@ -57,9 +57,9 @@ import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execut
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { type MultiAgentDeps, MultiAgentHost } from '@wrongstack/fleet';
 import { capabilitiesFor } from '@wrongstack/providers';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
-import { type MultiAgentDeps, MultiAgentHost } from '../src/multi-agent.js';
 
 beforeEach(() => {
   vi.mocked(capabilitiesFor).mockClear();

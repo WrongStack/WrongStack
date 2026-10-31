@@ -1,12 +1,12 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
 import {
   parseWrongForgeInfo,
   readCachedWrongForgeInfo,
   writeWrongForgeInfoCache,
-} from '../../src/fleet/wrongforge-info.js';
+} from '@wrongstack/fleet';
+import { describe, expect, it } from 'vitest';
 
 describe('WrongForge model capabilities', () => {
   it('keeps model effort levels and descriptions through the info cache', () => {

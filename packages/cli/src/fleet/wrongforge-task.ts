@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { deferShutdownForRemoteWork } from '../shutdown-cleanup.js';
 import {
   cancelTask,
   followTask,
@@ -8,7 +7,8 @@ import {
   type WfCall,
   type WfEvent,
   type WfTaskRecord,
-} from './wrongforge-client.js';
+} from '@wrongstack/fleet';
+import { deferShutdownForRemoteWork } from '../shutdown-cleanup.js';
 
 const DEFAULT_WRONGFORGE_QUEUE_TIMEOUT_MS = 120_000;
 

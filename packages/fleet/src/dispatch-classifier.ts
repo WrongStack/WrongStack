@@ -23,14 +23,36 @@ import {
   warnFeatureUnusable,
   warnOnce,
 } from '@wrongstack/core/typesafe';
-import type { CommitLLMProvider } from './commit-message.js';
+
+/**
+ * The slice of a provider the classifier calls. Structurally identical to the
+ * CLI's `CommitLLMProvider` (services/commit-message.ts), so the session
+ * provider satisfies both without either package importing the other.
+ */
+export interface ClassifierLLMProvider {
+  complete(
+    req: {
+      model: string;
+      system?: { type: 'text' | undefined; text: string }[];
+      messages: { role: string; content: { type: 'text'; text: string }[] }[];
+      /** Unset = the model's own output ceiling. */
+      maxTokens?: number | undefined;
+      temperature?: number | undefined;
+    },
+    opts: { signal: AbortSignal },
+  ): Promise<{
+    /** Normalized content blocks (Anthropic/OpenAI compatible) */
+    content: { type: 'text'; text: string }[];
+    model: string;
+  }>;
+}
 
 /**
  * Wrap the session provider in the `complete(prompt) => text` shape
  * `makeLLMClassifier` expects. Mirrors `generateCommitMessageWithLLM`.
  */
 export function makeProviderClassifier(
-  provider: CommitLLMProvider,
+  provider: ClassifierLLMProvider,
   model: string,
 ): DispatchClassifier {
   return makeLLMClassifier(async (prompt: string): Promise<string> => {
@@ -73,7 +95,7 @@ export function makeProviderClassifier(
  */
 export function makeDispatchClassifier(deps: {
   config: Config;
-  provider: CommitLLMProvider;
+  provider: ClassifierLLMProvider;
   model: string;
   env?: NodeJS.ProcessEnv | undefined;
   /**

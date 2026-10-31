@@ -214,7 +214,7 @@ describe('security helpers are wired, not just present', () => {
       'packages/core/src/core/system-prompt-builder.ts',
       'packages/core/src/core/system-prompt-builder-core.ts',
       // `.wrongstack/agents/<role>/skills/<skill>.md` → subagent prompt
-      'packages/cli/src/fleet/host-context.ts',
+      'packages/fleet/src/host-context.ts',
     ] as const;
 
     const byRel = new Map(SOURCES.map((s) => [s.rel, s.text]));

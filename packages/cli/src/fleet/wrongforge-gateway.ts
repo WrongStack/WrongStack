@@ -10,11 +10,9 @@
  * WrongStack's rules, next to the code index and the board.
  */
 import { randomBytes } from 'node:crypto';
-import type { Config } from '@wrongstack/contracts/types';
-import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { WrongForgeGatewayOptions, WrongForgeGatewaySpec } from '@wrongstack/fleet';
 import { createToolGateway, resolveGatewayRegistry } from '../tool-gateway.js';
 import { serveToolGatewayHttp } from '../tool-gateway-http.js';
-import type { WrongForgeGatewaySpec } from './wrongforge-client.js';
 
 /**
  * WrongForge keeps its own read-side tools (the runner allows them); a second
@@ -58,13 +56,7 @@ export const WORKER_WITHHELD_TOOLS: ReadonlySet<string> = new Set([
   'mcp_control',
 ]);
 
-interface GatewayOptions {
-  projectRoot: string;
-  registry: ToolRegistry;
-  config: Config;
-  yoloPlus?: (() => boolean) | undefined;
-  log?: ((message: string) => void) | undefined;
-}
+type GatewayOptions = WrongForgeGatewayOptions;
 
 const gateways = new Map<string, Promise<WrongForgeGatewaySpec>>();
 

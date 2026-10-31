@@ -9,9 +9,9 @@ import {
   toErrorMessage,
   wrongstackPackageJsonPath,
 } from '@wrongstack/core/utils';
+import { WRONGFORGE_AGENT_ID } from '@wrongstack/fleet';
 import { isSetupProvider } from '@wrongstack/providers';
 import { ACP_LEADER_PROVIDER_ID } from './acp-leader/acp-leader-host.js';
-import { WRONGFORGE_AGENT_ID } from './fleet/wrongforge-client.js';
 
 import type { ReadlineInputReader } from './input-reader.js';
 

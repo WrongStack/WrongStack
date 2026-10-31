@@ -3,13 +3,13 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EventBus } from '@wrongstack/contracts/kernel';
 import { AgentStatusTracker, Director, mailboxSessionTag } from '@wrongstack/coordination';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SqliteMailbox } from '../../../coordination/src/sqlite-mailbox.js';
 import {
+  createFleetStatusBroadcaster,
   registerCoordinatorLifecycleHandlers,
   registerDirectorSubagentLifecycleBridges,
-} from '../../src/fleet/host-director-event-bridges.js';
-import { createFleetStatusBroadcaster } from '../../src/fleet/status-broadcast.js';
+} from '@wrongstack/fleet';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SqliteMailbox } from '../../../coordination/src/sqlite-mailbox.js';
 
 // Real coordinator → host bridge → session tracker + SQLite presence registry.
 // Only the model runner and clock are substituted.

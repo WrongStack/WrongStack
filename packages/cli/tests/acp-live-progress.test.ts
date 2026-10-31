@@ -10,8 +10,8 @@
  * watched exactly like native workers.
  */
 import type { ACPProgressEvent } from '@wrongstack/acp';
+import { publishAcpLiveProgress } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import { publishAcpLiveProgress } from '../src/fleet/acp-live-progress.js';
 
 interface CapturedBus {
   events: Array<{

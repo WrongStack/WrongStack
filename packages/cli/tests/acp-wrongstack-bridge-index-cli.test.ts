@@ -1,6 +1,6 @@
 import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
+import { wrongstackBridgeSetup, wstackToolsCommand } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import { wrongstackBridgeSetup, wstackToolsCommand } from '../src/fleet/acp-wrongstack-bridge.js';
 
 const ROOT = '/work/project';
 const task: TaskSpec = { id: 't-1', description: 'rename the parser' };

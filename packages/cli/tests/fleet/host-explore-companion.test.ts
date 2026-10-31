@@ -12,8 +12,8 @@ import {
   getSharedProjectMailbox,
   postSessionNote,
 } from '@wrongstack/coordination';
+import { createHostExploreCompanion } from '@wrongstack/fleet';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createHostExploreCompanion } from '../../src/fleet/host-explore-companion.js';
 
 vi.mock('@wrongstack/coordination', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wrongstack/coordination')>()),

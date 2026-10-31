@@ -20,9 +20,9 @@
 
 import type { Provider } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
+import { WRONGFORGE_REASONING } from '@wrongstack/fleet';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 import type { CliContext } from '../cli-context.js';
-import { WRONGFORGE_REASONING } from '../fleet/wrongforge-runtime.js';
 import { wireSessionEvents } from '../session-event-wiring.js';
 import { SessionStats } from '../session-stats.js';
 import { setupPipelines } from './pipeline.js';

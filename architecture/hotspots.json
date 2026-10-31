@@ -14,7 +14,7 @@
       "lines": 706,
       "relativeImports": 17
     },
-    "packages/cli/src/fleet/host-skill-companion.ts": {
+    "packages/fleet/src/host-skill-companion.ts": {
       "lines": 756,
       "relativeImports": 3
     },

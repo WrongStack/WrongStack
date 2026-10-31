@@ -25,8 +25,8 @@ vi.mock('@wrongstack/coordination', async (importOriginal) => {
   };
 });
 
-vi.mock('../../src/fleet/host-provider.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/fleet/host-provider.js')>();
+vi.mock('../src/host-provider.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/host-provider.js')>();
   return {
     ...actual,
     buildHostSubagentProvider: vi.fn(async () => ({
@@ -37,7 +37,7 @@ vi.mock('../../src/fleet/host-provider.js', async (importOriginal) => {
   };
 });
 
-const { createHostSubagentFactory } = await import('../../src/fleet/host-subagent-factory.js');
+const { createHostSubagentFactory } = await import('../src/host-subagent-factory.js');
 
 const template = FLEET_ROSTER[DEFAULT_EXPLORE_COMPANION_AGENT_ID] as SubagentConfig;
 

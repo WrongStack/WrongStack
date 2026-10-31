@@ -17,8 +17,8 @@
 
 import type { SubagentConfig, Tool } from '@wrongstack/contracts/types';
 import { ToolCapabilities, WIDE_SUBAGENT_CAPABILITIES } from '@wrongstack/core/security';
+import { resolveSubagentCapabilities } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import { resolveSubagentCapabilities } from '../../src/fleet/host-helpers.js';
 
 const noTools = () => [] as readonly Tool[];
 

@@ -13,13 +13,13 @@ import {
 } from '@wrongstack/acp';
 import type { SlashCommand } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { wrongstackBridgeSetup } from '@wrongstack/fleet';
 import { formatAcpAgentList } from '../acp-agent-list.js';
 import {
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
   refreshAcpRegistry,
 } from '../acp-registry-cache.js';
-import { wrongstackBridgeSetup } from '../fleet/acp-wrongstack-bridge.js';
 import type { SlashCommandContext } from './command-context.js';
 /**
  * /acp — discover and drive the ACP-supporting coding CLIs installed on this

@@ -45,8 +45,8 @@ import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execut
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { type MultiAgentDeps, MultiAgentHost } from '@wrongstack/fleet';
 import { makeProviderFromConfig } from '@wrongstack/providers';
-import { type MultiAgentDeps, MultiAgentHost } from '../src/multi-agent.js';
 
 const SESSION_ID = 'sess-lane-e2e';
 

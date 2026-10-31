@@ -6,14 +6,14 @@ import path from 'node:path';
 import type { ACPProgressEvent } from '@wrongstack/acp';
 import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { getAllProviderQuota, resetProviderQuota } from '@wrongstack/core/quota';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { buildAcpSubagentRunner } from '../../src/fleet/host-acp.js';
 import {
+  buildAcpSubagentRunner,
   chooseModel,
   makeWrongForgeRunner,
   resolveWrongForgeEndpoint,
   WRONGFORGE_READ_SIDE_TOOLS,
-} from '../../src/fleet/wrongforge-runner.js';
+} from '@wrongstack/fleet';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const KEY = 'wf_test-key-0123456789abcdef';
 

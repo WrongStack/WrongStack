@@ -1,12 +1,8 @@
 import { EventBus } from '@wrongstack/contracts/kernel';
 import type { Config, SubagentRunContext } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/coordination';
+import { acpCommandOpts, type HostAcpRunnerHost, spawnACP } from '@wrongstack/fleet';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  acpCommandOpts,
-  type HostAcpRunnerHost,
-  spawnACP,
-} from '../../src/fleet/host-acp-runner.js';
 
 function harness() {
   const order: string[] = [];

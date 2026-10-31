@@ -1,5 +1,5 @@
+import { runWithQuotaHold } from '@wrongstack/fleet';
 import { describe, expect, it, vi } from 'vitest';
-import { runWithQuotaHold } from '../src/fleet/acp-quota-hold.js';
 
 // Holds are process-wide; each test uses its own agent ids.
 

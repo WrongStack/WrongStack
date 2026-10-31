@@ -11,8 +11,8 @@
 
 import { EventBus } from '@wrongstack/contracts/kernel';
 import { FleetBus } from '@wrongstack/coordination';
+import { registerDirectorStatsBridge } from '@wrongstack/fleet';
 import { describe, expect, it } from 'vitest';
-import { registerDirectorStatsBridge } from '../src/fleet/host-director-event-bridges.js';
 
 interface StatsFrame {
   subagentStatuses: Array<{ subagentId: string; model?: string }>;
