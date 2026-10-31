@@ -11,6 +11,7 @@
 
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Config, ModelsRegistry, Tool } from '@wrongstack/contracts/types';
+import { listTierIds, resolveTier } from '@wrongstack/coordination';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { catalogProviderIdFor } from '@wrongstack/providers';
@@ -54,8 +55,10 @@ interface TierState {
   contextTokens: number;
   turns: number;
   currentTier: string | undefined;
-  /** Turn count at this conversation's last tier switch; unset until it switches. */
+  /** Turn count at this conversation's last model switch; unset until it switches. */
   switchedAtTurn: number | undefined;
+  /** `provider/model` the conversation ran at its last turn start. */
+  lastModel: string | undefined;
 }
 
 function callerSessionId(context: ManageToolCallerContext): string | undefined {
@@ -69,7 +72,13 @@ export function registerEngineManagementTools(deps: EngineManagementToolsDeps): 
     if (!sessionId) return undefined;
     let state = tierStates.get(sessionId);
     if (!state) {
-      state = { contextTokens: 0, turns: 0, currentTier: undefined, switchedAtTurn: undefined };
+      state = {
+        contextTokens: 0,
+        turns: 0,
+        currentTier: undefined,
+        switchedAtTurn: undefined,
+        lastModel: undefined,
+      };
       tierStates.set(sessionId, state);
     }
     return state;
@@ -80,11 +89,33 @@ export function registerEngineManagementTools(deps: EngineManagementToolsDeps): 
       state.contextTokens = event.tokens;
     }
   });
-  // `index === 0` opens a turn: the dwell window is counted in turns, not iterations.
+  const modelKey = (sessionId: string | undefined) => {
+    const live = deps.sessionModel?.(sessionId);
+    return live ? `${live.provider}/${live.model}` : undefined;
+  };
+  // `index === 0` opens a turn: the dwell window is counted in turns, not iterations. A model
+  // that changed since the previous turn start was switched in between (an accepted proposal,
+  // the model picker), which busts the prompt cache like a tier switch does.
   deps.events?.on('iteration.started', (event) => {
     const state = event.index === 0 ? tierState(event.sessionId) : undefined;
-    if (state) state.turns += 1;
+    if (!state) return;
+    state.turns += 1;
+    const model = modelKey(event.sessionId);
+    if (state.lastModel !== undefined && model && model !== state.lastModel) {
+      state.switchedAtTurn = state.turns - 1;
+    }
+    if (model) state.lastModel = model;
   });
+  // The tier whose model the conversation runs now, whoever switched it there.
+  const liveTier = (sessionId: string | undefined): string | undefined => {
+    const live = deps.sessionModel?.(sessionId);
+    if (!live) return undefined;
+    const config = deps.getConfig();
+    return listTierIds(config).find((id) => {
+      const target = resolveTier(config, { tier: id });
+      return target?.model === live.model && (target.provider ?? config.provider) === live.provider;
+    });
+  };
   const tools = createFallbackManageTools({
     getConfig: deps.getConfig,
     updateConfig: async (mutate) => {
@@ -101,8 +132,10 @@ export function registerEngineManagementTools(deps: EngineManagementToolsDeps): 
         return toErrorMessage(error);
       }
     },
-    getCurrentTier: (context: ManageToolCallerContext) =>
-      tierStates.get(callerSessionId(context) ?? '')?.currentTier,
+    getCurrentTier: (context: ManageToolCallerContext) => {
+      const sessionId = callerSessionId(context);
+      return deps.sessionModel ? liveTier(sessionId) : tierStates.get(sessionId ?? '')?.currentTier;
+    },
     getContextTokens: (context: ManageToolCallerContext) => {
       const tokens = tierStates.get(callerSessionId(context) ?? '')?.contextTokens ?? 0;
       return tokens > 0 ? tokens : undefined;
@@ -120,6 +153,7 @@ export function registerEngineManagementTools(deps: EngineManagementToolsDeps): 
       if (!state) return;
       state.currentTier = tier;
       state.switchedAtTurn = state.turns;
+      state.lastModel = modelKey(callerSessionId(context)) ?? state.lastModel;
     },
     ...(deps.sessionModel
       ? {

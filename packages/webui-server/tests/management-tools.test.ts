@@ -117,6 +117,7 @@ describe('leader_tier_set guards per conversation', () => {
     const priced: string[] = [];
     const proposals: Array<[string | undefined, unknown]> = [];
     const switched: string[] = [];
+    const models = new Map<string, { provider: string; model: string }>();
     const tools: RegisteredTool[] = [];
     let live = {
       provider: 'zai',
@@ -133,13 +134,15 @@ describe('leader_tier_set guards per conversation', () => {
         live = next;
       },
       persist: async () => {},
-      switchModel: async (_provider, model) => {
+      switchModel: async (provider, model, sessionId) => {
         switched.push(model);
+        if (sessionId) models.set(sessionId, { provider, model });
       },
       onTierProposed: (sessionId, proposal) => proposals.push([sessionId, proposal]),
       events,
-      // Every tab runs the premium model; the profile default is the cheap glm-a.
-      sessionModel: () => ({ provider: 'zai', model: 'glm-big' }),
+      // Every tab starts on the premium model; the profile default is the cheap glm-a.
+      sessionModel: (sessionId) =>
+        models.get(sessionId ?? '') ?? { provider: 'zai', model: 'glm-big' },
       modelsRegistry: {
         getModel: async (_provider: string, model: string) => {
           priced.push(model);
@@ -153,6 +156,10 @@ describe('leader_tier_set guards per conversation', () => {
       priced,
       proposals,
       switched,
+      // A switch made outside the tool: an accepted proposal or the model picker.
+      pick: (id: string, provider: string, model: string) => models.set(id, { provider, model }),
+      show: (id: string) =>
+        tierTool.execute({ action: 'show' }, tabCtx(id)) as Promise<{ message: string }>,
       turn: (id: string) => events.emit('iteration.started', { index: 0, sessionId: id } as never),
       size: (id: string, tokens: number) =>
         events.emit('ctx.pct', { sessionId: id, tokens, load: 0, maxContext: 0 } as never),
@@ -202,5 +209,17 @@ describe('leader_tier_set guards per conversation', () => {
         }),
       ],
     ]);
+  });
+
+  it('follows a switch made outside the tool: the active tier and the dwell window', async () => {
+    const h = tiered();
+    h.turn('tab-9');
+    h.pick('tab-9', 'other', 'o-cheap');
+    h.turn('tab-9');
+    expect((await h.show('tab-9')).message).toContain('active tier: budget');
+    await expect(h.set('tab-9', 'premium')).rejects.toThrow(/Refused \(dwell\)/);
+    h.turn('tab-9');
+    await expect(h.set('tab-9', 'premium')).resolves.toMatchObject({ status: 'ok' });
+    expect((await h.show('tab-9')).message).toContain('active tier: premium');
   });
 });
