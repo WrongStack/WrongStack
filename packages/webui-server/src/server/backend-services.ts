@@ -73,6 +73,7 @@ import { createSessionAgentManager } from './create-session-agent-manager.js';
 import { discoverMailboxBridgeForWebui } from './discover-mailbox-bridge.js';
 import { GoalWebSocketHandler } from './goal-ws-handler.js';
 import { createKanbanRunMirror } from './kanban-run-mirror.js';
+import { registerLeaderEffortTool } from './leader-effort-tool.js';
 import { createMaxContextUpdater, positiveWindow } from './max-context-updater.js';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 import { buildSavedProvider } from './saved-provider.js';
@@ -221,6 +222,15 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     toolRegistry.registerDefault(createContextManagerTool({ compactor }));
     toolRegistry.exposeToProvider(CONTEXT_MANAGER_TOOL_NAME);
   }
+  // `leader_effort_set` — the leader's own effort for this conversation (CLI parity:
+  // cli/wiring/management-tools.ts). The override itself was already applied, restored on
+  // resume and shown; only the tool was missing.
+  registerLeaderEffortTool({
+    toolRegistry,
+    getConfig: () => input.getConfig?.() ?? input.config,
+    modelsRegistry,
+    events,
+  });
 
   // Per-model catalog facts FIRST — mirrors the CLI's resolveRuntimeMaxContext
   // chain. `config.context.effectiveMaxContext` is a single model-agnostic

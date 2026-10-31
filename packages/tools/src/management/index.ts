@@ -25,6 +25,11 @@ export {
   validateProviderBaseUrl,
 } from './fallback-manage-tools.js';
 export { registerJevTools } from './jev-registration.js';
+export {
+  createLeaderEffortSetTool,
+  LEADER_EFFORT_SET_TOOL_NAME,
+  type LeaderEffortSetToolOptions,
+} from './leader-effort-set-tool.js';
 export { createMcpControlTool, type MCPRegistryHandle } from './mcp-control.js';
 export { createMcpUseTool } from './mcp-use.js';
 export {

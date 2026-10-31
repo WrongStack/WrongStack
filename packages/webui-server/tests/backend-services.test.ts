@@ -458,7 +458,20 @@ describe('createAgentServices', () => {
     const input = makeInput();
     input.config.tools = { ...(input.config.tools ?? {}), disabledTools: ['context_manager'] };
     await createAgentServices(input);
-    expect(input.toolRegistry.registerDefault).not.toHaveBeenCalled();
+    expect(input.toolRegistry.registerDefault).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'context_manager' }),
+    );
+  });
+
+  // The engine applied, restored and displayed a leader's own effort override but never
+  // registered the tool that sets it (CLI parity: cli/wiring/management-tools.ts).
+  it('registers leader_effort_set without exposing it directly', async () => {
+    const input = makeInput();
+    await createAgentServices(input);
+    expect(input.toolRegistry.registerDefault).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'leader_effort_set' }),
+    );
+    expect(input.toolRegistry.exposeToProvider).not.toHaveBeenCalledWith('leader_effort_set');
   });
 
   it('constructs and returns AgentServices with expected shape', async () => {

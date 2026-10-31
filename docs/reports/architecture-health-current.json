@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T11:22:57.815Z",
+  "generatedAt": "2026-10-31T12:06:44.153Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5553,
-    "testFiles": 4840,
-    "sourceLines": 1218654,
+    "sourceFiles": 5554,
+    "testFiles": 4841,
+    "sourceLines": 1218722,
     "workspaceEdges": 233,
-    "moduleEdges": 16652,
+    "moduleEdges": 16654,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -1142,8 +1142,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 323,
-      "testFiles": 358,
+      "sourceFiles": 324,
+      "testFiles": 359,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1178,7 +1178,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 358
+          "testFiles": 359
         }
       ]
     },
@@ -25872,6 +25872,12 @@
       },
       {
         "file": "packages/webui-server/tests/leader-auto-wake-host.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/leader-effort-tool.test.ts",
         "projects": [
           "root-node"
         ]
