@@ -107,6 +107,9 @@ function github(f: Awaited<ReturnType<typeof fixture>>) {
     raceUpdate: false,
     loseUpdateResponse: false,
     failNextPRRead: false,
+    // GitHub's PR view lags a ref update: these many reads still report the previous head.
+    laggingHeadReads: 0,
+    laggingHead: undefined as string | undefined,
     branch: null as string | null,
     pr: null as Record<string, unknown> | null,
     checks: [] as unknown[],
@@ -138,6 +141,7 @@ function github(f: Awaited<ReturnType<typeof fixture>>) {
         }
         if (update.beforeOid !== remote.branch)
           return reply({ errors: [{ message: 'Head changed' }] });
+        if (remote.laggingHeadReads) remote.laggingHead = update.beforeOid;
         remote.branch = update.afterOid;
         remote.commit = update.afterOid;
         if (remote.loseUpdateResponse) {
@@ -195,9 +199,13 @@ function github(f: Awaited<ReturnType<typeof fixture>>) {
           remote.failNextPRRead = false;
           throw new Error('Lost verification read');
         }
+        const lagging = remote.laggingHead !== undefined && remote.laggingHeadReads-- > 0;
         return reply({
           ...remote.pr,
-          head: { ...(remote.pr!['head'] as object), sha: remote.checkHead ?? remote.commit },
+          head: {
+            ...(remote.pr!['head'] as object),
+            sha: lagging ? remote.laggingHead : (remote.checkHead ?? remote.commit),
+          },
         });
       }
       const page = Number(route.match(/[?&]page=(\d+)/)?.[1] ?? 1);
@@ -370,7 +378,7 @@ describe('verified automation to draft PR', () => {
     ];
     await expect(f.requests.check(f.run.id)).rejects.toThrow('identity is invalid');
   });
-  it.each(['normal', 'concurrent-head-change', 'lost-update-response'] as const)(
+  it.each(['normal', 'concurrent-head-change', 'lost-update-response', 'lagging-pr-head'] as const)(
     'continues the exact run and updates the same PR safely: %s',
     async (scenario) => {
       const f = await fixture(),
@@ -492,6 +500,9 @@ describe('verified automation to draft PR', () => {
           'Lost verification read',
         );
       }
+      // A real update to a private repository: the first PR reads after the ref moved still
+      // named the old head, and the first publish reported a failure for a landed update.
+      if (scenario === 'lagging-pr-head') remote.laggingHeadReads = 2;
       const result = await f.requests.publish(child.id, plan.fingerprint);
       expect(result.receipt).toMatchObject({ number: 7, commit: remote.nextCommit });
       expect(calls.filter((call) => call.route === 'pulls' && call.body)).toHaveLength(1);

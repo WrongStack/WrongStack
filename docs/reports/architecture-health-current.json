@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T08:41:41.982Z",
+  "generatedAt": "2026-10-31T09:52:28.600Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5553,
-    "testFiles": 4840,
-    "sourceLines": 1218699,
+    "testFiles": 4837,
+    "sourceLines": 1218497,
     "workspaceEdges": 233,
-    "moduleEdges": 16652,
+    "moduleEdges": 16650,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 635,
-      "testFiles": 690,
+      "testFiles": 688,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 690
+          "testFiles": 688
         }
       ]
     },
@@ -1143,7 +1143,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 323,
-      "testFiles": 358,
+      "testFiles": 357,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1178,7 +1178,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 358
+          "testFiles": 357
         }
       ]
     },
@@ -11291,12 +11291,6 @@
         ]
       },
       {
-        "file": "packages/core/tests/session-catalog-client-frame-cap.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/core/tests/session-catalog-client-lost-election.test.ts",
         "projects": [
           "root-node"
@@ -11700,12 +11694,6 @@
       },
       {
         "file": "packages/core/tests/storage/in-project-fleet-delegate-denied.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/storage/in-project-model-endpoint-denied.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25416,12 +25404,6 @@
       },
       {
         "file": "packages/webui-server/tests/create-http-server-options-parity.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-server/tests/custom-context-modes-save-order.test.ts",
         "projects": [
           "root-node"
         ]

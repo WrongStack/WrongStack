@@ -215,6 +215,22 @@ export class AutomationPullRequests {
     )
       throw new Error('PR identity, draft state or head differs from the prepared plan');
   }
+  /**
+   * GitHub's PR view trails a ref update by a moment: right after the branch moved it can still
+   * report the previous head. Only that previous head is waited out (about ten seconds); any
+   * other head is returned at once for the caller to refuse.
+   */
+  private async settledPR(
+    api: AutomationGitHubAPI,
+    plan: AutomationPullRequestPlan,
+    target: NonNullable<AutomationPullRequestPlan['target']>,
+  ): Promise<RemotePR | null> {
+    for (let attempt = 0; ; attempt++) {
+      const pr = await api.request<RemotePR>(`${plan.repository}/pulls/${target.number}`);
+      if (pr?.head?.sha !== target.headCommit || attempt >= 20) return pr;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
   async publish(id: string, expectedFingerprint: string): Promise<AutomationPullRequestView> {
     await this.run(id);
     return withFileLock(this.file(id), async () => {
@@ -310,17 +326,13 @@ export class AutomationPullRequests {
             plan.fingerprint,
           );
         } catch {
-          const observed = await api.request<RemotePR>(
-            `${plan.repository}/pulls/${plan.target.number}`,
-          );
+          const observed = await this.settledPR(api, plan, plan.target);
           if (observed?.head.sha !== commit.sha)
             throw new Error(
               'Expected PR head changed or update was not confirmed; retry the same reviewed plan',
             );
         }
-        const updated = await api.request<RemotePR>(
-          `${plan.repository}/pulls/${plan.target.number}`,
-        );
+        const updated = await this.settledPR(api, plan, plan.target);
         this.validatePR(updated!, plan, commit.sha);
         state.receipt = this.receipt(plan, commit.sha, updated!.number);
         await this.save(id, state);
