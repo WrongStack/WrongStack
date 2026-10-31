@@ -5882,6 +5882,18 @@ staged; the other session's edits stay untouched.
   `ws-twoway-completeness.test.ts` (the new type has a client handler). Desktop 684 tests, WebUI
   hook tests 1197, webui-protocol 261 pass; typecheck clean for tools, webui-server, webui, cli
   and the desktop.
-- Limits: accepting through `model.switch` does not record the tier in the engine's tier state,
-  so `leader_tier_set show` still reports no active tier and the dwell window does not start;
-  the native click-through is not exercised.
+- Limits: the native click-through is not exercised. (Accepting through `model.switch` now
+  counts for the active tier and the dwell window; see the next entry.)
+
+### Tier state follows switches made outside the tool (2026-10-31)
+
+- Gap: a proposal accepted through `model.switch` (or any model picker switch) left the engine's
+  tier state untouched: `leader_tier_set show` reported no active tier and the dwell window did
+  not start. Without a new request type (the provider route file carried another session's
+  uncommitted work), the engine now derives the active tier from the model the conversation runs
+  (the tier whose resolved provider/model matches), and a model that changed since the previous
+  turn start counts as a switch for the dwell window.
+- Test: `management-tools.test.ts` — after a switch outside the tool, `show` names the tier it
+  landed on, an immediate tier change is refused by the dwell guard and allowed one turn later;
+  fails against the previous engine code. Engine suite 3427 of 3428 with the known
+  `project-history-search` load timeout, which passes alone (5/5).
