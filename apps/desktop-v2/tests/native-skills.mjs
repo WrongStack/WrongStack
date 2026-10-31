@@ -7,7 +7,7 @@ export async function exerciseNativeSkills({ page, rpc, project, waitFor, artifa
   const openLibrary = async () => {
     await page.locator('.project-home-button').click();
     await page.locator('.project-secondary-links button').filter({ hasText: 'Skills' }).click();
-    await page.getByRole('heading', { name: 'Skills.', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'Skills', exact: true }).waitFor();
   };
   await openLibrary();
   await page.getByLabel('Filter skill source').selectOption('bundled');
