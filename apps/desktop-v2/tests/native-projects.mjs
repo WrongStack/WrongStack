@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { openProjectView } from './native-project-navigation.mjs';
 
 export async function exerciseNativeProjects({
   page,
@@ -9,18 +10,15 @@ export async function exerciseNativeProjects({
   project,
   otherProject,
 }) {
-  const projectTool = (name) =>
-    page
-      .getByRole('navigation', { name: `${project.name} workspace` })
-      .getByRole('button', { name, exact: true });
   await page.locator('.project-item').filter({ hasText: project.name }).click();
   await waitFor(
     async () => (await rpc('project.status', { projectId: project.id })).status === 'running',
     'Project Alpha runtime startup',
     100000,
   );
-  await page.getByRole('heading', { name: project.name + '.', exact: true }).waitFor();
-  await projectTool('Memory').click();
+  // The header row names the project; the overview itself shows its destinations.
+  await page.locator('.project-overview').waitFor();
+  await openProjectView(page, project, 'Memory');
   await page.getByRole('heading', { name: 'SAGE Memory', exact: true }).waitFor();
   assert.equal(await page.getByLabel('Memory status', { exact: true }).inputValue(), 'all');
   assert.equal(
@@ -158,7 +156,7 @@ export async function exerciseNativeProjects({
     'Project Beta never shows Project Alpha memory',
   );
   await page.locator('.project-item').filter({ hasText: project.name }).click();
-  await projectTool('Kanban').click();
+  await openProjectView(page, project, 'Kanban');
   await page.getByRole('button', { name: 'Create your first board', exact: true }).click();
   await page.getByLabel('Board name', { exact: true }).fill('Desktop roadmap');
   await page
@@ -378,7 +376,7 @@ export async function exerciseNativeProjects({
     path: join(artifactDir, 'native-kanban-board-list.png'),
     fullPage: true,
   });
-  await projectTool('Code Atlas').click();
+  await openProjectView(page, project, 'Code Atlas');
   console.log(
     'PASS: project Kanban board list/switch/create/edit/drag, task list, contract readback, check status, notes and activity',
   );
@@ -536,9 +534,9 @@ export async function exerciseNativeProjects({
   await page.setViewportSize({ width: 1480, height: 960 });
   await page.locator('.project-item').filter({ hasText: project.name }).click();
   for (const name of ['Memory', 'Kanban', 'Code Atlas']) {
-    await projectTool(name).click();
+    await openProjectView(page, project, name);
     await page
-      .getByRole('heading', { name: `${name === 'Memory' ? 'SAGE Memory' : name}.`, exact: true })
+      .getByRole('heading', { name: name === 'Memory' ? 'SAGE Memory' : name, exact: true })
       .waitFor();
     await waitFor(
       async () =>

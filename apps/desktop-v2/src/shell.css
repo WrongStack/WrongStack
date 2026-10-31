@@ -314,7 +314,6 @@
   .roster-hero,
   .history-heading,
   .sage-page-heading,
-  .project-overview-heading,
   .wrongstack-settings-heading,
   .settings-section-heading
 ) {
@@ -328,7 +327,6 @@
     .roster-hero,
     .history-heading,
     .sage-page-heading,
-    .project-overview-heading,
     .wrongstack-settings-heading,
     .settings-section-heading
   )
@@ -345,7 +343,6 @@
     .roster-hero,
     .history-heading,
     .sage-page-heading,
-    .project-overview-heading,
     .wrongstack-settings-heading,
     .settings-section-heading
   )
@@ -419,4 +416,19 @@
   border-radius: 6px;
   background: var(--raised);
   color: var(--text);
+}
+
+/* Session cards: kind, state, title and age; project and folder come from the group. */
+.session-card .card-kind {
+  color: var(--muted);
+  font-size: 11px;
+}
+.session-card .status-pill {
+  font-size: 11px;
+}
+.session-card-title {
+  margin: 14px 0 12px;
+}
+.session-card > footer {
+  font-size: 11px;
 }

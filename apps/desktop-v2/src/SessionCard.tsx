@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Folder, Terminal, Workflow } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Terminal, Workflow } from 'lucide-react';
 import { age, isLive, type Session } from './model';
 
 export function Metric({
@@ -44,12 +44,15 @@ export function SessionCard({
 }) {
   return (
     <article className={`session-card ${selected ? 'selected' : ''}`}>
-      <button type="button" className="session-card-main" onClick={onOpen}>
+      {/* Cards sit under their project's heading; the folder stays in the tooltip. */}
+      <button
+        type="button"
+        className="session-card-main"
+        title={`${name} · ${s.workdir.replace(/^\\\\\?\\/, '')}`}
+        onClick={onOpen}
+      >
         <div className="card-top">
-          <span className="card-project">
-            <Folder size={12} />
-            {name}
-          </span>
+          <span className="card-kind">{s.kind === 'agent' ? 'WrongStack' : 'Terminal'}</span>
           <span className={`status-pill ${s.status}`}>
             <span className={`status-dot ${s.status}`} />
             {s.status}
@@ -61,14 +64,9 @@ export function SessionCard({
           </span>
           <h3>{s.title}</h3>
         </div>
-        <p className="session-directory">{s.workdir.replace(/^\\\\\?\\/, '')}</p>
-        <div className="card-meta">
-          <span>{s.kind === 'agent' ? 'WRONGSTACK AGENT' : 'NATIVE TERMINAL'}</span>
-          <span>{age(s.updatedAt)}</span>
-        </div>
       </button>
       <footer>
-        <span className="mono">{s.id.slice(0, 8)}</span>
+        <span className="card-age">{age(s.updatedAt)}</span>
         {s.kind === 'agent' && s.status === 'running' ? (
           <button type="button" className="card-footer-action" onClick={onLaunch}>
             Open workspace

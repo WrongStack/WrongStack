@@ -417,11 +417,6 @@ function ProjectOverview({
   const tasks = boards.reduce((sum, board) => sum + Number(board['taskCount'] ?? 0), 0);
   return (
     <section className="project-overview">
-      <header className="project-overview-heading">
-        <div>
-          <h1>{project.name}</h1>
-        </div>
-      </header>
       <div className="project-destination-grid">
         <button
           type="button"
@@ -442,7 +437,6 @@ function ProjectOverview({
             <Brain size={24} />
           </div>
           <div className="destination-copy">
-            <span className="eyebrow">PROJECT KNOWLEDGE</span>
             <h2>
               Memory
               <ArrowRight size={18} />
@@ -472,7 +466,6 @@ function ProjectOverview({
             ))}
           </div>
           <div className="destination-copy">
-            <span className="eyebrow">PROJECT WORK</span>
             <h2>
               Kanban
               <ArrowRight size={18} />
@@ -506,7 +499,6 @@ function ProjectOverview({
             <Network size={25} />
           </div>
           <div className="destination-copy">
-            <span className="eyebrow">PROJECT STRUCTURE</span>
             <h2>
               Code Atlas
               <ArrowRight size={18} />

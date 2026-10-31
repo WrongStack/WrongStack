@@ -68,7 +68,6 @@
   font-size: 12px;
 }
 .studio-heading,
-.project-overview-heading,
 .wrongstack-settings-heading {
   display: flex;
   align-items: center;
@@ -77,7 +76,6 @@
   margin-bottom: 28px;
 }
 .studio-heading h1,
-.project-overview-heading h1,
 .wrongstack-settings-heading h1 {
   font-size: clamp(30px, 3vw, 42px);
   font-weight: 500;
@@ -85,7 +83,6 @@
   margin: 11px 0 10px;
 }
 .studio-heading p,
-.project-overview-heading p,
 .wrongstack-settings-heading p {
   color: var(--muted);
   font-size: 12px;
@@ -1773,13 +1770,11 @@
     padding: 25px 18px;
   }
   .studio-heading,
-  .project-overview-heading,
   .wrongstack-settings-heading {
     align-items: flex-start;
     gap: 15px;
   }
   .studio-heading h1,
-  .project-overview-heading h1,
   .wrongstack-settings-heading h1 {
     font-size: 31px;
   }

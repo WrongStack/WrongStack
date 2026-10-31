@@ -127,7 +127,6 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
           <div className="empty-illustration">
             <Layers3 size={32} />
           </div>
-          <span className="eyebrow">A PLACE FOR YOUR NEXT IDEA</span>
           <h2>
             {search || filter !== 'all'
               ? 'No matching sessions.'
@@ -138,7 +137,7 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
           <p>
             {search || filter !== 'all'
               ? 'Try another filter or create a session for this project.'
-              : 'Choose a project, start a conversation, or open a terminal. Switch between your work without losing your place.'}
+              : 'Start a conversation or open a terminal in one of your projects.'}
           </p>
           <button
             type="button"

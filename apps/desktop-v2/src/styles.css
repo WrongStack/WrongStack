@@ -586,21 +586,11 @@ h1 {
   padding: 16px 17px 13px;
 }
 .card-top,
-.card-meta,
 .session-card > footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-.card-project {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .status-pill {
   border: 1px solid var(--border);
@@ -659,22 +649,6 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.session-directory {
-  font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 9px;
-  color: var(--subtle);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-bottom: 24px;
-}
-.card-meta {
-  color: var(--subtle);
-  font-size: 8px;
-}
-.card-meta > span:first-child {
-  letter-spacing: 0.8px;
 }
 .session-card > footer {
   border-top: 1px solid var(--border);

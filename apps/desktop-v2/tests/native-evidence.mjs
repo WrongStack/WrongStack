@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { openProjectView } from './native-project-navigation.mjs';
 export async function exerciseNativeEvidence({ page, rpc, project, waitFor, artifactDir }) {
   const tool = (name) =>
     page
@@ -40,7 +41,7 @@ export async function exerciseNativeEvidence({ page, rpc, project, waitFor, arti
   await page.setViewportSize({ width: 1480, height: 960 });
   await page.getByRole('button', { name: 'Open working file', exact: true }).click();
   await page.locator('.native-file-content').filter({ hasText: 'reviewed = 2' }).waitFor();
-  await tool('Chronicle').click();
+  await openProjectView(page, project, 'Chronicle');
   const insights = page.locator('.chronicle-insights');
   await insights.locator('summary').click();
   await insights.getByText('fixture-provider / fixture-model', { exact: true }).waitFor();
