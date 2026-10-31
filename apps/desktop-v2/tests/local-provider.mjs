@@ -154,7 +154,9 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
             ? `${fixtureMarkdown}\n\n<nextsteps>\n1. [native-composer-nextstep-selected] Inspect the result\n2. Run the checks\n</nextsteps>`
             : // A leader turn without either marker gets a priced next-steps side request;
               // usage proofs count exactly one provider answer per prompt.
-              /^\[native-usage-(cold|warm)\]/.test((userTexts.at(-1) ?? '').trim())
+              /^\[native-(?:usage-(?:cold|warm)|tier-proposal)\]/.test(
+                  (userTexts.at(-1) ?? '').trim(),
+                )
               ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
               : fixtureMarkdown;
       calls.push({
@@ -308,6 +310,27 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
           body.tools?.some((tool) => tool.function?.name === 'bash'),
           'The real background shell tool must be offered',
         );
+      // A leader-tier proposal: the leader asks the real leader_tier_set for the budget tier.
+      const tierUser =
+        body.messages?.findLastIndex(
+          (message) =>
+            message.role === 'user' &&
+            typeof message.content === 'string' &&
+            message.content.trim().startsWith('[native-tier-proposal]'),
+        ) ?? -1;
+      const tierCallId = `native-tier-call-${tierUser}`;
+      const tierReply =
+        tierUser >= 0 &&
+        body.messages
+          .slice(tierUser + 1)
+          .find((message) => message.role === 'tool' && message.tool_call_id === tierCallId);
+      if (tierReply) toolResults.push({ challenge: 'tier-proposal', content: tierReply.content });
+      const needsTier = !refiner && !topicAdvisor && tierUser >= 0 && !tierReply;
+      if (needsTier)
+        assert.ok(
+          body.tools?.some((tool) => tool.function?.name === 'leader_tier_set'),
+          'The engine must offer the real leader_tier_set tool',
+        );
       // An editing Code Assist run writes one known file through the real write tool.
       const assistEditUser =
         body.messages?.findLastIndex(
@@ -410,7 +433,21 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
                       }),
                     },
                   }
-                : undefined;
+                : needsTier
+                  ? {
+                      index: 0,
+                      id: tierCallId,
+                      type: 'function',
+                      function: {
+                        name: 'leader_tier_set',
+                        arguments: JSON.stringify({
+                          action: 'set',
+                          tier: 'budget',
+                          reason: 'Mechanical edits from here.',
+                        }),
+                      },
+                    }
+                  : undefined;
       if (!body.stream) {
         response.setHeader('content-type', 'application/json');
         response.end(

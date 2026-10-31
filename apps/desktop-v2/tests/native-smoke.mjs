@@ -60,6 +60,7 @@ import { exerciseNativeSettingsManagement } from './native-settings-management.m
 import { exerciseNativeSettingsPolicy } from './native-settings-policy.mjs';
 import { exerciseNativeSkills } from './native-skills.mjs';
 import { exerciseNativeTechStack } from './native-techstack.mjs';
+import { exerciseNativeTierProposal } from './native-tier-proposal.mjs';
 
 // Real Tauri + WebView2 + ConPTY + existing WrongStack engine. No external LLM calls.
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -1242,6 +1243,16 @@ try {
     };
   } else if (usageOnly) {
     await exerciseNativeSessionUsage({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      configPath: join(dir, 'wrongstack/profiles/default/config.json'),
+      providerFixture,
+      sessionIds: sessions,
+    });
+    await exerciseNativeTierProposal({
       page,
       rpc: workspaceRpc,
       project: a,
