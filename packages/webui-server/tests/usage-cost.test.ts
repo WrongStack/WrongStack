@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { getCostRates, computeUsageCost } from '../src/server/usage-cost.js';
+import { describe, expect, it } from 'vitest';
+import { computeUsageCost, getCostRates } from '../src/server/usage-cost.js';
 
 describe('getCostRates', () => {
   it('extracts input, output, and cacheRead from a complete model object', () => {
@@ -123,5 +123,44 @@ describe('computeUsageCost', () => {
         rates,
       ),
     ).toBeCloseTo(2);
+  });
+});
+
+describe('getCostRates — context price tiers for one request', () => {
+  const model = {
+    cost: {
+      input: 3,
+      output: 15,
+      cache_read: 0.3,
+      tiers: [
+        { tier: { type: 'context', size: 200_000 }, input: 6, output: 22.5, cache_read: 0.6 },
+        { tier: { type: 'context', size: 1_000_000 }, input: 12 },
+        { tier: { type: 'other', size: 10 }, input: 999 },
+      ],
+    },
+  };
+
+  it('keeps the base rates at or under the first threshold and without a context size', () => {
+    expect(getCostRates(model, 200_000)).toMatchObject({ input: 3, output: 15, cacheRead: 0.3 });
+    expect(getCostRates(model)).toMatchObject({ input: 3, output: 15, cacheRead: 0.3 });
+  });
+
+  it('uses the largest tier the request is over, keeping base rates the tier does not list', () => {
+    expect(getCostRates(model, 200_001)).toMatchObject({ input: 6, output: 22.5, cacheRead: 0.6 });
+    expect(getCostRates(model, 1_500_000)).toMatchObject({
+      input: 12,
+      output: 15,
+      cacheRead: 0.3,
+      cacheWrite: 12,
+    });
+  });
+
+  it('reads the legacy context_over_200k schedule as a 200k tier', () => {
+    const legacy = {
+      cost: { input: 1.25, output: 10, context_over_200k: { input: 2.5, output: 15 } },
+    };
+    expect(getCostRates(legacy, 250_000)).toMatchObject({ input: 2.5, output: 15, cacheRead: 2.5 });
+    expect(getCostRates({ cost: { input: 1, context_over_200k: 2 } }, 300_000).input).toBe(2);
+    expect(getCostRates(legacy, 100_000)).toMatchObject({ input: 1.25, output: 10 });
   });
 });

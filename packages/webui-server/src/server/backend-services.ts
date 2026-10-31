@@ -542,7 +542,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
         (input.getConfig?.() ?? config).providers?.[source.providerId],
       ).catch(() => undefined);
       if (!metadata || !(metadata as { cost?: unknown }).cost) return null;
-      return computeUsageCost(usage, getCostRates(metadata));
+      // One response is one request: its context selects the catalog's context price tier.
+      const context = usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
+      return computeUsageCost(usage, getCostRates(metadata, context));
     },
   );
   const specsHandler = new SpecsWebSocketHandler(wpaths.projectSpecs, wpaths.projectTaskGraphs);
