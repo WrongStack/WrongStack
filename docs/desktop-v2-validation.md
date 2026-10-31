@@ -5735,3 +5735,19 @@ staged; the other session's edits stay untouched.
   CLI `tests/webui-server` 140/140; engine and CLI typechecks clean; architecture health PASS.
   Commit `15217f0b1`.
 - Still open: native acceptance with a real failing provider.
+
+### Real provider failure through the engine's fallback gate (2026-10-31)
+
+- Setup (`.temp_files/zai-acceptance/fallback.mjs`): the standalone engine with a throwaway
+  `WRONGSTACK_HOME`. Only its copied profile was changed: the conversation's provider is an
+  OpenAI-compatible entry at `http://127.0.0.1:9/v1` (a closed port: a real connection error)
+  and `fallbackModels` is `zai-coding-plan/glm-5.3-flash`. The script answered the gate as
+  `FallbackPicker.tsx` does (`model.fallback_choice` with the first candidate).
+- Observed: four `provider.retry` attempts against the dead primary, then
+  `provider.fallback_pending` for this session (from `dead-primary/dead-model`, candidate the Z.AI
+  model, 7-second countdown), the choice, `provider.fallback` with `providerSwitched: true`,
+  `ctx.max_context` for the fallback model under the same session, and `run.result` `done` in one
+  iteration with the answer `fallback-ok`. 57 seconds end to end; the temp home, project and its
+  daemons were removed.
+- Not covered: the picker clicked in the native window (native tests are batched at the end), and
+  a provider that fails mid-stream rather than on connect.

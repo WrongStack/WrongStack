@@ -303,7 +303,8 @@ have real workflows; the work below closes their missing actions, durability and
     `2a289e482`);
   - a tab's model switch or fallback hop now resolves that tab's own context window, in the
     standalone engine and the CLI-hosted WebUI (2026-10-31, `15217f0b1`);
-  - native acceptance with a real failing provider.
+  - a real failing provider through the engine's gate passed (2026-10-31); the picker clicked
+    in the native window remains for the native batch.
 
 ### Engine messages the desktop still does not send (audit 2026-10-30)
 
