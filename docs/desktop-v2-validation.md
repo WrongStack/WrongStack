@@ -5934,3 +5934,20 @@ staged; the other session's edits stay untouched.
   `native-kanban-run.png`.
 - Not covered: an SDD run launched from the desktop board (needs real worker execution), and the
   mirror note still shows the raw phase id.
+
+### Goal cost budgets price each response at its context price tier (2026-10-31)
+
+- Gap: Goal cost budgets priced every task response at the model's base catalog rates, so a
+  request over a context price tier (for example over 200k tokens) was under-priced and a USD
+  budget could be overrun. `getCostRates(model, contextTokens)` now picks the largest
+  `cost.tiers[]` context threshold the request is over (or the legacy `context_over_200k`
+  schedule as a 200k tier; a bare number is its input rate), with base rates for the fields the
+  tier does not list. The Goal pricer passes the response's request context (input plus cached
+  tokens). Aggregate usage (`stats.get`, worker totals) does not pass it: a sum of small requests
+  never crosses a tier, and those estimates stay on base rates.
+- Tests: `usage-cost.test.ts` — base rates at or under the threshold and without a size; the
+  largest tier over; unlisted fields from the base; legacy object and number schedules. Two of the
+  three fail against the previous pricing. Related engine tests (goal, usage, introspection,
+  backend) 159/159; typecheck clean.
+- Not covered: cache TTL pricing (`cache_write_5m` / `cache_write_1h`), which needs the request's
+  cache TTL from the provider.
