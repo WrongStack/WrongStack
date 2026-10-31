@@ -298,7 +298,7 @@ have real workflows; the work below closes their missing actions, durability and
 
 - The standalone engine (what the desktop runs) now gives every conversation agent its own
   fallback-model extension, and the desktop answers its gate (2026-10-30, validation entry
-  "Model fallback in the desktop engine"). Still open:
+  "Model fallback in the desktop engine"). Since then:
   - per-tab agents of the CLI-hosted WebUI get their own fallback extension (2026-10-31,
     `2a289e482`);
   - a tab's model switch or fallback hop now resolves that tab's own context window, in the
