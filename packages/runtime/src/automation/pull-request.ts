@@ -427,7 +427,9 @@ export class AutomationPullRequests {
               status: string;
               conclusion: string | null;
               head_sha: string;
-              output?: { summary?: string; text?: string } | undefined;
+              id?: number;
+              app?: { slug?: string } | null;
+              output?: { summary?: string | null; text?: string | null } | undefined;
             }>;
           }>(
             `${plan.repository}/commits/${receipt.commit}/check-runs?filter=latest&per_page=100&page=${page}`,
@@ -450,19 +452,18 @@ export class AutomationPullRequests {
               (check.conclusion !== null && typeof check.conclusion !== 'string')
             )
               throw new Error('CI check identity is invalid');
+            const failing =
+              !!check.conclusion && !['success', 'neutral', 'skipped'].includes(check.conclusion);
+            let text = [check.output?.summary, check.output?.text]
+              .filter((value) => typeof value === 'string')
+              .join('\n');
+            if (failing && !text && check.app?.slug === 'github-actions')
+              text = await this.actionsFailure(api, plan.repository, check.id, receipt.commit);
             ci.checks.push({
               name: check.name.slice(0, 256).replace(/[\x00-\x1f\x7f]/g, ' '),
               status: check.status,
               conclusion: check.conclusion,
-              ...(check.conclusion && !['success', 'neutral', 'skipped'].includes(check.conclusion)
-                ? {
-                    details: detailsFor(
-                      [check.output?.summary, check.output?.text]
-                        .filter((value) => typeof value === 'string')
-                        .join('\n'),
-                    ),
-                  }
-                : {}),
+              ...(failing ? { details: detailsFor(text) } : {}),
             });
           }
           if (ci.checks.length >= response.total_count) break;
@@ -546,6 +547,41 @@ export class AutomationPullRequests {
       );
       return state;
     });
+  }
+  /**
+   * A GitHub Actions check run has no output text; its job's failed steps and failure
+   * annotations are the evidence the API gives without following log redirects. Read only for a
+   * job of the published head; unavailable evidence is an empty string, never an error.
+   */
+  private async actionsFailure(
+    api: AutomationGitHubAPI,
+    repository: string,
+    id: number | undefined,
+    commit: string,
+  ): Promise<string> {
+    if (!Number.isSafeInteger(id) || id! < 1) return '';
+    try {
+      const job = await api.request<{
+        head_sha?: string;
+        steps?: Array<{ name?: unknown; conclusion?: unknown }>;
+      }>(`${repository}/actions/jobs/${id}`, undefined, true);
+      if (job?.head_sha !== commit) return '';
+      const annotations = await api.request<
+        Array<{ annotation_level?: unknown; message?: unknown }>
+      >(`${repository}/check-runs/${id}/annotations?per_page=50`, undefined, true);
+      return [
+        ...(job.steps ?? [])
+          .filter((step) => step.conclusion === 'failure' && typeof step.name === 'string')
+          .map((step) => `Failed step: ${step.name as string}`),
+        ...(Array.isArray(annotations) ? annotations : [])
+          .filter((note) => note.annotation_level === 'failure' && typeof note.message === 'string')
+          .map((note) => note.message as string),
+      ]
+        .join('\n')
+        .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, ' ');
+    } catch {
+      return '';
+    }
   }
   private receipt(
     plan: AutomationPullRequestPlan,

@@ -114,6 +114,8 @@ function github(f: Awaited<ReturnType<typeof fixture>>) {
     pr: null as Record<string, unknown> | null,
     checks: [] as unknown[],
     statuses: [] as unknown[],
+    jobs: {} as Record<string, unknown>,
+    annotations: {} as Record<string, unknown[]>,
     losePRResponse: false,
     missingPage: false,
     checkHead: undefined as string | undefined,
@@ -208,6 +210,10 @@ function github(f: Awaited<ReturnType<typeof fixture>>) {
           },
         });
       }
+      const job = /^actions\/jobs\/(\d+)$/.exec(route);
+      if (job) return remote.jobs[job[1]!] ? reply(remote.jobs[job[1]!]) : reply({}, 404);
+      const annotations = /^check-runs\/(\d+)\/annotations\?/.exec(route);
+      if (annotations) return reply(remote.annotations[annotations[1]!] ?? []);
       const page = Number(route.match(/[?&]page=(\d+)/)?.[1] ?? 1);
       if (route.includes('/check-runs?'))
         return reply({
@@ -347,6 +353,58 @@ describe('verified automation to draft PR', () => {
     remote.statuses = [];
     remote.checkHead = 'f'.repeat(40);
     expect((await f.requests.check(f.run.id)).ci?.status).toBe('stale');
+  });
+  it('names the failed steps of a GitHub Actions job, whose check run has no output text', async () => {
+    // Recorded live shape: an Actions check run carries no summary or text; the job's steps and
+    // the failure annotation are the only evidence the API offers without following log redirects.
+    const f = await fixture(),
+      { remote } = github(f),
+      plan = (await f.requests.prepare(f.run.id, input)).plan!;
+    await f.requests.publish(f.run.id, plan.fingerprint);
+    remote.checks = [
+      {
+        id: 124516729286,
+        name: 'mean of an empty list throws RangeError',
+        status: 'completed',
+        conclusion: 'failure',
+        head_sha: remote.commit,
+        app: { slug: 'github-actions' },
+        output: { title: null, summary: null, text: null, annotations_count: 3 },
+      },
+      {
+        id: 7,
+        name: 'other app',
+        status: 'completed',
+        conclusion: 'failure',
+        head_sha: remote.commit,
+        app: { slug: 'someone-else' },
+        output: { summary: null, text: null },
+      },
+    ];
+    remote.jobs['124516729286'] = {
+      name: 'mean of an empty list throws RangeError',
+      head_sha: remote.commit,
+      steps: [
+        { name: 'Run actions/checkout@v4', conclusion: 'success' },
+        { name: "mean([]) must throw RangeError('mean of an empty list')", conclusion: 'failure' },
+        { name: 'Post Run actions/setup-node@v4', conclusion: 'skipped' },
+      ],
+    };
+    remote.annotations['124516729286'] = [
+      { annotation_level: 'warning', message: 'Node.js 20 is deprecated.' },
+      { annotation_level: 'failure', message: 'Process completed with exit code 1.' },
+    ];
+    const ci = (await f.requests.check(f.run.id)).ci!;
+    expect(ci.checks[0]!.details).toBe(
+      "Failed step: mean([]) must throw RangeError('mean of an empty list')\nProcess completed with exit code 1.",
+    );
+    expect(ci.checks[1]!.details).toBe('');
+    // A job that names another commit is not evidence for this head.
+    remote.jobs['124516729286'] = {
+      ...(remote.jobs['124516729286'] as object),
+      head_sha: 'e'.repeat(40),
+    };
+    expect((await f.requests.check(f.run.id)).ci!.checks[0]!.details).toBe('');
   });
   it('reads later CI pages and refuses a truncated successful collection', async () => {
     const f = await fixture(),
