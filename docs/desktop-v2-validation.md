@@ -5560,7 +5560,13 @@ staged; the other session's edits stay untouched.
   PR #1 on `wrongstack/automation/5e6e18b7-...`, whose commit tree `1b4dcc2` equals the
   independently verified candidate tree and whose parent is the base commit; publishing again
   returned the same PR; `pr-check` reported the CodeRabbit status as passed.
-- Checks: runtime 37 files / 389 tests; the CLI automation and argument-parser tests 85 passed;
+- Found after publishing: each run's conversation checkpoint (the container's CLI home, kept on
+  the host for `--continue`) held the injected provider key, encrypted, next to the vault key
+  `.key` that decrypts it, plus the config history; `prune` keeps artifacts. The capture now drops
+  `.key`, `config-history` and every `profiles/*/config.json*` before it lands (a continuation
+  injects the credential again); a fresh real run (`aabd5370`, completed, checks passed) kept its
+  session state and no credential file. The two earlier runs' copies were deleted by hand.
+- Checks: runtime 37 files / 390 tests; the CLI automation and argument-parser tests 85 passed;
   runtime and CLI typechecks clean; architecture health PASS.
 - Not covered: `pr-follow-up` against a real failing check, updating a published PR, the desktop
   `AutomationPublication` flow over the engine, and restart while a run is active.
