@@ -1393,24 +1393,6 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
-.settings-scope-note {
-  border-top: 1px solid var(--border);
-  padding: 23px 11px;
-  margin-top: 20px;
-  color: var(--subtle);
-}
-.settings-scope-note p {
-  font-size: 10px;
-  line-height: 1.9;
-}
-.settings-scope-note button {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 0;
-  color: var(--muted);
-  font-size: 10px;
-}
 .settings-detail {
   min-width: 0;
 }
@@ -1767,9 +1749,6 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px;
-  }
-  .settings-scope-note {
-    display: none;
   }
   .setting-row {
     gap: 22px;

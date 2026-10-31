@@ -5,6 +5,8 @@ export interface SettingField {
   kind: 'toggle' | 'number' | 'select' | 'lines';
   options?: readonly string[];
   unit?: string;
+  /** Stored value per displayed unit: a millisecond setting shown in seconds has 1000. */
+  scale?: number;
   min?: number;
 }
 export const settingsSections = [
@@ -42,7 +44,8 @@ export const settingsSections = [
         description: 'Wait between autonomous continuation steps.',
         kind: 'number',
         min: 0,
-        unit: 'ms',
+        unit: 'seconds',
+        scale: 1000,
       },
       {
         key: 'breakerEnabled',
@@ -56,7 +59,8 @@ export const settingsSections = [
         description: 'How long the circuit breaker waits before resetting.',
         kind: 'number',
         min: 0,
-        unit: 'ms',
+        unit: 'seconds',
+        scale: 1000,
       },
     ],
   },

@@ -20,7 +20,7 @@ import {
   Sparkles,
   Wrench,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { AvailabilitySettings } from './AvailabilitySettings';
 import { availabilityIssue } from './availability-model';
 import { BrainPolicySettings } from './BrainPolicySettings';
@@ -243,12 +243,9 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     );
   return (
     <section className="wrongstack-settings" aria-label="WrongStack settings">
-      <header className="wrongstack-settings-heading">
-        <div>
-          <h1>WrongStack settings</h1>
-          <p>Models, capabilities, and defaults shared with your WrongStack tools.</p>
-        </div>
-        {vm.settingsReturnSession && (
+      {/* The header row already names this page; only the way back gets a row of its own. */}
+      {vm.settingsReturnSession && (
+        <header className="wrongstack-settings-heading">
           <button
             type="button"
             className="button secondary"
@@ -263,8 +260,8 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             <ArrowLeft size={14} />
             Back to conversation
           </button>
-        )}
-      </header>
+        </header>
+      )}
       <div className="settings-workspace">
         <nav className="settings-navigation" aria-label="WrongStack settings sections">
           <label className="settings-search">
@@ -278,27 +275,62 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
           </label>
           {(
             [
-              { id: 'providers', title: 'Providers & models', Icon: KeyRound },
-              { id: 'models', title: 'Model catalog', Icon: Layers3 },
-              { id: 'model-visibility', title: 'Model visibility', Icon: Layers3 },
-              { id: 'execution', title: 'Execution & permissions', Icon: ShieldCheck },
-              { id: 'refinement', title: 'Prompt refinement', Icon: Sparkles },
-              { id: 'context', title: 'Context & reasoning', Icon: Brain },
-              { id: 'instructions', title: 'Global instructions', Icon: BookOpen },
-              { id: 'capabilities', title: 'Capabilities', Icon: Layers3 },
-              { id: 'tool-access', title: 'Tool availability', Icon: Wrench },
-              { id: 'routing', title: 'Fallbacks & agent defaults', Icon: Bot },
-              { id: 'fleet', title: 'Fleet & companions', Icon: Layers3 },
-              { id: 'brain', title: 'Brain policy', Icon: Brain },
-              { id: 'model-routing', title: 'Model routing', Icon: Route },
-              { id: 'cost-tiers', title: 'Cost tiers', Icon: Coins },
-              { id: 'resource-limits', title: 'Resource limits', Icon: SlidersHorizontal },
-              { id: 'reviews', title: 'Review policy', Icon: ShieldCheck },
-              { id: 'availability', title: 'Model availability', Icon: CalendarDays },
-              { id: 'integrations', title: 'Connected tools', Icon: Plug },
-              { id: 'skills', title: 'Profile skills', Icon: BookOpen },
-              { id: 'health', title: 'Provider diagnostics', Icon: Gauge },
-              { id: 'logging', title: 'Logs & diagnostics', Icon: ListChecks },
+              { id: 'providers', title: 'Providers & models', Icon: KeyRound, group: 'Models' },
+              { id: 'models', title: 'Model catalog', Icon: Layers3, group: 'Models' },
+              { id: 'model-visibility', title: 'Model visibility', Icon: Layers3, group: 'Models' },
+              {
+                id: 'availability',
+                title: 'Model availability',
+                Icon: CalendarDays,
+                group: 'Models',
+              },
+              { id: 'routing', title: 'Fallbacks & agent defaults', Icon: Bot, group: 'Models' },
+              { id: 'model-routing', title: 'Model routing', Icon: Route, group: 'Models' },
+              { id: 'cost-tiers', title: 'Cost tiers', Icon: Coins, group: 'Models' },
+              {
+                id: 'execution',
+                title: 'Execution & permissions',
+                Icon: ShieldCheck,
+                group: 'Conversations',
+              },
+              {
+                id: 'refinement',
+                title: 'Prompt refinement',
+                Icon: Sparkles,
+                group: 'Conversations',
+              },
+              { id: 'context', title: 'Context & reasoning', Icon: Brain, group: 'Conversations' },
+              {
+                id: 'instructions',
+                title: 'Global instructions',
+                Icon: BookOpen,
+                group: 'Conversations',
+              },
+              {
+                id: 'resource-limits',
+                title: 'Resource limits',
+                Icon: SlidersHorizontal,
+                group: 'Conversations',
+              },
+              { id: 'reviews', title: 'Review policy', Icon: ShieldCheck, group: 'Conversations' },
+              { id: 'capabilities', title: 'Capabilities', Icon: Layers3, group: 'Agents & tools' },
+              {
+                id: 'tool-access',
+                title: 'Tool availability',
+                Icon: Wrench,
+                group: 'Agents & tools',
+              },
+              { id: 'fleet', title: 'Fleet & companions', Icon: Layers3, group: 'Agents & tools' },
+              { id: 'brain', title: 'Brain policy', Icon: Brain, group: 'Agents & tools' },
+              { id: 'skills', title: 'Profile skills', Icon: BookOpen, group: 'Agents & tools' },
+              { id: 'integrations', title: 'Connected tools', Icon: Plug, group: 'Agents & tools' },
+              { id: 'health', title: 'Provider diagnostics', Icon: Gauge, group: 'Diagnostics' },
+              {
+                id: 'logging',
+                title: 'Logs & diagnostics',
+                Icon: ListChecks,
+                group: 'Diagnostics',
+              },
             ] as const
           )
             .filter(
@@ -317,32 +349,26 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   .toLowerCase()
                   .includes(search.toLowerCase()),
             )
-            .map(({ id, title, Icon }) => (
-              <button
-                type="button"
-                key={id}
-                aria-current={section === id ? 'page' : undefined}
-                onClick={() => {
-                  if (id === 'models') setModelsOpened(true);
-                  if (id === 'brain') setBrainOpened(true);
-                  setSection(id);
-                }}
-              >
-                <Icon size={16} />
-                <span>{title}</span>
-                <ChevronRight size={12} />
-              </button>
+            .map(({ id, title, Icon, group }, index, shown) => (
+              <Fragment key={id}>
+                {shown[index - 1]?.group !== group && (
+                  <small className="settings-nav-group">{group}</small>
+                )}
+                <button
+                  type="button"
+                  aria-current={section === id ? 'page' : undefined}
+                  onClick={() => {
+                    if (id === 'models') setModelsOpened(true);
+                    if (id === 'brain') setBrainOpened(true);
+                    setSection(id);
+                  }}
+                >
+                  <Icon size={16} />
+                  <span>{title}</span>
+                  <ChevronRight size={12} />
+                </button>
+              </Fragment>
             ))}
-          <div className="settings-scope-note">
-            <SlidersHorizontal size={16} />
-            <p>
-              Appearance belongs to Desktop settings. These controls configure WrongStack itself.
-            </p>
-            <button type="button" onClick={() => vm.setSection('engine')}>
-              Desktop appearance
-              <ChevronRight size={12} />
-            </button>
-          </div>
         </nav>
         <div className="settings-detail">
           {error && (
@@ -611,10 +637,17 @@ function SettingRow({
               id={`setting-${field.key}`}
               type="number"
               min={field.min ?? 0}
+              step={field.scale ? 'any' : undefined}
               required
-              value={typeof value === 'number' ? value : ''}
+              value={typeof value === 'number' ? value / (field.scale ?? 1) : ''}
               onChange={(event) =>
-                onChange(event.target.value === '' ? undefined : Number(event.target.value))
+                onChange(
+                  event.target.value === ''
+                    ? undefined
+                    : field.scale
+                      ? Math.round(Number(event.target.value) * field.scale)
+                      : Number(event.target.value),
+                )
               }
             />
             {field.unit && <span>{field.unit}</span>}
