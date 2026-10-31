@@ -5680,3 +5680,24 @@ staged; the other session's edits stay untouched.
 - Not covered: job logs (the logs API answers with a redirect to another origin, which the
   GitHub client refuses by design), and check suites from other CI apps without output text.
 
+### Environment services, health, caches and ports in a real run (2026-10-31)
+
+- Profile (`--environment-file`, the `wrongstack.environment` document): workspace image
+  `wrongstack-automation:acceptance`, service `redis` (`redis:7-alpine`, health `redis-cli
+  ping`), cache `npm` at `/home/node/.cache/npm`, preview port 3000, and a setup command that
+  sends PING to `redis:6379`. Job: write `redis-check.mjs` that SETs and GETs a key over
+  `node:net`; independent check `node redis-check.mjs`.
+- Run `909842ce`: the run's own network and a service container were created; the service passed
+  its health check; setup printed `+PONG`; the preview port was bound to `127.0.0.1` only
+  (`127.0.0.1:65011->3000`); the agent's script returned `ok`; the independent check passed in
+  the verification phase with its own environment. Afterwards the workspace, service and network
+  were removed (receipt `removed`, service and workspace image identities recorded); the
+  persistent cache volume stayed, as designed.
+- Worker killed during the same job: the credentialed workspace was removed at lease expiry, but
+  the stopped Redis container and the run's network stayed with nothing left to clean them.
+  Recovery now removes the services and the owned network when the workspace is gone, and keeps
+  them beside a kept workspace (`automation-crash-recovery.test.ts`, which failed before the
+  fix). Commit `18645ba03`. Repeated for real: no container or network remained. The first
+  attempt's leftovers were removed by hand.
+- Checks: runtime 38 files / 400 tests, typecheck clean, architecture health PASS.
+

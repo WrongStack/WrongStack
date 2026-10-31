@@ -396,8 +396,9 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
   Real runs on 2026-10-31 passed: a Docker run with a profile credential through independent
   checks, PR prepare, publish and check to a private repository; CI repair loops that updated the
   same draft PR, ending green against real GitHub Actions jobs; the desktop's publication
-  requests over the engine; and a worker killed mid-run, recovered as interrupted with its
-  credentialed container removed. Still open: service/health/cache lifecycle, native
+  requests over the engine; a run with a healthy service, cache volume and loopback preview port;
+  and a worker killed mid-run, recovered as interrupted with its credentialed workspace,
+  services and network removed. Still open: cache retention/pruning administration, native
   click-through of `AutomationPublication.tsx`, signed GitHub delivery (two-run comparison from
   recorded results exists, 2026-10-29), event
   sample authoring and durable secondary forms. Successful management requests do not establish
