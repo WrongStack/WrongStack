@@ -44,6 +44,8 @@ export type UpdateAutoCompactionMaxContext = (
   newProvider: Provider,
   providerId?: string,
   providerCfg?: ProviderConfig | undefined,
+  /** The conversation whose window this is; the leader's context when omitted. */
+  target?: Context | undefined,
 ) => Promise<void>;
 
 /**
@@ -72,12 +74,21 @@ export function createMaxContextUpdater(
   // differs per path); only the newest target may publish its window.
   let generation = 0;
 
+  // Newest resolution per conversation other than the leader (same rule as `generation`).
+  const tabGenerations = new WeakMap<Context, number>();
+
   const apply = async (
     newProvider: Provider,
     providerId: string,
     providerCfg: ProviderConfig | undefined,
     gen: number,
+    target: Context = context,
   ): Promise<void> => {
+    // The leader owns the process-wide consumers (capability ref, the shared compactor's
+    // fallback window). Another tab's window lands on that tab's context only: the compaction
+    // threshold reads the context's own `effectiveMaxContext` first.
+    const leader = target === context;
+    const current = () => (leader ? generation : tabGenerations.get(target));
     const currentConfig = getConfig();
     let newMaxContext =
       positiveWindow(currentConfig.context?.effectiveMaxContext) ??
@@ -86,48 +97,51 @@ export function createMaxContextUpdater(
       const m = await resolveProviderModelMetadata(
         modelsRegistry,
         providerId,
-        context.model,
+        target.model,
         providerCfg ?? currentConfig.providers?.[providerId],
       );
       newMaxContext = positiveWindow(m?.capabilities?.maxContext) ?? newMaxContext;
     } catch {
       // best-effort: use provider capability
     }
-    if (gen !== generation) return;
+    if (gen !== current()) return;
     newProvider.capabilities.maxContext = newMaxContext;
-    modelCapabilitiesRef.current =
-      newMaxContext > 0
-        ? {
-            maxContextTokens: newMaxContext,
-            supportsTools: !!newProvider.capabilities.tools,
-            supportsVision: !!newProvider.capabilities.vision,
-            supportsReasoning: !!newProvider.capabilities.reasoning,
-          }
-        : undefined;
+    if (leader)
+      modelCapabilitiesRef.current =
+        newMaxContext > 0
+          ? {
+              maxContextTokens: newMaxContext,
+              supportsTools: !!newProvider.capabilities.tools,
+              supportsVision: !!newProvider.capabilities.vision,
+              supportsReasoning: !!newProvider.capabilities.reasoning,
+            }
+          : undefined;
     if (newMaxContext > 0) {
-      context.meta['effectiveMaxContext'] = newMaxContext;
-      autoCompactor?.setMaxContext(newMaxContext);
-      autoCompactor?.setEnabled(config.context?.autoCompact !== false);
+      target.meta['effectiveMaxContext'] = newMaxContext;
+      if (leader) {
+        autoCompactor?.setMaxContext(newMaxContext);
+        autoCompactor?.setEnabled(config.context?.autoCompact !== false);
+      }
       // Window changed (model switch): re-resolve the default policy so it
       // stays scaled to the window (≥1M defaults to Deep, smaller back to
       // Balanced). A policy the user pinned for this session is left alone.
-      if (context.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] !== true) {
+      if (target.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] !== true) {
         const policy = resolveContextWindowPolicy(
           currentConfig.context ?? {},
           undefined,
           newMaxContext,
         );
-        context.meta['contextWindowMode'] = policy.id;
-        context.meta['contextWindowPolicy'] = policy;
+        target.meta['contextWindowMode'] = policy.id;
+        target.meta['contextWindowPolicy'] = policy;
       }
     } else {
-      delete context.meta['effectiveMaxContext'];
-      autoCompactor?.setEnabled(false);
+      delete target.meta['effectiveMaxContext'];
+      if (leader) autoCompactor?.setEnabled(false);
     }
     events.emit('ctx.max_context', {
-      sessionId: context.session.id,
+      sessionId: target.session.id,
       providerId: newProvider.id,
-      modelId: context.model,
+      modelId: target.model,
       maxContext: newMaxContext,
     });
   };
@@ -142,17 +156,24 @@ export function createMaxContextUpdater(
     );
   });
 
-  return async (newProvider, providerId = newProvider.id, providerCfg) => {
-    lastTarget = { provider: newProvider, providerId, cfg: providerCfg };
-    const gen = ++generation;
+  return async (newProvider, providerId = newProvider.id, providerCfg, target = context) => {
+    const leader = target === context;
+    let gen: number;
+    if (leader) {
+      lastTarget = { provider: newProvider, providerId, cfg: providerCfg };
+      gen = ++generation;
+    } else {
+      gen = (tabGenerations.get(target) ?? 0) + 1;
+      tabGenerations.set(target, gen);
+    }
     // A catalog fetched minutes ago (boot's background refresh, the last
     // switch) is current — don't make every switch wait on models.dev.
     await refreshCatalogIfStale(modelsRegistry).catch((err) => {
       logger.warn(
-        `models.dev refresh failed for ${providerId}/${context.model}: ${toErrorMessage(err)}; using cached catalog`,
+        `models.dev refresh failed for ${providerId}/${target.model}: ${toErrorMessage(err)}; using cached catalog`,
       );
     });
-    if (gen !== generation) return;
-    await apply(newProvider, providerId, providerCfg, gen);
+    if (gen !== (leader ? generation : tabGenerations.get(target))) return;
+    await apply(newProvider, providerId, providerCfg, gen, target);
   };
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T11:10:42.411Z",
+  "generatedAt": "2026-10-31T11:22:57.815Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5553,
-    "testFiles": 4839,
-    "sourceLines": 1218607,
+    "testFiles": 4840,
+    "sourceLines": 1218654,
     "workspaceEdges": 233,
-    "moduleEdges": 16651,
+    "moduleEdges": 16652,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -1143,7 +1143,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 323,
-      "testFiles": 357,
+      "testFiles": 358,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1178,7 +1178,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 357
+          "testFiles": 358
         }
       ]
     },
@@ -25908,6 +25908,12 @@
       },
       {
         "file": "packages/webui-server/tests/max-context-updater-stale-switch.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/max-context-updater-tab-target.test.ts",
         "projects": [
           "root-node"
         ]

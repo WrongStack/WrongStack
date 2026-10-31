@@ -99,9 +99,11 @@ export function createApplyModelSwitch(
       // when the background refresh completes.
       // Pass the POST-rewrite routedCfg (the same config the provider was built
       // from) so maxContext resolution sees the effective proxy-target URL.
-      void cb.updateAutoCompactionMaxContext(newProv, newProvider, routedCfg).catch((error) => {
-        deps.logger.warn(`model.switch capability refresh failed: ${String(error)}`);
-      });
+      void cb
+        .updateAutoCompactionMaxContext(newProv, newProvider, routedCfg, targetCtx)
+        .catch((error) => {
+          deps.logger.warn(`model.switch capability refresh failed: ${String(error)}`);
+        });
 
       broadcast(state.getClients(), {
         type: 'session.start',

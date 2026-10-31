@@ -26,6 +26,7 @@ export function createSessionAgentManager({
   getConfig,
   toolExecutor,
   logger,
+  updateMaxContext,
 }: {
   agent: import('@wrongstack/core/agent').Agent;
   MAX_CONCURRENT_SESSION_AGENTS: 4;
@@ -48,6 +49,8 @@ export function createSessionAgentManager({
   getConfig?: (() => import('@wrongstack/contracts/types').Config) | undefined;
   toolExecutor: import('@wrongstack/core/execution').ToolExecutor;
   logger?: import('@wrongstack/contracts/types').Logger | undefined;
+  /** Re-resolves a conversation's context window after its model moved. */
+  updateMaxContext?: import('./max-context-updater.js').UpdateAutoCompactionMaxContext | undefined;
 }) {
   const sessionAgents = createSessionAgentRegistry({
     template: agent,
@@ -113,6 +116,13 @@ export function createSessionAgentManager({
         container,
         events,
         logger,
+        // A hop or primary restore re-resolves THIS tab's window, not the leader's.
+        ...(updateMaxContext
+          ? {
+              onModelSwitch: (providerId: string) =>
+                updateMaxContext(sessionCtx.provider, providerId, undefined, sessionCtx),
+            }
+          : {}),
       });
       return sessionAgent;
     },

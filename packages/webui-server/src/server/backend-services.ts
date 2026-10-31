@@ -634,6 +634,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     getConfig: input.getConfig,
     toolExecutor,
     logger,
+    updateMaxContext: updateAutoCompactionMaxContext,
   });
   const getAgentForSession = (sessionId?: string): Agent => sessionAgents.get(sessionId);
 

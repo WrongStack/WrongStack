@@ -53,6 +53,15 @@ export function createEmbeddedSessionAgents(
         ...(opts.modelsRegistry ? { modelsRegistry: opts.modelsRegistry } : {}),
         container: opts.agent.container,
         events: opts.agent.events,
+        // The host's window updater serves the leader only (see embedded-host-adapters). A hop
+        // here moves this tab's window: the hop provider carries its model's catalog window,
+        // and the compaction threshold reads the context's own `effectiveMaxContext` first.
+        onModelSwitch: async () => {
+          const window = agent.ctx.provider?.capabilities?.maxContext;
+          if (typeof window === 'number' && window > 0)
+            agent.ctx.meta['effectiveMaxContext'] = window;
+          else delete agent.ctx.meta['effectiveMaxContext'];
+        },
       });
     },
   });

@@ -32,7 +32,12 @@ import { createEmbeddedSessionAgents } from '../../src/webui-server/session-agen
 function fakeProvider(id: string): Provider {
   return {
     id,
-    capabilities: { maxContext: 200_000, streaming: false, tools: true } as never,
+    // The backup model has a smaller window than the primary.
+    capabilities: {
+      maxContext: id === 'backup' ? 128_000 : 1_000_000,
+      streaming: false,
+      tools: true,
+    } as never,
     complete: async () => {
       throw new Error('not called directly');
     },
@@ -81,6 +86,8 @@ function harness(appConfig: Config | undefined) {
     projectRoot: process.cwd(),
     model: 'p-model',
   });
+  // The leader's resolved window, which every new tab copies as a host-level fact.
+  context.meta['effectiveMaxContext'] = 1_000_000;
   const template = new Agent({
     container,
     tools,
@@ -137,6 +144,17 @@ describe('CLI-hosted WebUI tabs carry their own fallback-model extension', () =>
     expect(pending[0]?.['sessionId']).toBe('tab-2');
     expect((response.content[0] as { text: string }).text).toBe('answered by backup/b-model');
     expect(tab.ctx.provider.id).toBe('backup');
+  });
+  it("a hop moves the tab's own context window, not the leader's", async () => {
+    // The compaction threshold reads the context's own `effectiveMaxContext` before the
+    // provider's window, so a tab that kept the copied 1M window would compact far too late
+    // on the 128k backup.
+    const { sessionAgents, template } = harness(config);
+    const tab = sessionAgents.get('tab-2');
+    expect(tab.ctx.meta['effectiveMaxContext']).toBe(1_000_000);
+    await tab.extensions.wrapProviderRunner(innerRunner)(tab.ctx, request);
+    expect(tab.ctx.meta['effectiveMaxContext']).toBe(128_000);
+    expect(template.ctx.meta['effectiveMaxContext']).toBe(1_000_000);
   });
   it('tabs fail over independently', async () => {
     const { sessionAgents } = harness(config);

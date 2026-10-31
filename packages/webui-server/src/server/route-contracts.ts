@@ -228,6 +228,8 @@ export interface WebuiCallbacks {
     newProvider: Provider,
     providerId?: string,
     providerCfg?: ProviderConfig | undefined,
+    /** The conversation whose window this is; the leader when omitted. */
+    target?: import('@wrongstack/core/agent').Context | undefined,
   ) => Promise<void>;
   /** Unified, serialized helper for active-profile config mutations. */
   updateGlobalConfig: (

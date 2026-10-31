@@ -280,6 +280,8 @@ describe('buildRoutes composition', () => {
       provider,
       'new-provider',
       expect.objectContaining({ type: 'new-provider' }),
+      // The conversation that switched owns the resolved window.
+      context,
     );
     expect(cb.sessionStartPayload).toHaveBeenCalled();
   });
