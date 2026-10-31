@@ -294,7 +294,7 @@ export function ProjectKanban({
           {source && (
             <p className="kanban-board-source">
               Mirrors {source.system === 'goal' ? 'a Goal run' : 'an SDD run'}
-              {source.phaseId ? ` · phase ${source.phaseId}` : ''}. The run updates these cards.
+              {source.phaseName ? ` · phase ${source.phaseName}` : ''}. The run updates these cards.
               {onOpenSource && (
                 <button
                   type="button"

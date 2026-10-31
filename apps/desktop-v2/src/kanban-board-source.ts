@@ -6,6 +6,8 @@ export interface BoardSource {
   system: 'goal' | 'sdd';
   runId: string;
   phaseId: string;
+  /** The phase as a reader sees it: empty for a generated id. */
+  phaseName: string;
 }
 export interface RunFocus {
   system: 'goal' | 'sdd';
@@ -22,7 +24,15 @@ export function boardSource(board: Record<string, unknown> | null | undefined): 
     : [];
   const system = tags.includes('goal') ? 'goal' : tags.includes('sdd') ? 'sdd' : null;
   const runId = tagValue(tags, 'run:');
-  return system && runId ? { system, runId, phaseId: tagValue(tags, 'phase:') } : null;
+  const phaseId = tagValue(tags, 'phase:');
+  return system && runId ? { system, runId, phaseId, phaseName: phaseLabel(phaseId) } : null;
+}
+
+/** A phase name worth showing; a generated id (a UUID) says nothing to the reader. */
+export function phaseLabel(phaseId: string): string {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(phaseId)
+    ? ''
+    : phaseId;
 }
 
 /**

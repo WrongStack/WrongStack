@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardSource, runBoardId } from '../src/kanban-board-source';
+import { boardSource, phaseLabel, runBoardId } from '../src/kanban-board-source';
 
 const board = (id: string, tags: string[], updatedAt = '2026-10-30T10:00:00.000Z') => ({
   id,
@@ -13,11 +13,13 @@ describe('run mirror board source', () => {
       system: 'goal',
       runId: 'g1',
       phaseId: 'p2',
+      phaseName: 'p2',
     });
     expect(boardSource(board('b2', ['sdd', 'run:r1', 'graph:t1']))).toEqual({
       system: 'sdd',
       runId: 'r1',
       phaseId: '',
+      phaseName: '',
     });
     expect(boardSource(board('b3', ['goal']))).toBeNull();
     expect(boardSource(board('b4', ['run:x']))).toBeNull();
@@ -35,5 +37,13 @@ describe('run mirror board source', () => {
     expect(runBoardId(boards, { system: 'goal', runId: 'g1', phaseId: 'p9' })).toBe('new');
     expect(runBoardId(boards, { system: 'sdd', runId: 'g1' })).toBe('sdd');
     expect(runBoardId(boards, { system: 'goal', runId: 'missing' })).toBe('');
+  });
+});
+
+describe('mirror phase label', () => {
+  it('names a readable phase and hides a generated id', () => {
+    expect(phaseLabel('discovery')).toBe('discovery');
+    expect(phaseLabel('4faef1dd-6756-4b18-acab-89b30bffa7b4')).toBe('');
+    expect(phaseLabel('')).toBe('');
   });
 });
