@@ -682,6 +682,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     subagentFactory,
     delegation,
     goalHandler,
+    kanbanRunMirror,
     specsHandler,
     sddBoardHandler,
     sddWizardHandler,

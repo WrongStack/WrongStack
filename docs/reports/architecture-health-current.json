@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T19:40:37.554Z",
+  "generatedAt": "2026-10-31T20:38:28.834Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5555,
-    "testFiles": 4842,
-    "sourceLines": 1218891,
+    "sourceFiles": 5556,
+    "testFiles": 4843,
+    "sourceLines": 1218950,
     "workspaceEdges": 233,
-    "moduleEdges": 16658,
+    "moduleEdges": 16665,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -1154,8 +1154,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 325,
-      "testFiles": 360,
+      "sourceFiles": 326,
+      "testFiles": 361,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1190,7 +1190,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 360
+          "testFiles": 361
         }
       ]
     },
@@ -25866,6 +25866,12 @@
       },
       {
         "file": "packages/webui-server/tests/kanban-run-mirror.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/kanban-run-start.test.ts",
         "projects": [
           "root-node"
         ]

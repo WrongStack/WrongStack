@@ -286,6 +286,7 @@ export {
   type KanbanRunMirror,
   type KanbanRunMirrorDeps,
 } from './kanban-run-mirror.js';
+export { createKanbanRunStart, type KanbanRunStartDeps } from './kanban-run-start.js';
 export {
   createKanbanSupervisor,
   type KanbanSupervisor,

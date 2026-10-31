@@ -36,7 +36,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
-import type { KanbanRunMirrorDeps } from './kanban-run-mirror.js';
+import type { KanbanRunMirror, KanbanRunMirrorDeps } from './kanban-run-mirror.js';
 import type { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import type { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
 import type { SpecsWebSocketHandler } from './specs-ws-handler.js';
@@ -161,6 +161,8 @@ export interface AgentServices {
   /** Worker delegation (`delegate`); undefined when disabled or unavailable. */
   delegation: import('./standalone-delegation.js').StandaloneDelegation | undefined;
   goalHandler: GoalWebSocketHandler;
+  /** Goal/SDD run projection onto boards; null without a project root or broadcast. */
+  kanbanRunMirror: KanbanRunMirror | null;
   specsHandler: SpecsWebSocketHandler;
   sddBoardHandler: SddBoardWebSocketHandler;
   sddWizardHandler: SddWizardWebSocketHandler;

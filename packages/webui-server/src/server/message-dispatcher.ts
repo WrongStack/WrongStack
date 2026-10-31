@@ -43,6 +43,7 @@ import {
   registeredKanbanTools,
 } from './kanban-management-dispatch.js';
 import { handleKanbanRoute } from './kanban-routes.js';
+import { createKanbanRunStart } from './kanban-run-start.js';
 import { createKanbanSupervisor } from './kanban-supervisor.js';
 import type { PendingConfirm } from './pending-confirms.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
@@ -491,15 +492,17 @@ export function createMessageDispatcher(
     supervisorAudit: async (ws, msg) => {
       await handleKanbanRoute(ws, msg, kanbanContext());
     },
-    runStart: (ws) => {
-      send(ws, {
-        type: 'kanban.run.start',
-        payload: {
-          success: false,
-          error: 'Kanban run launch is unavailable in this standalone runtime.',
-        },
-      });
-    },
+    runStart: createKanbanRunStart({
+      agent: deps.agent,
+      events: deps.events,
+      getProjectRoot: () => state.getProjectRoot(),
+      goalHandler: deps.goalHandler,
+      kanbanRunMirror: deps.kanbanRunMirror ?? undefined,
+      subagentFactory: deps.subagentFactory,
+      brain: deps.brain,
+      send,
+      broadcast: (message) => broadcast(state.getClients(), message),
+    }),
   };
 
   const dispatch = createRouteFamilyDispatcher({

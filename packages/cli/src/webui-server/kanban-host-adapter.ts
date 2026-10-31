@@ -2,16 +2,11 @@ import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Config, SkillLoader } from '@wrongstack/contracts/types';
 import type { AgentFactory, BrainArbiter } from '@wrongstack/coordination';
 import type { Agent } from '@wrongstack/core/agent';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
-import type { PhaseTemplate } from '@wrongstack/goal';
-import { PhaseGraphBuilder } from '@wrongstack/goal';
-import { exportBoardToTaskGraph } from '@wrongstack/kanban';
-import { TaskGraphStore } from '@wrongstack/sdd';
 import {
+  createKanbanRunStart,
   type GoalWebSocketHandler,
   type KanbanHostRouteHandlers,
   type KanbanRunMirror,
-  startSddRunFromGraph,
   type WSServerMessage,
 } from '@wrongstack/webui-server';
 import type { WebSocket } from 'ws';
@@ -40,27 +35,6 @@ interface CliKanbanHostAdapterDeps {
 
 export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): KanbanHostRouteHandlers {
   const { opts, send, goalHandler } = deps;
-  let isolatedSeq = 0;
-
-  /** Isolated read-only turn for acceptance verifier / supervisor splitter. */
-  const runIsolatedTurn = opts.sddSubagentFactory
-    ? async (prompt: string, name: string): Promise<string> => {
-        const result = await opts.sddSubagentFactory!({
-          id: `sdd-kanban-${name.toLowerCase().replace(/\s+/g, '-')}-${isolatedSeq++}`,
-          role: 'executor',
-          name,
-          disabledTools: ['delegate', 'write', 'edit', 'patch', 'bash', 'exec'],
-          allowedCapabilities: ['fs.read', 'net.outbound'],
-        });
-        try {
-          const res = await result.agent.run([{ type: 'text', text: prompt }]);
-          return res.finalText ?? '';
-        } finally {
-          await result.dispose?.();
-        }
-      }
-    : undefined;
-
   return {
     meta: async (ws) => {
       const tools = (opts.agent.ctx.tools ?? []).map((tool) => ({
@@ -120,100 +94,16 @@ export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): Kanba
         payload: { success: true, data: boardId ? (snapshots[0] ?? null) : snapshots },
       });
     },
-    runStart: async (ws, msg) => {
-      const payload = (msg.payload ?? {}) as {
-        boardId?: string;
-        engine?: string;
-        autonomous?: boolean;
-      };
-      const boardId = payload.boardId;
-      const engine =
-        payload.engine === 'goal' ? 'goal' : payload.engine === 'sdd' ? 'sdd' : undefined;
-      const projectRoot = opts.projectRoot ?? '';
-      const failRun = (error: string) =>
-        send(ws, { type: 'kanban.run.start', payload: { success: false, error } });
-      if (!boardId || !engine) return failRun('boardId and engine required');
-      if (!projectRoot) return failRun('No project root');
-      try {
-        const exported = await exportBoardToTaskGraph(projectRoot, boardId, {
-          preserveOriginTaskIds: true,
-        });
-        if (!exported) return failRun(`Board not found: ${boardId}`);
-        if (exported.graph.nodes.size === 0) return failRun('Board has no tasks to run');
-        if (engine === 'goal') {
-          // Launch-from-board: next Goal projection reuses THIS board for phase 0.
-          deps.kanbanRunMirror?.bindGoalNext(boardId);
-          const graph = await PhaseGraphBuilder.fromTaskGraph(exported.graph, {
-            title: exported.board.title,
-            description: exported.board.description ?? exported.board.title,
-          });
-          const phases: PhaseTemplate[] = Array.from(graph.phases.values()).map((phase) => ({
-            name: phase.name,
-            description: phase.description,
-            priority: phase.priority,
-            estimateHours: phase.estimateHours,
-            parallelizable: phase.parallelizable,
-            taskTemplates: Array.from(phase.taskGraph.nodes.values()).map((task) => ({
-              title: task.title,
-              description: task.description,
-              type: task.type,
-              priority: task.priority,
-              estimateHours: task.estimateHours ?? 0,
-              ...(task.tags ? { tags: task.tags } : {}),
-            })),
-          }));
-          await goalHandler.handleMessage(ws, {
-            type: 'goal.start',
-            payload: {
-              title: exported.board.title,
-              phases,
-              autonomous: payload.autonomous ?? false,
-            },
-          });
-          send(ws, {
-            type: 'kanban.run.start',
-            payload: { success: true, data: { engine: 'goal', boardId } },
-          });
-          return;
-        }
-        if (!opts.sddSubagentFactory) {
-          return failRun('SDD runs need the multi-agent host, which is not available here.');
-        }
-        const paths = resolveWstackPaths({ projectRoot });
-        const taskStore = new TaskGraphStore({ baseDir: paths.projectTaskGraphs });
-        await taskStore.save(exported.graph);
-        // Bind BEFORE start so the first snapshot lands on this board, not a new one.
-        // runId is only known after startSddRunFromGraph — bind once we have it.
-        const handle = await startSddRunFromGraph(
-          exported.graph,
-          {
-            agent: opts.agent,
-            events: opts.events,
-            projectRoot,
-            subagentFactory: opts.sddSubagentFactory,
-            projectSddBoards: paths.projectSddBoards,
-            taskStore,
-            ...(opts.brain ? { brain: opts.brain } : {}),
-            ...(runIsolatedTurn ? { runIsolatedTurn } : {}),
-          },
-          { worktrees: true },
-        );
-        deps.kanbanRunMirror?.bind('sdd', handle.runId, boardId);
-        void handle.completion.catch(() => {});
-        const started = {
-          type: 'sdd.run.started' as const,
-          payload: { runId: handle.runId, graphId: exported.graph.id },
-        };
-        // Notify the requesting client AND every peer (SDD Hub tab switch).
-        send(ws, started);
-        deps.broadcast?.(started);
-        send(ws, {
-          type: 'kanban.run.start',
-          payload: { success: true, data: { engine: 'sdd', boardId, runId: handle.runId } },
-        });
-      } catch (err) {
-        failRun(err instanceof Error ? err.message : String(err));
-      }
-    },
+    runStart: createKanbanRunStart({
+      agent: opts.agent,
+      events: opts.events,
+      getProjectRoot: () => opts.projectRoot ?? '',
+      goalHandler,
+      kanbanRunMirror: deps.kanbanRunMirror,
+      subagentFactory: opts.sddSubagentFactory,
+      brain: opts.brain,
+      send,
+      broadcast: deps.broadcast,
+    }),
   };
 }

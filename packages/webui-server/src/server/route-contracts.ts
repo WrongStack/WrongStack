@@ -34,6 +34,7 @@ import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.j
 import type { CustomModeStore } from './custom-context-modes.js';
 import type { GoalRouteHandlers } from './goal-routes.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
+import type { KanbanRunMirror } from './kanban-run-mirror.js';
 import type { MailboxRouteHandlers } from './mailbox-routes.js';
 import type { McpRouteHandlers } from './mcp-routes.js';
 import type { ModeRouteHandlers } from './mode-routes.js';
@@ -171,6 +172,8 @@ export interface WebuiDeps {
   subagentFactory: AgentFactory;
   /** Per-feature WS handlers (goal, specs, sdd-board, sdd-wizard, …). */
   goalHandler: GoalWebSocketHandler;
+  /** Projects Goal/SDD runs onto boards; a run launched from a board binds back to it. */
+  kanbanRunMirror?: KanbanRunMirror | null | undefined;
   specsHandler: SpecsWebSocketHandler;
   sddBoardHandler: SddBoardWebSocketHandler;
   sddWizardHandler: SddWizardWebSocketHandler;
