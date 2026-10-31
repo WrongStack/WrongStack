@@ -5602,6 +5602,29 @@ staged; the other session's edits stay untouched.
 - Checks: runtime 37 files / 392 tests, typecheck clean; architecture report regenerated from a
   clean copy of the commit (an earlier regeneration had absorbed another session's untracked
   test files).
-- Not covered: the desktop `AutomationPublication` flow over the engine, a CI provider that runs
-  real jobs (GitHub Actions) on the sandbox, and restart while a run is active.
+- Not covered: the desktop `AutomationPublication` flow over the engine (next entry), a CI
+  provider that runs real jobs (GitHub Actions) on the sandbox, and restart while a run is active.
+
+### Desktop publication flow over the engine (2026-10-31)
+
+- Setup: the standalone engine (`apps/desktop-v2/engine/main.ts`) started in the sandbox clone
+  with a throwaway `WRONGSTACK_HOME` (copies of the global and default-profile config and the
+  vault key; deleted afterwards, as were the project daemons it started) and `GH_TOKEN` in its
+  environment only. Requests used exactly what the native bridge sends for
+  `AutomationPublication.tsx`: `x-ws-token` and the `sessionId` of the engine's own session.
+- Through `/api/automation/*`: the job was created (`POST jobs`, the engine bound it to the
+  session's project), a run was queued (`POST jobs/<id>/run` with an idempotency key), and the CLI
+  worker (`automation serve --data-dir <home>/automation`) executed it in Docker with the profile
+  credential: completed, `node test.mjs` passed independently, tree `1b4dcc2`. Then `GET pr`,
+  `POST pr/prepare` (0.4 s), `POST pr/publish` (0.8 s) opened draft PR #2 on its own branch with
+  commit `1d7535d`; publishing again returned the identical receipt; `POST pr/check` (1.5 s)
+  returned `unknown` with no checks yet, which is the correct state before any hosted check
+  reports.
+- Found: the bridge abandons every request after 30 s, while these operations run under a
+  two-minute GitHub deadline (and publication now waits for the PR view, entry above). They now
+  keep 150 s; the per-route deadlines are one tested function (`http_bridge.rs`,
+  `keeps_server_deadlines_longer_than_the_default_timeout`; Rust bridge tests 6/6, `cargo fmt`
+  clean; clippy is not installed here). Commit `fc9af5e27`.
+- Not covered: clicking through `AutomationPublication.tsx` in the native window (native tests
+  are batched at the end), restart while a run is active, and a sandbox CI that runs real jobs.
 
