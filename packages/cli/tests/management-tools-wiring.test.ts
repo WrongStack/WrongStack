@@ -203,6 +203,31 @@ describe('registerCliManagementTools', () => {
     });
   });
 
+  it('starts the tier dwell window at the first switch, not at session start', () => {
+    const handlers = new Map<string, (payload: unknown) => void>();
+    registerCliManagementTools({
+      toolRegistry: { register: vi.fn() } as never,
+      configStore: { get: vi.fn(() => ({})), update: vi.fn() } as never,
+      profileConfigPath: 'C:/profile/config.json',
+      stdinInteractive: false,
+      events: {
+        on: (event: string, handler: (payload: unknown) => void) => handlers.set(event, handler),
+      },
+    } as never);
+    const options = mocks.fallbackOptions as {
+      getTurnsSinceTierSwitch(): number | undefined;
+      onTierSwitched(tier: string): void;
+    };
+    const turn = () => handlers.get('iteration.started')?.({ index: 0 });
+    turn();
+    turn();
+    expect(options.getTurnsSinceTierSwitch()).toBeUndefined();
+    options.onTierSwitched('budget');
+    expect(options.getTurnsSinceTierSwitch()).toBe(0);
+    turn();
+    expect(options.getTurnsSinceTierSwitch()).toBe(1);
+  });
+
   it('forwards the late-bound switchProviderAndModel getter to leader_model_set', async () => {
     // The switch is created by setupProviderRuntime AFTER the management tools
     // register, so it arrives as a ref-backed getter like getHookRunner.

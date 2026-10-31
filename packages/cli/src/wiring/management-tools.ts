@@ -1,12 +1,12 @@
 import type { Config, ReasoningConfig, ReasoningEffort } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
+import { updateJsonObjectFile } from '@wrongstack/core/utils';
+import { catalogProviderIdFor } from '@wrongstack/providers';
 import {
   createFallbackManageTools,
   createPluginManagerTool,
   type PluginManagerHookRunner,
 } from '@wrongstack/tools/management';
-import { updateJsonObjectFile } from '@wrongstack/core/utils';
-import { catalogProviderIdFor } from '@wrongstack/providers';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from '../plugin-management.js';
 
 type ConfigStoreLike = {
@@ -102,8 +102,9 @@ export function registerCliManagementTools({
     contextTokens: number;
     turns: number;
     currentTier: string | undefined;
-    switchedAtTurn: number;
-  } = { contextTokens: 0, turns: 0, currentTier: undefined, switchedAtTurn: 0 };
+    /** Turn count at the last tier switch; unset until the first one. */
+    switchedAtTurn: number | undefined;
+  } = { contextTokens: 0, turns: 0, currentTier: undefined, switchedAtTurn: undefined };
 
   if (events) {
     events.on('ctx.pct', (...args: unknown[]) => {
@@ -136,7 +137,12 @@ export function registerCliManagementTools({
     getConfig: () => configStore.get(),
     getCurrentTier: () => tierState.currentTier,
     getContextTokens: () => (tierState.contextTokens > 0 ? tierState.contextTokens : undefined),
-    getTurnsSinceTierSwitch: () => tierState.turns - tierState.switchedAtTurn,
+    // Before any switch the count is unknown ("long ago"), as the tool's contract states: the
+    // dwell window holds the leader back after a switch, never before its first one.
+    getTurnsSinceTierSwitch: () =>
+      tierState.switchedAtTurn === undefined
+        ? undefined
+        : tierState.turns - tierState.switchedAtTurn,
     ...(events?.emit
       ? {
           onEffortChanged: (change: LeaderEffortChange) => {
