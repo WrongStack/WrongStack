@@ -5969,3 +5969,15 @@ staged; the other session's edits stay untouched.
   does not track switches must not be permanently blocked"). The count is now unknown until the
   first switch, as in the engine. Test: `management-tools-wiring.test.ts` (no count before a
   switch, 0 right after, 1 a turn later; fails against the previous wiring).
+
+### SDD run worker model from the catalog (2026-10-31)
+
+- The SDD run options (task graph and specification runs) add **Worker model**: the project
+  engine's default, or one of the profile's saved providers and that provider's catalog models
+  (`providers.saved`, `provider.models`). The run request carries `provider` and `model` only as a
+  pair, which the engine's `parseRunOpts` reads as the run's default provider and model. The
+  options moved to `SddRunOptions.tsx` (`ProjectSdd.tsx` 779 → 745 lines).
+- Tests: `sdd-run-options.test.ts` (provider and model sent together or not at all; the choice is
+  offered only when the profile can be read, defaulting to the project engine, and a saved model
+  stays selectable before the catalog answers). Desktop 689 tests; typecheck clean. Not exercised
+  natively: the SDD native scope does not start a run from the window.
