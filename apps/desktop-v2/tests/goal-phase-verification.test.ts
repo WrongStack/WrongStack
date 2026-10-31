@@ -8,12 +8,14 @@ describe('goal phase verification', () => {
         verificationAttempts: [
           { attempt: 0, ok: false, at: 5, output: 'tsc failed' },
           { attempt: 1, ok: true },
+          { attempt: 2, ok: true, skipped: true },
           { attempt: 'x', ok: true },
         ],
       }),
     ).toEqual([
-      { attempt: 0, ok: false, at: 5, output: 'tsc failed' },
-      { attempt: 1, ok: true, at: null, output: '' },
+      { attempt: 0, ok: false, skipped: false, at: 5, output: 'tsc failed' },
+      { attempt: 1, ok: true, skipped: false, at: null, output: '' },
+      { attempt: 2, ok: true, skipped: true, at: null, output: '' },
     ]);
     expect(phaseVerificationAttempts({})).toEqual([]);
   });

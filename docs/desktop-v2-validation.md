@@ -5434,3 +5434,26 @@ staged; the other session's edits stay untouched.
   `sage-validity-review.test.ts`), and both passed twice when rerun alone (4/4), so they are
   treated as load-dependent and were not changed. Not exercised with a real priced model.
 
+### Real-provider Goal acceptance in the standalone engine (2026-10-31)
+
+- Run: `.temp_files/zai-acceptance/run.mjs` starts the desktop engine (`apps/desktop-v2/engine/main.ts`)
+  in a temporary git project with the user's default profile (`zai-coding-plan`, `glm-5.3-flash`)
+  and drives it over its WebSocket only (no window). The project's `typecheck` script checks a
+  `math.mjs` the Goal must create; the Goal has one phase, one task, verification on and a $1
+  cost limit.
+- First run: PASS for completion, a mirror board tagged `goal`, `run:<graph>` and `phase:<id>`,
+  a recorded verification attempt and cost counting (113,647 tokens, 24 s). The verification
+  record, however, said `ok: true` with "verify skipped: node_modules not found": the verifier
+  runs scripts only when dependencies are installed, and the desktop showed that as "passed".
+- Fix: a verdict's `skipped` flag is now kept on the attempt (`types.ts` adds it to the
+  `verifyPhase` result; `recordVerification` stores it) and the desktop shows "skipped (nothing
+  to check)" instead of "passed" (`phase-verification-record.test.ts`,
+  `goal-phase-verification.test.ts`). The second run recorded `skipped: true`.
+- Third run, with an empty `node_modules` so the verifier runs `typecheck`: PASS, the attempt is
+  `ok: true` without `skipped`, the task wrote correct `add`/`multiply`, 113,629 tokens, 25 s.
+- Cost: every response was priced at $0 because the catalog entry for this coding-plan model
+  carries a zero price (a model without a catalog price would have been counted as unpriced and
+  stopped the cost-limited run). So the run proved the pricing path, not a non-zero estimate.
+- Not exercised with the real model: a failed verification followed by a repair, a cost limit
+  actually reached, delegations and SAGE injection.
+

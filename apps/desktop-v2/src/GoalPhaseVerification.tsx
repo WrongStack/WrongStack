@@ -10,9 +10,15 @@ const INTEGRATION: Record<string, string> = {
 export interface PhaseVerificationAttempt {
   attempt: number;
   ok: boolean;
+  /** Passed only because the checker found nothing to run. */
+  skipped: boolean;
   at: number | null;
   output: string;
 }
+
+/** "skipped" is kept apart from "passed": nothing was checked. */
+const verdict = (item: PhaseVerificationAttempt) =>
+  item.skipped ? 'skipped (nothing to check)' : item.ok ? 'passed' : 'failed';
 
 /** Verification attempts the engine recorded on a Goal phase, oldest first. */
 export function phaseVerificationAttempts(phase: Record<string, unknown>) {
@@ -22,6 +28,7 @@ export function phaseVerificationAttempts(phase: Record<string, unknown>) {
           {
             attempt: item['attempt'],
             ok: item['ok'],
+            skipped: item['skipped'] === true,
             at: typeof item['at'] === 'number' ? item['at'] : null,
             output: typeof item['output'] === 'string' ? item['output'] : '',
           },
@@ -41,16 +48,19 @@ export function GoalPhaseVerification({ phase }: { phase: Record<string, unknown
     <details className="goal-phase-verification">
       <summary>
         {last
-          ? `Verification ${last.ok ? 'passed' : 'failed'} · ${attempts.length} ${attempts.length === 1 ? 'attempt' : 'attempts'}`
+          ? `Verification ${verdict(last)} · ${attempts.length} ${attempts.length === 1 ? 'attempt' : 'attempts'}`
           : 'Integration'}
         {integration ? ` · ${INTEGRATION[integration] ?? integration}` : ''}
       </summary>
       <ol aria-label="Verification attempts">
         {attempts.map((item) => (
-          <li key={item.attempt} className={item.ok ? 'passed' : 'failed'}>
+          <li
+            key={item.attempt}
+            className={item.skipped ? 'skipped' : item.ok ? 'passed' : 'failed'}
+          >
             <strong>
               {item.attempt === 0 ? 'First check' : `After repair ${item.attempt}`} ·{' '}
-              {item.ok ? 'passed' : 'failed'}
+              {verdict(item)}
             </strong>
             {item.at !== null && <small> · {recoveryDate(new Date(item.at).toISOString())}</small>}
             {item.output && <pre>{item.output}</pre>}
