@@ -5,9 +5,12 @@
  * controllers in one process would both see every `leader.delivery_pending`
  * and both start a leader turn: a double wake. The CLI owns the controller —
  * it owns the delegate tool and the hub — and constructs it once per
- * execution branch (TUI, WebUI), which are mutually exclusive. The WebUI
- * server package only BINDS a port to the controller it is handed; it must
- * never construct one of its own.
+ * execution branch (TUI, WebUI), which are mutually exclusive. When the CLI
+ * hosts the WebUI, the WebUI server package only BINDS a port to the
+ * controller it is handed. The one exception is the standalone engine
+ * (`startWebUI`, the desktop's process): it owns its own delegate tool and
+ * constructs one controller in `standalone-delegation.ts`, on a boot path the
+ * CLI never takes (the CLI never calls `createAgentServices`).
  *
  * Walks the source, so a new construction site cannot be added silently.
  */
@@ -51,12 +54,27 @@ async function constructionSites(): Promise<Map<string, number>> {
 }
 
 describe('leader auto-wake controller ownership', () => {
-  it('is constructed only by the CLI execution branches, once each', async () => {
+  it('is constructed only by the CLI execution branches and the standalone engine, once each', async () => {
     const sites = await constructionSites();
     expect(Object.fromEntries(sites)).toEqual({
       'cli/src/execution-tui.ts': 1,
       'cli/src/execution-webui.ts': 1,
+      'webui-server/src/server/standalone-delegation.ts': 1,
     });
+  });
+
+  it('keeps the standalone engine controller off the CLI boot path', async () => {
+    // The engine's controller exists only inside createAgentServices; a CLI import of it
+    // would put a second controller on the CLI process's delivery hub.
+    for await (const file of walk(path.join(PACKAGES, 'cli', 'src'))) {
+      const source = await fs.readFile(file, 'utf8');
+      expect(source, file).not.toMatch(/createAgentServices|standalone-delegation/);
+    }
+    const services = await fs.readFile(
+      path.join(PACKAGES, 'webui-server/src/server/backend-services.ts'),
+      'utf8',
+    );
+    expect(services).toContain('installStandaloneDelegation(');
   });
 
   it('constructs one controller in the TUI branch and one in the exclusive WebUI branch', async () => {

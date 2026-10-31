@@ -286,6 +286,7 @@ export function buildStandaloneWebuiDeps(input: {
   httpPort: number;
   wssPrimary: WebuiDeps['wssPrimary'];
   wssSecondary: WebuiDeps['wssSecondary'];
+  autoWake?: WebuiDeps['autoWake'];
 }): WebuiDeps {
   const {
     preContext,
@@ -398,5 +399,6 @@ export function buildStandaloneWebuiDeps(input: {
     brainSettings,
     brainRuntime,
     brainLog,
+    ...(input.autoWake ? { autoWake: input.autoWake } : {}),
   });
 }

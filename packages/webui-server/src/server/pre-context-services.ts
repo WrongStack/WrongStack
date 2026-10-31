@@ -610,6 +610,11 @@ export async function createPreContextServices(
     cwd: workingDir,
     projectRoot,
     model: config.model,
+    // The boot session's agent is the leader (CLI parity: wiring/session.ts). Left unset it
+    // reads 'unknown', and leader-only paths skip it: settled background delegations were
+    // never folded into its conversation, so a woken turn answered without the result.
+    agentId: 'leader',
+    agentName: 'Leader Agent',
   });
   context.meta['promptOnlineAgents'] = onlineAgents;
   const initialContextPolicy = resolveContextWindowPolicy(

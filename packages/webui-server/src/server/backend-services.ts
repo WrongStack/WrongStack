@@ -80,6 +80,7 @@ import { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import { buildSddWizardDeps } from './sdd-wizard-wiring.js';
 import { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
 import { SpecsWebSocketHandler } from './specs-ws-handler.js';
+import { installStandaloneDelegation } from './standalone-delegation.js';
 import { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import { computeUsageCost, getCostRates } from './usage-cost.js';
 import { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
@@ -380,6 +381,32 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     });
   });
 
+  // Worker delegation (`delegate`), before any agent reads the tool list.
+  const delegation = installStandaloneDelegation({
+    container,
+    toolRegistry,
+    providerRegistry,
+    modelsRegistry,
+    events,
+    tokenCounter: input.tokenCounter,
+    skillLoader: input.skillLoader,
+    tracer: input.tracer,
+    installToolBoundary: input.installToolBoundary,
+    config,
+    getConfig: () => input.getConfig?.() ?? input.config,
+    projectRoot,
+    cwd: workingDir,
+    projectSessionsDir: wpaths.projectSessions,
+    session: input.sessionGetter(),
+  });
+  console.log(
+    delegation
+      ? '[WebUI] Worker delegation enabled'
+      : (config.tools?.disabledTools ?? []).includes('delegate')
+        ? '[WebUI] Worker delegation off: tools.disabledTools names delegate'
+        : '[WebUI] Worker delegation unavailable: the engine lacks the fleet host services',
+  );
+
   const agent = new Agent({
     container,
     tools: toolRegistry,
@@ -576,6 +603,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     worktreeHandler.dispose();
     terminalHandler.dispose();
     collabHandler.dispose();
+    void delegation?.dispose().catch((err: unknown) => {
+      logger.warn('delegation host dispose failed', { err: errMessage(err) });
+    });
   };
 
   const MAX_CONCURRENT_SESSION_AGENTS = 4;
@@ -639,6 +669,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     },
     codebaseIndexing,
     subagentFactory,
+    delegation,
     goalHandler,
     specsHandler,
     sddBoardHandler,

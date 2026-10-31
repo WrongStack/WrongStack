@@ -158,6 +158,8 @@ export interface AgentServices {
    * throwaway agent from it so an "Ask AI" run never creates or swaps a session.
    */
   subagentFactory: AgentFactory;
+  /** Worker delegation (`delegate`); undefined when disabled or unavailable. */
+  delegation: import('./standalone-delegation.js').StandaloneDelegation | undefined;
   goalHandler: GoalWebSocketHandler;
   specsHandler: SpecsWebSocketHandler;
   sddBoardHandler: SddBoardWebSocketHandler;

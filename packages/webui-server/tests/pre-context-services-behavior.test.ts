@@ -317,6 +317,11 @@ describe('createPreContextServices', () => {
       'plan.path',
       'D:/repo/.wstack/sessions/session-1.plan.json',
     );
+    // The boot session's agent is the leader: leader-only paths (background delegation
+    // results, mailbox) skip an agent whose id reads 'unknown'.
+    expect(
+      (result.context as unknown as { options: Record<string, unknown> }).options,
+    ).toMatchObject({ agentId: 'leader', agentName: 'Leader Agent' });
     expect(mocks.hydrateSessionKanban).toHaveBeenCalledWith(result.context);
     expect(mocks.attachSessionKanbanMirror).toHaveBeenCalledWith(result.context);
     expect(mocks.seedContextMeta).toHaveBeenCalledWith(config, result.context);

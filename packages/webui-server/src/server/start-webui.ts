@@ -273,10 +273,26 @@ export async function startWebUI(
    * is gone.
    */
   const runLockControl = createRunLockControl(_sessionRunLocks, (id, subagentIds) =>
-    stopSessionFleet(id, opts.stopSessionFleet, subagentIds),
+    stopSessionFleet(
+      id,
+      opts.stopSessionFleet ?? agentServices.delegation?.stopSession,
+      subagentIds,
+    ),
   );
 
   const pendingConfirms = new Map<string, PendingConfirm>();
+
+  // A settled background delegation starts a turn for its idle leader through the same
+  // conversation path a user message takes (bound by the message dispatcher).
+  const autoWake = agentServices.delegation?.attachAutoWake({
+    abortControllers: _sessionRunLocks,
+    pendingConfirms,
+    isOpen: (sessionId) =>
+      sessionId === session.id || agentServices.isSessionLive?.(sessionId) === true,
+    isDisplayed: (sessionId) => displayedSessionIds?.().has(sessionId) ?? false,
+    broadcast: (message) => broadcast(clients, message),
+    logger: { warn: (message) => logger.warn(message) },
+  });
 
   // One gate per host, shared by session transitions and run setup.
   const sessionTransitionGate = createSessionTransitionGate();
@@ -379,6 +395,7 @@ export async function startWebUI(
     httpPort,
     wssPrimary,
     wssSecondary,
+    autoWake,
   });
 
   const cb: WebuiCallbacks = createWebuiCallbacks({

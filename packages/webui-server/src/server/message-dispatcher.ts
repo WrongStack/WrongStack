@@ -303,7 +303,17 @@ export function createMessageDispatcher(
         (sessionId ? deps.getAgent?.(sessionId)?.ctx.meta : undefined) ?? deps.context.meta;
       return typeof meta['maxIterations'] === 'number' ? meta['maxIterations'] : undefined;
     },
+    // Background-delegation auto-wake: a user submit resets the wake chain; a finished,
+    // un-aborted run may wake its leader for results that arrived meanwhile.
+    ...(deps.autoWake
+      ? {
+          onUserMessage: (sessionId: string) => deps.autoWake?.onUserMessage(sessionId),
+          onRunEnded: (sessionId: string, info: { aborted: boolean }) =>
+            deps.autoWake?.onRunEnded(sessionId, info),
+        }
+      : {}),
   });
+  deps.autoWake?.bindRuntimeTurnStarter(conversationRoutes.startRuntimeTurn);
   const completionRoutes: CompletionRouteHandlers = {
     request: (ws, msg) =>
       handleCompletionRequest(ws, msg, {

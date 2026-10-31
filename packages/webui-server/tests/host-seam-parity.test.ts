@@ -126,6 +126,13 @@ function buildStandalone(): void {
       providerRegistry: { has: vi.fn(() => false), create: vi.fn() },
       logger: { warn: vi.fn(), level: 'info' },
       toolRegistry: { list: vi.fn(() => []) },
+      // The proxy's `{}` fallback would read as a bound host with no methods.
+      autoWake: {
+        onUserMessage: vi.fn(),
+        onRunEnded: vi.fn(),
+        onSessionsDisplayed: vi.fn(),
+        bindRuntimeTurnStarter: vi.fn(),
+      },
     },
     {},
   );

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T00:14:41.942Z",
+  "generatedAt": "2026-10-31T07:49:49.595Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,18 +11,18 @@
     ]
   },
   "summary": {
-    "packages": 45,
-    "sourceFiles": 5552,
-    "testFiles": 4835,
-    "sourceLines": 1218080,
-    "workspaceEdges": 222,
-    "moduleEdges": 16644,
+    "packages": 46,
+    "sourceFiles": 5553,
+    "testFiles": 4840,
+    "sourceLines": 1218653,
+    "workspaceEdges": 233,
+    "moduleEdges": 16652,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 173,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1024
+    "testOnlyExports": 1023
   },
   "errors": [],
   "packageCycles": [],
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 676,
-      "testFiles": 677,
+      "sourceFiles": 617,
+      "testFiles": 676,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -220,6 +220,7 @@
         "@wrongstack/contracts",
         "@wrongstack/coordination",
         "@wrongstack/core",
+        "@wrongstack/fleet",
         "@wrongstack/goal",
         "@wrongstack/hq",
         "@wrongstack/kanban",
@@ -260,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 677
+          "testFiles": 676
         }
       ]
     },
@@ -361,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 635,
-      "testFiles": 688,
+      "testFiles": 690,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -378,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 688
+          "testFiles": 690
         }
       ]
     },
@@ -398,6 +399,35 @@
           "path": "apps/desktop-v2/tsconfig.json",
           "error": null,
           "testFiles": 0
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/fleet",
+      "dir": "packages/fleet",
+      "sourceFiles": 59,
+      "testFiles": 2,
+      "workspaceDependencies": [
+        "@wrongstack/acp",
+        "@wrongstack/agent-catalog",
+        "@wrongstack/contracts",
+        "@wrongstack/coordination",
+        "@wrongstack/core",
+        "@wrongstack/providers",
+        "@wrongstack/sage",
+        "@wrongstack/sdd",
+        "@wrongstack/worktree"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/fleet/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/fleet/tsconfig.test.json",
+          "error": null,
+          "testFiles": 2
         }
       ]
     },
@@ -1112,8 +1142,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 322,
-      "testFiles": 356,
+      "sourceFiles": 323,
+      "testFiles": 358,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1121,6 +1151,7 @@
         "@wrongstack/contracts",
         "@wrongstack/coordination",
         "@wrongstack/core",
+        "@wrongstack/fleet",
         "@wrongstack/goal",
         "@wrongstack/hq",
         "@wrongstack/kanban",
@@ -1147,7 +1178,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 356
+          "testFiles": 358
         }
       ]
     },
@@ -1225,13 +1256,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/cli/src/fleet/host.ts",
-          "packages/cli/src/fleet/routing.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/contracts/src/kernel/events.ts",
           "packages/contracts/src/kernel/events/brain-events.ts",
           "packages/contracts/src/kernel/events/session-events.ts"
@@ -1251,6 +1275,13 @@
           "packages/contracts/src/types/session.ts",
           "packages/contracts/src/types/token-counter.ts",
           "packages/contracts/src/types/tool.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/fleet/src/host.ts",
+          "packages/fleet/src/routing.ts"
         ]
       }
     ],
@@ -4487,12 +4518,6 @@
       },
       {
         "file": "packages/cli/tests/fleet/adaptive-concurrency-cap.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/cli/tests/fleet/explore-companion-factory.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11266,6 +11291,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/session-catalog-client-frame-cap.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/session-catalog-client-lost-election.test.ts",
         "projects": [
           "root-node"
@@ -11669,6 +11700,12 @@
       },
       {
         "file": "packages/core/tests/storage/in-project-fleet-delegate-denied.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/in-project-model-endpoint-denied.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12917,6 +12954,18 @@
       },
       {
         "file": "packages/core/tests/wiring/proxy-rewrite.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/explore-companion-factory.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/host-acp-runner-gateway.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25372,6 +25421,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/custom-context-modes-save-order.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/custom-context-modes.test.ts",
         "projects": [
           "root-node"
@@ -26807,6 +26862,12 @@
       },
       {
         "file": "packages/webui-server/tests/specs-ws-handler.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/standalone-delegation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32076,11 +32137,6 @@
       "relativeImports": 17
     },
     {
-      "file": "packages/cli/src/fleet/host-skill-companion.ts",
-      "lines": 756,
-      "relativeImports": 3
-    },
-    {
       "file": "packages/client/src/client.ts",
       "lines": 754,
       "relativeImports": 4
@@ -32114,6 +32170,11 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
+    },
+    {
+      "file": "packages/fleet/src/host-skill-companion.ts",
+      "lines": 756,
+      "relativeImports": 3
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
@@ -32448,7 +32509,7 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/cli/src/fleet/host-skill-companion.ts",
+      "file": "packages/fleet/src/host-skill-companion.ts",
       "lines": 756,
       "relativeImports": 3
     },
@@ -33216,38 +33277,6 @@
       "name": "renderFleetLine"
     },
     {
-      "file": "packages/cli/src/fleet/acp-wrongstack-bridge.ts",
-      "name": "bridgeNote"
-    },
-    {
-      "file": "packages/cli/src/fleet/acp-wrongstack-bridge.ts",
-      "name": "bridgeTaskKickoff"
-    },
-    {
-      "file": "packages/cli/src/fleet/acp-wrongstack-bridge.ts",
-      "name": "wstackLaunch"
-    },
-    {
-      "file": "packages/cli/src/fleet/acp-wrongstack-bridge.ts",
-      "name": "wstackToolsCommand"
-    },
-    {
-      "file": "packages/cli/src/fleet/host-explore-companion.ts",
-      "name": "formatExploreNote"
-    },
-    {
-      "file": "packages/cli/src/fleet/host-helpers.ts",
-      "name": "DEFAULT_SUBAGENT_HIDDEN_TOOLS"
-    },
-    {
-      "file": "packages/cli/src/fleet/host-helpers.ts",
-      "name": "NEVER_SUBAGENT_TOOLS"
-    },
-    {
-      "file": "packages/cli/src/fleet/skill-companion-outcomes.ts",
-      "name": "skillOutcomesPath"
-    },
-    {
       "file": "packages/cli/src/fleet/wrongforge-gateway.ts",
       "name": "WORKER_WITHHELD_TOOLS"
     },
@@ -33350,10 +33379,6 @@
     {
       "file": "packages/cli/src/sage-connect.ts",
       "name": "setTomlMcpServer"
-    },
-    {
-      "file": "packages/cli/src/services/dispatch-classifier.ts",
-      "name": "makeProviderClassifier"
     },
     {
       "file": "packages/cli/src/settings-menu.ts",
@@ -34130,6 +34155,38 @@
     {
       "file": "packages/core/src/wiring/proxy-rewrite.ts",
       "name": "subscribeToProxyConfig"
+    },
+    {
+      "file": "packages/fleet/src/acp-wrongstack-bridge.ts",
+      "name": "bridgeNote"
+    },
+    {
+      "file": "packages/fleet/src/acp-wrongstack-bridge.ts",
+      "name": "bridgeTaskKickoff"
+    },
+    {
+      "file": "packages/fleet/src/acp-wrongstack-bridge.ts",
+      "name": "wstackLaunch"
+    },
+    {
+      "file": "packages/fleet/src/acp-wrongstack-bridge.ts",
+      "name": "wstackToolsCommand"
+    },
+    {
+      "file": "packages/fleet/src/host-explore-companion.ts",
+      "name": "formatExploreNote"
+    },
+    {
+      "file": "packages/fleet/src/host-helpers.ts",
+      "name": "DEFAULT_SUBAGENT_HIDDEN_TOOLS"
+    },
+    {
+      "file": "packages/fleet/src/host-helpers.ts",
+      "name": "NEVER_SUBAGENT_TOOLS"
+    },
+    {
+      "file": "packages/fleet/src/skill-companion-outcomes.ts",
+      "name": "skillOutcomesPath"
     },
     {
       "file": "packages/goal/src/phase-orchestrator-integration.ts",

@@ -23,6 +23,7 @@ import { handleJevRoute } from './jev-routes.js';
 
 import path from 'node:path';
 import { TOKENS } from '@wrongstack/contracts/kernel';
+import type { SessionEvent } from '@wrongstack/contracts/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { patchConfig } from './boot.js';
@@ -200,6 +201,16 @@ export function buildRoutes(
     ...(deps.peekAgent ? { peekAgent: deps.peekAgent } : {}),
     hasSession: deps.hasSession,
     isSessionLive: deps.isSessionLive,
+    // Releases background-delegation results held while nobody showed the session.
+    ...(deps.autoWake
+      ? { onSessionsDisplayed: (ids: string[]) => deps.autoWake?.onSessionsDisplayed(ids) }
+      : {}),
+    // A resumed session gets back the delegation results it never received.
+    rehydrateDelegations: (sessionId, events) => {
+      deps.container
+        .safeResolve(TOKENS.DelegationTracker)
+        ?.rehydrate(sessionId, events as readonly SessionEvent[]);
+    },
     // A permission prompt raised in a tab that has since closed is
     // unanswerable: it was parked on that tab's lane, and the lane is gone.
     // Left pending it wedges `agent.run` forever, and a run that never settles

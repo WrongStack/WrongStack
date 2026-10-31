@@ -183,6 +183,11 @@ export interface WebuiDeps {
   /** Live-editable Brain config owner (brain.config.get/set). */
   brainRuntime: BrainRuntime;
   brainLog: Array<{ at: number; kind: string; question: string; outcome: string }>;
+  /**
+   * Background-delegation auto-wake for the standalone engine (see `standalone-delegation.ts`):
+   * absent when the engine has no `delegate` tool.
+   */
+  autoWake?: import('./leader-auto-wake-host.js').WebuiLeaderAutoWakeHost | undefined;
 }
 
 /**
