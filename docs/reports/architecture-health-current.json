@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T17:28:14.677Z",
+  "generatedAt": "2026-11-01T18:10:15.882Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 47,
-    "sourceFiles": 5571,
-    "testFiles": 4852,
-    "sourceLines": 1223268,
+    "sourceFiles": 5573,
+    "testFiles": 4853,
+    "sourceLines": 1223528,
     "workspaceEdges": 234,
-    "moduleEdges": 16715,
+    "moduleEdges": 16724,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -804,8 +804,8 @@
     {
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
-      "sourceFiles": 165,
-      "testFiles": 168,
+      "sourceFiles": 167,
+      "testFiles": 169,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -824,7 +824,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 168
+          "testFiles": 169
         }
       ]
     },
@@ -18428,6 +18428,12 @@
       },
       {
         "file": "packages/sage/tests/verify.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-owner-guard.test.ts",
         "projects": [
           "root-node"
         ]

@@ -38,6 +38,13 @@ const USAGE = [
   '  wstack sage mcp [--origin <name>]',
   '  wstack sage sync [--restart-service]',
   '  wstack sage doctor [--fix[=<ids>]] [--json]',
+  '  wstack sage handoff [--yes] [--json]',
+  '',
+  "handoff: hand this project's SAGE store to the WrongMemory service. Without",
+  '--yes it prints the plan. With --yes it stops the running SAGE project server',
+  '(authenticated shutdown), adopts the store in WrongMemory with write ownership,',
+  'and leaves it locked so local SAGE refuses it; then set Sage.service.mode to',
+  '"wrongmemory". Take a backup first (wrongmemory backup --store <path>).',
   '',
   'doctor: health report of the project SAGE store (expired memories,',
   'graph hubs, dangling edges, runtime-mode audiences, FTS, maintenance,',
@@ -164,6 +171,7 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
     'restart-service',
     'fix',
     'json',
+    'yes',
   ]);
   const words = positionals(args, ['origin', 'command', 'fix']);
   const sub = words[0];
@@ -183,6 +191,38 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
       wantsFix ? (fixValue ?? true) : undefined,
       args.includes('--json'),
     );
+  }
+
+  if (sub === 'handoff') {
+    const { handOffSageToWrongMemory } = await import('@wrongstack/sage');
+    try {
+      const report = await handOffSageToWrongMemory({
+        projectRoot: deps.projectRoot,
+        directory: deps.config.Sage?.storage?.directory,
+        service: deps.config.Sage?.service,
+        apply: args.includes('--yes'),
+      });
+      if (args.includes('--json')) {
+        out(JSON.stringify(report, null, 2));
+      } else {
+        out(
+          report.applied
+            ? 'SAGE handoff to WrongMemory: done'
+            : 'SAGE handoff to WrongMemory: plan (rerun with --yes)',
+        );
+        for (const step of report.steps) out(`  - ${step}`);
+        if (report.applied) {
+          out(
+            `  project ${report.projectId} (${report.admission}); owner lock held: ${report.ownerLocked}`,
+          );
+          out(`  Next: set Sage.service.mode to "wrongmemory" in this project's configuration.`);
+        }
+      }
+      return report.applied && !report.ownerLocked ? 1 : 0;
+    } catch (error) {
+      out(`wstack sage handoff: ${error instanceof Error ? error.message : String(error)}`);
+      return 1;
+    }
   }
 
   if (sub === 'mcp' || sub === 'connect') {

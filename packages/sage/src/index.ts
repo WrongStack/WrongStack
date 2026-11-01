@@ -248,11 +248,22 @@ export {
 export type { UpdateSageInput } from './types.js';
 export * from './types.js';
 export {
+  handOffSageToWrongMemory,
+  type LocalSageOwner,
+  type SageHandoffReport,
+} from './wrongmemory-handoff.js';
+export {
   prepareWrongMemoryMcpBridge,
   WRONGMEMORY_MCP_GRANT_LABEL,
   type WrongMemoryMcpLaunch,
   wrongMemoryCliPath,
 } from './wrongmemory-mcp-bridge.js';
+export {
+  assertStoreNotOwnedByWrongMemory,
+  SageStoreOwnedByWrongMemoryError,
+  WRONGMEMORY_OWNER_LOCK_FILE,
+  wrongMemoryOwnsStore,
+} from './wrongmemory-owner-guard.js';
 export {
   probeWrongMemoryProject,
   resolveWrongMemoryProject,

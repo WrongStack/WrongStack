@@ -19,6 +19,7 @@ import {
 } from '../src/memory-port.js';
 import { createSagePathRemapMiddleware } from '../src/middleware/path-remap.js';
 import { InvalidSearchCursorError } from '../src/service-contract.js';
+import { handOffSageToWrongMemory } from '../src/wrongmemory-handoff.js';
 import { prepareWrongMemoryMcpBridge } from '../src/wrongmemory-mcp-bridge.js';
 import { WrongMemoryPort } from '../src/wrongmemory-port.js';
 
@@ -583,6 +584,114 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     // Without a vector channel the port stays lexical (the host wrapper fuses).
     const lexical = await svc.searchSageWithBreakdown('rollbacks blue-green', { limit: 10 });
     expect(lexical.every((h) => h.source === 'lexical')).toBe(true);
+  });
+
+  it('local SAGE refuses a store a live WrongMemory owner holds (WM-107)', async () => {
+    const root = path.join(tmp, 'guarded');
+    mkdirSync(root, { recursive: true });
+    const seed = createProjectSageMemoryPort({ projectRoot: root });
+    await seed.initialize?.();
+    await getSageService(seed)!.rememberSage({ text: 'Guard: written by local SAGE first' });
+    await seed.dispose?.();
+
+    const owner = new WrongMemoryPort({
+      projectRoot: root,
+      dataRoot: home,
+      daemonPath: DAEMON,
+      startPolicy: 'never',
+      timeoutMs: 15_000,
+    });
+    await owner.initialize();
+    const project = owner.getProject()!;
+    expect(project.storeKind).toBe('adopted');
+    const viaService = await getSageService(owner)!.rememberSage({
+      text: 'Guard: written through WrongMemory',
+    });
+    await owner.dispose();
+
+    const second = createProjectSageMemoryPort({ projectRoot: root });
+    await expect(
+      (async () => {
+        await second.initialize?.();
+        return getSageSurface(second)!.listSage(['active']);
+      })(),
+    ).rejects.toMatchObject({ code: 'SAGE_STORE_OWNED_BY_WRONGMEMORY' });
+    await second.dispose?.().catch(() => undefined);
+
+    // Releasing the store in WrongMemory hands it back to local SAGE.
+    const host = await WrongMemoryClient.connect({ dataRoot: home, clientName: 'guard' });
+    try {
+      await host.call(METHODS.PROJECT_DETACH, { projectId: project.projectId });
+    } finally {
+      host.close();
+    }
+    const third = createProjectSageMemoryPort({ projectRoot: root });
+    await third.initialize?.();
+    const texts = (await getSageSurface(third)!.listSage(['active'])).map((m) => m.text);
+    expect(texts).toContain('Guard: written through WrongMemory');
+    expect(texts).toContain('Guard: written by local SAGE first');
+    expect(viaService.id).toBeTruthy();
+    await third.dispose?.();
+  });
+
+  it('hands a local SAGE store off to WrongMemory cooperatively (WM-107)', async () => {
+    const root = path.join(tmp, 'handoff');
+    mkdirSync(root, { recursive: true });
+    const seed = createProjectSageMemoryPort({ projectRoot: root });
+    await seed.initialize?.();
+    await getSageService(seed)!.rememberSage({ text: 'Handoff: local fact survives' });
+    await seed.dispose?.();
+    // A stale server.json, as a crashed local owner leaves behind.
+    writeFileSync(path.join(root, '.wrongstack', 'memories', 'server.json'), '{}');
+    let alive = true;
+    const shutdowns: unknown[] = [];
+    const local = {
+      status: async () => (alive ? { pid: 1 } : null),
+      shutdown: async (reason?: string) => {
+        shutdowns.push(reason);
+        alive = false;
+        return { stopped: true };
+      },
+    };
+    const service = { mode: 'wrongmemory' as const, dataRoot: home };
+    const plan = await handOffSageToWrongMemory({
+      projectRoot: root,
+      service,
+      apply: false,
+      local,
+    });
+    expect(plan.applied).toBe(false);
+    expect(plan.localServerRunning).toBe(true);
+    expect(shutdowns).toEqual([]);
+
+    const done = await handOffSageToWrongMemory({ projectRoot: root, service, apply: true, local });
+    expect(shutdowns).toEqual(['handoff-to-wrongmemory']);
+    expect(done).toMatchObject({
+      applied: true,
+      localServerStopped: true,
+      admission: 'read-write',
+      ownerLocked: true,
+    });
+
+    // WrongMemory serves the adopted store; local SAGE now refuses it.
+    const wm = new WrongMemoryPort({
+      projectRoot: root,
+      dataRoot: home,
+      startPolicy: 'never',
+      timeoutMs: 15_000,
+    });
+    await wm.initialize();
+    const hits = await getSageService(wm)!.searchSage('local fact survives');
+    expect(hits.map((m) => m.text)).toContain('Handoff: local fact survives');
+    await wm.dispose();
+    const blocked = createProjectSageMemoryPort({ projectRoot: root });
+    await expect(
+      (async () => {
+        await blocked.initialize?.();
+        return getSageSurface(blocked)!.listSage(['active']);
+      })(),
+    ).rejects.toMatchObject({ code: 'SAGE_STORE_OWNED_BY_WRONGMEMORY' });
+    await blocked.dispose?.().catch(() => undefined);
   });
 
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
