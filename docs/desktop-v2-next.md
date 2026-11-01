@@ -102,6 +102,17 @@ whose ownership and resolved target directory you have verified.
 
 ## Latest completed implementation: preserve and build upon it
 
+### Recorded usage across the profile (2026-11-01)
+
+The recorded-usage disclosure in project session history can count this project or every
+project in the profile. The profile scope sends `projects.list` with `usageSummary: true`; the
+engine reads each project in the profile's `projects.json` from its own session catalog
+(`usage-summary.ts`, up to 5,000 conversations per project) and returns one total, a per-model
+table merged across projects and a per-project table. A project without history counts zero and
+nothing is created for it; a project whose history cannot be read is listed with its error and
+adds nothing. `projects.list` replies now carry the asking `requestId`. Tokens only, as before:
+no price is derived. Native `--history` passed with the new step.
+
 ### UI tour at two window widths (2026-11-01)
 
 Every top-level screen, all 21 settings sections and all 17 project tools were opened in the
@@ -479,7 +490,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 - Session processes need stress proof (engine-reported exits, batch termination and
   a recently-ended list exist, 2026-10-29; printed local URLs open as previews). Browser
   selection, preview controls, watcher and batch-process integration remain incomplete.
-- Usage needs profile aggregation (project token totals by model exist, 2026-10-29), persisted historical model/billing attribution,
+- Usage needs persisted historical model/billing attribution (recorded tokens by model per project and across the profile exist, 2026-10-29 / 2026-11-01),
   auxiliary-worker inclusion (the usage page lists finished worker delegations with the engine's cost estimates, 2026-10-31; worker tokens are not in the conversation counters, and no project-level total adds them yet), context-tier pricing of aggregate usage (cache writes are priced by their reported lifetime, 2026-11-01; a sum of requests cannot select a context tier) and broader restart/reconnect coverage.
   Last provider request, current context, cumulative usage and estimated pricing remain separate.
 
