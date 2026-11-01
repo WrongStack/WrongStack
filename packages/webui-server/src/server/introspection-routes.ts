@@ -188,6 +188,8 @@ export async function handleIntrospectionRoute(
         typeof actx.tokenCounter?.cacheStats === 'function'
           ? actx.tokenCounter.cacheStats()
           : { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
+      // The counter's totals carry no cache-write lifetime split; its cache stats do.
+      const pricedUsage = { ...usage, ...lifetimeSplit(cache) };
       const currentRequest =
         typeof actx.tokenCounter?.currentRequestTokens === 'function'
           ? actx.tokenCounter.currentRequestTokens()
@@ -213,9 +215,9 @@ export async function handleIntrospectionRoute(
           // tokens of THIS prompt" indicator. `currentRequest.cacheRead`
           // is the cached prefix of the most recent request only.
           currentRequest,
-          cost: metadata ? computeUsageCost(usage, getCostRates(metadata)) : null,
+          cost: metadata ? computeUsageCost(pricedUsage, getCostRates(metadata)) : null,
           pricing: usagePricing(
-            usage,
+            pricedUsage,
             metadata,
             config.providers?.[actx.provider.id]?.customModels?.[actx.model]?.modelsDev,
           ),
@@ -340,4 +342,16 @@ export async function handleIntrospectionRoute(
     default:
       return false;
   }
+}
+
+/** The 5-minute / 1-hour cache-write split, when the provider reported one. */
+function lifetimeSplit(cache: object): { cacheWrite5m?: number; cacheWrite1h?: number } {
+  const { cacheWrite5m, cacheWrite1h } = cache as {
+    cacheWrite5m?: unknown;
+    cacheWrite1h?: unknown;
+  };
+  return {
+    ...(typeof cacheWrite5m === 'number' ? { cacheWrite5m } : {}),
+    ...(typeof cacheWrite1h === 'number' ? { cacheWrite1h } : {}),
+  };
 }

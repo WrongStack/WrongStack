@@ -164,3 +164,37 @@ describe('getCostRates — context price tiers for one request', () => {
     expect(getCostRates(legacy, 100_000)).toMatchObject({ input: 1.25, output: 10 });
   });
 });
+
+describe('cache write lifetime pricing', () => {
+  const model = { cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 } };
+
+  it('prices 1-hour writes at twice the input rate when the catalog has no 1-hour price', () => {
+    const usage = {
+      input: 0,
+      output: 0,
+      cacheWrite: 2_000_000,
+      cacheWrite1h: 1_000_000,
+      cacheWrite5m: 1_000_000,
+    };
+    // 1M at the 5m (cache_write) price + 1M at 2 x input.
+    expect(computeUsageCost(usage, getCostRates(model))).toBeCloseTo(3.75 + 6);
+  });
+
+  it("uses the catalog's lifetime prices when it lists them, and the cache-write price for unsplit writes", () => {
+    const priced = { cost: { ...model.cost, cache_write_5m: 4, cache_write_1h: 5 } };
+    const usage = {
+      input: 0,
+      output: 0,
+      cacheWrite: 3_000_000,
+      cacheWrite5m: 1_000_000,
+      cacheWrite1h: 1_000_000,
+    };
+    expect(computeUsageCost(usage, getCostRates(priced))).toBeCloseTo(4 + 5 + 3.75);
+  });
+
+  it('keeps the plain cache-write price when the provider reports no split', () => {
+    expect(
+      computeUsageCost({ input: 0, output: 0, cacheWrite: 1_000_000 }, getCostRates(model)),
+    ).toBeCloseTo(3.75);
+  });
+});

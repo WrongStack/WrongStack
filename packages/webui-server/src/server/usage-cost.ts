@@ -24,6 +24,10 @@ export interface CostRates {
    * Optional for callers built before it existed; absent counts as 0.
    */
   cacheWrite?: number | undefined;
+  /** $ per 1M tokens written to a 5-minute cache, when the catalog lists it. */
+  cacheWrite5m?: number | undefined;
+  /** $ per 1M tokens written to a 1-hour cache, when the catalog lists it. */
+  cacheWrite1h?: number | undefined;
 }
 
 /** Token counts for a turn/session. The cache counts are optional (older counters). */
@@ -31,7 +35,11 @@ export interface TokenUsage {
   input: number;
   output: number;
   cacheRead?: number | undefined;
+  /** All cache-written tokens. */
   cacheWrite?: number | undefined;
+  /** The part of `cacheWrite` the provider reported as written for 5 minutes / 1 hour. */
+  cacheWrite5m?: number | undefined;
+  cacheWrite1h?: number | undefined;
 }
 
 function safeNonNegative(n: unknown): number {
@@ -43,6 +51,8 @@ type PriceFields = {
   output?: number | undefined;
   cache_read?: number | undefined;
   cache_write?: number | undefined;
+  cache_write_5m?: number | undefined;
+  cache_write_1h?: number | undefined;
 };
 
 /** The legacy single tier: rates for a request whose context is over 200k tokens. */
@@ -93,6 +103,8 @@ export function getCostRates(model: unknown, contextTokens?: number): CostRates 
         output: tier.output ?? base?.output,
         cache_read: tier.cache_read ?? base?.cache_read,
         cache_write: tier.cache_write ?? base?.cache_write,
+        cache_write_5m: tier.cache_write_5m ?? base?.cache_write_5m,
+        cache_write_1h: tier.cache_write_1h ?? base?.cache_write_1h,
       }
     : base;
   // Usage counts cache tokens OUTSIDE `input`; without a cache price they are
@@ -107,6 +119,8 @@ export function getCostRates(model: unknown, contextTokens?: number): CostRates 
     output,
     cacheRead,
     cacheWrite,
+    ...(cost?.cache_write_5m != null ? { cacheWrite5m: safeNonNegative(cost.cache_write_5m) } : {}),
+    ...(cost?.cache_write_1h != null ? { cacheWrite1h: safeNonNegative(cost.cache_write_1h) } : {}),
   };
 }
 
@@ -130,7 +144,29 @@ export function computeUsageCost(usage: TokenUsage, rates: CostRates): number {
     (input * rateInput +
       output * rateOutput +
       cacheRead * rateCacheRead +
-      cacheWrite * rateCacheWrite) /
+      cacheWriteCost(usage, cacheWrite, rateInput, rateCacheWrite, rates)) /
     1_000_000
   );
+}
+
+/**
+ * Cache writes priced by how long the provider said it keeps them, as the core token counter
+ * does: a 5-minute write at the catalog's 5-minute price (else its cache-write price), a 1-hour
+ * write at its 1-hour price (else twice the input price). Writes the provider did not split
+ * keep the cache-write price.
+ */
+function cacheWriteCost(
+  usage: TokenUsage,
+  cacheWrite: number,
+  rateInput: number,
+  rateCacheWrite: number,
+  rates: CostRates,
+): number {
+  const write5m = safeNonNegative(usage.cacheWrite5m);
+  const write1h = safeNonNegative(usage.cacheWrite1h);
+  if (!write5m && !write1h) return cacheWrite * rateCacheWrite;
+  const rate5m = rates.cacheWrite5m != null ? safeNonNegative(rates.cacheWrite5m) : rateCacheWrite;
+  const rate1h = rates.cacheWrite1h != null ? safeNonNegative(rates.cacheWrite1h) : rateInput * 2;
+  const unsplit = Math.max(0, cacheWrite - write5m - write1h);
+  return write5m * rate5m + write1h * rate1h + unsplit * rateCacheWrite;
 }

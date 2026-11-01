@@ -333,9 +333,9 @@ export function SessionUsage({
               </strong>
             </header>
             <p>
-              Current model rates are applied to accumulated session tokens. Historical
-              routing/model changes, price tiers and TTL-specific cache-write pricing are not
-              reconstructed here. This estimate is not an invoice.
+              Current model rates are applied to accumulated session tokens; cache writes are priced
+              by the lifetime the provider reported. Historical routing/model changes and context
+              price tiers are not reconstructed here. This estimate is not an invoice.
             </p>
             {snapshot.pricing && (
               <>
