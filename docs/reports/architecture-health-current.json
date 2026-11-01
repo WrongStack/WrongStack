@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T16:38:20.481Z",
+  "generatedAt": "2026-11-01T16:41:31.564Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 47,
     "sourceFiles": 5569,
     "testFiles": 4851,
-    "sourceLines": 1222621,
+    "sourceLines": 1222694,
     "workspaceEdges": 234,
     "moduleEdges": 16709,
     "nonCommandSlashImports": 0,
@@ -32300,7 +32300,7 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1355,
+      "lines": 1426,
       "relativeImports": 10
     },
     {
@@ -32517,7 +32517,7 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1355,
+      "lines": 1426,
       "relativeImports": 10
     },
     {

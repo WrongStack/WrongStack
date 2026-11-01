@@ -182,6 +182,13 @@ export interface WrongMemoryPortOptions {
   register?: boolean | undefined;
   /** Session resolver used when a call carries no explicit `sessionId`. */
   getSessionId?: (() => string | undefined) | undefined;
+  /**
+   * Host event bus. After this port's own committed mutations it emits the
+   * events the in-process store emits (`memory.accepted`, `memory.merged`,
+   * `memory.updated`, `memory.deleted`, `memory.recovered`,
+   * `memory.forgotten`, `memory.consolidated`, `memory.cleared`).
+   */
+  events?: { emit(event: string, payload: unknown): void } | undefined;
   clientName?: string | undefined;
   timeoutMs?: number | undefined;
   /** Daemon launcher used for `on-demand` starts (tests). */
@@ -402,23 +409,30 @@ export class WrongMemoryPort implements MemoryPort {
       this.session(undefined),
       { timeoutMs: SLOW_OP_TIMEOUT_MS },
     );
-    return result.record.removed;
+    const removed = result.record.removed;
+    if (removed > 0) this.emit('memory.forgotten', { scope, query, removed });
+    return removed;
   }
 
   async consolidate(scope: MemoryScope): Promise<void> {
-    await this.scoped(METHODS.MEMORY_LEGACY_CONSOLIDATE, { scope }, this.session(undefined), {
-      timeoutMs: SLOW_OP_TIMEOUT_MS,
-    });
+    const result = await this.scoped<{ record?: { removed?: number } }>(
+      METHODS.MEMORY_LEGACY_CONSOLIDATE,
+      { scope },
+      this.session(undefined),
+      { timeoutMs: SLOW_OP_TIMEOUT_MS },
+    );
+    this.emit('memory.consolidated', { scope, removed: result?.record?.removed ?? 0 });
   }
 
   /** `clear()` without a scope clears every scope, as the baseline does. */
   async clear(scope?: MemoryScope): Promise<void> {
-    await this.scoped(
+    const result = await this.scoped<{ record?: { deleted?: number } }>(
       METHODS.MEMORY_LEGACY_CLEAR,
       scope ? { scope } : { all: true },
       this.session(undefined),
       { timeoutMs: SLOW_OP_TIMEOUT_MS },
     );
+    if ((result?.record?.deleted ?? 0) > 0) this.emit('memory.cleared', { scope });
   }
 
   /** Active memories of one legacy scope, newest first (SQLite `list` order). */
@@ -543,7 +557,53 @@ export class WrongMemoryPort implements MemoryPort {
       params,
       this.session(input.ownerSessionId),
     );
-    return outcome.record;
+    const m = outcome.record;
+    if (!outcome.replayed) {
+      // A merge returns the existing record at a bumped revision; a new
+      // memory starts at revision 1.
+      if ((m.revision ?? 1) > 1) {
+        this.emit('memory.merged', { memoryId: m.id, mergedIds: [] }, input.ownerSessionId);
+      } else {
+        this.emit(
+          'memory.accepted',
+          {
+            memoryId: m.id,
+            kind: m.kind,
+            persistence: m.persistence ?? 'durable',
+            confidence: m.confidence,
+            freshness: m.freshness,
+          },
+          input.ownerSessionId,
+        );
+      }
+    }
+    return m;
+  }
+
+  /** Emit a host event with the session the call ran under. */
+  private emit(event: string, payload: Record<string, unknown>, sessionId?: string): void {
+    const events = this.options.events;
+    if (!events) return;
+    const session = sessionId ?? this.options.getSessionId?.();
+    try {
+      events.emit(
+        event,
+        session && !('sessionId' in payload) ? { ...payload, sessionId: session } : payload,
+      );
+    } catch {
+      // A listener failure must not turn a committed mutation into an error.
+    }
+  }
+
+  private emitUpdated(m: Sage): void {
+    this.emit('memory.updated', {
+      memoryId: m.id,
+      status: m.status,
+      kind: m.kind,
+      persistence: m.persistence ?? 'durable',
+      confidence: m.confidence,
+      freshness: m.freshness,
+    });
   }
 
   async updateSage(id: string, patch: UpdateSageInput): Promise<Sage> {
@@ -566,6 +626,7 @@ export class WrongMemoryPort implements MemoryPort {
       );
       record = outcome.record;
     }
+    this.emitUpdated(record);
     return record;
   }
 
@@ -574,19 +635,29 @@ export class WrongMemoryPort implements MemoryPort {
     reason?: string,
     options?: { force?: boolean; neverInject?: boolean },
   ): Promise<void> {
-    await this.scoped(
+    const outcome = await this.scoped<MutationOutcome<Sage>>(
       METHODS.MEMORY_DELETE,
       compact({ id, reason, force: options?.force, neverInject: options?.neverInject }),
       this.session(undefined),
     );
+    const contextPolicy = options?.neverInject === true ? 'never' : 'eligible';
+    this.emit('memory.deleted', {
+      memoryId: id,
+      reason: reason ?? 'deleted',
+      persistence: outcome?.record?.persistence ?? 'durable',
+      contextPolicy,
+    });
+    this.emit('memory.updated', { memoryId: id, status: 'deleted', contextPolicy });
   }
 
   async recoverSage(id: string, reason?: string): Promise<Sage> {
-    return this.scoped<Sage>(
+    const recovered = await this.scoped<Sage>(
       METHODS.MEMORY_RECOVER,
       compact({ id, reason }),
       this.session(undefined),
     );
+    this.emit('memory.recovered', { memoryId: recovered.id, ...(reason ? { reason } : {}) });
+    return recovered;
   }
 
   async backfillRecoverable(options: SageBackfillOptions = {}): Promise<SageBackfillReport> {

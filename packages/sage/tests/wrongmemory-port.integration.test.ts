@@ -324,6 +324,42 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     expect(audit[0]?.event).toBe('memory.doctor_fix');
   });
 
+  it('emits the in-process store events after its own mutations (WM-406)', async () => {
+    const seen: Array<[string, Record<string, unknown>]> = [];
+    const evPort = new WrongMemoryPort({
+      projectRoot: proj,
+      dataRoot: home,
+      daemonPath: DAEMON,
+      startPolicy: 'never',
+      timeoutMs: 15_000,
+      getSessionId: () => 'ev-session',
+      events: { emit: (e, p) => seen.push([e, p as Record<string, unknown>]) },
+    });
+    await evPort.initialize();
+    try {
+      const svc = getSageService(evPort)!;
+      const m = await svc.rememberSage({ text: 'Event relay: lockfiles are committed' });
+      const again = await svc.rememberSage({ text: 'Event relay: lockfiles are committed' });
+      expect(again.id).toBe(m.id);
+      await svc.updateSage(m.id, { importance: 0.9 });
+      await svc.deleteSage(m.id, 'obsolete', { force: true });
+      await svc.recoverSage(m.id, 'restored');
+      expect(seen.map(([e]) => e)).toEqual([
+        'memory.accepted',
+        'memory.merged',
+        'memory.updated',
+        'memory.deleted',
+        'memory.updated',
+        'memory.recovered',
+      ]);
+      expect(seen[0]?.[1]).toMatchObject({ memoryId: m.id, sessionId: 'ev-session' });
+      expect(seen[3]?.[1]).toMatchObject({ memoryId: m.id, reason: 'obsolete' });
+      expect(seen[4]?.[1]).toMatchObject({ memoryId: m.id, status: 'deleted' });
+    } finally {
+      await evPort.dispose();
+    }
+  });
+
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
     const service = getSageService(port)!;
     for (const word of ['alpha', 'bravo', 'charlie']) {

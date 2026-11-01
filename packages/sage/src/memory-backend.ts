@@ -25,6 +25,7 @@ import {
   type WrongMemoryClientLike,
   WrongMemoryNotImplementedError,
   WrongMemoryPort,
+  type WrongMemoryPortOptions,
 } from './wrongmemory-port.js';
 
 export type SageServiceMode = 'local' | 'wrongmemory' | 'auto';
@@ -63,6 +64,7 @@ function wrongMemoryPort(
     startPolicy: service.startPolicy ?? 'on-demand',
     register: overrides.register ?? true,
     getSessionId: options.getSessionId,
+    events: options.events as WrongMemoryPortOptions['events'],
     connect: options.connect,
   });
 }
