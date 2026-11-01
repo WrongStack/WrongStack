@@ -189,6 +189,13 @@ export interface WrongMemoryPortOptions {
    * `memory.forgotten`, `memory.consolidated`, `memory.cleared`).
    */
   events?: { emit(event: string, payload: unknown): void } | undefined;
+  /**
+   * With `events`, how often (ms) changes committed by *other* connections
+   * (`events.since`, `origin` != this port's connections) are relayed as
+   * host events. 0 disables the relay. Default 2000. The relay never starts
+   * a daemon: it only polls while a connection is open.
+   */
+  relayIntervalMs?: number | undefined;
   clientName?: string | undefined;
   timeoutMs?: number | undefined;
   /** Daemon launcher used for `on-demand` starts (tests). */
@@ -286,6 +293,11 @@ export class WrongMemoryPort implements MemoryPort {
   private lock: Promise<unknown> = Promise.resolve();
   private traceId: string | undefined;
   private disposed = false;
+  /** Every `connectionId` this port has used: its own changes, past and present. */
+  private readonly ownConnections = new Set<string>();
+  private relayTimer: ReturnType<typeof setInterval> | undefined;
+  private relayCursor: { generation: number; instance: string } | undefined;
+  private relaying = false;
 
   constructor(private readonly options: WrongMemoryPortOptions) {}
 
@@ -293,6 +305,42 @@ export class WrongMemoryPort implements MemoryPort {
 
   async initialize(): Promise<void> {
     await this.ensureProject();
+    const interval = this.options.relayIntervalMs ?? 2_000;
+    if (this.options.events && interval > 0 && !this.relayTimer) {
+      this.relayTimer = setInterval(() => void this.relayChanges(), interval);
+      this.relayTimer.unref?.();
+      void this.relayChanges();
+    }
+  }
+
+  /**
+   * Relay changes committed through other connections (another host, an MCP
+   * bridge, the daemon's scheduler) as the in-process store's host events.
+   * The first poll only records the current generation; a resync or a new
+   * daemon instance skips ahead without replaying history. Runs on the
+   * relay timer; exposed for tests.
+   */
+  async relayChanges(): Promise<void> {
+    if (this.relaying || this.disposed || !this.client || !this.options.events) return;
+    this.relaying = true;
+    try {
+      const cursor = this.relayCursor;
+      const feed = await this.scoped<WireEventsSince>(
+        METHODS.EVENTS_SINCE,
+        compact({ generation: cursor?.generation ?? 0, daemonInstanceId: cursor?.instance }),
+        this.session(undefined),
+      );
+      this.relayCursor = { generation: feed.generation, instance: feed.daemonInstanceId };
+      if (!cursor || feed.resync || cursor.instance !== feed.daemonInstanceId) return;
+      for (const event of feed.events) {
+        if (event.telemetry || (event.origin && this.ownConnections.has(event.origin))) continue;
+        for (const [name, payload] of hostEventsFor(event)) this.emit(name, payload);
+      }
+    } catch {
+      // The relay is advisory: a lost daemon surfaces on the next real call.
+    } finally {
+      this.relaying = false;
+    }
   }
 
   /** Registered project this port serves (after `initialize`). */
@@ -333,6 +381,8 @@ export class WrongMemoryPort implements MemoryPort {
 
   async dispose(): Promise<void> {
     this.disposed = true;
+    if (this.relayTimer) clearInterval(this.relayTimer);
+    this.relayTimer = undefined;
     this.dropClient();
   }
 
@@ -1233,6 +1283,12 @@ export class WrongMemoryPort implements MemoryPort {
         }
         this.client = client;
         this.boundSession = undefined;
+        try {
+          const id = (client as { hello?: { connectionId?: string } }).hello?.connectionId;
+          if (id) this.ownConnections.add(id);
+        } catch {
+          // Clients without a hello (tests) have no connection id.
+        }
         return client;
       } catch (error) {
         this.connecting = undefined;
@@ -1422,4 +1478,50 @@ function toMaintenanceStatus(wire: WireMaintenanceStatus): SageMaintenanceStatus
       : {}),
     ...(schedule?.enabled ? { nextRunAt: iso(schedule.nextDueMs) } : {}),
   };
+}
+
+interface WireChangeEvent {
+  generation: number;
+  change: string;
+  memoryId?: string;
+  candidateId?: string;
+  revision?: number;
+  telemetry?: boolean;
+  atMs: number;
+  origin?: string;
+}
+
+interface WireEventsSince {
+  daemonInstanceId: string;
+  generation: number;
+  resync: boolean;
+  events: WireChangeEvent[];
+}
+
+/** A committed change from another connection as in-process host events. */
+function hostEventsFor(event: WireChangeEvent): Array<[string, Record<string, unknown>]> {
+  const memoryId = event.memoryId;
+  if (!memoryId) return [];
+  const payload = {
+    memoryId,
+    ...(event.revision ? { revision: event.revision } : {}),
+    remote: true,
+  };
+  switch (event.change) {
+    case 'memory.remember':
+    case 'candidate.accept':
+      return [['memory.accepted', payload]];
+    case 'memory.update':
+    case 'memory.feedback':
+      return [['memory.updated', payload]];
+    case 'memory.delete':
+      return [
+        ['memory.deleted', payload],
+        ['memory.updated', { ...payload, status: 'deleted' }],
+      ];
+    case 'memory.recover':
+      return [['memory.recovered', payload]];
+    default:
+      return [];
+  }
 }

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Vendored TypeScript client for the WrongMemory daemon (from WrongMemory packages/client-ts @ 4517b9a).",
+  "description": "Vendored TypeScript client for the WrongMemory daemon (from WrongMemory packages/client-ts @ eb1e254).",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WrongStack/WrongStack.git",

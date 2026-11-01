@@ -596,6 +596,43 @@ describe('WrongMemoryPort mapping', () => {
     expect(client.last('memory.audit').params).toEqual({ limit: 5 });
   });
 
+  it("relays other connections' changes, never its own, from events.since", async () => {
+    let feed = { daemonInstanceId: 'd_1', generation: 5, resync: false, events: [] as unknown[] };
+    const seen: Array<[string, unknown]> = [];
+    const { client, port } = setup((m) => (m === 'events.since' ? feed : undefined), {
+      events: { emit: (e, p) => seen.push([e, p]) },
+      relayIntervalMs: 0,
+    });
+    (client as unknown as { hello: { connectionId: string } }).hello = { connectionId: 'c_me' };
+    await port.initialize();
+    await port.relayChanges(); // first poll: cursor only
+    expect(seen).toEqual([]);
+    feed = {
+      daemonInstanceId: 'd_1',
+      generation: 9,
+      resync: false,
+      events: [
+        { generation: 6, change: 'memory.remember', memoryId: 'm1', origin: 'c_me', atMs: 1 },
+        { generation: 7, change: 'memory.remember', memoryId: 'm2', origin: 'c_bridge', atMs: 2 },
+        { generation: 8, change: 'memory.delete', memoryId: 'm3', origin: 'c_bridge', atMs: 3 },
+        { generation: 9, change: 'memory.recordUsage', memoryId: 'm2', telemetry: true, atMs: 4 },
+      ],
+    };
+    await port.relayChanges();
+    expect(client.last('events.since').params).toEqual({ generation: 5, daemonInstanceId: 'd_1' });
+    expect(seen.map(([e, p]) => [e, (p as { memoryId: string }).memoryId])).toEqual([
+      ['memory.accepted', 'm2'],
+      ['memory.deleted', 'm3'],
+      ['memory.updated', 'm3'],
+    ]);
+    // A new daemon instance skips ahead without replaying history.
+    seen.length = 0;
+    feed = { ...feed, daemonInstanceId: 'd_2', generation: 1 };
+    await port.relayChanges();
+    expect(seen).toEqual([]);
+    await port.dispose();
+  });
+
   it('forwards legacy Markdown import to memory.importLegacy', async () => {
     const { client, port } = setup((m) =>
       m === 'memory.importLegacy' ? { imported: 2, skipped: 1, files: 1 } : undefined,

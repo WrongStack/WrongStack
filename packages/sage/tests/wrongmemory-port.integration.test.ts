@@ -360,6 +360,36 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     }
   });
 
+  it('relays changes committed through other connections (WM-406)', async () => {
+    const seen: Array<[string, Record<string, unknown>]> = [];
+    const watcher = new WrongMemoryPort({
+      projectRoot: proj,
+      dataRoot: home,
+      daemonPath: DAEMON,
+      startPolicy: 'never',
+      timeoutMs: 15_000,
+      relayIntervalMs: 0,
+      events: { emit: (e, p) => seen.push([e, p as Record<string, unknown>]) },
+    });
+    await watcher.initialize();
+    try {
+      await watcher.relayChanges();
+      const own = await getSageService(watcher)!.rememberSage({
+        text: 'Relay: watcher wrote this',
+      });
+      const other = await getSageService(port)!.rememberSage({
+        text: 'Relay: another host wrote this',
+      });
+      seen.length = 0;
+      await watcher.relayChanges();
+      const relayed = seen.filter(([, p]) => p.remote === true).map(([e, p]) => [e, p.memoryId]);
+      expect(relayed).toEqual([['memory.accepted', other.id]]);
+      expect(relayed.some(([, id]) => id === own.id)).toBe(false);
+    } finally {
+      await watcher.dispose();
+    }
+  });
+
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
     const service = getSageService(port)!;
     for (const word of ['alpha', 'bravo', 'charlie']) {

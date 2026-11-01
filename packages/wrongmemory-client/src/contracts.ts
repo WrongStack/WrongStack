@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 4517b9a,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit eb1e254,
 // file packages/client-ts/src/contracts.ts. Do not edit here; update upstream and re-vendor.
 /**
  * Wire contracts mirrored from `crates/wrongmemory-contracts` (lib.rs and
@@ -142,6 +142,8 @@ export interface Hello {
   capabilities: string[];
   limits: Limits;
   principal: PrincipalInfo;
+  /** This connection's id (not a credential); change events carry it as `origin`. */
+  connectionId?: string;
 }
 
 export type AuthResponse = { status: 'ok'; hello: Hello } | { status: 'error'; error: ErrorBody };
