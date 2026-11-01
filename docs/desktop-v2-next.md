@@ -572,9 +572,12 @@ and `SessionUsage.tsx`.
   options popover own the keyboard, and a high contrast mode exists (2026-10-29). The full
   native-smoke matrix passed on 2026-10-30 (32/32), but it does not exercise screen readers or
   long localized labels; those still need a manual pass.
-- Exercise actual multiple windows and multiple simultaneous projects/sessions under queue,
-  refinement, model-switch, approval, draft and reconnect load. IPC-injected peer writes and
-  two controller/SQLite connections do not replace concurrent WebView stress.
+- Concurrent WebView stress exists for queue, draft and reconnect load (2026-11-01,
+  `tests/native-multi-window.mjs`, `--multi`): two project windows each hold a turn at the
+  provider at the same time with two prompts queued behind it and their own unsent draft; one
+  window reloads mid-turn and keeps its queue and draft; both queues then drain in order into
+  their own conversations and neither transcript shows the other project's prompts. Passed twice.
+  Still open under the same load: refinement, model switches and approvals.
 - Window placement is remembered per main/project window (2026-10-29). Previews use a private profile
   and open developer tools only on request (2026-10-29). Finish migration and older-host
   compatibility. Keep existing live sessions on their original host during updates.
