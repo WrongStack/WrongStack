@@ -1,5 +1,6 @@
 import type { Config, MemoryPort } from '@wrongstack/contracts/types';
 import type { WebSocket } from 'ws';
+import { handleSageAudit } from './memory-audit-handler.js';
 import { handleSageDoctor } from './memory-doctor-handler.js';
 import {
   handleMemoryList,
@@ -97,6 +98,9 @@ export async function handleMemoryRoute(
       return true;
     case 'memory.sage.doctor':
       await handleSageDoctor(ws, message, store, ctx.getConfig);
+      return true;
+    case 'memory.sage.audit':
+      await handleSageAudit(ws, message, store);
       return true;
     case 'memory.sage.searchBreakdown':
       await handleSageSearchBreakdown(ws, message, store);

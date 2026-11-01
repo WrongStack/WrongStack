@@ -357,3 +357,17 @@
   align-items: center;
   gap: 6px;
 }
+.project-side-effect-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  margin: 8px 0;
+}
+.project-usage-summary .project-side-effect-controls label {
+  display: grid;
+  gap: 4px;
+}
+.project-usage-summary code {
+  word-break: break-all;
+}

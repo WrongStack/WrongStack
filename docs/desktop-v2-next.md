@@ -120,6 +120,13 @@ whose ownership and resolved target directory you have verified.
 - The file menu has "Show in file manager" (`shell.open`). The engine now opens a file's folder
   instead of handing the file to the file manager, which opened it in its default app, and
   `shell.open` replies carry the asking `requestId`.
+- Project session history has "Recorded side effects": `sessions.list` with
+  `sideEffectsSummary` reads the `side_effect` events of the newest 200 conversations (at most
+  1,000), with counts per risk and tool, an optional risk filter, the newest 200 records and a
+  link to each conversation.
+- SAGE Memory has "Injection history": new `memory.sage.audit` reads the store's audit window
+  (newest 1,000 events, optionally one event type); the desktop lists every `memory.injected`
+  event with trigger, conversation and memories, and the most injected memories.
 - Fallback settings suggest ready-made chains from reachable models (`fallback.suggest`,
   heuristic or re-ranked by the current model) and use one as the default chain or a profile.
 

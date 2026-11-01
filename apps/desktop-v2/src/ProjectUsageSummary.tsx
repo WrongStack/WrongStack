@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { ProjectSideEffectsSummary } from './ProjectSideEffectsSummary';
 
 interface Usage {
   sessions: number;
@@ -74,7 +75,14 @@ const SCOPES: readonly (readonly [Scope, string])[] = [
  * per provider and model, read on request from the session catalogs. No price is shown: the
  * catalog records tokens, not billing.
  */
-export function ProjectUsageSummary({ command }: { command: EngineCommand }) {
+export function ProjectUsageSummary({
+  command,
+  onOpenSession,
+}: {
+  command: EngineCommand;
+  /** Opens a conversation's recorded history from the side-effect list. */
+  onOpenSession?: ((sessionId: string) => void) | undefined;
+}) {
   const [scope, setScope] = useState<Scope>('project'),
     [usage, setUsage] = useState<Usage | null>(null),
     [busy, setBusy] = useState(false),
@@ -103,99 +111,103 @@ export function ProjectUsageSummary({ command }: { command: EngineCommand }) {
     }
   };
   return (
-    <details className="project-usage-summary">
-      <summary>Recorded usage</summary>
-      <p className="field-help">
-        Tokens recorded by each conversation, grouped by the provider and model it last used. Prices
-        are not derived here.
-      </p>
-      <fieldset className="usage-scope">
-        <legend>Conversations to count</legend>
-        {SCOPES.map(([value, label]) => (
-          <label key={value}>
-            <input
-              type="radio"
-              name="usage-scope"
-              checked={scope === value}
-              disabled={busy}
-              onChange={() => {
-                setScope(value);
-                setUsage(null);
-                setError('');
-              }}
-            />
-            {label}
-          </label>
-        ))}
-      </fieldset>
-      <button
-        type="button"
-        className="button secondary small"
-        disabled={busy}
-        onClick={() => void load()}
-      >
-        {busy ? 'Summarizing…' : usage ? 'Refresh summary' : 'Summarize recorded usage'}
-      </button>
-      {error && (
-        <p role="alert" className="session-error">
-          {error}
+    <>
+      <ProjectSideEffectsSummary command={command} onOpenSession={onOpenSession} />
+      <details className="project-usage-summary">
+        <summary>Recorded usage</summary>
+        <p className="field-help">
+          Tokens recorded by each conversation, grouped by the provider and model it last used.
+          Prices are not derived here.
         </p>
-      )}
-      {usage && (
-        <>
-          <p role="status">
-            {usage.tokenTotal.toLocaleString()} tokens across {usage.sessions.toLocaleString()}{' '}
-            conversations
-            {usage.projects ? ` in ${usage.projects.length.toLocaleString()} projects` : ''}
-            {usage.sessionsWithTokens < usage.sessions
-              ? ` (${(usage.sessions - usage.sessionsWithTokens).toLocaleString()} without a recorded total)`
-              : ''}
-            {usage.capped ? '; only the newest conversations up to the scan limit were read' : ''}.
+        <fieldset className="usage-scope">
+          <legend>Conversations to count</legend>
+          {SCOPES.map(([value, label]) => (
+            <label key={value}>
+              <input
+                type="radio"
+                name="usage-scope"
+                checked={scope === value}
+                disabled={busy}
+                onChange={() => {
+                  setScope(value);
+                  setUsage(null);
+                  setError('');
+                }}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+        <button
+          type="button"
+          className="button secondary small"
+          disabled={busy}
+          onClick={() => void load()}
+        >
+          {busy ? 'Summarizing…' : usage ? 'Refresh summary' : 'Summarize recorded usage'}
+        </button>
+        {error && (
+          <p role="alert" className="session-error">
+            {error}
           </p>
-          {usage.projects && (
-            <table aria-label="Recorded tokens by project">
+        )}
+        {usage && (
+          <>
+            <p role="status">
+              {usage.tokenTotal.toLocaleString()} tokens across {usage.sessions.toLocaleString()}{' '}
+              conversations
+              {usage.projects ? ` in ${usage.projects.length.toLocaleString()} projects` : ''}
+              {usage.sessionsWithTokens < usage.sessions
+                ? ` (${(usage.sessions - usage.sessionsWithTokens).toLocaleString()} without a recorded total)`
+                : ''}
+              {usage.capped ? '; only the newest conversations up to the scan limit were read' : ''}
+              .
+            </p>
+            {usage.projects && (
+              <table aria-label="Recorded tokens by project">
+                <thead>
+                  <tr>
+                    <th scope="col">Project</th>
+                    <th scope="col">Tokens</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usage.projects.map((row) => (
+                    <tr key={row.root}>
+                      <td title={row.root}>{row.name}</td>
+                      <td>
+                        {row.error
+                          ? `Not read: ${row.error}`
+                          : (row.tokenTotal ?? 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <table aria-label="Recorded tokens by model">
               <thead>
                 <tr>
-                  <th scope="col">Project</th>
+                  <th scope="col">Provider</th>
+                  <th scope="col">Model</th>
+                  <th scope="col">Conversations</th>
                   <th scope="col">Tokens</th>
                 </tr>
               </thead>
               <tbody>
-                {usage.projects.map((row) => (
-                  <tr key={row.root}>
-                    <td title={row.root}>{row.name}</td>
-                    <td>
-                      {row.error
-                        ? `Not read: ${row.error}`
-                        : (row.tokenTotal ?? 0).toLocaleString()}
-                    </td>
+                {usage.byModel.map((row) => (
+                  <tr key={`${row.provider}/${row.model}`}>
+                    <td>{row.provider}</td>
+                    <td>{row.model}</td>
+                    <td>{row.sessions.toLocaleString()}</td>
+                    <td>{row.tokenTotal.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-          <table aria-label="Recorded tokens by model">
-            <thead>
-              <tr>
-                <th scope="col">Provider</th>
-                <th scope="col">Model</th>
-                <th scope="col">Conversations</th>
-                <th scope="col">Tokens</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usage.byModel.map((row) => (
-                <tr key={`${row.provider}/${row.model}`}>
-                  <td>{row.provider}</td>
-                  <td>{row.model}</td>
-                  <td>{row.sessions.toLocaleString()}</td>
-                  <td>{row.tokenTotal.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-    </details>
+          </>
+        )}
+      </details>
+    </>
   );
 }

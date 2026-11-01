@@ -26,6 +26,7 @@ import {
 } from './session-handler-helpers.js';
 import { toSessionHistoryEntries } from './session-history.js';
 import { withSessionContentState } from './session-history-content.js';
+import { projectSideEffectsSummary } from './session-journal-side-effects.js';
 import { createSessionModeHandlers } from './session-mode-handlers.js';
 import { createSessionResumeHandler } from './session-resume-handler.js';
 import type { SessionRouteHandlers } from './session-routes.js';
@@ -230,6 +231,19 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           sendTo(ws, {
             type: 'sessions.list',
             payload: { sessionId: askingSessionId, sessions: [], contentSearch },
+          });
+          return;
+        }
+        const sideEffects = (msg.payload as { sideEffectsSummary?: unknown } | undefined)
+          ?.sideEffectsSummary;
+        if (sideEffects !== undefined) {
+          sendTo(ws, {
+            type: 'sessions.list',
+            payload: {
+              sessionId: askingSessionId,
+              sessions: [],
+              sideEffectsSummary: await projectSideEffectsSummary(store, sideEffects),
+            },
           });
           return;
         }

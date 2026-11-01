@@ -301,7 +301,10 @@ export function ProjectSessionHistory({
           Refresh session history
         </button>
       </header>
-      <ProjectUsageSummary command={command} />
+      <ProjectUsageSummary
+        command={command}
+        onOpenSession={(id) => viewStore.change({ selectedId: id })}
+      />
       {error && !rename && !reuse && !restore && (
         <p role="alert" className="session-error">
           {error}

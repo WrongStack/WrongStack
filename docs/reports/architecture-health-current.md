@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-01T12:23:19.674Z
+**Generated:** 2026-11-01T12:50:58.933Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 46 |
-| Production source files | 5569 |
-| Production source lines | 1221827 |
-| Test files | 4855 |
+| Production source files | 5572 |
+| Production source lines | 1222333 |
+| Test files | 4859 |
 | Workspace dependency edges | 233 |
-| Relative module edges | 16707 |
+| Relative module edges | 16717 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 182 |
+| Tests without TypeScript test-project coverage | 184 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -30,10 +30,9 @@
 - apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 824 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/editor-language.ts: "deleteLines" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/editor-language.ts: "languageNewline" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
@@ -44,6 +43,8 @@
 - apps/desktop-v2/src/KanbanContractMap.tsx: "readContractGraph" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/KanbanTaskChain.tsx: "chainCards" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/KanbanTaskMetrics.tsx: "metricValue" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/ProjectSideEffectsSummary.tsx: "readSideEffectsSummary" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/SageInjectionHistory.tsx: "readInjections" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/SessionPlanTemplates.tsx: "readPlanTemplates" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - packages/webui-server/src/server/mcp-tool-handlers.ts: "conversationNote" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/editor-indent.ts: "indentLines" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
@@ -65,7 +66,7 @@
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 368 | 182 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 370 | 184 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -96,7 +97,7 @@
 | @wrongstack/webui | 773 | 510 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 127 | 55 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 29 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
-| @wrongstack/webui-server | 328 | 364 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 329 | 366 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 4 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/wrongtrace | 11 | 10 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
@@ -131,7 +132,7 @@ None.
 | 889 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 833 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 826 | `apps/desktop-v2/src/KanbanTaskInspector.tsx` |
-| 823 | `apps/desktop-v2/src/ProjectMemory.tsx` |
+| 824 | `apps/desktop-v2/src/ProjectMemory.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
@@ -145,7 +146,7 @@ None.
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
 | 748 | `apps/desktop-v2/src/ProjectKanban.tsx` |
 | 746 | `apps/desktop-v2/src/ProjectSdd.tsx` |
-| 743 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
+| 746 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 737 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
@@ -170,13 +171,13 @@ None.
 
 ## Exports only tests reference
 
-- 1031 runtime exports are referenced by tests and by no other production file.
+- 1033 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 182 test files are not included in a package TypeScript test project.
+- 184 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

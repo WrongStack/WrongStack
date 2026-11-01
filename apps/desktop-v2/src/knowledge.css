@@ -1100,3 +1100,21 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+.sage-injection-history {
+  margin: 0 0 14px;
+  font-size: 12px;
+}
+.sage-injection-history summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.sage-injection-history table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.sage-injection-history :is(th, td) {
+  text-align: left;
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid var(--border);
+}

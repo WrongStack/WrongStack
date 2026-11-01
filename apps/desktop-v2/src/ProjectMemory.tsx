@@ -17,7 +17,7 @@ import { CopyButton } from './CopyButton';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
-import { SageEditorFields, SageRecordDetails } from './SageRecordDetails';
+import { SageEditorFields, SageInjectionHistory, SageRecordDetails } from './SageRecordDetails';
 import { SageRelationGraph } from './SageRelationGraph';
 import {
   assertSageValiditySaved,
@@ -316,6 +316,7 @@ export function ProjectMemory({
         </div>
         <small>All records excludes deleted memories. Use the status filter to recover them.</small>
       </div>
+      <SageInjectionHistory command={command} onOpen={(id) => void run(() => openMemory(id))} />
       <div className="studio-toolbar">
         <input
           aria-label="Search memories"

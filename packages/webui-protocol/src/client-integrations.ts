@@ -28,6 +28,7 @@ export const CLIENT_KNOWLEDGE_MESSAGE_TYPES = [
   'memory.sage.candidateResolve',
   'memory.sage.delete',
   'memory.sage.doctor',
+  'memory.sage.audit',
   'memory.sage.forFile',
   'memory.sage.get',
   'memory.sage.graph',

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T12:23:19.674Z",
+  "generatedAt": "2026-11-01T12:50:58.933Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5569,
-    "testFiles": 4855,
-    "sourceLines": 1221827,
+    "sourceFiles": 5572,
+    "testFiles": 4859,
+    "sourceLines": 1222333,
     "workspaceEdges": 233,
-    "moduleEdges": 16707,
+    "moduleEdges": 16717,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 182,
+    "testsWithoutTypecheck": 184,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1031
+    "testOnlyExports": 1033
   },
   "errors": [
     "apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change",
@@ -34,10 +34,9 @@
     "apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 824 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/editor-language.ts: \"deleteLines\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/editor-language.ts: \"languageNewline\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
@@ -48,6 +47,8 @@
     "apps/desktop-v2/src/KanbanContractMap.tsx: \"readContractGraph\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/KanbanTaskChain.tsx: \"chainCards\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/KanbanTaskMetrics.tsx: \"metricValue\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/ProjectSideEffectsSummary.tsx: \"readSideEffectsSummary\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/SageInjectionHistory.tsx: \"readInjections\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/SessionPlanTemplates.tsx: \"readPlanTemplates\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "packages/webui-server/src/server/mcp-tool-handlers.ts: \"conversationNote\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/editor-indent.ts: \"indentLines\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
@@ -415,8 +416,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 368,
-      "testFiles": 182,
+      "sourceFiles": 370,
+      "testFiles": 184,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1171,8 +1172,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 328,
-      "testFiles": 364,
+      "sourceFiles": 329,
+      "testFiles": 366,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1207,7 +1208,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 364
+          "testFiles": 366
         }
       ]
     },
@@ -2068,6 +2069,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/project-side-effects-summary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/project-usage-summary.test.ts",
         "projects": [
           "root-node"
@@ -2189,6 +2196,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/roster-runtime-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/sage-injection-history.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26110,6 +26123,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/memory-sage-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/memory-search-page.test.ts",
         "projects": [
           "root-node"
@@ -26345,6 +26364,12 @@
       },
       {
         "file": "packages/webui-server/tests/project-session-identity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/project-side-effects-summary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31325,6 +31350,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/project-side-effects-summary.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/project-usage-summary.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31466,6 +31498,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/roster-runtime-draft.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/sage-injection-history.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32550,7 +32589,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectMemory.tsx",
-      "lines": 823,
+      "lines": 824,
       "relativeImports": 8
     },
     {
@@ -32565,7 +32604,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 743,
+      "lines": 746,
       "relativeImports": 15
     },
     {
@@ -32662,7 +32701,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectMemory.tsx",
-      "lines": 823,
+      "lines": 824,
       "relativeImports": 8
     },
     {
@@ -32732,7 +32771,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 743,
+      "lines": 746,
       "relativeImports": 15
     },
     {
@@ -33083,6 +33122,10 @@
       "name": "requirementFields"
     },
     {
+      "file": "apps/desktop-v2/src/ProjectSideEffectsSummary.tsx",
+      "name": "readSideEffectsSummary"
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectUsageSummary.tsx",
       "name": "readUsageSummary"
     },
@@ -33129,6 +33172,10 @@
     {
       "file": "apps/desktop-v2/src/review-notes-store.ts",
       "name": "parseReviewNotes"
+    },
+    {
+      "file": "apps/desktop-v2/src/SageInjectionHistory.tsx",
+      "name": "readInjections"
     },
     {
       "file": "apps/desktop-v2/src/SddDependencyGraph.tsx",

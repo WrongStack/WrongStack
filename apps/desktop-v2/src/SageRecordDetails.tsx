@@ -3,6 +3,8 @@ import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { SageValidityReview } from './SageValidityReview';
 import type { SageEditor } from './sage-model';
+
+export { SageInjectionHistory } from './SageInjectionHistory';
 export function SageEditorFields({
   value,
   onChange,
