@@ -380,16 +380,35 @@ export class WrongMemoryPort implements MemoryPort {
     });
   }
 
-  forget(_query: string, _scope?: MemoryScope): Promise<number> {
-    return Promise.reject(new WrongMemoryNotImplementedError('forget'));
+  /**
+   * Legacy bulk mutations run on the daemon (`memory.legacy*`, curator
+   * action) with the baseline semantics, restricted to rows this session
+   * can see. A grant without the curator profile gets `FORBIDDEN`.
+   */
+  async forget(query: string, scope: MemoryScope = 'project-memory'): Promise<number> {
+    const result = await this.scoped<{ record: { removed: number } }>(
+      METHODS.MEMORY_LEGACY_FORGET,
+      { query, scope },
+      this.session(undefined),
+      { timeoutMs: SLOW_OP_TIMEOUT_MS },
+    );
+    return result.record.removed;
   }
 
-  consolidate(_scope: MemoryScope): Promise<void> {
-    return Promise.reject(new WrongMemoryNotImplementedError('consolidate'));
+  async consolidate(scope: MemoryScope): Promise<void> {
+    await this.scoped(METHODS.MEMORY_LEGACY_CONSOLIDATE, { scope }, this.session(undefined), {
+      timeoutMs: SLOW_OP_TIMEOUT_MS,
+    });
   }
 
-  clear(_scope?: MemoryScope): Promise<void> {
-    return Promise.reject(new WrongMemoryNotImplementedError('clear'));
+  /** `clear()` without a scope clears every scope, as the baseline does. */
+  async clear(scope?: MemoryScope): Promise<void> {
+    await this.scoped(
+      METHODS.MEMORY_LEGACY_CLEAR,
+      scope ? { scope } : { all: true },
+      this.session(undefined),
+      { timeoutMs: SLOW_OP_TIMEOUT_MS },
+    );
   }
 
   /** Active memories of one legacy scope, newest first (SQLite `list` order). */

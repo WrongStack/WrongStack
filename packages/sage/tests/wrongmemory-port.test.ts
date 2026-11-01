@@ -477,9 +477,6 @@ describe('WrongMemoryPort mapping', () => {
     expect(service?.withTraceId('t1')).toBe(port.getCapability(SAGE_SERVICE_CAPABILITY));
 
     for (const run of [
-      () => port.forget('x'),
-      () => port.consolidate('project-memory'),
-      () => port.clear(),
       () => service!.verify(),
       () => service!.findMemoriesForFile('a.ts'),
     ]) {

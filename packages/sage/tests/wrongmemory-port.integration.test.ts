@@ -133,6 +133,16 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     expect(truncated).toEqual([]);
   });
 
+  it('legacy forget / consolidate / clear run on the daemon', async () => {
+    await port.remember('Nightly builds publish to the staging bucket', 'user-memory');
+    expect(await port.forget('STAGING BUCKET', 'user-memory')).toBe(1);
+    expect(await port.forget('   ', 'user-memory')).toBe(0);
+    await port.consolidate('user-memory');
+    await port.remember('Lint runs before every push', 'user-memory');
+    await port.clear('user-memory');
+    expect(await port.list('user-memory')).toEqual([]);
+  });
+
   it('serves legacy MemoryStore reads from SAGE', async () => {
     await port.remember('Release builds use cargo build --locked', 'project-memory', {
       type: 'convention',
