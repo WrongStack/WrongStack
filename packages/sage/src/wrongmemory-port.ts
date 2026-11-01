@@ -603,6 +603,31 @@ export class WrongMemoryPort implements MemoryPort {
     );
   }
 
+  /**
+   * `memory.forAudience`: the daemon runs the baseline audience scan
+   * (importance-ordered windows, 10k scan cap, case-folded matching) under
+   * the session rule and audits truncation itself. `includeAllSessions` has
+   * no daemon equivalent and is ignored, as for every other read.
+   */
+  async retrieveForAudience(
+    context: { role?: string; taskType?: string; mode?: string },
+    limit?: number,
+    onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
+    sessionId?: string,
+    _includeAllSessions?: boolean,
+  ): Promise<Sage[]> {
+    const result = await this.scoped<{
+      memories: Sage[];
+      truncated: { sqlRowsExamined: number; returned: number } | null;
+    }>(
+      METHODS.MEMORY_FOR_AUDIENCE,
+      compact({ context: compact({ ...context }), limit }),
+      this.session(sessionId),
+    );
+    if (result.truncated) onTruncated?.(result.truncated);
+    return result.memories;
+  }
+
   async graphFor(query: string, maxDepth?: number, limit?: number): Promise<MemoryGraphEdge[]> {
     const view = await this.scoped<WireGraphView>(
       METHODS.MEMORY_GRAPH,
@@ -899,7 +924,8 @@ export class WrongMemoryPort implements MemoryPort {
     rejectCandidate: (candidateId, reason) => this.rejectCandidate(candidateId, reason),
     resolveCandidate: (candidateId, decision, reason) =>
       this.resolveCandidate(candidateId, decision, reason),
-    retrieveForAudience: () => this.notImplemented('retrieveForAudience'),
+    retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
+      this.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
     hygiene: (options) => this.runHygiene(options),
     listCandidates: (includeResolved) => this.listCandidates(includeResolved),
     createCandidate: (input) => this.createCandidate(input),

@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 40f7275,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 531ef3c,
 // packages/client-ts/src/index.ts minus the upstream port skeleton (the
 // WrongStack adapter lives in @wrongstack/sage `wrongmemory-port.ts`).
 export * from './contracts.js';

@@ -106,6 +106,33 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     expect(stats.byStatus.active).toBeGreaterThanOrEqual(2);
   });
 
+  it('retrieveForAudience matches roles case-insensitively and reports truncation', async () => {
+    const service = getSageService(port)!;
+    const surface = getSageSurface(port)!;
+    const reviewer = await service.rememberSage({
+      text: 'Reviewers check that every migration has a rollback script',
+      kind: 'role_operational',
+      importance: 0.9,
+      audience: { roles: ['Reviewer'] },
+    });
+    await service.rememberSage({
+      text: 'Coders regenerate the protobuf bindings after schema edits',
+      kind: 'convention',
+      importance: 0.8,
+      audience: { roles: ['coder'] },
+    });
+    const hits = await surface.retrieveForAudience({ role: 'REVIEWER' });
+    expect(hits.map((m) => m.id)).toEqual([reviewer.id]);
+    expect(await surface.retrieveForAudience({ role: 'nobody' }, 5)).toEqual([]);
+
+    const truncated: Array<{ sqlRowsExamined: number; returned: number }> = [];
+    const one = await surface.retrieveForAudience({ role: 'coder' }, 1, (info) =>
+      truncated.push(info),
+    );
+    expect(one).toHaveLength(1);
+    expect(truncated).toEqual([]);
+  });
+
   it('serves legacy MemoryStore reads from SAGE', async () => {
     await port.remember('Release builds use cargo build --locked', 'project-memory', {
       type: 'convention',

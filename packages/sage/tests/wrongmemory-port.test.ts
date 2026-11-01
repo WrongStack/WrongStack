@@ -482,7 +482,6 @@ describe('WrongMemoryPort mapping', () => {
       () => port.clear(),
       () => service!.verify(),
       () => service!.findMemoriesForFile('a.ts'),
-      () => surface!.retrieveForAudience({}),
     ]) {
       await expect(run()).rejects.toBeInstanceOf(WrongMemoryNotImplementedError);
     }

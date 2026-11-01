@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 40f7275,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 531ef3c,
 // file packages/client-ts/src/contracts.ts. Do not edit here; update upstream and re-vendor.
 /**
  * Wire contracts mirrored from `crates/wrongmemory-contracts` (lib.rs and
@@ -77,6 +77,7 @@ export const METHODS = {
   MEMORY_RECORD_USAGE: 'memory.recordUsage',
   MEMORY_LIST_PAGE: 'memory.listPage',
   MEMORY_RELATED: 'memory.related',
+  MEMORY_FOR_AUDIENCE: 'memory.forAudience',
   MEMORY_GRAPH: 'memory.graph',
   MEMORY_STATS: 'memory.stats',
   MEMORY_RECOVER: 'memory.recover',
