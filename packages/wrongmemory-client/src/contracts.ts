@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 08acf39,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit df80641,
 // file packages/client-ts/src/contracts.ts. Do not edit here; update upstream and re-vendor.
 /**
  * Wire contracts mirrored from `crates/wrongmemory-contracts` (lib.rs and
@@ -450,6 +450,8 @@ export interface ProposeParams {
   targetRevision?: number;
   reviewReason?: string;
   suggestedAction?: string;
+  supersedesMemoryIds?: string[];
+  supersedesRevisions?: number[];
 }
 
 export interface CandidateListParams {

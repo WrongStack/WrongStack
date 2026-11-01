@@ -66,8 +66,10 @@ import type {
 } from './service-contract.js';
 import { InvalidSearchCursorError } from './service-contract.js';
 import { DEFAULT_PAGE_STATUSES, VALID_MEMORY_STATUSES } from './shared/pagination.js';
+import { consolidateSession as sharedConsolidateSession } from './shared/session-consolidation.js';
 import { importanceFromPriority } from './sqlite-store-legacy.js';
 import { readAllSqliteMemory, readSqliteMemory } from './sqlite-store-legacy-bridge.js';
+import { canonicalMemoryText } from './store-helpers.js';
 import type {
   CandidateDecision,
   CreateCandidateInput,
@@ -91,6 +93,8 @@ import type {
   SageSearchOptions,
   SageStats,
   SageStatus,
+  SessionConsolidationInput,
+  SessionConsolidationResult,
   UpdateSageInput,
 } from './types.js';
 
@@ -225,6 +229,8 @@ interface CandidateOutcome {
   targetMemoryId?: string;
   applied: boolean;
   alreadyResolved: boolean;
+  /** The target mutation failed; the candidate stays pending for a retry. */
+  error?: string;
 }
 
 interface WireGraphView {
@@ -1043,7 +1049,9 @@ export class WrongMemoryPort implements MemoryPort {
       decision: (outcome.decision as CandidateDecision | undefined) ?? decision,
       ...(outcome.targetMemoryId === undefined ? {} : { targetMemoryId: outcome.targetMemoryId }),
       applied: outcome.applied,
-      alreadyResolved: outcome.alreadyResolved,
+      ...(outcome.error === undefined
+        ? { alreadyResolved: outcome.alreadyResolved }
+        : { error: outcome.error }),
     };
   }
 
@@ -1126,6 +1134,30 @@ export class WrongMemoryPort implements MemoryPort {
       { timeoutMs: SLOW_OP_TIMEOUT_MS },
     );
     return { ...report, maintenance: await this.maintenance('status') };
+  }
+
+  /**
+   * `consolidateSession` (project-server op): session facts become review
+   * candidates, auto-accepted above the policy threshold, skipping texts
+   * already known as active/stale project memories or project candidates.
+   * The baseline's shared loop over this port's candidate operations.
+   */
+  async consolidateSession(input: SessionConsolidationInput): Promise<SessionConsolidationResult> {
+    const dedup = new Set<string>();
+    for (const m of await this.listSage(['active', 'stale'])) {
+      if (m.scope === 'project') dedup.add(canonicalMemoryText(m.text));
+    }
+    for (const c of await this.listCandidates()) {
+      if (c.scope === 'project') dedup.add(canonicalMemoryText(c.text));
+    }
+    return sharedConsolidateSession(
+      {
+        createCandidate: (candidate) => this.createCandidate(candidate),
+        acceptCandidate: (id) => this.acceptCandidate(id),
+      },
+      dedup,
+      input,
+    );
   }
 
   /** `memory.hqSyncVersion` (host-only): `<epoch>:<clock revision>` of the HQ projection. */

@@ -694,6 +694,82 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     await blocked.dispose?.().catch(() => undefined);
   });
 
+  it('consolidateSession turns session facts into candidates (WM-511 surface)', async () => {
+    await getSageService(port)!.rememberSage({ text: 'Consolidate: lockfiles are committed' });
+    const result = await port.consolidateSession({
+      sessionId: 'consolidate-s1',
+      autoAcceptThreshold: 0.8,
+      facts: [
+        {
+          text: 'Consolidate: lockfiles are committed',
+          kind: 'convention',
+          confidence: 0.9,
+          importance: 0.9,
+        },
+        {
+          text: 'Consolidate: release notes live in CHANGELOG.md',
+          kind: 'fact',
+          confidence: 0.95,
+          importance: 0.9,
+        },
+        {
+          text: 'Consolidate: maybe rename the CLI someday',
+          kind: 'fact',
+          confidence: 0.3,
+          importance: 0.2,
+        },
+        { text: '   ', kind: 'fact', confidence: 0.9, importance: 0.9 },
+      ],
+    } as never);
+    expect(result).toEqual({ candidates: 2, accepted: 1, rejected: 0, duplicate: 2 });
+    const accepted = await getSageService(port)!.searchSage('release notes CHANGELOG');
+    expect(accepted.map((m) => m.text)).toContain(
+      'Consolidate: release notes live in CHANGELOG.md',
+    );
+    const pending = await getSageSurface(port)!.listCandidates();
+    expect(pending.map((c) => c.text)).toContain('Consolidate: maybe rename the CLI someday');
+  });
+
+  it('consolidation proposals supersede members; a stale review stays pending (WM-511)', async () => {
+    const service = getSageService(port)!;
+    const surface = getSageSurface(port)!;
+    const m1 = await service.rememberSage({ text: 'Merge: queue workers retry three times' });
+    const m2 = await service.rememberSage({ text: 'Merge: failed jobs are retried by workers' });
+    await expect(
+      surface.createCandidate({
+        text: 'Merge: members without revisions are invalid',
+        supersedesMemoryIds: [m1.id],
+      }),
+    ).rejects.toThrow(/supersedesMemoryIds needs 1-50 distinct ids/);
+    const merge = await surface.createCandidate({
+      text: 'Background job policy: a failed job gets exactly three attempts before dead-lettering',
+      suggestedAction: 'consolidate',
+      supersedesMemoryIds: [m1.id, m2.id],
+      supersedesRevisions: [m1.revision, m2.revision],
+    });
+    expect(merge.supersedesMemoryIds).toEqual([m1.id, m2.id]);
+    const keeper = await surface.acceptCandidate(merge.id);
+    for (const member of [m1, m2]) {
+      const after = await service.getSage(member.id);
+      expect([after?.status, after?.supersededBy]).toEqual(['superseded', keeper!.id]);
+    }
+
+    const target = await service.rememberSage({ text: 'Review: the staging cache is Redis 7' });
+    const review = await surface.createCandidate({
+      text: 'Review: staging cache note is obsolete',
+      kind: 'memory_review',
+      targetMemoryId: target.id,
+      targetRevision: target.revision + 6,
+      suggestedAction: 'archive',
+    });
+    const resolution = await surface.resolveCandidate(review.id, 'archive');
+    expect(resolution).toMatchObject({ applied: false, targetMemoryId: target.id });
+    expect(resolution?.error).toMatch(/revision changed/);
+    expect((await service.getSage(target.id))?.status).toBe('active');
+    expect((await surface.listCandidates()).map((c) => c.id)).toContain(review.id);
+    expect(await surface.rejectCandidate(review.id, 'stale')).toBe(true);
+  });
+
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
     const service = getSageService(port)!;
     for (const word of ['alpha', 'bravo', 'charlie']) {

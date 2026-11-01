@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T18:10:15.882Z",
+  "generatedAt": "2026-11-01T18:28:46.239Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 47,
     "sourceFiles": 5573,
     "testFiles": 4853,
-    "sourceLines": 1223528,
+    "sourceLines": 1223562,
     "workspaceEdges": 234,
-    "moduleEdges": 16724,
+    "moduleEdges": 16726,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -32312,8 +32312,8 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1612,
-      "relativeImports": 11
+      "lines": 1644,
+      "relativeImports": 13
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
@@ -32524,8 +32524,8 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1612,
-      "relativeImports": 11
+      "lines": 1644,
+      "relativeImports": 13
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",

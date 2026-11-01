@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 08acf39,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit df80641,
 // file packages/client-ts/src/discovery.ts. Do not edit here; update upstream and re-vendor.
 /**
  * Data-root resolution and discovery files, matching
