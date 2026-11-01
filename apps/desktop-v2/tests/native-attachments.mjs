@@ -186,6 +186,14 @@ export async function exerciseNativeAttachments({
     'Inline image preview decodes',
   );
   await preview.getByRole('button', { name: 'Close attachment preview', exact: true }).click();
+  // The PDF opens in the window's own viewer from a blob URL the window CSP allows.
+  await bubble.getByRole('button', { name: 'Preview brief.pdf', exact: true }).click();
+  const pdfPreview = page.getByRole('dialog', { name: 'brief.pdf', exact: true });
+  const frame = pdfPreview.locator('iframe[title="PDF preview, brief.pdf"]');
+  await frame.waitFor();
+  assert.ok((await frame.getAttribute('src'))?.startsWith('blob:'), 'PDF preview uses a blob URL');
+  await page.screenshot({ path: join(artifactDir, 'native-attachment-pdf.png'), fullPage: true });
+  await pdfPreview.getByRole('button', { name: 'Close attachment preview', exact: true }).click();
   await page.screenshot({
     path: join(artifactDir, 'native-attachment-message.png'),
     fullPage: true,

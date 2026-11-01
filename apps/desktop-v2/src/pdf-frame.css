@@ -1,0 +1,8 @@
+.pdf-frame {
+  display: block;
+  width: min(900px, 100%);
+  height: min(75vh, 900px);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}

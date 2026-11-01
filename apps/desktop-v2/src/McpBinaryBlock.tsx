@@ -1,6 +1,7 @@
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { mcpBinary, mcpBinaryFileName } from './mcp-binary';
+import { PdfFrame } from './PdfFrame';
 
 /**
  * Binary MCP content: raster images and audio are previewed from their own bytes, anything can be saved
@@ -36,6 +37,8 @@ export function McpBinaryBlock({ value }: { value: Record<string, unknown> }) {
           src={`data:${binary.mimeType};base64,${binary.base64}`}
           aria-label={`MCP audio preview, ${binary.mimeType}`}
         />
+      ) : binary.preview === 'pdf' ? (
+        <PdfFrame bytes={binary.bytes} title={`MCP PDF preview, ${name}`} />
       ) : (
         <p className="quiet-state">No preview for {binary.mimeType}.</p>
       )}

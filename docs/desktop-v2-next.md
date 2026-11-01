@@ -127,6 +127,11 @@ whose ownership and resolved target directory you have verified.
 - SAGE Memory has "Injection history": new `memory.sage.audit` reads the store's audit window
   (newest 1,000 events, optionally one event type); the desktop lists every `memory.injected`
   event with trigger, conversation and memories, and the most injected memories.
+- PDF preview: the window CSP now allows frames from `blob:` only (`frame-src blob:`, user
+  decision 2026-11-01; `object-src` stays `'none'`). `PdfFrame.tsx` shows bytes with the PDF
+  signature in the window's PDF viewer from a blob URL typed `application/pdf`. PDF attachments
+  in messages and MCP PDF content preview in place; saving stays. The native attachment
+  scenario checks the preview frame.
 - Fallback settings suggest ready-made chains from reachable models (`fallback.suggest`,
   heuristic or re-ranked by the current model) and use one as the default chain or a profile.
 
@@ -514,7 +519,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 - MCP still needs advanced policy administration and native OAuth acceptance against a real
   authorization server (per-key secret environment and header editing and OAuth sign-in/out
   exist, 2026-10-30), broader
-  task lifecycle stress, PDF preview (raster and audio previews and binary save exist, 2026-10-29; PDF stays save-only under the window CSP) and deep catalogs.
+  task lifecycle stress and deep catalogs (raster, audio and PDF previews and binary save exist, 2026-10-29 / 2026-11-01).
   Preserve session task identity/isolation/cancellation and question routing.
   A user can now run a connection's tool as a conversation step (2026-11-01, see "Running an
   MCP tool in a conversation" above), including the native approval card.

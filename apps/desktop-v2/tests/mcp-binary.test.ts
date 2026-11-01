@@ -7,7 +7,7 @@ describe('MCP binary content', () => {
     expect(blob).toMatchObject({ mimeType: 'image/png', preview: 'image' });
     expect([...(blob as { bytes: Uint8Array }).bytes]).toEqual([0, 1, 2, 255]);
     expect(mcpBinary({ data: 'AA\nEC/w==', mimeType: 'application/pdf' })).toMatchObject({
-      preview: null,
+      preview: 'pdf',
     });
     expect(mcpBinary({ data: 'AAEC', mimeType: 'image/svg+xml' })).toMatchObject({
       preview: null,

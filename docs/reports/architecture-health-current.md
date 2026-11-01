@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-01T12:50:58.933Z
+**Generated:** 2026-11-01T13:09:34.469Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 46 |
-| Production source files | 5572 |
-| Production source lines | 1222333 |
-| Test files | 4859 |
+| Production source files | 5573 |
+| Production source lines | 1222389 |
+| Test files | 4860 |
 | Workspace dependency edges | 233 |
-| Relative module edges | 16717 |
+| Relative module edges | 16719 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 184 |
+| Tests without TypeScript test-project coverage | 185 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -43,6 +43,7 @@
 - apps/desktop-v2/src/KanbanContractMap.tsx: "readContractGraph" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/KanbanTaskChain.tsx: "chainCards" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/KanbanTaskMetrics.tsx: "metricValue" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/PdfFrame.tsx: "looksLikePdf" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/ProjectSideEffectsSummary.tsx: "readSideEffectsSummary" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/SageInjectionHistory.tsx: "readInjections" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/SessionPlanTemplates.tsx: "readPlanTemplates" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
@@ -66,7 +67,7 @@
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 370 | 184 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 371 | 185 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -171,13 +172,13 @@ None.
 
 ## Exports only tests reference
 
-- 1033 runtime exports are referenced by tests and by no other production file.
+- 1034 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 184 test files are not included in a package TypeScript test project.
+- 185 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

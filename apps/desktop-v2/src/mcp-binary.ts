@@ -1,8 +1,9 @@
 /**
- * Raster images and common audio only: SVG is markup and is not rendered from external content,
- * and PDF stays save-only because the window allows no frames or objects.
+ * Raster images, common audio and PDF: SVG is markup and is not rendered from external content.
+ * PDF opens in the window's PDF viewer from a blob URL typed `application/pdf`.
  */
-const PREVIEW: Record<string, 'image' | 'audio'> = {
+const PREVIEW: Record<string, 'image' | 'audio' | 'pdf'> = {
+  'application/pdf': 'pdf',
   'image/png': 'image',
   'image/jpeg': 'image',
   'image/gif': 'image',
@@ -34,7 +35,7 @@ export interface McpBinary {
   base64: string;
   bytes: Uint8Array<ArrayBuffer>;
   /** How the bytes can be shown in place, or null when they can only be saved. */
-  preview: 'image' | 'audio' | null;
+  preview: 'image' | 'audio' | 'pdf' | null;
 }
 
 /**

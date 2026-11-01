@@ -1,5 +1,5 @@
 import { FileText, LoaderCircle, Paperclip, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   attachmentDataUrl,
   type ComposerAttachment,
@@ -9,9 +9,10 @@ import {
   validateAttachments,
 } from './composer-attachments';
 import { Modal } from './Modal';
+import { PdfFrame } from './PdfFrame';
 import './composer-attachments.css';
 
-/** Writes an attachment's bytes through the window's download flow (PDFs cannot be shown inline). */
+/** Writes an attachment's bytes through the window's download flow. */
 function saveAttachment(item: ComposerAttachment): void {
   const url = URL.createObjectURL(
     new Blob([decodeAttachment(item)], { type: item.mediaType || 'application/octet-stream' }),
@@ -31,6 +32,10 @@ export function AttachmentPreview({
   interactive?: boolean;
 }) {
   const [selected, setSelected] = useState<ComposerAttachment | null>(null);
+  const selectedPdf = useMemo(
+    () => (selected && isPdf(selected) ? decodeAttachment(selected) : null),
+    [selected],
+  );
   return (
     <>
       <section className="message-attachments" aria-label="Message attachments">
@@ -43,14 +48,24 @@ export function AttachmentPreview({
                 <small>PDF · {(item.bytes / 1024).toFixed(0)} KB</small>
               </span>
               {interactive && item.data && (
-                <button
-                  type="button"
-                  className="button secondary small"
-                  aria-label={`Save ${item.name}`}
-                  onClick={() => saveAttachment(item)}
-                >
-                  Save
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    aria-label={`Preview ${item.name}`}
+                    onClick={() => setSelected(item)}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    aria-label={`Save ${item.name}`}
+                    onClick={() => saveAttachment(item)}
+                  >
+                    Save
+                  </button>
+                </>
               )}
             </span>
           ) : !interactive ? (
@@ -86,7 +101,11 @@ export function AttachmentPreview({
                 <X size={18} />
               </button>
             </header>
-            <img src={attachmentDataUrl(selected)} alt={selected.name} />
+            {selectedPdf ? (
+              <PdfFrame bytes={selectedPdf} title={`PDF preview, ${selected.name}`} />
+            ) : (
+              <img src={attachmentDataUrl(selected)} alt={selected.name} />
+            )}
           </div>
         </Modal>
       )}

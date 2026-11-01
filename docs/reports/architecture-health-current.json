@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T12:50:58.933Z",
+  "generatedAt": "2026-11-01T13:09:34.469Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5572,
-    "testFiles": 4859,
-    "sourceLines": 1222333,
+    "sourceFiles": 5573,
+    "testFiles": 4860,
+    "sourceLines": 1222389,
     "workspaceEdges": 233,
-    "moduleEdges": 16717,
+    "moduleEdges": 16719,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 184,
+    "testsWithoutTypecheck": 185,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1033
+    "testOnlyExports": 1034
   },
   "errors": [
     "apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change",
@@ -47,6 +47,7 @@
     "apps/desktop-v2/src/KanbanContractMap.tsx: \"readContractGraph\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/KanbanTaskChain.tsx: \"chainCards\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/KanbanTaskMetrics.tsx: \"metricValue\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/PdfFrame.tsx: \"looksLikePdf\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/ProjectSideEffectsSummary.tsx: \"readSideEffectsSummary\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/SageInjectionHistory.tsx: \"readInjections\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/SessionPlanTemplates.tsx: \"readPlanTemplates\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
@@ -416,8 +417,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 370,
-      "testFiles": 184,
+      "sourceFiles": 371,
+      "testFiles": 185,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2016,6 +2017,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/paste-code.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/pdf-frame.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31294,6 +31301,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/pdf-frame.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/persisted-fields.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32151,6 +32165,11 @@
     {
       "from": "apps/desktop-v2/src/NextStepsPanel.tsx",
       "specifier": "./next-steps.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/PdfFrame.tsx",
+      "specifier": "./pdf-frame.css",
       "syntax": "import"
     },
     {
@@ -33116,6 +33135,10 @@
     {
       "file": "apps/desktop-v2/src/ModelCatalogProfile.tsx",
       "name": "readModelProfile"
+    },
+    {
+      "file": "apps/desktop-v2/src/PdfFrame.tsx",
+      "name": "looksLikePdf"
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
