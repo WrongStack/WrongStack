@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-speech-status"
+description = "Enables the speech_status command without any pre-configured scope."
+commands.allow = ["speech_status"]
+
+[[permission]]
+identifier = "deny-speech-status"
+description = "Denies the speech_status command without any pre-configured scope."
+commands.deny = ["speech_status"]

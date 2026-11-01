@@ -23,6 +23,9 @@ fn main() {
             "open_project_window",
             "terminal_stop",
             "terminal_ack",
+            "speech_status",
+            "speech_start",
+            "speech_stop",
         ]),
     ))
     .expect("Tauri build configuration");

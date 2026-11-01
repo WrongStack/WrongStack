@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T15:01:44.516Z",
+  "generatedAt": "2026-11-01T15:14:09.811Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5573,
+    "sourceFiles": 5574,
     "testFiles": 4860,
-    "sourceLines": 1222448,
+    "sourceLines": 1222589,
     "workspaceEdges": 233,
-    "moduleEdges": 16719,
+    "moduleEdges": 16721,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -37,6 +37,7 @@
     "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 824 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/SessionComposer.tsx: hotspot shrunk from 1151 to 1150 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/editor-language.ts: \"deleteLines\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "apps/desktop-v2/src/editor-language.ts: \"languageNewline\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
@@ -417,7 +418,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 371,
+      "sourceFiles": 372,
       "testFiles": 185,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -32633,7 +32634,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1151,
+      "lines": 1150,
       "relativeImports": 32
     },
     {
@@ -32665,7 +32666,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1151,
+      "lines": 1150,
       "relativeImports": 32
     },
     {

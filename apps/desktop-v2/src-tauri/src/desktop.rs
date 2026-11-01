@@ -112,6 +112,23 @@ fn trusted(window: &WebviewWindow) -> Result<()> {
         Err("This webview has no desktop capabilities".into())
     }
 }
+/// Whether dictation can start on this machine (recognizer, language, privacy setting).
+#[tauri::command]
+async fn speech_status(window: WebviewWindow) -> Result<Value> {
+    trusted(&window)?;
+    tauri::async_runtime::spawn_blocking(crate::speech::status).await.map_err(err)
+}
+/// Starts dictation; recognized text streams to `channel` until it is stopped or ends.
+#[tauri::command]
+fn speech_start(window: WebviewWindow, channel: Channel<Value>) -> Result<()> {
+    trusted(&window)?;
+    crate::speech::start(channel)
+}
+#[tauri::command]
+fn speech_stop(window: WebviewWindow) -> Result<Value> {
+    trusted(&window)?;
+    crate::speech::stop()
+}
 #[tauri::command]
 async fn host_request(
     window: WebviewWindow,
@@ -583,7 +600,10 @@ pub fn run() {
             open_project_window,
             terminal_stream,
             terminal_stop,
-            terminal_ack
+            terminal_ack,
+            speech_status,
+            speech_start,
+            speech_stop
         ])
         .run(tauri::generate_context!())
         .expect("WrongStack desktop runtime");

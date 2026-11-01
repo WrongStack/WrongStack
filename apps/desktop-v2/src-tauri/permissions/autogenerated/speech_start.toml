@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-speech-start"
+description = "Enables the speech_start command without any pre-configured scope."
+commands.allow = ["speech_start"]
+
+[[permission]]
+identifier = "deny-speech-start"
+description = "Denies the speech_start command without any pre-configured scope."
+commands.deny = ["speech_start"]

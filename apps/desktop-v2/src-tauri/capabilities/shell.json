@@ -12,6 +12,9 @@
     "allow-terminal-stream",
     "allow-terminal-stop",
     "allow-terminal-ack",
+    "allow-speech-status",
+    "allow-speech-start",
+    "allow-speech-stop",
     "allow-open-project-window"
   ]
 }

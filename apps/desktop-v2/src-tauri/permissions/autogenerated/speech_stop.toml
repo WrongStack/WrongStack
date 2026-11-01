@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-speech-stop"
+description = "Enables the speech_stop command without any pre-configured scope."
+commands.allow = ["speech_stop"]
+
+[[permission]]
+identifier = "deny-speech-stop"
+description = "Denies the speech_stop command without any pre-configured scope."
+commands.deny = ["speech_stop"]

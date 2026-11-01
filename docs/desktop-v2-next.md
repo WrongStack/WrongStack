@@ -145,6 +145,17 @@ document loads as `application/pdf`, and `--history` passed (its >1,000-record s
 out once under load and passed on the rerun). Not exercised natively: editor keys, task graph
 export and "Show in file manager" (unit-tested; the last two hand off to the OS).
 
+Dictation (2026-11-01): `src-tauri/src/speech.rs` uses Windows continuous dictation
+(`Windows.Media.SpeechRecognition`, the `windows` 0.62.2 crate already in the graph through
+WebView2, with the speech features). Commands `speech_status`, `speech_start` (events through a
+channel: `listening`, `hypothesis`, `result`, `ended`, `error`) and `speech_stop`; one session at
+a time, each on its own MTA thread that owns the recognizer. The composer's microphone
+(`DictationButton.tsx`, beside attach) appears only where the platform can dictate, is disabled
+with the reason when Windows has online speech recognition turned off, shows the live guess
+while listening, and appends recognized phrases to the draft without replacing it. Native:
+`--surfaces` checks the button against `speech_status` (available here, English (United
+States)); the test does not open the microphone, so recognition itself needs a manual pass.
+
 Interrupted refinement (2026-11-01): a refinement request is saved as pending before it is sent
 (`RefinementDraft.result` null, `pending: true`), so after a restart the composer says it was
 interrupted and offers "Refine again" or "Discard". A pending request never replaces a completed
@@ -474,8 +485,8 @@ Use the [chat action inventory](desktop-v2-chat-parity.md) for exact existing be
 - Add richer skill/resource invocation progress and reference-aware durable recall. File,
   line-range and quoted-snippet references, the code-paste hint/undo and the prompt journal
   month filter, export and older-page loading exist (2026-10-29).
-- Implement speech only with real platform support, permission and recording/transcript states;
-  unsupported systems must not show a fake working microphone.
+- Dictation exists on Windows (2026-11-01, see "Dictation" above). Still open: a manual pass
+  with a real microphone (the harness never opens it) and a recognizer on other platforms.
 - BTW notes show read/handled receipts that survive restarts per project session (2026-10-29);
   add richer queue presentation and longer restart coverage. Presentation sorting must not change engine FIFO order.
 - Steer over a nonempty queue places the instruction first in the engine queue and keeps the

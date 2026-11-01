@@ -8,7 +8,6 @@ import {
   Gauge,
   ListPlus,
   LoaderCircle,
-  Paperclip,
   Pencil,
   RefreshCw,
   Sparkles,
@@ -24,7 +23,11 @@ import { AutonomyControl } from './AutonomyControl';
 import { autoContinueStep, sessionAutonomy } from './autonomy-model';
 import { BtwReceipts } from './BtwReceipts';
 import { btwReceiptKey, btwReceipts, type SavedBtwReceipts } from './btw-receipts';
-import { ComposerAttachments, useComposerAttachments } from './ComposerAttachments';
+import {
+  ComposerAttachments,
+  ComposerInputChips,
+  useComposerAttachments,
+} from './ComposerAttachments';
 import { usePasteHint } from './ComposerPasteHint';
 import { ComposerReferenceChips } from './ComposerReferenceChips';
 import { type ComposerAttachment, wireAttachments } from './composer-attachments';
@@ -807,16 +810,12 @@ export function SessionComposer({
             disabled={!state.connected || state.running}
           />
           <div className="composer-actions">
-            <button
-              type="button"
-              className="composer-chip"
-              aria-label="Attach images or PDFs"
-              title="Attach images or PDFs · paste or drop also works"
-              disabled={sending || media.processing}
-              onClick={() => media.picker.current?.click()}
-            >
-              <Paperclip size={14} />
-            </button>
+            <ComposerInputChips
+              attachDisabled={sending || media.processing}
+              dictationDisabled={sending || !state.connected}
+              onAttach={() => media.picker.current?.click()}
+              onDictation={(text) => input.replace(appendToDraft(currentDraft.current, text))}
+            />
             <button
               type="button"
               className="composer-chip"

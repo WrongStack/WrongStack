@@ -4591,6 +4591,7 @@ dependencies = [
  "tauri-build",
  "tungstenite",
  "uuid",
+ "windows",
 ]
 
 [[package]]

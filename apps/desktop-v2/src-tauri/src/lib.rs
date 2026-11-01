@@ -7,6 +7,8 @@ mod project_runtime;
 pub mod registry;
 mod request_pool;
 pub mod sessions;
+#[cfg(feature = "desktop")]
+mod speech;
 pub mod transcript;
 pub mod window_geometry;
 

@@ -21,6 +21,26 @@ export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDi
   await page.getByRole('textbox', { name: 'Message WrongStack', exact: true }).waitFor({
     timeout: 100000,
   });
+  // Dictation follows what the platform reports; the test never opens the microphone.
+  const speech = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('speech_status'));
+  console.log(`Dictation status: ${JSON.stringify(speech)}`);
+  const dictate = page.getByRole('button', { name: 'Dictate', exact: true });
+  const unsupported = !speech.available && /Windows only|desktop app/.test(speech.reason ?? '');
+  if (!unsupported) await dictate.waitFor();
+  if (speech.available)
+    await page.waitForFunction(
+      () => document.querySelector('button[aria-label="Dictate"]')?.disabled === false,
+      undefined,
+      { timeout: 30000 },
+    );
+  else if (unsupported) assert.equal(await dictate.count(), 0);
+  else {
+    assert.equal(await dictate.isDisabled(), true);
+    assert.equal(await dictate.getAttribute('title'), speech.reason, 'Disabled dictation says why');
+  }
+  console.log(
+    `PASS: the dictation button matches the platform (${speech.available ? `available, ${speech.language}` : speech.reason})`,
+  );
   await page
     .getByRole('navigation', { name: 'Agent workspace views' })
     .getByRole('button', { name: 'Tools', exact: true })

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-01T15:01:44.516Z
+**Generated:** 2026-11-01T15:14:09.811Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 46 |
-| Production source files | 5573 |
-| Production source lines | 1222448 |
+| Production source files | 5574 |
+| Production source lines | 1222589 |
 | Test files | 4860 |
 | Workspace dependency edges | 233 |
-| Relative module edges | 16719 |
+| Relative module edges | 16721 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
@@ -33,6 +33,7 @@
 - apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 824 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change
+- apps/desktop-v2/src/SessionComposer.tsx: hotspot shrunk from 1151 to 1150 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/editor-language.ts: "deleteLines" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - apps/desktop-v2/src/editor-language.ts: "languageNewline" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
@@ -67,7 +68,7 @@
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 371 | 185 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 372 | 185 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -122,7 +123,7 @@ None.
 | 2016 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1559 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
-| 1151 | `apps/desktop-v2/src/SessionComposer.tsx` |
+| 1150 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1098 | `packages/webui/src/components/codemap-model.ts` |
 | 1019 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |

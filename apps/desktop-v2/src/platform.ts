@@ -128,3 +128,20 @@ export function streamTerminal(
     void started.then(() => invoke('terminal_stop', { subscription })).catch(onError);
   };
 }
+
+/** Whether dictation can start here, with the recognizer's language or the reason it cannot. */
+export const speechStatus = (): Promise<{
+  available: boolean;
+  language?: string;
+  reason?: string;
+}> =>
+  native
+    ? invoke('speech_status')
+    : Promise.resolve({ available: false, reason: 'Dictation needs the desktop app.' });
+/** Starts dictation; every recognizer event goes to `onEvent` until it ends or is stopped. */
+export function startSpeech(onEvent: (event: Record<string, unknown>) => void): Promise<void> {
+  const channel = new Channel<Record<string, unknown>>();
+  channel.onmessage = onEvent;
+  return invoke('speech_start', { channel });
+}
+export const stopSpeech = (): Promise<unknown> => invoke('speech_stop');

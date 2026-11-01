@@ -8,6 +8,7 @@ import {
   processAttachmentFile,
   validateAttachments,
 } from './composer-attachments';
+import { DictationButton } from './DictationButton';
 import { Modal } from './Modal';
 import { PdfFrame } from './PdfFrame';
 import './composer-attachments.css';
@@ -226,6 +227,35 @@ export function ComposerAttachments({
           </button>
         </section>
       )}
+    </>
+  );
+}
+
+/** The composer's attach and dictation buttons. */
+export function ComposerInputChips({
+  attachDisabled,
+  dictationDisabled,
+  onAttach,
+  onDictation,
+}: {
+  attachDisabled: boolean;
+  dictationDisabled: boolean;
+  onAttach: () => void;
+  onDictation: (text: string) => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className="composer-chip"
+        aria-label="Attach images or PDFs"
+        title="Attach images or PDFs · paste or drop also works"
+        disabled={attachDisabled}
+        onClick={onAttach}
+      >
+        <Paperclip size={14} />
+      </button>
+      <DictationButton disabled={dictationDisabled} onText={onDictation} />
     </>
   );
 }
