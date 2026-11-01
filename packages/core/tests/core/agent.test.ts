@@ -685,6 +685,54 @@ describe('Agent', () => {
     expect(provider.calls).toBe(2);
   });
 
+  it('reaches the provider before the workspace checkpoint is captured, but runs no tool until it is', async () => {
+    const order: string[] = [];
+    const echo: Tool = {
+      name: 'echo',
+      description: 'echo input',
+      inputSchema: { type: 'object', properties: { text: { type: 'string' } } },
+      permission: 'auto',
+      mutating: false,
+      async execute(input) {
+        order.push('tool');
+        return (input as { text: string }).text;
+      },
+    };
+    const provider = new MockProvider([
+      {
+        content: [{ type: 'tool_use', id: 'u1', name: 'echo', input: { text: 'pong' } }],
+        stopReason: 'tool_use',
+      },
+      { content: [{ type: 'text', text: 'done' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, ctx, tmp } = await buildAgent(provider, [echo]);
+    cleanupDirs.push(tmp);
+    let finishCapture!: (value: undefined) => void;
+    const capture = vi.fn(() => {
+      order.push('capture started');
+      return new Promise<undefined>((resolve) => {
+        finishCapture = resolve;
+      });
+    });
+    (ctx.session as never as { checkpointCas: { capture: typeof capture } }).checkpointCas = {
+      capture,
+    };
+    const complete = provider.complete.bind(provider);
+    provider.complete = async (...args) => {
+      order.push('provider');
+      // The first request goes out while the capture is still running.
+      if (order.filter((step) => step === 'provider').length === 1)
+        setTimeout(() => {
+          order.push('capture finished');
+          finishCapture(undefined);
+        }, 50);
+      return complete(...args);
+    };
+    const result = await agent.run('ping');
+    expect(result.status).toBe('done');
+    expect(order.slice(0, 4)).toEqual(['capture started', 'provider', 'capture finished', 'tool']);
+  });
+
   it('reconciles an open todo before accepting a turn-ending response', async () => {
     let ctxRef: Context | undefined;
     const todo: Tool = {

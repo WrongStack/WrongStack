@@ -583,8 +583,33 @@ and `SessionUsage.tsx`.
 - Window placement is remembered per main/project window (2026-10-29). Previews use a private profile
   and open developer tools only on request (2026-10-29). Finish migration and older-host
   compatibility. Keep existing live sessions on their original host during updates.
-- Measure startup/RAM, large graphs/trees/catalogs, transcript/terminal scrollback and package size.
-  The three-terminal proof is not the 3 × 10k lines/s/no-dropped-frames benchmark.
+- Measurements exist (2026-11-01, `tests/native-performance.mjs`, `--perf`; numbers in
+  `.temp_files/desktop-v2-native/performance/native-performance.json`). Debug build with the Vite
+  dev server, one machine:
+  - Startup: first window to engine connected 1.8 s, profile runtime ready 3.9 s later; reopening
+    the window against the running host 1.0 s.
+  - Turns: a new conversation reaches the provider in 0.24 s, a later turn in 0.14 s. Before the fix
+    below, a first turn in a project with 20,000 untracked files waited 46.5 s, and one in a small
+    project waited 1.0 s.
+  - A 3,000-line (187k character) answer is on screen 1.1 s after send. The longest frame is
+    400 ms (re-rendering the whole message's Markdown). Scrolling it never drops a frame
+    (longest 23 ms).
+  - File tree with 20,000 files: refresh 7.1 s, expanding a 1,000-file folder 0.18 s, 38 rows mounted.
+  - Three terminals each printing 30,000 lines at once finish in 10.8 s (8.3k lines/s combined,
+    bound by PowerShell output, not the window); the visible terminal never drops a frame
+    (longest 31 ms). This is still not the 3 × 10k lines/s benchmark.
+  - Memory at idle with two projects: 1.9 GB working set and 4.8 GB private (commit). The UI process
+    uses 34 MB and WebView2 436 MB / 6 processes. The rest is the host's 12 Bun processes (two
+    engines, eight `project-server.js`, two mailbox servers; 4.5 GB private). After the
+    workloads it is 3.2 GB working set. Reducing the per-project servers is open.
+  - Package: portable native executable 13 MB, bundled engine 139 MB, frontend assets 2.7 MB.
+  - Not measured yet: a large model catalog (the harness profile offers only its fixture provider),
+    large graphs and a release build.
+- Fixed by the measurement: the workspace checkpoint taken before every prompt (it reads and stores
+  every changed and untracked file for rewind and fork) ran on the turn's critical path. It now
+  captures in the background. The `checkpoint` marker keeps its place in the journal, the manifest
+  follows in a `workspace_checkpoint` event, and the agent loop waits for it before the turn's
+  first tool, so no tool changes the workspace before it is captured (core decision 2026-11-01).
 - Complete installer/update migration, signed installer/update artifacts, platform acceptance and
   the full repository release/coverage matrix, then hosted CI and actual asset verification.
 - Do not publish, replace the installed app or retire Electron just because focused local tests

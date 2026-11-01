@@ -16,6 +16,7 @@ export const CRITICAL_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new Set([
   'user_input',
   'llm_response',
   'checkpoint',
+  'workspace_checkpoint',
   'rewound',
   'in_flight_start',
   'in_flight_end',
@@ -183,46 +184,75 @@ export interface WriteCheckpointContext {
   setActivePromptIndex: (promptIndex: number) => void;
 }
 
+/**
+ * Write the checkpoint marker now and capture the workspace in the background.
+ *
+ * Capturing reads and stores every changed and untracked file, which takes tens of seconds in
+ * a project with thousands of untracked files. The marker keeps its place in the journal right
+ * away; the manifest follows in a `workspace_checkpoint` event. The returned promise settles
+ * when that capture is recorded, and callers must await it before anything changes the
+ * workspace (the agent loop does so before a turn's first tool). It never rejects.
+ */
 export async function writeSessionCheckpoint(
   ctx: WriteCheckpointContext,
   promptIndex: number,
   promptPreview: string,
-): Promise<void> {
+): Promise<{ captured: Promise<void> }> {
   const fileCount = ctx.snapshotTracker.length;
   if (fileCount > 0) {
     await ctx.writeFileSnapshot(promptIndex, ctx.snapshotTracker.takePending());
   }
-  let workspaceCheckpoint: WorkspaceCheckpointRef | undefined;
+  const ts = new Date().toISOString();
+  await ctx.append({ type: 'checkpoint', ts, promptIndex, promptPreview });
+  ctx.setActivePromptIndex(promptIndex);
+  const captured = captureWorkspace(ctx, promptIndex).then(async (workspaceCheckpoint) => {
+    if (workspaceCheckpoint)
+      await ctx.append({
+        type: 'workspace_checkpoint',
+        ts: new Date().toISOString(),
+        promptIndex,
+        workspaceCheckpoint,
+      });
+    ctx.events?.emit('checkpoint.written', {
+      sessionId: ctx.sessionId,
+      promptIndex,
+      promptPreview,
+      ts,
+      fileCount,
+      ...(workspaceCheckpoint ? { workspaceCheckpoint } : {}),
+    });
+  });
+  return { captured: captured.catch((err) => warnCapture(ctx, promptIndex, err)) };
+}
+
+async function captureWorkspace(
+  ctx: WriteCheckpointContext,
+  promptIndex: number,
+): Promise<WorkspaceCheckpointRef | undefined> {
   try {
-    workspaceCheckpoint = await ctx.checkpointCas?.capture(ctx.sessionId, promptIndex);
+    return await ctx.checkpointCas?.capture(ctx.sessionId, promptIndex);
   } catch (err) {
     // Conversation checkpoints remain usable when Git/CAS capture is unavailable; missing
     // workspaceCheckpoint makes the reduced guarantee explicit to fork/materialization callers.
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'session.workspace_checkpoint_capture_failed',
-        sessionId: ctx.sessionId,
-        promptIndex,
-        message: toErrorMessage(err),
-        timestamp: new Date().toISOString(),
-      }),
-    );
+    warnCapture(ctx, promptIndex, err, 'session.workspace_checkpoint_capture_failed');
+    return undefined;
   }
-  await ctx.append({
-    type: 'checkpoint',
-    ts: new Date().toISOString(),
-    promptIndex,
-    promptPreview,
-    ...(workspaceCheckpoint ? { workspaceCheckpoint } : {}),
-  });
-  ctx.setActivePromptIndex(promptIndex);
-  ctx.events?.emit('checkpoint.written', {
-    sessionId: ctx.sessionId,
-    promptIndex,
-    promptPreview,
-    ts: new Date().toISOString(),
-    fileCount,
-    ...(workspaceCheckpoint ? { workspaceCheckpoint } : {}),
-  });
+}
+
+function warnCapture(
+  ctx: WriteCheckpointContext,
+  promptIndex: number,
+  err: unknown,
+  event = 'session.workspace_checkpoint_record_failed',
+): void {
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event,
+      sessionId: ctx.sessionId,
+      promptIndex,
+      message: toErrorMessage(err),
+      timestamp: new Date().toISOString(),
+    }),
+  );
 }

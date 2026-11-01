@@ -81,6 +81,19 @@ export const inputFixture = {
     },
   ],
 };
+/** A long streamed answer for transcript measurements: sections of prose, lists and code. */
+export const longReplyLines = 3000;
+const longReply = () => {
+  const lines = ['Native provider long reply.', ''];
+  for (let index = 1; lines.length < longReplyLines; index++) {
+    if (index % 25 === 1) lines.push(`## Section ${index}`, '');
+    if (index % 40 === 0) lines.push('```ts', `export const value${index} = ${index};`, '```');
+    else lines.push(`- Long reply line ${index}: the transcript keeps rendering while it streams.`);
+  }
+  lines.push('', 'Long reply complete.');
+  return lines.join('\n');
+};
+
 export async function startLocalProvider({ models = [fixtureModel] } = {}) {
   const acceptedModels = new Set(models);
   const calls = [];
@@ -150,19 +163,22 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
           })
         : refiner
           ? 'Build the desktop composer and preserve the requested session boundaries.\n---\nImplement the desktop composer while keeping the requested session boundaries.'
-          : composerInstruction.trim().startsWith('[native-composer-nextsteps]')
-            ? `${fixtureMarkdown}\n\n<nextsteps>\n1. [native-composer-nextstep-selected] Inspect the result\n2. Run the checks\n</nextsteps>`
-            : // A leader turn without either marker gets a priced next-steps side request;
-              // usage proofs count exactly one provider answer per prompt.
-              /^\[native-(?:usage-(?:cold|warm)|tier-proposal)\]/.test(
-                  (userTexts.at(-1) ?? '').trim(),
-                )
-              ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
-              : fixtureMarkdown;
+          : composerInstruction.trim().startsWith('[native-composer-long-reply]')
+            ? longReply()
+            : composerInstruction.trim().startsWith('[native-composer-nextsteps]')
+              ? `${fixtureMarkdown}\n\n<nextsteps>\n1. [native-composer-nextstep-selected] Inspect the result\n2. Run the checks\n</nextsteps>`
+              : // A leader turn without either marker gets a priced next-steps side request;
+                // usage proofs count exactly one provider answer per prompt.
+                /^\[native-(?:usage-(?:cold|warm)|tier-proposal)\]/.test(
+                    (userTexts.at(-1) ?? '').trim(),
+                  )
+                ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
+                : fixtureMarkdown;
       // A refinement of a draft marked slow waits, so a test can restart the window meanwhile.
       if (refiner && userTexts.some((text) => text.includes('[native-refine-slow]')))
         await new Promise((resolve) => setTimeout(resolve, 8000));
       calls.push({
+        receivedAt: Date.now(),
         path: request.url,
         authorized: request.headers.authorization === `Bearer ${fixtureKey}`,
         model: body.model,
@@ -511,13 +527,12 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
         holds.delete(hold);
         if (response.destroyed) return;
       }
-      chunk([
-        {
-          index: 0,
-          delta: { content: answer.slice(refiner || topicAdvisor ? 0 : 'Native provider '.length) },
-          finish_reason: null,
-        },
-      ]);
+      const rest = answer.slice(refiner || topicAdvisor ? 0 : 'Native provider '.length);
+      // A long answer streams in many small deltas, like a real provider.
+      for (let start = 0; start < rest.length; start += 2048)
+        chunk([
+          { index: 0, delta: { content: rest.slice(start, start + 2048) }, finish_reason: null },
+        ]);
       chunk([{ index: 0, delta: {}, finish_reason: 'stop' }], { usage });
       response.end('data: [DONE]\n\n');
     } catch (error) {

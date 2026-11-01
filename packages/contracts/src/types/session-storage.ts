@@ -348,6 +348,12 @@ export interface SessionWriter {
    */
   writeCheckpoint(promptIndex: number, promptPreview: string): Promise<void>;
   /**
+   * Resolves once the workspace capture started by the last writeCheckpoint() is recorded.
+   * The agent loop awaits it before a turn's first tool runs, so no tool changes the
+   * workspace before its checkpoint is taken.
+   */
+  workspaceCheckpointSettled?(): Promise<void>;
+  /**
    * Write a file snapshot after file changes are detected.
    * Called by the file watcher or tool interceptor.
    */

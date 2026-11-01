@@ -226,6 +226,8 @@ function labelForEvent(e: SessionEvent): string {
       return `Provider error: ${e.description}`;
     case 'checkpoint':
       return `Checkpoint at prompt #${e.promptIndex}`;
+    case 'workspace_checkpoint':
+      return `Workspace captured for prompt #${e.promptIndex}`;
     case 'in_flight_start':
       return `In-flight started: ${e.context}`;
     case 'in_flight_end':
@@ -366,6 +368,8 @@ function detailForEvent(e: SessionEvent): string {
       return `${e.isError ? 'error' : 'ok'}`;
     case 'checkpoint':
       return `prompt #${e.promptIndex}`;
+    case 'workspace_checkpoint':
+      return `prompt #${e.promptIndex} · ${e.workspaceCheckpoint.entryCount} paths`;
     case 'delegate_started':
       return e.task.length > 80 ? `${cutText(e.task, 79)}…` : e.task;
     case 'delegate_completed':

@@ -119,6 +119,8 @@ export class FileSessionWriter implements SessionWriter {
   private activePromptIndex: number | null = null;
   /** See writeCheckpoint: whether a redo stash may need dropping. */
   private redoStashMayExist = true;
+  /** The last checkpoint's background workspace capture; close, truncate and the next checkpoint await it. */
+  private workspaceCapture: Promise<void> = Promise.resolve();
 
   /**
    * Buffer an event from a synchronous Context callback. ensureInit() starts
@@ -476,6 +478,7 @@ export class FileSessionWriter implements SessionWriter {
   }
 
   private async doClose(): Promise<void> {
+    await this.workspaceCapture;
     // Stop mid-session metadata checkpointing FIRST so nothing re-arms while
     // we materialize. Pending file snapshots still require an OPEN writer —
     // writeFileSnapshot delegates to append(), whose closed guard would
@@ -540,7 +543,9 @@ export class FileSessionWriter implements SessionWriter {
       this.redoStashMayExist = false;
       await clearRedoStash(this.filePath).catch(() => undefined);
     }
-    await writeSessionCheckpoint(
+    // Captures stay in prompt order: the previous one is recorded before the next starts.
+    await this.workspaceCapture;
+    const { captured } = await writeSessionCheckpoint(
       {
         sessionId: this.id,
         snapshotTracker: this.snapshotTracker,
@@ -555,6 +560,11 @@ export class FileSessionWriter implements SessionWriter {
       promptIndex,
       promptPreview,
     );
+    this.workspaceCapture = captured;
+  }
+
+  workspaceCheckpointSettled(): Promise<void> {
+    return this.workspaceCapture;
   }
 
   async writeFileSnapshot(promptIndex: number, files: FileSnapshot[]): Promise<void> {
@@ -577,6 +587,7 @@ export class FileSessionWriter implements SessionWriter {
     revertedFiles: readonly string[] = [],
   ): Promise<number> {
     this.redoStashMayExist = true;
+    await this.workspaceCapture;
     return executeSessionTruncate({
       ...this.journalRewriteContext(),
       targetPromptIndex,

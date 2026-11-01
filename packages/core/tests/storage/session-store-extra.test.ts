@@ -47,7 +47,7 @@ describe('FileSessionWriter — transcriptPath / file snapshots / checkpoints', 
     expect(types).toContain('checkpoint');
   });
 
-  it('attaches a content-addressed workspace manifest to checkpoint events', async () => {
+  it('records the workspace manifest of a checkpoint after its marker, captured in the background', async () => {
     const events = new EventBus();
     const checkpointWritten = vi.fn();
     events.on('checkpoint.written', checkpointWritten);
@@ -61,16 +61,36 @@ describe('FileSessionWriter — transcriptPath / file snapshots / checkpoints', 
       capturedAt: now(),
       coverage: 'git-head-plus-dirty' as const,
     };
-    const capture = vi.fn().mockResolvedValue(workspaceCheckpoint);
+    let finishCapture!: (value: typeof workspaceCheckpoint) => void;
+    const capture = vi.fn(
+      () =>
+        new Promise<typeof workspaceCheckpoint>((resolve) => {
+          finishCapture = resolve;
+        }),
+    );
     (w as never as { checkpointCas: { capture: typeof capture } }).checkpointCas = { capture };
+    // The marker is written without waiting for the capture.
     await w.writeCheckpoint(4, 'workspace state');
+    let settled = false;
+    const done = w.workspaceCheckpointSettled().then(() => {
+      settled = true;
+    });
+    await w.append({ type: 'user_input', ts: now(), content: 'during capture' } as never);
+    expect(settled).toBe(false);
+    expect(checkpointWritten).not.toHaveBeenCalled();
+    finishCapture(workspaceCheckpoint);
+    await done;
     await w.close();
 
     const data = await store.load('workspace-cp');
     expect(capture).toHaveBeenCalledWith('workspace-cp', 4);
+    const types = data.events.map((event) => event.type);
+    const marker = types.indexOf('checkpoint');
+    expect(data.events[marker]).not.toHaveProperty('workspaceCheckpoint');
+    expect(types.indexOf('user_input')).toBeGreaterThan(marker);
     expect(data.events).toContainEqual(
       expect.objectContaining({
-        type: 'checkpoint',
+        type: 'workspace_checkpoint',
         promptIndex: 4,
         workspaceCheckpoint,
       }),

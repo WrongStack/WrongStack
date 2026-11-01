@@ -67,7 +67,18 @@ export async function forkSession(
   }
 
   const parentPrefix = parentEvents.slice(0, boundary + 1);
-  const workspaceCheckpoint = targetCheckpoint?.workspaceCheckpoint;
+  // Newer journals record the manifest in a `workspace_checkpoint` event after the marker.
+  const workspaceCheckpoint =
+    targetCheckpoint?.workspaceCheckpoint ??
+    (targetCheckpoint
+      ? parentEvents
+          .slice(parentEvents.indexOf(targetCheckpoint) + 1)
+          .find(
+            (event): event is Extract<SessionEvent, { type: 'workspace_checkpoint' }> =>
+              event.type === 'workspace_checkpoint' &&
+              event.promptIndex === targetCheckpoint.promptIndex,
+          )?.workspaceCheckpoint
+      : undefined);
   const checkpointHash = createHash('sha256')
     .update(parentPrefix.map((event) => JSON.stringify(event)).join('\n') + '\n', 'utf8')
     .digest('hex');

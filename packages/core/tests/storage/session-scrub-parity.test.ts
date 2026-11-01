@@ -91,6 +91,7 @@ const JUSTIFIED_RAW_VARIANTS: Record<string, string> = {
   session_resumed: 'ids + resume counters',
   session_forked: 'ids + lineage references',
   session_moved: 'project paths + ids',
+  workspace_checkpoint: 'prompt index + content hashes and counts of the workspace manifest',
   session_end: 'ids + counters + pending tool-use ids',
   llm_request: 'token counts + model/provider ids',
   enhance_usage: 'usage counters + provider/model ids',

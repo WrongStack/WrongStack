@@ -47,6 +47,7 @@ import { exerciseNativeModelProfiles } from './native-model-profiles.mjs';
 import { exerciseNativeMultiWindow } from './native-multi-window.mjs';
 import { exerciseNativeNewSurfaces } from './native-new-surfaces.mjs';
 import { exerciseNativeNextSteps } from './native-next-steps.mjs';
+import { exerciseNativePerformance } from './native-performance.mjs';
 import { exerciseNativeProcesses } from './native-processes.mjs';
 import { exerciseNativeProjectHistory } from './native-project-history.mjs';
 import { exerciseNativeProjectKit } from './native-project-kit.mjs';
@@ -102,82 +103,85 @@ const sageOnly = process.argv.includes('--sage');
 const usageOnly = process.argv.includes('--usage');
 const surfacesOnly = process.argv.includes('--surfaces');
 const multiOnly = process.argv.includes('--multi');
+const perfOnly = process.argv.includes('--perf');
 const artifactDir = resolve(
   root,
   '.temp_files/desktop-v2-native',
-  multiOnly
-    ? 'multi-window'
-    : surfacesOnly
-      ? 'new-surfaces'
-      : skillsOnly
-        ? 'skills'
-        : modelProfilesOnly
-          ? 'model-profiles'
-          : modelDraftRestartOnly
-            ? 'model-draft-restart'
-            : usageOnly
-              ? 'session-usage'
-              : sageOnly
-                ? 'sage-validity'
-                : refinementPolicyOnly
-                  ? 'refinement-policy'
-                  : executionPolicyOnly
-                    ? 'execution-policy'
-                    : brainPolicyOnly
-                      ? 'brain-policy'
-                      : fleetPolicyOnly
-                        ? 'fleet-policy'
-                        : atlasOnly
-                          ? 'atlas-boundaries'
-                          : fleetOnly
-                            ? 'fleet'
-                            : processesOnly
-                              ? 'processes'
-                              : mcpTasksOnly
-                                ? 'mcp-tasks'
-                                : mcpOnly
-                                  ? 'mcp'
-                                  : automationOnly
-                                    ? 'automation'
-                                    : rosterOnly
-                                      ? 'roster'
-                                      : filesOnly
-                                        ? 'files'
-                                        : settingsOnly
-                                          ? 'settings'
-                                          : historyOnly
-                                            ? companion
-                                              ? 'history-companion'
-                                              : 'history'
-                                            : recoveryOnly
-                                              ? 'recovery'
-                                              : chimeraOnly
-                                                ? 'chimera'
-                                                : designOnly
-                                                  ? 'design'
-                                                  : deadCodeOnly
-                                                    ? 'deadcode'
-                                                    : techstackOnly
-                                                      ? 'techstack'
-                                                      : kitOnly
-                                                        ? 'kit'
-                                                        : mailboxOnly
-                                                          ? 'mailbox'
-                                                          : modelsOnly
-                                                            ? 'models'
-                                                            : sddOnly
-                                                              ? 'sdd'
-                                                              : goalsOnly
-                                                                ? 'goals'
-                                                                : chronicleOnly
-                                                                  ? 'chronicle'
-                                                                  : composerOnly
-                                                                    ? companion
-                                                                      ? 'composer-companion'
-                                                                      : 'composer'
-                                                                    : companion
-                                                                      ? 'companion'
-                                                                      : '.',
+  perfOnly
+    ? 'performance'
+    : multiOnly
+      ? 'multi-window'
+      : surfacesOnly
+        ? 'new-surfaces'
+        : skillsOnly
+          ? 'skills'
+          : modelProfilesOnly
+            ? 'model-profiles'
+            : modelDraftRestartOnly
+              ? 'model-draft-restart'
+              : usageOnly
+                ? 'session-usage'
+                : sageOnly
+                  ? 'sage-validity'
+                  : refinementPolicyOnly
+                    ? 'refinement-policy'
+                    : executionPolicyOnly
+                      ? 'execution-policy'
+                      : brainPolicyOnly
+                        ? 'brain-policy'
+                        : fleetPolicyOnly
+                          ? 'fleet-policy'
+                          : atlasOnly
+                            ? 'atlas-boundaries'
+                            : fleetOnly
+                              ? 'fleet'
+                              : processesOnly
+                                ? 'processes'
+                                : mcpTasksOnly
+                                  ? 'mcp-tasks'
+                                  : mcpOnly
+                                    ? 'mcp'
+                                    : automationOnly
+                                      ? 'automation'
+                                      : rosterOnly
+                                        ? 'roster'
+                                        : filesOnly
+                                          ? 'files'
+                                          : settingsOnly
+                                            ? 'settings'
+                                            : historyOnly
+                                              ? companion
+                                                ? 'history-companion'
+                                                : 'history'
+                                              : recoveryOnly
+                                                ? 'recovery'
+                                                : chimeraOnly
+                                                  ? 'chimera'
+                                                  : designOnly
+                                                    ? 'design'
+                                                    : deadCodeOnly
+                                                      ? 'deadcode'
+                                                      : techstackOnly
+                                                        ? 'techstack'
+                                                        : kitOnly
+                                                          ? 'kit'
+                                                          : mailboxOnly
+                                                            ? 'mailbox'
+                                                            : modelsOnly
+                                                              ? 'models'
+                                                              : sddOnly
+                                                                ? 'sdd'
+                                                                : goalsOnly
+                                                                  ? 'goals'
+                                                                  : chronicleOnly
+                                                                    ? 'chronicle'
+                                                                    : composerOnly
+                                                                      ? companion
+                                                                        ? 'composer-companion'
+                                                                        : 'composer'
+                                                                      : companion
+                                                                        ? 'companion'
+                                                                        : '.',
 );
 await mkdir(artifactDir, { recursive: true });
 if (modelDraftRestartOnly || modelProfilesOnly)
@@ -236,6 +240,8 @@ let endpoint;
 let page;
 let nativeLog = '';
 let launchCount = 0;
+// Milliseconds from spawning the UI process to each startup milestone of the last launch.
+let launchTimings;
 const errors = [];
 const sessions = [];
 let result;
@@ -397,6 +403,7 @@ const launch = async () => {
   await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
   const debugPort = probe.address().port;
   await new Promise((resolve) => probe.close(resolve));
+  const spawnedAt = performance.now();
   child = spawn(executable, [], {
     cwd: bundled ? portableDir : root,
     env: {
@@ -432,8 +439,15 @@ const launch = async () => {
   page.setDefaultTimeout(20000);
   page.setDefaultNavigationTimeout(30000);
   page.on('pageerror', (error) => errors.push(error.message));
+  const pageAt = performance.now();
   await page.locator('.main-content').waitFor();
+  const shellAt = performance.now();
   await page.getByRole('status', { name: 'Local engine connected', exact: true }).waitFor();
+  launchTimings = {
+    webviewPage: Math.round(pageAt - spawnedAt),
+    shellRendered: Math.round(shellAt - spawnedAt),
+    engineConnected: Math.round(performance.now() - spawnedAt),
+  };
   endpoint = JSON.parse(await readFile(join(dir, 'host.json'), 'utf8'));
   return browser;
 };
@@ -547,12 +561,15 @@ try {
     .getByRole('navigation', { name: 'Main navigation' })
     .getByRole('button', { name: 'WrongStack settings', exact: true })
     .click();
+  const profileWaitAt = performance.now();
+  const firstLaunch = launchTimings;
   await waitFor(
     async () => (await workspaceRpc('profile.status')).status === 'running',
     'Profile runtime startup (native 90-second deadline)',
     100000,
   );
   await page.getByRole('heading', { name: 'Default model', exact: true }).waitFor();
+  const profileReadyMs = Math.round(performance.now() - profileWaitAt);
   if (expectedEngineBuild)
     assert.equal(
       (await workspaceRpc('profile.status')).engineBuild,
@@ -617,7 +634,8 @@ try {
     fleetOnly ||
     usageOnly ||
     surfacesOnly ||
-    multiOnly
+    multiOnly ||
+    perfOnly
   )
     await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
   await page
@@ -1272,6 +1290,38 @@ try {
       portableIdentity,
       bundledEngine: bundled,
       portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (perfOnly) {
+    const measurements = await exerciseNativePerformance({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+      dataDir: dir,
+      providerFixture,
+      uiPid: () => child.pid,
+      startup: { coldLaunch: firstLaunch, profileReadyMs },
+      relaunchUi: async () => {
+        await stopUi();
+        await launch();
+        return { launch: launchTimings, page };
+      },
+      release,
+      root,
+    });
+    page = measurements.page;
+    delete measurements.page;
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'performance',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      measurements,
       artifacts: artifactDir,
     };
   } else if (multiOnly) {

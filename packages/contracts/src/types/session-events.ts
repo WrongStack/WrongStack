@@ -501,8 +501,21 @@ type SessionEventVariant =
       ts: string;
       promptIndex: number;
       promptPreview: string;
-      /** Content-addressed Git HEAD + dirty/untracked workspace manifest. */
+      /**
+       * Content-addressed Git HEAD + dirty/untracked workspace manifest. Newer writers capture
+       * it in the background and record it in a following `workspace_checkpoint` event.
+       */
       workspaceCheckpoint?: WorkspaceCheckpointRef | undefined;
+    }
+  | {
+      /**
+       * The workspace manifest of the `checkpoint` with this prompt index, captured while the
+       * turn already ran. No tool of that turn runs before it is recorded.
+       */
+      type: 'workspace_checkpoint';
+      ts: string;
+      promptIndex: number;
+      workspaceCheckpoint: WorkspaceCheckpointRef;
     }
   | { type: 'file_snapshot'; ts: string; promptIndex: number; files: FileSnapshot[] }
   | {

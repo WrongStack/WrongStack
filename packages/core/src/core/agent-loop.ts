@@ -581,6 +581,8 @@ export function createAgentLoopHandler(
         }
 
         try {
+          // No tool may change the workspace before this turn's checkpoint has captured it.
+          await sessionWriter.workspaceCheckpointSettled?.();
           const toolExecution = await handlers.tools.executeTools(toolUses);
           const completedLoopCheck = controller.signal.aborted
             ? { cut: false }
