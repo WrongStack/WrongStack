@@ -43,7 +43,8 @@
     "@wrongstack/core": "workspace:*",
     "@wrongstack/hq": "workspace:*",
     "@wrongstack/persistence": "workspace:*",
-    "@wrongstack/primitives": "workspace:*"
+    "@wrongstack/primitives": "workspace:*",
+    "@wrongstack/wrongmemory-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -74,6 +74,11 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
       projectLocal: true,
       directory: '.wrongstack/memories',
     },
+    // Memory backend: `local` keeps the project SAGE server (no behavior change).
+    service: {
+      mode: 'local',
+      startPolicy: 'on-demand',
+    },
     inject: {
       // Keep the ordinary turn prompt clean. Project memory is surfaced
       // on-demand beside relevant tool results, where the path/query that

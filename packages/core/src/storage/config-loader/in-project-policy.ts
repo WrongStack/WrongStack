@@ -310,6 +310,11 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
   // them is a product call.
   { path: 'Sage.storage.directory', reason: 'Redirects memory storage outside the profile.' },
   {
+    path: 'Sage.service',
+    reason:
+      'Selects the memory backend, its data root and a daemon executable to launch; a repo must not redirect memory or choose a binary.',
+  },
+  {
     path: 'autonomy.yolo',
     reason:
       'Alias for the denied top-level `yolo`, and it wins over the user setting — a repo-committed config could disable every permission prompt.',

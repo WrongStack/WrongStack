@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T09:26:20.460Z",
+  "generatedAt": "2026-11-01T12:05:22.715Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,34 +11,20 @@
     ]
   },
   "summary": {
-    "packages": 46,
-    "sourceFiles": 5561,
-    "testFiles": 4847,
-    "sourceLines": 1220048,
-    "workspaceEdges": 233,
-    "moduleEdges": 16680,
+    "packages": 47,
+    "sourceFiles": 5569,
+    "testFiles": 4851,
+    "sourceLines": 1222425,
+    "workspaceEdges": 234,
+    "moduleEdges": 16707,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 176,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1024
+    "testOnlyExports": 1022
   },
-  "errors": [
-    "apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectAgentRoster.tsx: hotspot shrunk from 1562 to 1559 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 823 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change",
-    "packages/webui-server/src/server/mcp-tool-handlers.ts: \"conversationNote\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -786,7 +772,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 36,
-      "testFiles": 38,
+      "testFiles": 39,
       "workspaceDependencies": [
         "@wrongstack/builtin-plugins",
         "@wrongstack/chronicle",
@@ -811,22 +797,23 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 38
+          "testFiles": 39
         }
       ]
     },
     {
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
-      "sourceFiles": 162,
-      "testFiles": 166,
+      "sourceFiles": 164,
+      "testFiles": 168,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
         "@wrongstack/core",
         "@wrongstack/hq",
         "@wrongstack/persistence",
-        "@wrongstack/primitives"
+        "@wrongstack/primitives",
+        "@wrongstack/wrongmemory-client"
       ],
       "tsconfigs": [
         {
@@ -837,7 +824,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 166
+          "testFiles": 168
         }
       ]
     },
@@ -1215,6 +1202,25 @@
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
           "testFiles": 4
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/wrongmemory-client",
+      "dir": "packages/wrongmemory-client",
+      "sourceFiles": 6,
+      "testFiles": 1,
+      "workspaceDependencies": [],
+      "tsconfigs": [
+        {
+          "path": "packages/wrongmemory-client/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/wrongmemory-client/tsconfig.test.json",
+          "error": null,
+          "testFiles": 1
         }
       ]
     },
@@ -17251,6 +17257,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/container-sage-service.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/container-sqlite-unavailable.test.ts",
         "projects": [
           "root-node"
@@ -18410,6 +18422,18 @@
       },
       {
         "file": "packages/sage/tests/verify.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-port.integration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-port.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30331,6 +30355,12 @@
         ]
       },
       {
+        "file": "packages/wrongmemory-client/tests/framing.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/wrongtrace/src/__tests__/agent-helpers.test.ts",
         "projects": [
           "root-node"
@@ -32269,6 +32299,11 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/sage/src/wrongmemory-port.ts",
+      "lines": 1194,
+      "relativeImports": 8
+    },
+    {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
       "lines": 703,
       "relativeImports": 6
@@ -32484,6 +32519,11 @@
       "file": "packages/vibeui/src/components/workspace.tsx",
       "lines": 1206,
       "relativeImports": 34
+    },
+    {
+      "file": "packages/sage/src/wrongmemory-port.ts",
+      "lines": 1194,
+      "relativeImports": 8
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
@@ -32714,11 +32754,6 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
-    },
-    {
-      "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
-      "lines": 703,
-      "relativeImports": 6
     }
   ],
   "testOnlyExports": [
@@ -34528,15 +34563,7 @@
     },
     {
       "file": "packages/mcp/src/server-dispatch.ts",
-      "name": "INVALID_REQUEST"
-    },
-    {
-      "file": "packages/mcp/src/server-dispatch.ts",
       "name": "MAX_REPORTED_SCHEMA_ERRORS"
-    },
-    {
-      "file": "packages/mcp/src/server-dispatch.ts",
-      "name": "METHOD_NOT_FOUND"
     },
     {
       "file": "packages/mcp/src/test-helpers/mock-server.ts",

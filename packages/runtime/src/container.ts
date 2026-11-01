@@ -40,7 +40,12 @@ import { createTypeSafeCriterionJudge, resolveTypeSafeJudge } from '@wrongstack/
 import { toErrorMessage, type WstackPaths } from '@wrongstack/core/utils';
 import { createHqPublisherFromEnv } from '@wrongstack/hq';
 import { setKanbanCriterionJudge } from '@wrongstack/kanban';
-import { createProjectSageMemoryPort, isSqliteAvailable } from '@wrongstack/sage';
+import {
+  createProjectSageMemoryPort,
+  createSageMemoryPortForService,
+  isSqliteAvailable,
+  resolveSageServiceMode,
+} from '@wrongstack/sage';
 import {
   createProjectPermissionPolicy,
   type ProjectPermissionOptions,
@@ -188,17 +193,33 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
   // The project SAGE server is the sole production owner of SQLite. Legacy
   // JSONL data is imported by that owner on first open; hosts only hold IPC
   // ports and cannot silently open a competing writable backend.
-  if (!isSqliteAvailable()) {
-    throw new Error(
-      'SAGE requires synchronous SQLite (node:sqlite on Node >= 22.5 or bun:sqlite on Bun). ' +
-        'The JSONL compatibility fallback has been removed.',
-    );
-  }
-  const memoryStore = createProjectSageMemoryPort({
+  //
+  // `Sage.service.mode` selects the owner: `local` (default) is the project
+  // SAGE server above; `wrongmemory` binds ONE WrongMemoryPort (no SQLite is
+  // constructed or required, no inline fallback); `auto` picks WrongMemory in
+  // `initialize()` only when a daemon is reachable and the project is
+  // registered, else `local`.
+  const sageService = config.Sage?.service;
+  const sageMode = resolveSageServiceMode(sageService);
+  const requireSqlite = (): void => {
+    if (!isSqliteAvailable()) {
+      throw new Error(
+        'SAGE requires synchronous SQLite (node:sqlite on Node >= 22.5 or bun:sqlite on Bun). ' +
+          'The JSONL compatibility fallback has been removed.',
+      );
+    }
+  };
+  if (sageMode === 'local') requireSqlite();
+  const memoryStore = createSageMemoryPortForService({
     projectRoot: wpaths.projectRoot,
     directory: config.Sage?.storage?.directory,
     events: opts.events,
     workspaceRoot: wpaths.projectRoot,
+    service: sageService,
+    createLocal: (localOptions) => {
+      requireSqlite();
+      return createProjectSageMemoryPort(localOptions);
+    },
   });
   container.bind(TOKENS.MemoryStore, () => memoryStore);
   container.bind(TOKENS.MemoryPort, () => memoryStore);

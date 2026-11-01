@@ -19,7 +19,8 @@
       "!docs/reports/architecture-health-current.json",
       "!architecture/core-layers.json",
       "!docs/archive/reports/documentation-review-2026-10-06.json",
-      "!packages/webui-protocol/schema"
+      "!packages/webui-protocol/schema",
+      "!packages/wrongmemory-client/src"
     ]
   },
   "formatter": {

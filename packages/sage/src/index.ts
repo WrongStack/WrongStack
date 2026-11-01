@@ -38,6 +38,15 @@ export {
   sageHygieneOptionsFromConfig,
   setupSage,
 } from './host-wiring.js';
+export {
+  AutoSageMemoryPort,
+  createSageMemoryPortForService,
+  resolveSageServiceMode,
+  SageBackendNotSelectedError,
+  type SageMemoryPortForServiceOptions,
+  type SageServiceMode,
+  type SageServiceSelection,
+} from './memory-backend.js';
 export * from './memory-doctor-types.js';
 export {
   createProjectSageMemoryPort,
@@ -236,3 +245,14 @@ export {
 } from './triage/system-one.js';
 export type { UpdateSageInput } from './types.js';
 export * from './types.js';
+export {
+  probeWrongMemoryProject,
+  resolveWrongMemoryProject,
+  WRONGMEMORY_BACKEND,
+  type WrongMemoryClientLike,
+  WrongMemoryNotImplementedError,
+  WrongMemoryPort,
+  type WrongMemoryPortOptions,
+  WrongMemoryProjectNotRegisteredError,
+  WrongMemoryUnavailableError,
+} from './wrongmemory-port.js';
