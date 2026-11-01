@@ -1,18 +1,19 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 50a9d9f,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 40f7275,
 // file packages/client-ts/src/client.ts. Do not edit here; update upstream and re-vendor.
 /**
  * WrongMemory IPC client for Bun/Node: Windows named pipe, newline-delimited
  * JSON, authentication handshake, sequential request/response.
  *
- * Deviation from the Rust client: the Rust client verifies that the process
- * serving the pipe runs as the current user before sending a credential
- * (anti-squatting, `win::verify_same_user_server`). Node has no portable API
- * for that check; the pipe DACL and per-user endpoint name are the
- * protection here. Hosts that need the stronger check should use the Rust
- * client or a native helper.
+ * Anti-squatting: Node cannot query the pipe server's OS identity (the Rust
+ * client checks the server SID). Instead, before any credential is sent,
+ * the client sends a random nonce and requires the daemon to return
+ * HMAC-SHA256(hostToken, "wrongmemory-server-proof-v1:" + nonce). Only the
+ * real daemon holds the owner-private host token, so a pipe name squatted
+ * by another account never receives a host token or grant secret.
  */
 
 import { spawn } from 'node:child_process';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { createConnection, type Socket } from 'node:net';
 import { dirname, join } from 'node:path';
@@ -122,6 +123,21 @@ export class WrongMemoryClient {
       clientVersion: CLIENT_VERSION,
     };
     try {
+      const nonce = randomBytes(32).toString('hex');
+      client.socket.write(encodeFrame({ type: 'challenge', nonce }, MAX_AUTH_FRAME_BYTES));
+      const proofReply = (await client.next(client.timeoutMs)) as { proof?: unknown };
+      const expected = Buffer.from(
+        createHmac('sha256', discovery.token)
+          .update(`wrongmemory-server-proof-v1:${nonce}`)
+          .digest('hex'),
+      );
+      const got = Buffer.from(typeof proofReply?.proof === 'string' ? proofReply.proof : '');
+      if (got.length !== expected.length || !timingSafeEqual(got, expected)) {
+        throw new WrongMemoryError(
+          'UNAVAILABLE',
+          `${discovery.info.endpoint} did not prove it is this user's WrongMemory daemon; no credential sent`,
+        );
+      }
       client.socket.write(encodeFrame(auth, MAX_AUTH_FRAME_BYTES));
       const reply = (await client.next(client.timeoutMs)) as AuthResponse;
       if (reply.status === 'error') throw WrongMemoryError.fromBody(reply.error);
