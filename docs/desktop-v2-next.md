@@ -135,7 +135,19 @@ whose ownership and resolved target directory you have verified.
 - Fallback settings suggest ready-made chains from reachable models (`fallback.suggest`,
   heuristic or re-ranked by the current model) and use one as the default chain or a profile.
 
-Unit tests and typecheck only; not yet exercised in the native window.
+Native proof: `tests/native-new-surfaces.mjs` (`--surfaces` scope) passed: plan templates,
+card metric and chain, contract map with a per-card check, card merge, the project side-effect
+summary, SAGE injection history and fallback suggestions (the fixture profile has one model, so
+the engine reports that no chain can be built). It found that worklist replies (`plan.*`,
+`tasks.*`, `todos.*`) carried no `requestId`, so desktop status and template commands timed out;
+`worklist-routes.ts` now correlates them. `--composer` passed with the PDF preview, whose frame
+document loads as `application/pdf`, and `--history` passed (its >1,000-record search step timed
+out once under load and passed on the rerun). Not exercised natively: editor keys, task graph
+export and "Show in file manager" (unit-tested; the last two hand off to the OS).
+
+`bun run dev:web` currently fails in this checkout: `scripts/sync-brand.ts` regenerates
+`brand-tokens.css` from another session's unfinished `packages/webui/src/index.css`, which does
+not parse. The native runs used `bun --bun run vite --host 127.0.0.1` in `apps/desktop-v2`.
 
 ### Recorded usage across the profile (2026-11-01)
 

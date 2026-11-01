@@ -50,11 +50,31 @@ export function createWorklistRouteHandlers(ctx: WorklistRouteContext): Worklist
   };
 }
 
+const WORKLIST_TYPES = new Set([
+  'todos.get',
+  'todos.clear',
+  'todos.remove',
+  'todo.update',
+  'tasks.get',
+  'task.update',
+  'plan.get',
+  'plan.template_use',
+  'plan.item.update',
+]);
+
 export async function handleWorklistRoute(
   ws: WebSocket,
   msg: WSClientMessage,
   handlers: WorklistRouteHandlers,
 ): Promise<boolean> {
+  // Direct replies answer the asking request; broadcasts to other tabs go through the host.
+  if (WORKLIST_TYPES.has(msg.type))
+    ws = correlatedReply(ws, msg.payload, [
+      'key.operation_result',
+      'todos.updated',
+      'tasks.updated',
+      'plan.updated',
+    ]).socket;
   switch (msg.type) {
     case 'todos.get':
       await handlers.getTodos(ws, msg);

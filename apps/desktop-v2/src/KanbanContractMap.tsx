@@ -181,6 +181,7 @@ export function KanbanContractMap({
   return (
     <Modal title="Contract map" onClose={() => !busy && onClose()}>
       <div className="kanban-contract-map">
+        <h2>Contract map</h2>
         <p className="settings-defaults-note">
           What each card optimizes, must preserve and is verified by. Contracts are separate from
           card dependencies; enforcement decides whether open contracts stop a card from starting.

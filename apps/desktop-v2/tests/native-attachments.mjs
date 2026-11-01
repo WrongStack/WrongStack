@@ -192,6 +192,13 @@ export async function exerciseNativeAttachments({
   const frame = pdfPreview.locator('iframe[title="PDF preview, brief.pdf"]');
   await frame.waitFor();
   assert.ok((await frame.getAttribute('src'))?.startsWith('blob:'), 'PDF preview uses a blob URL');
+  // The frame holds a document the browser loaded as a PDF, not markup.
+  const pdfDocument = await waitFor(
+    async () => page.frames().find((item) => item.url().startsWith('blob:')) ?? null,
+    'PDF preview frame',
+    20000,
+  );
+  assert.equal(await pdfDocument.evaluate(() => document.contentType), 'application/pdf');
   await page.screenshot({ path: join(artifactDir, 'native-attachment-pdf.png'), fullPage: true });
   await pdfPreview.getByRole('button', { name: 'Close attachment preview', exact: true }).click();
   await page.screenshot({

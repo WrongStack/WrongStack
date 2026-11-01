@@ -18,3 +18,24 @@ describe('plan.templates', () => {
     expect(templates.every((row) => row.name && row.items.length > 0)).toBe(true);
   });
 });
+
+describe('worklist replies', () => {
+  it('answer the asking request, so a client can wait for its own result', async () => {
+    const frames: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const ws = { readyState: 1, send: (raw: string) => frames.push(JSON.parse(raw)) };
+    await handleWorklistRoute(
+      ws as never,
+      { type: 'plan.template_use', payload: { template: 'new-feature', requestId: 'r2' } } as never,
+      {
+        usePlanTemplate: (socket: { send: (raw: string) => void }) =>
+          socket.send(
+            JSON.stringify({
+              type: 'key.operation_result',
+              payload: { success: true, message: 'ok' },
+            }),
+          ),
+      } as never,
+    );
+    expect(frames[0]?.payload['requestId']).toBe('r2');
+  });
+});

@@ -181,10 +181,11 @@ export async function exerciseNativeProjectHistory({
   await open();
   const screen = page.getByRole('region', { name: 'Project session history' });
   // Recorded tokens across the project's conversations, read on request; no prices.
-  await screen.locator('.project-usage-summary summary').click();
+  const usage = screen.locator('.project-usage-summary').filter({ hasText: 'Recorded usage' });
+  await usage.locator('summary').click();
   await screen.getByRole('button', { name: 'Summarize recorded usage', exact: true }).click();
   await screen.getByRole('table', { name: 'Recorded tokens by model', exact: true }).waitFor();
-  assert.equal(/\$|USD/.test(await screen.locator('.project-usage-summary').innerText()), false);
+  assert.equal(/\$|USD/.test(await usage.innerText()), false);
   // The same totals across every project in the profile, with each project's own total.
   await screen.getByRole('radio', { name: 'All projects in this profile', exact: true }).check();
   await screen.getByRole('button', { name: 'Summarize recorded usage', exact: true }).click();
