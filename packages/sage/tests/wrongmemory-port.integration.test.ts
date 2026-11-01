@@ -10,7 +10,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WrongMemoryClient } from '@wrongstack/wrongmemory-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getSageService, getSageSurface } from '../src/memory-port.js';
+import { getSageRetrieval, getSageService, getSageSurface } from '../src/memory-port.js';
 import { WrongMemoryPort } from '../src/wrongmemory-port.js';
 
 const exe = process.platform === 'win32' ? 'wrongmemoryd.exe' : 'wrongmemoryd';
@@ -164,6 +164,21 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     await expect(service.findMemoriesForFile('../escape.rs')).rejects.toMatchObject({
       code: 'INVALID_REQUEST',
     });
+  });
+
+  it('verify and verifyForPaths reconcile anchors on the daemon', async () => {
+    const service = getSageService(port)!;
+    writeFileSync(path.join(proj, 'src', 'gone.rs'), 'pub fn gone() {}');
+    const m = await service.rememberSage({
+      text: 'gone.rs holds the shutdown hook',
+      anchors: [{ type: 'file', path: 'src/gone.rs' }],
+    });
+    const ok = await service.verify(m.id);
+    expect(ok.map((r) => [r.memoryId, r.status])).toEqual([[m.id, 'verified']]);
+    rmSync(path.join(proj, 'src', 'gone.rs'));
+    const stale = await getSageRetrieval(port)!.verifyForPaths!(['src/gone.rs']);
+    expect(stale.map((r) => [r.memoryId, r.status])).toEqual([[m.id, 'stale']]);
+    expect((await service.getSage(m.id))?.status).toBe('stale');
   });
 
   it('serves legacy MemoryStore reads from SAGE', async () => {

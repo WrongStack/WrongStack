@@ -69,6 +69,7 @@ import type {
   MemoryCandidate,
   MemoryCandidateResolution,
   MemoryGraphEdge,
+  MemoryVerificationResult,
   RememberSageInput,
   Sage,
   SageBackfillOptions,
@@ -672,6 +673,38 @@ export class WrongMemoryPort implements MemoryPort {
     );
   }
 
+  /**
+   * `memory.verify`: anchors are checked by the daemon against the project
+   * tree (nothing is executed) and active/stale is reconciled. Curator
+   * action; rows of other sessions are neither verified nor reported.
+   */
+  async verify(memoryId?: string, signal?: AbortSignal): Promise<MemoryVerificationResult[]> {
+    signal?.throwIfAborted();
+    const result = await this.scoped<{ results: MemoryVerificationResult[] }>(
+      METHODS.MEMORY_VERIFY,
+      compact({ id: memoryId }),
+      this.session(undefined),
+      { timeoutMs: SLOW_OP_TIMEOUT_MS },
+    );
+    return result.results;
+  }
+
+  /** `memory.verify` for the memories anchored to `paths` only. */
+  async verifyForPaths(
+    paths: readonly string[],
+    signal?: AbortSignal,
+  ): Promise<MemoryVerificationResult[]> {
+    signal?.throwIfAborted();
+    if (paths.length === 0) return [];
+    const result = await this.scoped<{ results: MemoryVerificationResult[] }>(
+      METHODS.MEMORY_VERIFY,
+      { paths: [...paths] },
+      this.session(undefined),
+      { timeoutMs: SLOW_OP_TIMEOUT_MS },
+    );
+    return result.results;
+  }
+
   async graphFor(query: string, maxDepth?: number, limit?: number): Promise<MemoryGraphEdge[]> {
     const view = await this.scoped<WireGraphView>(
       METHODS.MEMORY_GRAPH,
@@ -934,10 +967,6 @@ export class WrongMemoryPort implements MemoryPort {
     });
   }
 
-  private notImplemented(operation: string): Promise<never> {
-    return Promise.reject(new WrongMemoryNotImplementedError(operation));
-  }
-
   // ─── Capabilities ──────────────────────────────────────────────────
 
   private readonly retrievalCapability: SageRetrievalCapability = {
@@ -951,6 +980,9 @@ export class WrongMemoryPort implements MemoryPort {
       this.recordUsage(memoryIds, 'use', source, sessionId),
     // Usage counters are durable on the daemon when `recordUsage` returns.
     flushPendingCounters: async () => {},
+    verifyForPaths: (paths, signal) => this.verifyForPaths(paths, signal),
+    retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
+      this.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
   };
 
   private readonly surfaceCapability: SageSurface = {
@@ -970,6 +1002,7 @@ export class WrongMemoryPort implements MemoryPort {
       this.resolveCandidate(candidateId, decision, reason),
     retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
       this.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
+    verify: (memoryId, signal) => this.verify(memoryId, signal),
     hygiene: (options) => this.runHygiene(options),
     listCandidates: (includeResolved) => this.listCandidates(includeResolved),
     createCandidate: (input) => this.createCandidate(input),
@@ -999,7 +1032,7 @@ export class WrongMemoryPort implements MemoryPort {
     searchSage: (query, options) => this.searchSage(query, options),
     searchSageWithBreakdown: (query, options) => this.searchSageWithBreakdown(query, options),
     graphFor: (query, maxDepth, limit) => this.graphFor(query, maxDepth, limit),
-    verify: () => this.notImplemented('verify'),
+    verify: (memoryId, signal) => this.verify(memoryId, signal),
     listCandidates: (includeResolved) => this.listCandidates(includeResolved),
     createCandidate: (input) => this.createCandidate(input),
     resolveCandidate: (candidateId, decision, reason) =>
