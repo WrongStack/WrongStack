@@ -90,6 +90,28 @@ export async function exerciseNativeMultiWindow({
   for (const lane of lanes)
     await lane.page.screenshot({ path: join(artifactDir, `native-multi-window-${lane.hold}.png`) });
 
+  // A model switch in one project while both turns run reaches only that conversation.
+  const switchId = crypto.randomUUID();
+  await rpc('engine.send', {
+    id: lanes[0].session,
+    message: {
+      type: 'model.switch',
+      payload: { provider: 'desktop-local', model: 'alternate-refiner', requestId: switchId },
+    },
+  });
+  let switchOffset = 0;
+  await waitFor(
+    async () => {
+      const batch = await rpc('engine.events', { id: lanes[0].session, offset: switchOffset });
+      switchOffset = batch.offset;
+      const reply = batch.events.find((event) => event.payload?.requestId === switchId);
+      if (reply && (reply.payload.success === false || reply.payload.error))
+        throw Error(reply.payload.error ?? reply.payload.message);
+      return reply;
+    },
+    'Model switch in the first project',
+    60000,
+  );
   // Each window keeps its own unsent draft while both turns run.
   for (const lane of lanes) await lane.composer.fill(`Unsent ${lane.hold} draft.`);
   for (const lane of lanes)
@@ -145,6 +167,9 @@ export async function exerciseNativeMultiWindow({
     providerFixture.calls.findIndex(
       (call, index) => index >= before && !call.refiner && call.instructionMarkers.includes(marker),
     );
+  const modelOf = (marker) => providerFixture.calls[order(marker)].model;
+  assert.equal(modelOf('[native-composer-stressa-two]'), 'alternate-refiner');
+  assert.equal(modelOf('[native-composer-stressb-two]'), 'desktop-fixture-model');
   for (const lane of lanes) {
     assert.ok(
       order(`[native-composer-${lane.tag}-two]`) < order(`[native-composer-${lane.tag}-three]`),
@@ -159,8 +184,85 @@ export async function exerciseNativeMultiWindow({
       `${lane.title} shows none of ${other.title}`,
     );
   }
+  // Approvals under the same load: both conversations ask at once, and each window answers
+  // only its own conversation's request.
+  for (const lane of lanes) {
+    await waitFor(
+      async () => !(await lane.page.getByRole('button', { name: 'Stop run', exact: true }).count()),
+      `${lane.title} idle`,
+      90000,
+    );
+    await rpc('engine.send', {
+      id: lane.session,
+      message: {
+        type: 'prefs.update',
+        payload: { yolo: false, yoloPlus: false, requestId: crypto.randomUUID() },
+      },
+    });
+  }
+  const decisions = [
+    { lane: lanes[0], kind: 'allow', button: 'Allow once' },
+    { lane: lanes[1], kind: 'deny', button: 'Deny' },
+  ];
+  for (const { lane, kind } of decisions)
+    await send(lane, `[native-composer-approval-${kind}] Run the isolated fixture command.`, 'btw');
+  const card = (lane) => lane.page.getByRole('article', { name: 'Approval for exec', exact: true });
+  for (const { lane } of decisions) {
+    await card(lane).waitFor({ timeout: 90000 });
+    assert.equal(await card(lane).count(), 1, `${lane.title} shows only its own approval`);
+  }
+  await lanes[0].page.screenshot({ path: join(artifactDir, 'native-multi-window-approval.png') });
+  for (const { lane, button } of decisions.toReversed()) {
+    await card(lane).getByRole('button', { name: button, exact: true }).click();
+    await card(lane).waitFor({ state: 'detached' });
+  }
+  await waitFor(
+    () =>
+      decisions.every(({ kind }) =>
+        providerFixture.toolResults.some((item) => item.challenge === `approval-${kind}`),
+      ),
+    'Both approval results reached the provider',
+    90000,
+  );
+  const outcome = (kind) =>
+    String(
+      providerFixture.toolResults.findLast((item) => item.challenge === `approval-${kind}`).content,
+    );
+  assert.match(outcome('allow'), /exit_code.?[=:]\s*0|"exitCode"\s*:\s*0/i);
+  assert.doesNotMatch(outcome('deny'), /exit_code.?[=:]\s*0|"exitCode"\s*:\s*0/i);
+  console.log(
+    'PASS: two project windows ask for approval at once; each answers only its own request, one allowed and one denied',
+  );
+  // A slow refinement in one window while the other window runs a held turn.
+  const [refining, running] = lanes;
+  await running.composer.fill('');
+  await send(running, '[native-composer-hold-gamma] A turn during the other refinement.', 'btw');
+  await waitFor(() => providerFixture.holds.has('gamma'), 'Turn held during refinement', 60000);
+  await refining.composer.fill('[native-refine-slow] Summarize the stress run.');
+  const options = refining.page.locator('.composer-options');
+  if (!(await options.evaluate((element) => element.open)))
+    await options.getByLabel('Composer options', { exact: true }).click();
+  await options.getByRole('button', { name: 'Refine this draft', exact: true }).click();
+  const dialog = refining.page.getByRole('dialog', { name: 'Refine your prompt' });
+  await waitFor(
+    async () => await dialog.getByRole('button', { name: 'Refined', exact: true }).isEnabled(),
+    'Refinement finished while the other project ran',
+    120000,
+  );
+  assert.ok(providerFixture.holds.has('gamma'), 'The other project kept its own turn');
+  await dialog.getByRole('button', { name: 'Keep original draft', exact: true }).click();
+  providerFixture.releaseHold('gamma');
+  await waitFor(
+    async () =>
+      !(await running.page.getByRole('button', { name: 'Stop run', exact: true }).count()),
+    'Held turn finished after release',
+    90000,
+  );
+  console.log(
+    'PASS: a refinement in one project window completes while another project window runs its own turn',
+  );
   for (const lane of lanes) await lane.page.close();
   console.log(
-    'PASS: two project windows run held turns at once with queued prompts and separate unsent drafts, survive a reload mid-turn with queue and draft intact, and drain each queue in order into its own conversation',
+    'PASS: two project windows run held turns at once with queued prompts, separate unsent drafts and a model switch in one project only, survive a reload mid-turn with queue and draft intact, and drain each queue in order into its own conversation',
   );
 }

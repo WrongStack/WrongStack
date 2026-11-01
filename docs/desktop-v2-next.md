@@ -576,8 +576,10 @@ and `SessionUsage.tsx`.
   `tests/native-multi-window.mjs`, `--multi`): two project windows each hold a turn at the
   provider at the same time with two prompts queued behind it and their own unsent draft; one
   window reloads mid-turn and keeps its queue and draft; both queues then drain in order into
-  their own conversations and neither transcript shows the other project's prompts. Passed twice.
-  Still open under the same load: refinement, model switches and approvals.
+  their own conversations and neither transcript shows the other project's prompts. A model
+  switch in one project during the held turns reaches only that project's queued turns; both
+  windows then ask for approval at once and each answers only its own card (one allowed, one
+  denied); and a slow refinement in one window finishes while the other runs its own turn.
 - Window placement is remembered per main/project window (2026-10-29). Previews use a private profile
   and open developer tools only on request (2026-10-29). Finish migration and older-host
   compatibility. Keep existing live sessions on their original host during updates.
