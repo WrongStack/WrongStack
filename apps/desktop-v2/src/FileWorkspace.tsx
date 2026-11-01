@@ -70,7 +70,7 @@ import type { ReviewNote } from './review-notes-store';
 import { useReviewNotes } from './useReviewNotes';
 import { type ViewerFind, ViewerFindBar } from './ViewerFindBar';
 import './file-draft.css';
-import { saveFileVersion } from './file-save';
+import { saveFileVersion, showInFileManager } from './file-save';
 import { fileDraftStorage, request } from './platform';
 
 interface Document {
@@ -1749,6 +1749,17 @@ export function FileWorkspace({
           <button type="button" role="menuitem" onClick={() => startAction('rename', menu.path)}>
             <Pencil size={14} />
             Rename
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setMenu(null);
+              void showInFileManager(command, menu.path).catch((e: Error) => setError(e.message));
+            }}
+          >
+            <FolderOpen size={14} />
+            Show in file manager
           </button>
           <button type="button" role="menuitem" onClick={() => startAction('move', menu.path)}>
             <FolderOpen size={14} />

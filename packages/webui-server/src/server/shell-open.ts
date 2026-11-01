@@ -193,8 +193,11 @@ export async function handleShellOpen(
     };
 
     // Use the canonical path for all OS launches so a symlinked
-    // directory opens at its real location.
-    const target = realResolved;
+    // directory opens at its real location. A file opens its folder: handing
+    // the file itself to the file manager would open it in its default app.
+    const target = (await fs.stat(realResolved)).isDirectory()
+      ? realResolved
+      : path.dirname(realResolved);
 
     if (req.target === 'file-manager') {
       if (platform === 'win32') launch('explorer', [target]);

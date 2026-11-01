@@ -112,7 +112,14 @@ whose ownership and resolved target directory you have verified.
   templates previews one and adds it with `plan.template_use`.
 - Kanban: a card can be merged with other cards on its board (`kanban.task.merge`), and the board
   menu opens a contract map (`kanban.contract.*`: board enforcement, contracts per card with
-  state and waiver, relations, and a per-card start check).
+  state and waiver, relations, and a per-card start check). A card's inspector also edits its
+  goal metrics (`kanban.task.metric.add` / `.update`) and builds or shows its chain
+  (`kanban.task.chain` / `.chain.get`, optionally making each card wait for the previous one).
+  The board menu exports the board as a task graph JSON file (`kanban.taskgraph.export`,
+  read-only).
+- The file menu has "Show in file manager" (`shell.open`). The engine now opens a file's folder
+  instead of handing the file to the file manager, which opened it in its default app, and
+  `shell.open` replies carry the asking `requestId`.
 - Fallback settings suggest ready-made chains from reachable models (`fallback.suggest`,
   heuristic or re-ranked by the current model) and use one as the default chain or a profile.
 

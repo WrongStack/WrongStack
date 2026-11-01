@@ -2,7 +2,9 @@ import { ArrowRightLeft } from 'lucide-react';
 import { useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { KanbanTaskChain } from './KanbanTaskChain';
 import { KanbanTaskMerge } from './KanbanTaskMerge';
+import { KanbanTaskMetrics } from './KanbanTaskMetrics';
 
 /**
  * Copies or moves one card to another project board. The engine keeps the card's column; card
@@ -61,15 +63,33 @@ export function KanbanTaskTransfer({
     }
   };
   const merge = (
-    <KanbanTaskMerge
-      command={command}
-      boardId={boardId}
-      task={task}
-      tasks={tasks}
-      disabled={disabled}
-      // The card was merged into a new one: leave it the way a move does when sources close.
-      onDone={() => onDone(boardId, true)}
-    />
+    <>
+      <KanbanTaskMetrics
+        command={command}
+        boardId={boardId}
+        task={task}
+        disabled={disabled}
+        onDone={() => onDone(boardId, false)}
+      />
+      <KanbanTaskChain
+        command={command}
+        boardId={boardId}
+        task={task}
+        tasks={tasks}
+        disabled={disabled}
+        // Chaining keeps the card open; the board refresh shows the new dependencies.
+        onDone={() => onDone(boardId, false)}
+      />
+      <KanbanTaskMerge
+        command={command}
+        boardId={boardId}
+        task={task}
+        tasks={tasks}
+        disabled={disabled}
+        // The card was merged into a new one: leave it the way a move does when sources close.
+        onDone={() => onDone(boardId, true)}
+      />
+    </>
   );
   if (!targets.length) return merge;
   return (

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as path from 'node:path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockSpawn = vi.hoisted(() => vi.fn());
 const mockAccess = vi.hoisted(() => vi.fn());
 const mockRealpath = vi.hoisted(() => vi.fn());
+const mockStat = vi.hoisted(() => vi.fn());
 
 vi.mock('node:child_process', () => ({
   spawn: mockSpawn,
@@ -12,6 +13,7 @@ vi.mock('node:child_process', () => ({
 vi.mock('node:fs/promises', () => ({
   access: mockAccess,
   realpath: mockRealpath,
+  stat: mockStat,
 }));
 
 import { handleShellOpen } from '../src/server/shell-open.js';
@@ -25,9 +27,22 @@ describe('shell-open', () => {
     vi.clearAllMocks();
     // realpath returns the input by default (no symlinks in test paths)
     mockRealpath.mockImplementation((p: string) => Promise.resolve(p));
+    mockStat.mockResolvedValue({ isDirectory: () => true });
   });
 
   describe('handleShellOpen', () => {
+    it('opens the folder of a file rather than the file itself', async () => {
+      mockAccess.mockResolvedValue(undefined);
+      mockStat.mockResolvedValue({ isDirectory: () => false });
+      mockSpawn.mockReturnValue({ on: vi.fn().mockReturnThis(), unref: vi.fn() });
+      const file = path.join(projectsPath, 'src', 'a.ts');
+      const result = await handleShellOpen({ path: file, target: 'file-manager' }, logger as any, {
+        projectRoot: projectsPath,
+      });
+      expect(result.success).toBe(true);
+      expect(mockSpawn.mock.calls[0]?.[1]).toContain(path.dirname(file));
+    });
+
     it('opens file manager on Windows', async () => {
       mockAccess.mockResolvedValue(undefined);
       mockSpawn.mockReturnValue({ on: vi.fn().mockReturnThis(), unref: vi.fn() });

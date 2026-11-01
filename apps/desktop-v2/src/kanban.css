@@ -889,3 +889,12 @@
   color: var(--muted);
   margin: 6px 0 0;
 }
+.kanban-metric-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(70px, 1fr) minmax(70px, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+.kanban-metric-row small {
+  color: var(--muted);
+}

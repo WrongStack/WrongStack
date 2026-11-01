@@ -25,6 +25,8 @@ export async function handleShellGitRoute(
 ): Promise<boolean> {
   if (msg.type.startsWith('git.'))
     ws = correlatedReply(ws, msg.payload, [msg.type, 'git.action_result']).socket;
+  else if (msg.type === 'shell.open')
+    ws = correlatedReply(ws, msg.payload, ['key.operation_result']).socket;
   switch (msg.type) {
     case 'git.info':
       await handlers.gitInfo(ws);

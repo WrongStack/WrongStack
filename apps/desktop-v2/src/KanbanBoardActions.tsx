@@ -1,4 +1,4 @@
-import { Copy, History, MoreHorizontal, Network, Play, Trash2 } from 'lucide-react';
+import { Copy, Download, History, MoreHorizontal, Network, Play, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
@@ -9,6 +9,20 @@ import { Modal } from './Modal';
 import { recoveryDate } from './session-recovery-model';
 
 type Dialog = 'duplicate' | 'delete' | 'history' | 'run' | 'contracts' | null;
+
+/** Saves the board as a task graph JSON file (`kanban.taskgraph.export`; read-only). */
+async function exportTaskGraph(command: EngineCommand, boardId: string, title: string) {
+  const reply = await command('kanban.taskgraph.export', { boardId }, ['kanban.taskgraph.export']);
+  const graph = record(reply['data'])['taskGraph'];
+  if (!graph) throw Error('The engine did not return a task graph.');
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(
+    new Blob([JSON.stringify(graph, null, 2)], { type: 'application/json' }),
+  );
+  link.download = `${title.replace(/[^a-z0-9-]+/gi, '-') || 'board'}.taskgraph.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
 
 /** Run, duplicate, inspect the history of, or permanently delete the selected board. */
 export function KanbanBoardActions({
@@ -115,6 +129,18 @@ export function KanbanBoardActions({
           </button>
           <button
             type="button"
+            title="Cards, dependencies and status as a task graph JSON file; the board is not changed."
+            onClick={() => {
+              menu.current?.removeAttribute('open');
+              void exportTaskGraph(command, boardId, title).catch((failure: unknown) =>
+                setError(failure instanceof Error ? failure.message : String(failure)),
+              );
+            }}
+          >
+            <Download size={13} /> Export task graph
+          </button>
+          <button
+            type="button"
             className="danger"
             disabled={disabled}
             onClick={() => openDialog('delete')}
@@ -123,6 +149,11 @@ export function KanbanBoardActions({
           </button>
         </div>
       </details>
+      {!dialog && error && (
+        <p role="alert" className="session-error">
+          {error}
+        </p>
+      )}
       {dialog === 'contracts' && (
         <KanbanContractMap command={command} board={board} onClose={() => setDialog(null)} />
       )}

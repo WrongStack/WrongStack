@@ -48,3 +48,15 @@ export async function saveFileVersion(
     throw new Error('The saved file differs from your draft. Reload before continuing.');
   return { kind: 'saved' };
 }
+
+/**
+ * Opens a project path in the system file manager (`shell.open`); a file opens its folder. The
+ * engine keeps the path inside the project and asks for approval where the profile requires it.
+ */
+export async function showInFileManager(command: EngineCommand, path: string): Promise<void> {
+  try {
+    await command('shell.open', { path, target: 'file' }, ['key.operation_result']);
+  } catch (failure) {
+    throw Error(failure instanceof Error ? failure.message : String(failure));
+  }
+}
