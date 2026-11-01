@@ -126,7 +126,41 @@ Debug-mode orphans: the debug engine is `bun …/engine/main.ts`, and its comman
 contain the test data directory. Owned-process cleanup that matches only on the command line
 therefore misses the engine. The engine then keeps per-project daemons for temporary
 `wrongstack-desktop-v2-*` directories alive. To find leftovers, look for bun processes whose
-children name such a directory.
+children name such a directory. `native-smoke.mjs` itself does not leak this way: it ends the
+host's process tree through `endpoint.pid`. Three `--mcp` runs left no such process. The tour
+script, which stopped only the Tauri process, did leak.
+
+### Running an MCP tool in a conversation (2026-11-01)
+
+The composer's "MCP resources & prompts" dialog has a Tools button per connection. It lists the
+server's tools through `mcp.tools` (`MCPRegistry.describeTools`: honors `allowedTools`, starts
+nothing). The dialog builds a JSON input from the schema's required fields and sends
+`mcp.tool.call` with the conversation's session id.
+
+The engine (`packages/webui-server/src/server/mcp-tool-handlers.ts`, wired for the standalone
+engine and the CLI-hosted WebUI) runs the call through the conversation agent's own gate,
+`ctx.nestedToolCall`. That gate applies validation, hooks, permission policy, the approval card
+and the session journal; there is no direct path to the server.
+
+- It refuses while a turn runs, for a tool the conversation cannot reach, and for input that is
+  not an object.
+- It refreshes the conversation's tool surface first, because the surface is otherwise only
+  refreshed when a turn starts.
+- In token-saving mode it calls through `mcp_use`.
+- The result is added to the conversation as an untrusted, user-side note. The model sees it on
+  the next turn and a resumed session keeps it.
+- The reply carries the note, so the desktop shows it in the transcript at once. The dialog
+  closes before the call starts, so it never covers an approval; the outcome appears as a
+  composer notice.
+
+The WebUI has the same calls as `/mcp tools <server>` and `/mcp call <server> <tool> [JSON]`.
+
+Native proof is `tests/native-mcp-tool.mjs` (`--mcp` scope). It checks:
+
+- the input check;
+- one `tools/call` reaching the fixture server;
+- the note in the transcript;
+- the next provider request carrying it.
 
 ### Context price tiers
 
@@ -437,8 +471,11 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
 - MCP still needs advanced policy administration and native OAuth acceptance against a real
   authorization server (per-key secret environment and header editing and OAuth sign-in/out
   exist, 2026-10-30), broader
-  task lifecycle stress, PDF preview (raster and audio previews and binary save exist, 2026-10-29; PDF stays save-only under the window CSP), deep catalogs and explicit tool
-  invocation UX. Preserve session task identity/isolation/cancellation and question routing.
+  task lifecycle stress, PDF preview (raster and audio previews and binary save exist, 2026-10-29; PDF stays save-only under the window CSP) and deep catalogs.
+  Preserve session task identity/isolation/cancellation and question routing.
+  A user can now run a connection's tool as a conversation step (2026-11-01, see "Running an
+  MCP tool in a conversation" above); the approval card was not exercised natively, because the
+  harness profile allowed the call without one.
 - Session processes need stress proof (engine-reported exits, batch termination and
   a recently-ended list exist, 2026-10-29; printed local URLs open as previews). Browser
   selection, preview controls, watcher and batch-process integration remain incomplete.
