@@ -476,10 +476,7 @@ describe('WrongMemoryPort mapping', () => {
     expect(port.getCapability({ id: 'other' } as never)).toBeUndefined();
     expect(service?.withTraceId('t1')).toBe(port.getCapability(SAGE_SERVICE_CAPABILITY));
 
-    for (const run of [
-      () => service!.verify(),
-      () => service!.findMemoriesForFile('a.ts'),
-    ]) {
+    for (const run of [() => service!.verify()]) {
       await expect(run()).rejects.toBeInstanceOf(WrongMemoryNotImplementedError);
     }
     expect(surface?.verify).toBeUndefined();

@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit fb8719b,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 11e3771,
 // file packages/client-ts/src/framing.ts. Do not edit here; update upstream and re-vendor.
 /**
  * Newline-delimited JSON framing (architecture §9): one compact JSON value

@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit fb8719b,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 11e3771,
 // file packages/client-ts/src/client.ts. Do not edit here; update upstream and re-vendor.
 /**
  * WrongMemory IPC client for Bun/Node: Windows named pipe, newline-delimited

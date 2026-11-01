@@ -143,6 +143,29 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     expect(await port.list('user-memory')).toEqual([]);
   });
 
+  it('findMemoriesForFile groups file and symbol matches', async () => {
+    const service = getSageService(port)!;
+    const fileNote = await service.rememberSage({
+      text: 'The handler module owns request routing',
+      anchors: [{ type: 'file', path: 'src/lib.rs' }],
+    });
+    const symbolNote = await service.rememberSage({
+      text: 'handler() must stay allocation free',
+      kind: 'symbol_note',
+      anchors: [{ type: 'symbol', path: 'src/lib.rs', symbol: 'handler' }],
+    });
+    const res = await service.findMemoriesForFile('src/lib.rs');
+    expect(res.filePath).toBe('src/lib.rs');
+    expect(res.primaryMatches.map((m) => m.memory.id)).toContain(fileNote.id);
+    expect(res.symbolMatches.map((m) => [m.memory.id, m.matchedVia])).toContainEqual([
+      symbolNote.id,
+      'anchor_symbol',
+    ]);
+    await expect(service.findMemoriesForFile('../escape.rs')).rejects.toMatchObject({
+      code: 'INVALID_REQUEST',
+    });
+  });
+
   it('serves legacy MemoryStore reads from SAGE', async () => {
     await port.remember('Release builds use cargo build --locked', 'project-memory', {
       type: 'convention',

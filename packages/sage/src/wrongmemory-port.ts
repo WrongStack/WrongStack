@@ -62,6 +62,8 @@ import { readAllSqliteMemory, readSqliteMemory } from './sqlite-store-legacy-bri
 import type {
   CandidateDecision,
   CreateCandidateInput,
+  FindMemoriesForFileOptions,
+  FindMemoriesForFileResponse,
   ListSagePageOptions,
   ListSagePageResult,
   MemoryCandidate,
@@ -647,6 +649,29 @@ export class WrongMemoryPort implements MemoryPort {
     return result.memories;
   }
 
+  /**
+   * `memory.forFile`: the daemon resolves the path against the project root
+   * (symlink escapes rejected) and applies the session rule to memories,
+   * supersession heads and review hints.
+   */
+  async findMemoriesForFile(
+    filePath: string,
+    options: FindMemoriesForFileOptions = {},
+  ): Promise<FindMemoriesForFileResponse> {
+    return this.scoped<FindMemoriesForFileResponse>(
+      METHODS.MEMORY_FOR_FILE,
+      compact({
+        path: filePath,
+        lineStart: options.lineStart,
+        lineEnd: options.lineEnd,
+        includeSuperseded: options.includeSuperseded,
+        includeDeleted: options.includeDeleted,
+        limit: options.limit,
+      }),
+      this.session(options.sessionId),
+    );
+  }
+
   async graphFor(query: string, maxDepth?: number, limit?: number): Promise<MemoryGraphEdge[]> {
     const view = await this.scoped<WireGraphView>(
       METHODS.MEMORY_GRAPH,
@@ -986,7 +1011,7 @@ export class WrongMemoryPort implements MemoryPort {
     deleteSage: (id, reason, options) => this.deleteSage(id, reason, options),
     recoverSage: (id, reason) => this.recoverSage(id, reason),
     backfillRecoverable: (options) => this.backfillRecoverable(options),
-    findMemoriesForFile: () => this.notImplemented('findMemoriesForFile'),
+    findMemoriesForFile: (filePath, options) => this.findMemoriesForFile(filePath, options),
     getSage: (id) => this.getSage(id),
     listSagePage: (options) => this.listSagePage(options),
   };
