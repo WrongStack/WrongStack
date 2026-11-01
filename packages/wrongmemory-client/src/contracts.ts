@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit df80641,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 7f35326,
 // file packages/client-ts/src/contracts.ts. Do not edit here; update upstream and re-vendor.
 /**
  * Wire contracts mirrored from `crates/wrongmemory-contracts` (lib.rs and
@@ -37,6 +37,7 @@ export const ERROR_CODES = [
   'SHUTTING_DOWN',
   'DEADLINE_EXCEEDED',
   'STORE_UNAVAILABLE',
+  'SEMANTIC_UNAVAILABLE',
   'INTERNAL',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -103,6 +104,8 @@ export const METHODS = {
   JOBS_GET: 'jobs.get',
   JOBS_CANCEL: 'jobs.cancel',
   EVENTS_SINCE: 'events.since',
+  SEMANTIC_STATUS: 'semantic.status',
+  SEMANTIC_CONFIGURE: 'semantic.configure',
 } as const;
 export type Method = (typeof METHODS)[keyof typeof METHODS];
 
@@ -393,6 +396,12 @@ export interface SearchParams {
   limit?: number;
   kinds?: string[];
   statuses?: string[];
+  /** Semantic channel: 'lexical' (default), 'auto' or 'required'. One fusion owner per request. */
+  semantic?: 'lexical' | 'auto' | 'required';
+}
+
+export interface SemanticConfigureParams {
+  provider: string;
 }
 
 export interface ForPathParams {
