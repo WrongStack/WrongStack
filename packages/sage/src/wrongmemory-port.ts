@@ -1059,6 +1059,8 @@ export class WrongMemoryPort implements MemoryPort {
     deleteSage: (id, reason, options) => this.deleteSage(id, reason, options),
     recoverSage: (id, reason) => this.recoverSage(id, reason),
     backfillRecoverable: (options) => this.backfillRecoverable(options),
+    retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
+      this.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
     findMemoriesForFile: (filePath, options) => this.findMemoriesForFile(filePath, options),
     getSage: (id) => this.getSage(id),
     listSagePage: (options) => this.listSagePage(options),

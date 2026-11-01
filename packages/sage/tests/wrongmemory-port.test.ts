@@ -498,6 +498,7 @@ describe('WrongMemoryPort mapping', () => {
     expect(typeof service?.verify).toBe('function');
     expect(typeof getSageRetrieval(port)?.verifyForPaths).toBe('function');
     expect(typeof getSageRetrieval(port)?.retrieveForAudience).toBe('function');
+    expect(typeof service?.retrieveForAudience).toBe('function');
     expect(typeof surface?.readAudit).toBe('function');
     expect(typeof surface?.doctor).toBe('function');
     expect(typeof surface?.importLegacy).toBe('function');
