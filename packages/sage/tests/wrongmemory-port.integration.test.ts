@@ -16,6 +16,7 @@ import {
   getSageService,
   getSageSurface,
 } from '../src/memory-port.js';
+import { createSagePathRemapMiddleware } from '../src/middleware/path-remap.js';
 import { InvalidSearchCursorError } from '../src/service-contract.js';
 import { WrongMemoryPort } from '../src/wrongmemory-port.js';
 
@@ -285,6 +286,30 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     expect(status.scheduled).toBe(true);
     expect(status.intervalMs).toBeGreaterThan(0);
     expect(typeof status.nextRunAt).toBe('string');
+  });
+
+  it('path-remap hook moves anchors through the daemon after a git mv (WM-404)', async () => {
+    const service = getSageService(port)!;
+    const note = await service.rememberSage({
+      text: 'remap-source holds the retry policy',
+      anchors: [{ type: 'file', path: 'src/remap-source.rs' }],
+    });
+    const mw = createSagePathRemapMiddleware({ memory: port, maxPerHour: 50 });
+    await mw.handler(
+      {
+        toolUse: {
+          id: 't',
+          name: 'bash',
+          input: { command: 'git mv src/remap-source.rs src/remap-target.rs' },
+        },
+        result: { content: '', is_error: false },
+        ctx: { projectRoot: proj, cwd: proj },
+      } as never,
+      async (p) => p,
+    );
+    const after = await service.getSage(note.id);
+    expect(after?.anchors?.map((a) => a.path)).toEqual(['src/remap-target.rs']);
+    expect(after?.revision).toBeGreaterThan(note.revision ?? 0);
   });
 
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
