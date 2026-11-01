@@ -46,6 +46,7 @@ import {
   sageToLegacyScope,
   toLegacyEntry,
 } from './legacy-memory-conversion.js';
+import type { SageMaintenanceStatus } from './memory-doctor-types.js';
 import type { SageRetrievalCapability } from './memory-port.js';
 import type { VectorAugmentHit } from './retrieval/vector-augment.js';
 import type {
@@ -915,6 +916,32 @@ export class WrongMemoryPort implements MemoryPort {
     });
   }
 
+  /**
+   * Daemon-owned maintenance. `schedule` hands the host's hygiene options to
+   * the daemon's durable scheduler (`maintenance.configure`, curator action),
+   * which keeps running hygiene on its own cadence after this host exits; the
+   * daemon is the only scheduler, so nothing is scheduled in-process.
+   * `status` maps `maintenance.status` onto the SAGE shape.
+   */
+  async maintenance(
+    action: 'schedule' | 'status',
+    options?: SageHygieneOptions,
+  ): Promise<SageMaintenanceStatus> {
+    if (action === 'schedule') {
+      await this.scoped(
+        METHODS.MAINTENANCE_CONFIGURE,
+        { options: pick(options ?? {}, [...HYGIENE_KEYS]), enabled: true },
+        this.session(undefined),
+      );
+    }
+    const wire = await this.scoped<WireMaintenanceStatus>(
+      METHODS.MAINTENANCE_STATUS,
+      {},
+      this.session(undefined),
+    );
+    return toMaintenanceStatus(wire);
+  }
+
   // ─── Capabilities ──────────────────────────────────────────────────
 
   private readonly retrievalCapability: SageRetrievalCapability = {
@@ -958,6 +985,7 @@ export class WrongMemoryPort implements MemoryPort {
     recoverSage: (id, reason) => this.recoverSage(id, reason),
     backfillRecoverable: (options) => this.backfillRecoverable(options),
     importLegacy: (files) => this.importLegacyFiles(files),
+    maintenance: (action, options) => this.maintenance(action, options),
   };
 
   private readonly serviceCapability: SageServiceLike = {
@@ -1242,4 +1270,45 @@ export async function startWrongMemoryDaemon(
     'UNAVAILABLE',
     `daemon did not become ready: ${last instanceof Error ? last.message : String(last)}`,
   );
+}
+
+interface WireMaintenanceStatus {
+  schedule?: {
+    enabled: boolean;
+    cadenceMs: number;
+    nextDueMs: number;
+    lastRunMs?: number | null;
+  } | null;
+  recentJobs?: Array<{
+    state: string;
+    startedAtMs?: number | null;
+    finishedAtMs?: number | null;
+    result?: unknown;
+    error?: { code?: string; message?: string } | null;
+  }>;
+}
+
+/** `maintenance.status` (newest job first) onto {@link SageMaintenanceStatus}. */
+function toMaintenanceStatus(wire: WireMaintenanceStatus): SageMaintenanceStatus {
+  const schedule = wire.schedule ?? undefined;
+  const jobs = wire.recentJobs ?? [];
+  const last = jobs.find((j) => j.state === 'succeeded' || j.state === 'failed');
+  const iso = (ms: number) => new Date(ms).toISOString();
+  return {
+    owner: 'daemon',
+    scheduled: schedule?.enabled === true,
+    intervalMs: schedule?.cadenceMs ?? 0,
+    running: jobs.some((j) => j.state === 'running'),
+    ...(schedule?.lastRunMs ? { lastRunAt: iso(schedule.lastRunMs) } : {}),
+    ...(last?.startedAtMs && last.finishedAtMs
+      ? { lastDurationMs: last.finishedAtMs - last.startedAtMs }
+      : {}),
+    ...(last?.state === 'failed'
+      ? { lastError: last.error?.message ?? last.error?.code ?? 'hygiene failed' }
+      : {}),
+    ...(last?.state === 'succeeded' && last.result
+      ? { lastReport: last.result as SageMaintenanceStatus['lastReport'] }
+      : {}),
+    ...(schedule?.enabled ? { nextRunAt: iso(schedule.nextDueMs) } : {}),
+  };
 }

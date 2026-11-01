@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T15:45:22.724Z",
+  "generatedAt": "2026-11-01T16:18:16.590Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 47,
     "sourceFiles": 5569,
     "testFiles": 4851,
-    "sourceLines": 1222510,
+    "sourceLines": 1222579,
     "workspaceEdges": 234,
-    "moduleEdges": 16708,
+    "moduleEdges": 16709,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -32300,8 +32300,8 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1246,
-      "relativeImports": 9
+      "lines": 1315,
+      "relativeImports": 10
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
@@ -32517,8 +32517,8 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1246,
-      "relativeImports": 9
+      "lines": 1315,
+      "relativeImports": 10
     },
     {
       "file": "packages/vibeui/src/components/workspace.tsx",

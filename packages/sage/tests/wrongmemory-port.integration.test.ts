@@ -273,6 +273,20 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     }
   });
 
+  it('maintenance schedule hands hygiene to the daemon scheduler (WM-404)', async () => {
+    const surface = getSageSurface(port)!;
+    const before = await surface.maintenance!('status');
+    expect(before.owner).toBe('daemon');
+    const status = await surface.maintenance!('schedule', {
+      retentionDays: 30,
+      bogus: 1,
+    } as never);
+    expect(status.owner).toBe('daemon');
+    expect(status.scheduled).toBe(true);
+    expect(status.intervalMs).toBeGreaterThan(0);
+    expect(typeof status.nextRunAt).toBe('string');
+  });
+
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
     const service = getSageService(port)!;
     for (const word of ['alpha', 'bravo', 'charlie']) {

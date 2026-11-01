@@ -531,6 +531,48 @@ describe('WrongMemoryPort mapping', () => {
     );
   });
 
+  it('maps daemon maintenance onto the SAGE maintenance status', async () => {
+    const { client, port } = setup((m) =>
+      m === 'maintenance.status'
+        ? {
+            schedule: {
+              enabled: true,
+              cadenceMs: 3_600_000,
+              nextDueMs: Date.UTC(2026, 10, 1, 12),
+              lastRunMs: Date.UTC(2026, 10, 1, 11),
+            },
+            recentJobs: [
+              { state: 'running' },
+              {
+                state: 'failed',
+                startedAtMs: 1_000,
+                finishedAtMs: 1_250,
+                error: { code: 'DISK_FULL', message: 'database or disk is full' },
+              },
+            ],
+          }
+        : undefined,
+    );
+    const surface = getSageSurface(port)!;
+    const status = await surface.maintenance!('schedule', { retentionDays: 7, bogus: 1 } as never);
+    expect(client.last('maintenance.configure').params).toEqual({
+      options: { retentionDays: 7 },
+      enabled: true,
+    });
+    expect(status).toEqual({
+      owner: 'daemon',
+      scheduled: true,
+      intervalMs: 3_600_000,
+      running: true,
+      lastRunAt: '2026-11-01T11:00:00.000Z',
+      lastDurationMs: 250,
+      lastError: 'database or disk is full',
+      nextRunAt: '2026-11-01T12:00:00.000Z',
+    });
+    await surface.maintenance!('status');
+    expect(client.calls.filter((c) => c.method === 'maintenance.configure')).toHaveLength(1);
+  });
+
   it('forwards legacy Markdown import to memory.importLegacy', async () => {
     const { client, port } = setup((m) =>
       m === 'memory.importLegacy' ? { imported: 2, skipped: 1, files: 1 } : undefined,
