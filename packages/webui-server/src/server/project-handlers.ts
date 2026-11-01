@@ -10,6 +10,7 @@ import type { ProjectRouteHandlers } from './project-routes.js';
 import { loadManifest, touchProjectInManifest } from './projects-manifest.js';
 import type { SessionIdentityTarget } from './standalone-session-identity.js';
 import type { ConnectedClient } from './types.js';
+import { profileUsageSummary } from './usage-summary.js';
 import {
   validateProjectsAddPayload,
   validateProjectsSelectPayload,
@@ -83,10 +84,22 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
   };
 
   return {
-    listProjects: async (ws) => {
+    listProjects: async (ws, msg) => {
       try {
         const manifest = await loadManifest(ctx.globalConfigPath);
-        sendTo(ws, { type: 'projects.list', payload: { projects: manifest.projects } });
+        const usage = (msg?.payload as { usageSummary?: unknown } | undefined)?.usageSummary;
+        sendTo(ws, {
+          type: 'projects.list',
+          payload: {
+            projects: manifest.projects,
+            // Recorded tokens across every project in the profile, read on request.
+            ...(usage === true
+              ? {
+                  usageSummary: await profileUsageSummary(manifest.projects, ctx.wpaths.globalRoot),
+                }
+              : {}),
+          },
+        });
       } catch (error) {
         sendTo(ws, {
           type: 'projects.list',

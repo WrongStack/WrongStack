@@ -339,3 +339,21 @@
   padding: 4px 8px 4px 0;
   border-bottom: 1px solid var(--border);
 }
+.project-usage-summary .usage-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 8px 0;
+  padding: 0;
+  border: 0;
+}
+.project-usage-summary .usage-scope legend {
+  padding: 0;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+.project-usage-summary .usage-scope label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

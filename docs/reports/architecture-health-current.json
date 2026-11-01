@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T09:26:20.460Z",
+  "generatedAt": "2026-11-01T10:46:32.797Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5561,
-    "testFiles": 4847,
-    "sourceLines": 1220048,
+    "sourceFiles": 5562,
+    "testFiles": 4848,
+    "sourceLines": 1220213,
     "workspaceEdges": 233,
-    "moduleEdges": 16680,
+    "moduleEdges": 16684,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -1156,8 +1156,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 327,
-      "testFiles": 362,
+      "sourceFiles": 328,
+      "testFiles": 363,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1192,7 +1192,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 362
+          "testFiles": 363
         }
       ]
     },
@@ -26252,6 +26252,12 @@
       },
       {
         "file": "packages/webui-server/tests/profile-identity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/profile-usage-summary.test.ts",
         "projects": [
           "root-node"
         ]

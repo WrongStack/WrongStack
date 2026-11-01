@@ -185,6 +185,13 @@ export async function exerciseNativeProjectHistory({
   await screen.getByRole('button', { name: 'Summarize recorded usage', exact: true }).click();
   await screen.getByRole('table', { name: 'Recorded tokens by model', exact: true }).waitFor();
   assert.equal(/\$|USD/.test(await screen.locator('.project-usage-summary').innerText()), false);
+  // The same totals across every project in the profile, with each project's own total.
+  await screen.getByRole('radio', { name: 'All projects in this profile', exact: true }).check();
+  await screen.getByRole('button', { name: 'Summarize recorded usage', exact: true }).click();
+  await screen
+    .getByRole('table', { name: 'Recorded tokens by project', exact: true })
+    .getByRole('cell', { name: project.name, exact: true })
+    .waitFor();
   await screen.getByRole('button', { name: `Open history ${id}`, exact: true }).click();
   let transcript = page.getByRole('region', { name: 'Recorded session transcript' });
   await transcript.getByText('Recorded opening prompt.', { exact: false }).first().waitFor();

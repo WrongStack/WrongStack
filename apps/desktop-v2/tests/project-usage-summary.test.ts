@@ -20,6 +20,23 @@ it('reads the engine usage summary and drops malformed rows', () => {
     capped: false,
     byModel: [{ provider: 'p', model: 'm', sessions: 2, tokenTotal: 900 }],
   });
+  // The profile scope lists each project, keeping one that could not be read with its reason.
+  expect(
+    readUsageSummary({
+      sessions: 1,
+      sessionsWithTokens: 1,
+      tokenTotal: 5,
+      byModel: [],
+      projects: [
+        { name: 'A', root: '/a', tokenTotal: 5 },
+        { name: 'B', root: '/b', error: 'unreadable' },
+        { name: 'C' },
+      ],
+    })?.projects,
+  ).toEqual([
+    { name: 'A', root: '/a', tokenTotal: 5 },
+    { name: 'B', root: '/b', tokenTotal: null, error: 'unreadable' },
+  ]);
   // Older engines send no summary.
   expect(readUsageSummary(undefined)).toBeNull();
   expect(readUsageSummary({ sessions: -1, sessionsWithTokens: 0, tokenTotal: 0 })).toBeNull();
