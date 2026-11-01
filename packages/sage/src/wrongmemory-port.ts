@@ -64,6 +64,7 @@ import type {
   CreateCandidateInput,
   FindMemoriesForFileOptions,
   FindMemoriesForFileResponse,
+  LegacyImportResult,
   ListSagePageOptions,
   ListSagePageResult,
   MemoryCandidate,
@@ -705,6 +706,22 @@ export class WrongMemoryPort implements MemoryPort {
     return result.results;
   }
 
+  /**
+   * `memory.importLegacy`: the daemon reads the named legacy Markdown notes
+   * (relative to the project root, or absolute inside it) and imports their
+   * bullet lines as project memories. Curator action. Only regular
+   * `.md`/`.markdown` files outside `.wrongstack/` and `.git/` are read.
+   */
+  async importLegacyFiles(files: string[]): Promise<LegacyImportResult> {
+    if (files.length === 0) return { imported: 0, skipped: 0, files: 0 };
+    return this.scoped<LegacyImportResult>(
+      METHODS.MEMORY_IMPORT_LEGACY,
+      { files: [...files] },
+      this.session(undefined),
+      { timeoutMs: SLOW_OP_TIMEOUT_MS },
+    );
+  }
+
   async graphFor(query: string, maxDepth?: number, limit?: number): Promise<MemoryGraphEdge[]> {
     const view = await this.scoped<WireGraphView>(
       METHODS.MEMORY_GRAPH,
@@ -940,6 +957,7 @@ export class WrongMemoryPort implements MemoryPort {
     graphFor: (query, maxDepth, limit) => this.graphFor(query, maxDepth, limit),
     recoverSage: (id, reason) => this.recoverSage(id, reason),
     backfillRecoverable: (options) => this.backfillRecoverable(options),
+    importLegacy: (files) => this.importLegacyFiles(files),
   };
 
   private readonly serviceCapability: SageServiceLike = {

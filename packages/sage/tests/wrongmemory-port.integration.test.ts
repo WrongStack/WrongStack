@@ -182,6 +182,25 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     expect((await service.getSage(m.id))?.status).toBe('stale');
   });
 
+  it('importLegacy imports Markdown bullets and refuses files outside the project', async () => {
+    const surface = getSageSurface(port)!;
+    writeFileSync(
+      path.join(proj, 'LEGACY.md'),
+      '# Notes\n- Release tags follow vX.Y.Z.\n- \nprose line\n',
+    );
+    writeFileSync(path.join(tmp, 'outside.md'), '- outside fact\n');
+    expect(await surface.importLegacy!(['LEGACY.md'])).toEqual({
+      imported: 1,
+      skipped: 1,
+      files: 1,
+    });
+    const hits = await getSageService(port)!.searchSage('release tags');
+    expect(hits.map((m) => m.text)).toContain('Release tags follow vX.Y.Z.');
+    await expect(surface.importLegacy!(['../outside.md'])).rejects.toMatchObject({
+      code: 'INVALID_REQUEST',
+    });
+  });
+
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
     const service = getSageService(port)!;
     for (const word of ['alpha', 'bravo', 'charlie']) {

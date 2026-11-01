@@ -499,6 +499,7 @@ describe('WrongMemoryPort mapping', () => {
     expect(typeof getSageRetrieval(port)?.verifyForPaths).toBe('function');
     expect(typeof getSageRetrieval(port)?.retrieveForAudience).toBe('function');
     expect(surface?.readAudit).toBeUndefined();
+    expect(typeof surface?.importLegacy).toBe('function');
     // Nothing above reached the daemon: no local fallback, no silent call.
     expect(client.calls).toHaveLength(0);
 
@@ -528,6 +529,21 @@ describe('WrongMemoryPort mapping', () => {
     await expect(port.unifiedSearchService({ text: 'q', cursor: 'c' })).rejects.toBeInstanceOf(
       InvalidSearchCursorError,
     );
+  });
+
+  it('forwards legacy Markdown import to memory.importLegacy', async () => {
+    const { client, port } = setup((m) =>
+      m === 'memory.importLegacy' ? { imported: 2, skipped: 1, files: 1 } : undefined,
+    );
+    const surface = getSageSurface(port)!;
+    expect(await surface.importLegacy!([])).toEqual({ imported: 0, skipped: 0, files: 0 });
+    expect(client.calls).toHaveLength(0);
+    expect(await surface.importLegacy!(['MEMORY.md'])).toEqual({
+      imported: 2,
+      skipped: 1,
+      files: 1,
+    });
+    expect(client.last('memory.importLegacy').params).toEqual({ files: ['MEMORY.md'] });
   });
 
   it('turns a dropped connection into WrongMemoryUnavailableError and reconnects next call', async () => {

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Vendored TypeScript client for the WrongMemory daemon (from WrongMemory packages/client-ts @ 6a8b794).",
+  "description": "Vendored TypeScript client for the WrongMemory daemon (from WrongMemory packages/client-ts @ d78559e).",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WrongStack/WrongStack.git",
@@ -11,7 +11,7 @@
   },
   "homepage": "https://github.com/WrongStack/WrongStack#readme",
   "bugs": "https://github.com/WrongStack/WrongStack/issues",
-  "author": "ECOSTACK TECHNOLOGY O\u00c3\u0153",
+  "author": "ECOSTACK TECHNOLOGY OÜ",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
