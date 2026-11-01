@@ -174,7 +174,7 @@ export function startCliHqConnection(options: CliHqConnectionOptions): CliHqConn
         // store; never open the SAGE project server alongside it.
         createWrongMemoryHqSyncConnection({
           projectRoot: options.projectRoot,
-          service: current.appConfig?.Sage?.service as never,
+          service: current.appConfig?.Sage?.service,
         }),
       );
     next.connect();

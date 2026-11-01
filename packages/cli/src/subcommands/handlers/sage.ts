@@ -185,6 +185,18 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
     );
   }
 
+  if (sub === 'mcp' || sub === 'connect') {
+    const { wrongMemorySageOwner, wrongMemoryBridgeHint } = await import('../../sage-mcp-owner.js');
+    const owner = await wrongMemorySageOwner(deps.projectRoot, deps.config.Sage?.service);
+    if (owner) {
+      const hint = wrongMemoryBridgeHint(owner, `wstack sage ${sub}`);
+      // `mcp`: stdout is the client's JSON-RPC channel, so diagnostics go to stderr.
+      if (sub === 'mcp') process.stderr.write(`${hint}\n`);
+      else out(hint);
+      return 3;
+    }
+  }
+
   if (sub === 'mcp') {
     // stdout is the JSON-RPC channel from here on; everything else goes to stderr.
     const client = optionValue(args, 'origin')?.trim() || 'mcp-client';

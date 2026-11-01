@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T17:17:43.758Z",
+  "generatedAt": "2026-11-01T17:20:44.495Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 47,
-    "sourceFiles": 5569,
-    "testFiles": 4851,
-    "sourceLines": 1222939,
+    "sourceFiles": 5570,
+    "testFiles": 4852,
+    "sourceLines": 1223013,
     "workspaceEdges": 234,
-    "moduleEdges": 16709,
+    "moduleEdges": 16711,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 617,
-      "testFiles": 677,
+      "sourceFiles": 618,
+      "testFiles": 678,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 677
+          "testFiles": 678
         }
       ]
     },
@@ -6062,6 +6062,12 @@
       },
       {
         "file": "packages/cli/tests/sage-hq-sync.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/sage-mcp-owner.test.ts",
         "projects": [
           "root-node"
         ]
