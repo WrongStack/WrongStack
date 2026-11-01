@@ -1,11 +1,17 @@
 use crate::{err, now, Result};
-use serde_json::json;
+use serde::Serialize;
 use std::{
     fs::{File, OpenOptions},
     io::Write,
     path::Path,
     sync::{Arc, Mutex},
 };
+
+#[derive(Serialize)]
+struct Chunk<'a> {
+    at: i64,
+    bytes: &'a [u8],
+}
 
 pub struct Transcript {
     raw: File,
@@ -27,8 +33,11 @@ impl Transcript {
     }
     pub fn append(&mut self, bytes: &[u8]) -> std::io::Result<()> {
         self.raw.write_all(bytes)?;
-        serde_json::to_writer(&mut self.jsonl, &json!({"at":now(),"bytes":bytes}))?;
-        self.jsonl.write_all(b"\n")
+        // One write per chunk: serializing straight into the unbuffered file issued a write
+        // call per JSON token, which capped a terminal at about 70 KB/s.
+        let mut line = serde_json::to_vec(&Chunk { at: now(), bytes })?;
+        line.push(b'\n');
+        self.jsonl.write_all(&line)
     }
 }
 
@@ -69,6 +78,24 @@ mod tests {
         assert_eq!(h.feed(b"before\x1b["), (b"before".to_vec(), false));
         assert_eq!(h.feed(b"6nready"), (b"ready".to_vec(), true));
         assert_eq!(h.feed(b"later\x1b[6n"), (b"later\x1b[6n".to_vec(), false));
+    }
+    #[test]
+    fn appends_one_json_line_per_chunk_with_the_bytes_as_numbers() {
+        let dir = std::env::temp_dir().join(format!("transcript-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let sink = Transcript::open(&dir, "t").unwrap();
+        sink.lock().unwrap().append(b"a\x1b").unwrap();
+        sink.lock().unwrap().append(b"b").unwrap();
+        let text = std::fs::read_to_string(dir.join("t.jsonl")).unwrap();
+        let lines: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0]["bytes"], serde_json::json!([97, 27]));
+        assert!(lines[0]["at"].as_i64().unwrap() > 0);
+        assert_eq!(std::fs::read(dir.join("t.bin")).unwrap(), b"a\x1bb");
+        let _ = std::fs::remove_dir_all(&dir);
     }
     #[test]
     fn ordinary_output_and_unrelated_escape_sequences_are_preserved() {

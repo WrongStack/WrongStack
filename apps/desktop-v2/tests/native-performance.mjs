@@ -190,6 +190,16 @@ export async function exerciseNativePerformance({
     await page.locator('.tree-session').filter({ hasText: title }).click();
     const composer = page.getByRole('textbox', { name: 'Message WrongStack', exact: true });
     await composer.waitFor({ timeout: 100000 });
+    // The window can render before the preference update lands; make direct send explicit so no
+    // refinement review sits in front of a timed turn.
+    const options = page
+      .locator('.composer-options')
+      .getByLabel('Composer options', { exact: true });
+    const refine = page.getByRole('checkbox', { name: 'Refine before sending', exact: true });
+    await options.click();
+    if (await refine.isChecked()) await refine.uncheck();
+    await waitFor(async () => !(await refine.isChecked()), `${title} direct send`);
+    await options.click();
     return { session, composer };
   };
   const keep = page.getByRole('button', { name: 'Keep original draft', exact: true });
@@ -450,9 +460,15 @@ export async function exerciseNativePerformance({
     const read = await rpc('session.read', { id, offset: Math.max(0, end - 4096) });
     return { end, text: Buffer.from(read.bytes).toString() };
   };
+  const linesPerTerminal = 30000;
+  // The text is built before the clock starts, so the measurement is the terminal path, not
+  // PowerShell's pipeline producing it.
   for (const terminal of terminals) {
     await rpc('session.resize', { id: terminal.id, rows: 40, cols: 120 });
-    await rpc('session.write', { id: terminal.id, data: "Write-Output ('PERF_'+'READY')\r" });
+    await rpc('session.write', {
+      id: terminal.id,
+      data: `$s = (1..${linesPerTerminal} | ForEach-Object { "perf line $_ of terminal ${terminal.index}" }) -join [char]10; Write-Output ('PERF_'+'READY')\r`,
+    });
   }
   await waitFor(
     async () =>
@@ -464,13 +480,12 @@ export async function exerciseNativePerformance({
   );
   await page.locator('.tree-session').filter({ hasText: 'Performance terminal 1' }).click();
   await page.locator('.xterm-screen').waitFor();
-  const linesPerTerminal = 30000;
   await startFrames(page);
   start = performance.now();
   for (const terminal of terminals)
     await rpc('session.write', {
       id: terminal.id,
-      data: `$s = (1..${linesPerTerminal} | ForEach-Object { "perf line $_ of terminal ${terminal.index}" }) -join [char]10; [Console]::Out.Write($s); Write-Output ('PERF_DONE_'+'${terminal.index}')\r`,
+      data: `[Console]::Out.Write($s); Write-Output ('PERF_DONE_'+'${terminal.index}')\r`,
     });
   const finished = {};
   await waitFor(

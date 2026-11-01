@@ -116,7 +116,9 @@ fn trusted(window: &WebviewWindow) -> Result<()> {
 #[tauri::command]
 async fn speech_status(window: WebviewWindow) -> Result<Value> {
     trusted(&window)?;
-    tauri::async_runtime::spawn_blocking(crate::speech::status).await.map_err(err)
+    tauri::async_runtime::spawn_blocking(crate::speech::status)
+        .await
+        .map_err(err)
 }
 /// Starts dictation; recognized text streams to `channel` until it is stopped or ends.
 #[tauri::command]

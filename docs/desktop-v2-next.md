@@ -595,13 +595,23 @@ and `SessionUsage.tsx`.
     400 ms (re-rendering the whole message's Markdown). Scrolling it never drops a frame
     (longest 23 ms).
   - File tree with 20,000 files: refresh 7.1 s, expanding a 1,000-file folder 0.18 s, 38 rows mounted.
-  - Three terminals each printing 30,000 lines at once finish in 10.8 s (8.3k lines/s combined,
-    bound by PowerShell output, not the window); the visible terminal never drops a frame
-    (longest 31 ms). This is still not the 3 × 10k lines/s benchmark.
+  - Three terminals each printing 30,000 lines at once (about 925 KB each, the text built before
+    the clock starts) finish in 6.4 s, 14k lines/s combined; the visible terminal never drops a
+    frame (longest 34 ms). Before the fix below it took 15 s (6k lines/s). This is still not the
+    3 × 10k lines/s benchmark: with the transcript journal switched off as an experiment it is
+    the same 6 s, so the rest is ConPTY and PowerShell's console writes, not the host.
+  - Fixed by the measurement: the host journaled each terminal output chunk by serializing JSON
+    straight into an unbuffered file, one write call per byte's token (about 70 KB/s per
+    terminal). It now serializes the chunk and writes it once (`src-tauri/src/transcript.rs`).
   - Memory at idle with two projects: 1.9 GB working set and 4.8 GB private (commit). The UI process
     uses 34 MB and WebView2 436 MB / 6 processes. The rest is the host's 12 Bun processes (two
     engines, eight `project-server.js`, two mailbox servers; 4.5 GB private). After the
-    workloads it is 3.2 GB working set. Reducing the per-project servers is open.
+    workloads it is 3.2 GB working set. Each project daemon alone holds 70–100 MB working set at
+    idle, of which about 57 MB is the bare Bun process. Its 190–370 MB private commit is Bun runtime
+    commit, not JS heap (5–8 MB); `--smol` and mimalloc options do not lower it. Only fewer
+    processes would. Merging a project's six daemons into one process was considered and not
+    taken (decision 2026-11-01): it rebuilds election, idle shutdown and auth across six packages
+    and the CLI/TUI.
   - Package: portable native executable 13 MB, bundled engine 139 MB, frontend assets 2.7 MB.
   - Not measured yet: a large model catalog (the harness profile offers only its fixture provider),
     large graphs and a release build.
