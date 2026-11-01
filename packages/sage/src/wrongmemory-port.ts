@@ -52,7 +52,11 @@ import type {
   SageMaintenanceStatus,
 } from './memory-doctor-types.js';
 import type { SageRetrievalCapability } from './memory-port.js';
-import type { VectorAugmentHit } from './retrieval/vector-augment.js';
+import {
+  augmentLexicalWithVectorRecall,
+  type VectorAugmentHit,
+} from './retrieval/vector-augment.js';
+import { isSageVisibleForSearch } from './retrieval/visibility.js';
 import type {
   SageServiceLike,
   SageSurface,
@@ -84,6 +88,7 @@ import type {
   SageForPathOptions,
   SageHygieneOptions,
   SageHygieneReport,
+  SageSearchOptions,
   SageStats,
   SageStatus,
   UpdateSageInput,
@@ -527,14 +532,14 @@ export class WrongMemoryPort implements MemoryPort {
 
   // ─── SAGE operations ───────────────────────────────────────────────
 
-  async searchSage(
-    query: string,
-    options: {
-      limit?: number | undefined;
-      includeStatuses?: SageStatus[] | undefined;
-      sessionId?: string | undefined;
-    } = {},
-  ): Promise<Sage[]> {
+  async searchSage(query: string, options: SageSearchOptions = {}): Promise<Sage[]> {
+    const lexical = await this.lexicalSearch(query, options);
+    if (!ownsFusion(options)) return lexical;
+    return (await this.fuse(query, lexical, options)).map((hit) => hit.memory);
+  }
+
+  /** The daemon's lexical channel under the caller's session. */
+  private async lexicalSearch(query: string, options: SageSearchOptions): Promise<Sage[]> {
     const result = await this.scoped<WireSearchResult>(
       METHODS.MEMORY_SEARCH,
       compact({ query, limit: options.limit, statuses: options.includeStatuses }),
@@ -543,12 +548,47 @@ export class WrongMemoryPort implements MemoryPort {
     return result.hits.map((hit) => hit.memory as unknown as Sage);
   }
 
+  /**
+   * Store-side fusion, as the in-process store does when the caller passes
+   * `vectorRecall` (`searchSqliteSageWithRecall`): one RRF over the daemon's
+   * lexical channel and the caller's vector channel. A vector-only id is
+   * resolved through the daemon under the caller's session (hidden and
+   * absent rows both come back as absent) and then must pass the lexical
+   * channel's visibility rules, so a stale or foreign semantic id never
+   * surfaces. Host-level wrappers skip their own fusion when the caller
+   * owns it, so nothing is fused twice.
+   */
+  private fuse(
+    query: string,
+    lexical: readonly Sage[],
+    options: SageSearchOptions,
+  ): Promise<VectorAugmentHit[]> {
+    return augmentLexicalWithVectorRecall(query, lexical, {
+      vectorRecall: options.vectorRecall,
+      vectorCandidateLimit: options.vectorCandidateLimit,
+      materializeVectorOnly: async (id) => {
+        const memory = await this.getSage(id, options.sessionId);
+        return memory && isSageVisibleForSearch(memory, options) ? memory : undefined;
+      },
+      ...(options.vectorRecallWeight !== undefined
+        ? { vectorWeight: options.vectorRecallWeight }
+        : {}),
+      ...(options.vectorRecallMinScore !== undefined
+        ? { threshold: options.vectorRecallMinScore }
+        : {}),
+      ...(options.vectorRecallThreshold !== undefined
+        ? { vectorOnlyThreshold: options.vectorRecallThreshold }
+        : {}),
+      ...(options.limit !== undefined ? { limit: options.limit } : {}),
+    });
+  }
+
   async searchSageWithBreakdown(
     query: string,
-    options: { limit?: number | undefined; sessionId?: string | undefined } = {},
+    options: SageSearchOptions = {},
   ): Promise<VectorAugmentHit[]> {
-    // Lexical-only: vector fusion ownership is not on the daemon yet.
-    const rows = await this.searchSage(query, options);
+    const rows = await this.lexicalSearch(query, options);
+    if (ownsFusion(options)) return this.fuse(query, rows, options);
     return rows.map((memory, index) => {
       const score = rankScore(index, rows.length);
       return {
@@ -1563,4 +1603,9 @@ export interface WireHqSageRecord {
   revision: number;
   changeId: string;
   memory: Record<string, unknown> | null;
+}
+
+/** The caller supplied a vector channel: fuse here (once), like the in-process store. */
+function ownsFusion(options: SageSearchOptions | undefined): boolean {
+  return typeof (options?.vectorRecall as { search?: unknown } | undefined)?.search === 'function';
 }

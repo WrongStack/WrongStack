@@ -534,6 +534,57 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     await new Promise((r) => child.on('exit', r));
   });
 
+  it('fuses a caller-owned vector channel once, never leaking hidden or stale ids (WM-405)', async () => {
+    const svc = getSageService(port)!;
+    const both = await svc.rememberSage({ text: 'Fusion: rollbacks use the blue-green switch' });
+    const vectorOnly = await svc.rememberSage({
+      text: 'Fusion: deploy reversal goes through traffic flip',
+    });
+    const foreign = await svc.rememberSage({
+      text: 'Fusion: another session private rollback idea',
+      scope: 'session',
+      ownerSessionId: 'fusion-other-session',
+    });
+    const gone = await svc.rememberSage({ text: 'Fusion: a rollback note that was deleted' });
+    await svc.deleteSage(gone.id, 'obsolete', { force: true });
+    const calls: unknown[] = [];
+    const vectorRecall = {
+      async search(_q: string, opts: unknown) {
+        calls.push(opts);
+        return [both, vectorOnly, foreign, gone, { id: 'mem_does_not_exist', text: 'x' }].map(
+          // The vector mirror links its rows to SAGE by `metadata.sageId`.
+          (m, i) => ({
+            id: `vec-${i}`,
+            score: 0.95 - i * 0.001,
+            text: m.text,
+            metadata: { sageId: m.id },
+          }),
+        );
+      },
+    };
+    const hits = await svc.searchSageWithBreakdown('rollbacks blue-green', {
+      vectorRecall,
+      sessionId: 'fusion-me',
+      limit: 10,
+    } as never);
+    const byId = new Map(hits.map((h) => [h.memory.id, h.source]));
+    expect(byId.get(both.id)).toBe('both');
+    expect(byId.get(vectorOnly.id)).toBe('vector');
+    expect(byId.has(foreign.id)).toBe(false);
+    expect(byId.has(gone.id)).toBe(false);
+    expect(byId.has('mem_does_not_exist')).toBe(false);
+    expect(calls).toHaveLength(1); // one fusion, one vector query
+    const flat = await svc.searchSage('rollbacks blue-green', {
+      vectorRecall,
+      sessionId: 'fusion-me',
+      limit: 10,
+    } as never);
+    expect(flat.map((m) => m.id)).toEqual(hits.map((h) => h.memory.id));
+    // Without a vector channel the port stays lexical (the host wrapper fuses).
+    const lexical = await svc.searchSageWithBreakdown('rollbacks blue-green', { limit: 10 });
+    expect(lexical.every((h) => h.source === 'lexical')).toBe(true);
+  });
+
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
     const service = getSageService(port)!;
     for (const word of ['alpha', 'bravo', 'charlie']) {
