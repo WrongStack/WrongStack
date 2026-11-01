@@ -169,6 +169,8 @@ The WebUI has the same calls as `/mcp tools <server>` and `/mcp call <server> <t
 Native proof is `tests/native-mcp-tool.mjs` (`--mcp` scope). It checks:
 
 - the input check;
+- the approval card: the `--mcp` harness profile runs without YOLO, the call waits at the card
+  with no server call, and runs on Allow once (2026-11-01);
 - one `tools/call` reaching the fixture server;
 - the note in the transcript;
 - the next provider request carrying it.
@@ -485,8 +487,7 @@ Entry points include `SessionComposer.tsx`, `SessionWorkbench.tsx`, `SessionMode
   task lifecycle stress, PDF preview (raster and audio previews and binary save exist, 2026-10-29; PDF stays save-only under the window CSP) and deep catalogs.
   Preserve session task identity/isolation/cancellation and question routing.
   A user can now run a connection's tool as a conversation step (2026-11-01, see "Running an
-  MCP tool in a conversation" above); the approval card was not exercised natively, because the
-  harness profile allowed the call without one.
+  MCP tool in a conversation" above), including the native approval card.
 - Session processes need stress proof (engine-reported exits, batch termination and
   a recently-ended list exist, 2026-10-29; printed local URLs open as previews). Browser
   selection, preview controls, watcher and batch-process integration remain incomplete.

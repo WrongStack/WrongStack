@@ -71,19 +71,20 @@ export async function exerciseNativeMcpTool({
     assert.equal(fixture.calls.filter((row) => row.method === 'tools/call').length, 0);
     await runner.getByRole('button', { name: 'Run in this conversation', exact: true }).click();
     await runner.waitFor({ state: 'detached' });
-    // The profile decides whether this tool needs an approval; answer it in the conversation.
+    // The harness profile runs without YOLO, so the call stops at the conversation's approval
+    // card and reaches the server only after it is allowed.
     const notice = page.locator('.composer-notice').filter({ hasText: 'native_note' });
     const allow = page.getByRole('button', { name: 'Allow once', exact: true });
-    await waitFor(
-      async () => {
-        if ((await notice.filter({ hasText: 'Its result is in the conversation' }).count()) > 0)
-          return true;
-        if ((await allow.count()) > 0) await allow.first().click();
-        return false;
-      },
-      'User-run MCP tool finished in the conversation',
-      90000,
-    );
+    await allow.first().waitFor({ timeout: 90000 });
+    await page.screenshot({
+      path: join(artifactDir, 'native-mcp-tool-approval.png'),
+      fullPage: true,
+    });
+    assert.equal(fixture.calls.filter((row) => row.method === 'tools/call').length, 0);
+    await allow.first().click();
+    await notice
+      .filter({ hasText: 'Its result is in the conversation' })
+      .waitFor({ timeout: 90000 });
     assert.equal(fixture.calls.filter((row) => row.method === 'tools/call').length, 1);
     await page
       .locator('.native-chat-messages')
@@ -109,7 +110,7 @@ export async function exerciseNativeMcpTool({
     );
     await profile('mcp.remove', {});
     console.log(
-      'PASS: native composer runs an MCP tool as a conversation step through its approval path; the server gets one call and the next request carries the result',
+      'PASS: native composer runs an MCP tool as a conversation step: it waits at the approval card with no server call, runs once on Allow once, and the next request carries the result',
     );
   } finally {
     await fixture.close();

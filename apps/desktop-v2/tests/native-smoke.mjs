@@ -255,7 +255,10 @@ await writeFile(
             yoloPlus: false,
             yoloConfirm: { 'bulk-delete': false, 'git-history': false },
           }
-        : {}),
+        : // A user-run MCP tool must stop at the conversation's approval card.
+          mcpOnly
+          ? { yolo: false, yoloPlus: false }
+          : {}),
     },
     ...(brainPolicyOnly
       ? {
