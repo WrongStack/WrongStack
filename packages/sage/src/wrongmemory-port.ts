@@ -51,11 +51,11 @@ import type { VectorAugmentHit } from './retrieval/vector-augment.js';
 import type {
   SageServiceLike,
   SageSurface,
-  SearchHit,
   SearchOptions,
   SearchQuery,
   SearchResult,
 } from './service-contract.js';
+import { InvalidSearchCursorError } from './service-contract.js';
 import { DEFAULT_PAGE_STATUSES, VALID_MEMORY_STATUSES } from './shared/pagination.js';
 import { importanceFromPriority } from './sqlite-store-legacy.js';
 import { readAllSqliteMemory, readSqliteMemory } from './sqlite-store-legacy-bridge.js';
@@ -864,98 +864,29 @@ export class WrongMemoryPort implements MemoryPort {
   }
 
   /**
-   * Approximation of the unified search service over `memory.search` /
-   * `memory.forPath` / `memory.listPage`. Cursor paging, audience, anchor and
-   * freshness filters have no daemon equivalent and are refused.
+   * `memory.unifiedSearch`: the daemon runs the baseline unified search
+   * (filters, audience/anchor post-filters, rankings, scores, suggestions,
+   * keyset cursors). The session comes from the bound connection; the
+   * caller's `includeAllSessions` cannot be honored and is not sent. An
+   * invalid or foreign cursor surfaces as {@link InvalidSearchCursorError}.
    */
   async unifiedSearchService(
     query: SearchQuery,
     options: SearchOptions = {},
   ): Promise<SearchResult> {
-    if (query.cursor !== undefined)
-      throw new WrongMemoryNotImplementedError('unifiedSearch.cursor');
-    if (
-      query.audience !== undefined ||
-      query.anchor !== undefined ||
-      query.freshness !== undefined
-    ) {
-      throw new WrongMemoryNotImplementedError('unifiedSearch.filters');
-    }
-    const limit = Math.min(DAEMON_MAX_PAGE, Math.max(1, options.limit ?? 20));
-    const session = this.session(options.sessionId);
-    const text = query.text?.trim();
-    let rows: Array<{ memory: Sage; reason: SearchHit['matchReason'] }>;
-    if (text) {
-      const r = await this.scoped<WireSearchResult>(
-        METHODS.MEMORY_SEARCH,
-        compact({ query: text, limit, kinds: query.kinds, statuses: options.includeStatuses }),
-        session,
+    const { sessionId, includeAllSessions: _ignored, ...rest } = options;
+    try {
+      return await this.scoped<SearchResult>(
+        METHODS.MEMORY_UNIFIED_SEARCH,
+        { query, options: rest },
+        this.session(sessionId),
       );
-      rows = r.hits.map((h) => ({ memory: h.memory as unknown as Sage, reason: 'lexical' }));
-    } else if (query.paths && query.paths.length > 0) {
-      rows = [];
-      for (const p of query.paths) {
-        const r = await this.scoped<WireSearchResult>(
-          METHODS.MEMORY_FOR_PATH,
-          { path: p, limit },
-          session,
-        );
-        for (const h of r.hits)
-          rows.push({ memory: h.memory as unknown as Sage, reason: `anchor:${p}` });
+    } catch (error) {
+      if (isWrongMemoryError(error, 'INVALID_REQUEST') && /search cursor/i.test(error.message)) {
+        throw new InvalidSearchCursorError(error.message);
       }
-    } else {
-      const page = await this.scoped<WirePage>(
-        METHODS.MEMORY_LIST_PAGE,
-        compact({
-          statuses: options.includeStatuses,
-          kind: query.kinds?.length === 1 ? query.kinds[0] : undefined,
-          limit,
-        }),
-        session,
-      );
-      rows = page.memories.map((memory) => ({ memory, reason: 'recency' as const }));
+      throw error;
     }
-    const seen = new Set<string>();
-    const kinds = query.kinds ? new Set<string>(query.kinds) : undefined;
-    const scopes = query.scopes ? new Set<string>(query.scopes) : undefined;
-    const filtered = rows.filter(({ memory }) => {
-      if (seen.has(memory.id)) return false;
-      seen.add(memory.id);
-      if (kinds && !kinds.has(memory.kind)) return false;
-      if (scopes && !scopes.has(memory.scope)) return false;
-      if (options.excludeSessionScoped && memory.scope === 'session') return false;
-      if (query.importanceAtLeast !== undefined && memory.importance < query.importanceAtLeast) {
-        return false;
-      }
-      return true;
-    });
-    const hits = filtered.slice(0, limit).map(({ memory, reason }, index, all) => ({
-      id: memory.id,
-      kind: memory.kind,
-      scope: memory.scope,
-      tags: memory.tags,
-      anchors: memory.anchors,
-      audience: memory.audience,
-      text: memory.text,
-      importance: memory.importance,
-      confidence: memory.confidence,
-      status: memory.status,
-      createdAt: memory.createdAt,
-      updatedAt: memory.updatedAt,
-      verifiedAt: memory.lastVerifiedAt,
-      score: rankScore(index, all.length),
-      bm25: null,
-      matchReason: reason,
-    }));
-    return {
-      hits,
-      suggestions: [],
-      totalCandidates: filtered.length,
-      rankingApplied: options.ranking ?? 'relevance',
-      queryEcho: compact({ text: query.text, paths: query.paths, kinds: query.kinds }),
-      nextCursor: null,
-      matchChannel: text ? 'fts' : 'plain',
-    };
   }
 
   private async runHygiene(

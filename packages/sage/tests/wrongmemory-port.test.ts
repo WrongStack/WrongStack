@@ -12,11 +12,11 @@ import {
   getSageSurface,
   SAGE_SERVICE_CAPABILITY,
 } from '../src/memory-port.js';
+import { InvalidSearchCursorError } from '../src/service-contract.js';
 import type { Sage } from '../src/types.js';
 import {
   probeWrongMemoryProject,
   type WrongMemoryClientLike,
-  WrongMemoryNotImplementedError,
   WrongMemoryPort,
   WrongMemoryProjectNotRegisteredError,
   WrongMemoryUnavailableError,
@@ -463,12 +463,30 @@ describe('WrongMemoryPort mapping', () => {
     expect(client.last('memory.hygiene').params).toEqual({ retentionDays: 30, verify: true });
   });
 
-  it('exposes all three capabilities and refuses unsupported operations with NOT_IMPLEMENTED', async () => {
-    const { client, port } = setup((m) =>
-      m === 'memory.search'
-        ? { hits: [{ memory: memory('a', { scope: 'user' }) }, { memory: memory('b') }] }
-        : undefined,
-    );
+  it('exposes all three capabilities and forwards unified search to the daemon', async () => {
+    const { client, port } = setup((m, p) => {
+      if (m === 'memory.search') {
+        return { hits: [{ memory: memory('a', { scope: 'user' }) }, { memory: memory('b') }] };
+      }
+      if (m === 'memory.unifiedSearch') {
+        if ((p.query as { cursor?: string }).cursor === 'c') {
+          throw new WrongMemoryError(
+            'INVALID_REQUEST',
+            'Invalid search cursor (malformed token) — restart the search from the first page.',
+          );
+        }
+        return {
+          hits: [{ id: 'b', matchReason: 'lexical' }],
+          suggestions: [],
+          totalCandidates: 1,
+          rankingApplied: 'hybrid',
+          queryEcho: {},
+          nextCursor: null,
+          matchChannel: 'fts',
+        };
+      }
+      return undefined;
+    });
     const service = getSageService(port);
     const surface = getSageSurface(port);
     expect(service).toBeDefined();
@@ -498,8 +516,17 @@ describe('WrongMemoryPort mapping', () => {
     );
     expect(unified.hits.map((h) => [h.id, h.matchReason])).toEqual([['b', 'lexical']]);
     expect(unified.matchChannel).toBe('fts');
+    expect(client.last('memory.unifiedSearch').params).toEqual({
+      query: { text: 'q', scopes: ['project'] },
+      options: { limit: 5 },
+    });
+    await port.unifiedSearchService({ text: 'q' }, { includeAllSessions: true, limit: 2 });
+    expect(client.last('memory.unifiedSearch').params).toEqual({
+      query: { text: 'q' },
+      options: { limit: 2 },
+    });
     await expect(port.unifiedSearchService({ text: 'q', cursor: 'c' })).rejects.toBeInstanceOf(
-      WrongMemoryNotImplementedError,
+      InvalidSearchCursorError,
     );
   });
 

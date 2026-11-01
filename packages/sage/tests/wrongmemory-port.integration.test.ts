@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { WrongMemoryClient } from '@wrongstack/wrongmemory-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getSageRetrieval, getSageService, getSageSurface } from '../src/memory-port.js';
+import { InvalidSearchCursorError } from '../src/service-contract.js';
 import { WrongMemoryPort } from '../src/wrongmemory-port.js';
 
 const exe = process.platform === 'win32' ? 'wrongmemoryd.exe' : 'wrongmemoryd';
@@ -179,6 +180,29 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     const stale = await getSageRetrieval(port)!.verifyForPaths!(['src/gone.rs']);
     expect(stale.map((r) => [r.memoryId, r.status])).toEqual([[m.id, 'stale']]);
     expect((await service.getSage(m.id))?.status).toBe('stale');
+  });
+
+  it('unifiedSearchService walks keyset cursors on the daemon', async () => {
+    const service = getSageService(port)!;
+    for (const word of ['alpha', 'bravo', 'charlie']) {
+      await service.rememberSage({ text: `Cursor walk fixture ${word} uses the walker module.` });
+    }
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 10; page++) {
+      const res = await service.unifiedSearchService(
+        { text: 'walker', ...(cursor ? { cursor } : {}) },
+        { limit: 1, ranking: 'recency' },
+      );
+      seen.push(...res.hits.map((h) => h.id));
+      cursor = res.nextCursor ?? undefined;
+      if (!cursor) break;
+    }
+    expect(new Set(seen).size).toBe(3);
+    expect(seen).toHaveLength(3);
+    await expect(
+      service.unifiedSearchService({ text: 'walker', cursor: 'bogus' }),
+    ).rejects.toBeInstanceOf(InvalidSearchCursorError);
   });
 
   it('serves legacy MemoryStore reads from SAGE', async () => {
