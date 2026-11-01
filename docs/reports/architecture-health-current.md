@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-01T08:33:51.921Z
+**Generated:** 2026-11-01T08:38:51.123Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 46 |
 | Production source files | 5561 |
-| Production source lines | 1219944 |
+| Production source lines | 1219953 |
 | Test files | 4847 |
 | Workspace dependency edges | 233 |
 | Relative module edges | 16680 |
@@ -33,6 +33,7 @@
 - apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change
+- packages/webui-server/src/server/mcp-tool-handlers.ts: "conversationNote" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 
 ## Workspace packages
 
@@ -154,7 +155,7 @@ None.
 
 ## Exports only tests reference
 
-- 1023 runtime exports are referenced by tests and by no other production file.
+- 1024 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

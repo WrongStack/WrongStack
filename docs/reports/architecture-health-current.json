@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T08:33:51.921Z",
+  "generatedAt": "2026-11-01T08:38:51.123Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 46,
     "sourceFiles": 5561,
     "testFiles": 4847,
-    "sourceLines": 1219944,
+    "sourceLines": 1219953,
     "workspaceEdges": 233,
     "moduleEdges": 16680,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 176,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1023
+    "testOnlyExports": 1024
   },
   "errors": [
     "apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change",
@@ -36,7 +36,8 @@
     "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change"
+    "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/mcp-tool-handlers.ts: \"conversationNote\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
   ],
   "packageCycles": [],
   "coreAreas": {
@@ -36140,6 +36141,10 @@
     {
       "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
       "name": "fleetBroadcastTargets"
+    },
+    {
+      "file": "packages/webui-server/src/server/mcp-tool-handlers.ts",
+      "name": "conversationNote"
     },
     {
       "file": "packages/webui-server/src/server/pref-config-write.ts",
