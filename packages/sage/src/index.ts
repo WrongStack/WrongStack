@@ -248,6 +248,12 @@ export {
 export type { UpdateSageInput } from './types.js';
 export * from './types.js';
 export {
+  prepareWrongMemoryMcpBridge,
+  WRONGMEMORY_MCP_GRANT_LABEL,
+  type WrongMemoryMcpLaunch,
+  wrongMemoryCliPath,
+} from './wrongmemory-mcp-bridge.js';
+export {
   probeWrongMemoryProject,
   resolveWrongMemoryProject,
   WRONGMEMORY_BACKEND,

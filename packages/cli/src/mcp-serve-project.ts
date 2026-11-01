@@ -108,11 +108,17 @@ export async function serveProjectMcp(
   }
   if (server === 'sage') {
     const projectRoot = optionValue(args, 'project-root') ?? deps.projectRoot;
-    const { wrongMemorySageOwner, wrongMemoryBridgeHint } = await import('./sage-mcp-owner.js');
+    const { wrongMemorySageOwner, serveWrongMemoryMcp } = await import('./sage-mcp-owner.js');
     const owner = await wrongMemorySageOwner(projectRoot, deps.config.Sage?.service);
     if (owner) {
-      process.stderr.write(`${wrongMemoryBridgeHint(owner, 'wstack mcp serve sage')}\n`);
-      return 3;
+      // One memory owner: WrongMemory's own bridge under a scoped grant.
+      return serveWrongMemoryMcp(
+        owner,
+        projectRoot,
+        deps.config.Sage?.service,
+        optionValue(args, 'origin')?.trim() || 'mcp-client',
+        'wstack mcp serve sage',
+      );
     }
     const { serveAttachedSageMcpStdio } = await import('@wrongstack/sage-mcp');
     await serveAttachedSageMcpStdio({

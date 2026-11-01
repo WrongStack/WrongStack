@@ -19,6 +19,7 @@ import {
 } from '../src/memory-port.js';
 import { createSagePathRemapMiddleware } from '../src/middleware/path-remap.js';
 import { InvalidSearchCursorError } from '../src/service-contract.js';
+import { prepareWrongMemoryMcpBridge } from '../src/wrongmemory-mcp-bridge.js';
 import { WrongMemoryPort } from '../src/wrongmemory-port.js';
 
 const exe = process.platform === 'win32' ? 'wrongmemoryd.exe' : 'wrongmemoryd';
@@ -446,6 +447,91 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     } finally {
       conn.close?.();
     }
+  });
+
+  it('serves the memory MCP endpoint through a scoped WrongMemory grant (WM-407)', async () => {
+    const service = {
+      mode: 'wrongmemory' as const,
+      dataRoot: home,
+      daemonPath: DAEMON,
+      startPolicy: 'never' as const,
+    };
+    const first = await prepareWrongMemoryMcpBridge({
+      projectRoot: proj,
+      service,
+      origin: 'acp-worker-1',
+    });
+    const again = await prepareWrongMemoryMcpBridge({
+      projectRoot: proj,
+      service,
+      origin: 'acp-worker-2',
+    });
+    expect(again.grantId).toBe(first.grantId);
+    expect(first.args).toEqual([
+      '--data-root',
+      expect.any(String),
+      'mcp',
+      '--project',
+      first.projectId,
+      '--grant',
+      first.grantId,
+      '--client',
+      'acp-worker-1',
+    ]);
+    // Only ids on the command line; the secret stays in the data root.
+    expect(first.args.join(' ')).not.toMatch(/[A-Za-z0-9_-]{40,}/);
+    expect(first.command.toLowerCase()).toContain('wrongmemory');
+
+    await getSageService(port)!.rememberSage({ text: 'Bridge: the worker can recall this' });
+    const { spawn } = await import('node:child_process');
+    const child = spawn(first.command, first.args, { stdio: ['pipe', 'pipe', 'ignore'] });
+    const lines: string[] = [];
+    let buf = '';
+    child.stdout.on('data', (d: Buffer) => {
+      buf += d.toString('utf8');
+      let i = buf.indexOf('\n');
+      while (i >= 0) {
+        lines.push(buf.slice(0, i));
+        buf = buf.slice(i + 1);
+        i = buf.indexOf('\n');
+      }
+    });
+    const send = (m: unknown) => child.stdin.write(`${JSON.stringify(m)}\n`);
+    const reply = async (id: number) => {
+      for (let t = 0; t < 200; t++) {
+        const hit = lines.map((l) => JSON.parse(l)).find((m) => m.id === id);
+        if (hit) return hit;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      throw new Error(`no reply ${id}`);
+    };
+    send({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 't', version: '0' },
+      },
+    });
+    await reply(1);
+    send({ jsonrpc: '2.0', method: 'notifications/initialized' });
+    send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    const tools = (await reply(2)).result.tools.map((t: { name: string }) => t.name);
+    expect(tools).toContain('memory_search');
+    expect(tools).not.toContain('memory_remember');
+    send({
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: { name: 'memory_search', arguments: { query: 'worker can recall' } },
+    });
+    const found = await reply(3);
+    expect(found.result.isError).toBe(false);
+    expect(JSON.stringify(found.result)).toContain('the worker can recall this');
+    child.stdin.end();
+    await new Promise((r) => child.on('exit', r));
   });
 
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {

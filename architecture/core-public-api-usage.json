@@ -169,9 +169,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 942,
+      "files": 943,
       "typeOnly": 69,
-      "runtimeOrMixed": 910
+      "runtimeOrMixed": 911
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -11603,6 +11603,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/sage-hq-sync.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/sage-mcp-owner.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

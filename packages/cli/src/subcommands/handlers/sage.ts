@@ -186,13 +186,23 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
   }
 
   if (sub === 'mcp' || sub === 'connect') {
-    const { wrongMemorySageOwner, wrongMemoryBridgeHint } = await import('../../sage-mcp-owner.js');
+    const { wrongMemorySageOwner, wrongMemoryBridgeHint, serveWrongMemoryMcp } = await import(
+      '../../sage-mcp-owner.js'
+    );
     const owner = await wrongMemorySageOwner(deps.projectRoot, deps.config.Sage?.service);
+    if (owner && sub === 'mcp') {
+      // stdout is the client's JSON-RPC channel: WrongMemory's bridge owns it.
+      return serveWrongMemoryMcp(
+        owner,
+        deps.projectRoot,
+        deps.config.Sage?.service,
+        optionValue(args, 'origin')?.trim() || 'mcp-client',
+        'wstack sage mcp',
+      );
+    }
     if (owner) {
-      const hint = wrongMemoryBridgeHint(owner, `wstack sage ${sub}`);
-      // `mcp`: stdout is the client's JSON-RPC channel, so diagnostics go to stderr.
-      if (sub === 'mcp') process.stderr.write(`${hint}\n`);
-      else out(hint);
+      // Client configuration belongs to WrongMemory's own `connect`.
+      out(wrongMemoryBridgeHint(owner, `wstack sage ${sub}`));
       return 3;
     }
   }
