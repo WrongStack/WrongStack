@@ -8,9 +8,14 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { WrongMemoryClient } from '@wrongstack/wrongmemory-client';
+import { METHODS, WrongMemoryClient } from '@wrongstack/wrongmemory-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getSageRetrieval, getSageService, getSageSurface } from '../src/memory-port.js';
+import {
+  createProjectSageMemoryPort,
+  getSageRetrieval,
+  getSageService,
+  getSageSurface,
+} from '../src/memory-port.js';
 import { InvalidSearchCursorError } from '../src/service-contract.js';
 import { WrongMemoryPort } from '../src/wrongmemory-port.js';
 
@@ -199,6 +204,73 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     await expect(surface.importLegacy!(['../outside.md'])).rejects.toMatchObject({
       code: 'INVALID_REQUEST',
     });
+  });
+
+  it('rollback: project.export hands the store to local SAGE and back (WM-409/601)', async () => {
+    const root = path.join(tmp, 'rollback');
+    mkdirSync(root, { recursive: true });
+    const remote = new WrongMemoryPort({
+      projectRoot: root,
+      dataRoot: home,
+      daemonPath: DAEMON,
+      startPolicy: 'on-demand',
+      timeoutMs: 15_000,
+    });
+    await remote.initialize();
+    const written = await getSageService(remote)!.rememberSage({
+      text: 'Rollback keeps the release-tag decision',
+    });
+    await remote.dispose();
+
+    const host = await WrongMemoryClient.connect({ dataRoot: home, clientName: 'rollback' });
+    try {
+      const { projects } = await host.call<{ projects: { projectId: string; root: string }[] }>(
+        METHODS.PROJECT_LIST,
+        {},
+      );
+      const project = projects.find((p) => path.resolve(p.root) === path.resolve(root));
+      expect(project).toBeDefined();
+      const exported = await host.call<{ detached: boolean; legacyStorePath: string }>(
+        METHODS.PROJECT_EXPORT,
+        { projectId: project!.projectId },
+      );
+      expect(exported.detached).toBe(true);
+      expect(existsSync(path.join(root, '.wrongstack', 'memories', 'sage.db'))).toBe(true);
+    } finally {
+      host.close();
+    }
+
+    // Local SAGE (the in-process store under vitest) opens the exported copy.
+    const local = createProjectSageMemoryPort({ projectRoot: root });
+    await local.initialize?.();
+    const localService = getSageService(local)!;
+    expect((await localService.getSage(written.id))?.text).toBe(
+      'Rollback keeps the release-tag decision',
+    );
+    const localWrite = await localService.rememberSage({
+      text: 'Local SAGE wrote this after the rollback',
+    });
+    await local.dispose?.();
+
+    // Back to WrongMemory: the root now adopts the same store, never a new
+    // empty managed one, and both records are there.
+    const again = new WrongMemoryPort({
+      projectRoot: root,
+      dataRoot: home,
+      daemonPath: DAEMON,
+      startPolicy: 'on-demand',
+      timeoutMs: 15_000,
+    });
+    await again.initialize();
+    try {
+      const service = getSageService(again)!;
+      expect((await service.getSage(written.id))?.id).toBe(written.id);
+      expect((await service.getSage(localWrite.id))?.text).toBe(
+        'Local SAGE wrote this after the rollback',
+      );
+    } finally {
+      await again.dispose();
+    }
   });
 
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {

@@ -1,4 +1,4 @@
-// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit d78559e,
+// Vendored from WrongMemory (https://github.com/WrongStack/wrongmemory) commit 1799ad0,
 // file packages/client-ts/src/contracts.ts. Do not edit here; update upstream and re-vendor.
 /**
  * Wire contracts mirrored from `crates/wrongmemory-contracts` (lib.rs and
@@ -57,6 +57,7 @@ export const METHODS = {
   PROJECT_LIST: 'project.list',
   PROJECT_GET: 'project.get',
   PROJECT_DETACH: 'project.detach',
+  PROJECT_EXPORT: 'project.export',
   GRANT_CREATE: 'grant.create',
   GRANT_LIST: 'grant.list',
   GRANT_REVOKE: 'grant.revoke',
