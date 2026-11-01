@@ -312,6 +312,18 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     expect(after?.revision).toBeGreaterThan(note.revision ?? 0);
   });
 
+  it('doctor and readAudit run on the daemon (WM-406)', async () => {
+    const surface = getSageSurface(port)!;
+    const report = await surface.doctor!();
+    expect(report.checks.map((c) => c.id)).toContain('fts-integrity');
+    expect(report.maintenance?.owner).toBe('daemon');
+    const fixed = await surface.doctor!({ fix: ['fts-rebuild'] });
+    expect(fixed.fixesApplied?.[0]).toMatchObject({ fix: 'fts-rebuild', changed: 1 });
+    const audit = await surface.readAudit!(1);
+    expect(audit).toHaveLength(1);
+    expect(audit[0]?.event).toBe('memory.doctor_fix');
+  });
+
   it('unifiedSearchService walks keyset cursors on the daemon', async () => {
     const service = getSageService(port)!;
     for (const word of ['alpha', 'bravo', 'charlie']) {

@@ -46,7 +46,11 @@ import {
   sageToLegacyScope,
   toLegacyEntry,
 } from './legacy-memory-conversion.js';
-import type { SageMaintenanceStatus } from './memory-doctor-types.js';
+import type {
+  SageDoctorOptions,
+  SageDoctorReport,
+  SageMaintenanceStatus,
+} from './memory-doctor-types.js';
 import type { SageRetrievalCapability } from './memory-port.js';
 import type { VectorAugmentHit } from './retrieval/vector-augment.js';
 import type {
@@ -74,6 +78,7 @@ import type {
   MemoryVerificationResult,
   RememberSageInput,
   Sage,
+  SageAuditRecord,
   SageBackfillOptions,
   SageBackfillReport,
   SageForPathOptions,
@@ -942,6 +947,36 @@ export class WrongMemoryPort implements MemoryPort {
     return toMaintenanceStatus(wire);
   }
 
+  /**
+   * `memory.doctor` (host-only on the daemon): the SAGE doctor report and
+   * its named repairs, plus the daemon scheduler's maintenance status, as
+   * the baseline project server reports it.
+   */
+  async doctor(options?: SageDoctorOptions): Promise<SageDoctorReport> {
+    const report = await this.scoped<SageDoctorReport>(
+      METHODS.MEMORY_DOCTOR,
+      compact({
+        fix: options?.fix ? [...options.fix] : undefined,
+        hygieneOptions: options?.hygieneOptions
+          ? pick(options.hygieneOptions, [...HYGIENE_KEYS])
+          : undefined,
+      }),
+      this.session(undefined),
+      { timeoutMs: SLOW_OP_TIMEOUT_MS },
+    );
+    return { ...report, maintenance: await this.maintenance('status') };
+  }
+
+  /** `memory.audit` (host-only): the most recent audit events, newest first. */
+  async readAudit(limit?: number): Promise<SageAuditRecord[]> {
+    const result = await this.scoped<{ records: SageAuditRecord[] }>(
+      METHODS.MEMORY_AUDIT,
+      compact({ limit }),
+      this.session(undefined),
+    );
+    return result.records;
+  }
+
   // ─── Capabilities ──────────────────────────────────────────────────
 
   private readonly retrievalCapability: SageRetrievalCapability = {
@@ -986,6 +1021,9 @@ export class WrongMemoryPort implements MemoryPort {
     backfillRecoverable: (options) => this.backfillRecoverable(options),
     importLegacy: (files) => this.importLegacyFiles(files),
     maintenance: (action, options) => this.maintenance(action, options),
+    doctor: (options) => this.doctor(options),
+    readAudit: (limit) => this.readAudit(limit),
+    findMemoriesForFile: (filePath, options) => this.findMemoriesForFile(filePath, options),
   };
 
   private readonly serviceCapability: SageServiceLike = {

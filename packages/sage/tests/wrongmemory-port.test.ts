@@ -498,7 +498,8 @@ describe('WrongMemoryPort mapping', () => {
     expect(typeof service?.verify).toBe('function');
     expect(typeof getSageRetrieval(port)?.verifyForPaths).toBe('function');
     expect(typeof getSageRetrieval(port)?.retrieveForAudience).toBe('function');
-    expect(surface?.readAudit).toBeUndefined();
+    expect(typeof surface?.readAudit).toBe('function');
+    expect(typeof surface?.doctor).toBe('function');
     expect(typeof surface?.importLegacy).toBe('function');
     // Nothing above reached the daemon: no local fallback, no silent call.
     expect(client.calls).toHaveLength(0);
@@ -571,6 +572,27 @@ describe('WrongMemoryPort mapping', () => {
     });
     await surface.maintenance!('status');
     expect(client.calls.filter((c) => c.method === 'maintenance.configure')).toHaveLength(1);
+  });
+
+  it('forwards doctor and readAudit and attaches maintenance status', async () => {
+    const { client, port } = setup((m) => {
+      if (m === 'memory.doctor') return { generatedAt: 't', metrics: { total: 1 }, checks: [] };
+      if (m === 'memory.audit') return { records: [{ schemaVersion: 1, event: 'e', at: 't' }] };
+      if (m === 'maintenance.status') return { schedule: null, recentJobs: [] };
+      return undefined;
+    });
+    const surface = getSageSurface(port)!;
+    const report = await surface.doctor!({
+      fix: ['dangling-edges'],
+      hygieneOptions: { retentionDays: 9, bogus: 1 } as never,
+    });
+    expect(client.last('memory.doctor').params).toEqual({
+      fix: ['dangling-edges'],
+      hygieneOptions: { retentionDays: 9 },
+    });
+    expect(report.maintenance).toMatchObject({ owner: 'daemon', scheduled: false });
+    expect(await surface.readAudit!(5)).toEqual([{ schemaVersion: 1, event: 'e', at: 't' }]);
+    expect(client.last('memory.audit').params).toEqual({ limit: 5 });
   });
 
   it('forwards legacy Markdown import to memory.importLegacy', async () => {
