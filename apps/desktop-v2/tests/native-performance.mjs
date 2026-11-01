@@ -269,7 +269,16 @@ export async function exerciseNativePerformance({
   const search = picker.getByRole('textbox', { name: 'Search session models' });
   await search.waitFor();
   const pickerOpen = since(start);
-  const models = picker.locator('button:has(> small)');
+  const models = picker.locator('.composer-model-list > button');
+  // The catalog loads after the dialog opens; count once it is listed.
+  await waitFor(
+    async () =>
+      (await models.count()) > 0 ||
+      (await picker.getByText('No available models match', { exact: false }).count()) > 0,
+    'Session model catalog listed',
+    60000,
+  );
+  const ownListedMs = since(start);
   const ownModels = await models.count();
   const providerSelect = picker.getByRole('combobox', { name: 'Session model provider' });
   const offered = await providerSelect
@@ -314,6 +323,7 @@ export async function exerciseNativePerformance({
   results.modelPicker = {
     openMs: pickerOpen,
     fixtureProviderModels: ownModels,
+    fixtureCatalogListedMs: ownListedMs,
     providersOffered: offered.length,
     largestCatalog: catalog,
   };

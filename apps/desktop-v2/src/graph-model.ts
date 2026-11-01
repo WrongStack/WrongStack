@@ -179,11 +179,17 @@ export function placeGraph(
       indegree = new Map(ordered.map((node) => [node.id, 0]));
     const edges = graph.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
     for (const edge of edges) indegree.set(edge.target, (indegree.get(edge.target) ?? 0) + 1);
+    const outgoing = new Map<string, VisualEdge[]>();
+    for (const edge of edges) {
+      const list = outgoing.get(edge.source);
+      if (list) list.push(edge);
+      else outgoing.set(edge.source, [edge]);
+    }
     const queue = ordered.filter((node) => indegree.get(node.id) === 0).map((node) => node.id);
     for (const id of queue) levels.set(id, 0);
     for (let index = 0; index < queue.length; index++) {
       const id = queue[index]!;
-      for (const edge of edges.filter((edge) => edge.source === id)) {
+      for (const edge of outgoing.get(id) ?? []) {
         levels.set(edge.target, Math.max(levels.get(edge.target) ?? 0, (levels.get(id) ?? 0) + 1));
         indegree.set(edge.target, (indegree.get(edge.target) ?? 1) - 1);
         if (indegree.get(edge.target) === 0) queue.push(edge.target);
@@ -216,11 +222,15 @@ export function placeGraph(
       };
     });
   }
+  // Lookups stay linear: a full-scope map can hold tens of thousands of nodes.
+  const groupIndexes = new Map(groups.map((group, index) => [group, index]));
+  const placedInGroup = new Map<string, number>();
   const nodes = ordered.map((node, index) => {
-    const groupIndex = groups.indexOf(node.group);
-    const peers = ordered.filter((peer) => peer.group === node.group);
-    const theta = peers.indexOf(node) * 2.399963;
-    const radius = 65 + Math.sqrt(peers.indexOf(node)) * 80;
+    const groupIndex = groupIndexes.get(node.group) ?? 0;
+    const peerIndex = placedInGroup.get(node.group) ?? 0;
+    placedInGroup.set(node.group, peerIndex + 1);
+    const theta = peerIndex * 2.399963;
+    const radius = 65 + Math.sqrt(peerIndex) * 80;
     const groupAngle = (groupIndex / Math.max(1, groups.length)) * Math.PI * 2;
     return {
       ...node,

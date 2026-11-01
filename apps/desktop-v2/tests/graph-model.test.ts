@@ -93,4 +93,31 @@ describe('project visual models', () => {
     expect(smart.edges).toEqual(graph.edges);
     expect(graphScope(graph, 'n199', [], null)).toBe(graph);
   });
+
+  it('lays out a 20,000-node full-scope map without quadratic work', () => {
+    const n = 20000;
+    const graph = {
+      nodes: Array.from({ length: n }, (_, i) => ({
+        id: `n${i}`,
+        label: `n${i}`,
+        detail: '',
+        group: `g${i % 20}`,
+        weight: 1,
+        data: {},
+      })),
+      // An import-like DAG: every edge points forward.
+      edges: Array.from({ length: n * 3 }, (_, i) => ({
+        source: `n${i % n}`,
+        target: `n${Math.min(n - 1, (i % n) + 1 + (i % 50))}`,
+        label: '',
+        weight: 1,
+      })),
+    };
+    // Quadratic placement took seconds here; linear placement takes tens of milliseconds.
+    for (const layout of ['clusters', 'layers'] as const) {
+      const start = performance.now();
+      expect(placeGraph(graph, layout)).toHaveLength(n);
+      expect(performance.now() - start).toBeLessThan(1000);
+    }
+  });
 });

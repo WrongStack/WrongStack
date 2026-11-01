@@ -613,8 +613,15 @@ and `SessionUsage.tsx`.
     taken (decision 2026-11-01): it rebuilds election, idle shutdown and auth across six packages
     and the CLI/TUI.
   - Package: portable native executable 13 MB, bundled engine 139 MB, frontend assets 2.7 MB.
-  - Not measured yet: a large model catalog (the harness profile offers only its fixture provider),
-    large graphs and a release build.
+  - Model picker: opens in 46 ms and lists the profile catalog in 0.7 s. The largest catalog
+    offered (OpenRouter, 377 models, of 236 providers) lists in 0.6 s and filters in 20 ms. A
+    custom provider shows only its configured models, so no larger catalog is reachable.
+  - Graphs draw at most 160 nodes unless the code atlas is switched to all nodes. Placing a full
+    map was quadratic: 20,000 nodes took 2.3 s (clusters) and 4.4 s (layers) on the UI thread.
+    Fixed by the measurement: it is linear now, 14 ms and 31 ms with identical coordinates
+    (`graph-model.ts`, regression test in `tests/graph-model.test.ts`). Drawing 20,000 nodes in
+    all-nodes mode is still that many DOM elements.
+  - Not measured yet: a release build.
 - Fixed by the measurement: the workspace checkpoint taken before every prompt (it reads and stores
   every changed and untracked file for rewind and fork) ran on the turn's critical path. It now
   captures in the background. The `checkpoint` marker keeps its place in the journal, the manifest
