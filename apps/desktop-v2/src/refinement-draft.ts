@@ -3,13 +3,22 @@ import type { FormDraftCodec } from './durable-form-draft';
 
 export type RefinementVariant = 'original' | 'refined' | 'english';
 
-/** A completed refinement waiting for review: the request, the reply and the reviewer's edits. */
+/**
+ * A refinement waiting for review: the request, the reply and the reviewer's edits. While the
+ * refiner is still working there is no reply yet (`result` null, `pending` set), so a restart
+ * can offer to run the same request again instead of losing it.
+ */
 export interface RefinementDraft {
   original: string;
   mode: SubmitMode;
   draftAtOpen: string;
   freshContext: boolean;
-  result: { refined: string; english?: string; refinedWith?: { provider: string; model: string } };
+  result: {
+    refined: string;
+    english?: string;
+    refinedWith?: { provider: string; model: string };
+  } | null;
+  pending?: true;
   variant: RefinementVariant;
   edited: string | null;
   savedAt: number;
@@ -42,8 +51,9 @@ export const refinementDraftCodec: FormDraftCodec<RefinementDraft> = {
   parse: (value) => {
     if (value === null) return null;
     const saved = value as Record<string, unknown>;
+    const pending = !!saved && typeof saved === 'object' && saved['pending'] === true;
     const result =
-      saved && typeof saved === 'object'
+      saved && typeof saved === 'object' && !(pending && saved['result'] === null)
         ? refinementDraftResult((saved['result'] ?? {}) as Record<string, unknown>)
         : null;
     if (
@@ -55,9 +65,9 @@ export const refinementDraftCodec: FormDraftCodec<RefinementDraft> = {
       !['btw', 'queue', 'steer'].includes(saved['mode'] as string) ||
       !text(saved['draftAtOpen']) ||
       typeof saved['freshContext'] !== 'boolean' ||
-      !result ||
+      (!result && !pending) ||
       !['original', 'refined', 'english'].includes(saved['variant'] as string) ||
-      (saved['variant'] === 'english' && !result.english) ||
+      (saved['variant'] === 'english' && !result?.english) ||
       !(saved['edited'] === null || text(saved['edited'])) ||
       typeof saved['savedAt'] !== 'number'
     )
@@ -68,6 +78,7 @@ export const refinementDraftCodec: FormDraftCodec<RefinementDraft> = {
       draftAtOpen: saved['draftAtOpen'] as string,
       freshContext: saved['freshContext'] as boolean,
       result,
+      ...(pending && !result ? { pending: true as const } : {}),
       variant: saved['variant'] as RefinementVariant,
       edited: saved['edited'] as string | null,
       savedAt: saved['savedAt'] as number,

@@ -159,6 +159,9 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
                 )
               ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
               : fixtureMarkdown;
+      // A refinement of a draft marked slow waits, so a test can restart the window meanwhile.
+      if (refiner && userTexts.some((text) => text.includes('[native-refine-slow]')))
+        await new Promise((resolve) => setTimeout(resolve, 8000));
       calls.push({
         path: request.url,
         authorized: request.headers.authorization === `Bearer ${fixtureKey}`,

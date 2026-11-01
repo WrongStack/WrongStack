@@ -35,13 +35,21 @@ export function PromptRefinement({
   onSend: (text: string, mode: SubmitMode) => Promise<void>;
   fileReferences?: readonly string[];
   attachments?: readonly ComposerAttachment[];
-  /** A completed review saved earlier; it is shown again without a new refiner request. */
+  /**
+   * A review saved earlier; one with a reply is shown again without a new refiner request, one
+   * still pending (interrupted by a restart) runs the request again.
+   */
   restored?: Pick<RefinementDraft, 'result' | 'variant' | 'edited'> | undefined;
-  /** Receives the reviewable state whenever the reply, chosen version or edits change. */
-  onReview?: ((review: Pick<RefinementDraft, 'result' | 'variant' | 'edited'>) => void) | undefined;
+  /**
+   * Receives the reviewable state whenever the reply, chosen version or edits change, and a
+   * pending state (no reply yet) when a first request starts.
+   */
+  onReview?:
+    | ((review: Pick<RefinementDraft, 'result' | 'variant' | 'edited' | 'pending'>) => void)
+    | undefined;
 }) {
   const [result, setResult] = useState<Record<string, unknown>>(restored?.result ?? {}),
-    [busy, setBusy] = useState(!restored),
+    [busy, setBusy] = useState(!restored?.result),
     [sending, setSending] = useState(false),
     [error, setError] = useState(''),
     [variant, setVariant] = useState<'original' | 'refined' | 'english'>(
@@ -65,6 +73,9 @@ export function PromptRefinement({
   ) => {
     const own = ++generation.current;
     setBusy(true);
+    // Recorded before the request, so a restart while waiting can offer to run it again.
+    if (!previous)
+      reviewRef.current?.({ result: null, variant: 'refined', edited: null, pending: true });
     setStopped(false);
     setError('');
     setFailure(null);
@@ -112,7 +123,7 @@ export function PromptRefinement({
     }
   };
   useEffect(() => {
-    if (!restored) void refine();
+    if (!restored?.result) void refine();
     return () => {
       generation.current++;
     };

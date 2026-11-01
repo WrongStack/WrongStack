@@ -56,4 +56,15 @@ describe('refinement review draft', () => {
         }),
       ).toThrow(/unsupported format/);
   });
+
+  it('keeps a request still waiting for the refiner as pending, without a reply', () => {
+    const pending = { ...draft, result: null, pending: true as const, edited: null };
+    expect(
+      refinementDraftCodec.parse(refinementDraftCodec.serialize(pending) as never),
+    ).toMatchObject({ result: null, pending: true });
+    // Without the pending mark a review must carry a reply.
+    expect(() =>
+      refinementDraftCodec.parse({ version: 1, ...draft, result: null } as never),
+    ).toThrow(/unsupported format/);
+  });
 });

@@ -510,6 +510,24 @@ export async function exerciseNativeComposer({
   );
   await idle();
   assert.equal(await composer().inputValue(), '');
+  // A request still waiting for the refiner survives a renderer reload as pending, and the
+  // composer offers to run it again; nothing reaches the conversation meanwhile.
+  await composer().fill('[native-refine-slow] Summarize the composer change.');
+  await (await options()).getByRole('button', { name: 'Refine this draft', exact: true }).click();
+  await waitFor(async () => (await storedReview()).value?.pending === true, 'Pending refinement');
+  await page.reload();
+  await composer().waitFor();
+  await page.getByText(/was interrupted before the refiner answered/).waitFor();
+  await page.getByRole('button', { name: 'Refine again', exact: true }).click();
+  refine = page.getByRole('dialog', { name: 'Refine your prompt' });
+  await waitFor(
+    async () => await refine.getByRole('button', { name: 'Refined', exact: true }).isEnabled(),
+    'Interrupted refinement runs again',
+    120000,
+  );
+  await refine.getByRole('button', { name: 'Keep original draft', exact: true }).click();
+  await waitFor(async () => (await storedReview()).value === null, 'Closed review leaves storage');
+  await composer().fill('');
   await (await options())
     .getByRole('checkbox', { name: 'Refine before sending', exact: true })
     .check();

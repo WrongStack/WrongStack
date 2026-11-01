@@ -145,6 +145,13 @@ document loads as `application/pdf`, and `--history` passed (its >1,000-record s
 out once under load and passed on the rerun). Not exercised natively: editor keys, task graph
 export and "Show in file manager" (unit-tested; the last two hand off to the OS).
 
+Interrupted refinement (2026-11-01): a refinement request is saved as pending before it is sent
+(`RefinementDraft.result` null, `pending: true`), so after a restart the composer says it was
+interrupted and offers "Refine again" or "Discard". A pending request never replaces a completed
+review saved earlier (`useRefinementDraft.save` returns false and the composer does not take
+ownership). Native proof in `native-composer.mjs`: the fixture holds a refinement marked
+`[native-refine-slow]`, the window reloads while it waits, and the request runs again.
+
 `bun run dev:web` currently fails in this checkout: `scripts/sync-brand.ts` regenerates
 `brand-tokens.css` from another session's unfinished `packages/webui/src/index.css`, which does
 not parse. The native runs used `bun --bun run vite --host 127.0.0.1` in `apps/desktop-v2`.

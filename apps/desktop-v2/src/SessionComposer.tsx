@@ -1027,8 +1027,7 @@ export function SessionComposer({
                 })
             )
               return;
-            refineOwnsSaved.current = true;
-            refineDraft.save({
+            const taken = refineDraft.save({
               original: refine.original,
               mode: refine.mode,
               draftAtOpen: refine.draftAtOpen,
@@ -1036,6 +1035,7 @@ export function SessionComposer({
               ...review,
               savedAt: Date.now(),
             });
+            if (taken) refineOwnsSaved.current = true;
           }}
           onClose={() => {
             if (refineOwnsSaved.current) refineDraft.clear();
