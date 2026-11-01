@@ -1,3 +1,4 @@
+import type { HqHostHealth } from './common-payloads.js';
 import type { HqEventEnvelope, HqProtocolVersion } from './envelope.js';
 import type { HqProjectIdentity, HqProjectStatus } from './project.js';
 import type { HqRedactionPolicy } from './tool.js';
@@ -41,6 +42,7 @@ export interface HqClientHelloPayload {
 
 export interface HqClientHeartbeatPayload {
   uptimeMs: number;
+  host?: HqHostHealth;
   activeSessionId?: string;
   activeRunId?: string;
   status: HqProjectStatus;

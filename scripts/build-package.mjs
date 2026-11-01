@@ -67,7 +67,7 @@ const coreEntries = entryMap([
   // The provider-neutral quota store. Its own entry for the same reason as
   // statusline: status surfaces read it without pulling in the `core` barrel.
   'src/quota/index.ts',
-  // Narrow, dependency-free entries so browser bundles (webui, webui-hq,
+  // Narrow, dependency-free entries so browser bundles (webui, hq-next,
   // vibeui) can import these helpers without dragging the `types` / `core`
   // barrels — those used to reach `types/mode-prompts.ts`, which reads
   // instruction files with `node:fs` at module scope and made Vite externalize

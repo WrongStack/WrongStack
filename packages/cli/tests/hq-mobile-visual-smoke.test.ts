@@ -8,10 +8,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_PROTOCOL_VERSION } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
-import { WebSocket } from '../src/ws-runtime.js';
 import type { RawData } from 'ws';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { resolveHqDistDir } from '../src/hq-static-serve.js';
+import { WebSocket } from '../src/ws-runtime.js';
 
 const E2E = process.env.WSTACK_E2E === '1';
 const PASSWORD = 'mobile-hq-password';
@@ -44,7 +44,7 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
   it('logs in with a password and delivers a live-console message', {
     timeout: 120_000,
   }, async () => {
-    expect(resolveHqDistDir(), 'webui-hq dist must be built').not.toBeNull();
+    expect(resolveHqDistDir(), 'hq-next dist must be built').not.toBeNull();
     const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wrongstack-hq-mobile-'));
     let handle: HqServerHandle | null = null;
     let socket: WebSocket | null = null;
@@ -295,20 +295,72 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
           },
         }),
       );
+      // The VPS reports its health: memory nearly exhausted.
+      socket.send(
+        JSON.stringify({
+          type: 'client.event',
+          event: {
+            id: 'mobile-heartbeat',
+            type: 'client.heartbeat',
+            schemaVersion: HQ_PROTOCOL_VERSION,
+            timestamp: now,
+            clientId,
+            projectId,
+            seq: 6,
+            payload: {
+              uptimeMs: 60_000,
+              status: 'idle',
+              host: {
+                platform: 'linux',
+                arch: 'arm64',
+                cpuCount: 2,
+                loadAvg1: 1.9,
+                memTotalBytes: 4 * 1024 ** 3,
+                memAvailableBytes: 100 * 1024 ** 2,
+                osUptimeSec: 86_400,
+                diskTotalBytes: 80 * 1024 ** 3,
+                diskFreeBytes: 40 * 1024 ** 3,
+                processRssBytes: 250 * 1024 ** 2,
+              },
+            },
+          },
+        }),
+      );
 
       const { chromium } = await import('@playwright/test');
       browser = await chromium.launch();
-      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      // axe needs a page that belongs to an explicit context.
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      const page = await context.newPage();
+      const { default: AxeBuilder } = await import('@axe-core/playwright');
+      const a11y: string[] = [];
+      const audit = async (name: string): Promise<void> => {
+        const result = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+          .analyze();
+        for (const violation of result.violations) {
+          const nodes = violation.nodes.slice(0, 3).map((node) => node.target.join(' '));
+          a11y.push(`${name}: ${violation.id} (${violation.impact}) ${nodes.join(', ')}`);
+        }
+      };
       const errors: string[] = [];
       page.on('console', (message) => {
         if (message.type() === 'error') errors.push(message.text());
       });
       page.on('pageerror', (error) => errors.push(String(error)));
 
-      await page.goto(`http://127.0.0.1:${handle.port}/mobile`);
+      await page.goto(`http://127.0.0.1:${handle.port}/mobile/`);
+      await page.locator('#hq-password-input').waitFor();
+      await audit('00-login');
       await page.locator('#hq-password-input').fill(PASSWORD);
       await page.getByRole('button', { name: 'Log in' }).click();
       await page.waitForSelector('[data-testid="hq-mobile"]');
+      const shots = path.join(os.tmpdir(), 'wrongstack-hq-mobile-smoke');
+      await fs.mkdir(shots, { recursive: true });
+      const shot = async (name: string): Promise<void> => {
+        await page.screenshot({ path: path.join(shots, `${name}.png`) });
+        await audit(name);
+      };
       const [manifestResponse, workerResponse] = await Promise.all([
         page.request.get(`http://127.0.0.1:${handle.port}/manifest.webmanifest`),
         page.request.get(`http://127.0.0.1:${handle.port}/mobile-sw.js`),
@@ -341,13 +393,20 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
       expect(await runCommandResponse.text()).toContain(
         'browser session lacks control.execute capability',
       );
-      await expect.poll(() => page.getByLabel('Mobile session').inputValue()).toBe(sessionId);
-      await expect.poll(() => page.getByText('Mobile HQ is online.').isVisible()).toBe(true);
-      await expect.poll(() => page.getByText('control', { exact: true }).isVisible()).toBe(true);
-
-      await page.getByLabel('Message Leader').fill('report current deployment status');
-      await page.getByRole('button', { name: 'Send message' }).click();
-      await expect.poll(() => page.getByRole('status').textContent()).toContain('steer queued');
+      // Chat: a fresh phone opens the first live conversation and steers it.
+      await page
+        .getByRole('navigation', { name: 'Sections' })
+        .getByRole('link', { name: 'Chat' })
+        .click();
+      await page.waitForURL(/\/mobile\/chat\/\?session=/);
+      expect(new URL(page.url()).searchParams.get('session')).toBe(sessionId);
+      await expect.poll(() => page.locator('main').textContent()).toContain('Mobile HQ is online.');
+      await shot('01-chat');
+      await page.getByLabel('Message Leader agent').fill('report current deployment status');
+      await page.getByRole('button', { name: 'Send', exact: true }).click();
+      await expect
+        .poll(() => page.getByRole('status').first().textContent())
+        .toContain('Queued for');
 
       const commandPromise = waitForCommand(socket);
       socket.send(
@@ -376,36 +435,94 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
         }),
       );
 
-      await page.getByTestId('mobile-pane').filter({ hasText: 'Inbox' }).click();
+      // Mail: the mailbox message is readable on the phone.
+      await page
+        .getByRole('navigation', { name: 'Sections' })
+        .getByRole('link', { name: /^Mail/ })
+        .click();
+      await page.waitForURL(/\/mobile\/mail\//);
       await expect
-        .poll(() => page.getByTestId('mobile-inbox').textContent())
+        .poll(() => page.locator('main').textContent())
         .toContain('Approve production rollout');
+      await page.locator('[data-mail="mobile-mail-1"]').click();
       await expect
-        .poll(() => page.getByTestId('mobile-inbox').textContent())
+        .poll(() => page.locator('main').textContent())
         .toContain('Deployment is waiting for operator approval.');
+      await shot('02-mail');
 
-      await page.getByTestId('mobile-pane').filter({ hasText: 'Attention' }).click();
+      // Now: the waiting agent is in the queue and opens its conversation.
+      await page
+        .getByRole('navigation', { name: 'Sections' })
+        .getByRole('link', { name: /^Now/ })
+        .click();
+      await page.waitForURL(/\/mobile\/(\?|$)/);
+      await shot('03-now');
+      // The phone keeps its own scope: narrowing it here leaves the desktop
+      // scope alone, and the queue badge still counts the whole fleet.
+      await page.getByTestId('scope-picker').click();
+      await page.getByRole('menuitem', { name: 'Mobile Project' }).click();
+      await expect.poll(() => page.getByRole('menu').count()).toBe(0);
       await expect
-        .poll(() => page.getByTestId('mobile-attention').textContent())
-        .toContain('reviewer · waiting_user');
-      await expect
-        .poll(() => page.getByTestId('mobile-attention').textContent())
-        .toContain('1 unread mailbox message');
-      await page.getByRole('button', { name: 'Open' }).click();
-      await expect.poll(() => page.getByLabel('Mobile agent').inputValue()).toBe('reviewer-1');
+        .poll(async () => page.getByTestId('scope-picker').textContent())
+        .toContain('Mobile Project');
+      await shot('03a-now-scoped');
+      const prefs = await page.evaluate(() =>
+        JSON.parse(window.localStorage.getItem('wrongstack.hq.local-prefs.v1') ?? '{}'),
+      );
+      expect(prefs.fleet).toMatchObject({ scope: 'all', phoneScope: 'project' });
+      await page.getByTestId('scope-picker').click();
+      await page.getByRole('menuitem', { name: 'Whole fleet' }).click();
+      await expect.poll(() => page.getByRole('menu').count()).toBe(0);
+      // A tap swaps the queue for the card (no stacked list pushing it off-screen);
+      // Back returns to the queue.
+      await page.locator('main button', { hasText: 'reviewer' }).first().click();
+      await expect.poll(() => page.locator('[data-item]').first().isVisible()).toBe(false);
+      await shot('03b-now-card');
+      await page.getByRole('button', { name: 'All items' }).click();
+      await expect.poll(() => page.locator('[data-item]').first().isVisible()).toBe(true);
+      await page.locator('main button', { hasText: 'reviewer' }).first().click();
+      await page.getByRole('button', { name: 'Open conversation' }).click();
+      await page.waitForURL(/\/mobile\/chat\//);
+      await expect.poll(() => new URL(page.url()).searchParams.get('agent')).toBe('reviewer-1');
 
-      await page.getByTestId('mobile-pane').filter({ hasText: 'Kanban' }).click();
+      // Fleet: the VPS is flagged short of memory; it opens in place with its reading.
+      await page
+        .getByRole('navigation', { name: 'Sections' })
+        .getByRole('link', { name: 'Fleet' })
+        .click();
+      await page.waitForURL(/\/mobile\/fleet\//);
+      const vps = page.locator('[data-mobile-machine="host:vps-mobile"]');
+      await vps.waitFor({ timeout: 10_000 });
+      expect(await page.getByTestId('mobile-fleet-headline').textContent()).toBe(
+        '1 of 1 machine online',
+      );
+      expect(await vps.textContent()).toContain('Short of memory');
+      await vps.click();
       await expect
-        .poll(() => page.getByTestId('mobile-kanban').textContent())
-        .toContain('Deploy production');
-      await page.getByRole('button', { name: /Deploy production in_progress/ }).click();
+        .poll(() => new URL(page.url()).searchParams.get('machine'))
+        .toBe('host:vps-mobile');
+      const detail = page.getByTestId('mobile-machine-detail');
+      expect(await detail.textContent()).toContain('VPS-MOBILE is short of memory');
+      expect(await detail.textContent()).toContain('load 1.90 on 2 cores');
+      await shot('03c-fleet');
+      // Its attention link opens the item's card in the installed app, not the desktop.
+      expect(
+        await detail.getByRole('link', { name: /short of memory/ }).getAttribute('href'),
+      ).toMatch(/^\/mobile\/\?item=host-memory/);
+
+      // Board: move, assign and (after confirming) dispatch from the phone.
+      await page
+        .getByRole('navigation', { name: 'Sections' })
+        .getByRole('link', { name: 'Board' })
+        .click();
+      await page.waitForURL(/\/mobile\/board\//);
+      await page.locator('[data-task="deploy-task"]').click();
+      await expect.poll(() => page.getByLabel('Move to stage').inputValue()).toBe('review');
+      await shot('04-board-task');
+      await page.getByRole('button', { name: 'Move', exact: true }).click();
       await expect
-        .poll(() => page.getByLabel('Kanban transition target').inputValue())
-        .toBe('review');
-      await page.getByRole('button', { name: 'Confirm transition' }).click();
-      await expect
-        .poll(() => page.getByTestId('mobile-kanban').textContent())
-        .toContain('Transition queued');
+        .poll(() => page.getByRole('status').first().textContent())
+        .toContain('Move queued');
       const kanbanCommandPromise = waitForCommand(socket);
       socket.send(
         JSON.stringify({
@@ -426,17 +543,13 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
         },
       });
 
-      await page.getByRole('button', { name: 'Assign Deploy production' }).click();
       await page
-        .getByLabel('Kanban assignment target')
+        .getByLabel('Assign to agent')
         .selectOption({ label: 'reviewer · VPS-MOBILE · waiting_user' });
+      await page.getByRole('button', { name: 'Assign', exact: true }).click();
       await expect
-        .poll(() => page.getByLabel('Kanban assignment target').inputValue())
-        .toContain('reviewer-1');
-      await page.getByRole('button', { name: 'Confirm assignment' }).click();
-      await expect
-        .poll(() => page.getByTestId('mobile-kanban').textContent())
-        .toContain('Assignment queued');
+        .poll(() => page.getByRole('status').first().textContent())
+        .toContain('Assign queued');
       const assignmentCommandPromise = waitForCommand(socket);
       socket.send(
         JSON.stringify({
@@ -454,18 +567,16 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
           boardId: 'mobile-board',
           taskId: 'deploy-task',
           agentId: 'reviewer-1',
+          assignee: 'reviewer',
         },
       });
 
-      await page.getByRole('button', { name: 'Dispatch Run migration checks' }).click();
+      await page.getByRole('button', { name: 'Close task' }).click();
+      await page.locator('[data-task="ready-task"]').click();
+      await page.getByRole('button', { name: /Start a worker/ }).click();
+      await page.getByRole('button', { name: 'Confirm: start worker' }).click();
       await expect
-        .poll(() =>
-          page.getByText('the Director will claim the ready card', { exact: false }).isVisible(),
-        )
-        .toBe(true);
-      await page.getByRole('button', { name: 'Confirm dispatch' }).click();
-      await expect
-        .poll(() => page.getByTestId('mobile-kanban').textContent())
+        .poll(() => page.getByRole('status').first().textContent())
         .toContain('Dispatch queued');
       const dispatchCommandPromise = waitForCommand(socket);
       socket.send(
@@ -486,6 +597,31 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
         390,
       );
       expect(errors).toEqual([]);
+      // The phone in the light theme: every tab, checked the same way.
+      await page.evaluate(() => {
+        const key = 'wrongstack.hq.local-prefs.v1';
+        const prefs = JSON.parse(window.localStorage.getItem(key) ?? '{}');
+        prefs.appearance = { ...(prefs.appearance ?? {}), theme: 'light' };
+        window.localStorage.setItem(key, JSON.stringify(prefs));
+      });
+      for (const route of [
+        '/mobile/',
+        '/mobile/chat/',
+        '/mobile/board/',
+        '/mobile/mail/',
+        '/mobile/fleet/',
+      ]) {
+        await page.goto(`http://127.0.0.1:${handle.port}${route}`);
+        await page.waitForSelector('[data-testid="hq-mobile"]');
+        await page.waitForLoadState('networkidle');
+        expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(
+          false,
+        );
+        await audit(`light${route.replaceAll('/', '-')}`);
+      }
+
+      await fs.writeFile(path.join(shots, 'a11y.txt'), a11y.join('\n'));
+      expect(a11y).toEqual([]);
     } finally {
       await browser?.close().catch(() => undefined);
       socket?.close();

@@ -1,0 +1,36 @@
+/* HQ design system. The tokens, resets and markdown prose come from the
+   existing HQ stylesheet so redesigned and not-yet-redesigned surfaces share
+   one palette while views move over one at a time. */
+@import "../hq/index.css";
+@import "../hq/syntax-highlight.css";
+
+/* Tailwind only scans this package by default; the hosted views live next door. */
+@source "../hq";
+
+/* Reading size for assistant prose in the redesigned transcript. Unlayered on
+   purpose: the reused `.markdown-body` rules live in `@layer components`. */
+.hq-prose .markdown-body {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+/* Transitional readability for the shared components under src/hq inside
+   the transcript (markdown code headers, diffs, tool output). They carry
+   10–11px utilities and uppercase micro-labels; Tailwind 4 places utilities
+   in the last cascade layer, so only unlayered rules can lift them. Delete
+   each line once the component it targets is rebuilt here. */
+.hq-transcript .text-\[10px\] {
+  font-size: 0.75rem;
+}
+.hq-transcript .text-\[11px\] {
+  font-size: 0.8125rem;
+}
+.hq-transcript .uppercase {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.hq-prose .markdown-body pre,
+.hq-prose .markdown-body :not(pre) > code,
+.hq-prose .markdown-body table {
+  font-size: 0.8125rem;
+}

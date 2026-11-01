@@ -1,4 +1,5 @@
 export type { HqClientConfig } from '@wrongstack/contracts/types/config';
+export * from './alert-budgets.js';
 export * from './alerts.js';
 export * from './alerts-config.js';
 export * from './approval-bridge.js';
@@ -13,7 +14,11 @@ export * from './cost-bridge.js';
 export * from './exposure.js';
 export * from './factory.js';
 export * from './fleet-bridge.js';
+export * from './host-health-verdict.js';
 export * from './mailbox-mapper.js';
+export * from './notifier.js';
+export * from './notify-config.js';
+export * from './notify-watchers.js';
 export * from './persistence.js';
 export * from './protocol.js';
 export * from './publisher.js';

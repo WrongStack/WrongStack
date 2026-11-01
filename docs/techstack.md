@@ -10,7 +10,7 @@ package and application. July registry comparisons are preserved in
 | Runtime and package manager | [`package.json`](../package.json), [`pnpm-workspace.yaml`](../pnpm-workspace.yaml) | Node floor, Bun pin, overrides and install policy |
 | TypeScript and build | [`scripts/build.mjs`](../scripts/build.mjs), [`scripts/build-package.mjs`](../scripts/build-package.mjs) | esbuild and declaration emit; `typescript5` is the legacy compiler-API alias |
 | Terminal | [`packages/tui/package.json`](../packages/tui/package.json) | React and Ink |
-| Browser apps | [`packages/webui/package.json`](../packages/webui/package.json), [`packages/webui-hq/package.json`](../packages/webui-hq/package.json) | React/Vite clients; `@wrongstack/webui-protocol` owns wire contracts |
+| Browser apps | [`packages/webui/package.json`](../packages/webui/package.json), [`packages/hq-next/package.json`](../packages/hq-next/package.json) | React clients (Vite WebUI, Next.js HQ); `@wrongstack/webui-protocol` owns wire contracts |
 | Browser server | [`packages/webui-server/package.json`](../packages/webui-server/package.json) | Node HTTP/WebSocket host over the common runtime |
 | Persistence | [`packages/persistence/package.json`](../packages/persistence/package.json) | SQLite/file primitives with domain-specific project owners |
 | Tests and checks | [`package.json`](../package.json) | Vitest, Playwright, TypeScript and Biome; separate coverage ratchets |

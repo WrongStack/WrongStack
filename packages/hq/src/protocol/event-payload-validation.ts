@@ -293,6 +293,32 @@ function isHqUsagePayload(x: unknown): x is HqUsagePayload {
   return !Array.isArray(x);
 }
 
+/** A finite, non-negative number a host can plausibly report. */
+function isHostFigure(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 2 ** 53;
+}
+
+function isHostLabel(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_.-]{1,32}$/.test(value);
+}
+
+function isHqHostHealth(x: unknown): boolean {
+  if (typeof x !== 'object' || x === null || Array.isArray(x)) return false;
+  const v = x as Record<string, unknown>;
+  return (
+    isHostLabel(v.platform) &&
+    isHostLabel(v.arch) &&
+    isHostFigure(v.cpuCount) &&
+    (v.loadAvg1 === undefined || isHostFigure(v.loadAvg1)) &&
+    isHostFigure(v.memTotalBytes) &&
+    isHostFigure(v.memAvailableBytes) &&
+    isHostFigure(v.osUptimeSec) &&
+    (v.diskTotalBytes === undefined || isHostFigure(v.diskTotalBytes)) &&
+    (v.diskFreeBytes === undefined || isHostFigure(v.diskFreeBytes)) &&
+    isHostFigure(v.processRssBytes)
+  );
+}
+
 function isHqClientHeartbeatPayload(x: unknown): x is HqClientHeartbeatPayload {
   if (typeof x !== 'object' || x === null || Array.isArray(x)) return false;
   const v = x as Record<string, unknown>;
@@ -306,7 +332,8 @@ function isHqClientHeartbeatPayload(x: unknown): x is HqClientHeartbeatPayload {
       v.status === 'stale' ||
       v.status === 'error') &&
     (v.activeSubagents === undefined || typeof v.activeSubagents === 'number') &&
-    (v.queuedTasks === undefined || typeof v.queuedTasks === 'number')
+    (v.queuedTasks === undefined || typeof v.queuedTasks === 'number') &&
+    (v.host === undefined || isHqHostHealth(v.host))
   );
 }
 

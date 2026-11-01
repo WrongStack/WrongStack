@@ -72,7 +72,7 @@ const ASSETS = {
   tools: ['package.json', 'dist/wasm'],
   bench: ['package.json', 'fixtures', 'subsets'],
   webui: ['package.json', 'dist'],
-  'webui-hq': ['package.json', 'dist'],
+  'hq-next': ['package.json', 'dist'],
   vibeui: ['package.json', 'dist'],
 };
 

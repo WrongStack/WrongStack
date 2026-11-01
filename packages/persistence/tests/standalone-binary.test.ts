@@ -128,8 +128,8 @@ describe('asset root resolution', () => {
     const assets = path.resolve('/tmp/wstack-runtime/1.0.0-abc');
     enterBinary(POSIX_ENTRY, assets);
     expect(standalonePackageDir('@wrongstack/core')).toBe(path.join(assets, 'core'));
-    expect(wrongstackPackageJsonPath('@wrongstack/webui-hq', () => 'unused')).toBe(
-      path.join(assets, 'webui-hq', 'package.json'),
+    expect(wrongstackPackageJsonPath('@wrongstack/hq-next', () => 'unused')).toBe(
+      path.join(assets, 'hq-next', 'package.json'),
     );
     const dir = moduleDirFor('file:///B:/%7EBUN/root/wstack.exe', '@wrongstack/core');
     expect(path.resolve(dir, '../instructions')).toBe(path.join(assets, 'core', 'instructions'));

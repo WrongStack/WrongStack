@@ -1,5 +1,5 @@
 import type { HqClientKind, HqClientRecord } from './client.js';
-import type { HqMachineRecord } from './common-payloads.js';
+import type { HqKnownMachine, HqMachineRecord } from './common-payloads.js';
 import type { HqFleetSummary } from './fleet.js';
 import type { HqMailboxSummary } from './mailbox.js';
 import type { HqMcpServerHealth } from './mcp.js';
@@ -150,6 +150,11 @@ export interface HqSessionSummary {
 
 export interface HqSnapshot {
   generatedAt: string;
+  /**
+   * The HQ server's own WrongStack version (additive). Lets the dashboard tell
+   * which connected clients run a different release than the hub.
+   */
+  hqVersion?: string;
   clients: readonly HqClientRecord[];
   projects: readonly HqProjectRecord[];
   sessions: readonly HqSessionSummary[];
@@ -157,6 +162,11 @@ export interface HqSnapshot {
   mailboxes: readonly HqMailboxSummary[];
   /** Physical machines aggregated from connected clients (optional, additive). */
   machines?: readonly HqMachineRecord[];
+  /**
+   * Machines HQ remembers that have no connected client right now, newest
+   * last-seen first (additive). Live machines are in `machines`.
+   */
+  offlineMachines?: readonly HqKnownMachine[];
   /** Live terminal sessions with their agents — the spine of the fleet tree. */
   liveSessions?: readonly HqSessionSnapshotPayload[];
   /** Latest operational health for each MCP server reported by any connected client. */

@@ -4,12 +4,20 @@ import * as HqServerAuthRef from '../../auth.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
 
 export function handleApiAuthSessions(
-  _req: http.IncomingMessage,
+  req: http.IncomingMessage,
   res: http.ServerResponse,
   mutableAuth: HqRouterMutableAuth,
   sessions: Map<string, HqSessionEntry>,
 ): void {
   const now = Date.now();
+  // Marks the requesting browser's own session, so the dashboard can say that
+  // revoking it signs this browser out. The id is read from the SIGNED cookie;
+  // an unsigned or forged value matches nothing.
+  const rawCookie = HqServerAuthRef.readHqSessionCookie(req.headers.cookie);
+  const currentId =
+    rawCookie !== undefined && mutableAuth.cookieSecret
+      ? HqServerAuthRef.parseHqSessionCookie(rawCookie, mutableAuth.cookieSecret)
+      : undefined;
   const list = [];
   for (const [id, session] of sessions) {
     if (session.pending2fa) continue;
@@ -21,6 +29,7 @@ export function handleApiAuthSessions(
       lastSeenAt: new Date(session.lastSeenAt).toISOString(),
       ageMinutes: Math.round((now - session.createdAt) / 60_000),
       idleMinutes: Math.round((now - session.lastSeenAt) / 60_000),
+      current: id === currentId,
     });
   }
   res.writeHead(200, { 'Content-Type': 'application/json' });

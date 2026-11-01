@@ -12,8 +12,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WebSocket } from '../src/ws-runtime.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
+import { WebSocket } from '../src/ws-runtime.js';
 
 let handle: HqServerHandle | null = null;
 let tempRoot: string;
@@ -41,7 +41,13 @@ afterEach(async () => {
   await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => undefined);
 });
 
-async function connect(clientId: string, machineId: string, pid: number): Promise<WebSocket> {
+async function connect(
+  clientId: string,
+  machineId: string,
+  pid: number,
+  projectId = 'proj',
+  hostname = `${machineId}.local`,
+): Promise<WebSocket> {
   const ws = new WebSocket(`ws://127.0.0.1:${handle!.port}/ws/client`);
   sockets.push(ws);
   await new Promise<void>((resolve, reject) => {
@@ -62,14 +68,14 @@ async function connect(clientId: string, machineId: string, pid: number): Promis
           clientId,
           kind: 'tui',
           machineId,
-          hostname: `${machineId}.local`,
+          hostname,
           pid,
           startedAt: new Date().toISOString(),
         },
         project: {
-          projectId: 'proj',
-          projectRoot: '/r/proj',
-          projectName: 'proj',
+          projectId,
+          projectRoot: `/r/${projectId}`,
+          projectName: projectId,
           machineId,
           workspaceKind: 'git',
         },
@@ -127,5 +133,34 @@ describe('GET /api/events filters', () => {
     const onB = await events('machineId=mach-b&limit=10');
     expect(onB.length).toBeGreaterThan(0);
     expect(new Set(onB.map((event) => event.clientId))).toEqual(new Set(['on-b']));
+  });
+
+  it('filters by projectId, the scope the dashboard narrows to', async () => {
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    await connect('alpha-client', 'mach-a', 11, 'alpha');
+    await connect('beta-client', 'mach-a', 22, 'beta');
+    await eventually(
+      () => events('type=client.hello&limit=10'),
+      (list) => list.length >= 2,
+    );
+
+    const beta = await events('projectId=beta&limit=10');
+    expect(beta.length).toBeGreaterThan(0);
+    expect(new Set(beta.map((event) => event.clientId))).toEqual(new Set(['beta-client']));
+  });
+
+  it('filters by machineKey, grouping every process of one computer', async () => {
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    // Older builds reported a per-process machineId; the hostname is shared.
+    await connect('proc-1', 'mid-proc-1', 11, 'proj', 'Shared-Box');
+    await connect('proc-2', 'mid-proc-2', 22, 'proj', 'shared-box');
+    await connect('elsewhere', 'mid-other', 33, 'proj', 'other-box');
+    await eventually(
+      () => events('type=client.hello&limit=10'),
+      (list) => list.length >= 3,
+    );
+
+    const shared = await events('machineKey=host%3Ashared-box&limit=10');
+    expect(new Set(shared.map((event) => event.clientId))).toEqual(new Set(['proc-1', 'proc-2']));
   });
 });

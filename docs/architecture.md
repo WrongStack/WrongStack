@@ -63,7 +63,7 @@ site. All current workspace packages share the version in the root
 | External integration | @wrongstack/mcp, @wrongstack/acp, @wrongstack/plug-lsp, @wrongstack/plugin-sdk, @wrongstack/plugins, @wrongstack/builtin-plugins, @wrongstack/telegram, @wrongstack/wrongtrace | MCP, Agent Client Protocol, LSP, bundled extensions, and Telegram bridge |
 | MCP products | codebase-index-mcp, kanban-mcp, mailbox-mcp, requirement-intake-mcp, sage-mcp | Capability-limited MCP facades over local domains |
 | Browser contracts | @wrongstack/webui-protocol, @wrongstack/client | Shared wire types/schema and browser client transport |
-| User surfaces | cli, tui, webui, webui-server, vibeui, webui-hq, hq | Terminal, full browser UI, focused browser coding workspace, HQ dashboard and control plane |
+| User surfaces | cli, tui, webui, webui-server, vibeui, hq-next, hq | Terminal, full browser UI, focused browser coding workspace, HQ dashboard and control plane |
 | Support | bench, security-scanner, wrongstack | Benchmarks, standalone scan surface, and the command shim |
 
 The package graph is a directed acyclic graph checked by
@@ -344,8 +344,8 @@ remains a client of the same mailbox and project services. SimpleUI
 ### HQ
 
 The CLI HQ server (packages/cli/src/hq-server.ts) is the cross-machine operator
-surface. @wrongstack/webui-hq is its offline-capable Vite/React dashboard; it
-consumes snapshot/event/alert/command-status frames over /ws/browser plus
+surface. @wrongstack/hq-next is its dashboard: a Next.js static export served
+offline from the CLI with a strict `script-src 'self'` CSP. It consumes snapshot/event/alert/command-status frames over /ws/browser plus
 authenticated HTTP routes. HQ aggregates health, fleet, mailbox, Kanban, cost,
 Brain, worktree, and alert views. It does not become the writer for a project's
 local SQLite stores.

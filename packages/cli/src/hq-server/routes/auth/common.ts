@@ -1,6 +1,6 @@
 import type * as http from 'node:http';
-import { type HqAuthFile, isLoopbackHost, mutateHqAuthFile } from '@wrongstack/hq';
 import { verifyTotpCounter } from '@wrongstack/core/security';
+import { type HqAuthFile, isLoopbackHost, mutateHqAuthFile } from '@wrongstack/hq';
 import { authenticateBrowserRequest, type HqBrowserAuthResult } from '../../auth.js';
 import type { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
@@ -87,6 +87,39 @@ export function callerCanAdministerAuth(auth: HqBrowserAuthResult): boolean {
   // old "password cookie means admin" shortcut.
   if (auth.capabilities === undefined) return true;
   return auth.capabilities.includes(HQ_AUTH_ADMIN_CAPABILITY);
+}
+
+/**
+ * The dashboard-only admin routes (notification channels, machine tokens,
+ * alert rules) need a real admin credential even when HQ runs in open mode:
+ * open mode means "no credentials configured", and a loopback bind reached
+ * through a tunnel or reverse proxy must not hand out client tokens or
+ * outbound webhooks to whoever arrives. 403 rather than 401, so the
+ * dashboard explains instead of raising its sign-in gate. Returns whether
+ * the caller may proceed.
+ */
+export function requireAdminCredential(
+  res: http.ServerResponse,
+  auth: HqBrowserAuthResult,
+): boolean {
+  if (auth === undefined) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: {
+          code: 'AUTH_CREDENTIAL_REQUIRED',
+          message:
+            'HQ has no sign-in configured. Set an HQ password (System → Security) or use an admin token to change this.',
+        },
+      }),
+    );
+    return false;
+  }
+  if (!callerCanAdministerAuth(auth)) {
+    writeAuthAdminRequired(res);
+    return false;
+  }
+  return true;
 }
 
 export function writeAuthAdminRequired(res: http.ServerResponse): void {

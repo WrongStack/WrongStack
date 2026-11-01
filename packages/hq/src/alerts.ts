@@ -10,7 +10,19 @@
  *
  * @module hq/alerts
  */
+import {
+  evaluateBudgets,
+  type HqAlertSpend,
+  type HqBudgetConfig,
+  isBudgetRuleId,
+} from './alert-budgets.js';
 import type { HqAlertMessage, HqSnapshot } from './protocol.js';
+
+/** What a rule may read besides the snapshot. */
+export interface HqAlertContext {
+  /** Spend over the last 24 hours, from the persisted cost series. */
+  spend?: HqAlertSpend | undefined;
+}
 
 /** Severity levels for alerts, mirroring {@link HqAlertMessage}. */
 export type HqAlertSeverity = HqAlertMessage['severity'];
@@ -26,7 +38,7 @@ export interface HqAlert {
   lastFiredAt: number;
 }
 
-export interface HqAlertRuleConfig {
+export interface HqAlertRuleConfig extends HqBudgetConfig {
   /** Maximum cost (USD) across the whole fleet before alerting. Default 50. */
   costThresholdUsd?: number;
   /** Seconds of silence from ALL machines before a stale alert fires. Default 120. */
@@ -300,7 +312,7 @@ export class HqAlertEngine {
     // Refuse snoozes for unknown rules. Silent acceptance would let an
     // operator typo (`fleet-cost-threshld`) freeze alerting without any
     // signal that the rule doesn't exist.
-    const known = RULES.some((r) => r.id === ruleId);
+    const known = RULES.some((r) => r.id === ruleId) || isBudgetRuleId(ruleId);
     if (!known) {
       throw new Error(`Unknown alert rule: ${ruleId}`);
     }
@@ -368,7 +380,7 @@ export class HqAlertEngine {
   seedSnoozes(snoozes: Readonly<Record<string, number>>, now: number = Date.now()): void {
     const cap = now + this.maxSnoozeMs;
     for (const [ruleId, untilMs] of Object.entries(snoozes)) {
-      if (!RULES.some((r) => r.id === ruleId)) continue;
+      if (!RULES.some((r) => r.id === ruleId) && !isBudgetRuleId(ruleId)) continue;
       if (!Number.isFinite(untilMs)) continue;
       if (untilMs <= now) continue;
       this.snoozes.set(ruleId, Math.min(untilMs, cap));
@@ -387,10 +399,37 @@ export class HqAlertEngine {
     snapshot: HqSnapshot | null,
     config?: HqAlertRuleConfig,
     now: number = Date.now(),
+    context: HqAlertContext = {},
   ): HqAlert[] {
     const resolved = resolveConfig(config);
     const fired: HqAlert[] = [];
     const firingIds = new Set<string>();
+
+    const confirm = (ruleId: string, severity: HqAlertSeverity, message: string): void => {
+      firingIds.add(ruleId);
+      const existing = this.active.get(ruleId);
+      if (existing !== undefined) {
+        // Already firing — refresh timestamp, don't re-emit.
+        existing.lastFiredAt = now;
+        return;
+      }
+      // New transition → emit.
+      const alert: HqAlert = {
+        id: `${ruleId}-${now}`,
+        ruleId,
+        severity,
+        message,
+        firstFiredAt: now,
+        lastFiredAt: now,
+      };
+      this.active.set(ruleId, alert);
+      this.history.push(alert);
+      if (this.history.length > this.maxHistory)
+        this.history.splice(0, this.history.length - this.maxHistory);
+      fired.push(alert);
+      this.onAlert(alert);
+      this.onPersist?.(alert);
+    };
 
     for (const rule of RULES) {
       // W2 #12: snoozed rules skip evaluation. We do NOT clear the
@@ -399,33 +438,14 @@ export class HqAlertEngine {
       // re-evaluates fresh. This matches the dashboard's "snoozed while
       // firing" badge.
       if (this.isSnoozed(rule.id, now)) continue;
-
       const message = rule.evaluate(snapshot, resolved, now);
-      if (message !== null) {
-        firingIds.add(rule.id);
-        const existing = this.active.get(rule.id);
-        if (existing === undefined) {
-          // New transition → emit.
-          const alert: HqAlert = {
-            id: `${rule.id}-${now}`,
-            ruleId: rule.id,
-            severity: rule.severity,
-            message,
-            firstFiredAt: now,
-            lastFiredAt: now,
-          };
-          this.active.set(rule.id, alert);
-          this.history.push(alert);
-          if (this.history.length > this.maxHistory)
-            this.history.splice(0, this.history.length - this.maxHistory);
-          fired.push(alert);
-          this.onAlert(alert);
-          this.onPersist?.(alert);
-        } else {
-          // Already firing — refresh timestamp, don't re-emit.
-          existing.lastFiredAt = now;
-        }
-      }
+      if (message !== null) confirm(rule.id, rule.severity, message);
+    }
+
+    // Daily budgets: one rule per fleet / project / machine budget.
+    for (const firing of evaluateBudgets(snapshot, config ?? {}, context.spend)) {
+      if (this.isSnoozed(firing.ruleId, now)) continue;
+      confirm(firing.ruleId, 'warn', firing.message);
     }
 
     // Clear rules no longer firing.
@@ -476,12 +496,13 @@ export class HqAlertEngine {
     getSnapshot: () => HqSnapshot | null,
     config?: HqAlertRuleConfig | (() => HqAlertRuleConfig | undefined),
     intervalMs = 15_000,
+    getContext?: () => HqAlertContext,
   ): () => void {
     if (this.timer !== null) return () => undefined;
     const tick = (): void => {
       try {
         const cfg = typeof config === 'function' ? config() : config;
-        this.evaluate(getSnapshot(), cfg);
+        this.evaluate(getSnapshot(), cfg, Date.now(), getContext?.() ?? {});
       } catch {
         /* best-effort — alert evaluation must never crash the server */
       }

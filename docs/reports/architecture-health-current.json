@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T20:27:14.254Z",
+  "generatedAt": "2026-11-01T23:40:07.596Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5574,
-    "testFiles": 4860,
-    "sourceLines": 1222676,
-    "workspaceEdges": 233,
-    "moduleEdges": 16721,
+    "sourceFiles": 5643,
+    "testFiles": 4879,
+    "sourceLines": 1232089,
+    "workspaceEdges": 231,
+    "moduleEdges": 16513,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -24,39 +24,7 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1034
   },
-  "errors": [
-    "apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/FileWorkspace.tsx: hotspot shrunk from 2018 to 2016 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/FileWorkspace.tsx: relative import fan-out decreased from 30 to 29; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectAgentRoster.tsx: hotspot shrunk from 1562 to 1559 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 824 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/SessionComposer.tsx: hotspot shrunk from 1151 to 1150 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/editor-language.ts: \"deleteLines\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/editor-language.ts: \"languageNewline\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/editor-language.ts: \"smartHome\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/editor-language.ts: \"toggleBlockComment\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/FallbackSuggestions.tsx: \"readFallbackSuggestions\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/KanbanContractMap.tsx: \"endpointLabel\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/KanbanContractMap.tsx: \"readContractGraph\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/KanbanTaskChain.tsx: \"chainCards\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/KanbanTaskMetrics.tsx: \"metricValue\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/PdfFrame.tsx: \"looksLikePdf\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/ProjectSideEffectsSummary.tsx: \"readSideEffectsSummary\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/SageInjectionHistory.tsx: \"readInjections\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/SessionPlanTemplates.tsx: \"readPlanTemplates\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/webui-server/src/server/mcp-tool-handlers.ts: \"conversationNote\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/editor-indent.ts: \"indentLines\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
-    "apps/desktop-v2/src/editor-indent.ts: \"newlineWithIndent\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
-    "apps/desktop-v2/src/editor-indent.ts: \"outdentLines\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -240,8 +208,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 617,
-      "testFiles": 677,
+      "sourceFiles": 625,
+      "testFiles": 682,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -255,6 +223,7 @@
         "@wrongstack/fleet",
         "@wrongstack/goal",
         "@wrongstack/hq",
+        "@wrongstack/hq-next",
         "@wrongstack/kanban",
         "@wrongstack/kanban-mcp",
         "@wrongstack/mailbox-mcp",
@@ -278,7 +247,6 @@
         "@wrongstack/vector-memory",
         "@wrongstack/vibeui",
         "@wrongstack/webui",
-        "@wrongstack/webui-hq",
         "@wrongstack/webui-protocol",
         "@wrongstack/webui-server",
         "@wrongstack/worktree",
@@ -293,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 677
+          "testFiles": 682
         }
       ]
     },
@@ -510,8 +478,8 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 62,
-      "testFiles": 42,
+      "sourceFiles": 70,
+      "testFiles": 48,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -527,7 +495,32 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 42
+          "testFiles": 48
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/hq-next",
+      "dir": "packages/hq-next",
+      "sourceFiles": 180,
+      "testFiles": 63,
+      "workspaceDependencies": [
+        "@wrongstack/contracts",
+        "@wrongstack/coordination",
+        "@wrongstack/hq",
+        "@wrongstack/tools",
+        "@wrongstack/webui-protocol"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/hq-next/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/hq-next/tsconfig.test.json",
+          "error": null,
+          "testFiles": 63
         }
       ]
     },
@@ -1118,33 +1111,6 @@
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
           "testFiles": 510
-        }
-      ]
-    },
-    {
-      "name": "@wrongstack/webui-hq",
-      "dir": "packages/webui-hq",
-      "sourceFiles": 127,
-      "testFiles": 55,
-      "workspaceDependencies": [
-        "@wrongstack/contracts",
-        "@wrongstack/coordination",
-        "@wrongstack/core",
-        "@wrongstack/hq",
-        "@wrongstack/tools",
-        "@wrongstack/webui-protocol",
-        "@wrongstack/webui-server"
-      ],
-      "tsconfigs": [
-        {
-          "path": "packages/webui-hq/tsconfig.json",
-          "error": null,
-          "testFiles": 0
-        },
-        {
-          "path": "packages/webui-hq/tsconfig.test.json",
-          "error": null,
-          "testFiles": 55
         }
       ]
     },
@@ -5047,6 +5013,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-host-health.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-ip-allowlist.test.ts",
         "projects": [
           "root-node"
@@ -5089,6 +5061,18 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-machine-roster.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-machine-tokens.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-mailbox-actions.test.ts",
         "projects": [
           "root-node"
@@ -5126,6 +5110,12 @@
       },
       {
         "file": "packages/cli/tests/hq-mobile-visual-smoke.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-notify.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5294,6 +5284,12 @@
       },
       {
         "file": "packages/cli/tests/hq-static-serve-dotdot.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-static-serve-next-export.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13435,7 +13431,391 @@
         ]
       },
       {
+        "file": "packages/hq-next/src/hq/components/hq/__tests__/token-gate-revoked.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/alerts-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/attention-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/console-governance-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/console-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/control-fanout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/control-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/events-brain-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/externalize-inline-scripts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/fleet-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/fleet-versions-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/auth-revoked.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/browser-import-boundaries.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/coalesce-streamed-text.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/cockpit-health-detail.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/console-target.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/control-relative-time.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/data/auth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/data/hq-socket.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/data/reducers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/data/transport.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/data/wire.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/design-tokens-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/domain/control-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/domain/control-format.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/domain/kanban-queue-health.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/domain/pending-approvals.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/domain/selectors.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/domain/session-transcript-refetch.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/domain/session-transcript-switch.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/fleet-nav.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/fleet-retention.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/fleet-topology-idle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/fleet-topology.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/format.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/hq-local-prefs.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/kanban-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/live-console-helpers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/mailbox-actions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/mailbox-grouping.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/mailbox-nested-shapes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/mobile-pwa.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/settings-error-message.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/settings.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/tool-visual.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/transcript-format.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/transcript-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq/wire-auth-revoked.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/kanban-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/machine-health-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/machines-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/mailbox-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/mcp-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/overview-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/overview-system-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/projects-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/scope-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/session-history-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/surface-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/system-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/telemetry-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/transcript-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/update-notice-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/src/__tests__/lru.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/alert-budgets.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13561,6 +13941,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/host-health.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/kanban-sync.test.ts",
         "projects": [
           "root-node"
@@ -13573,7 +13959,19 @@
         ]
       },
       {
+        "file": "packages/hq/tests/machine-roster.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/mailbox-mapper.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/notify.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13645,6 +14043,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/session-history.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/session-telemetry.test.ts",
         "projects": [
           "root-node"
@@ -13664,6 +14068,12 @@
       },
       {
         "file": "packages/hq/tests/timeseries-partial-load.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/timeseries-scope.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24727,336 +25137,6 @@
         ]
       },
       {
-        "file": "packages/webui-hq/src/components/hq/__tests__/token-gate-revoked.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/src/views/__tests__/cockpit-latency.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/src/views/__tests__/event-chains.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/src/views/__tests__/events.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/src/views/__tests__/kanban-task-actions.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/auth-revoked.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/browser-import-boundaries.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/coalesce-streamed-text.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/cockpit-health-detail.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/components/app-shell.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/components/brain-lifecycle.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/components/cockpit-operations.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/components/fleet-idle-toggle.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/components/transcript-turn.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/components/views-smoke.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/components/worktree-view.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/console-target.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/control-relative-time.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/data/auth.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/data/hq-socket.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/data/reducers.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/data/transport.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/data/wire.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/design-tokens-parity.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/domain/control-draft.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/domain/control-format.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/domain/kanban-queue-health.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/domain/pending-approvals.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/domain/selectors.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/domain/session-transcript-refetch.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/domain/session-transcript-switch.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/fleet-nav.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/fleet-retention.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/fleet-topology-idle.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/fleet-topology.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/format.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/hq-local-prefs.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/kanban-model.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/live-console-helpers.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mailbox-actions.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mailbox-filters.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mailbox-grouping.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mailbox-live.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mailbox-nested-shapes.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mailbox-time.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mobile-app.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mobile-kanban.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mobile-pwa.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mobile-route.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/settings-error-message.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/settings.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/tool-visual.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/transcript-format.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/transcript-store.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/wire-auth-revoked.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/webui-protocol/tests/auto-wake.test.ts",
         "projects": [
           "root-node"
@@ -31809,6 +31889,11 @@
       "syntax": "export"
     },
     {
+      "from": "packages/hq-next/src/app/layout.tsx",
+      "specifier": "./globals.css",
+      "syntax": "import"
+    },
+    {
       "from": "packages/primitives/src/runtime-version.ts",
       "specifier": "../package.json",
       "syntax": "import"
@@ -31945,16 +32030,6 @@
     },
     {
       "from": "packages/webui/src/main.tsx",
-      "specifier": "./syntax-highlight.css",
-      "syntax": "import"
-    },
-    {
-      "from": "packages/webui-hq/src/main.tsx",
-      "specifier": "./index.css",
-      "syntax": "import"
-    },
-    {
-      "from": "packages/webui-hq/src/main.tsx",
       "specifier": "./syntax-highlight.css",
       "syntax": "import"
     },
@@ -32972,10 +33047,6 @@
     {
       "file": "apps/desktop-v2/src/context-editor-model.ts",
       "name": "removalProposal"
-    },
-    {
-      "file": "apps/desktop-v2/src/conversation-notices.ts",
-      "name": "NOTICE_LIMIT"
     },
     {
       "file": "apps/desktop-v2/src/delegations.ts",
@@ -34582,6 +34653,114 @@
       "name": "isTerminalWorkflowState"
     },
     {
+      "file": "packages/hq-next/src/hq/data/local-prefs.ts",
+      "name": "__test__"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/local-prefs.ts",
+      "name": "getHqLocalPrefsSnapshot"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/local-prefs.ts",
+      "name": "reloadHqLocalPrefs"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/local-prefs.ts",
+      "name": "resetHqLocalPrefs"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/local-prefs.ts",
+      "name": "setHqControlPrefs"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/local-prefs.ts",
+      "name": "setHqMailboxPrefs"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/selectors.ts",
+      "name": "actionableAlertCount"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/store/reducers.ts",
+      "name": "MAX_COMMAND_STATUSES"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/store/reducers.ts",
+      "name": "SNAPSHOT_RACE_GUARD_WINDOW_MS"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/transport/hq-socket.ts",
+      "name": "closeHqSocket"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/transport/hq-socket.ts",
+      "name": "HqSocket"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/transport/hq-socket.ts",
+      "name": "resolveHqSocketUrl"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/transport/resume-frames.ts",
+      "name": "MAX_RESUME_FRAMES"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/transport/resume-frames.ts",
+      "name": "normalizeResumeSeq"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/wire.ts",
+      "name": "applySocketMessage"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/wire.ts",
+      "name": "armSnapshotRefresh"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/wire.ts",
+      "name": "createReconnectReauthorizer"
+    },
+    {
+      "file": "packages/hq-next/src/hq/data/wire.ts",
+      "name": "hydrateFromHttp"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/fleet-nav-tree.ts",
+      "name": "buildNav"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/fleet-topology.ts",
+      "name": "FLEET_COLUMN_GAP"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/fleet-topology.ts",
+      "name": "FLEET_LEAF_H"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/kanban-queue-health.ts",
+      "name": "isQueueHealthy"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/status-tone.ts",
+      "name": "commandLifecycleTone"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/transcript-store.ts",
+      "name": "entryKey"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/use-pending-approvals.ts",
+      "name": "derivePendingApprovals"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/use-session-transcript.ts",
+      "name": "coalesceStreamedText"
+    },
+    {
+      "file": "packages/hq-next/src/hq/domain/use-session-transcript.ts",
+      "name": "mergeSubagentTranscriptEntries"
+    },
+    {
       "file": "packages/hq/src/alerts-config.ts",
       "name": "emptyHqAlertsConfig"
     },
@@ -34592,10 +34771,6 @@
     {
       "file": "packages/hq/src/alerts-config.ts",
       "name": "hqAlertsConfigFilePath"
-    },
-    {
-      "file": "packages/hq/src/alerts-config.ts",
-      "name": "mutateHqAlertsConfig"
     },
     {
       "file": "packages/hq/src/alerts-config.ts",
@@ -34640,6 +34815,10 @@
     {
       "file": "packages/hq/src/factory.ts",
       "name": "resolveHqConfigFromEnv"
+    },
+    {
+      "file": "packages/hq/src/host-health.ts",
+      "name": "collectHqHostHealth"
     },
     {
       "file": "packages/hq/src/kanban-store.ts",
@@ -36204,110 +36383,6 @@
     {
       "file": "packages/vibeui/src/lib/use-panel-requests.ts",
       "name": "acceptsPanelReply"
-    },
-    {
-      "file": "packages/webui-hq/src/data/local-prefs.ts",
-      "name": "__test__"
-    },
-    {
-      "file": "packages/webui-hq/src/data/local-prefs.ts",
-      "name": "getHqLocalPrefsSnapshot"
-    },
-    {
-      "file": "packages/webui-hq/src/data/local-prefs.ts",
-      "name": "reloadHqLocalPrefs"
-    },
-    {
-      "file": "packages/webui-hq/src/data/local-prefs.ts",
-      "name": "resetHqLocalPrefs"
-    },
-    {
-      "file": "packages/webui-hq/src/data/selectors.ts",
-      "name": "actionableAlertCount"
-    },
-    {
-      "file": "packages/webui-hq/src/data/store/reducers.ts",
-      "name": "MAX_COMMAND_STATUSES"
-    },
-    {
-      "file": "packages/webui-hq/src/data/store/reducers.ts",
-      "name": "SNAPSHOT_RACE_GUARD_WINDOW_MS"
-    },
-    {
-      "file": "packages/webui-hq/src/data/transport/hq-socket.ts",
-      "name": "closeHqSocket"
-    },
-    {
-      "file": "packages/webui-hq/src/data/transport/hq-socket.ts",
-      "name": "HqSocket"
-    },
-    {
-      "file": "packages/webui-hq/src/data/transport/hq-socket.ts",
-      "name": "resolveHqSocketUrl"
-    },
-    {
-      "file": "packages/webui-hq/src/data/transport/resume-frames.ts",
-      "name": "MAX_RESUME_FRAMES"
-    },
-    {
-      "file": "packages/webui-hq/src/data/transport/resume-frames.ts",
-      "name": "normalizeResumeSeq"
-    },
-    {
-      "file": "packages/webui-hq/src/data/wire.ts",
-      "name": "applySocketMessage"
-    },
-    {
-      "file": "packages/webui-hq/src/data/wire.ts",
-      "name": "armSnapshotRefresh"
-    },
-    {
-      "file": "packages/webui-hq/src/data/wire.ts",
-      "name": "createReconnectReauthorizer"
-    },
-    {
-      "file": "packages/webui-hq/src/data/wire.ts",
-      "name": "hydrateFromHttp"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/fleet-nav-tree.ts",
-      "name": "buildNav"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/fleet-topology.ts",
-      "name": "FLEET_COLUMN_GAP"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/fleet-topology.ts",
-      "name": "FLEET_LEAF_H"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/mailbox-filters.ts",
-      "name": "EMPTY_LIVE_FILTER_STATE"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/mailbox-live.ts",
-      "name": "buildLiveFeed"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/transcript-store.ts",
-      "name": "entryKey"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/use-pending-approvals.ts",
-      "name": "derivePendingApprovals"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/use-session-transcript.ts",
-      "name": "coalesceStreamedText"
-    },
-    {
-      "file": "packages/webui-hq/src/domain/use-session-transcript.ts",
-      "name": "mergeSubagentTranscriptEntries"
-    },
-    {
-      "file": "packages/webui-hq/src/views/events.tsx",
-      "name": "groupEventChains"
     },
     {
       "file": "packages/webui-server/src/server/chimera-routes.ts",

@@ -869,7 +869,7 @@ describe('HQ server', () => {
     expect(html.toLowerCase()).toContain('<!doctype html>');
     expect(html).toContain('WrongStack HQ');
     expect(html).toContain('data-hq-recovery-shell');
-    expect(html).toContain('@wrongstack/webui-hq');
+    expect(html).toContain('@wrongstack/hq-next');
     expect(html).not.toContain('<script');
     expect(html).not.toContain('/api/fleet');
     expect(html).not.toContain('/ws/browser');

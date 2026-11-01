@@ -1,6 +1,6 @@
 /**
- * HQ static-serve — resolve and serve the built `@wrongstack/webui-hq/dist`
- * dashboard. Mirrors the pattern in `webui-server/static-serve.ts` but for
+ * HQ static-serve — resolve and serve the built `@wrongstack/hq-next/dist`
+ * dashboard (a Next.js static export). Mirrors the pattern in `webui-server/static-serve.ts` but for
  * the HQ app. Missing assets are reported to the caller, which serves a small
  * diagnostic shell instead of maintaining a second dashboard implementation.
  *
@@ -28,33 +28,41 @@ const MIME: Record<string, string> = {
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.ico': 'image/x-icon',
+  // Next.js static export: per-route React Server Component payloads.
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 let cachedDistDir: string | null | undefined;
 
 /**
- * Resolve the HQ dashboard dist directory. Returns the absolute path to
- * `@wrongstack/webui-hq/dist`, or `null` when the package/dist is not
- * present (e.g. unbuilt). Result is cached for the process lifetime.
+ * The HQ dashboard package: the Next.js static export. The retired Vite
+ * dashboard (`webui-hq`) was folded into it and deleted.
+ */
+const HQ_UI_PACKAGE = 'hq-next';
+
+/**
+ * Resolve the HQ dashboard dist directory: the absolute path to the dashboard
+ * package's `dist`, or `null` when it is not built. Result is cached for the
+ * process lifetime.
  */
 export function resolveHqDistDir(): string | null {
   if (cachedDistDir !== undefined) return cachedDistDir;
+  cachedDistDir = resolvePackageDist(HQ_UI_PACKAGE);
+  return cachedDistDir;
+}
 
+function resolvePackageDist(packageDir: string): string | null {
   // Strategy 1: resolve the package root via its package.json export. The
-  // "." entry points at dist/index.js which the vite build does NOT emit
-  // (the package is an asset carrier — dist holds index.html + assets/), so
-  // resolving the bare specifier throws ERR_PACKAGE_PATH_NOT_EXPORTED /
-  // MODULE_NOT_FOUND and, before this fix, HQ silently ALWAYS fell back to
-  // the legacy inline HTML.
+  // "." entry is absent (the package is an asset carrier — dist holds
+  // index.html + assets), so resolving the bare specifier throws
+  // ERR_PACKAGE_PATH_NOT_EXPORTED / MODULE_NOT_FOUND and, before this fix, HQ
+  // silently ALWAYS fell back to the legacy inline HTML.
   try {
-    const pkgJson = wrongstackPackageJsonPath('@wrongstack/webui-hq', (id) =>
+    const pkgJson = wrongstackPackageJsonPath(`@wrongstack/${packageDir}`, (id) =>
       requireFromHere.resolve(id),
     );
     const dist = path.join(path.dirname(pkgJson), 'dist');
-    if (fs.existsSync(path.join(dist, 'index.html'))) {
-      cachedDistDir = dist;
-      return dist;
-    }
+    if (fs.existsSync(path.join(dist, 'index.html'))) return dist;
   } catch {
     /* fall through to strategy 2 */
   }
@@ -65,11 +73,8 @@ export function resolveHqDistDir(): string | null {
   try {
     let dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1'));
     for (let i = 0; i < 8; i++) {
-      const candidate = path.join(dir, 'node_modules', '@wrongstack', 'webui-hq', 'dist');
-      if (fs.existsSync(path.join(candidate, 'index.html'))) {
-        cachedDistDir = candidate;
-        return candidate;
-      }
+      const candidate = path.join(dir, 'node_modules', '@wrongstack', packageDir, 'dist');
+      if (fs.existsSync(path.join(candidate, 'index.html'))) return candidate;
       const parent = path.dirname(dir);
       if (parent === dir) break;
       dir = parent;
@@ -77,8 +82,6 @@ export function resolveHqDistDir(): string | null {
   } catch {
     /* not found */
   }
-
-  cachedDistDir = null;
   return null;
 }
 
@@ -135,30 +138,54 @@ export async function serveHqStatic(
     return { handled: false };
   }
 
-  const data = await readRegularFile(filePath);
+  let servedPath = filePath;
+  let data = await readRegularFile(filePath);
+  if (data === null && path.extname(filePath) === '') {
+    // A statically exported route (`/fleet/` → `fleet/index.html`). The Vite
+    // dashboard has no such directories, so for it this is a cheap miss.
+    servedPath = path.join(filePath, 'index.html');
+    data = await readRegularFile(servedPath);
+  }
   if (data === null) {
-    // SPA fallback: serve index.html for client-side routes.
-    const indexPath = path.join(distDir, 'index.html');
-    const html = await readRegularFile(indexPath);
+    const segmentPath = nextSegmentPayloadPath(filePath);
+    if (segmentPath !== null && isInsideDist(segmentPath, distDir)) {
+      servedPath = segmentPath;
+      data = await readRegularFile(servedPath);
+    }
+  }
+  if (data === null) {
+    // A statically exported dashboard ships its own not-found page; rendering
+    // the root page under an unknown URL would hydrate the wrong route. The
+    // Vite dashboard has none and keeps the SPA fallback to index.html.
+    const notFound = await readRegularFile(path.join(distDir, '404.html'));
+    if (notFound !== null) {
+      sendHtml(res, 404, notFound);
+      return { handled: true };
+    }
+    const html = await readRegularFile(path.join(distDir, 'index.html'));
     if (html !== null) {
-      res.writeHead(200, {
-        'Content-Type': MIME['.html']!,
-        'Cache-Control': 'no-cache',
-        'Content-Length': html.byteLength,
-      });
-      res.end(html);
+      sendHtml(res, 200, html);
       return { handled: true };
     }
     return { handled: false };
   }
 
-  const ext = path.extname(filePath).toLowerCase();
+  const ext = path.extname(servedPath).toLowerCase();
+  if (ext === '.html') {
+    sendHtml(res, 200, data);
+    return { handled: true };
+  }
   const mime = MIME[ext] ?? 'application/octet-stream';
-  const cacheControl = decodedPath.startsWith('/assets/')
-    ? 'public, max-age=31536000, immutable'
-    : ext === '.html'
-      ? 'no-cache'
-      : 'public, max-age=3600';
+  // Content-hashed bundles (Vite `assets/`, Next `_next/static/`) never change
+  // under one URL. HTML and Next's route payloads (`index.txt`) are rewritten
+  // by every build, so they must be revalidated or an upgrade serves a stale
+  // shell pointing at chunks that no longer exist.
+  const cacheControl =
+    decodedPath.startsWith('/assets/') || decodedPath.startsWith('/_next/static/')
+      ? 'public, max-age=31536000, immutable'
+      : ext === '.txt'
+        ? 'no-cache'
+        : 'public, max-age=3600';
   res.writeHead(200, {
     'Content-Type': mime,
     'Cache-Control': cacheControl,
@@ -166,4 +193,41 @@ export async function serveHqStatic(
   });
   res.end(data);
   return { handled: true };
+}
+
+/**
+ * HTML is rewritten by every build, so it is always revalidated. The router's
+ * security headers are never widened here: HQ's `script-src 'self'` admits no
+ * inline script, so the Next.js build moves its payload scripts into files
+ * (`packages/hq-next/scripts/externalize-inline-scripts.mjs`). A build that
+ * skipped that step fails closed — the page stays blank, nothing runs.
+ */
+function sendHtml(res: http.ServerResponse, status: number, html: Buffer): void {
+  res.writeHead(status, {
+    'Content-Type': MIME['.html']!,
+    'Cache-Control': 'no-cache',
+    'Content-Length': html.byteLength,
+  });
+  res.end(html);
+}
+
+/**
+ * Next's client router prefetches one route segment at a time from
+ * `<route>/__next.<group>.<segment>.__PAGE__.txt`, while the static export
+ * writes that payload as `<route>/__next.<group>/<segment>/__PAGE__.txt`. Next's
+ * own server does this mapping; a plain static host has to. Segment ids are
+ * encoded, so the dots after the first are separators. Returns `null` for any
+ * other file name.
+ */
+function nextSegmentPayloadPath(filePath: string): string | null {
+  const name = path.basename(filePath);
+  if (!name.startsWith('__next.') || !name.endsWith('.txt')) return null;
+  const parts = name.slice(0, -'.txt'.length).split('.');
+  if (parts.length < 3 || parts.some((part) => part === '' || part === '..')) return null;
+  return path.join(
+    path.dirname(filePath),
+    `${parts[0]}.${parts[1]}`,
+    ...parts.slice(2, -1),
+    `${parts.at(-1)}.txt`,
+  );
 }

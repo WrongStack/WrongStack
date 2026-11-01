@@ -23,7 +23,7 @@ its wire types.
 | `mcp`, `acp`, `plug-lsp`, `telegram`, `wrongtrace` | External protocols/services and adapters | Dedicated protocol/operations guides |
 | `*-mcp` packages | Capability-limited MCP facades over domains | [MCP server](../mcp-server.md), package-owned facade contracts |
 | `cli`, `tui`, `webui-server` | Composition/terminal/browser-server hosts | Command registries and explicit injected dependencies |
-| `webui`, `vibeui`, `webui-hq` | Browser views over shared contracts and state | Shared protocol, clients and host messages |
+| `webui`, `vibeui`, `hq-next` | Browser views over shared contracts and state | Shared protocol, clients and host messages |
 | `bench`, `security-scanner` | Standalone evaluation/scanning domains | [bench command](../subcommands/bench.md), package exports |
 | `apps/wrongstack` | Distribution entry point | [release process](../release-process.md) |
 

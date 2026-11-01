@@ -44,7 +44,7 @@ function hqCsp(): string {
 describe('HQ script-src (WS-061)', () => {
   it('does not allow inline script', () => {
     // Verified against the built artifact rather than assumed:
-    // packages/webui-hq/dist/index.html has zero inline <script> without src.
+    // packages/hq-next/dist/index.html has zero inline <script> without src.
     expect(directive(hqCsp(), 'script-src')).toBe("script-src 'self' 'wasm-unsafe-eval'");
   });
 

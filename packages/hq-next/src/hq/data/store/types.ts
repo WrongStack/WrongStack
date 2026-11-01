@@ -1,0 +1,120 @@
+import type {
+  HqAlertMessage,
+  HqCommandAuditEntry,
+  HqEventEnvelope,
+  HqPeerLostPayload,
+  HqPeerRehydratePayload,
+  HqSnapshot,
+} from '@wrongstack/hq';
+
+/** The HQ surfaces. The router, the nav and the palette all key on this. */
+export type HqViewId =
+  | 'cockpit'
+  | 'fleet'
+  | 'machines'
+  | 'projects'
+  | 'console'
+  | 'mailbox'
+  | 'kanban'
+  | 'approvals'
+  | 'alerts'
+  | 'cost'
+  | 'trends'
+  | 'brain'
+  | 'worktree'
+  | 'mcp'
+  | 'control'
+  | 'settings'
+  | 'notifications'
+  | 'sessions'
+  | 'events';
+
+/**
+ * The most recent peer-lifecycle envelope the dashboard has seen: either a
+ * `peer.rehydrate` (the project lost its leader but has survivors) or a
+ * `peer.lost` (no survivors). `receivedAt` is local wall-clock at surface
+ * time, which is what lets the banner answer "is this stale?".
+ */
+export type HqPeerEnvelope =
+  | { kind: 'peer.rehydrate'; payload: HqPeerRehydratePayload; receivedAt: string }
+  | { kind: 'peer.lost'; payload: HqPeerLostPayload; receivedAt: string };
+
+/** Everything the transport and the API layer write into. */
+export interface HqFleetState {
+  snapshot: HqSnapshot | null;
+  events: HqEventEnvelope[];
+  alerts: HqAlertMessage[];
+  commandStatuses: HqCommandAuditEntry[];
+  /** Highest HQ event sequence already applied, keyed by publisher clientId. */
+  resumeCursors: Readonly<Record<string, number>>;
+  /**
+   * Set after `hq.resume_reject` so exactly one authoritative `/api/snapshot`
+   * fetch happens per reconnect. Consumed by the subscriber in `wire.ts`.
+   */
+  needsSnapshotRefresh: boolean;
+  peerEnvelope: HqPeerEnvelope | null;
+  connected: boolean;
+  authRequired: boolean;
+  /**
+   * Set when this browser's own credential was revoked server-side, so the
+   * gate can say WHY it appeared. `authRequired` alone renders a bare token
+   * prompt, which reads as "you were idle" even when an operator deliberately
+   * revoked the token mid-session.
+   *
+   * Always accompanied by `authRequired` — this refines that state, it never
+   * replaces it, so nothing that keys on `authRequired` needs to change.
+   */
+  authRevoked: boolean;
+  /**
+   * Client-monotonic (`performance.now()`) timestamp of when the current
+   * snapshot was accepted, or null while none is held. Bounds the
+   * stale-frame guard in `reduceSnapshot` to client time, so a server clock
+   * stepping backward (NTP correction, VM/laptop resume) self-heals on the
+   * next snapshot instead of freezing the dashboard until a page refresh.
+   */
+  snapshotAcceptedAtMs?: number | null;
+}
+
+/** Operator-selected context, shared across views. */
+export interface HqSelectionState {
+  selectedSessionId: string | null;
+  selectedAgentId: string | null;
+  selectedClientId: string | null;
+}
+
+/** Purely local shell state. */
+export interface HqUiState {
+  activeView: HqViewId;
+}
+
+export type HqState = HqFleetState & HqSelectionState & HqUiState;
+
+export interface HqActions {
+  setActiveView: (view: HqViewId) => void;
+  selectSession: (sessionId: string | null, agentId?: string | null) => void;
+  selectAgent: (sessionId: string, agentId: string) => void;
+  selectClient: (clientId: string | null) => void;
+  markAuthRequired: () => void;
+  /**
+   * Mark this browser as revoked rather than merely unauthenticated. Implies
+   * `markAuthRequired()`.
+   */
+  markAuthRevoked: () => void;
+  dismissPeerEnvelope: () => void;
+
+  /** Seed the first render from HTTP without claiming the WebSocket is live. */
+  hydrateSnapshot: (snapshot: HqSnapshot) => void;
+  applySnapshot: (snapshot: HqSnapshot) => void;
+  applyEvent: (event: HqEventEnvelope) => void;
+  applyAlert: (alert: HqAlertMessage) => void;
+  applyCommandStatus: (command: HqCommandAuditEntry) => void;
+  setConnected: (connected: boolean) => void;
+  setNeedsSnapshotRefresh: (needed: boolean) => void;
+  /**
+   * Drop per-publisher resume cursors so the next reconnect's gap-fill starts
+   * from the post-refresh state. Called on `hq.resume_reject` only.
+   */
+  resetResumeCursors: () => void;
+}
+
+export type HqStore = HqState & HqActions;

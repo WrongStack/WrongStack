@@ -6,7 +6,7 @@ tools in an individual session or verified external-service availability.
 
 ## Workspace packages
 
-43 packages, 2 applications, plus the private website.
+44 packages, 2 applications, plus the private website.
 
 | Package | Manifest | Publication |
 |---|---|---|
@@ -22,9 +22,11 @@ tools in an individual session or verified external-service availability.
 | `@wrongstack/coordination` | [packages/coordination/package.json](../packages/coordination/package.json) | private |
 | `@wrongstack/core` | [packages/core/package.json](../packages/core/package.json) | private |
 | `@wrongstack/desktop-v2` | [apps/desktop-v2/package.json](../apps/desktop-v2/package.json) | private |
+| `@wrongstack/fleet` | [packages/fleet/package.json](../packages/fleet/package.json) | private |
 | `@wrongstack/goal` | [packages/goal/package.json](../packages/goal/package.json) | private |
 | `@wrongstack/governance` | [packages/governance/package.json](../packages/governance/package.json) | private |
 | `@wrongstack/hq` | [packages/hq/package.json](../packages/hq/package.json) | private |
+| `@wrongstack/hq-next` | [packages/hq-next/package.json](../packages/hq-next/package.json) | private |
 | `@wrongstack/kanban` | [packages/kanban/package.json](../packages/kanban/package.json) | private |
 | `@wrongstack/kanban-mcp` | [packages/kanban-mcp/package.json](../packages/kanban-mcp/package.json) | private |
 | `@wrongstack/mailbox-mcp` | [packages/mailbox-mcp/package.json](../packages/mailbox-mcp/package.json) | private |
@@ -49,7 +51,6 @@ tools in an individual session or verified external-service availability.
 | `@wrongstack/vector-memory` | [packages/vector-memory/package.json](../packages/vector-memory/package.json) | private |
 | `@wrongstack/vibeui` | [packages/vibeui/package.json](../packages/vibeui/package.json) | private |
 | `@wrongstack/webui` | [packages/webui/package.json](../packages/webui/package.json) | private |
-| `@wrongstack/webui-hq` | [packages/webui-hq/package.json](../packages/webui-hq/package.json) | private |
 | `@wrongstack/webui-protocol` | [packages/webui-protocol/package.json](../packages/webui-protocol/package.json) | private |
 | `@wrongstack/webui-server` | [packages/webui-server/package.json](../packages/webui-server/package.json) | private |
 | `@wrongstack/worktree` | [packages/worktree/package.json](../packages/worktree/package.json) | private |

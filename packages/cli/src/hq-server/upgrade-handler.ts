@@ -42,6 +42,12 @@ interface HqUpgradeHandlerDeps {
   agentMessages: Map<string, import('@wrongstack/hq').HqTranscriptEntry[]>;
   persistence: import('@wrongstack/hq').HqPersistence;
   auditLog: import('@wrongstack/hq').HqCommandAuditLog;
+  observeClientEvent?:
+    | ((
+        event: import('@wrongstack/hq').HqEventEnvelope,
+        owner: ConnectedClient | undefined,
+      ) => void)
+    | undefined;
   snapshotBroadcaster: ReturnType<typeof import('./snapshot.js').createSnapshotBroadcaster>;
   wss: WebSocketServer;
   ipAllowlist?: HqIpAllowlist | undefined;
@@ -252,6 +258,7 @@ export function handleHqConnection(
       deps.agentMessages,
       deps.persistence,
       deps.auditLog,
+      deps.observeClientEvent,
     );
   }
 }

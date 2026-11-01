@@ -39,6 +39,12 @@ import {
   withFileLock,
 } from '@wrongstack/persistence';
 
+import {
+  MACHINE_BUDGET_KEY,
+  PROJECT_BUDGET_KEY,
+  rejectedBudgetEntries,
+  sanitizeBudgetMap,
+} from './alert-budgets.js';
 import type { HqAlertRuleConfig } from './alerts.js';
 
 /** Current alerts-config schema version. Bump on breaking shape changes. */
@@ -281,4 +287,55 @@ export function watchHqAlertsConfig(
       watcher.close();
     },
   };
+}
+
+// ── Operator input → thresholds ──────────────────────────────────────────────
+
+const NUMERIC_THRESHOLDS = {
+  costThresholdUsd: { min: 0, max: 1_000_000 },
+  staleMachineSeconds: { min: 30, max: 7 * 24 * 3600 },
+  maxAgents: { min: 0, max: 100_000 },
+  tokenExpiryWarningHours: { min: 0, max: 24 * 365 },
+  throughputBudgetUsd: { min: 0, max: 1_000_000 },
+  dailyBudgetUsd: { min: 0, max: 1_000_000 },
+} as const;
+
+/**
+ * Validate thresholds an operator submitted. `null` (or absent) for a field
+ * means "use the default". Budget maps keep only well-formed positive entries.
+ */
+export function parseHqAlertThresholds(
+  input: unknown,
+): { ok: true; thresholds: HqAlertRuleConfig } | { ok: false; error: string } {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    return { ok: false, error: 'Expected an object of thresholds.' };
+  }
+  const record = input as Record<string, unknown>;
+  const thresholds: HqAlertRuleConfig = {};
+  for (const [field, bounds] of Object.entries(NUMERIC_THRESHOLDS)) {
+    const value = record[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return { ok: false, error: `${field} must be a number.` };
+    }
+    if (value < bounds.min || value > bounds.max) {
+      return { ok: false, error: `${field} must be between ${bounds.min} and ${bounds.max}.` };
+    }
+    (thresholds as Record<string, number>)[field] = value;
+  }
+  // Refuse rather than drop: a budget that silently vanished would show as
+  // "Saved" on the dashboard and never fire.
+  const badProjects = rejectedBudgetEntries(record.projectDailyBudgetsUsd, PROJECT_BUDGET_KEY);
+  const badMachines = rejectedBudgetEntries(record.machineDailyBudgetsUsd, MACHINE_BUDGET_KEY);
+  if (badProjects.length > 0 || badMachines.length > 0) {
+    return {
+      ok: false,
+      error: `Invalid budget for ${[...badProjects, ...badMachines].slice(0, 5).join(', ')}: use a number of zero or more.`,
+    };
+  }
+  const projects = sanitizeBudgetMap(record.projectDailyBudgetsUsd, PROJECT_BUDGET_KEY);
+  if (Object.keys(projects).length > 0) thresholds.projectDailyBudgetsUsd = projects;
+  const machines = sanitizeBudgetMap(record.machineDailyBudgetsUsd, MACHINE_BUDGET_KEY);
+  if (Object.keys(machines).length > 0) thresholds.machineDailyBudgetsUsd = machines;
+  return { ok: true, thresholds };
 }

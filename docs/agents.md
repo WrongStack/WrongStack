@@ -49,13 +49,13 @@ builtin-plugins/   — Built-in plugins: chimera, auto-review, skills, prompts, 
 webui/             — Vite+React web UI frontend and client state (docs/webui.md)
 vibeui/            — Focused Next.js browser coding workspace
 webui-server/      — Shared Node WebUI backend that powers `wstack --webui`
-webui-hq/          — React HQ Command Center dashboard
+hq-next/           — HQ dashboard (Next.js static export; shared store/transport under src/hq/)
 plugins/           — 90-entry first-party plugin catalog and subpath exports
 bench/             — Benchmark harness (Aider polyglot + SWE-bench); docs/subcommands/bench.md
 apps/wrongstack/   — bin entry (wrongstack / wstack)
 ```
 
-**Dependency direction:** `@wrongstack/primitives` and `@wrongstack/persistence` are dependency leaves. Kanban depends on both; Core depends on primitives, persistence, Kanban, contracts, and agent-catalog. `core` must not depend on `cli`, `tui`, `webui`, `vibeui`, `webui-server`, `webui-hq`, apps, or other packages that consume core. Product surfaces compose the lower packages; never reverse a surface dependency into the kernel.
+**Dependency direction:** `@wrongstack/primitives` and `@wrongstack/persistence` are dependency leaves. Kanban depends on both; Core depends on primitives, persistence, Kanban, contracts, and agent-catalog. `core` must not depend on `cli`, `tui`, `webui`, `vibeui`, `webui-server`, `hq-next`, apps, or other packages that consume core. Product surfaces compose the lower packages; never reverse a surface dependency into the kernel.
 
 ## Kernel (`packages/contracts/src/kernel/`)
 
@@ -153,7 +153,7 @@ All surfaces on one project share `~/.wrongstack/projects/<slug>/`:
 
 `wstack --hq`: project-independent, **the only deliberately cross-machine** server (everything else is loopback-only). Aggregates telemetry from every connected surface and can steer them. Full docs: `docs/subcommands/hq.md` + `docs/archive/plans/hq-command-center-2026-07.md`.
 
-Hub-and-spoke, two WS channels: `/ws/client` — surfaces publish versioned `HqEventEnvelope`s (`HQ_PROTOCOL_VERSION = 1`) via an `HqPublisher` + EventBus bridges (session/agent/fleet/brain/worktree/tool[redacted]/cost; wiring in `cli-main.ts` ~L1370, `packages/webui-server/src/server/pre-context-services.ts`, `tui/src/run-tui.ts`); `/ws/browser` — dashboard subscribes to `hq.snapshot` (debounced 250ms) + `hq.event` + `hq.alert`. Persists `events.jsonl`/`snapshot.json`/`timeseries.jsonl` under `<dataDir>`; HTTP `/api/events`, `/api/trends/cost`, `/api/alerts`. Control plane: browser `POST /api/command` → per-client queue → `client.command_poll`/`hq.command_batch`/`client.command_ack`; token scopes via `HqToken.capabilities`; commands `steer`/`abort`/`spawn`/`broadcast`/`run-command` (RCE-gated: `--hq-allow-exec` + `control.execute`; even then routed as a steer — the agent's own permission policy applies). `HqAlertEngine` evaluates the snapshot every 15s; only state transitions emit `hq.alert`. Separate browser/client token sets in `<dataDir>/auth.json`. Code: `packages/hq/src/`; `cli/src/hq-server.ts`, `hq-recovery-html.ts` (→ React `packages/webui-hq/`, Phase 5), `hq-command-controller.ts`, `hq-publisher.ts`, `boot/short-circuit-hq.ts`.
+Hub-and-spoke, two WS channels: `/ws/client` — surfaces publish versioned `HqEventEnvelope`s (`HQ_PROTOCOL_VERSION = 1`) via an `HqPublisher` + EventBus bridges (session/agent/fleet/brain/worktree/tool[redacted]/cost; wiring in `cli-main.ts` ~L1370, `packages/webui-server/src/server/pre-context-services.ts`, `tui/src/run-tui.ts`); `/ws/browser` — dashboard subscribes to `hq.snapshot` (debounced 250ms) + `hq.event` + `hq.alert`. Persists `events.jsonl`/`snapshot.json`/`timeseries.jsonl` under `<dataDir>`; HTTP `/api/events`, `/api/trends/cost`, `/api/alerts`. Control plane: browser `POST /api/command` → per-client queue → `client.command_poll`/`hq.command_batch`/`client.command_ack`; token scopes via `HqToken.capabilities`; commands `steer`/`abort`/`spawn`/`broadcast`/`run-command` (RCE-gated: `--hq-allow-exec` + `control.execute`; even then routed as a steer — the agent's own permission policy applies). `HqAlertEngine` evaluates the snapshot every 15s; only state transitions emit `hq.alert`. Separate browser/client token sets in `<dataDir>/auth.json`. Code: `packages/hq/src/`; `cli/src/hq-server.ts`, `hq-recovery-html.ts` (→ React `packages/hq-next/`), `hq-command-controller.ts`, `hq-publisher.ts`, `boot/short-circuit-hq.ts`.
 
 TUI fleet surfaces: `Ctrl+F` fleet monitor · `Ctrl+G` agents monitor · `/fleet status|dispatch|log|usage|spawn|stream` (`/fleet status` includes concurrency + lifetime spawn budget).
 

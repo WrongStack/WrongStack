@@ -127,3 +127,21 @@ describe('HQ in-process session revocation closes bound browser sockets', () => 
     expect(socket.readyState).toBe(WebSocket.OPEN);
   });
 });
+
+describe('HQ session list marks the requesting browser', () => {
+  it('flags only the session whose signed cookie made the request', async () => {
+    const mine = await login();
+    const other = await login();
+    const res = await fetch(httpUrl('/api/auth/sessions'), { headers: { Cookie: mine } });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { sessions: { current: boolean }[] };
+    expect(body.sessions).toHaveLength(2);
+    expect(body.sessions.filter((session) => session.current)).toHaveLength(1);
+
+    const fromOther = (await (
+      await fetch(httpUrl('/api/auth/sessions'), { headers: { Cookie: other } })
+    ).json()) as { sessions: { id: string; current: boolean }[] };
+    const mineId = body.sessions.find((session) => session.current) as unknown as { id: string };
+    expect(fromOther.sessions.find((session) => session.current)?.id).not.toBe(mineId.id);
+  });
+});

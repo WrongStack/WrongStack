@@ -49,16 +49,14 @@
     "apps/desktop-v2/src/context-editor-model.ts": [
       "removalProposal"
     ],
-    "apps/desktop-v2/src/conversation-notices.ts": [
-      "NOTICE_LIMIT"
-    ],
     "apps/desktop-v2/src/delegations.ts": [
       "DELEGATION_LIMIT"
     ],
-    "apps/desktop-v2/src/editor-indent.ts": [
-      "indentLines",
-      "newlineWithIndent",
-      "outdentLines"
+    "apps/desktop-v2/src/editor-language.ts": [
+      "deleteLines",
+      "languageNewline",
+      "smartHome",
+      "toggleBlockComment"
     ],
     "apps/desktop-v2/src/editor-pairs.ts": [
       "backspacePair",
@@ -71,6 +69,9 @@
     ],
     "apps/desktop-v2/src/FallbackPicker.tsx": [
       "fallbackPending"
+    ],
+    "apps/desktop-v2/src/FallbackSuggestions.tsx": [
+      "readFallbackSuggestions"
     ],
     "apps/desktop-v2/src/feature-actions.ts": [
       "actionPayload",
@@ -109,6 +110,16 @@
     "apps/desktop-v2/src/KanbanBoardDialog.tsx": [
       "boardListTasks"
     ],
+    "apps/desktop-v2/src/KanbanContractMap.tsx": [
+      "endpointLabel",
+      "readContractGraph"
+    ],
+    "apps/desktop-v2/src/KanbanTaskChain.tsx": [
+      "chainCards"
+    ],
+    "apps/desktop-v2/src/KanbanTaskMetrics.tsx": [
+      "metricValue"
+    ],
     "apps/desktop-v2/src/mailbox-draft.ts": [
       "MailboxDraftStore",
       "mailDraftCodec"
@@ -132,8 +143,14 @@
     "apps/desktop-v2/src/ModelCatalogProfile.tsx": [
       "readModelProfile"
     ],
+    "apps/desktop-v2/src/PdfFrame.tsx": [
+      "looksLikePdf"
+    ],
     "apps/desktop-v2/src/ProjectRequirements.tsx": [
       "requirementFields"
+    ],
+    "apps/desktop-v2/src/ProjectSideEffectsSummary.tsx": [
+      "readSideEffectsSummary"
     ],
     "apps/desktop-v2/src/ProjectUsageSummary.tsx": [
       "readUsageSummary"
@@ -165,6 +182,9 @@
       "MAX_REVIEW_REPLIES",
       "parseReviewNotes"
     ],
+    "apps/desktop-v2/src/SageInjectionHistory.tsx": [
+      "readInjections"
+    ],
     "apps/desktop-v2/src/SddDependencyGraph.tsx": [
       "sddGraphElements"
     ],
@@ -172,6 +192,9 @@
       "liveBrowserDetails",
       "liveBrowsers",
       "selectionPrompt"
+    ],
+    "apps/desktop-v2/src/SessionPlanTemplates.tsx": [
+      "readPlanTemplates"
     ],
     "apps/desktop-v2/src/SessionRecovery.tsx": [
       "RewoundPrompt"
@@ -381,22 +404,6 @@
     ],
     "packages/cli/src/fleet-statusline.ts": [
       "renderFleetLine"
-    ],
-    "packages/fleet/src/acp-wrongstack-bridge.ts": [
-      "bridgeNote",
-      "bridgeTaskKickoff",
-      "wstackLaunch",
-      "wstackToolsCommand"
-    ],
-    "packages/fleet/src/host-explore-companion.ts": [
-      "formatExploreNote"
-    ],
-    "packages/fleet/src/host-helpers.ts": [
-      "DEFAULT_SUBAGENT_HIDDEN_TOOLS",
-      "NEVER_SUBAGENT_TOOLS"
-    ],
-    "packages/fleet/src/skill-companion-outcomes.ts": [
-      "skillOutcomesPath"
     ],
     "packages/cli/src/fleet/wrongforge-gateway.ts": [
       "WORKER_WITHHELD_TOOLS"
@@ -838,6 +845,22 @@
       "PROXY_EXCLUDED_PROVIDERS",
       "subscribeToProxyConfig"
     ],
+    "packages/fleet/src/acp-wrongstack-bridge.ts": [
+      "bridgeNote",
+      "bridgeTaskKickoff",
+      "wstackLaunch",
+      "wstackToolsCommand"
+    ],
+    "packages/fleet/src/host-explore-companion.ts": [
+      "formatExploreNote"
+    ],
+    "packages/fleet/src/host-helpers.ts": [
+      "DEFAULT_SUBAGENT_HIDDEN_TOOLS",
+      "NEVER_SUBAGENT_TOOLS"
+    ],
+    "packages/fleet/src/skill-companion-outcomes.ts": [
+      "skillOutcomesPath"
+    ],
     "packages/goal/src/phase-orchestrator-integration.ts": [
       "markPhaseMergeFailed"
     ],
@@ -887,11 +910,63 @@
       "isSuccessfulWorkflowState",
       "isTerminalWorkflowState"
     ],
+    "packages/hq-next/src/hq/data/local-prefs.ts": [
+      "__test__",
+      "getHqLocalPrefsSnapshot",
+      "reloadHqLocalPrefs",
+      "resetHqLocalPrefs",
+      "setHqControlPrefs",
+      "setHqMailboxPrefs"
+    ],
+    "packages/hq-next/src/hq/data/selectors.ts": [
+      "actionableAlertCount"
+    ],
+    "packages/hq-next/src/hq/data/store/reducers.ts": [
+      "MAX_COMMAND_STATUSES",
+      "SNAPSHOT_RACE_GUARD_WINDOW_MS"
+    ],
+    "packages/hq-next/src/hq/data/transport/hq-socket.ts": [
+      "closeHqSocket",
+      "HqSocket",
+      "resolveHqSocketUrl"
+    ],
+    "packages/hq-next/src/hq/data/transport/resume-frames.ts": [
+      "MAX_RESUME_FRAMES",
+      "normalizeResumeSeq"
+    ],
+    "packages/hq-next/src/hq/data/wire.ts": [
+      "applySocketMessage",
+      "armSnapshotRefresh",
+      "createReconnectReauthorizer",
+      "hydrateFromHttp"
+    ],
+    "packages/hq-next/src/hq/domain/fleet-nav-tree.ts": [
+      "buildNav"
+    ],
+    "packages/hq-next/src/hq/domain/fleet-topology.ts": [
+      "FLEET_COLUMN_GAP",
+      "FLEET_LEAF_H"
+    ],
+    "packages/hq-next/src/hq/domain/kanban-queue-health.ts": [
+      "isQueueHealthy"
+    ],
+    "packages/hq-next/src/hq/domain/status-tone.ts": [
+      "commandLifecycleTone"
+    ],
+    "packages/hq-next/src/hq/domain/transcript-store.ts": [
+      "entryKey"
+    ],
+    "packages/hq-next/src/hq/domain/use-pending-approvals.ts": [
+      "derivePendingApprovals"
+    ],
+    "packages/hq-next/src/hq/domain/use-session-transcript.ts": [
+      "coalesceStreamedText",
+      "mergeSubagentTranscriptEntries"
+    ],
     "packages/hq/src/alerts-config.ts": [
       "emptyHqAlertsConfig",
       "HQ_ALERTS_CONFIG_VERSION",
       "hqAlertsConfigFilePath",
-      "mutateHqAlertsConfig",
       "writeHqAlertsConfig"
     ],
     "packages/hq/src/approval-bridge.ts": [
@@ -913,6 +988,9 @@
     ],
     "packages/hq/src/factory.ts": [
       "resolveHqConfigFromEnv"
+    ],
+    "packages/hq/src/host-health.ts": [
+      "collectHqHostHealth"
     ],
     "packages/hq/src/kanban-store.ts": [
       "MAX_HQ_KANBAN_CACHE_PROJECTS"
@@ -1793,60 +1871,6 @@
     "packages/vibeui/src/lib/use-panel-requests.ts": [
       "acceptsPanelReply"
     ],
-    "packages/webui-hq/src/data/local-prefs.ts": [
-      "__test__",
-      "getHqLocalPrefsSnapshot",
-      "reloadHqLocalPrefs",
-      "resetHqLocalPrefs"
-    ],
-    "packages/webui-hq/src/data/selectors.ts": [
-      "actionableAlertCount"
-    ],
-    "packages/webui-hq/src/data/store/reducers.ts": [
-      "MAX_COMMAND_STATUSES",
-      "SNAPSHOT_RACE_GUARD_WINDOW_MS"
-    ],
-    "packages/webui-hq/src/data/transport/hq-socket.ts": [
-      "closeHqSocket",
-      "HqSocket",
-      "resolveHqSocketUrl"
-    ],
-    "packages/webui-hq/src/data/transport/resume-frames.ts": [
-      "MAX_RESUME_FRAMES",
-      "normalizeResumeSeq"
-    ],
-    "packages/webui-hq/src/data/wire.ts": [
-      "applySocketMessage",
-      "armSnapshotRefresh",
-      "createReconnectReauthorizer",
-      "hydrateFromHttp"
-    ],
-    "packages/webui-hq/src/domain/fleet-nav-tree.ts": [
-      "buildNav"
-    ],
-    "packages/webui-hq/src/domain/fleet-topology.ts": [
-      "FLEET_COLUMN_GAP",
-      "FLEET_LEAF_H"
-    ],
-    "packages/webui-hq/src/domain/mailbox-filters.ts": [
-      "EMPTY_LIVE_FILTER_STATE"
-    ],
-    "packages/webui-hq/src/domain/mailbox-live.ts": [
-      "buildLiveFeed"
-    ],
-    "packages/webui-hq/src/domain/transcript-store.ts": [
-      "entryKey"
-    ],
-    "packages/webui-hq/src/domain/use-pending-approvals.ts": [
-      "derivePendingApprovals"
-    ],
-    "packages/webui-hq/src/domain/use-session-transcript.ts": [
-      "coalesceStreamedText",
-      "mergeSubagentTranscriptEntries"
-    ],
-    "packages/webui-hq/src/views/events.tsx": [
-      "groupEventChains"
-    ],
     "packages/webui-server/src/server/chimera-routes.ts": [
       "isPendingChimeraReport"
     ],
@@ -1879,6 +1903,9 @@
     ],
     "packages/webui-server/src/server/http-server/api-handlers.ts": [
       "fleetBroadcastTargets"
+    ],
+    "packages/webui-server/src/server/mcp-tool-handlers.ts": [
+      "conversationNote"
     ],
     "packages/webui-server/src/server/pref-config-write.ts": [
       "writeGlobalConfigFile"

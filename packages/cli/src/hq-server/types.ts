@@ -12,6 +12,7 @@ import type {
   HqEventEnvelope,
   HqFleetSnapshotPayload,
   HqGovernanceSnapshotPayload,
+  HqHostHealth,
   HqMailboxSnapshotPayload,
   HqMcpServerHealth,
   HqPersistence,
@@ -99,6 +100,8 @@ export interface ConnectedClient {
    * Defaults to `false` for clients without `control.receive`.
    */
   isLeader: boolean;
+  /** Newest host-health sample from this client's heartbeat. */
+  hostHealth?: HqHostHealth & { reportedAt: string };
 }
 
 export interface HqRouterMutableAuth {

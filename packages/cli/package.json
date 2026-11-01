@@ -84,7 +84,7 @@
     "@wrongstack/vector-memory": "workspace:*",
     "@wrongstack/vibeui": "workspace:*",
     "@wrongstack/webui": "workspace:*",
-    "@wrongstack/webui-hq": "workspace:*",
+    "@wrongstack/hq-next": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
     "@wrongstack/worktree": "workspace:*",

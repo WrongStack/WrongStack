@@ -269,7 +269,7 @@ export const packages = [
   '@wrongstack/webui',
   '@wrongstack/webui-protocol',
   '@wrongstack/webui-server',
-  '@wrongstack/webui-hq',
+  '@wrongstack/hq-next',
   '@wrongstack/telegram',
   '@wrongstack/vector-memory',
   '@wrongstack/plugins',

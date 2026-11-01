@@ -30,6 +30,13 @@ export interface HqTimeseriesSample {
   /** Per-dimension cost/token breakdowns for richer trend charts. */
   byModel?: Record<string, HqTimeseriesBreakdownEntry>;
   byProvider?: Record<string, HqTimeseriesBreakdownEntry>;
+  /**
+   * Cost, tokens and tool calls per project and per reporting machine, so the
+   * dashboard can chart one machine or one project. Buckets written before
+   * these existed carry none.
+   */
+  byProject?: Record<string, HqTimeseriesBreakdownEntry>;
+  byMachine?: Record<string, HqTimeseriesBreakdownEntry>;
 }
 
 /**
@@ -44,6 +51,8 @@ export interface HqTimeseriesBreakdownEntry {
   outputTokens: number;
   cacheRead?: number | undefined;
   cacheWrite?: number | undefined;
+  /** Tool executions; carried by the project and machine breakdowns. */
+  toolCalls?: number | undefined;
 }
 
 export interface HqTimeseriesStoreOptions {
@@ -103,6 +112,10 @@ export class HqTimeseriesStore {
     provider?: string;
     cacheRead?: number;
     cacheWrite?: number;
+    /** When present, this signal is also attributed to its project. */
+    projectId?: string;
+    /** When present, this signal is also attributed to the reporting machine's key. */
+    machineKey?: string;
   }): void {
     const start = this.bucketStart(signal.ts ?? Date.now());
     let bucket = this.buckets.get(start);
@@ -130,6 +143,20 @@ export class HqTimeseriesStore {
       }
       if (signal.provider !== undefined) {
         bucket.byProvider = foldBreakdown(bucket.byProvider, signal.provider, entry);
+      }
+    }
+    if (signal.projectId !== undefined || signal.machineKey !== undefined) {
+      const entry: HqTimeseriesBreakdownEntry = {
+        costUsd: signal.costUsd ?? 0,
+        inputTokens: signal.inputTokens ?? 0,
+        outputTokens: signal.outputTokens ?? 0,
+        ...(signal.toolCalls !== undefined ? { toolCalls: signal.toolCalls } : {}),
+      };
+      if (signal.projectId !== undefined) {
+        bucket.byProject = foldBreakdown(bucket.byProject, signal.projectId, entry);
+      }
+      if (signal.machineKey !== undefined) {
+        bucket.byMachine = foldBreakdown(bucket.byMachine, signal.machineKey, entry);
       }
     }
     this.dirtyVersions.set(start, ++this.nextDirtyVersion);
@@ -229,6 +256,37 @@ export class HqTimeseriesStore {
     }
     // Prune in-memory buckets beyond retention.
     this.pruneBuckets();
+  }
+
+  /**
+   * Spend since `sinceMs`, from the in-memory buckets (synchronous, for the
+   * alert tick). Breakdown keys are client data, so they go into Maps, never
+   * object properties.
+   */
+  spendSince(sinceMs: number): {
+    totalUsd: number;
+    byProject: Map<string, number>;
+    byMachine: Map<string, number>;
+  } {
+    const byProject = new Map<string, number>();
+    const byMachine = new Map<string, number>();
+    let totalUsd = 0;
+    const add = (
+      into: Map<string, number>,
+      breakdown: Record<string, HqTimeseriesBreakdownEntry> | undefined,
+    ): void => {
+      if (breakdown === undefined) return;
+      for (const [key, entry] of Object.entries(breakdown)) {
+        if (Number.isFinite(entry?.costUsd)) into.set(key, (into.get(key) ?? 0) + entry.costUsd);
+      }
+    };
+    for (const bucket of this.buckets.values()) {
+      if (bucket.ts < sinceMs) continue;
+      if (Number.isFinite(bucket.costUsd)) totalUsd += bucket.costUsd;
+      add(byProject, bucket.byProject);
+      add(byMachine, bucket.byMachine);
+    }
+    return { totalUsd, byProject, byMachine };
   }
 
   /** Read buckets within `[since, now]`, oldest-first. */
@@ -336,7 +394,47 @@ function cloneTimeseriesSample(sample: HqTimeseriesSample): HqTimeseriesSample {
           ),
         }
       : {}),
+    ...(sample.byProject
+      ? {
+          byProject: Object.fromEntries(
+            Object.entries(sample.byProject).map(([key, value]) => [key, { ...value }]),
+          ),
+        }
+      : {}),
+    ...(sample.byMachine
+      ? {
+          byMachine: Object.fromEntries(
+            Object.entries(sample.byMachine).map(([key, value]) => [key, { ...value }]),
+          ),
+        }
+      : {}),
   };
+}
+
+/**
+ * The series as seen from one project or one machine: each bucket's totals
+ * replaced by that key's breakdown (zero where it had no activity). The model,
+ * provider and active-agent figures are fleet-wide, so they are dropped rather
+ * than shown against a narrower total.
+ */
+export function scopeTimeseriesSamples(
+  samples: readonly HqTimeseriesSample[],
+  scope: { projectId?: string | undefined; machineKey?: string | undefined },
+): HqTimeseriesSample[] {
+  if (scope.projectId === undefined && scope.machineKey === undefined) return [...samples];
+  return samples.map((sample) => {
+    const entry =
+      scope.projectId !== undefined
+        ? ownEntry(sample.byProject, scope.projectId)
+        : ownEntry(sample.byMachine, scope.machineKey as string);
+    return {
+      ts: sample.ts,
+      costUsd: entry?.costUsd ?? 0,
+      inputTokens: entry?.inputTokens ?? 0,
+      outputTokens: entry?.outputTokens ?? 0,
+      toolCalls: entry?.toolCalls ?? 0,
+    };
+  });
 }
 
 /**
@@ -349,12 +447,15 @@ function foldBreakdown(
   key: string,
   entry: HqTimeseriesBreakdownEntry,
 ): Record<string, HqTimeseriesBreakdownEntry> {
-  const next: Record<string, HqTimeseriesBreakdownEntry> = { ...map };
-  const existing = next[key];
+  // Keys come from clients (model names, project ids). Assigning `next[key]`
+  // on a plain object turns a "__proto__" key into a prototype rewrite and the
+  // figure vanishes; building from entries keeps every key as own data.
+  const existing = ownEntry(map, key);
+  let merged: HqTimeseriesBreakdownEntry;
   if (existing === undefined) {
-    next[key] = { ...entry };
+    merged = { ...entry };
   } else {
-    next[key] = {
+    merged = {
       costUsd: existing.costUsd + entry.costUsd,
       inputTokens: existing.inputTokens + entry.inputTokens,
       outputTokens: existing.outputTokens + entry.outputTokens,
@@ -366,7 +467,21 @@ function foldBreakdown(
         existing.cacheWrite !== undefined || entry.cacheWrite !== undefined
           ? (existing.cacheWrite ?? 0) + (entry.cacheWrite ?? 0)
           : undefined,
+      ...(existing.toolCalls !== undefined || entry.toolCalls !== undefined
+        ? { toolCalls: (existing.toolCalls ?? 0) + (entry.toolCalls ?? 0) }
+        : {}),
     };
   }
-  return next;
+  return Object.fromEntries([
+    ...Object.entries(map ?? {}).filter(([name]) => name !== key),
+    [key, merged],
+  ]);
+}
+
+/** A breakdown row only when the map really holds that key (never a prototype member). */
+function ownEntry(
+  map: Record<string, HqTimeseriesBreakdownEntry> | undefined,
+  key: string,
+): HqTimeseriesBreakdownEntry | undefined {
+  return map !== undefined && Object.hasOwn(map, key) ? map[key] : undefined;
 }

@@ -3,6 +3,7 @@ import type {
   HqClientCapability,
   HqClientIdentity,
   HqEventType,
+  HqHostHealth,
   HqKanbanSnapshotPayload,
   HqProjectIdentity,
   HqQueuedCommand,
@@ -63,6 +64,11 @@ export interface HqPublisherOptions {
   resolveEndpoint?: () => { url: string; token?: string | undefined } | undefined;
   discoveryPollMs?: number;
   heartbeatIntervalMs?: number;
+  /**
+   * Host-health sampler for each heartbeat. Defaults to the real one
+   * (`collectHqHostHealth` on the project root); `false` sends none.
+   */
+  hostHealth?: false | (() => Promise<HqHostHealth | undefined>);
   warn?: (message: string) => void;
   logger?: Logger | undefined;
 }

@@ -51,12 +51,12 @@ function serverSentTypes(): Set<string> {
 /**
  * Frame types the browser SPA actually branches on.
  *
- * The dispatch lives in `webui-hq/src/data/wire.ts` (`applySocketMessage`) as a
+ * The dispatch lives in `hq-next/src/hq/data/wire.ts` (`applySocketMessage`) as a
  * `switch` over `message.type` — it moved out of `main.tsx`, which is now only
  * boot wiring.
  */
 function browserHandledTypes(): Set<string> {
-  const source = read('webui-hq/src/data/wire.ts');
+  const source = read('hq-next/src/hq/data/wire.ts');
   const found = new Set<string>();
   for (const m of source.matchAll(/case\s*'(hq\.[a-z_]+)':/g)) {
     if (m[1]) found.add(m[1]);
@@ -112,7 +112,7 @@ describe('HQ browser protocol parity', () => {
     );
     expect(
       unhandled,
-      `hq-server/ws.ts sends these to browsers but webui-hq/src/data/wire.ts has no case ` +
+      `hq-server/ws.ts sends these to browsers but hq-next/src/hq/data/wire.ts has no case ` +
         `for them: ${unhandled.join(', ')}. Add a branch, or add an entry to ` +
         `BROWSER_IGNORED explaining why the browser drops it.`,
     ).toEqual([]);

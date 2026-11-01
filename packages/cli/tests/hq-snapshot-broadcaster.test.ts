@@ -45,3 +45,39 @@ describe('HQ snapshot broadcaster shutdown', () => {
     expect(save).not.toHaveBeenCalled();
   });
 });
+
+describe('HQ snapshot broadcaster token counts', () => {
+  it('puts token counts in the browser frame but never in the disk checkpoint', () => {
+    const save = vi.fn();
+    const persistence = {
+      snapshotStore: { save },
+    } as unknown as NonNullable<Parameters<typeof createSnapshotBroadcaster>[2]>;
+    const stats = { browserTotal: 2, clientTotal: 1, expired: 0, expiringSoon: 1 };
+    const broadcaster = createSnapshotBroadcaster(
+      new Map() as Parameters<typeof createSnapshotBroadcaster>[0],
+      new Set() as Parameters<typeof createSnapshotBroadcaster>[1],
+      persistence,
+      { tokenStats: () => stats },
+    );
+
+    const frame = JSON.parse(broadcaster.currentSerialized()) as {
+      type: string;
+      snapshot: { totals: { tokenStats?: unknown } };
+    };
+    expect(frame.type).toBe('hq.snapshot');
+    expect(frame.snapshot.totals.tokenStats).toEqual(stats);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]?.[0].totals.tokenStats).toBeUndefined();
+  });
+
+  it('omits them when no source is wired', () => {
+    const broadcaster = createSnapshotBroadcaster(
+      new Map() as Parameters<typeof createSnapshotBroadcaster>[0],
+      new Set() as Parameters<typeof createSnapshotBroadcaster>[1],
+    );
+    const frame = JSON.parse(broadcaster.currentSerialized()) as {
+      snapshot: { totals: Record<string, unknown> };
+    };
+    expect('tokenStats' in frame.snapshot.totals).toBe(false);
+  });
+});

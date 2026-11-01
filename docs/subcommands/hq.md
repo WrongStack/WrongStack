@@ -2,7 +2,7 @@
 
 `wstack --hq` starts a local **HQ command center**: a single
 HTTP+WebSocket process that listens on one port and serves the
-**`@wrongstack/webui-hq` React dashboard** at `/` (with a self-contained
+**`@wrongstack/hq-next` dashboard** (a Next.js static export) at `/` (with a self-contained
 inline-HTML fallback when the panel dist is unbuilt). The dashboard
 aggregates telemetry from every WrongStack client (CLI/REPL, TUI, WebUI,
 and VibeUI) that connects to the same URL, and
@@ -142,17 +142,28 @@ Consequences:
 
 | Route | Method | Response | Notes |
 |---|---|---|---|
-| `/` | GET | `text/html` | The HQ panel: the built `@wrongstack/webui-hq` React app when its dist resolves, else the self-contained inline fallback. Static assets under `/assets/` (token-exempt). API/WS paths are never routed through the static server |
+| `/` | GET | `text/html` | The HQ panel: the built `@wrongstack/hq-next` static export when its dist resolves, else the self-contained inline fallback. Static assets under `/_next/static/` (token-exempt). API/WS paths are never routed through the static server |
 | `/api/snapshot` | GET | `application/json` (`HqSnapshot`) | Same shape the browser receives on `/ws/browser` connect (see `HqSnapshot` schema in `protocol.ts`) |
 | `/api/auth/status` | GET | `application/json` | Public auth-mode metadata used to render the credential gate; contains no credentials or telemetry |
 | `/api/login` / `/api/logout` | POST | `application/json` | Password session lifecycle. Login is throttled and sets a signed HttpOnly cookie; logout invalidates it |
 | `/api/auth/password` | POST / DELETE | `application/json` | Create/change/remove the HQ browser password from the Security view. Password sessions must provide the current password; an authenticated browser token can recover/reset it. Local loopback open mode may bootstrap its first password. Public relay mode refuses removal of the final browser auth method |
-| `/api/system/update` | GET | `application/json` | Cached self-update status — GitHub Releases for the standalone binary, npm registry for a legacy package install — used by the HQ warning banner. The UI polls every six hours; registry access remains capped by the existing 24-hour update cache |
+| `/api/system/update` | GET | `application/json` | Cached self-update status — GitHub Releases for the standalone binary, npm registry for a legacy package install — used by the header's update notice (it only explains and copies `wstack update`; it never runs it). The UI polls every six hours; registry access remains capped by the existing 24-hour update cache |
 | `/api/projects/:id` | GET | `application/json` (`ProjectDetail`) | Drilldown endpoint used by the project drawer |
 | `/api/fleet` | GET | `application/json` (`HqSnapshot`) | Alias of the live snapshot (fleet rollup) |
-| `/api/events` | GET | `application/json` `{events, total}` | Persisted event envelopes from `<dataDir>/events.jsonl`, newest first. `?limit=` (≤5000), `?type=` filter. The panel backfills Brain / Worktrees / Mailbox from here |
-| `/api/trends/cost` | GET | `application/json` `{samples}` | 5-min-bucketed cost/token/tool-call time series (`HqTimeseriesSample[]`), `?since=` epoch-ms filter |
+| `/api/events` | GET | `application/json` `{events, total}` | Persisted event envelopes from `<dataDir>/events.jsonl`, newest first. `?limit=` (≤5000) and filters `?type=`, `?clientId=`, `?machineId=`, `?machineKey=` (every process on one computer: `host:<hostname>`, else `mid:<id>`), `?projectId=`, `?since=` / `?until=` (epoch ms), applied inside the scan. The panel backfills Brain / Worktrees / Mailbox from here |
+| `/api/trends/cost` | GET | `application/json` `{samples}` | 5-min-bucketed cost/token/tool-call time series (`HqTimeseriesSample[]`, with `byModel` / `byProvider` / `byProject` / `byMachine` breakdowns), `?since=` epoch-ms filter; `?projectId=` or `?machineKey=` returns that breakdown as the series (`byMachine` is keyed by machine key, so all processes on one host share one series) |
 | `/api/alerts` | GET | `application/json` `{active, history}` | Alert engine state (`?limit=`, default 100) |
+| `/api/alerts/settings` | GET / PUT | `application/json` | Thresholds and daily budgets the dashboard saved (`thresholds`, override `auth.json` `alertRules` field by field), that base (`base`), active mutes (`snoozes`) and the last 24 hours of spend in total, per project and per machine (`spend24h`). PUT `{thresholds}` needs `auth.admin`; stored in `<dataDir>/alerts-config.json` |
+| `/api/alerts/rules/:ruleId/snooze` | POST / DELETE | `application/json` | Mute one rule for `{minutes}` (at most 24 hours) or unmute it. Needs `control.enqueue`; a budget rule can be muted only while its budget is configured; persisted, so a mute survives a restart |
+| `/api/sessions/history` | GET | `application/json` `{sessions}` | Sessions that ended, newest first (`HqSessionHistoryEntry`: project, machine key, start/last activity/end, `outcome` `ended` or `lost`, cost, tokens, tool calls, agents, models). `?projectId=`, `?machineKey=`, `?limit=` (≤ 2000, default 200). Stored in `<dataDir>/session-history.jsonl` |
+| `/api/notify` | GET | `application/json` | Notification settings and channels with **masked** URLs and delivery status. Needs an admin credential, like every `/api/notify*` route |
+| `/api/notify/settings` | PUT | `application/json` | `{publicUrl, approvalDelaySeconds}`: the HQ address used for links in notifications, and how long an approval or question may wait before it is pushed (0–3600 s, default 60) |
+| `/api/notify/channels` | POST | `application/json` | Add a channel: `{name, type: webhook\|slack\|discord\|ntfy, url, kinds: [alert, machine, approval, question], minSeverity}`. At most 20 |
+| `/api/notify/channels/:id` | PATCH / DELETE | `application/json` | Change (rename, pause, re-target) or remove a channel |
+| `/api/notify/channels/:id/test` | POST | `application/json` | Send a test message; 502 with the reason when the channel does not accept it |
+| `/api/machine-tokens` | GET / POST | `application/json` | Client tokens for machines. GET lists id, label, dates, last use and capabilities — never the secret. POST `{label, ttlDays (0 = never, default 90), allowShell}` mints one with `telemetry.publish` (plus `control.execute` when `allowShell`) and returns the secret **once**. Needs an admin credential (see below); every mint is written to `auth-audit.jsonl` |
+| `/api/machine-tokens/:id` | DELETE | `application/json` `{revoked}` | Revoke a client token; machines using it are disconnected on the next credential sweep. Needs `auth.admin`; audited |
+| `/api/machines/:key` | DELETE | `application/json` `{forgotten}` | Forget a machine HQ remembers but that has no connected client (`:key` is the URL-encoded machine key). Needs the `control.enqueue` capability; 409 while any client on it is connected (it would be learned again at once), 404 for an unknown key. Event and spend history are kept |
 | `/api/projects/:projectId/kanban` | GET | `application/json` (`HqKanbanSnapshotPayload`) | Latest persisted boards and tombstones for the repository-stable project identity. Used by the read-only Kanban dashboard view |
 | `/api/sessions` | GET | `application/json` | Live sessions from the cross-process `SessionRegistry` (local machine) |
 | `/api/sessions/:id/events` | GET | `application/json` `{sessionId, source, total, entries}` | Full chat history for a terminal. Local sessions replay the JSONL from disk (`source:"disk"`, merged tool args+results); remote sessions serve the in-memory stream ring (`source:"stream"`). `?limit=` (≤5000, default 200), `?full=1` returns everything |
@@ -268,11 +279,17 @@ are always present (empty arrays when no clients are connected):
 ```jsonc
 {
   "generatedAt": "2026-06-21T10:00:00.000Z",
+  "hqVersion": "1.3.0",  // the hub's own release (additive)
   "clients":   [],  // HqClientRecord[]
   "projects":  [],  // HqProjectRecord[]
   "sessions":  [],  // HqSessionSummary[]
   "fleets":    [],  // HqFleetSummary[]
   "mailboxes": [],  // HqMailboxSummary[]
+  "machines":     [],  // HqMachineRecord[] (additive)
+  "offlineMachines": [],  // HqKnownMachine[] — remembered, no client connected (additive, omitted when empty)
+  "liveSessions": [],  // HqSessionSnapshotPayload[] — terminals with their agents
+  "mcpServers":   [],  // HqMcpServerHealth[] — latest per terminal and server
+  "commandLatency": {},  // present once a command was dispatched and acknowledged
   "totals": {
     "activeProjects":            0,
     "activeClients":             0,
@@ -280,13 +297,18 @@ are always present (empty arrays when no clients are connected):
     "activeSubagents":           0,
     "unreadMailboxMessages":     0,
     "incompleteMailboxMessages": 0,
-    "totalCostUsd":              0
+    "totalCostUsd":              0,
+    "tokenStats": {}  // counts only, never token strings; omitted from the disk checkpoint
   }
 }
 ```
 
 Per-record shapes (from `protocol.ts`):
 
+- **`HqKnownMachine`** — `key` (machine key), optional `hostname`,
+  `machineIds`, `projects` (`{projectId, projectName}`), optional
+  `lastVersion`, `firstSeenAt`, `lastSeenAt`. Kept in `<dataDir>/machines.json`
+  for 30 days after a machine was last seen (at most 500 machines).
 - **`HqClientRecord`** — `clientId`, `kind` (`tui`/`repl`/`webui`/`cli`/`unknown`),
   `machineId`, optional `hostname`/`pid`/`version`, `connected` boolean,
   optional `connectedAt`, `lastSeenAt`, `projectId`, optional `sessionId`,
@@ -300,7 +322,9 @@ Per-record shapes (from `protocol.ts`):
   `lastActivityAt`, optional `costUsd`.
 - **`HqFleetSummary`** — `runId`, `projectId`, `clientId`, `activeSubagents`,
   `queuedTasks`, `completedTasks`, `failedTasks`, optional `totalCostUsd`,
-  `lastActivityAt`.
+  `lastActivityAt`, and the spawn budget when reported: `maxConcurrent`,
+  `maxSpawns`, `usedSpawns`, `remainingSpawns`, `effectiveSource`,
+  `checkpointMaxSpawns`, `ceilingMismatch`.
 - **`HqMailboxSummary`** — `mailboxId`, `projectId`,
   `scope: "project" | "global"`, `messageCount`, `unreadCount`,
   `incompleteCount`, `highPriorityCount`, `onlineAgentCount`,
@@ -494,7 +518,7 @@ Payload type per event type:
 | `event.type` | `event.payload` shape |
 |---|---|
 | `client.hello` | `{ client: HqClientIdentity, project: HqProjectIdentity }` (server-emitted on hello) |
-| `client.heartbeat` | `HqClientHeartbeatPayload` — `uptimeMs`, `status`, optional `activeSessionId` / `activeRunId` / `activeSubagents` / `queuedTasks` |
+| `client.heartbeat` | `HqClientHeartbeatPayload` — `uptimeMs`, `status`, optional `activeSessionId` / `activeRunId` / `activeSubagents` / `queuedTasks`, and optional `host` (`HqHostHealth`: `platform`, `arch`, `cpuCount`, `loadAvg1`, `memTotalBytes`, `memAvailableBytes`, `osUptimeSec`, `diskTotalBytes` / `diskFreeBytes` for the project's volume, `processRssBytes` — numbers and OS labels only; a malformed sample is dropped). The newest sample per machine is `HqMachineRecord.health` (with `reportedAt`) |
 | `session.started` | `HqSessionStartedPayload` — `sessionId`, optional `provider`/`model`, `startedAt` |
 | `session.status` | `HqSessionStatusPayload` — `status` (`idle`/`running`/`paused`/`completed`/`failed`), optional `phase`/`message` |
 | `session.usage` | `HqUsagePayload` — optional `inputTokens`/`outputTokens`/`totalTokens`/`costUsd`/`durationMs` |
@@ -709,34 +733,124 @@ Notes:
 
 ## Browser UI
 
-The primary dashboard is the **`packages/webui-hq` React app** (offline
-Vite bundle, no CDN), served from its built `dist/` with a graceful
-fallback to a self-contained inline HTML page when the dist is unbuilt.
-The panel connects to `/ws/browser` and renders fourteen views behind a
-header (live LED + fleet stat chips) and a tab bar:
+The dashboard is the **`packages/hq-next` Next.js static export** (offline, no
+CDN, strict `script-src 'self'` CSP), served from its built `dist/`, with a
+self-contained inline page as the fallback when the dist is unbuilt. It is one
+place to watch and steer every WrongStack client on every machine and project
+that reports to this HQ. It connects to `/ws/browser`; six sections hold the
+tabs below (`packages/hq-next/src/lib/sections.ts`).
 
-| View | Contents | Data source |
+| Section · tab | What it is for | Data source |
 |---|---|---|
-| **Cockpit** | Fleet overview, quick actions (broadcast / pause), alert + cost summaries | `hq.snapshot`, `hq.alert`, `/api/alerts` |
-| **Fleet** | Searchable full-fleet, per-machine, or cross-machine per-project topology; switchable graph/compact-list layouts; machine → project → client/service → agent rollups; `mailbox serve` status; click-through to Console | `hq.snapshot` |
-| **Console** | Full chat transcript plus exact-client control composer for leader/subagent `steer` / `btw` / `queue`, targeted interrupt, optional leader+fleet interrupt, and optimistic outbound turns whose queued → delivered → acked state updates in the chat history | `/api/sessions/:id/events`, live `session.transcript`, `hq.command_status` |
-| **Mailbox** | Live feed + grouped-by-project message browser with type/priority/project/search filters | `hq.snapshot`, `mailbox.event` (backfilled from `/api/events`) |
-| **Kanban** | Read-only project and board selector with columns, cards, WIP limits, task status, assignees, labels, dependencies, and due dates synchronized across clones and machines | `/api/projects/:projectId/kanban`, live `kanban.snapshot` refresh trigger |
-| **Approvals** | Permission prompts waiting for a human, mirrored from every surface; answer them from HQ | live `approval.requested` / `approval.resolved` (backfilled from `/api/events`) |
-| **Cost** | Hero total, per-project share bars, per-session/model breakdown | `hq.snapshot` |
-| **Brain** | Decision / intervention timeline | `brain.event` (backfilled from `/api/events`) |
-| **Worktrees** | Per-owner lifecycle lanes (allocated → committed → merged / conflict / failed) | `worktree.event` (backfilled) |
-| **Trends** | KPI tiles + SVG column charts (cost / tokens / tool calls) with hover tooltips and 1h–7d range filters | `/api/trends/cost` |
-| **Event Log** | Filterable timeline of every telemetry envelope from every machine | `/api/events`, live `hq.event` |
-| **Alerts** | Live alert feed + history | `hq.alert`, `/api/alerts` |
-| **Control** | Advanced staged command composer (`steer` / `btw` / `queue` / `abort` / `spawn` / `broadcast` / gated `run-command`) with fully-qualified machine/project/process/session targets, preview + typed-confirmation gates, and live audit trail | `POST /api/command`, `/api/commands`, `hq.command_status` |
-| **Security** | Browser password and credential management | `/api/auth/status`, `/api/auth/password` |
+| **Overview** | What needs you (the attention queue), what is running, subagent runs and their spawn budgets, projects, and system health: live link, HQ server and stores, publishers, mailbox gateways, command round-trip, client versions, MCP servers, access-token counts | `hq.snapshot`, `/api/system/health`, `/api/health/mailbox`, `/api/alerts` |
+| **Fleet · Map** | Machine → project → terminal → agent topology as a list or a graph, with search and "hide idle"; click through to the console | `hq.snapshot` |
+| **Fleet · Machines** | One card per machine: online state, clients and their release against HQ, projects, sessions, working agents, spend, MCP health, its health reading (memory, the project's disk, CPU load, uptime, WrongStack's own memory) and that machine's attention items; scope HQ to it in one click. Machines that went offline stay listed with when they were last seen and what they last ran, until forgotten | `hq.snapshot`, `DELETE /api/machines/:key` |
+| **Fleet · Projects** | One card per project across every machine it runs on: where it runs (online and offline machines), open sessions with a link to each transcript, working agents, spend, unread and open mail, the sessions that recently ended and that project's attention items; scope HQ to it in one click. A project whose clients are all gone stays listed from the machine roster | `hq.snapshot`, `GET /api/sessions/history?projectId=` |
+| **Fleet · Console** | A session's full transcript with the agent's model, context fill, tokens and cost; steer / FYI / queue and a confirmed interrupt to the exact client | `/api/sessions/:id/events`, `session.transcript`, `hq.command_status` |
+| **Work · Kanban** | Boards per project; move, assign and dispatch tasks (dispatch is confirmed and warns about unfinished dependencies) | `/api/projects/:projectId/kanban`, `kanban.snapshot` |
+| **Work · Mailbox** | Agent mail across projects; read, reply, compose, soft-delete with restore | `hq.snapshot`, `mailbox.event` (backfilled) |
+| **Inbox · Queue** | Approvals and model questions answered here; failures, stalled subagent runs, failing MCP servers, client release drift, governance warnings, disconnected clients, machines that went offline in the last day, machines low on disk space or memory and alerts explained with a link to where they are fixed | live approvals/questions, `hq.snapshot`, `/api/alerts`, `hq.command_status` |
+| **Inbox · Alert history** | Every alert episode, active and resolved, by rule; a firing rule can be muted for 1, 8 or 24 hours | `/api/alerts`, `hq.alert` |
+| **Telemetry · Sessions** | Every session that ended: project, machine, duration, cost, tool calls, models, and whether it ended or was lost | `/api/sessions/history` |
+| **Telemetry · Cost / Trends / Event log / Brain** | Spend by project, session and model; cost, token and tool-call series; the persisted event log filtered by type, client, machine, project and time; Brain decisions and interventions | `hq.snapshot`, `/api/trends/cost`, `/api/events`, `brain.event` |
+| **System · Control** | Reviewed commands to **one session** (all types, typed confirmation for abort and shell) or to **several sessions** at once (see below), plus the live command audit | `POST /api/command`, `/api/commands` |
+| **System · Worktrees** | Isolated checkouts per project on a time axis; conflicts and failures first | `worktree.event` (backfilled) |
+| **System · Notifications** | Push channels (ntfy for phone push, Slack, Discord, JSON webhook) for alerts, machines going offline and coming back or running low on disk or memory, and approvals or questions left waiting; delivery status per channel; alert thresholds and daily spend budgets for the fleet, each project and each machine | `/api/notify*`, `/api/alerts/settings` |
+| **System · MCP** | Every MCP server each terminal runs: health, latency, failures and limit checks, failing servers first. Read-only — HQ cannot restart an MCP server | `hq.snapshot` (`mcpServers`) |
+| **System · Security** | Browser password, two-factor sign-in, sessions and the access log | `/api/auth/*` |
 
-Panel source: `packages/webui-hq/` (views under `packages/webui-hq/src/views/`,
-the transcript accumulation layer in
-`packages/webui-hq/src/domain/transcript-store.ts`). An
-opt-in Playwright smoke drives the whole panel end-to-end:
-`WSTACK_E2E=1 bun --bun run vitest run packages/cli/tests/hq-visual-smoke.test.ts`.
+**Scope.** The header's scope picker narrows every desktop surface to the
+whole fleet, one machine or one project; the choice is stored per browser.
+Anything that needs a person outside the scope is counted on the picker
+(`+N`) and on the Overview and Inbox, with a one-click way back to the whole
+fleet. Trends follow the scope through the per-machine and per-project
+breakdowns the server records with every cost and tool signal (history from
+before those breakdowns existed counts fleet-wide only); alert thresholds are
+fleet-wide, while daily budgets can be set per project and per machine. The phone app (`/mobile/`: Now, Chat, Board, Mail and a read-only Fleet tab with every machine's health and needs) has its own scope, chosen under its header and stored apart from the desktop one; its badges and notifications still count the whole fleet.
+
+**Several sessions at once.** Control → *Several sessions* sends one steer,
+FYI, queue or abort to up to 50 selected sessions. The review lists every
+target by name and needs the number of targets typed (`ABORT <n>` for an
+abort). Each target gets its own `/api/command` request, so the server
+authorizes, trust-checks and audits each exactly as if it were sent alone;
+nothing is batched server-side. A session that ends after review is skipped
+and reported — its command is never redirected — and an authorization refusal
+(HTTP 401 or 403) stops the remaining sends. Leaving the screen mid-run stops
+it too, and the mode switch stays locked while a run is in flight. Shell commands, spawns and broadcasts stay
+single-target.
+
+**Adding a machine.** Fleet → *Add a machine* shows the steps. An admin
+sign-in creates the machine's client token right in the dialog (name, expiry,
+and remote shell off unless ticked); it is shown once, already inside the
+commands to paste. Otherwise mint it on the HQ machine
+(`wstack hq token create --client`). Then on the new machine run `/hq set <hq-url> <client-token>` inside WrongStack (saved, applied
+live) or set `WRONGSTACK_HQ_URL` / `WRONGSTACK_HQ_TOKEN`. When the dashboard is
+opened on a loopback address it says so, because other machines cannot use it.
+Fleet → Machines lists every machine token with its expiry, last use and
+whether it allows remote shell, and revokes one after a confirmation.
+
+**Release drift.** The snapshot carries the hub's own version (`hqVersion`);
+clients on a different release are listed on Machines and raise one fleet-wide
+attention item. HQ never updates a remote machine itself.
+
+**Notifications.** System → *Notifications* is how HQ reaches you when you
+are not looking at it. A channel is an ntfy topic (phone push through the ntfy
+app), a Slack or Discord incoming webhook, or any URL that accepts a JSON POST,
+and picks what it hears about: alerts (from a minimum severity), machines going
+offline and coming back or running low on disk or memory (once per episode), approvals and questions still unanswered after the
+configured delay (default 60 s, so one answered at the terminal is never
+pushed). Only summaries leave HQ — rule messages, hostnames, project and tool
+names, question titles — never tool arguments, transcripts or tokens. Channel
+URLs are credentials: they live in the owner-only `<dataDir>/notify.json`, the
+API returns them masked, `http` is accepted only for loopback and private
+hosts, redirects are refused, and each channel is rate-limited to 10 messages
+a minute with repeats deduplicated for 10 minutes. Client text is escaped for
+Slack and Discord, so a question title cannot ping a channel or plant a link. Machine notices only cover
+machines this HQ process saw online, so a restart does not replay old outages.
+
+**Alert rules and budgets.** The same screen sets the alert thresholds and a
+daily (rolling 24 hours) spend budget for the fleet, any project and any
+machine. Budgets read the persisted cost series, so sessions that already
+ended still count; each budget is its own rule (`budget-fleet-24h`,
+`budget-project:<id>`, `budget-machine:<key>`), so it fires, notifies and can
+be muted on its own. Values saved here override `auth.json` `alertRules`.
+
+**Admin credential.** Notification channels, machine tokens and alert rules
+(`/api/notify*`, `/api/machine-tokens*`, `PUT /api/alerts/settings`) need an
+`auth.admin` credential — the HQ password or an admin token — even when HQ
+runs with no sign-in configured: a loopback HQ reached through a tunnel or a
+reverse proxy must not hand out client tokens or outbound webhooks. Without
+one they answer 403 `AUTH_CREDENTIAL_REQUIRED`.
+
+**Session history.** Telemetry → *Sessions* lists every session that ended,
+by day: project, machine, how long it ran, cost, tool calls and models, and
+whether it ended on its own or HQ *lost* it (the client vanished or stopped
+reporting without `session.ended`, which can mean a crash). It follows the
+scope, links each session to its transcript while HQ still holds it, and
+downloads the listed sessions as CSV for spend reports (built in the browser;
+client-supplied names that a spreadsheet would run as formulas are defused).
+`session.ended` is also kept in the event log.
+
+**Machines that go offline.** HQ remembers every machine it has seen
+(`<dataDir>/machines.json`, kept 30 days after a machine was last seen), so a
+box whose clients all disconnect stays on Machines as *offline* with its
+last-seen time, last release and projects instead of vanishing. For a day it
+also raises an attention item. *Forget this machine* removes a retired box
+after a confirmation; it returns on its own if a client there connects again.
+
+**Machine health.** Every client's heartbeat (each 25 s) carries a host
+sample: memory, free space on the volume holding the project, CPU load (not on
+Windows, which has none), OS uptime and the client's own memory. Machines shows
+the newest one per machine. A sample under five minutes old with the project
+disk under 5% or 2 GiB free, or memory under 5% available, raises an attention
+item and, for channels that hear about machines, one push per episode. Clients
+older than this release send no sample; their machines read "No reading yet".
+
+Panel source: `packages/hq-next/` (screens under `src/features/`, the phone app
+under `src/app/mobile/`, the shared store, transport and transcript layer under
+`src/hq/`). Opt-in Playwright smokes drive the panel against a real server with
+two machines, and run an axe WCAG 2.2 AA check in both themes on every screen:
+`WSTACK_E2E=1 bun --bun run vitest run packages/cli/tests/hq-visual-smoke.test.ts packages/cli/tests/hq-mobile-visual-smoke.test.ts`.
 
 ## Client-side environment variables
 
@@ -995,7 +1109,10 @@ Also shipped since:
   `<dataDir>/events.jsonl` (rotated), `<dataDir>/snapshot.json` (atomic
   checkpoint) and `<dataDir>/timeseries.jsonl` (5-min buckets, 1-week
   retention) so a restart preserves recent history; served via
-  `/api/events` and `/api/trends/cost`.
+  `/api/events` and `/api/trends/cost`. `<dataDir>/machines.json` remembers
+  machines across disconnects and restarts (`offlineMachines`);
+  `<dataDir>/notify.json` (owner-only) holds notification channels and
+  `<dataDir>/alerts-config.json` the dashboard's thresholds, budgets and mutes.
 - **Frame-size cap** — the WS server runs with a 1 MiB `maxPayload`.
 
 What is still coming (Phase 7 remainder):
@@ -1155,8 +1272,8 @@ is also taken.
 - `packages/cli/src/hq-server.ts` — `startHqServer`, route handlers,
   control plane, transcript rings, persistence wiring
 - `packages/cli/src/hq-static-serve.ts` — resolve + serve the built
-  `@wrongstack/webui-hq/dist` (inline `HQ_HTML` fallback when unbuilt)
-- `packages/webui-hq/` — the React dashboard (14 views + transcript store)
+  `@wrongstack/hq-next/dist` (inline `HQ_HTML` fallback when unbuilt)
+- `packages/hq-next/` — the Next.js dashboard (desktop + `/mobile` app)
 - `packages/cli/src/arg-parser.ts` — `--hq`, `--host`, `--port`,
   `--strict-port`, `--open` boolean flags
 - `packages/cli/src/cli-main.ts` — early `--hq` dispatch (before `boot()`)

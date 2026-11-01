@@ -34,7 +34,7 @@
     { "path": "./packages/tui" },
     { "path": "./packages/webui" },
     { "path": "./packages/webui-server" },
-    { "path": "./packages/webui-hq" },
+    { "path": "./packages/hq-next" },
     { "path": "./packages/cli" },
     { "path": "./packages/sdd" },
     { "path": "./packages/security-scanner" },

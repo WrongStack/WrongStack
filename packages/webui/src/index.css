@@ -106,7 +106,7 @@
     --muted-foreground: 43.6 5.8% 37.1%;
     --accent: 38 70% 90%;
     --accent-foreground: 33.9 100% 30.2%;
-    --destructive: 0 72% 48%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 42.9 17.9% 84.7%;
@@ -114,8 +114,9 @@
     --ring: 344.8 74.6% 47.8%;
 
     --success: 150 58% 30%;
-    --warning: 32 92% 44%;
-    --info: 200 80% 40%;
+    /* Status hues as TEXT must clear 4.5:1 on background, card and muted. */
+    --warning: 32 92% 31%;
+    --info: 200 80% 33%;
     --running: 344.8 74.6% 47.8%;
 
     --radius: 0;
@@ -157,7 +158,8 @@
     --accent: 37.5 42% 19%;
     --accent-foreground: 37.5 98.4% 50%;
     --destructive: 0 70% 66%;
-    --destructive-foreground: 0 0% 98%;
+    /* Dark text on the bright dark-theme red, like --primary-foreground: 5.9:1. */
+    --destructive-foreground: 60 5.9% 6.7%;
 
     --border: 70 5.3% 22.4%;
     --input: 66.7 5.8% 30.4%;
@@ -1797,7 +1799,7 @@ kbd {
    so outline-color is deliberately excluded from the transition while focused.
 
    Keep this OUTSIDE `@layer` — and outside the region mirrored to
-   packages/webui-hq/src/styles/tokens.css (index.css:10-383), which covers
+   packages/hq-next/src/hq/styles/tokens.css (index.css:10-383), which covers
    the @theme + first base token block, not this rule. */
 :focus-visible {
   outline: 2px solid hsl(var(--ring) / 0.85);

@@ -130,7 +130,7 @@
       }
     },
     {
-      "includes": ["packages/webui/src/index.css", "packages/webui-hq/src/index.css"],
+      "includes": ["packages/webui/src/index.css", "packages/hq-next/src/hq/index.css"],
       "linter": {
         "rules": {
           "complexity": {
@@ -140,7 +140,7 @@
       }
     },
     {
-      "includes": ["packages/webui/src/index.css", "packages/webui-hq/src/index.css"],
+      "includes": ["packages/webui/src/index.css", "packages/hq-next/src/hq/index.css"],
       "linter": {
         "rules": {
           "style": {

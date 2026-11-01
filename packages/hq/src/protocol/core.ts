@@ -408,6 +408,11 @@ export function createHqEventEnvelope<TPayload>(input: {
     ...(input.correlationId !== undefined ? { correlationId: input.correlationId } : {}),
   };
 }
-export type { HqMachineRecord, HqUsagePayload } from './common-payloads.js';
+export type {
+  HqHostHealth,
+  HqKnownMachine,
+  HqMachineRecord,
+  HqUsagePayload,
+} from './common-payloads.js';
 export type { HqEventPayloadResult } from './event-payload-validation.js';
 export { parseHqEventPayload } from './event-payload-validation.js';

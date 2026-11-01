@@ -29,6 +29,8 @@
  */
 import { HqKanbanStore } from './kanban-store.js';
 import { HqEventLog } from './persistence/event-log.js';
+import { HqMachineRoster } from './persistence/machine-roster.js';
+import { HqSessionHistory } from './persistence/session-history.js';
 import { HqSimpleLog } from './persistence/simple-log.js';
 import { HqSnapshotStore } from './persistence/snapshot-store.js';
 import { HqTimeseriesStore } from './persistence/timeseries-store.js';
@@ -40,12 +42,23 @@ export {
   HqEventLog,
   hqEventLogPresetFields,
 } from './persistence/event-log.js';
+export {
+  HqMachineRoster,
+  type HqMachineRosterOptions,
+  hqMachineKey,
+} from './persistence/machine-roster.js';
+export {
+  HqSessionHistory,
+  type HqSessionHistoryEntry,
+  type HqSessionHistoryQuery,
+} from './persistence/session-history.js';
 export { HqSimpleLog } from './persistence/simple-log.js';
 export { HqSnapshotStore } from './persistence/snapshot-store.js';
 export {
   type HqTimeseriesBreakdownEntry,
   type HqTimeseriesSample,
   HqTimeseriesStore,
+  scopeTimeseriesSamples,
 } from './persistence/timeseries-store.js';
 
 // ── Aggregate persistence facade ─────────────────────────────────────────────
@@ -58,6 +71,10 @@ export interface HqPersistence {
   sage: HqSageStore;
   commandLog: HqSimpleLog<unknown>;
   alertLog: HqSimpleLog<unknown>;
+  /** Machines seen before, remembered across disconnects (`machines.json`). */
+  machines: HqMachineRoster;
+  /** Sessions that ended, with their final figures (`session-history.jsonl`). */
+  sessionHistory: HqSessionHistory;
 }
 
 export function createHqPersistence(dataDir: string): HqPersistence {
@@ -81,5 +98,7 @@ export function createHqPersistence(dataDir: string): HqPersistence {
       rotateKeep: 1_000,
       readLimit: 1_000,
     }),
+    machines: new HqMachineRoster({ dataDir }),
+    sessionHistory: new HqSessionHistory({ dataDir }),
   };
 }

@@ -14,10 +14,6 @@
       "lines": 706,
       "relativeImports": 17
     },
-    "packages/fleet/src/host-skill-companion.ts": {
-      "lines": 756,
-      "relativeImports": 3
-    },
     "packages/client/src/client.ts": {
       "lines": 754,
       "relativeImports": 4
@@ -45,6 +41,10 @@
     "packages/core/src/execution/auto-compaction-middleware.ts": {
       "lines": 703,
       "relativeImports": 18
+    },
+    "packages/fleet/src/host-skill-companion.ts": {
+      "lines": 756,
+      "relativeImports": 3
     },
     "packages/mailbox-mcp/src/adapter.ts": {
       "lines": 707,
@@ -135,12 +135,12 @@
       "relativeImports": 13
     },
     "apps/desktop-v2/src/CodeAtlas.tsx": {
-      "lines": 917,
+      "lines": 914,
       "relativeImports": 11
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 2018,
-      "relativeImports": 30
+      "lines": 2016,
+      "relativeImports": 29
     },
     "apps/desktop-v2/src/KanbanTaskInspector.tsx": {
       "lines": 826,
@@ -151,19 +151,19 @@
       "relativeImports": 16
     },
     "apps/desktop-v2/src/ProjectAgentRoster.tsx": {
-      "lines": 1562,
+      "lines": 1559,
       "relativeImports": 16
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
-      "lines": 778,
+      "lines": 775,
       "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {
-      "lines": 718,
+      "lines": 715,
       "relativeImports": 8
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
-      "lines": 786,
+      "lines": 783,
       "relativeImports": 8
     },
     "apps/desktop-v2/src/ProjectGoals.tsx": {
@@ -171,11 +171,11 @@
       "relativeImports": 9
     },
     "apps/desktop-v2/src/ProjectKanban.tsx": {
-      "lines": 747,
+      "lines": 748,
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectKnowledge.tsx": {
-      "lines": 939,
+      "lines": 927,
       "relativeImports": 9
     },
     "apps/desktop-v2/src/ProjectMailbox.tsx": {
@@ -183,7 +183,7 @@
       "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectMemory.tsx": {
-      "lines": 826,
+      "lines": 824,
       "relativeImports": 8
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {
@@ -191,8 +191,8 @@
       "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectSdd.tsx": {
-      "lines": 780,
-      "relativeImports": 12
+      "lines": 746,
+      "relativeImports": 13
     },
     "apps/desktop-v2/src/ProjectSessionHistory.tsx": {
       "lines": 746,
@@ -203,11 +203,11 @@
       "relativeImports": 8
     },
     "apps/desktop-v2/src/SessionComposer.tsx": {
-      "lines": 1151,
+      "lines": 1150,
       "relativeImports": 32
     },
     "apps/desktop-v2/src/SkillLibrary.tsx": {
-      "lines": 891,
+      "lines": 889,
       "relativeImports": 7
     },
     "apps/desktop-v2/src/useDesktop.ts": {

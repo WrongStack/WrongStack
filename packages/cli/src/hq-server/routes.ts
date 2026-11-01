@@ -21,35 +21,26 @@ import type {
   HqAlertEngine,
   HqCommandAuditLog,
   HqEventEnvelope,
+  HqNotifier,
   HqSnapshot,
   HqTranscriptEntry,
 } from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 import { HQ_HTML } from '../hq-recovery-html.js';
 import { resolveHqDistDir, serveHqStatic } from '../hq-static-serve.js';
+import type { HqAlertSettings } from './alert-settings.js';
 import * as HqServerAuth from './auth.js';
 import type { HqMailboxGatewayHealth } from './mailbox-gateway-health.js';
-import {
-  type ApplyHqAuthFile,
-  callerCanAdministerAuth,
-  handleApiAuthAudit,
-  handleApiAuthSessions,
-  handleApiAuthSessionsRevoke,
-  handleApiAuthStatus,
-  handleApiBootstrap,
-  handleApiLogin,
-  handleApiLoginVerify,
-  handleApiLogout,
-  handleApiPassword,
-  handleApiTokenUpgrade,
-  handleApiTotpDisable,
-  handleApiTotpEnable,
-  handleApiTotpSetup,
-} from './routes/auth-handlers.js';
+import { handleApiOperatorSettings } from './routes/alert-settings-handlers.js';
+import { dispatchHqAuthRoutes } from './routes/auth-dispatch.js';
+import type { ApplyHqAuthFile } from './routes/auth-handlers.js';
 import { handleApiCommand } from './routes/command-handlers.js';
 import {
   handleApiEvents,
+  handleApiForgetMachine,
   handleApiProjectDetail,
+  handleApiProjectKanban,
+  handleApiSessionHistory,
   handleApiTrendsCost,
 } from './routes/data-handlers.js';
 import {
@@ -178,6 +169,12 @@ export interface HqRouterDeps {
   trustedProxyHops?: number | undefined;
   /** TCP-peer allowlist shared by HTTP and WebSocket admission. */
   ipAllowlist?: HqIpAllowlist | undefined;
+  /** Notification channels (`/api/notify*`); absent in embedded routers. */
+  notifier?: HqNotifier | undefined;
+  /** Alert thresholds, budgets and snoozes (`/api/alerts/settings`, rule snoozes). */
+  alertSettings?: HqAlertSettings | undefined;
+  /** Re-broadcast the snapshot after the machine roster changed. */
+  onMachinesChanged?: (() => void) | undefined;
 }
 
 // ── Route handler factory ──────────────────────────────────────────────────
@@ -221,7 +218,22 @@ export function createHqRouter(
     applyAuthFile,
     trustedProxyHops = 0,
     ipAllowlist,
+    onMachinesChanged,
+    notifier,
+    alertSettings,
   } = deps;
+
+  // `/api/snapshot` and `/api/fleet` serve the same tree, roster included.
+  const fleetSnapshot = (): HqSnapshot =>
+    HqServerSnapshot.buildSnapshot(clients, {
+      tokenStats: getTokenStats?.(),
+      roster: persistence.machines,
+      history: persistence.sessionHistory,
+    });
+  const writeFleetSnapshot = (res: http.ServerResponse): void => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(fleetSnapshot()));
+  };
 
   return async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     try {
@@ -314,181 +326,22 @@ export function createHqRouter(
       // HQ API routes
       // ════════════════════════════════════════════════════════════════
 
-      if (url.pathname === '/api/auth/status' && req.method === 'GET') {
-        await handleApiAuthStatus(
-          req,
-          res,
-          url,
-          mutableAuth,
-          sessions,
-          requireBrowserAuth,
-          trustedPublicOrigins,
-          secureCookies,
-        );
-        return;
-      }
-
-      // WS-102: the account-security surface (session list/revoke, auth audit,
-      // TOTP enrollment) is gated on `auth.admin`, not merely on "authenticated".
-      // The gate above proves a credential; this proves the credential is
-      // allowed to change how HQ authenticates.
-      if (
-        (url.pathname === '/api/auth/audit' && req.method === 'GET') ||
-        (url.pathname.startsWith('/api/auth/sessions') &&
-          (req.method === 'GET' || req.method === 'DELETE')) ||
-        (url.pathname.startsWith('/api/auth/totp/') && req.method === 'POST')
-      ) {
-        const auth = HqServerAuth.authenticateBrowserRequest(req, url, mutableAuth, sessions);
-        if (auth !== undefined && !callerCanAdministerAuth(auth)) {
-          res.writeHead(403, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: {
-                code: 'AUTH_ADMIN_REQUIRED',
-                message: "This endpoint requires the 'auth.admin' capability.",
-              },
-            }),
-          );
-          return;
-        }
-      }
-
-      if (url.pathname === '/api/auth/audit' && req.method === 'GET') {
-        handleApiAuthAudit(req, res, dataDir);
-        return;
-      }
-
-      if (url.pathname === '/api/auth/sessions' && req.method === 'GET') {
-        handleApiAuthSessions(req, res, mutableAuth, sessions);
-        return;
-      }
-
-      if (url.pathname.startsWith('/api/auth/sessions') && req.method === 'DELETE') {
-        await handleApiAuthSessionsRevoke(req, res, url, sessions);
-        return;
-      }
-
-      if (
-        (url.pathname === '/api/login' || url.pathname === '/api/mobile/login') &&
-        req.method === 'POST'
-      ) {
-        await handleApiLogin(
-          req,
-          res,
-          mutableAuth,
-          sessions,
-          loginAttempts,
-          secureCookies,
-          trustedProxyHops,
-          dataDir,
-          // Least privilege for the phone: send and steer, plus ONE-SHOT
-          // answers to pending prompts (see `credentialMayAnswer`) — never
-          // persistent approval policy, never account administration.
-          url.pathname === '/api/mobile/login'
-            ? ['control.enqueue', 'control.approve.once']
-            : undefined,
-        );
-        return;
-      }
-
-      if (url.pathname === '/api/auth/bootstrap' && req.method === 'POST') {
-        if (bootstrapStore) {
-          await handleApiBootstrap(req, res, mutableAuth, sessions, secureCookies, bootstrapStore);
-        } else {
-          res.writeHead(503, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: {
-                code: 'BOOTSTRAP_UNAVAILABLE',
-                message: 'Bootstrap exchange is not enabled on this HQ server.',
-              },
-            }),
-          );
-        }
-        return;
-      }
-
-      // WS-065: deliberately NOT in the gate's exemption list above — the gate
-      // authenticating the Bearer token is exactly the proof this route needs.
-      if (url.pathname === '/api/auth/upgrade' && req.method === 'POST') {
-        await handleApiTokenUpgrade(req, res, url, mutableAuth, sessions, secureCookies);
-        return;
-      }
-
-      if (url.pathname === '/api/logout' && req.method === 'POST') {
-        await handleApiLogout(req, res, mutableAuth, sessions, secureCookies);
-        return;
-      }
-
-      if (
-        (url.pathname === '/api/login/verify' || url.pathname === '/api/mobile/login/verify') &&
-        req.method === 'POST'
-      ) {
-        await handleApiLoginVerify(
-          req,
-          res,
-          url,
-          mutableAuth,
-          sessions,
-          loginAttempts,
-          dataDir,
-          secureCookies,
-          applyAuthFile,
-          trustedProxyHops,
-        );
-        return;
-      }
-
-      if (url.pathname === '/api/auth/totp/setup' && req.method === 'POST') {
-        await handleApiTotpSetup(req, res, mutableAuth, sessions, dataDir, applyAuthFile);
-        return;
-      }
-
-      if (url.pathname === '/api/auth/totp/enable' && req.method === 'POST') {
-        await handleApiTotpEnable(req, res, mutableAuth, sessions, dataDir, applyAuthFile);
-        return;
-      }
-
-      if (url.pathname === '/api/auth/totp/disable' && req.method === 'POST') {
-        await handleApiTotpDisable(
-          req,
-          res,
-          mutableAuth,
-          sessions,
-          loginAttempts,
-          dataDir,
-          applyAuthFile,
-          trustedProxyHops,
-        );
-        return;
-      }
-
-      if (
-        url.pathname === '/api/auth/password' &&
-        (req.method === 'POST' || req.method === 'DELETE')
-      ) {
-        await handleApiPassword(
-          req,
-          res,
-          mutableAuth,
-          sessions,
-          dataDir,
-          secureCookies,
-          requireBrowserAuth,
-          applyAuthFile,
-          loginAttempts,
-          trustedProxyHops,
-        );
-        return;
-      }
+      const authDeps = {
+        mutableAuth,
+        sessions,
+        loginAttempts,
+        dataDir,
+        requireBrowserAuth,
+        trustedPublicOrigins,
+        secureCookies,
+        trustedProxyHops,
+        bootstrapStore,
+        applyAuthFile,
+      };
+      if (await dispatchHqAuthRoutes(req, res, url, authDeps)) return;
 
       if (url.pathname === '/api/snapshot' && req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify(
-            HqServerSnapshot.buildSnapshot(clients, { tokenStats: getTokenStats?.() }),
-          ),
-        );
+        writeFleetSnapshot(res);
         return;
       }
 
@@ -527,21 +380,12 @@ export function createHqRouter(
         return;
       }
 
-      const projectKanbanMatch = url.pathname.match(/^\/api\/projects\/([^/]+)\/kanban$/);
-      if (projectKanbanMatch && req.method === 'GET') {
-        const projectId = HqServerUtils.decodePathSegment(projectKanbanMatch[1]!);
-        if (projectId === null) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: 'Invalid project id.' } }),
-          );
-          return;
-        }
-        const snapshot = await persistence.kanban.load(projectId);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(snapshot));
-        return;
-      }
+      if (await handleApiProjectKanban(req, res, url, persistence)) return;
+      if (handleApiSessionHistory(req, res, url, persistence)) return;
+
+      const machineTokens = { dataDir, applyAuthFile };
+      const operator = { notifier, alertSettings, mutableAuth, sessions, machineTokens };
+      if (await handleApiOperatorSettings(req, res, url, operator)) return;
 
       if (url.pathname.startsWith('/api/projects/') && req.method === 'GET') {
         await handleApiProjectDetail(req, res, url, clients);
@@ -550,25 +394,25 @@ export function createHqRouter(
 
       // ── Fleet tree ────────────────────────────────────────────────
       if (url.pathname === '/api/fleet' && req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify(
-            HqServerSnapshot.buildSnapshot(clients, { tokenStats: getTokenStats?.() }),
-          ),
-        );
+        writeFleetSnapshot(res);
         return;
       }
 
       // ── Events ────────────────────────────────────────────────────
       if (url.pathname === '/api/events' && req.method === 'GET') {
-        await handleApiEvents(req, res, persistence, (machineId) => {
-          const ids = new Set<string>();
-          for (const client of clients.values()) {
-            if ((client.machineId || client.project.machineId) === machineId) {
-              ids.add(client.clientId);
-            }
-          }
-          return ids;
+        await handleApiEvents(req, res, persistence, clients);
+        return;
+      }
+
+      // ── Machines: forget one that is offline ──────────────────────
+      const machineMatch = url.pathname.match(/^\/api\/machines\/([^/]+)$/);
+      if (machineMatch && req.method === 'DELETE') {
+        handleApiForgetMachine(req, res, url, machineMatch[1]!, {
+          mutableAuth,
+          sessions,
+          roster: persistence.machines,
+          refresh: fleetSnapshot,
+          onChanged: onMachinesChanged,
         });
         return;
       }

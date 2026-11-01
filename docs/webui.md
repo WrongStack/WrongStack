@@ -4,8 +4,8 @@ The Web UI (`@wrongstack/webui`) is a React + Radix + Tailwind frontend backed b
 a Node `ws` server that drives the same agent kernel as the CLI and TUI.
 
 > **HQ command center (separate app):** the multi-client dashboard and control
-> plane served by `wstack --hq` is a distinct React app under
-> [`packages/webui-hq/`](../packages/webui-hq/) (Phase 5 of the
+> plane served by `wstack --hq` is a distinct Next.js app under
+> [`packages/hq-next/`](../packages/hq-next/) (Phase 5 of the
 > [HQ Command Center 2026-07 plan](archive/plans/hq-command-center-2026-07.md)).
 > It is **not** the same code as the per-session WebUI described below —
 > the WebUI lives next to one session, the HQ aggregates telemetry from

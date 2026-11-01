@@ -22,7 +22,7 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(ReadlineInputReader.prototype, 'readLine')
-    .mockResolvedValueOnce('4')
+    .mockResolvedValueOnce('5')
     .mockResolvedValueOnce('3499')
     .mockResolvedValueOnce('0.0.0.0');
   mocks.serve.mockReset();
@@ -42,21 +42,20 @@ describe('HQ launch menu startup output', () => {
     const warn = console.warn;
     const stderr = process.stderr.write;
     let shutdown!: () => void;
-    let started!: () => void;
-    const ready = new Promise<void>((resolve) => {
+    let started!: (flags: unknown) => void;
+    const ready = new Promise<unknown>((resolve) => {
       started = resolve;
     });
     const lifetime = new Promise<number>((resolve) => {
       shutdown = () => resolve(0);
     });
     mocks.serve.mockImplementation(async (flags) => {
-      expect(flags).toMatchObject({ hq: true, port: '3499', host: '0.0.0.0' });
       console.warn(JSON.stringify({ level: 'warn', event: 'hq.insecure_exposure' }));
       process.stderr.write(`${JSON.stringify({ level: 'info', event: 'hq.startup' })}\n`);
       console.log('WrongStack HQ listening on http://127.0.0.1:3499/');
       console.log('Browser endpoint: http://127.0.0.1:3499/#bootstrap=test');
       console.log('Client endpoint: ws://127.0.0.1:3499/ws/client?token=test');
-      started();
+      started(flags);
       return lifetime;
     });
 
@@ -66,7 +65,13 @@ describe('HQ launch menu startup output', () => {
       return code;
     });
     try {
-      await ready;
+      const flags = await Promise.race([
+        ready,
+        running.then(() => {
+          throw new Error('CLI exited before the HQ server started');
+        }),
+      ]);
+      expect(flags).toMatchObject({ hq: true, port: '3499', host: '0.0.0.0' });
       expect(exited).toBe(false);
       expect(log).toHaveBeenCalledWith('WrongStack HQ listening on http://127.0.0.1:3499/');
       expect(log).toHaveBeenCalledWith('Browser endpoint: http://127.0.0.1:3499/#bootstrap=test');

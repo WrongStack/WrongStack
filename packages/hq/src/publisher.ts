@@ -5,6 +5,7 @@ import type {
   MailboxAgentStatus,
   MailboxMessage,
 } from '@wrongstack/contracts/types/mailbox';
+import { HqHostHealthSampler } from './host-health.js';
 import {
   createMailboxEventPayload,
   createMailboxSnapshotPayloadFromMailbox,
@@ -116,9 +117,11 @@ export class HqPublisher {
   private readonly mailboxSnapshots = new MailboxSnapshotMemory();
   private lastCommandId: string | undefined;
   private readonly commandTracker = new CommandTracker(MAX_TRACKED_COMMANDS);
+  private readonly hostHealth: HqHostHealthSampler;
 
   constructor(private readonly options: HqPublisherOptions) {
     this.socketFactory = options.socketFactory ?? defaultSocketFactory;
+    this.hostHealth = new HqHostHealthSampler(options.project.projectRoot, options.hostHealth);
     this.now = options.now ?? (() => new Date().toISOString());
     this.idFactory = options.idFactory ?? randomUUID;
     this.capabilities = options.capabilities ?? [
@@ -589,6 +592,7 @@ export class HqPublisher {
 
   private startHeartbeat(): void {
     if (this.heartbeatTimer !== null) return;
+    this.hostHealth.next();
     this.heartbeatTimer = setInterval(
       () => this.publishHeartbeat(),
       this.options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS,
@@ -605,13 +609,13 @@ export class HqPublisher {
   private publishHeartbeat(): void {
     const startedAt = Date.parse(this.options.client.startedAt);
     const now = Date.parse(this.now());
+    const uptimeMs =
+      Number.isFinite(startedAt) && Number.isFinite(now) ? Math.max(0, now - startedAt) : 0;
+    // The newest finished sample; the next one is taken for the next beat.
+    const host = this.hostHealth.next();
     this.publishEvent({
       type: 'client.heartbeat',
-      payload: {
-        uptimeMs:
-          Number.isFinite(startedAt) && Number.isFinite(now) ? Math.max(0, now - startedAt) : 0,
-        status: 'idle',
-      },
+      payload: { uptimeMs, status: 'idle', ...(host ? { host } : {}) },
     });
   }
 

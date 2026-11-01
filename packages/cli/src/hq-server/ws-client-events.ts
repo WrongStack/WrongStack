@@ -4,7 +4,9 @@
  * @module hq-server/ws-client-events
  */
 
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type {
+  HqClientHeartbeatPayload,
   HqEventEnvelope,
   HqFleetSnapshotPayload,
   HqGovernanceSnapshotPayload,
@@ -30,7 +32,6 @@ import {
   tightenHqRedactionPolicy,
   tokenHasCapability,
 } from '@wrongstack/hq';
-import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { broadcastEvent, sendGuarded } from './snapshot.js';
 import type { ConnectedClient, HqSnapshotBroadcaster, TranscriptRing } from './types.js';
@@ -67,6 +68,9 @@ export function fanoutKanbanDelta(
   }
   return { clientsNotified, browsersNotified: 0 };
 }
+
+const HOST_HEALTH_BROADCAST_MS = 120_000;
+const hostHealthBroadcastAt = new WeakMap<ConnectedClient, number>();
 
 export function handleIncomingClientEvent(
   ws: WebSocket,
@@ -133,6 +137,18 @@ export function handleIncomingClientEvent(
   ).value;
 
   if (event.type === 'client.heartbeat') {
+    // Numbers and short OS labels only (validated above): kept as sent.
+    const host = (parsedPayload.payload as HqClientHeartbeatPayload).host;
+    if (host === undefined) return;
+    const first = client.hostHealth === undefined;
+    client.hostHealth = { ...host, reportedAt: client.lastSeenAt };
+    // Health moves slowly: push it to dashboards at most every 2 minutes per
+    // client (any other broadcast carries the newest sample too).
+    const now = Date.now();
+    if (first || now - (hostHealthBroadcastAt.get(client) ?? 0) >= HOST_HEALTH_BROADCAST_MS) {
+      hostHealthBroadcastAt.set(client, now);
+      snapshotBroadcaster.broadcast();
+    }
     return;
   }
 
@@ -248,6 +264,9 @@ export function handleIncomingClientEvent(
       for (const [runId, fleet] of client.fleets) {
         if (fleet.sessionId === payload.sessionId) client.fleets.delete(runId);
       }
+      // Rare and worth keeping: the event log shows when each session ended,
+      // and the session history tells an ended session from a lost one.
+      persistEvent(event);
       snapshotBroadcaster.broadcast();
     }
     return;

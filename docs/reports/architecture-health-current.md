@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-01T20:27:14.254Z
+**Generated:** 2026-11-01T23:40:07.596Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 46 |
-| Production source files | 5574 |
-| Production source lines | 1222676 |
-| Test files | 4860 |
-| Workspace dependency edges | 233 |
-| Relative module edges | 16721 |
+| Production source files | 5643 |
+| Production source lines | 1232089 |
+| Test files | 4879 |
+| Workspace dependency edges | 231 |
+| Relative module edges | 16513 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
@@ -21,37 +21,7 @@
 
 ## Verification result
 
-- apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/FileWorkspace.tsx: hotspot shrunk from 2018 to 2016 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/FileWorkspace.tsx: relative import fan-out decreased from 30 to 29; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectAgentRoster.tsx: hotspot shrunk from 1562 to 1559 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectDesignStudio.tsx: hotspot shrunk from 786 to 783 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectKanban.tsx: hotspot grew from 747 to 748 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectKnowledge.tsx: hotspot shrunk from 939 to 927 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectMemory.tsx: hotspot shrunk from 826 to 824 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectSdd.tsx: hotspot shrunk from 780 to 746 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change
-- apps/desktop-v2/src/SessionComposer.tsx: hotspot shrunk from 1151 to 1150 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/editor-language.ts: "deleteLines" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/editor-language.ts: "languageNewline" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/editor-language.ts: "smartHome" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/editor-language.ts: "toggleBlockComment" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/FallbackSuggestions.tsx: "readFallbackSuggestions" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/KanbanContractMap.tsx: "endpointLabel" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/KanbanContractMap.tsx: "readContractGraph" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/KanbanTaskChain.tsx: "chainCards" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/KanbanTaskMetrics.tsx: "metricValue" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/PdfFrame.tsx: "looksLikePdf" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/ProjectSideEffectsSummary.tsx: "readSideEffectsSummary" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/SageInjectionHistory.tsx: "readInjections" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/SessionPlanTemplates.tsx: "readPlanTemplates" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-server/src/server/mcp-tool-handlers.ts: "conversationNote" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/editor-indent.ts: "indentLines" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- apps/desktop-v2/src/editor-indent.ts: "newlineWithIndent" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- apps/desktop-v2/src/editor-indent.ts: "outdentLines" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -62,7 +32,7 @@
 | @wrongstack/bench | 32 | 64 | @wrongstack/core |
 | @wrongstack/builtin-plugins | 33 | 28 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/chronicle | 52 | 43 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/cli | 617 | 677 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
+| @wrongstack/cli | 625 | 682 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/client | 7 | 4 | @wrongstack/webui-protocol |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
@@ -72,7 +42,8 @@
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
-| @wrongstack/hq | 62 | 42 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/hq | 70 | 48 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/hq-next | 180 | 63 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/kanban | 108 | 86 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 7 | 11 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
@@ -97,7 +68,6 @@
 | @wrongstack/vector-memory | 18 | 28 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 69 | 24 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 773 | 510 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
-| @wrongstack/webui-hq | 127 | 55 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 29 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
 | @wrongstack/webui-server | 329 | 366 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 4 | @wrongstack/contracts, @wrongstack/core |

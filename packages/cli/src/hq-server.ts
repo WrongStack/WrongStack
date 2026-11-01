@@ -20,11 +20,8 @@ import {
   assessHqExposure,
   createHqPersistence,
   type EnsureHqFirstRunAuthResult,
-  type HqAlert,
   HqAlertEngine,
-  type HqAlertRuleConfig,
   HqBootstrapCodeStore,
-  type HqCommandAuditEntry,
   HqCommandAuditLog,
   type HqEventEnvelope,
   type HqToken,
@@ -37,10 +34,13 @@ import {
   watchHqAuthFile,
 } from '@wrongstack/hq';
 import { HQ_HTML } from './hq-recovery-html.js';
+import { createHqAlertSettings } from './hq-server/alert-settings.js';
 import { createHqAuthState } from './hq-server/auth-state.js';
+import { seedHqServerFromDisk } from './hq-server/boot-seed.js';
 import { createHqIpAllowlist } from './hq-server/ip-allowlist.js';
 import { LoginAttemptStore } from './hq-server/login-attempt-store.js';
 import { MailboxGatewayManager } from './hq-server/mailbox-gateway-manager.js';
+import { createHqNotifyRuntime } from './hq-server/notify-wiring.js';
 import { prepareHqServerStart } from './hq-server/preflight.js';
 import {
   agentMessageToEntry,
@@ -310,8 +310,10 @@ async function startHqServerWithAuth(
     })().catch(() => {});
     const hqSessionTag = randomUUID().slice(0, 8);
 
+    const notify = createHqNotifyRuntime(dataDir, clients);
     const alertEngine = new HqAlertEngine({
       onAlert: (alert) => {
+        notify.onAlert(alert);
         const msg = toAlertMessage(alert);
         const data = JSON.stringify(msg);
         for (const ws of browsers) {
@@ -320,26 +322,20 @@ async function startHqServerWithAuth(
       },
       onPersist: (alert) => persistence.alertLog.append(alert),
     });
-    void persistence.eventLog.hydrate().catch(() => undefined);
-    void persistence.timeseries.load().catch(() => undefined);
-    persistence.eventLog
-      .recent(MAX_EVENT_LOG)
-      .then((prior) => {
-        for (let i = prior.length - 1; i >= 0; i--) eventLog.push(prior[i]!);
-      })
-      .catch(() => {});
-    persistence.alertLog
-      .readAll()
-      .then((prior) => {
-        alertEngine.seed(prior as readonly HqAlert[]);
-      })
-      .catch(() => {});
-    persistence.commandLog
-      .readAll()
-      .then((prior) => {
-        auditLog.seed(prior as readonly HqCommandAuditEntry[]);
-      })
-      .catch(() => {});
+    const alertSettings = createHqAlertSettings({
+      dataDir,
+      engine: alertEngine,
+      timeseries: persistence.timeseries,
+      baseRules: () => mutableAuth.alertRules,
+    });
+    void alertSettings.load();
+    seedHqServerFromDisk({
+      persistence,
+      eventLog,
+      maxEventLog: MAX_EVENT_LOG,
+      alertEngine,
+      auditLog,
+    });
 
     const timeseriesFlushTimer = setInterval(() => {
       persistence.timeseries.flush();
@@ -352,13 +348,26 @@ async function startHqServerWithAuth(
       persistence,
       // W4 #7: the ring is the read path for `/api/commands`, so the browser
       // snapshot's latency roll-up is computed from the same window.
-      { commandAudit: () => auditLog.recent(200) },
+      {
+        commandAudit: () => auditLog.recent(200),
+        tokenStats: () => authState.tokenStats(),
+      },
     );
     snapshotBroadcaster.currentSerialized();
 
     const stopAlertEngine = alertEngine.startPeriodic(
-      () => HqServerSnapshot.buildSnapshot(clients, { tokenStats: authState.tokenStats() }),
-      (): HqAlertRuleConfig | undefined => mutableAuth.alertRules,
+      () => {
+        const snapshot = HqServerSnapshot.buildSnapshot(clients, {
+          tokenStats: authState.tokenStats(),
+          roster: persistence.machines,
+          history: persistence.sessionHistory,
+        });
+        notify.onSnapshot(snapshot, persistence.machines);
+        return snapshot;
+      },
+      alertSettings.config,
+      15_000,
+      alertSettings.context,
     );
 
     const clientTtlMs = options.clientTtlMs ?? CLIENT_TTL_MS;
@@ -379,6 +388,9 @@ async function startHqServerWithAuth(
     cleanupTimer.unref?.();
 
     const routerDeps: HqRouterDeps = {
+      notifier: notify.notifier,
+      alertSettings,
+      onMachinesChanged: () => snapshotBroadcaster.broadcast(),
       trustBoundary,
       host,
       listeningPort: () => listeningPort,
@@ -471,6 +483,12 @@ async function startHqServerWithAuth(
       agentMessages,
       persistence,
       auditLog,
+      observeClientEvent: (event: HqEventEnvelope, owner: ConnectedClient | undefined) => {
+        notify.onClientEvent(event, owner);
+        const ended = event.type === 'session.ended' ? event.payload : undefined;
+        const endedId = (ended as { sessionId?: unknown } | undefined)?.sessionId;
+        if (typeof endedId === 'string') persistence.sessionHistory.noteEnded(endedId);
+      },
       snapshotBroadcaster,
       wss,
       ipAllowlist,
@@ -644,7 +662,10 @@ async function startHqServerWithAuth(
             timeseriesFlushTimer,
             sessionCleanupTimer,
             loginAttempts,
-            stopAlertEngine,
+            stopAlertEngine: () => {
+              stopAlertEngine();
+              void notify.close();
+            },
             authWatcher,
             snapshotBroadcaster,
             bootstrapStore,

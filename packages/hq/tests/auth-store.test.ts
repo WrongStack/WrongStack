@@ -675,8 +675,12 @@ describe('HQ password KDF versioning', () => {
       const watcher = watchHqAuthFile(dir, onChange, { warn, debounceMs: 10 });
       try {
         await fs.writeFile(hqAuthFilePath(dir), '{corrupt-json', 'utf8');
-        await new Promise((r) => setTimeout(r, 60));
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining('not valid JSON'));
+        // fs.watch delivery is not bounded; a fixed 60 ms sleep missed it under
+        // a loaded parallel run. Wait for the warning itself instead.
+        await vi.waitFor(
+          () => expect(warn).toHaveBeenCalledWith(expect.stringContaining('not valid JSON')),
+          { timeout: 5_000, interval: 20 },
+        );
         expect(onChange).not.toHaveBeenCalled();
       } finally {
         watcher.close();

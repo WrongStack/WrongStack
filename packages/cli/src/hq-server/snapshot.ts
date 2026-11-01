@@ -13,18 +13,20 @@ import type {
   HqFleetSnapshotPayload,
   HqFleetSummary,
   HqMachineRecord,
-  HqMailboxSnapshotPayload,
+  HqMachineRoster,
   HqMailboxSummary,
   HqMcpServerHealth,
   HqPersistence,
   HqProjectRecord,
+  HqSessionHistory,
   HqSessionSnapshotPayload,
   HqSessionSummary,
   HqSnapshot,
 } from '@wrongstack/hq';
 import { summarizeCommandLatency } from '@wrongstack/hq';
+import { CLI_VERSION } from '../version.js';
 import { WebSocket } from '../ws-runtime.js';
-import type { ConnectedClient, HqSnapshotBroadcaster, ProjectDetail } from './types.js';
+import type { ConnectedClient, HqSnapshotBroadcaster } from './types.js';
 import { hqMachineKey } from './utils.js';
 
 // ── Broadcast debounce ─────────────────────────────────────────────────────
@@ -150,6 +152,13 @@ export function buildSnapshot(
      * it hands over the window rather than the builder reaching for a global.
      */
     commandAudit?: readonly HqCommandAuditEntry[];
+    /**
+     * The machine roster: folds this snapshot in and contributes the known
+     * machines that have no connected client (`offlineMachines`).
+     */
+    roster?: HqMachineRoster | undefined;
+    /** Records sessions that left the live set. */
+    history?: HqSessionHistory | undefined;
   },
 ): HqSnapshot {
   reapStaleClientState(clients);
@@ -385,6 +394,20 @@ export function buildSnapshot(
     if (rec.hostname && !machine.record.hostname) machine.record.hostname = rec.hostname;
   }
 
+  // Each machine carries the newest host-health sample any of its clients sent.
+  for (const client of clients.values()) {
+    const health = client.hostHealth;
+    const machine = health
+      ? machineMap.get(hqMachineKey(client.hostname, client.machineId || client.project.machineId))
+      : undefined;
+    if (
+      health &&
+      machine &&
+      !(machine.record.health && machine.record.health.reportedAt >= health.reportedAt)
+    )
+      machine.record.health = health;
+  }
+
   const machines: HqMachineRecord[] = Array.from(machineMap.values()).map((m) => ({
     ...m.record,
     projectIds: Array.from(m.projects),
@@ -469,8 +492,9 @@ export function buildSnapshot(
   // never advertises a meaningless 0 ms p50.
   const commandLatency = summarizeCommandLatency(options?.commandAudit ?? []);
 
-  return {
+  const snapshot: HqSnapshot = {
     generatedAt: now,
+    hqVersion: CLI_VERSION,
     clients: clientRecords,
     projects,
     sessions,
@@ -493,6 +517,19 @@ export function buildSnapshot(
       ...(options?.tokenStats !== undefined ? { tokenStats: options.tokenStats } : {}),
     },
   };
+  options?.history?.observe(snapshot);
+  return withOfflineMachines(snapshot, options?.roster);
+}
+
+/** Fold the snapshot into the roster and attach the machines now offline. */
+function withOfflineMachines(
+  snapshot: HqSnapshot,
+  roster: HqMachineRoster | undefined,
+): HqSnapshot {
+  if (roster === undefined) return snapshot;
+  roster.observe(snapshot);
+  const offline = roster.offline();
+  return offline.length > 0 ? { ...snapshot, offlineMachines: offline } : snapshot;
 }
 
 // ── Snapshot broadcaster ───────────────────────────────────────────────────
@@ -509,6 +546,14 @@ export function createSnapshotBroadcaster(
      * at serialize time is what keeps the cached frame current.
      */
     commandAudit?: () => readonly HqCommandAuditEntry[];
+    /**
+     * Auth-token counts for the browser frame (never token strings). Read at
+     * serialize time like `commandAudit`, and kept OUT of the on-disk
+     * checkpoint: a restarted HQ recomputes them from its own auth state.
+     * `/api/snapshot` already carried them; without this the live frame did
+     * not, so dashboards always showed them as unreported.
+     */
+    tokenStats?: () => HqSnapshot['totals']['tokenStats'] | undefined;
   },
 ): HqSnapshotBroadcaster {
   let cached = '';
@@ -529,8 +574,19 @@ export function createSnapshotBroadcaster(
   const serialize = (): string => {
     if (!dirty && cached.length > 0) return cached;
     const commandAudit = options?.commandAudit?.();
-    const snapshot = buildSnapshot(clients, commandAudit !== undefined ? { commandAudit } : {});
-    const msg: HqBrowserMessage = { type: 'hq.snapshot', snapshot };
+    const snapshot = buildSnapshot(clients, {
+      ...(commandAudit !== undefined ? { commandAudit } : {}),
+      roster: persistence?.machines,
+      history: persistence?.sessionHistory,
+    });
+    const tokenStats = options?.tokenStats?.();
+    const msg: HqBrowserMessage = {
+      type: 'hq.snapshot',
+      snapshot:
+        tokenStats === undefined
+          ? snapshot
+          : { ...snapshot, totals: { ...snapshot.totals, tokenStats } },
+    };
     cached = JSON.stringify(msg);
     dirty = false;
     persistCheckpoint(snapshot);
@@ -547,7 +603,12 @@ export function createSnapshotBroadcaster(
         persistence !== undefined &&
         Date.now() - lastPersistAt >= HQ_SNAPSHOT_PERSIST_MIN_INTERVAL_MS
       ) {
-        persistCheckpoint(buildSnapshot(clients));
+        persistCheckpoint(
+          buildSnapshot(clients, {
+            roster: persistence.machines,
+            history: persistence.sessionHistory,
+          }),
+        );
       }
       return;
     }
@@ -579,63 +640,7 @@ export function createSnapshotBroadcaster(
 
 // ── Project detail ─────────────────────────────────────────────────────────
 
-export function buildProjectDetail(
-  clients: Map<WebSocket, ConnectedClient>,
-  projectId: string,
-): ProjectDetail | null {
-  const projectClients: ConnectedClient[] = [];
-  for (const c of clients.values()) {
-    if (c.projectId === projectId) projectClients.push(c);
-  }
-  if (projectClients.length === 0) return null;
-
-  const now = new Date().toISOString();
-  const clientRecords: HqClientRecord[] = projectClients.map((c) => ({
-    clientId: c.clientId,
-    kind: c.kind as HqClientRecord['kind'],
-    machineId: '',
-    ...(c.hostname ? { hostname: c.hostname } : {}),
-    ...(c.pid ? { pid: c.pid } : {}),
-    ...(c.version ? { version: c.version } : {}),
-    connected: true,
-    connectedAt: c.connectedAt,
-    lastSeenAt: c.lastSeenAt,
-    projectId: c.projectId,
-    capabilities: c.capabilities as readonly HqClientCapability[],
-  }));
-
-  const mailboxPayloads: HqMailboxSnapshotPayload[] = [];
-  let latestActivity = now;
-  for (const c of projectClients) {
-    for (const snap of c.mailboxes.values()) {
-      mailboxPayloads.push(snap);
-      if (snap.totals.messages > 0) latestActivity = now;
-    }
-  }
-
-  const primaryProject = projectClients[0]!.project;
-  const machineIds = Array.from(new Set(projectClients.map((client) => client.project.machineId)));
-  const project: HqProjectRecord = {
-    projectId,
-    projectName: primaryProject.projectName || projectId,
-    projectRootDisplay: primaryProject.projectRoot,
-    machineIds,
-    ...(primaryProject.gitBranch ? { gitBranch: primaryProject.gitBranch } : {}),
-    activeClients: projectClients.length,
-    activeSessions: 0,
-    activeSubagents: 0,
-    totalCostUsd: 0,
-    lastActivityAt: latestActivity,
-    status: 'active',
-  };
-
-  return {
-    generatedAt: now,
-    project,
-    clients: clientRecords,
-    mailboxes: mailboxPayloads,
-  };
-}
+export { buildProjectDetail } from './project-detail.js';
 
 // ── Event broadcast ────────────────────────────────────────────────────────
 

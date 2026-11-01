@@ -218,7 +218,7 @@ export const settingGroups: SettingGroup[] = [
 export const architectureLayers = [
   {
     label: 'Surfaces',
-    packages: ['apps/wrongstack', 'cli', 'tui', 'webui', 'webui-hq'],
+    packages: ['apps/wrongstack', 'cli', 'tui', 'webui', 'hq-next'],
     description: 'Human interaction, rendering and process boot.',
     tone: 'red',
   },

@@ -35,7 +35,7 @@ export const HQ_PEER_REHYDRATE_HINT_MAX_CHARS = 280;
  * envelopes. It is *not* a real publisher identity — it identifies the
  * browser-side cursor bucket the dashboard uses to dedupe / replay peer
  * lifecycle envelopes across reconnects. Both the server (`hq-server/ws.ts`)
- * and the browser (`webui-hq`) must agree on this literal; hoisting it here
+ * and the browser (`hq-next`) must agree on this literal; hoisting it here
  * keeps a single source of truth.
  */
 export const HQ_BROWSER_PEER_RESUME_CLIENT_ID = '__hq_peer__';

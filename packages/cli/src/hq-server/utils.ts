@@ -8,9 +8,9 @@ import * as fs from 'node:fs/promises';
 import type * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { isSafeSessionId as coreIsSafeSessionId } from '@wrongstack/core/utils';
 import type { HqEventEnvelope, HqPersistence, HqTranscriptEntry } from '@wrongstack/hq';
 import { resolveHqDataDir } from '@wrongstack/hq';
-import { isSafeSessionId as coreIsSafeSessionId } from '@wrongstack/core/utils';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -338,14 +338,10 @@ export function truncateHqSummary(value: unknown, maxLength: number): string | u
 // ── Machine key ────────────────────────────────────────────────────────────
 
 /**
- * Stable per-machine key. Prefers hostname so the same physical computer maps
- * to one machine even when clients report different per-process machineIds
- * (older builds hashed `hostname:pid`). Falls back to machineId.
+ * Stable per-machine key (hostname-first). Owned by `@wrongstack/hq`, where the
+ * machine roster keys by it too, so the two can never group differently.
  */
-export function hqMachineKey(hostname: string | undefined, machineId: string | undefined): string {
-  const hn = hostname?.trim();
-  return hn ? `host:${hn.toLowerCase()}` : `mid:${machineId || 'local'}`;
-}
+export { hqMachineKey } from '@wrongstack/hq';
 
 // ── Timeseries signal extraction ───────────────────────────────────────────
 
@@ -354,7 +350,17 @@ export function hqMachineKey(hostname: string | undefined, machineId: string | u
  * Recognizes `session.usage` (cost/tokens, plus model/provider/cache
  * dimensions) and `tool.completed` (tool call). Best-effort, never throws.
  */
-export function recordTimeseriesSignal(persistence: HqPersistence, event: HqEventEnvelope): void {
+export function recordTimeseriesSignal(
+  persistence: HqPersistence,
+  event: HqEventEnvelope,
+  /** The reporting client's machine key (hqMachineKey), for the per-machine breakdown. */
+  machineKey?: string,
+): void {
+  // Every envelope names its project; the machine comes from the connection.
+  const where = {
+    ...(event.projectId ? { projectId: event.projectId } : {}),
+    ...(machineKey ? { machineKey } : {}),
+  };
   try {
     if (event.type === 'session.usage') {
       const p = event.payload as {
@@ -377,11 +383,13 @@ export function recordTimeseriesSignal(persistence: HqPersistence, event: HqEven
           : {}),
         ...(typeof p.cacheRead === 'number' ? { cacheRead: p.cacheRead } : {}),
         ...(typeof p.cacheWrite === 'number' ? { cacheWrite: p.cacheWrite } : {}),
+        ...where,
       });
     } else if (event.type === 'tool.completed') {
       persistence.timeseries.record({
         ts: Date.parse(event.timestamp) || Date.now(),
         toolCalls: 1,
+        ...where,
       });
     }
   } catch {

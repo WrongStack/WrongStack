@@ -10,7 +10,7 @@ import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 
 /**
  * Server-to-dashboard contract tests for the built React HQ application.
- * Component behavior lives in @wrongstack/webui-hq tests; this suite verifies
+ * Component behavior lives in @wrongstack/hq-next tests; this suite verifies
  * that the CLI exposes that build, its split assets, SPA fallback and gated
  * data plane correctly.
  */

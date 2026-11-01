@@ -5,6 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type {
   HqCommandAuditLog,
   HqEventEnvelope,
@@ -24,12 +25,11 @@ import {
   tightenHqRedactionPolicy,
   tokenHasCapability,
 } from '@wrongstack/hq';
-import { toErrorMessage } from '@wrongstack/core/utils';
 import { WebSocket } from '../ws-runtime.js';
 import { sendSageSnapshot } from './sage-sync-send.js';
 import { broadcastCommandStatus, broadcastEvent, sendGuarded } from './snapshot.js';
 import type { ConnectedClient, HqSnapshotBroadcaster, TranscriptRing } from './types.js';
-import { recordTimeseriesSignal } from './utils.js';
+import { hqMachineKey, recordTimeseriesSignal } from './utils.js';
 import { handleIncomingClientEvent } from './ws-client-events.js';
 import { computeIsLeader, detectLeaderLoss } from './ws-leader.js';
 import { browserResumeClient, handleClientResume } from './ws-resume.js';
@@ -194,6 +194,8 @@ export function handleClient(
   agentMessages: Map<string, HqTranscriptEntry[]>,
   persistence?: HqPersistence,
   auditLog?: HqCommandAuditLog,
+  /** Sees every accepted client event (the notifier's approval watch). */
+  observeEvent?: (event: HqEventEnvelope, owner: ConnectedClient | undefined) => void,
 ): void {
   let registered = false;
 
@@ -203,11 +205,23 @@ export function handleClient(
    * throws into the message handler.
    */
   function persistEvent(event: HqEventEnvelope): void {
+    try {
+      observeEvent?.(event, clients.get(ws));
+    } catch {
+      /* an observer must never break event intake */
+    }
     eventLog.push(event);
     if (eventLog.length > MAX_EVENT_LOG) eventLog.splice(0, eventLog.length - MAX_EVENT_LOG);
     if (persistence !== undefined) {
       persistence.eventLog.append(event);
-      recordTimeseriesSignal(persistence, event);
+      const owner = clients.get(ws);
+      recordTimeseriesSignal(
+        persistence,
+        event,
+        owner !== undefined
+          ? hqMachineKey(owner.hostname, owner.machineId || owner.project.machineId)
+          : undefined,
+      );
     }
   }
 
