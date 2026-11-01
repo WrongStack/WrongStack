@@ -10,6 +10,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { METHODS, WrongMemoryClient } from '@wrongstack/wrongmemory-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createWrongMemoryHqSyncConnection } from '../src/memory-backend.js';
 import {
   createProjectSageMemoryPort,
   getSageRetrieval,
@@ -387,6 +388,63 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
       expect(relayed.some(([, id]) => id === own.id)).toBe(false);
     } finally {
       await watcher.dispose();
+    }
+  });
+
+  it('HQ sync runs through the daemon in wrongmemory mode (WM-408)', async () => {
+    expect(
+      createWrongMemoryHqSyncConnection({ projectRoot: proj, service: { mode: 'local' } }),
+    ).toBeUndefined();
+    const conn = createWrongMemoryHqSyncConnection({
+      projectRoot: proj,
+      service: { mode: 'wrongmemory', dataRoot: home, daemonPath: DAEMON, startPolicy: 'never' },
+    })!;
+    try {
+      const shared = await getSageService(port)!.rememberSage({ text: 'HQ: shared via daemon' });
+      const version = String(await conn.call('getHqSyncVersion', {}));
+      expect(version).toMatch(/^[0-9a-f]{32}:\d+$/);
+      const ids: string[] = [];
+      let after = '';
+      for (;;) {
+        const page = (await conn.call('listHqSync', { after })) as Array<{ id: string }>;
+        if (page.length === 0) break;
+        ids.push(...page.map((r) => r.id));
+        after = page[page.length - 1]!.id;
+      }
+      expect(ids).toContain(shared.id);
+      const at = new Date().toISOString();
+      const remoteId = 'hq-remote-integration-1';
+      await conn.call('applyHqSync', {
+        records: [
+          {
+            id: remoteId,
+            revision: 1,
+            changeId: 'ab'.repeat(16),
+            memory: {
+              schemaVersion: 1,
+              id: remoteId,
+              revision: 1,
+              text: 'HQ remote: arrives through the daemon',
+              kind: 'fact',
+              scope: 'project',
+              status: 'active',
+              importance: 0.5,
+              confidence: 0.8,
+              freshness: 1,
+              tags: [],
+              anchors: [],
+              sources: [{ type: 'user' }],
+              createdAt: at,
+              updatedAt: at,
+            },
+          },
+        ],
+      });
+      expect((await getSageService(port)!.getSage(remoteId))?.text).toBe(
+        'HQ remote: arrives through the daemon',
+      );
+    } finally {
+      conn.close?.();
     }
   });
 

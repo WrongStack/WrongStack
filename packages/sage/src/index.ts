@@ -41,8 +41,10 @@ export {
 export {
   AutoSageMemoryPort,
   createSageMemoryPortForService,
+  createWrongMemoryHqSyncConnection,
   resolveSageServiceMode,
   SageBackendNotSelectedError,
+  type SageHqSyncConnection,
   type SageMemoryPortForServiceOptions,
   type SageServiceMode,
   type SageServiceSelection,

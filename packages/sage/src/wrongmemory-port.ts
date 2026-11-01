@@ -1088,6 +1088,37 @@ export class WrongMemoryPort implements MemoryPort {
     return { ...report, maintenance: await this.maintenance('status') };
   }
 
+  /** `memory.hqSyncVersion` (host-only): `<epoch>:<clock revision>` of the HQ projection. */
+  async hqSyncVersion(): Promise<string> {
+    const r = await this.scoped<{ version: string }>(
+      METHODS.MEMORY_HQ_SYNC_VERSION,
+      {},
+      this.session(undefined),
+    );
+    return r.version;
+  }
+
+  /** `memory.hqSyncList` (host-only): one page of projection records after `after`. */
+  async hqSyncList(after = ''): Promise<WireHqSageRecord[]> {
+    const r = await this.scoped<{ records: WireHqSageRecord[] }>(
+      METHODS.MEMORY_HQ_SYNC_LIST,
+      { after },
+      this.session(undefined),
+    );
+    return r.records;
+  }
+
+  /** `memory.hqSyncApply` (host-only): apply remote records; returns the changed ids. */
+  async hqSyncApply(records: WireHqSageRecord[]): Promise<string[]> {
+    const r = await this.scoped<{ changed: string[] }>(
+      METHODS.MEMORY_HQ_SYNC_APPLY,
+      { records },
+      this.session(undefined),
+      { timeoutMs: SLOW_OP_TIMEOUT_MS },
+    );
+    return r.changed;
+  }
+
   /** `memory.audit` (host-only): the most recent audit events, newest first. */
   async readAudit(limit?: number): Promise<SageAuditRecord[]> {
     const result = await this.scoped<{ records: SageAuditRecord[] }>(
@@ -1524,4 +1555,12 @@ function hostEventsFor(event: WireChangeEvent): Array<[string, Record<string, un
     default:
       return [];
   }
+}
+
+/** `HqSageRecord` (`@wrongstack/hq`) as it crosses the daemon boundary. */
+export interface WireHqSageRecord {
+  id: string;
+  revision: number;
+  changeId: string;
+  memory: Record<string, unknown> | null;
 }

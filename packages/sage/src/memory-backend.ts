@@ -215,3 +215,83 @@ export class AutoSageMemoryPort implements MemoryPort {
     return port.hygiene(options);
   }
 }
+
+/** The three SAGE owner operations the HQ publisher's SAGE sync uses. */
+export interface SageHqSyncConnection {
+  call(
+    op: 'getHqSyncVersion' | 'listHqSync' | 'applyHqSync',
+    args: Record<string, unknown>,
+    options?: unknown,
+  ): Promise<unknown>;
+  close?(): void;
+}
+
+/**
+ * HQ sync through WrongMemory when the configured owner is WrongMemory:
+ * always in `wrongmemory` mode; in `auto` mode only when a daemon is
+ * reachable and the project registered (probed lazily, never starting a
+ * daemon). Returns `undefined` when the in-process SAGE project server is
+ * the owner, so the caller keeps its existing connection. Never opens the
+ * SAGE project server itself: in `wrongmemory` mode that would start a
+ * second owner of an adopted store, or sync the wrong store for a managed one.
+ */
+export function createWrongMemoryHqSyncConnection(options: {
+  projectRoot: string;
+  service: SageServiceSelection | undefined;
+  connect?: ((options: ConnectOptions) => Promise<WrongMemoryClientLike>) | undefined;
+}): SageHqSyncConnection | undefined {
+  const mode = resolveSageServiceMode(options.service);
+  if (mode === 'local') return undefined;
+  const service = options.service ?? {};
+  let port: Promise<WrongMemoryPort | undefined> | undefined;
+  const resolve = (): Promise<WrongMemoryPort | undefined> => {
+    port ??= (async () => {
+      let projectId = service.projectId;
+      if (mode === 'auto') {
+        const project = await probeWrongMemoryProject({
+          projectRoot: options.projectRoot,
+          projectId,
+          dataRoot: service.dataRoot,
+          connect: options.connect,
+        });
+        if (!project) return undefined;
+        projectId = project.projectId;
+      }
+      const p = new WrongMemoryPort({
+        projectRoot: options.projectRoot,
+        projectId,
+        dataRoot: service.dataRoot,
+        daemonPath: service.daemonPath,
+        startPolicy: mode === 'auto' ? 'never' : (service.startPolicy ?? 'on-demand'),
+        register: mode === 'wrongmemory',
+        clientName: 'wrongstack-hq-sync',
+        connect: options.connect,
+      });
+      await p.initialize();
+      return p;
+    })().catch((error: unknown) => {
+      port = undefined;
+      throw error;
+    });
+    return port;
+  };
+  return {
+    async call(op, args) {
+      const p = await resolve();
+      if (!p) {
+        // `auto` resolved to the local owner: nothing to sync through here.
+        if (op === 'getHqSyncVersion') return '';
+        if (op === 'listHqSync') return [];
+        return undefined;
+      }
+      if (op === 'getHqSyncVersion') return p.hqSyncVersion();
+      if (op === 'listHqSync') return p.hqSyncList(String(args['after'] ?? ''));
+      await p.hqSyncApply((args['records'] ?? []) as never);
+      return undefined;
+    },
+    close() {
+      void port?.then((p) => p?.dispose()).catch(() => undefined);
+      port = undefined;
+    },
+  };
+}
