@@ -27,7 +27,9 @@ import type {
   MemoryEntry,
   MemoryHealth,
   MemoryPort,
+  MemoryRelevanceContext,
   MemoryScope,
+  ScoredEntry,
 } from '@wrongstack/contracts/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import {
@@ -530,6 +532,22 @@ export class WrongMemoryPort implements MemoryPort {
 
   findRelated(text: string, scope?: MemoryScope, limit?: number): Promise<MemoryEntry[]> {
     return this.search(text, scope, limit);
+  }
+
+  /**
+   * Prompt-context relevance, as the in-process SAGE port composes it: the
+   * legacy search for the current task, ranked by position.
+   */
+  async scoreRelevant(
+    context: MemoryRelevanceContext,
+    scope?: MemoryScope,
+    limit?: number,
+  ): Promise<ScoredEntry[]> {
+    return (await this.search(context.currentTask, scope, limit)).map((entry, index) => ({
+      ...entry,
+      score: Math.max(0.1, 1 - index * 0.05),
+      matchReason: 'SAGE lexical search',
+    }));
   }
 
   hygiene(options?: SageHygieneOptions): Promise<SageHygieneReport> {
@@ -1262,6 +1280,7 @@ export class WrongMemoryPort implements MemoryPort {
     search: (query, scope, limit) => this.search(query, scope, limit),
     getBackend: () => this.getBackend(),
     findRelated: (text, scope, limit) => this.findRelated(text, scope, limit),
+    scoreRelevant: (context, scope, limit) => this.scoreRelevant(context, scope, limit),
     hygiene: (options) => this.runHygiene(options),
     withTraceId: (traceId) => {
       this.withTraceId(traceId);

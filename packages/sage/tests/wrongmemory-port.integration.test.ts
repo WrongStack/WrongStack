@@ -800,5 +800,16 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     const entries = await port.list('project-memory');
     expect(entries.map((e) => e.text)).toContain('Release builds use cargo build --locked');
     expect(await port.readAll()).toContain('cargo build --locked');
+    // Prompt-context relevance (core's prompt enhancer) is served too.
+    const scored = await port.scoreRelevant!(
+      { currentTask: 'cargo build --locked release' },
+      'project-memory',
+      5,
+    );
+    expect(scored[0]).toMatchObject({
+      text: 'Release builds use cargo build --locked',
+      score: 1,
+      matchReason: 'SAGE lexical search',
+    });
   });
 });
