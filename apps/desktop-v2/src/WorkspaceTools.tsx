@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   BookOpen,
+  ClipboardList,
   Coins,
   Folder,
   History,
@@ -22,6 +23,7 @@ export function WorkspaceTools({
   onProcesses,
   onSideEffects,
   onUsage,
+  onPlan,
   onProject,
   onSettings,
 }: {
@@ -33,6 +35,7 @@ export function WorkspaceTools({
   onProcesses: () => void;
   onSideEffects: () => void;
   onUsage: () => void;
+  onPlan: () => void;
   onProject: () => void;
   onSettings: () => void;
 }) {
@@ -113,6 +116,14 @@ export function WorkspaceTools({
           <div>
             <strong>Run activity</strong>
             <span>Tool calls, execution output, and verification in this conversation.</span>
+          </div>
+          <ArrowUpRight size={15} />
+        </button>
+        <button type="button" onClick={onPlan}>
+          <ClipboardList size={21} />
+          <div>
+            <strong>Plan templates</strong>
+            <span>Start this conversation's plan from a ready-made list of steps.</span>
           </div>
           <ArrowUpRight size={15} />
         </button>

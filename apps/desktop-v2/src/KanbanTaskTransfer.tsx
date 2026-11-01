@@ -1,7 +1,8 @@
 import { ArrowRightLeft } from 'lucide-react';
 import { useState } from 'react';
 import type { EngineCommand } from './engine-operations';
-import { record } from './engine-values';
+import { entries, record } from './engine-values';
+import { KanbanTaskMerge } from './KanbanTaskMerge';
 
 /**
  * Copies or moves one card to another project board. The engine keeps the card's column; card
@@ -10,25 +11,28 @@ import { record } from './engine-values';
  */
 export function KanbanTaskTransfer({
   command,
-  boardId,
-  taskId,
+  board,
+  task,
   boards,
   disabled,
   onDone,
 }: {
   command: EngineCommand;
-  boardId: string;
-  taskId: string;
+  /** The open board; its cards are offered for merging with this one. */
+  board: Record<string, unknown>;
+  task: Record<string, unknown>;
   boards: Record<string, unknown>[];
   disabled: boolean;
   onDone: (targetBoardId: string, moved: boolean) => Promise<void>;
 }) {
+  const boardId = String(board['id']),
+    taskId = String(task['id']),
+    tasks = entries(board['tasks']);
   const targets = boards.filter((item) => item['id'] !== boardId);
   const [target, setTarget] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState('');
   const chosen = targets.some((item) => item['id'] === target) ? target : '';
-  if (!targets.length) return null;
   const send = async (moved: boolean) => {
     if (!chosen) return;
     setBusy(true);
@@ -56,43 +60,58 @@ export function KanbanTaskTransfer({
       setBusy(false);
     }
   };
+  const merge = (
+    <KanbanTaskMerge
+      command={command}
+      boardId={boardId}
+      task={task}
+      tasks={tasks}
+      disabled={disabled}
+      // The card was merged into a new one: leave it the way a move does when sources close.
+      onDone={() => onDone(boardId, true)}
+    />
+  );
+  if (!targets.length) return merge;
   return (
-    <section className="kanban-task-transfer" aria-label="Copy or move to another board">
-      <label>
-        <ArrowRightLeft size={13} /> Another board
-        <select
-          value={chosen}
-          disabled={disabled || busy}
-          onChange={(event) => setTarget(event.target.value)}
-        >
-          <option value="">Choose a board…</option>
-          {targets.map((item) => (
-            <option key={String(item['id'])} value={String(item['id'])}>
-              {String(item['title'] ?? item['id'])}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div>
-        <button
-          type="button"
-          className="button secondary small"
-          disabled={disabled || busy || !chosen}
-          onClick={() => void send(false)}
-        >
-          Copy card
-        </button>
-        <button
-          type="button"
-          className="button secondary small"
-          disabled={disabled || busy || !chosen}
-          onClick={() => void send(true)}
-        >
-          Move card
-        </button>
-      </div>
-      <small>Same column on the target board; dependencies on this board are not carried.</small>
-      {result && <p role="status">{result}</p>}
-    </section>
+    <>
+      {merge}
+      <section className="kanban-task-transfer" aria-label="Copy or move to another board">
+        <label>
+          <ArrowRightLeft size={13} /> Another board
+          <select
+            value={chosen}
+            disabled={disabled || busy}
+            onChange={(event) => setTarget(event.target.value)}
+          >
+            <option value="">Choose a board…</option>
+            {targets.map((item) => (
+              <option key={String(item['id'])} value={String(item['id'])}>
+                {String(item['title'] ?? item['id'])}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={disabled || busy || !chosen}
+            onClick={() => void send(false)}
+          >
+            Copy card
+          </button>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={disabled || busy || !chosen}
+            onClick={() => void send(true)}
+          >
+            Move card
+          </button>
+        </div>
+        <small>Same column on the target board; dependencies on this board are not carried.</small>
+        {result && <p role="status">{result}</p>}
+      </section>
+    </>
   );
 }

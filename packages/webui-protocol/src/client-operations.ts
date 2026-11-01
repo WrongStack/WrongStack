@@ -27,6 +27,7 @@ export const CLIENT_GOAL_MESSAGE_TYPES = [
   'plan.get',
   'plan.item.update',
   'plan.template_use',
+  'plan.templates',
   'task.update',
   'tasks.get',
 ] as const;

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T11:02:11.250Z",
+  "generatedAt": "2026-11-01T12:11:24.018Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,20 +12,22 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5562,
-    "testFiles": 4848,
-    "sourceLines": 1220213,
+    "sourceFiles": 5567,
+    "testFiles": 4853,
+    "sourceLines": 1221445,
     "workspaceEdges": 233,
-    "moduleEdges": 16684,
+    "moduleEdges": 16701,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 176,
+    "testsWithoutTypecheck": 180,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1024
+    "testOnlyExports": 1029
   },
   "errors": [
     "apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/FileWorkspace.tsx: hotspot shrunk from 2018 to 2005 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/FileWorkspace.tsx: relative import fan-out decreased from 30 to 29; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectAgentRoster.tsx: hotspot shrunk from 1562 to 1559 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change",
@@ -37,7 +39,18 @@
     "apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change",
     "apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change",
-    "packages/webui-server/src/server/mcp-tool-handlers.ts: \"conversationNote\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
+    "apps/desktop-v2/src/editor-language.ts: \"deleteLines\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/editor-language.ts: \"languageNewline\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/editor-language.ts: \"smartHome\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/editor-language.ts: \"toggleBlockComment\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/FallbackSuggestions.tsx: \"readFallbackSuggestions\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/KanbanContractMap.tsx: \"endpointLabel\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/KanbanContractMap.tsx: \"readContractGraph\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/SessionPlanTemplates.tsx: \"readPlanTemplates\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-server/src/server/mcp-tool-handlers.ts: \"conversationNote\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/editor-indent.ts: \"indentLines\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "apps/desktop-v2/src/editor-indent.ts: \"newlineWithIndent\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "apps/desktop-v2/src/editor-indent.ts: \"outdentLines\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
   ],
   "packageCycles": [],
   "coreAreas": {
@@ -400,8 +413,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 361,
-      "testFiles": 176,
+      "sourceFiles": 366,
+      "testFiles": 180,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1157,7 +1170,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 328,
-      "testFiles": 363,
+      "testFiles": 364,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1192,7 +1205,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 363
+          "testFiles": 364
         }
       ]
     },
@@ -1579,6 +1592,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/editor-language.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/editor-pairs.test.ts",
         "projects": [
           "root-node"
@@ -1622,6 +1641,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/fallback-picker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/fallback-suggestions.test.ts",
         "projects": [
           "root-node"
         ]
@@ -1778,6 +1803,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/kanban-boundary-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/kanban-contract-map.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2204,6 +2235,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-layout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-plan-templates.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26179,6 +26216,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/plan-templates-route.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/port-utils.test.ts",
         "projects": [
           "root-node"
@@ -30715,6 +30758,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/editor-language.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/editor-pairs.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -30765,6 +30815,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/fallback-picker.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/fallback-suggestions.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -30947,6 +31004,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/kanban-boundary-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/kanban-contract-map.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -31450,6 +31514,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/session-plan-templates.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/session-process-batch.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31896,6 +31967,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/KanbanContractMap.tsx",
+      "specifier": "./kanban-contract-map.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/main.tsx",
       "specifier": "./styles.css",
       "syntax": "import"
@@ -32146,6 +32222,16 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/SessionPlanTemplates.tsx",
+      "specifier": "./session-usage.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SessionPlanTemplates.tsx",
+      "specifier": "./session-plan-templates.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/SessionProcesses.tsx",
       "specifier": "./session-processes.css",
       "syntax": "import"
@@ -32381,8 +32467,8 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2018,
-      "relativeImports": 30
+      "lines": 2005,
+      "relativeImports": 29
     },
     {
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
@@ -32478,8 +32564,8 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2018,
-      "relativeImports": 30
+      "lines": 2005,
+      "relativeImports": 29
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
@@ -32809,16 +32895,20 @@
       "name": "DELEGATION_LIMIT"
     },
     {
-      "file": "apps/desktop-v2/src/editor-indent.ts",
-      "name": "indentLines"
+      "file": "apps/desktop-v2/src/editor-language.ts",
+      "name": "deleteLines"
     },
     {
-      "file": "apps/desktop-v2/src/editor-indent.ts",
-      "name": "newlineWithIndent"
+      "file": "apps/desktop-v2/src/editor-language.ts",
+      "name": "languageNewline"
     },
     {
-      "file": "apps/desktop-v2/src/editor-indent.ts",
-      "name": "outdentLines"
+      "file": "apps/desktop-v2/src/editor-language.ts",
+      "name": "smartHome"
+    },
+    {
+      "file": "apps/desktop-v2/src/editor-language.ts",
+      "name": "toggleBlockComment"
     },
     {
       "file": "apps/desktop-v2/src/editor-pairs.ts",
@@ -32843,6 +32933,10 @@
     {
       "file": "apps/desktop-v2/src/FallbackPicker.tsx",
       "name": "fallbackPending"
+    },
+    {
+      "file": "apps/desktop-v2/src/FallbackSuggestions.tsx",
+      "name": "readFallbackSuggestions"
     },
     {
       "file": "apps/desktop-v2/src/feature-actions.ts",
@@ -32903,6 +32997,14 @@
     {
       "file": "apps/desktop-v2/src/KanbanBoardDialog.tsx",
       "name": "boardListTasks"
+    },
+    {
+      "file": "apps/desktop-v2/src/KanbanContractMap.tsx",
+      "name": "endpointLabel"
+    },
+    {
+      "file": "apps/desktop-v2/src/KanbanContractMap.tsx",
+      "name": "readContractGraph"
     },
     {
       "file": "apps/desktop-v2/src/mailbox-draft.ts",
@@ -33007,6 +33109,10 @@
     {
       "file": "apps/desktop-v2/src/SessionBrowser.tsx",
       "name": "selectionPrompt"
+    },
+    {
+      "file": "apps/desktop-v2/src/SessionPlanTemplates.tsx",
+      "name": "readPlanTemplates"
     },
     {
       "file": "apps/desktop-v2/src/SessionRecovery.tsx",

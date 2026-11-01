@@ -569,8 +569,8 @@ export function ProjectKanban({
                     selected ? (
                       <KanbanTaskTransfer
                         command={command}
-                        boardId={boardId}
-                        taskId={String(selected['id'])}
+                        board={board}
+                        task={selected}
                         boards={boards}
                         disabled={busy}
                         onDone={async (_target, moved) => {

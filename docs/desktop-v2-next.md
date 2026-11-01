@@ -102,6 +102,22 @@ whose ownership and resolved target directory you have verified.
 
 ## Latest completed implementation: preserve and build upon it
 
+### Engine actions brought into the desktop (2026-11-01)
+
+- File editor (`editor-language.ts`, the one keystroke entry point for the code editor): block
+  comments for CSS/HTML/XML/Markdown on Ctrl+/, Python/YAML colon blocks and Python exit
+  dedent on Enter, `/** */` continuation, Ctrl+Shift+K deletes lines, Ctrl+] / Ctrl+[ indent
+  and outdent, Home goes to the first non-blank character.
+- Plan templates: new `plan.templates` lists the engine's plan skeletons; Session tools → Plan
+  templates previews one and adds it with `plan.template_use`.
+- Kanban: a card can be merged with other cards on its board (`kanban.task.merge`), and the board
+  menu opens a contract map (`kanban.contract.*`: board enforcement, contracts per card with
+  state and waiver, relations, and a per-card start check).
+- Fallback settings suggest ready-made chains from reachable models (`fallback.suggest`,
+  heuristic or re-ranked by the current model) and use one as the default chain or a profile.
+
+Unit tests and typecheck only; not yet exercised in the native window.
+
 ### Recorded usage across the profile (2026-11-01)
 
 The recorded-usage disclosure in project session history can count this project or every

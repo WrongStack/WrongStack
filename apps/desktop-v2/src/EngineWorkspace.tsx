@@ -58,6 +58,9 @@ const SessionProcesses = lazy(() =>
 const SessionSideEffects = lazy(() =>
   import('./SessionSideEffects').then((module) => ({ default: module.SessionSideEffects })),
 );
+const SessionPlanTemplates = lazy(() =>
+  import('./SessionPlanTemplates').then((module) => ({ default: module.SessionPlanTemplates })),
+);
 const SessionUsage = lazy(() =>
   import('./SessionUsage').then((module) => ({ default: module.SessionUsage })),
 );
@@ -69,6 +72,7 @@ export type EngineTab =
   | 'processes'
   | 'side-effects'
   | 'usage'
+  | 'plan'
   | 'files'
   | 'changes'
   | 'skills'
@@ -247,6 +251,7 @@ export function EngineWorkspace({
               'processes',
               'side-effects',
               'usage',
+              'plan',
             ].includes(tab)
               ? 'chosen-tab project-tools-button'
               : 'project-tools-button'
@@ -292,6 +297,10 @@ export function EngineWorkspace({
           }}
           onUsage={() => {
             setTab('usage');
+            setToolsOpen(false);
+          }}
+          onPlan={() => {
+            setTab('plan');
             setToolsOpen(false);
           }}
           onProject={() => {
@@ -531,6 +540,15 @@ export function EngineWorkspace({
             sessionId={state.sessionId}
             connected={state.connected}
             command={command}
+            onBack={() => setTab('chat')}
+          />
+        </Suspense>
+      ) : tab === 'plan' ? (
+        <Suspense fallback={<p role="status">Opening plan templates…</p>}>
+          <SessionPlanTemplates
+            key={state.sessionId}
+            command={command}
+            running={state.running}
             onBack={() => setTab('chat')}
           />
         </Suspense>

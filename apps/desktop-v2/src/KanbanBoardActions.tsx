@@ -1,13 +1,14 @@
-import { Copy, History, MoreHorizontal, Play, Trash2 } from 'lucide-react';
+import { Copy, History, MoreHorizontal, Network, Play, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { KanbanContractMap } from './KanbanContractMap';
 import { BOARD_HISTORY_LIMIT, boardHistoryRows, deleteConfirmed } from './kanban-board-actions';
 import { boardSource } from './kanban-board-source';
 import { Modal } from './Modal';
 import { recoveryDate } from './session-recovery-model';
 
-type Dialog = 'duplicate' | 'delete' | 'history' | 'run' | null;
+type Dialog = 'duplicate' | 'delete' | 'history' | 'run' | 'contracts' | null;
 
 /** Run, duplicate, inspect the history of, or permanently delete the selected board. */
 export function KanbanBoardActions({
@@ -109,6 +110,9 @@ export function KanbanBoardActions({
           <button type="button" onClick={() => openDialog('history')}>
             <History size={13} /> Board history
           </button>
+          <button type="button" onClick={() => openDialog('contracts')}>
+            <Network size={13} /> Contract map…
+          </button>
           <button
             type="button"
             className="danger"
@@ -119,6 +123,9 @@ export function KanbanBoardActions({
           </button>
         </div>
       </details>
+      {dialog === 'contracts' && (
+        <KanbanContractMap command={command} board={board} onClose={() => setDialog(null)} />
+      )}
       {dialog === 'duplicate' && (
         <Modal title="Duplicate board" onClose={close}>
           <form

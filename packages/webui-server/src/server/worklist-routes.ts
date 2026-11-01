@@ -1,10 +1,13 @@
+import { listPlanTemplates } from '@wrongstack/core/storage';
 import type { WebSocket } from 'ws';
+import { correlatedReply } from './correlated-reply.js';
 import {
   handleWorklistMessage,
   type WorklistContext,
   type WorklistMessage,
 } from './handlers/worklist-handlers.js';
 import type { WSClientMessage } from './types.js';
+import { send } from './ws-utils.js';
 
 export interface WorklistRouteHandlers {
   getTodos: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
@@ -73,6 +76,20 @@ export async function handleWorklistRoute(
       return true;
     case 'plan.get':
       await handlers.getPlan(ws, msg);
+      return true;
+    case 'plan.templates':
+      // The built-in plan skeletons, so a client can offer a choice for plan.template_use.
+      send(correlatedReply(ws, msg.payload, ['plan.templates']).socket, {
+        type: 'plan.templates',
+        payload: {
+          templates: listPlanTemplates().map(({ name, description, category, items }) => ({
+            name,
+            description,
+            category,
+            items: items.map(({ title, details }) => ({ title, ...(details ? { details } : {}) })),
+          })),
+        },
+      });
       return true;
     case 'plan.template_use':
       await handlers.usePlanTemplate(ws, msg);

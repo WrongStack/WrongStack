@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { FallbackSuggestions } from './FallbackSuggestions';
 import { validSettingsName, withoutSetting } from './settings-save-model';
 
 type Row = Record<string, unknown>;
@@ -195,6 +196,12 @@ export function FallbackPolicySettings({ draft, change, command }: PolicyProps) 
         label="Default fallback chain"
         value={draft['fallbackModels']}
         onChange={(v) => change('fallbackModels', v)}
+      />
+      <FallbackSuggestions
+        command={command}
+        draft={draft}
+        onUse={(chain) => change('fallbackModels', chain)}
+        onSaveProfile={(id, chain) => change('fallbackProfiles', { ...profiles, [id]: chain })}
       />
       <section className="policy-profile-create">
         <label>

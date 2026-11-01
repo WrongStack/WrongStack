@@ -29,9 +29,8 @@ import type { ComposerFileReference } from './composer-resources-model';
 import { DiffPreview } from './DiffPreview';
 import { DraftMergeChoices } from './DraftMergeChoices';
 import { EditorFindBar } from './EditorFindBar';
-import { lineCommentMarker, toggleLineComment } from './editor-comment';
-import { editorKeyEdit, replacementRange } from './editor-indent';
-import { editorPairEdit } from './editor-pairs';
+import { replacementRange } from './editor-indent';
+import { codeEditorEdit } from './editor-language';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
@@ -1435,19 +1434,7 @@ export function FileWorkspace({
                           setFinding(true);
                           return;
                         }
-                        const marker =
-                          (event.ctrlKey || event.metaKey) && event.key === '/'
-                            ? lineCommentMarker(active)
-                            : undefined;
-                        const edit = marker
-                          ? toggleLineComment(
-                              document.content,
-                              event.currentTarget.selectionStart,
-                              event.currentTarget.selectionEnd,
-                              marker,
-                            )
-                          : (editorPairEdit(event, document.content, active) ??
-                            editorKeyEdit(event, document.content));
+                        const edit = codeEditorEdit(event, document.content, active);
                         if (edit?.text === document.content) {
                           // Typing over a closing character only moves the caret.
                           event.preventDefault();

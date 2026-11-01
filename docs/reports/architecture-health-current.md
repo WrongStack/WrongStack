@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-01T11:02:11.250Z
+**Generated:** 2026-11-01T12:11:24.018Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,20 +8,22 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 46 |
-| Production source files | 5562 |
-| Production source lines | 1220213 |
-| Test files | 4848 |
+| Production source files | 5567 |
+| Production source lines | 1221445 |
+| Test files | 4853 |
 | Workspace dependency edges | 233 |
-| Relative module edges | 16684 |
+| Relative module edges | 16701 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 176 |
+| Tests without TypeScript test-project coverage | 180 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
 - apps/desktop-v2/src/CodeAtlas.tsx: hotspot shrunk from 917 to 914 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/FileWorkspace.tsx: hotspot shrunk from 2018 to 2005 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/FileWorkspace.tsx: relative import fan-out decreased from 30 to 29; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectAgentRoster.tsx: hotspot shrunk from 1562 to 1559 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectChimera.tsx: hotspot shrunk from 778 to 775 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectChronicle.tsx: hotspot shrunk from 718 to 715 lines; review and update the ratchet in the same change
@@ -33,7 +35,18 @@
 - apps/desktop-v2/src/ProjectSdd.tsx: relative import fan-out increased from 12 to 13; review and update the ratchet in the same change
 - apps/desktop-v2/src/ProjectSessionHistory.tsx: hotspot shrunk from 746 to 743 lines; review and update the ratchet in the same change
 - apps/desktop-v2/src/SkillLibrary.tsx: hotspot shrunk from 891 to 889 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/editor-language.ts: "deleteLines" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/editor-language.ts: "languageNewline" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/editor-language.ts: "smartHome" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/editor-language.ts: "toggleBlockComment" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/FallbackSuggestions.tsx: "readFallbackSuggestions" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/KanbanContractMap.tsx: "endpointLabel" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/KanbanContractMap.tsx: "readContractGraph" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/SessionPlanTemplates.tsx: "readPlanTemplates" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - packages/webui-server/src/server/mcp-tool-handlers.ts: "conversationNote" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/editor-indent.ts: "indentLines" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
+- apps/desktop-v2/src/editor-indent.ts: "newlineWithIndent" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
+- apps/desktop-v2/src/editor-indent.ts: "outdentLines" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
 
 ## Workspace packages
 
@@ -50,7 +63,7 @@
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 361 | 176 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 366 | 180 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -81,7 +94,7 @@
 | @wrongstack/webui | 773 | 510 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 127 | 55 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 29 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
-| @wrongstack/webui-server | 328 | 363 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 328 | 364 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 4 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/wrongtrace | 11 | 10 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
@@ -102,7 +115,7 @@ None.
 
 | Lines | File |
 |---:|---|
-| 2018 | `apps/desktop-v2/src/FileWorkspace.tsx` |
+| 2005 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1559 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1151 | `apps/desktop-v2/src/SessionComposer.tsx` |
@@ -155,13 +168,13 @@ None.
 
 ## Exports only tests reference
 
-- 1024 runtime exports are referenced by tests and by no other production file.
+- 1029 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 176 test files are not included in a package TypeScript test project.
+- 180 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

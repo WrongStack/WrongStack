@@ -1,0 +1,21 @@
+.session-plan-templates {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 28px;
+  overflow-y: auto;
+}
+.session-plan-templates label {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
+  margin-bottom: 12px;
+}
+.session-plan-templates ol {
+  margin: 8px 0 16px;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+.session-plan-templates small {
+  color: var(--muted);
+}

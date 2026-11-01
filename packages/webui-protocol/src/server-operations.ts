@@ -24,6 +24,7 @@ export const SERVER_GOAL_MESSAGE_TYPES = [
   'in_flight.ended',
   'in_flight.started',
   'plan.updated',
+  'plan.templates',
   'task.completed',
   'task.failed',
   'task.pending',
