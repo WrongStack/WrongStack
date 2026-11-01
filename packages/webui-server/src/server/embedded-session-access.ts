@@ -14,6 +14,7 @@ export function createEmbeddedSessionAccess(deps: EmbeddedMessageRouterDeps) {
     'topic.advice',
     'abort',
     'tool.confirm_result',
+    'mcp.tool.call',
     'session.new',
     'session.resume',
     'session.save',

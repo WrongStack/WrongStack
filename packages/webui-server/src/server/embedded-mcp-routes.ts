@@ -20,6 +20,7 @@ import {
 } from './mcp-handlers.js';
 import type { McpRouteHandlers } from './mcp-routes.js';
 import { createMcpTaskHandlers, resolveMcpTaskContext } from './mcp-task-handlers.js';
+import { createMcpToolHandlers } from './mcp-tool-handlers.js';
 
 export function createEmbeddedMcpRoutes(deps: EmbeddedMessageRouterDeps) {
   const { opts } = deps;
@@ -28,6 +29,13 @@ export function createEmbeddedMcpRoutes(deps: EmbeddedMessageRouterDeps) {
     ...createMcpTaskHandlers({
       registry: opts.mcpRegistry,
       context: (id) => resolveMcpTaskContext(opts.agent.ctx, deps.sessionCtx.peekAgent, id),
+      trustBoundary: deps.trustBoundary,
+    }),
+    ...createMcpToolHandlers({
+      registry: opts.mcpRegistry,
+      context: (id) => resolveMcpTaskContext(opts.agent.ctx, deps.sessionCtx.peekAgent, id),
+      agent: (id) => deps.sessionCtx.peekAgent?.(id),
+      isRunActive: (id) => deps.conversationCtx.abortControllers.has(id),
       trustBoundary: deps.trustBoundary,
     }),
     list: (ws, msg) => handleMcpList(ws, msg, opts.profileConfigPath, opts.mcpRegistry),

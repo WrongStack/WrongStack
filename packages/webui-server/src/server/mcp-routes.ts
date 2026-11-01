@@ -37,6 +37,10 @@ export interface McpRouteHandlers {
   prompts: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   resourceRead: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   promptGet: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  /** A server's tools, without starting or registering it. */
+  tools: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  /** Run one tool as a step of a conversation, through its agent's gate. */
+  toolCall: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   authStatus: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   authLogin: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   authLogout: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
@@ -82,9 +86,16 @@ export async function handleMcpRoute(
       'mcp.operation_result',
       'mcp.auth.pending',
       'mcp.auth.status',
-      ...(['mcp.resources', 'mcp.prompts', 'mcp.resource.read', 'mcp.prompt.get'].includes(msg.type)
+      ...([
+        'mcp.resources',
+        'mcp.prompts',
+        'mcp.resource.read',
+        'mcp.prompt.get',
+        'mcp.tools',
+      ].includes(msg.type)
         ? ['mcp.content.error']
         : []),
+      ...(msg.type === 'mcp.tool.call' ? ['mcp.tool.result'] : []),
       ...(['mcp.resource.read', 'mcp.prompt.get'].includes(msg.type)
         ? ['mcp.content.selected']
         : []),
@@ -143,6 +154,12 @@ export async function handleMcpRoute(
       return true;
     case 'mcp.resource.read':
       await handlers.resourceRead(ws, msg);
+      return true;
+    case 'mcp.tools':
+      await handlers.tools(ws, msg);
+      return true;
+    case 'mcp.tool.call':
+      await handlers.toolCall(ws, msg);
       return true;
     case 'mcp.prompt.get':
       await handlers.promptGet(ws, msg);

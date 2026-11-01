@@ -329,6 +329,17 @@ export type ClientMessageServices =
   | { type: 'mcp.resources'; payload: { name: string; refresh?: boolean } }
   | { type: 'mcp.prompts'; payload: { name: string; refresh?: boolean } }
   | { type: 'mcp.resource.read'; payload: { name: string; uri: string } }
+  | { type: 'mcp.tools'; payload: { name: string } }
+  | {
+      type: 'mcp.tool.call';
+      payload: {
+        sessionId?: string;
+        requestId: string;
+        name: string;
+        tool: string;
+        input: Record<string, unknown>;
+      };
+    }
   | {
       type: 'mcp.prompt.get';
       payload: { name: string; prompt: string; arguments?: Record<string, string> };

@@ -236,3 +236,25 @@ describe('native agent session projection', () => {
     expect(state.error).toBe('Engine stopped');
   });
 });
+
+describe('user-run MCP tool', () => {
+  it('shows the result the engine added to the conversation, once, and nothing it did not add', () => {
+    const result = (payload: Record<string, unknown>) => ({
+      type: 'mcp.tool.result',
+      payload: { sessionId: 'core-a', requestId: 'r1', tool: 'echo', success: true, ...payload },
+    });
+    const added = reduceEngine(
+      started(),
+      result({ addedToConversation: true, note: '[User-run MCP tool] echo said pong' }),
+    );
+    expect(added.messages.map((m) => [m.role, m.text])).toEqual([
+      ['user', '[User-run MCP tool] echo said pong'],
+    ]);
+    const again = reduceEngine(
+      added,
+      result({ addedToConversation: true, note: '[User-run MCP tool] echo said pong' }),
+    );
+    expect(again.messages).toHaveLength(1);
+    expect(reduceEngine(started(), result({ addedToConversation: false })).messages).toEqual([]);
+  });
+});

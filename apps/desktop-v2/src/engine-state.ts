@@ -303,6 +303,12 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
       next.model = to['model'];
     }
   }
+  // A user-run MCP tool's result, added to the conversation by the engine.
+  if (event.type === 'mcp.tool.result' && p['addedToConversation'] === true) {
+    const id = `mcp-tool:${String(p['requestId'])}`;
+    if (typeof p['note'] === 'string' && !state.messages.some((m) => m.id === id))
+      next.messages = [...state.messages, { id, role: 'user', text: p['note'] }];
+  }
   if (event.type === 'desktop.user_message') {
     const id = String(p['id']);
     if (typeof p['requestId'] === 'string') {

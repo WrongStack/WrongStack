@@ -1,7 +1,8 @@
+import { safeId } from '@/lib/utils';
 import { openMainView } from '@/lib/view-navigation';
 import type { ChatAssistantMessage, SlashRoutingClient } from './slash-routing-types.js';
 
-/** `/mcp [resources|prompts|read|get] …` — MCP server listing and content selection. */
+/** `/mcp [resources|prompts|read|get|tools|call] …` — MCP servers, content and tool use. */
 export function runMcpSlashCommand(
   args: string,
   client: SlashRoutingClient | null | undefined,
@@ -16,6 +17,40 @@ export function runMcpSlashCommand(
       payload: { name: server, refresh: parts.includes('--refresh') },
     });
     addMessage({ role: 'assistant', content: `Fetching MCP ${action} from **${server}**…` });
+    return true;
+  }
+  if (action === 'tools' && server) {
+    client?.send?.({ type: 'mcp.tools', payload: { name: server } });
+    addMessage({ role: 'assistant', content: `Listing MCP tools on **${server}**…` });
+    return true;
+  }
+  if (action === 'call' && server && parts[2]) {
+    // Everything after the tool name is its JSON input; none means `{}`.
+    const rawInput = args.trim().replace(/^call\s+\S+\s+\S+\s*/, '');
+    let input: unknown = {};
+    try {
+      if (rawInput) input = JSON.parse(rawInput);
+    } catch {
+      input = undefined;
+    }
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      addMessage({
+        role: 'assistant',
+        content: 'MCP tool input must be a JSON object, for example `{"query":"text"}`.',
+      });
+      return true;
+    }
+    const payload = {
+      requestId: safeId(),
+      name: server,
+      tool: parts[2],
+      input: input as Record<string, unknown>,
+    };
+    client?.send?.({ type: 'mcp.tool.call', payload: client.withSession?.(payload) ?? payload });
+    addMessage({
+      role: 'assistant',
+      content: `Running MCP tool **${parts[2]}** on **${server}** in this conversation…`,
+    });
     return true;
   }
   if (action === 'read' && server && parts[2]) {
@@ -53,7 +88,7 @@ export function runMcpSlashCommand(
     addMessage({
       role: 'assistant',
       content:
-        'Usage: `/mcp resources <server>`, `/mcp prompts <server>`, `/mcp read <server> <uri>`, or `/mcp get <server> <prompt> [key=value...]`.',
+        'Usage: `/mcp resources <server>`, `/mcp prompts <server>`, `/mcp read <server> <uri>`, `/mcp get <server> <prompt> [key=value...]`, `/mcp tools <server>`, or `/mcp call <server> <tool> [JSON input]`.',
     });
     return true;
   }

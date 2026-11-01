@@ -314,6 +314,8 @@ describe('WS message dispatcher routing (Issue #31 PR 0)', () => {
     prompts: vi.fn(),
     resourceRead: vi.fn(),
     promptGet: vi.fn(),
+    tools: vi.fn(),
+    toolCall: vi.fn(),
   });
 
   it('handleMcpRoute: claims mcp.list; rejects foreign', async () => {
@@ -346,6 +348,8 @@ describe('WS message dispatcher routing (Issue #31 PR 0)', () => {
     ['mcp.prompts', 'prompts'],
     ['mcp.resource.read', 'resourceRead'],
     ['mcp.prompt.get', 'promptGet'],
+    ['mcp.tools', 'tools'],
+    ['mcp.tool.call', 'toolCall'],
   ] as const)('handleMcpRoute: claims %s', async (type, handler) => {
     const h = mcpHandlersStub();
     const out = await handleMcpRoute(ws, { type }, h as never);

@@ -543,6 +543,27 @@ describe('runChatSlashCommand — agent/autonomy commands', () => {
     });
   });
 
+  it('/mcp tools lists a server tools', () => {
+    const opts = makeOptions({ raw: '/mcp tools docs' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'mcp.tools',
+      payload: { name: 'docs' },
+    });
+  });
+
+  it('/mcp call runs a tool with its JSON input, and refuses input that is not an object', () => {
+    const opts = makeOptions({ raw: '/mcp call docs search {"query": "a b"}' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'mcp.tool.call',
+      payload: expect.objectContaining({ name: 'docs', tool: 'search', input: { query: 'a b' } }),
+    });
+    const bad = makeOptions({ raw: '/mcp call docs search [1]' });
+    expect(runChatSlashCommand(bad)).toBe(true);
+    expect(bad.client?.send).not.toHaveBeenCalled();
+  });
+
   it('/mcp get rejects malformed arguments locally', () => {
     const opts = makeOptions({ raw: '/mcp get docs review malformed' });
     expect(runChatSlashCommand(opts)).toBe(true);

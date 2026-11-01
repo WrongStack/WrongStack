@@ -1,24 +1,31 @@
-import { Plug, RefreshCw } from 'lucide-react';
+import { Plug, RefreshCw, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { McpContentBrowser } from './McpContentBrowser';
+import { McpToolRunner } from './McpToolRunner';
 import { Modal } from './Modal';
 
 export function McpComposerPicker({
   command,
   onInsert,
   onClose,
+  sessionId,
+  onNotice,
 }: {
   command: EngineCommand;
   onInsert: (text: string) => Promise<void>;
   onClose: () => void;
+  /** With both, a connection's tools can be run as a step of this conversation. */
+  sessionId?: string | undefined;
+  onNotice?: ((text: string) => void) | undefined;
 }) {
   const [servers, setServers] = useState<Record<string, unknown>[]>([]),
     [selected, setSelected] = useState(''),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
-    [revision, setRevision] = useState(0);
+    [revision, setRevision] = useState(0),
+    [toolsOf, setToolsOf] = useState('');
   useEffect(() => {
     let alive = true;
     setLoading(true);
@@ -37,6 +44,30 @@ export function McpComposerPicker({
       alive = false;
     };
   }, [command, revision]);
+  if (toolsOf && sessionId && onNotice)
+    return (
+      <McpToolRunner
+        name={toolsOf}
+        command={command}
+        onClose={() => setToolsOf('')}
+        onRun={(tool, input) => {
+          // The call can wait on an approval in the conversation, which this
+          // dialog would cover: close first, report the outcome in the composer.
+          onClose();
+          onNotice(`Running ${tool} from ${toolsOf} in this conversation…`);
+          void command(
+            'mcp.tool.call',
+            { sessionId, name: toolsOf, tool, input },
+            ['mcp.tool.result'],
+            { timeoutMs: 600_000 },
+          )
+            .then((reply) => onNotice(String(reply['message'] ?? `${tool} finished.`)))
+            .catch((error: unknown) =>
+              onNotice(error instanceof Error ? error.message : String(error)),
+            );
+        }}
+      />
+    );
   if (selected)
     return (
       <McpContentBrowser
@@ -58,6 +89,7 @@ export function McpComposerPicker({
         <p>
           Choose a connection, resolve its content, then review the text before appending it to this
           conversation's draft. Nothing is sent automatically.
+          {sessionId && onNotice ? ' Tools run as a step of this conversation instead.' : ''}
         </p>
         <button
           type="button"
@@ -78,19 +110,32 @@ export function McpComposerPicker({
         ) : servers.length ? (
           <div className="mcp-composer-connections">
             {servers.map((server) => (
-              <button
-                type="button"
-                className="button secondary"
-                key={String(server['name'])}
-                disabled={!server['enabled']}
-                onClick={() => setSelected(String(server['name']))}
-              >
-                <Plug size={14} />
-                <span>{String(server['name'])}</span>
-                <small>
-                  {server['enabled'] ? String(server['status'] ?? 'Enabled') : 'Disabled'}
-                </small>
-              </button>
+              <div className="mcp-composer-connection" key={String(server['name'])}>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={!server['enabled']}
+                  onClick={() => setSelected(String(server['name']))}
+                >
+                  <Plug size={14} />
+                  <span>{String(server['name'])}</span>
+                  <small>
+                    {server['enabled'] ? String(server['status'] ?? 'Enabled') : 'Disabled'}
+                  </small>
+                </button>
+                {sessionId && onNotice && (
+                  <button
+                    type="button"
+                    className="button secondary"
+                    aria-label={`Run tools from ${String(server['name'])}`}
+                    disabled={!server['enabled']}
+                    onClick={() => setToolsOf(String(server['name']))}
+                  >
+                    <Wrench size={14} />
+                    Tools
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         ) : (

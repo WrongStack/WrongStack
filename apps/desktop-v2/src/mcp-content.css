@@ -156,3 +156,22 @@
   border-radius: 4px;
   image-rendering: auto;
 }
+.mcp-composer-connection {
+  display: flex;
+  gap: 6px;
+}
+.mcp-composer-connection > button:first-child {
+  flex: 1;
+  justify-content: flex-start;
+  overflow-wrap: anywhere;
+}
+.mcp-tool-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mcp-content-detail textarea {
+  width: 100%;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}

@@ -1084,14 +1084,14 @@ export function SessionComposer({
         <Suspense fallback={<p role="status">Opening MCP content…</p>}>
           <McpComposerPicker
             command={command}
+            sessionId={state.sessionId}
+            onNotice={setNotice}
             onClose={() => setMcpContent(false)}
             onInsert={async (text) => {
               if (!(await validateDraft()))
                 throw Error('Resolve the saved draft conflict before adding MCP text.');
               if (!(await onDraftChange(appendToDraft(currentDraft.current, text))))
-                throw Error(
-                  'The draft could not be saved. MCP content remains available for review.',
-                );
+                throw Error('The draft could not be saved. The MCP content stays open.');
               setMcpContent(false);
               textarea.current?.focus();
             }}

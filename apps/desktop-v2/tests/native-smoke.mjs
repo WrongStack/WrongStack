@@ -40,6 +40,7 @@ import { exerciseNativeLiveFleet } from './native-live-fleet.mjs';
 import { exerciseNativeMailbox } from './native-mailbox.mjs';
 import { exerciseNativeMcpComposer, exerciseNativeMcpContent } from './native-mcp-content.mjs';
 import { exerciseNativeMcpTasks } from './native-mcp-tasks.mjs';
+import { exerciseNativeMcpTool } from './native-mcp-tool.mjs';
 import { exerciseNativeModelCatalog } from './native-model-catalog.mjs';
 import { exerciseNativeModelDraftRestart } from './native-model-draft-restart.mjs';
 import { exerciseNativeModelProfiles } from './native-model-profiles.mjs';
@@ -596,7 +597,15 @@ try {
       providerFixture,
     });
   }
-  if (rosterOnly || automationOnly || mcpTasksOnly || processesOnly || fleetOnly || usageOnly)
+  if (
+    rosterOnly ||
+    automationOnly ||
+    mcpOnly ||
+    mcpTasksOnly ||
+    processesOnly ||
+    fleetOnly ||
+    usageOnly
+  )
     await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
   await page
     .getByRole('navigation', { name: 'Main navigation' })
@@ -864,6 +873,15 @@ try {
       artifactDir,
       project: a,
       sessionIds: sessions,
+    });
+    await exerciseNativeMcpTool({
+      page,
+      rpc: workspaceRpc,
+      waitFor,
+      artifactDir,
+      project: a,
+      sessionIds: sessions,
+      providerFixture,
     });
     assert.deepEqual(errors, []);
     result = {

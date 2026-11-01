@@ -182,6 +182,12 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
         profilePolicyDraft: userTexts.some((text) =>
           text.includes('[native-profile-policy-draft]'),
         ),
+        // A user-run MCP tool's result, added to the conversation by the engine.
+        userRunMcpTool: (body.messages ?? []).some((m) =>
+          String(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).includes(
+            '[User-run MCP tool]',
+          ),
+        ),
       });
       assert.equal(request.url, '/v1/chat/completions');
       assert.ok(acceptedModels.has(body.model), 'The request must use a configured fixture model');

@@ -70,6 +70,8 @@ export const SERVER_EXTENSION_MESSAGE_TYPES = [
   'mcp.server.sleeping',
   'mcp.server.updated',
   'mcp.server.waking',
+  'mcp.tool.result',
+  'mcp.tools',
   'provider.audit.history',
   'prompts.content',
   'prompts.created',

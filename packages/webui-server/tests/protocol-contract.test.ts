@@ -48,7 +48,9 @@ describe('surface protocol contract', () => {
     // +4: native Git hunks/apply and merge-conflict read/resolve.
     // +1: session.redo (redo the newest rewind).
     // +3: files.move_many / files.delete_many / files.copy_many (all-or-nothing batches).
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(307);
+    // +2: mcp.tools / mcp.tool.call (explicit MCP tool use in a conversation).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(309);
+    expect(CLIENT_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.call']));
     expect(CLIENT_MESSAGE_TYPES).toEqual(
       expect.arrayContaining([
         'session.redo',
@@ -78,7 +80,9 @@ describe('surface protocol contract', () => {
     // +2: native Git hunk and merge-conflict snapshots.
     // +3: files.moved_many / files.deleted_many / files.copied_many (batch replies).
     // +1: provider.primary_restored (the fallback chain moved back to the primary).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(317);
+    // +2: mcp.tools / mcp.tool.result (their replies).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(319);
+    expect(SERVER_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.result']));
     expect(SERVER_MESSAGE_TYPES).toContain('provider.primary_restored');
     expect(SERVER_MESSAGE_TYPES).toEqual(
       expect.arrayContaining(['files.moved_many', 'files.deleted_many', 'files.copied_many']),

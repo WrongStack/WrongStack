@@ -27,7 +27,7 @@ function nativeWav() {
 }
 const NATIVE_WAV = nativeWav();
 
-async function startMcpFixture() {
+export async function startMcpFixture() {
   const calls = [];
   const server = createServer(async (request, response) => {
     if (request.method !== 'POST') {
@@ -75,6 +75,11 @@ async function startMcpFixture() {
               inputSchema: { type: 'object', properties: {} },
             },
           ],
+        };
+        break;
+      case 'tools/call':
+        result = {
+          content: [{ type: 'text', text: 'Native fixture note: the tool ran.' }],
         };
         break;
       case 'resources/list':

@@ -313,7 +313,7 @@ export function buildRoutes(
     log: (message) => deps.logger.warn(message),
   });
   // ---- MCP route (handleMcpRoute) ---- delegations live in ./mcp-route-table.ts.
-  const mcpRoutes: McpRouteHandlers = createMcpRouteTable(deps);
+  const mcpRoutes: McpRouteHandlers = createMcpRouteTable(deps, state.isRunActive);
 
   const brainContext: BrainHandlerContext = {
     send,

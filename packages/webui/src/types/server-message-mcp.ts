@@ -152,6 +152,27 @@ export type WSMcpServerMessage =
       };
     }
   | {
+      type: 'mcp.tools';
+      payload: {
+        name: string;
+        tools: Array<{ name: string; description?: string; inputSchema: Record<string, unknown> }>;
+      };
+    }
+  | {
+      type: 'mcp.tool.result';
+      payload: {
+        sessionId: string;
+        requestId: string;
+        name: string;
+        tool: string;
+        success: boolean;
+        message: string;
+        content?: string;
+        addedToConversation?: boolean;
+        note?: string;
+      };
+    }
+  | {
       type: 'mcp.resources';
       payload: {
         name: string;

@@ -69,6 +69,8 @@ export const CLIENT_EXTENSION_MESSAGE_TYPES = [
   'mcp.resources',
   'mcp.restart',
   'mcp.sleep',
+  'mcp.tool.call',
+  'mcp.tools',
   'mcp.tasks.list',
   'mcp.tasks.subscribe',
   'mcp.tasks.unsubscribe',

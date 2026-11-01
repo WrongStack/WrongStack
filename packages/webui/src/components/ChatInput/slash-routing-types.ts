@@ -39,6 +39,8 @@ export type SlashRoutingClientMessage = Extract<
   | { type: 'mcp.prompts' }
   | { type: 'mcp.resource.read' }
   | { type: 'mcp.prompt.get' }
+  | { type: 'mcp.tools' }
+  | { type: 'mcp.tool.call' }
   | { type: 'working_dir.set' }
   | { type: 'goal.start' }
   | { type: 'goal.load' }

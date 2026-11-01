@@ -19,6 +19,7 @@ import {
 } from './mcp-handlers.js';
 import type { McpRouteHandlers } from './mcp-routes.js';
 import { createMcpTaskHandlers, resolveMcpTaskContext } from './mcp-task-handlers.js';
+import { createMcpToolHandlers } from './mcp-tool-handlers.js';
 import type { WebuiDeps } from './route-contracts.js';
 
 // ---- MCP route (handleMcpRoute) ----
@@ -28,11 +29,21 @@ import type { WebuiDeps } from './route-contracts.js';
 // chain-of-responsibility wiring. The 10 cases were pure delegations
 // inside the residual switch before this PR; now they're an explicit
 // sibling in the chain.
-export function createMcpRouteTable(deps: WebuiDeps): McpRouteHandlers {
+export function createMcpRouteTable(
+  deps: WebuiDeps,
+  isRunActive: (sessionId: string) => boolean,
+): McpRouteHandlers {
   return {
     ...createMcpTaskHandlers({
       registry: deps.mcpRegistry,
       context: (id) => resolveMcpTaskContext(deps.context, deps.peekAgent, id),
+      trustBoundary: deps.trustBoundary,
+    }),
+    ...createMcpToolHandlers({
+      registry: deps.mcpRegistry,
+      context: (id) => resolveMcpTaskContext(deps.context, deps.peekAgent, id),
+      agent: (id) => deps.peekAgent?.(id),
+      isRunActive,
       trustBoundary: deps.trustBoundary,
     }),
     list: (ws, msg) => handleMcpList(ws, msg, deps.profileConfigPath, deps.mcpRegistry),

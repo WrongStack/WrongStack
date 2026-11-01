@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T23:01:02.597Z",
+  "generatedAt": "2026-11-01T08:33:51.921Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5558,
-    "testFiles": 4845,
-    "sourceLines": 1219304,
+    "sourceFiles": 5561,
+    "testFiles": 4847,
+    "sourceLines": 1219944,
     "workspaceEdges": 233,
-    "moduleEdges": 16669,
+    "moduleEdges": 16680,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 175,
+    "testsWithoutTypecheck": 176,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1023
   },
@@ -399,8 +399,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 359,
-      "testFiles": 175,
+      "sourceFiles": 361,
+      "testFiles": 176,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1155,8 +1155,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 326,
-      "testFiles": 361,
+      "sourceFiles": 327,
+      "testFiles": 362,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1191,7 +1191,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 361
+          "testFiles": 362
         }
       ]
     },
@@ -1867,6 +1867,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/mcp-tasks-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/mcp-tool-input.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26004,6 +26010,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/mcp-tool-handlers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/memory-candidate-resolve.test.ts",
         "projects": [
           "root-node"
@@ -31039,6 +31051,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/mcp-tool-input.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/memory-injections.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31951,6 +31970,11 @@
     },
     {
       "from": "apps/desktop-v2/src/McpContentBrowser.tsx",
+      "specifier": "./mcp-content.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/McpToolRunner.tsx",
       "specifier": "./mcp-content.css",
       "syntax": "import"
     },
