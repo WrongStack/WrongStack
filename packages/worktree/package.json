@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/worktree",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "license": "MIT",
   "description": "WrongStack git-worktree isolation: WorktreeManager (allocate, commit, squash-merge with conflict resolution, release) and git worktree listing. Built on @wrongstack/core.",

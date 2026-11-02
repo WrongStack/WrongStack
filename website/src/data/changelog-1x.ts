@@ -13,10 +13,26 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.4.0',
+    date: '2026-11-02',
+    tagline: 'Desktop v2 at release depth and HQ for many machines',
+    latest: true,
+    highlights: [
+      'Desktop v2 covers conversations, files, Git review, Kanban, Goal and SDD runs, MCP, automation and memory from the native app',
+      'Conversations gain continuation modes, steering, rewind with edit and redo, refinement reviews that survive restarts and an agent todo list',
+      'Line-level Git staging, branch lanes in history, review-note threads and a code editor with find and replace',
+      'Every view of a project shares one journal reader; the full native test matrix passes on the release build',
+      'A Next.js HQ dashboard for many machines with health history, alert limits, labels, spend per label and remote session start',
+      'Goal runs stop at provider-token and USD cost limits priced from the model catalog',
+      'SAGE memory can run on the WrongMemory service and the codebase index on WrongIndex, both opt-in and denied in repository config',
+      'Tool aliases never widen access, fleet-ending and dispatch tools ask for confirmation, and a generated tool catalog is gated',
+      'The WebUI gains a phone-width workbench with a bottom activity bar and touch-sized controls',
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-10-29',
     tagline: 'Durable desktop workspaces and focused agent benchmarks',
-    latest: true,
     highlights: [
       'Desktop v2 adds durable project, roster, model and skill drafts, a virtualized file tree, and file or line-range references in chat',
       'File saves check the reviewed disk version, while Git review supports individual hunks and conflict resolution with stale-content checks',

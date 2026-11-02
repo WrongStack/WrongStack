@@ -1,27 +1,27 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.3.0',
-  title: 'Keep the context. Measure the work.',
+  version: '1.4.0',
+  title: 'The native desktop, all the way through.',
   summary:
-    'Desktop v2 adds durable project drafts, file and line references, and review-bound file writes. Benchmarks gain resumable runs and a six-tool lean profile, while Quick prompts and explicit AGENTS.md controls keep context focused.',
+    'Desktop v2 now covers conversations, files, Git review, Kanban, Goal and SDD runs, MCP, automation and memory, and passes its full native test matrix. HQ becomes a dashboard for many machines, and Goal runs stop at token and cost budgets.',
   socialDescription:
-    'WrongStack 1.3.0: durable Desktop v2 workspaces, reviewed file changes, resumable benchmarks with six-tool lean profiles, and focused Quick prompts.',
+    'WrongStack 1.4.0: Desktop v2 at release depth, an HQ dashboard for many machines, Goal runs with token and cost budgets, and opt-in WrongMemory and WrongIndex services.',
   cards: [
     {
-      title: 'Project work that survives a restart',
-      body: 'Desktop v2 keeps unsent roster, model, skill and project form drafts. File references can quote selected lines, and file saves check the disk version you reviewed.',
+      title: 'Every workflow in the desktop app',
+      body: 'Steer, rewind and resend conversations, stage single lines of a Git hunk, run a Kanban board as a Goal or SDD run, and use MCP tools as conversation steps, all from the native app.',
       href: '/interfaces',
       linkLabel: 'Compare the interfaces',
     },
     {
-      title: 'Benchmarks with bounded context',
-      body: 'Compare models and prompt variants, resume unfinished runs, and retry failed task groups. The lean harness exposes six file and shell tools with a fingerprint that records the measured setup.',
+      title: 'One dashboard for many machines',
+      body: 'HQ shows machine health history, alert limits, labels and spend per label, and can start a session on a machine from the dashboard.',
       href: '/features',
-      linkLabel: 'Explore benchmark capabilities',
+      linkLabel: 'Explore HQ',
     },
     {
-      title: 'Choose the instructions you need',
-      body: 'The Quick system prompt and separate global and project AGENTS.md switches make instruction scope explicit. Shared process helpers preserve command quoting and filter child environments.',
+      title: 'Goal runs with a budget',
+      body: 'Goal runs stop at provider-token and USD cost limits priced from the model catalog, and record every phase verification attempt.',
       href: '/features',
       linkLabel: 'See the feature set',
     },
