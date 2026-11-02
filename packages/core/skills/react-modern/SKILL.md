@@ -1,9 +1,10 @@
 ---
 name: react-modern
 description: |
+  React components and hooks: state, effects, re-renders, data fetching, forms, Suspense, Server and Client Components, React 19 APIs.
   Use this skill when writing, reviewing, or debugging React components and hooks — state, effects, data fetching, forms, Server and Client Components — in whatever React setup the project uses.
   Triggers: user mentions "React", "component", "hook", "useState", "useEffect", "re-render", "Server Component", "use client", "Suspense", "useTransition", "useActionState", "Next.js", "JSX", "TSX".
-version: 2.1.2
+version: 2.2.1
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, browser.interact]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: React component state, forms and hooks.
-- Start: Locate the affected route/component and its runtime/lockfile.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read the component, its parents and the React version and framework setup (Vite, Next.js, Remix or other).
+- Finish: The component behaves correctly in tests or the browser with no new effect loops, key warnings or hydration errors.
 
 ## Overview
 
@@ -129,6 +130,11 @@ function RenameForm({ rename }: { rename: (prev: State, data: FormData) => Promi
   is recreated on every render.
 - Actions (`useActionState`, `useFormStatus`, `useOptimistic`) replace most
   hand-rolled pending and error state for forms.
+- With React Compiler enabled (check the build config), components are
+  memoized automatically: skip new `useMemo`/`useCallback`, and treat its
+  bail-outs and the hooks lint rules as signals of rule-breaking code.
+- `<Activity mode="hidden">` keeps hidden UI's state while its effects are cleaned up;
+  prefer it to conditional unmounting for tabs and back navigation.
 
 ## Debugging re-renders and stale values
 
@@ -160,7 +166,7 @@ function RenameForm({ rename }: { rename: (prev: State, data: FormData) => Promi
 
 ## Current React and async semantics
 
-Target React/react-dom 19.3.1, checked from npm on 2026-10-23; upgrade the pair
+Target React/react-dom 19.3.1, checked from npm on 2026-11-02; upgrade the pair
 with the framework and type packages after checking peer requirements.
 Keep rendering pure, make cleanup work under Strict Mode and distinguish
 optimistic state from persisted success. Server Action authorization belongs

@@ -1,12 +1,11 @@
 ---
 name: design-craft
-description: |
-  Design or substantially improve user-facing interfaces with a product-specific visual direction, content hierarchy, and rendered critique. Use for new screens, landing pages, redesigns, typography/layout work, or UI that feels generic or AI-generated. For small fixes, preserve the existing design without starting a new brief.
-version: 2.2.0
+description: "New screens, landing pages and redesigns that look generic or AI-made: visual direction, layout, type, color and a rendered build loop. Use for a new screen or page, a substantial restyle, typography or layout work, or UI that feels templated, and to write the design brief; small fixes keep the existing design without a new brief. Not for token or kit work (use design-system) or matching a supplied reference (use design-to-code)."
+version: 2.2.1
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: [design, skill]
 optional-capabilities: [web.research, browser.interact, verification.run]
-trigger: "Design or substantially improve user-facing interfaces with a product-specific visual direction, content hierarchy, and rendered critique. Use for new screens, landing pages, redesigns, typography/layout work, or UI that feels generic or AI-generated. For small fixes, preserve the existing design without starting a new brief."
+trigger: "Use when a new screen, landing page or substantial redesign needs a product-specific direction and a rendered build-inspect-fix loop."
 metadata:
   routing-group: design
 paths: [".design/brief.md"]
@@ -14,15 +13,24 @@ paths: [".design/brief.md"]
 
 # Design Craft — WrongStack
 
-The outcome is an interface suited to this product, its content and its users.
-Token consistency helps, but cannot establish visual quality. A kit supplies
-reusable decisions, not a finished composition. Removing gradients or changing
-three cards to four does not make a design original.
-
 ## Selection card
 - Task: Build or restyle a concrete product interface.
-- Start: Identify the target surface, reference, user task and existing tokens.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read `.design/brief.md`, the token source (`design {action:"list"}` for a pinned kit, or the project's theme file) and the screens being changed; write the user's primary task in one line.
+- Finish: the served surface passes `design_reference {action:"inspect"}` with 0 FAIL at 1440/768/390, each WARN is fixed or defended in `.design/review.md`, and the brief's acceptance lines were observed in the rendered UI.
+
+## Overview
+
+The outcome is an interface suited to this product, its content and its users: originality comes from the product's own content and workflow, quality is proven on the rendered surface, and token consistency alone establishes neither.
+A kit supplies reusable decisions, not a finished composition. Removing gradients
+or changing three cards to four does not make a design original.
+
+## Rules
+
+1. Reuse the established system and follow a supplied reference; a small change matches its surroundings without a new identity.
+2. Record decisions in `.design/brief.md` (critical lines first) before a new screen or substantial redesign.
+3. Use representative real content; never invent logos, testimonials, usage counts, awards or conversion claims.
+4. Inspect the rendered surface at desktop, narrow and short viewports in every supported theme before claiming a visual result.
+5. Fix every inspect FAIL and fix or defend every WARN; never edit around the meter.
 
 ## Establish the design boundary
 

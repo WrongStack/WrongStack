@@ -1,11 +1,11 @@
 # Spec-Driven Development — WrongStack (Compact)
 
-<!-- source-version: 2.2.1 -->
+<!-- source-version: 2.2.2 -->
 
 ## Selection card
 - Task: Define acceptance criteria and dependent tasks. / TR: Kabul kriteri ve bağımlı görevler tanımla.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read the request and the code it touches, then write acceptance criteria before any task list.
+- Finish: The spec and task graph exist, each task has a verifiable done condition, and execution status is tracked through /sdd.
 
 ## Overview
 

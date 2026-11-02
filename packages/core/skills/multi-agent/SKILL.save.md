@@ -1,11 +1,11 @@
 # Multi-Agent Coordination (Compact)
 
-<!-- source-version: 2.1.1 -->
+<!-- source-version: 2.1.2 -->
 
 ## Selection card
 - Task: Plan coordinated work when delegation is authorized. / TR: Delegasyon yetkiliyse koordineli çalışma planla.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Split the work into independent subtasks with explicit file ownership and acceptance criteria before spawning any agent.
+- Finish: Every delegated result was checked against its criteria and integrated, conflicts resolved, and no agents are left running.
 
 ## Overview
 

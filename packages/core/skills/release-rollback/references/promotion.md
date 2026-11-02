@@ -35,9 +35,20 @@ Verify five overlap boundaries whenever `vN-1` and `vN` run concurrently (rollin
 
 ## 4. Rollback Execution & Post-Rollback Reconciliation
 
-1. If an abort threshold is breached and rollback is authorized, switch immediately to the pre-built `vN-1` artifact digest / version ID (`kubectl rollout undo deployment/<name> --to-revision=<rev>`, `wrangler rollback`, or atomic symlink switch)—never wait for a fresh CI rebuild of old source code.
+1. If an abort threshold is breached and rollback is authorized, switch immediately to the pre-built `vN-1` artifact digest / version ID (`kubectl rollout undo deployment/<name> --to-revision=<rev>`, `helm rollback <release> <rev> --wait`, `wrangler rollback <version-id>`, a Git revert under GitOps, or an atomic symlink switch)—never wait for a fresh CI rebuild of old source code.
 2. Confirm that live instances report `vN-1` identity and that error/latency SLIs return to baseline.
 3. Reconcile any state written by `vN` during the exposure window separately (failed jobs in DLQ, partial records, or forward schema repair); never claim that rolling back code automatically repaired mutated data.
+
+## 5. Rollback-Unsafe List (decide before promotion)
+
+Write down, before traffic moves, every change that makes "switch back to `vN-1`" wrong, and the alternative for each:
+
+| Change in `vN` | Why rollback is unsafe | Alternative |
+|---|---|---|
+| Column/table drop, rename, type narrowing | `vN-1` queries fail immediately | Feature flag off, forward fix, or restore plan |
+| New enum value or payload shape already written | `vN-1` deserializers crash on new rows/messages | Ship tolerant readers in `vN-1` first, or drain and forward fix |
+| One-way data backfill or re-encryption | Old code cannot read the new representation | Keep dual-read until the rollback window closes |
+| External side effects (emails, charges, webhooks) | Cannot be unsent | Reconcile; consider kill switch before full exposure |
 
 Sources: [Kubernetes Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/),
 [Cloudflare versions](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/).

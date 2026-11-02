@@ -1,12 +1,13 @@
 ---
 name: data-governance
 description: |
+  Data governance: PII inventory and handling, schema ownership, retention and deletion, lineage, access policy and migration safety.
   Use this skill when designing or reviewing data governance: schema ownership,
   PII handling, retention, lineage, access policy, and migration safety for
   services and data stores.
   Triggers: user says "data governance", "PII", "schema ownership", "retention policy", "data lineage", "migration safety".
 trigger: "Use this skill when designing or reviewing data governance: schema ownership, PII handling, retention, lineage, access policy, and migration safety for services and data stores."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [code.inspect]
@@ -20,8 +21,8 @@ Designs and reviews data governance for services and data stores: schema ownersh
 
 ## Selection card
 - Task: Define data ownership, retention and PII boundaries.
-- Start: Identify the data owner, query/schema, consistency and recovery contract.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Inventory the data stores and fields in scope, who owns each, and where personal data enters and leaves.
+- Finish: Classification, retention, access and migration decisions are recorded per table or field with an owner, and their enforcement points are identified.
 
 ## Overview
 

@@ -1,7 +1,7 @@
 ---
 name: tech-stack
-description: "Validate and upgrade dependencies against live registries and official migration guides in any ecosystem. Use when choosing packages, requesting latest versions, investigating deprecations, or planning a dependency upgrade; preserve the project package manager and distinguish recommendations from installs."
-version: 1.5.3
+description: "Dependency versions and upgrades: latest stable from live registries, peer and engine ranges, outdated packages, migration guides. Use when choosing packages, requesting latest versions, investigating deprecations, or planning a dependency upgrade; preserve the project package manager and distinguish recommendations from installs."
+version: 1.5.5
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [verification.run, web.research, filesystem.write]
@@ -14,8 +14,8 @@ metadata:
 
 ## Selection card
 - Task: Verify latest stable versions and migration constraints.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read manifests and lockfiles for installed versions, then query the live registry for the current stable release.
+- Finish: Installed, latest stable and compatible versions are reported per package with peer or engine blockers and migration notes.
 
 ## Overview
 

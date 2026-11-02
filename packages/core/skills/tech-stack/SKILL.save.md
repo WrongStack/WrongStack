@@ -1,11 +1,11 @@
 # Tech Stack Validator (Compact)
 
-<!-- source-version: 1.5.3 -->
+<!-- source-version: 1.5.5 -->
 
 ## Selection card
 - Task: Verify latest stable versions and migration constraints. / TR: Son kararlı sürüm ve geçiş kısıtını doğrula.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read manifests and lockfiles for installed versions, then query the live registry for the current stable release.
+- Finish: Installed, latest stable and compatible versions are reported per package with peer or engine blockers and migration notes.
 
 ## Overview
 

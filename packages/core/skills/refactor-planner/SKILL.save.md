@@ -1,11 +1,11 @@
 # Refactor Planner (Compact)
 
-<!-- source-version: 2.1.1 -->
+<!-- source-version: 2.2.0 -->
 
 ## Selection card
 - Task: Plan behavior-preserving module decomposition. / TR: Davranışı koruyan modül ayrıştırması planla.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Map the callers, dependents and covering tests of the code to be restructured.
+- Finish: A step-by-step plan where every step keeps build and tests green, with risks, verification and rollback per step.
 
 ## Overview
 

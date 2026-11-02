@@ -1,11 +1,11 @@
 # Observability (Compact)
 
-<!-- source-version: 2.1.1 -->
+<!-- source-version: 2.1.2 -->
 
 ## Selection card
 - Task: Instrument logs, traces, metrics and service signals. / TR: Log, trace, metrik ve servis sinyallerini ekle.
-- Start: Identify the data owner, query/schema, consistency and recovery contract.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Name the question the signals must answer and inventory the logging, metrics and tracing stack already in place.
+- Finish: The new signal appears in a real run and answers the question (a log query, metric or trace shown), without secrets or unbounded labels.
 
 ## Overview
 

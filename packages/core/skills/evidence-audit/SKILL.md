@@ -1,10 +1,10 @@
 ---
 name: evidence-audit
-description: Evidence-led audit/fix rounds for any codebase in any language. Finds only defects that a runnable proof reproduces on current code, applies the narrowest in-scope patch, verifies with a second proof, promotes high-risk proofs to permanent regression tests, and reports exact validation results. Use whenever the user asks to audit, bug-hunt, "find real bugs in", "prove and fix", "continue the audit round on", or "what is actually broken in" a package, module, directory, or service, even without the word "audit", and for turning .temp_files proof scripts into regression tests. Do not use for a single already-reported bug, an unscoped security claim, or general refactoring.
+description: "Proof-driven audit rounds in any language: find defects a runnable proof reproduces, patch narrowly, verify, keep a ledger. Finds only defects that a runnable proof reproduces on current code, applies the narrowest in-scope patch, verifies with a second proof, promotes high-risk proofs to permanent regression tests, and reports exact validation results. Use whenever the user asks to audit, bug-hunt, \"find real bugs in\", \"prove and fix\", \"continue the audit round on\", or \"what is actually broken in\" a package, module, directory, or service, even without the word \"audit\", and for turning .temp_files proof scripts into regression tests. Do not use for a single already-reported bug, an unscoped security claim, or general refactoring."
 required-capabilities: [filesystem.read, filesystem.write, execution.shell, verification.run, version-control.manage]
 required-tools: []
-trigger: "Evidence-led audit/fix rounds for any codebase in any language. Finds only defects that a runnable proof reproduces on current code, applies the narrowest in-scope patch, verifies with a second proof, promotes high-risk proofs to permanent regression tests, and reports exact validation results. Use whenever the user asks to audit, bug-hunt, \"find real bugs in\", \"prove and fix\", \"continue the audit round on\", or \"what is actually broken in\" a package, module, directory, or service, even without the word \"audit\", and for turning .temp_files proof scripts into regression tests. Do not use for a single already-reported bug, an unscoped security claim, or general refactoring."
-version: 1.1.2
+trigger: "Use when asked to audit, bug-hunt, prove and fix, or continue an audit round on a package, module, directory or service."
+version: 1.1.3
 metadata:
   routing-group: quality
 ---
@@ -15,8 +15,8 @@ Invoke as `$evidence-audit <scope>`. The text after the skill name is the scope.
 
 ## Selection card
 - Task: Find, prove, fix and independently verify real defects.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Pin the scope and revision, read the existing audit ledgers for already-used finding ids, and record the environment.
+- Finish: Every reported finding has a failing proof on current code, an in-scope patch and a passing verifier, all recorded in the round ledger.
 
 ## Setup (every round, before any analysis)
 

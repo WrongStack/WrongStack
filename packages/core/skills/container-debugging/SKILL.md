@@ -1,8 +1,8 @@
 ---
 name: container-debugging
-description: "Diagnose reported container build, startup, network, permission and resource failures. Use when an image or Compose service fails; reproduce against the final image/config and avoid data-destroying cleanup as a workaround."
-trigger: "Diagnose reported container build, startup, network, permission and resource failures. Use when an image or Compose service fails; reproduce against the final image/config and avoid data-destroying cleanup as a workaround."
-version: 1.0.2
+description: "Docker container failures: build errors, exit codes 127/137/139, OOMKilled, exec format error, crash loops, DNS, ports, mounts. Use when an image fails to build, a container exits or restarts, a service is unreachable from the host or sibling containers, or an image behaves differently on another machine. Not for Compose wiring (use compose-operations) or privilege reduction (use container-hardening)."
+trigger: "Use when a container exits, crash-loops, is OOMKilled, cannot be reached, or an image build fails or behaves differently on another host."
+version: 1.1.1
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -14,54 +14,92 @@ metadata:
 # Container Debugging
 
 ## Selection card
-- Task: Diagnose a running container failure.
-- Start: Identify the authorized target, current health and rollback boundary.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Task: Find the root cause of a container build, startup, network, permission or resource failure.
+- Start: Capture `docker inspect` state (exit code, OOMKilled, restarts, health), bounded logs, and the exact image digest and platform that fails.
+- Finish: the final-stage image starts cleanly from the same digest path, passes its health check, stops gracefully on SIGTERM, and the failing user path works.
 
 ## Overview
 
-Container debugging isolates build-stage, runtime startup, networking, filesystem permission, and resource-limit failures by inspecting deterministic container state (`docker inspect`, exit codes, `OOMKilled`, layer history, and namespace DNS/routing) rather than guessing or wiping volumes.
-
+Read the container's recorded state before touching it: the exit code, OOM flag, health log and image platform usually name the failing layer, and guessing with restarts or prunes destroys that evidence.
 Current checked engine target is Docker 29.9.2. Inspect actual daemon/client/build runtime and platform; build success and final-stage startup are separate checks.
+Docker 29 raised the minimum API version to 1.44 and makes the containerd image store the default on new installs; old clients and SDKs fail with "client version is too old".
 
 ## Rules
 
-1. Pin the active Docker context, image digest, target platform (`linux/amd64` vs `linux/arm64`), effective `Entrypoint`/`Cmd`, and environment variables (`docker inspect` with secrets redacted).
-2. Separate multi-stage build dependencies from final runtime stage files: check missing `COPY --from=builder` artifacts, `.dockerignore` exclusions, and libc ABI mismatches (glibc binaries copied into `alpine`/musl or `scratch` images).
-3. Decode container termination state (`State.ExitCode`, `State.OOMKilled`, `State.Error`) before tweaking healthcheck intervals or restart policies:
-   - `126` / `127`: non-executable entrypoint, missing binary/interpreter, or `CRLF` shebang line endings (`exec user process caused: no such file or directory`).
-   - `137`: `SIGKILL` — check `State.OOMKilled` (`true` = container memory limit exceeded) or `docker stop` grace-period timeout when PID 1 ignores `SIGTERM`.
-   - `139`: `SIGSEGV` — native module or platform/libc mismatch.
-4. Verify container network attachment and bind addresses: a process listening on `127.0.0.1` inside a container is unreachable from host port mappings or sibling containers (must bind `0.0.0.0` or `::`).
-5. Diagnose non-root UID/GID vs volume ownership mismatches (`COPY --chown=uid:gid`, named volume init permissions) without resorting to `chmod -R 777`.
-6. Keep existing data volumes, images, and diagnostic evidence intact; never run `docker system prune` or `down -v` as a blind fix.
+1. Read before acting: `docker inspect --format '{{json .State}}' <ctr>` (ExitCode, OOMKilled, Error, Health) plus `docker logs --since 30m --tail 300 -t <ctr>`.
+2. Reproduce with the exact failing image digest and platform (`docker image inspect --format '{{.Id}} {{.Os}}/{{.Architecture}}'`), not a fresh local build of a different commit.
+3. Decode the exit code first: 125 the run command itself failed; 126 not executable; 127 command, interpreter or loader not found; 137 SIGKILL (OOMKilled=true means the memory limit, false means a stop timeout or external kill); 139 segfault (native module, libc or arch mismatch); 143 SIGTERM, a normal stop.
+4. A server must bind `0.0.0.0` or `::` inside the container; `127.0.0.1` there is the container's own loopback and is unreachable through published ports or from siblings.
+5. Bring tools beside the container instead of into the image: `docker run --rm -it --network container:<ctr> --pid container:<ctr> nicolaka/netshoot` shares its namespaces; distroless images have no shell.
+6. Fix ownership with numeric UID/GID (`COPY --chown`, volume initialization), never `chmod -R 777`, `--privileged` or switching to root.
+7. Preserve evidence: copy files out with `docker cp <ctr>:/path ./evidence` before removing anything; no prune, `down -v` or volume deletion as a fix.
+8. Build and runtime are separate proofs: a green build says nothing about entrypoint, user, signals or health of the final stage.
 
-## Core Patterns & Pitfalls
+## First moves by situation
 
-- **PID 1 Signal Forwarding**: Shell-form `ENTRYPOINT "node server.js"` runs `/bin/sh -c` as PID 1, which does not forward `SIGTERM` to the child process and causes 10-second `SIGKILL` delays (`ExitCode 137`). Use exec-form `["node", "server.js"]`.
-- **Alpine / Distroless Missing Loader**: When `docker run` fails with `exec ...: no such file or directory` even though the binary exists in the image, check for a missing dynamic linker (`/lib64/ld-linux-*.so.2` on musl/`scratch`) or Windows `CRLF` line endings on an entrypoint script.
-- **Anti-pattern — Masking Crashes with `restart: always`**: Adding a restart loop or stretching healthcheck `start_period` without fixing the underlying exit code hides crash loops and exhausts upstream dependencies.
+| Situation | First moves |
+|---|---|
+| Exits immediately | State and logs; `docker image inspect --format '{{json .Config}}' <image>` for Entrypoint, Cmd, User, WorkingDir, Env names; `docker run --rm -it --entrypoint sh <image>` if a shell exists |
+| `exec format error` | Image arch vs host `uname -m`; `docker buildx imagetools inspect <ref>` for available platforms; rebuild with `--platform` |
+| "no such file or directory" for a file that exists | Missing dynamic loader (glibc binary on musl or scratch), or CRLF shebang; `head -1 entrypoint.sh \| od -c` |
+| Exit 137 | `OOMKilled`; `HostConfig.Memory`; `docker stats --no-stream`; host `journalctl -k \| grep -i oom`; if not OOM, check PID 1 signal handling and stop timeout |
+| Restart loop | `RestartCount`; `docker events --since 30m --filter container=<ctr>`; `docker logs` keeps output of earlier runs of the same container |
+| Unreachable service | Listening address via netshoot `ss -tlnp`; `docker port <ctr>`; `docker inspect --format '{{json .NetworkSettings.Networks}}' <ctr>`; host firewall |
+| Sibling DNS fails | Both on the same user-defined network? Embedded DNS (127.0.0.11) does not resolve names on the default bridge; `getent hosts <service>` |
+| Permission denied on a mount | `docker exec <ctr> id`; `ls -ln` of the mount on host and inside; SELinux hosts need `:z`/`:Z` labels |
+| Build fails or differs | `docker buildx build --progress=plain --target <stage> .`; `--no-cache-filter <stage>`; check `.dockerignore`; `docker buildx build --check .` |
+| Throttled or slow | `docker stats`, `docker top <ctr>`; inside, `cat /sys/fs/cgroup/cpu.stat` (`nr_throttled`) and `memory.events` (`oom_kill`) |
+
+## Patterns and pitfalls
+
+- **Shell-form PID 1** — `CMD node server.js` runs under `/bin/sh -c`, which does not forward SIGTERM; `docker stop` waits 10 s then SIGKILLs (137). Use exec form, `exec "$@"` in entrypoint scripts, and `--init` (tini) when the app spawns children.
+- **Package-manager PID 1** — `npm start` and similar wrappers do not reliably forward signals; start the runtime directly.
+- **Missing loader** — a glibc or CGO binary copied into Alpine or scratch reports "not found"; build static (`CGO_ENABLED=0`) or match the base image's libc.
+- **CRLF scripts** — a Windows checkout gives `/bin/sh^M: not found`; enforce `*.sh text eol=lf` in `.gitattributes`.
+- **Arch drift** — Apple Silicon builds arm64 by default; amd64 servers then fail with `exec format error`, and QEMU emulation can crash native modules. Build and test the target platform.
+- **Runtime memory sizing** — runtimes sized from host RAM exceed the container limit; set heap caps below the limit (Node `--max-old-space-size`, JVM `-XX:MaxRAMPercentage`).
+- **Healthcheck without tools** — slim and distroless images lack curl and wget, so health fails while the app is fine; use a built-in health subcommand or orchestrator probe.
+- **Volume shadowing** — a bind mount over the app directory hides installed dependencies baked into the image.
+- **Stale image** — `up` and `run` reuse a cached tag; compare the running container's image ID with the registry digest before concluding a fix did not work.
+- **Disk exhaustion** — `no space left on device` often comes from build cache or unrotated json logs; inspect with `docker system df -v` and `docker buildx du`.
 
 ## Workflow
 
-1. Reproduce the failure with the exact image/config and bounded checks.
-2. Trace build output or startup failure to the responsible layer/path.
-3. Compare working local conditions with the image/host platform.
-4. Make the narrow Dockerfile/config/application repair.
-5. Rebuild/run the final stage and verify health, signals and the failing user path.
+1. Record context: Docker context, host, image digest, platform, run flags or Compose service, resource limits.
+2. Read state, health log and bounded logs; classify the failure as build, start, network, permission or resource.
+3. Form one hypothesis and test it with the least disruptive check (inspect, side-car namespace, throwaway container from the same image).
+4. Make the narrow Dockerfile, config or application change.
+5. Rebuild the final stage, run it as production does, and check health, graceful stop and the failing path.
+6. Report the root cause with evidence and what was left untouched.
+
+## Proof
+
+- Build: `docker buildx build --progress=plain -t app:debug .`
+- Platform: `docker image inspect --format '{{.Os}}/{{.Architecture}}' app:debug`
+- Start: `docker run -d --name app-debug -p 127.0.0.1:8080:8080 app:debug`, then `curl -fsS http://127.0.0.1:8080/healthz`
+- State: `docker inspect --format '{{.State.ExitCode}} {{.State.OOMKilled}} {{.RestartCount}} {{.State.Health.Status}}' app-debug`
+- Graceful stop: `time docker stop app-debug` returns well under the 10 s timeout with exit code 0 or 143
+- Cleanup: `docker rm app-debug` for the throwaway container you created
+
+## Stop and ask
+
+- Removing, recreating or pruning containers, images or volumes on a shared or production host.
+- Restarting production containers or changing their restart policy, limits or networks.
+- Using `--privileged`, host network or PID namespaces, or mounting the Docker socket, even temporarily.
+- Attaching a debug side-car or packet capture to a production container that sees secrets or user traffic.
 
 ## Before returning
 
-- [ ] Active Docker context, image digest, target architecture, and container `State` (`ExitCode`, `OOMKilled`) recorded
-- [ ] Root cause traced to specific layer, entrypoint/signal form, bind address (`0.0.0.0`), ABI/loader, or UID/GID permission boundary
-- [ ] Final runtime stage rebuilt and verified for clean startup, healthcheck pass, and graceful `SIGTERM` stop
-- [ ] Fix applied with minimal privileges (no `chmod 777`, `--privileged`, or destructive volume resets)
-- [ ] Data volumes and unrelated containers left untouched
+- [ ] Docker context, image digest, platform and container `State` (ExitCode, OOMKilled, RestartCount, Health) recorded
+- [ ] Root cause traced to a specific layer, entrypoint/signal form, bind address, libc/loader, arch, permission or resource limit
+- [ ] Fix verified on the final runtime stage: clean start, healthy, graceful SIGTERM stop
+- [ ] No `chmod 777`, `--privileged`, root user or restart-loop masking introduced
+- [ ] Data volumes and unrelated containers untouched; throwaway containers removed
 
 ## Sources
 
-Versioned facts checked 2026-10-23; refresh authoritative sources before new installs/upgrades.
-[Docker troubleshooting](https://docs.docker.com/engine/daemon/troubleshoot/), [Docker build practices](https://docs.docker.com/build/building/best-practices/).
+Versioned facts checked 2026-11-02; refresh authoritative sources before new installs/upgrades.
+[Docker troubleshooting](https://docs.docker.com/engine/daemon/troubleshoot/), [Docker build practices](https://docs.docker.com/build/building/best-practices/), [Engine v29](https://www.docker.com/blog/docker-engine-version-29/).
 
 ## Skills in scope
 
@@ -69,3 +107,4 @@ Versioned facts checked 2026-10-23; refresh authoritative sources before new ins
 - compose-operations — operate and evolve multi-service Docker Compose environments with explicit networks, volumes and environment boundaries.
 - linux-service-ops — configure and troubleshoot application services on an authorized Linux host with explicit service ownership.
 - debugging — isolate application-level defects once container runtime/environment causes are ruled out.
+- kubernetes-operations — the same failures inside pods: `kubectl describe`, previous logs and ephemeral debug containers.

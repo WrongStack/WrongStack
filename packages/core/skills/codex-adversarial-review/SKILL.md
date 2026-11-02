@@ -1,9 +1,10 @@
 ---
 name: codex-adversarial-review
 description: |
+  Adversarial pre-merge review that tries to break a diff, branch or PR: race conditions, data loss, security holes, edge cases.
   Use this skill to conduct aggressive, adversarial code reviews on git changes, branches, or PRs to detect critical edge cases, race conditions, security holes, and data loss risks.
   Triggers: user mentions "adversarial review", "break the code", "find vulnerabilities", "security audit PR", "race condition check", "ship gate", "pre-merge audit".
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [version-control.manage]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Review adversarially and propose approval-gated fixes.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Pin the diff or branch under review and list the invariants it must not break (data, auth, concurrency, compatibility).
+- Finish: Each finding has a concrete break scenario (inputs, interleaving or state) with evidence; no code was changed without the user's explicit confirmation.
 
 ## Overview
 

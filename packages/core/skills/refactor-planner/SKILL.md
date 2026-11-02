@@ -1,7 +1,7 @@
 ---
 name: refactor-planner
-description: "Plan behavior-preserving refactors and migrations from actual dependencies, callers and tests. Use when decomposing modules, untangling coupling or sequencing a multi-file change; deliver a plan for planning requests and continue into authorized implementation when the user asked for the refactor itself."
-version: 2.1.1
+description: "Refactor and migration planning: split large files or modules, break circular deps, untangle coupling, rename or move APIs safely. Plans behavior-preserving changes from actual dependencies, callers and tests. Use when decomposing modules, untangling coupling or sequencing a multi-file change; deliver a plan for planning requests and continue into authorized implementation when the user asked for the refactor itself. Not for deleting dead code (use code-quality)."
+version: 2.2.0
 required-capabilities: [filesystem.read]
 required-tools: []
 trigger: "decomposing modules, untangling coupling or sequencing a multi-file change; deliver a plan for planning requests and continue into authorized implementation when the user asked for the refactor itself."
@@ -14,8 +14,8 @@ metadata:
 
 ## Selection card
 - Task: Plan behavior-preserving module decomposition.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Map the callers, dependents and covering tests of the code to be restructured.
+- Finish: A step-by-step plan where every step keeps build and tests green, with risks, verification and rollback per step.
 
 ## Overview
 
@@ -52,6 +52,16 @@ requested behavior changes so their validation is clear.
    exit condition and a rollback that someone else can perform.
 6. Return the plan for a planning-only request. When execution is already
    requested, use this plan to implement and verify within the same task.
+
+## Move patterns
+
+- **Expand, migrate, contract** — add the new API beside the old, move callers in batches, delete the old one last; every intermediate state compiles and ships.
+- **Branch by abstraction** — introduce an interface over the code being replaced, switch callers to the interface, swap the implementation behind it.
+- **Strangler** — route one entry point at a time to the new module; the old path keeps serving the rest until it has no callers.
+- **Break a cycle** — move the shared type or constant to a lower module, invert the dependency with an injected interface or event, or merge two modules that are really one.
+- **Split a large file** — group by reason to change, not by kind; move private helpers with their only caller; keep a re-export only while external consumers still import the old path.
+- **Rename across a codebase** — prefer language-server or AST-based renames (WrongStack's codebase-ast-replace tool, IDE refactors) over text replacement; then grep for string uses in configs, docs and reflection.
+- **Characterize first** — when behavior is unclear, pin current outputs with characterization or snapshot tests before moving anything.
 
 ## Plan shape
 

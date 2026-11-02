@@ -1,15 +1,15 @@
 # Modern Node.js (Compact)
 
-<!-- source-version: 2.1.3 -->
+<!-- source-version: 2.1.5 -->
 
 ## Selection card
 - Task: Node runtime APIs, ESM and async cancellation. / TR: Node çalışma zamanı API, ESM ve async iptal.
-- Start: Locate the affected route/component and its runtime/lockfile.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read package.json (type, engines, exports, scripts) and the Node version the project actually runs on.
+- Finish: The code runs on the target Node version with cancellation, errors and cleanup handled, and type checks and tests pass.
 
 ## Overview
 
-Current Node.js (v26.12.1 Current / v24.22.1 LTS as checked 2026-10-23) ships natively what older code pulled from npm:
+Node.js 26.13.0 (newest stable; LTS 26.13.0 since 2026-10-28, Node 24 in maintenance; checked 2026-11-02) ships natively what older code pulled from npm:
 native TypeScript type stripping (`node file.ts`), native `.env`
 loading (`node --env-file`), built-in SQLite (`node:sqlite`), global WebSocket,
 `Promise.withResolvers()`, global fetch, `AbortSignal.timeout`, `node:test`, Web Streams,

@@ -1,11 +1,11 @@
 # Chimera — Post-Session Code Guardian (Compact)
 
-<!-- source-version: 2.1.1 -->
+<!-- source-version: 2.1.2 -->
 
 ## Selection card
 - Task: Review session changes through the read-only guardian. / TR: Oturum değişikliklerini salt okunur guardian ile incele.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Collect the files added or modified in the session and read their diffs before judging anything.
+- Finish: The report lists only new, evidenced issues with file:line and severity, or states that nothing qualified; no mutating follow-up was started.
 
 ## Overview
 

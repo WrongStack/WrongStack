@@ -1,4 +1,4 @@
-<!-- verified: 2026-10-23 | source: WebDX web-features 3.44.0, live npm release data -->
+<!-- verified: 2026-11-02 | source: WebDX web-features 3.45.0, live npm release data -->
 
 Baseline is a compatibility summary, not a substitute for the supported browser,
 device and assistive-technology matrix. High means widely available; low means

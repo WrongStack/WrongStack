@@ -1,11 +1,11 @@
 # Code Review (Compact)
 
-<!-- source-version: 1.1.1 -->
+<!-- source-version: 1.1.2 -->
 
 ## Selection card
 - Task: Review implementation correctness and maintainability. / TR: Uygulama doğruluğunu ve bakım kolaylığını incele.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Pin the exact diff under review (PR, branch range or working tree) and what it is meant to change.
+- Finish: Findings are ranked by severity with file:line, failure scenario and suggested fix; areas checked and found clean are stated, not padded.
 
 ## Overview
 

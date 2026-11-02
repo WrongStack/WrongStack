@@ -1,8 +1,8 @@
 ---
 name: skill-router
-description: "Choose the correct bundled WrongStack skill and order a multi-step workflow. Use for an unclear request, overlapping skill descriptions, or work combining design, web/mobile, video, backend and deployment. Exact single-technology tasks should load their specialized skill directly."
+description: "Pick the right bundled skill, or order several, for unclear or multi-domain requests (design + code, media + web, ops + review). Use for an unclear request, overlapping skill descriptions, or work combining design, web/mobile, video, backend and deployment. Exact single-technology tasks should load their specialized skill directly."
 trigger: "choose skills, hangi skill, ne kullanmalı, mixed design/video/mobile/deploy workflows, unclear task routing"
-version: 1.0.0
+version: 1.1.0
 required-capabilities: [filesystem.read]
 required-tools: [skill]
 optional-capabilities: []

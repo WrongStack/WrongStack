@@ -1,8 +1,8 @@
 ---
 name: kubernetes-operations
-description: "Operate and deploy owned Kubernetes workloads with explicit cluster, namespace and rollout identity. Use when configuring Deployments, Services, probes, resources or diagnosing a known workload; do not expand an application task into uncontrolled cluster administration."
-trigger: "Operate and deploy owned Kubernetes workloads with explicit cluster, namespace and rollout identity. Use when configuring Deployments, Services, probes, resources or diagnosing a known workload; do not expand an application task into uncontrolled cluster administration."
-version: 1.0.2
+description: "Kubernetes workloads with kubectl, Helm and Kustomize: Deployments, StatefulSets, probes, requests, HPA, PDBs, Services, Gateway API. Use when changing manifests or charts, debugging Pending, CrashLoopBackOff, ImagePullBackOff or OOMKilled pods, tuning probes and resources, rolling out or back, or migrating off ingress-nginx. Not for cluster provisioning (use infrastructure-as-code) or image hardening (use container-hardening)."
+trigger: "Use when a request touches Kubernetes manifests, Helm charts, kustomization files, kubectl output, or a pod that is pending, crashing or not receiving traffic."
+version: 1.1.1
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -15,54 +15,98 @@ paths: ["kustomization.{yml,yaml}", "Chart.yaml", "**/k8s/**/*.{yml,yaml}"]
 # Kubernetes Operations
 
 ## Selection card
-- Task: Operate Kubernetes workloads and autoscaling.
-- Start: Identify the authorized target, current health and rollback boundary.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Task: Change, diagnose or roll out owned Kubernetes workloads.
+- Start: Confirm `kubectl config current-context` and namespace, find who owns the object (Argo CD, Flux, Helm, Kustomize, an operator), then read `kubectl describe` and events for the workload.
+- Finish: `kubectl rollout status` succeeds, the Service has ready EndpointSlices, real traffic reaches the new version, and the source of truth (Git or chart) holds the change.
 
 ## Overview
 
-Kubernetes operations manage declarative workload lifecycles (`Deployment`, `StatefulSet`, `Job`, `Service`, `Ingress`/`HTTPRoute`, `HorizontalPodAutoscaler`, `PodDisruptionBudget`) within an explicitly pinned cluster and namespace. Safe Kubernetes engineering requires separating `startupProbe`, `readinessProbe`, and `livenessProbe` semantics, previewing server-side diffs before apply, and verifying full rollout convergence (`kubectl rollout status`) rather than stopping at `kubectl apply` exit zero.
-
-Checked stable Kubernetes target: 1.37.1 on 2026-10-23. Verify managed-provider support, API versions, client/server skew and addon compatibility before upgrades.
+Every object has an owner that will reconcile it: find the controller or GitOps source first, change that source, and judge success by rollout status and served traffic rather than by `kubectl apply` returning zero.
+Checked stable Kubernetes target: 1.37.2 on 2026-10-23. Verify managed-provider support, API versions, client/server skew and addon compatibility before upgrades.
+The community ingress-nginx controller was retired in March 2026 (no further releases or security fixes); Gateway API is the upstream successor.
 
 ## Rules
 
-1. Pin `--context` and `--namespace` (`-n`) explicitly on every command and verify whether the workload is managed by GitOps (Argo CD / Flux), Helm, or Kustomize before applying imperative changes that a controller would overwrite or fight.
-2. Pin immutable container image tags or digests (never mutable `:latest` in production manifests) and preview changes with `kubectl diff` or `kubectl apply --dry-run=server` before mutating cluster state.
-3. Separate probe responsibilities:
-   - `startupProbe`: gates slow application boot so liveness does not kill starting pods.
-   - `readinessProbe`: removes a pod from `Service` endpoints during temporary overload or drain without restarting it.
-   - `livenessProbe`: restarts a genuinely deadlocked local process—**never** check shared external databases/dependencies in `livenessProbe`, or a transient DB blip will trigger a cluster-wide `CrashLoopBackOff` cascade.
-4. Size `resources.requests` and `limits` deliberately (set memory request = limit to avoid unexpected OOM eviction; avoid tight CPU limits that cause CFS throttling spikes) and pair multi-replica workloads with a `PodDisruptionBudget` and topology spread constraints.
-5. Keep `Secret` values redacted (never `kubectl get secret -o yaml` into logs/reports), scope `ServiceAccount` RBAC with `automountServiceAccountToken: false` when cluster API access is unneeded, and never delete PVCs to "reset" a failing `StatefulSet`.
-6. Coordinate graceful termination (`preStop` sleep/drain hook + `terminationGracePeriodSeconds` > load-balancer drain window) and verify `kubectl rollout status` plus real `Service`/Ingress traffic.
+1. Pin `--context` and `-n` on every command. Before an imperative change, check ownership (`app.kubernetes.io/managed-by`, Argo CD or Flux labels, `helm list -A`); GitOps controllers revert or fight direct edits.
+2. Preview every mutation: `kubectl diff -f <dir>` or `kubectl apply --dry-run=server -f <dir>`; for Helm, render with `helm template` and diff. Deploy immutable tags or digests.
+3. Separate probes: `startupProbe` gates slow boot; `readinessProbe` removes a pod from endpoints without restarting it; `livenessProbe` restarts only a locally deadlocked process and never checks shared dependencies, or a database blip restarts the whole fleet.
+4. Requests drive scheduling; limits drive OOM kills and CPU throttling. Set memory limit equal to request; treat CPU limits as a deliberate choice and check throttling metrics.
+5. For availability: at least two replicas, topology spread across zones, a PodDisruptionBudget that still allows one eviction, and `maxUnavailable: 0` with surge for rollouts.
+6. Graceful termination: the app handles SIGTERM, a short `preStop` sleep covers endpoint propagation, and `terminationGracePeriodSeconds` exceeds the drain time.
+7. Never print Secret values (`kubectl get secret -o yaml`), set `automountServiceAccountToken: false` where the API is not needed, and never delete PVCs, namespaces or finalizers to "reset" a workload.
+8. Done means rollout complete, endpoints ready and real traffic answered by the new version.
 
-## Core Patterns & Pitfalls
+## First moves by situation
 
-- **Triage Sequence for Failing Pods**: Inspect `kubectl get pods` status (`Pending`, `ImagePullBackOff`, `CreateContainerConfigError`, `CrashLoopBackOff`, `OOMKilled`), then `kubectl describe pod <name>` events and `Last State` (`Exit Code: 137`/`1`), then `kubectl logs <pod> --previous`.
-- **Zero-Downtime Rollout Drain**: Kubernetes updates EndpointSlices asynchronously alongside sending `SIGTERM`; adding a short `preStop` delay (e.g., 5s) before the server stops accepting new connections prevents `502 Bad Gateway` blips during rolling updates.
-- **Anti-pattern — Checking Downstream DB/APIs in `livenessProbe`**: If `livenessProbe` queries PostgreSQL or an upstream API, any brief downstream slowdown causes kubelet to kill and restart all healthy application pods simultaneously.
+| Situation | First moves |
+|---|---|
+| Pending | `kubectl describe pod` events: insufficient CPU or memory, taints and affinity, unbound PVC (`kubectl get pvc`), quota (`kubectl describe resourcequota`) |
+| ImagePullBackOff | Event message: tag or digest typo, registry auth (`imagePullSecrets`), missing platform for the node arch, registry rate limit |
+| CrashLoopBackOff | `kubectl logs <pod> -c <ctr> --previous`; Last State exit code; liveness killing a slow start; `CreateContainerConfigError` = missing ConfigMap or Secret key |
+| OOMKilled | Last State reason; `kubectl top pod --containers`; runtime heap versus limit |
+| Running, no traffic | `kubectl get endpointslices -n <ns> -l kubernetes.io/service-name=<svc>`; selector vs labels; `targetPort`; readiness; NetworkPolicy |
+| Rollout stuck | `kubectl rollout status deploy/<name> --timeout=120s`; `kubectl get rs`; new pods not ready; quota or PDB; `progressDeadlineSeconds` |
+| Node drain blocked | `kubectl get pdb -A` with zero allowed disruptions; single-replica workloads with a strict PDB |
+| Shell needed in a distroless pod | `kubectl debug -it <pod> --image=busybox:stable --target=<ctr>` adds an ephemeral container sharing the target's process namespace |
+| ingress-nginx still installed | `kubectl get pods -A -l app.kubernetes.io/name=ingress-nginx`; inventory annotations; plan Gateway API or another controller (not drop-in) |
+| Cluster upgrade | Deprecated API usage via `kubectl get --raw /metrics \| grep apiserver_requested_deprecated_apis`; kubectl within one minor of the server; addon support |
+
+## Patterns and pitfalls
+
+- **ConfigMap edits do not restart pods** — env vars are read at start; mounted files update eventually but never through `subPath`. Roll with a checksum annotation or Kustomize `configMapGenerator` hash suffixes.
+- **`kubectl rollout undo` scope** — it reverts only the pod template, not ConfigMaps, Secrets, Services or HPAs, and a GitOps sync will reapply the newer spec.
+- **HPA versus `replicas`** — applying a manifest that sets `replicas` overrides the autoscaler on every apply; omit it when an HPA owns scaling.
+- **Immutable selectors** — a Deployment's `spec.selector` cannot change; renaming labels needs a new object and a traffic switch.
+- **Mutable tags cached on nodes** — non-`latest` tags default to `imagePullPolicy: IfNotPresent`, so a repushed tag is not pulled; deploy digests.
+- **Server-side apply conflicts** — `--force-conflicts` takes field ownership from another manager (often a controller); use it only deliberately.
+- **EndpointSlices** — the v1 Endpoints API is deprecated; tooling and debugging should read EndpointSlices.
+- **Native sidecars** — init containers with `restartPolicy: Always` start before and stop after the main container; prefer them for proxies and log shippers.
+- **DNS `ndots:5`** — external hostnames trigger several search-domain lookups; use FQDNs with a trailing dot or tune `dnsConfig` for chatty clients.
+- **Strict PDBs** — `minAvailable` equal to the replica count blocks every node drain and upgrade.
+- **Stuck Terminating** — namespaces or objects wait on finalizers; find the owning controller instead of stripping finalizers.
+- **In-place resize** — recent versions can change container resources without a restart; check the cluster version and docs before relying on it.
 
 ## Workflow
 
-1. Inspect the named workload, events, focused logs and effective deployment configuration.
-2. Resolve stable platform/API compatibility and the narrow repair/rollout.
-3. Validate manifests and preview changes in the exact target context.
-4. Perform authorized apply/rollout and observe probes, replica/version identity and application requests.
-5. Report rollout/recovery and persistent data boundary separately.
+1. Confirm context, namespace, owner and current state (`kubectl get deploy,rs,pods -n <ns> -o wide`, events).
+2. Classify the failure (scheduling, image, start, readiness, traffic, capacity) and read the matching evidence.
+3. Change the source of truth (Git manifests, values file, kustomization) with the narrow fix.
+4. Validate offline and preview server-side in the exact target context.
+5. Roll out through the owning path; watch rollout status, events and new pod logs.
+6. Verify endpoints and real traffic; record image digest, revision and the rollback path.
+
+## Proof
+
+- Schema: `kubeconform -strict -summary k8s/`, `helm lint`, `helm template . | kubeconform -strict -`
+- Preview: `kubectl diff -f k8s/` (exit 0 none, 1 differences, above 1 error); `kubectl apply --dry-run=server -f k8s/`
+- Rollout: `kubectl rollout status deploy/<name> -n <ns> --timeout=180s`
+- Identity: `kubectl get pods -n <ns> -l app=<name> -o jsonpath='{.items[*].status.containerStatuses[*].imageID}'`
+- Endpoints: `kubectl get endpointslices -n <ns> -l kubernetes.io/service-name=<svc>`
+- Traffic: `kubectl port-forward -n <ns> svc/<svc> 8080:80` then `curl -fsS localhost:8080/healthz`, and the real Gateway or Ingress hostname
+- RBAC: `kubectl auth can-i --list --as=system:serviceaccount:<ns>:<sa>`
+
+## Stop and ask
+
+- Any mutation in a production context, or on cluster-scoped objects (CRDs, ClusterRoles, webhooks, StorageClasses, nodes).
+- Deleting PVCs, namespaces or StatefulSets with volumes, or removing finalizers.
+- `--force-conflicts`, `kubectl replace --force`, or force-deleting stateful pods with `--grace-period=0`.
+- Imperative edits to GitOps-managed objects, or pausing their sync.
+- Reading or exporting Secret values.
 
 ## Before returning
 
-- [ ] Target `--context`, `--namespace`, workload controller, and GitOps/Helm/Kustomize ownership verified
-- [ ] Manifests validated (`--dry-run=server` / `kubectl diff`) with immutable image tags/digests
-- [ ] `startupProbe`, `readinessProbe`, and `livenessProbe` decoupled from cascading external dependency restarts
-- [ ] Resource requests/limits, `terminationGracePeriodSeconds`, and `PodDisruptionBudget` aligned with workload
-- [ ] `kubectl rollout status`, pod events/logs, and user-facing service traffic verified with zero secret leakage
+- [ ] Context, namespace, workload controller and owning tool (GitOps, Helm, Kustomize) recorded
+- [ ] Change made in the source of truth; server-side preview reviewed
+- [ ] Images pinned by digest or immutable tag
+- [ ] Probes separated; liveness has no external dependency
+- [ ] Requests, limits, PDB, spread and termination grace consistent with the workload
+- [ ] Rollout status succeeded, EndpointSlices ready, real traffic answered by the new version
+- [ ] No Secret values printed; rollback revision and command recorded
 
 ## Sources
 
-Versioned facts checked 2026-10-23; refresh authoritative sources before new installs/upgrades.
-[Kubernetes releases](https://kubernetes.io/releases/), [Deployment contract](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
+Versioned facts checked 2026-11-02; refresh authoritative sources before new installs/upgrades.
+[Kubernetes releases](https://kubernetes.io/releases/), [Deployment contract](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [Ingress NGINX retirement](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/).
 
 ## Skills in scope
 
@@ -70,3 +114,5 @@ Versioned facts checked 2026-10-23; refresh authoritative sources before new ins
 - release-rollback — plan and execute authorized release promotion or rollback with exact artifact and data compatibility.
 - observability — Prometheus/OpenTelemetry pod metrics, probe failure alerts, and structured container log collection.
 - infrastructure-as-code — build and maintain Terraform, OpenTofu, Pulumi or cloud-native IaC with reviewable plans and protected state.
+- container-debugging — image-level causes (entrypoint, arch, loader) behind a crashing pod.
+- incident-response — when a workload failure is a live outage.

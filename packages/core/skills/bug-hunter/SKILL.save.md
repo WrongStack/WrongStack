@@ -1,11 +1,11 @@
 # Bug Hunter (Compact)
 
-<!-- source-version: 2.2.1 -->
+<!-- source-version: 2.2.2 -->
 
 ## Selection card
 - Task: Run the WrongStack bug-hunt and cascade workflow. / TR: WrongStack bug hunt ve cascade akışını yürüt.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Fix the scope (files, module or diff) and the mode: scan, proof-driven round, chimera cascade or fan-out worker.
+- Finish: Every reported finding cites file:line with a concrete failure scenario; in a proof-driven round exactly one defect is proven red, fixed and green.
 
 ## Rules
 

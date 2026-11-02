@@ -44,6 +44,16 @@ technology; a fashionable replacement is not automatically a task requirement.
 | Memory maintenance | mnemosyne | SAGE corpus/anchors, not ordinary source cleanup; audit-log reads journal evidence |
 | Build an MCP server | mcp-development | mailbox-bridge connects an authorized external agent; roster-only mailbox ids are not main-agent suggestions |
 | Coordinate several domains | skill-router | Select a small ordered pipeline; multi-agent is usable only when delegation is authorized |
+| Write or fix tests | testing | webapp-testing drives a real browser with Playwright; visual-regression owns screenshot baselines |
+| Word, Excel, PowerPoint or PDF file | docx, xlsx, pptx or pdf | office-documents for conversions and mixed formats; doc-coauthoring shapes the content; internal-comms for updates and postmortems |
+| Prompt wording versus model integration | prompt-engineering | llm-runtime owns API calls, tool loops, streaming, caching and retries |
+| Colors, fonts and themes | design-system | theme-factory picks a ready-made palette and pairing; brand-guidelines applies WrongStack's own brand |
+| Is this CSS/HTML feature supported | web-platform-baseline | web-performance measures speed; accessibility owns ARIA and focus behavior |
+| Slow page versus slow server | web-performance | observability instruments server latency and production signals |
+| Spec or task graph before building | sdd | refactor-planner sequences restructuring of existing code |
+| Security review versus proven exploit fix | security-scanner | evidence-audit proves and fixes; codex-adversarial-review attacks one specific diff |
+| Remove dead code versus restructure live code | code-quality | refactor-planner owns moves, splits and cycle breaks |
+| 3D scene, UI motion or generative art | threejs-3d | motion-design for interface motion; algorithmic-art for generative 2D pieces |
 
 ## When nothing fits
 

@@ -1,9 +1,10 @@
 ---
 name: node-modern
 description: |
+  Node.js runtime code: ESM/CommonJS, async flow, AbortSignal cancellation, streams, fs, child_process, fetch and the event loop.
   Use this skill when writing, reviewing, or refactoring Node.js code — modules, async flow, cancellation, file and process I/O, HTTP — on a current Node.js release.
   Triggers: user mentions "Node", "Node.js", "ESM", "CommonJS", "require", "import", "fetch", "AbortSignal", "AbortController", "stream", "child_process", "spawn", "fs", "event loop".
-version: 2.1.3
+version: 2.1.5
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run]
@@ -16,12 +17,12 @@ metadata:
 
 ## Selection card
 - Task: Node runtime APIs, ESM and async cancellation.
-- Start: Locate the affected route/component and its runtime/lockfile.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read package.json (type, engines, exports, scripts) and the Node version the project actually runs on.
+- Finish: The code runs on the target Node version with cancellation, errors and cleanup handled, and type checks and tests pass.
 
 ## Overview
 
-Current Node.js (v26.12.1 Current / v24.22.1 LTS as checked 2026-10-23) ships natively what older code pulled from npm:
+Node.js 26.13.0 (newest stable; LTS 26.13.0 since 2026-10-28, Node 24 in maintenance; checked 2026-11-02) ships natively what older code pulled from npm:
 native TypeScript type stripping (`node file.ts`), native `.env`
 loading (`node --env-file`), built-in SQLite (`node:sqlite`), global WebSocket,
 `Promise.withResolvers()`, global fetch, `AbortSignal.timeout`, `node:test`, Web Streams,
@@ -130,9 +131,9 @@ In ESM, `__dirname` doesn't exist: use `import.meta.dirname` on current Node, or
 
 ## Current runtime and ownership
 
-Latest stable checked 2026-10-23: Node.js 26.12.1 (Current) / 24.22.1 (LTS), Bun 1.4.4,
-pnpm 12.15.0. Refresh the official release/registry before recommendations.
-Current and LTS are different channels; do not label Current as LTS.
+Latest stable checked 2026-11-02: Node.js 26.13.0 (LTS 26.13.0; Node 24 in maintenance), Bun 1.4.4,
+pnpm 12.16.1. Refresh the official release/registry before recommendations.
+nodejs.org/dist/index.json also lists alpha and Current builds; name the channel you checked.
 Native TypeScript execution strips supported syntax; it does not typecheck or
 implement tsconfig path aliases. Verify the real module/resolution contract.
 Native WebSocket is a client API; server behavior may require a dependency.

@@ -1,10 +1,11 @@
 ---
 name: output-standards
 description: |
+  WrongStack response format: final messages, next_steps blocks, auto mode markers and subagent reports that parsers depend on.
   Use this skill when defining or enforcing output formatting standards for agent
   responses in WrongStack. Triggers: user says "next steps format", "output standard",
   "response format", "final message format", "standardize next steps".
-version: 1.2.1
+version: 1.2.2
 required-capabilities: []
 required-tools: []
 trigger: "Use this skill when defining or enforcing output formatting standards for agent responses in WrongStack."
@@ -20,8 +21,8 @@ extract structured data from agent responses.
 
 ## Selection card
 - Task: Apply precise evidence and response formatting.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Identify which output contract applies: final message, next_steps block, auto mode or subagent report.
+- Finish: The response matches the contract exactly, including parser-sensitive markers, with no invented options or claims.
 
 ## Rules
 

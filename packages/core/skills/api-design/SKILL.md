@@ -1,9 +1,10 @@
 ---
 name: api-design
 description: |
+  HTTP API design and review: REST endpoints, status codes, error bodies, pagination, versioning, idempotency, rate limits, OpenAPI.
   Use this skill when designing, implementing, or reviewing an HTTP API — endpoints, request and response shapes, errors, pagination, versioning, and authorization.
   Triggers: user says "API", "endpoint", "REST", "route", "status code", "pagination", "request body", "response shape", "OpenAPI", "versioning", "idempotency", "rate limit".
-version: 2.1.2
+version: 2.1.4
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, verification.run]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Define HTTP contracts, pagination and error schemas.
-- Start: Locate the endpoint, schema, authentication boundary and caller.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Find the existing routes, error envelope, pagination style, auth scheme and OpenAPI document the change must match.
+- Finish: The contract (schemas, status codes, errors, pagination, auth, idempotency) is specified or reviewed, with a request/response example for success and each error case.
 
 ## Overview
 
@@ -34,7 +35,7 @@ OpenAPI spec — follow them; consistency beats any rule below.
    `serde`/`validator`, `go-playground/validator`, `jakarta.validation`), existing router
    (Hono/Fastify/Next.js, Axum/Actix, FastAPI/Django, Gin/Chi, Spring Boot, ASP.NET Core),
    and the existing OpenAPI specification in the repo; current target is OpenAPI 3.2.1
-   (checked 2026-10-23 at https://spec.openapis.org/oas/latest.html). Query live documentation
+   (checked 2026-11-02 at https://spec.openapis.org/oas/latest.html). Query live documentation
    to verify protocol standards (such as RFC 9457 Problem Details) before designing new routes.
 2. Authorize every request against the specific object, not just "is logged
    in". Loading `/orders/:id` must check the caller may see that order

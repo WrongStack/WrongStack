@@ -1,9 +1,10 @@
 ---
 name: typescript-strict
 description: |
+  TypeScript type safety: tsc errors, narrowing, any/unknown, unsafe casts, discriminated unions, generics and stricter tsconfig flags.
   Use this skill when writing, reviewing, or fixing TypeScript where type safety matters — type errors, narrowing, unsafe casts, or tightening compiler strictness.
   Triggers: user mentions "TypeScript", "type error", "tsc", "strict", "type safety", "narrowing", "any", "unknown", "discriminated union", "branded type", "noUncheckedIndexedAccess", "exactOptionalPropertyTypes".
-version: 2.1.2
+version: 2.2.1
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run]
@@ -17,12 +18,12 @@ paths: ["tsconfig*.json"]
 
 ## Selection card
 - Task: TypeScript contracts and narrowing without any.
-- Start: Locate the affected route/component and its runtime/lockfile.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Run the project's type check and read the tsconfig strictness flags before touching types.
+- Finish: The type check passes without new any, unchecked casts or suppressions, and the types match runtime behavior.
 
 ## Overview
 
-Target TypeScript 7.0.2, verified from npm on 2026-10-23. Static types protect
+Target TypeScript 7.0.2, verified from npm on 2026-11-02. Static types protect
 compile-time contracts; external data still needs runtime validation. Work
 within the project strictness and module-resolution contract.
 
@@ -141,7 +142,7 @@ the boundary instead of hand-written guards.
 
 ## Current compiler and module contract
 
-Target TypeScript 7.0.2, checked from npm on 2026-10-23. Verify compiler/migration
+Target TypeScript 7.0.2, checked from npm on 2026-11-02. Verify compiler/migration
 support in the framework and build plugins; use the repository's authoritative
 checker rather than silently substituting a different implementation.
 Match moduleResolution/module/exports to the emitted runtime: bundler and
@@ -150,6 +151,19 @@ payloads or ensure HTML strings are escaped.
 satisfies checks compatibility without serving as a runtime parser or a
 universal replacement for intentional annotations and widening.
 Read the [resolution reference](https://www.typescriptlang.org/tsconfig/moduleResolution.html).
+
+**TypeScript 7 transition.** TypeScript 7 is the native compiler; TypeScript 6
+was the bridge that deprecated old options. Before bumping:
+
+- Run `npm ls typescript` (or the workspace equivalent): framework compilers,
+  typed lint rules, ts-morph, test transformers and declaration bundlers that
+  call the JavaScript compiler API often declare `typescript` 6.x peers — the
+  current Angular compiler is one. A split (6.x for tools, 7 for checking) must
+  be explicit in package.json and CI, never an accident of hoisting.
+- Options deprecated in 6.0 (for example ES5 targets, `outFile`, AMD/UMD/System
+  modules and the old node10 resolution) stop working in 7; read the 6.0
+  deprecation list and fix tsconfig first, with 6.x and its deprecation errors.
+- Confirm which compiler actually runs with `npx tsc --version` in CI logs.
 
 ## Proof-driven round (/typehunt, /boundaryhunt)
 

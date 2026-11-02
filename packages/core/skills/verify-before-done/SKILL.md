@@ -1,9 +1,10 @@
 ---
 name: verify-before-done
 description: |
+  Final verification before saying done: run the project's own build, tests, lint and typecheck, and report what was and wasn't proven.
   Use this skill before telling the user a code change is finished, fixed, or working — to prove it with the project's own checks and report exactly what was and wasn't verified.
   Triggers: finishing an implementation or fix, writing the final summary of code changes, "done", "is it working", "did you test it", "make sure it works", "verify", "ready to merge".
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [verification.run, execution.shell, version-control.manage, code.inspect]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Prove a claimed fix or completion actually works.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: List what changed and which checks the project defines for those files (scripts, CI jobs).
+- Finish: Each relevant check was run with its result recorded, and the report states exactly what was and was not verified.
 
 ## Overview
 

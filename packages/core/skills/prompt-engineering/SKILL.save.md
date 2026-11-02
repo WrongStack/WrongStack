@@ -1,11 +1,11 @@
 # Prompt Engineering (Compact)
 
-<!-- source-version: 2.1.1 -->
+<!-- source-version: 2.1.2 -->
 
 ## Selection card
 - Task: Design grounded instructions and output contracts. / TR: Kaynağa dayalı yönerge ve çıktı sözleşmesi tasarla.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Collect the current instruction text, the failing transcripts or examples, and a description of correct behavior.
+- Finish: The revised text fixes the observed failures in a re-run or eval without breaking the cases that already passed.
 
 ## Overview
 

@@ -1,12 +1,13 @@
 ---
 name: auto-review
 description: |
+  WrongStack auto-review plugin (wstack-auto-review): configure, tune or debug the review subagents that run on each code change.
   Use this skill to configure and understand the built-in auto-review plugin
   (wstack-auto-review) that fires automated code review subagents on every
   code change during a session.
   Triggers: user says "auto review", "otomatik review", "auto code review",
   "her değişiklikte review", "/auto-review".
-version: 2.2.1
+version: 2.2.2
 required-capabilities: [version-control.manage]
 required-tools: [git]
 optional-capabilities: [fleet.delegate, verification.run]
@@ -19,8 +20,8 @@ metadata:
 
 ## Selection card
 - Task: Operate the built-in automatic review plugin.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read the current auto-review configuration and whether the plugin is enabled for this project and session.
+- Finish: The requested setting is applied and observed on the next code change: a review fired, or was suppressed, as intended.
 
 ## Overview
 

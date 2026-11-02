@@ -1,10 +1,10 @@
 ---
 name: mnemosyne
 description: |
-  Use when curating WrongStack SAGE memory: run deterministic hygiene and
-  anchor verification first, then review contradictions, drift, and noise;
+  SAGE memory curation: hygiene runs, anchor verification, contradictions, drift and noise, with review proposals instead of deletes.
+  Use when curating WrongStack SAGE memory: run deterministic hygiene and anchor verification first, then review contradictions, drift, and noise;
   file destructive outcomes as review proposals instead of deleting directly.
-version: 1.3.1
+version: 1.3.2
 required-capabilities: [memory.manage, memory.curate]
 required-tools: [memory_candidates, memory_hygiene, memory_search, memory_update, memory_verify, skill]
 optional-capabilities: [automation.manage, coordination.mailbox]
@@ -17,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Maintain the SAGE memory corpus and retrieval anchors.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Run deterministic hygiene and anchor verification before judging any memory content.
+- Finish: Hygiene and verification results are reported, and every destructive outcome is filed as a review proposal instead of executed.
 
 ## Overview
 

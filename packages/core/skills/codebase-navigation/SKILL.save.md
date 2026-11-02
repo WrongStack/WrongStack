@@ -1,11 +1,11 @@
 # Codebase Navigation (Compact)
 
-<!-- source-version: 1.1.1 -->
+<!-- source-version: 1.1.2 -->
 
 ## Selection card
 - Task: Locate repository entry points and owning modules. / TR: Depo giriş noktalarını ve sorumlu modülleri bul.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: State the question (where, how, what depends on it) and query the codebase index tools before opening files one by one.
+- Finish: The answer names the files, symbols and call path with file:line references, and says what was not checked.
 
 ## Overview
 

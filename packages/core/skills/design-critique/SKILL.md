@@ -1,13 +1,11 @@
 ---
 name: design-critique
-description: |
-  Use this skill to audit an interface that already exists and say precisely why it looks generated, templated, or unfinished — a scored rubric across composition, typography, color, states, accessibility and copy, ending in a ranked fix list.
-  Triggers: user says "review the design", "critique this UI", "why does this look bad", "looks generic", "looks AI-generated", "design review", "audit the UI", "make this look professional", "what's wrong with this page", "design feedback".
-version: 2.2.1
+description: "UI design review and critique: scored rubric for layout, typography, color, states, accessibility and copy, with a ranked fix list. Use when asked to review, critique or audit an existing screen or page, give design feedback, explain why a UI looks bad, generic, AI-generated or unprofessional, or say what is wrong with it. Not for building a new design (use design-craft) or code-level review (use code-review)."
+version: 2.2.2
 required-capabilities: [filesystem.read]
 required-tools: [design, skill, read, grep]
 optional-capabilities: [browser.interact, verification.run]
-trigger: "Use this skill to audit an interface that already exists and say precisely why it looks generated, templated, or unfinished \u2014 a scored rubric across composition, typography, color, states, accessibility and copy, ending in a ranked fix list."
+trigger: "Use when an existing screen, page or component needs a scored, evidenced design audit with ranked fixes."
 metadata:
   routing-group: design
 ---
@@ -16,8 +14,8 @@ metadata:
 
 ## Selection card
 - Task: Critique an existing interface with visual evidence.
-- Start: Identify the target surface, reference, user task and existing tokens.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Run `design {action:"list"}`, read `.design/brief.md` and `.design/rules.md`, and get a rendered view (served URL or supplied screenshot) with its viewport, theme and state.
+- Finish: the report opens with a one-sentence verdict, scores adherence and craft separately, lists at most 10 ranked findings each with `file:line` or region@viewport and a replacement, and marks unverified axes.
 
 ## Overview
 
@@ -86,8 +84,8 @@ If verify reports files with no class/utility signal, report `Tokens: not
 machine-checkable (native stack)` and inspect theme constants and spacing scale
 directly. Never let a vacuous clean pass stand in as evidence.
 
-Run `design` with `{action:"verify"}` and report the breakdown by axis. Treat
-`composition` findings as craft evidence, not token drift.
+Report the `design` verify breakdown by axis. Treat `composition` findings as craft
+evidence, not token drift.
 
 ### 3 — Craft pass
 

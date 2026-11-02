@@ -1,8 +1,8 @@
 ---
 name: mobile-performance
-description: "Measure and improve mobile startup, scrolling, animation and resource usage on representative devices. Use when diagnosing React Native/Flutter/native performance; compare release builds under matched conditions rather than promising a universal frame rate."
-trigger: "Measure and improve mobile startup, scrolling, animation and resource usage on representative devices. Use when diagnosing React Native/Flutter/native performance; compare release builds under matched conditions rather than promising a universal frame rate."
-version: 1.0.2
+description: "Mobile app speed: slow cold start, scroll jank, frame drops, ANRs, memory leaks and battery drain, via Perfetto, Instruments, DevTools. Use when a React Native, Flutter, Android or iOS app starts slowly, stutters, leaks memory, drains battery or gets ANRs; compare release builds on real devices under matched conditions. Not for web pages (use web-performance) or feature work without a measured symptom."
+trigger: "Use when a mobile app is slow to start, janks while scrolling or animating, leaks memory, triggers ANRs or drains battery."
+version: 1.1.1
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -14,51 +14,87 @@ metadata:
 # Mobile Performance
 
 ## Selection card
-- Task: Profile device startup, scrolling and memory.
-- Start: Identify the platform, screen, device and native integration boundary.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Task: Profile and fix mobile startup, frame pacing, memory and battery problems.
+- Start: Reproduce the slow journey in a release or profile build on a named physical device and record a baseline trace.
+- Finish: matched before/after measurements on the same device show the bottleneck moved, with sample counts and preserved behavior reported.
 
 ## Overview
 
-Mobile performance engineering targets measurable user-perceived latency: cold/warm Time to Initial Display (TTID) and Time to Full Display (TTFD), 60/120Hz frame pacing (jank / hitch rate), scroll responsiveness, memory footprint across repeated screen navigation, and battery/thermal efficiency. Because debug builds inject JIT/dev-menu/assertion overhead, valid optimization requires profiling release or profile builds under matched conditions.
-
+Mobile performance work is only valid on release or profile builds on real devices: debug builds add JIT, assertions and dev tooling that change every number, and simulators do not reproduce GPU, thermal or memory limits.
 Use the current framework profiler and platform tools supported by the installed app/toolchain; latest framework targets are verified in the corresponding implementation skills.
+Every fix starts from a trace that names the thread or layer responsible.
 
 ## Rules
 
-1. Record device model, OS version, build mode (`release` / `profile`), dataset size, thermal/battery state and cold/warm start conditions.
-2. Separate JS/Dart thread work, UI/main-thread layout, GPU/raster work, and native bridge/I/O latency before choosing an optimization.
-3. Measure the real user journey: startup readiness, touch-to-paint latency, list scroll frame times, and heap retention across repeated push/pop navigation.
-4. Virtualize large collections, size decoded images to display dimensions, and stabilize unnecessary re-renders only where a trace proves cost.
-5. Dispose owned subscriptions, controllers, bitmaps/textures, and native listeners; a lower initial heap does not prove navigation leaks are fixed.
-6. Avoid debug-mode comparisons for production claims and keep accessibility and visual correctness in the acceptance check.
+1. Measure release or profile builds on a physical device; write down model, OS version, build, dataset, cold or warm start, charging and thermal state.
+2. Localize before changing code: main/UI thread, JS or Dart thread, raster/GPU thread, native I/O, or memory pressure.
+3. Measure the user journey: time to initial display, time to full display, frame times while scrolling, touch-to-response, heap after repeated navigation.
+4. Take at least five runs per side and report median and p90; one fast run proves nothing.
+5. Fix the dominant cost first; memoization or caching without a trace showing the cost is speculation.
+6. Keep correctness, accessibility and visual fidelity in the acceptance check.
 
-## Core Patterns & Pitfalls
+## First moves by situation
 
-- **Startup Critical Path**: Defer non-essential SDK initialization, analytics, and secondary database warming until after the first interactive frame renders.
-- **Image & List Memory**: Downsample remote/local images to target viewport pixel dimensions before decoding; oversized bitmaps are the primary cause of mobile OOM kills during fast list scrolling.
-- **Anti-pattern — Blind Memoization Without Traces**: Wrapping every function in `useMemo`/`useCallback` or adding ad-hoc caches without a frame/CPU trace adds allocation overhead while leaving main-thread or bridge bottlenecks untouched.
+| Situation | First moves |
+|---|---|
+| Slow cold start (Android) | `adb shell am start -W -n <pkg>/<activity>` for TotalTime; Perfetto or Macrobenchmark startup trace; check `Application.onCreate`, content providers, DI graph |
+| Slow cold start (iOS) | Instruments App Launch template; look at pre-main (dylibs) and work in `App.init`/first scene |
+| Slow start (React Native) | Hermes enabled; measure bundle load and first render; defer non-critical modules with lazy requires |
+| Scroll jank | Frame timeline: is the UI thread or raster thread over budget? Image decode size, heavy item layouts, non-recycled cells |
+| ANR or frozen UI | Main-thread disk, network or lock waits in the ANR trace; StrictMode in debug on Android |
+| Memory grows per navigation | Navigate in and out ten times, then capture a heap snapshot; look for retained screens, listeners, bitmaps; LeakCanary on Android |
+| Animation stutters (RN) | Is the animation driven from JS? Move it to the UI thread (Reanimated or native driver) |
+| Battery drain | Wake locks, high-accuracy location, polling timers, background work frequency; Android Battery Historian or Xcode Energy gauge |
+
+## Patterns and pitfalls
+
+- **TTFD signal** — call `reportFullyDrawn()` (Android) or emit a signpost when the screen is truly usable, otherwise tools only measure the first frame.
+- **Baseline Profiles** — on Android they cut startup and early jank by precompiling hot paths; generate them with Macrobenchmark and verify they ship in the release build.
+- **Image decoding** — decode at display size (`cacheWidth`/`cacheHeight` in Flutter, `expo-image` or sized sources in RN, downsampling on native); full-size decodes cause jank and OOM kills.
+- **List virtualization** — recycled cells with stable keys and fixed or estimated item sizes; nested scroll views defeat virtualization.
+- **JS thread budget** — in React Native, `console.log` in release, large JSON parsing and per-frame `setState` block the JS thread; strip logs and move work off-thread.
+- **Flutter threads** — the DevTools frame chart separates UI (Dart build/layout) from raster (GPU); fix whichever bar exceeds the frame budget.
+- **Overdraw and layers** — stacked opaque backgrounds and unnecessary offscreen layers cost GPU time; use the platform overdraw or layer debugging tools.
+- **Startup work** — defer analytics, remote config and secondary database warm-up until after first interaction; parallelize independent init.
+- **Thermal throttling** — repeated runs heat the device and slow it; cool down between runs or alternate before/after builds.
+- **Emulators lie** — use them for functional checks only; frame and memory numbers come from devices.
+- **Production telemetry** — slow and frozen frames, ANR and startup metrics from Play vitals, MetricKit or the crash/performance SDK confirm the fix reached users.
 
 ## Workflow
 
-1. Reproduce the slow journey in a release/profile build.
-2. Capture profiler evidence and identify the dominant frame/task/resource bottleneck.
-3. Make a narrow change and repeat matched measurements with multiple samples.
-4. Test low-resource and lifecycle conditions relevant to the product.
-5. Report sample counts, distribution, conditions, behavior checks and tradeoffs.
+1. Reproduce in release/profile mode on a representative (often mid- or low-end) device.
+2. Capture a trace and identify the dominant thread, task or allocation.
+3. Make one narrow change.
+4. Re-measure with the same device, build mode, data and run count; check correctness and accessibility.
+5. Report sample counts, median and p90, conditions and trade-offs; add a benchmark or test that guards the gain when the project supports it.
+
+## Proof
+
+- Android startup: `adb shell am start -W -n <pkg>/<activity>` repeated, or a Macrobenchmark startup test
+- Android frames: `adb shell dumpsys gfxinfo <pkg> framestats` after the journey; Perfetto trace for detail
+- Android memory: `adb shell dumpsys meminfo <pkg>` before and after repeated navigation
+- iOS: Instruments App Launch, Time Profiler, Hitches and Allocations; XCTest performance tests with launch and memory metrics
+- Flutter: `flutter run --profile` with DevTools; `flutter run --profile --trace-startup` for startup timing
+- React Native: the release build with the performance monitor and the Hermes sampling profiler
+
+## Stop and ask
+
+- Only debug-build or simulator numbers are available for a claim that will drive a product decision.
+- The fix removes features, changes minimum OS versions or swaps core libraries.
+- No representative device is available for a device-specific complaint.
 
 ## Before returning
 
-- [ ] Baseline and post-change measurements captured in `release` or `profile` mode under matched conditions
-- [ ] Bottleneck localized to specific thread/layer (UI/main, JS/Dart, raster/GPU, I/O, or memory allocation)
-- [ ] Repeated screen push/pop navigation checked for retained heap/listener leaks
-- [ ] Sample count, median/p95 numbers, and physical device vs emulator/simulator limits reported
-- [ ] Visual fidelity, accessibility semantics, and state correctness preserved
+- [ ] Baseline and post-change measured in release or profile mode on the same physical device
+- [ ] Bottleneck localized to a thread or layer with trace evidence
+- [ ] Repeated navigation checked for retained memory, listeners and bitmaps
+- [ ] At least five samples per side; median and p90 reported with conditions
+- [ ] Visual fidelity, accessibility and behavior preserved; simulator versus device limits stated
 
 ## Sources
 
-Versioned facts checked 2026-10-23; refresh authoritative sources before new installs/upgrades.
-[React Native performance](https://reactnative.dev/docs/performance), [Flutter performance](https://docs.flutter.dev/perf), [Android performance](https://developer.android.com/topic/performance).
+Versioned facts checked 2026-11-02; refresh authoritative sources before new installs/upgrades.
+[React Native performance](https://reactnative.dev/docs/performance), [Flutter performance](https://docs.flutter.dev/perf), [Android performance](https://developer.android.com/topic/performance), [Android app startup](https://developer.android.com/topic/performance/vitals/launch-time), [Apple performance](https://developer.apple.com/documentation/xcode/improving-your-app-s-performance).
 
 ## Skills in scope
 

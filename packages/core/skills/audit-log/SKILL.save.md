@@ -1,11 +1,11 @@
 # Audit Log — WrongStack session journals (Compact)
 
-<!-- source-version: 2.1.1 -->
+<!-- source-version: 2.1.2 -->
 
 ## Selection card
 - Task: Inspect session journal evidence and provenance. / TR: Oturum journal kanıtı ve kaynağını incele.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Locate the journal files for the session in question and confirm their time range and session id.
+- Finish: The report explains what happened with counts and quoted journal evidence: tool failures, token and cache numbers, compactions, delegations and loops.
 
 ## Overview
 

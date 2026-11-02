@@ -1,6 +1,6 @@
 # Remotion Production Workflow
 
-Checked 2026-10-23: Remotion and @remotion/renderer 4.0.538.
+Checked 2026-11-02: Remotion and @remotion/renderer 4.0.540.
 Keep all @remotion/* packages on the exact matching version (no caret `^` skew across `@remotion/cli`, `@remotion/renderer`, `@remotion/transitions`, `@remotion/google-fonts`, and `remotion`). Verify the current
 [setup](https://www.remotion.dev/docs/),
 [renderer API](https://www.remotion.dev/docs/renderer/render-media) and
@@ -16,7 +16,7 @@ Keep all @remotion/* packages on the exact matching version (no caret `^` skew a
 
 ## 2. Asset, Font & Audio Readiness
 
-- Reference local assets via `staticFile('path-in-public.png')` and render media with Remotion's `<Img>`, `<OffthreadVideo>`, and `<Audio>` primitives so the renderer waits for frame decoding before capturing screenshots.
+- Reference local assets via `staticFile('path-in-public.png')` and render media with Remotion's `<Img>` and its video/audio tags so the renderer waits for frame decoding before capturing screenshots. Newer docs recommend `<Video>`/`<Audio>` from `@remotion/media` (WebCodecs-based, needs CORS for remote files) and rename the old `remotion` tags to `<Html5Video>`/`<Html5Audio>`; `<OffthreadVideo>` remains the broad-codec option. Check the [video tags comparison](https://www.remotion.dev/docs/video-tags) for the installed version before choosing.
 - When loading custom fonts or async data inside a component, gate rendering with `delayRender('reason')` and call `continueRender(handle)` (or `cancelRender(err)` on failure) inside a `useEffect` cleanup-safe block so Chromium never captures fallback system fonts.
 
 ## 3. Staged Preview & Final Render Pipeline
