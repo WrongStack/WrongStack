@@ -1,0 +1,256 @@
+{
+  "formatVersion": 1,
+  "planningDate": "2026-11-01",
+  "repositoryHead": "ad9f79dbc2aad903b0348e65abd7449273ec1a1c",
+  "evidenceBoundary": "Working-tree source fingerprints for planning research, not an immutable clean release baseline or runtime certification.",
+  "sources": [
+    {
+      "path": ".bun-version",
+      "sha256": "bd31e8d9cf8d14a1e9e3fdf3b9f6a524819aed0d1b14627523c6765767c7d8f1"
+    },
+    {
+      "path": "packages/cli/src/sage-connect.ts",
+      "sha256": "a6d20ba4620eae131b29a7150d80a1fb76a4198b4cdbb8d7d7695168d346c929"
+    },
+    {
+      "path": "packages/cli/src/wiring/sage.ts",
+      "sha256": "7925ed0ebee9fd62055ac9c03494b4c75189aaddb760b223da1f25ea5ee5fd76"
+    },
+    {
+      "path": "packages/fleet/src/host-memory-companion.ts",
+      "sha256": "b815dab2f2d4637dd924f1fd40677ba3f62f77918fee71474cec32647c8c9c38"
+    },
+    {
+      "path": "packages/mcp/package.json",
+      "sha256": "3e81b3315768c43ac8cd5b503c4f038ba57147c799b594d452830975d294a09d"
+    },
+    {
+      "path": "packages/persistence/src/sqlite-text-index.ts",
+      "sha256": "e95a27552a3599d6645dbb82f2305a22a312842c683cf6d4c3eda87ba9a6355a"
+    },
+    {
+      "path": "packages/runtime/src/container.ts",
+      "sha256": "8e49af74419fb3d1f1529d61006dcdc4f4c989a5abef04837fb488fb59a26c1e"
+    },
+    {
+      "path": "packages/sage-mcp/package.json",
+      "sha256": "76154d47b403ba9f0bc9d36b93d2bd774a42db080dc9b1ae440db566949c20b6"
+    },
+    {
+      "path": "packages/sage-mcp/src/adapter.ts",
+      "sha256": "d3e9adc20573cccea56c48a97366d51dca2dfa27e061e38c75de5fb8ca75501a"
+    },
+    {
+      "path": "packages/sage-mcp/src/attached-server.ts",
+      "sha256": "3d2aa00a85774b2b6d2aab7c260d8e2b60f3f136b1fa77bc1b106935acec9572"
+    },
+    {
+      "path": "packages/sage-mcp/src/policy.ts",
+      "sha256": "f3e08987606fd19a623228357649c91cbf0e272a25b8caf2bb6229c1a5f321f1"
+    },
+    {
+      "path": "packages/sage/package.json",
+      "sha256": "b33c4dfea7e93e4b789302bada617a7f276ba1c4561429e2285cebe645bcd478"
+    },
+    {
+      "path": "packages/sage/src/consolidation/auto-accept.ts",
+      "sha256": "f9d7f945ce3f3b555a8bca5a645819e90bfb0a567ae91376fbc718ea238b6403"
+    },
+    {
+      "path": "packages/sage/src/consolidation/run.ts",
+      "sha256": "d77eca31265fbc1ff67a64ccff230480743e615cba4bf37e604edcf4d2a39eba"
+    },
+    {
+      "path": "packages/sage/src/domain-term-extractor.ts",
+      "sha256": "a3700e3efbf498d618f14e727895aa953737c6581c21b7999507befa7cee63a4"
+    },
+    {
+      "path": "packages/sage/src/host-wiring.ts",
+      "sha256": "4ceba325b88253a538d48de944bbe24b73082da83359a6646712398030ed00c9"
+    },
+    {
+      "path": "packages/sage/src/memory-input-validation.ts",
+      "sha256": "839ef3755195c8d5c308220f02a33b69c2bf44480a2668a300ae1d32d40fe4ae"
+    },
+    {
+      "path": "packages/sage/src/memory-model.ts",
+      "sha256": "088793bd43b87bdb7e39708e972699eb6551233624b02950f3f41f5de8df3839"
+    },
+    {
+      "path": "packages/sage/src/memory-port.ts",
+      "sha256": "68732fa67ce9a62eebf9f357d640e990fcfd7c77f6786c6c987c3b242fb49663"
+    },
+    {
+      "path": "packages/sage/src/middleware/context-monitor.ts",
+      "sha256": "03596e166215022b41275b6375e2eed399c33c0bb4b1f42af87a1672fadf5a4b"
+    },
+    {
+      "path": "packages/sage/src/middleware/evidence-refresh.ts",
+      "sha256": "7bfc8562833bece1fe6466f609078374c823844a7e6b7bbf1889789c6bf66242"
+    },
+    {
+      "path": "packages/sage/src/middleware/outcome-capture.ts",
+      "sha256": "16bb949699a0ed97e7cdc4bdc4d709ddd0c5adef8fc06dc84b3902e5e30fc8b0"
+    },
+    {
+      "path": "packages/sage/src/middleware/tool-call-memory-scoring.ts",
+      "sha256": "fa71cbfc09b050a1428b0f39b6117789cecb35ee4188c49d2d43fed3f3cb8d82"
+    },
+    {
+      "path": "packages/sage/src/middleware/tool-call-memory.ts",
+      "sha256": "9dc5f81e24047c30663f427fd96b2343434cc608520f9964658bc3d38778c87e"
+    },
+    {
+      "path": "packages/sage/src/paths.ts",
+      "sha256": "c6ec55ed76ff043483ed2654ae77036c360a617adb72db783081b5ba52188ef0"
+    },
+    {
+      "path": "packages/sage/src/project-server-client.ts",
+      "sha256": "bf2d2fad29d8cf5ee64c36bdc7100dc87ca7b7a3928c8704546223c08607312e"
+    },
+    {
+      "path": "packages/sage/src/project-server-endpoint.ts",
+      "sha256": "bf2a49fae9a771ef1ffd5d9744319095277e80fdf1f6532e6e0563fffcceb699"
+    },
+    {
+      "path": "packages/sage/src/project-server-hygiene.ts",
+      "sha256": "ba5b4597e82ca5e993b03250c22f49413a79b2f5bfbb5dc8c6c965cd3991a005"
+    },
+    {
+      "path": "packages/sage/src/project-server-protocol.ts",
+      "sha256": "676e8c1cf550cf76cfa6301184760b8f946b1690a3d1313aced8e2706b08b6ae"
+    },
+    {
+      "path": "packages/sage/src/project-server.ts",
+      "sha256": "1adfb5a36953eeadb80f34d3be57aa1b6a5c1d9d7473a15fd4b770cbce3931fc"
+    },
+    {
+      "path": "packages/sage/src/remote-memory-port.ts",
+      "sha256": "702f144f0f5c52705ce715f196674fda9e61c440c3123ed5933cf4e386f9e7f3"
+    },
+    {
+      "path": "packages/sage/src/retrieval/validity-checks.ts",
+      "sha256": "84ebef3e04a6d32f41cd97f5c43263567b52a6dc4de406b5155ce8c70fb24c57"
+    },
+    {
+      "path": "packages/sage/src/retrieval/vector-augment.ts",
+      "sha256": "6f53c3a5a7ac7ef5608457eb39f3c4223b4f25f7133b30899438bddbf3dbfaea"
+    },
+    {
+      "path": "packages/sage/src/service-contract.ts",
+      "sha256": "a432712beef40f0e97e2d2ac140515429ed529d38fb839a81526f647ecc11d92"
+    },
+    {
+      "path": "packages/sage/src/shared/memory-validity.ts",
+      "sha256": "5d231e90f41998250bd11c72cd2b7571bce4145c8b3ab1da7d2e10e38b134a27"
+    },
+    {
+      "path": "packages/sage/src/shared/model-feedback.ts",
+      "sha256": "ba91e4c8839a1c222a83534ae81e5e6f7589dd95ad73815d948b250ecdd836b8"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-anchor-sync.ts",
+      "sha256": "7c9262c845a19ccee427998c767c715ba100c196261eb40c5832bc1f7b12d1be"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-codec.ts",
+      "sha256": "b4788085beffa8c5a559c97b7572235c556c3003e6f0a2d649c88565f419a0fa"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-counters.ts",
+      "sha256": "1eb8ac971c09af6d662c6125bb17fd9e40dae539dd90a20bf7ade1a57b89a6a2"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-delete.ts",
+      "sha256": "127046fff7d623aa3b01ea9205c2979af4b808e3f564cb9b35199c51fe46566c"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-graph-helpers.ts",
+      "sha256": "67a60782200ab77608217a397251bbd8aa7f25b64a87524bf55bc51ddd911839"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-graph-traverse.ts",
+      "sha256": "4d5334256e0a15f61b6591ef9ce7f6c712cc358f6e958421b45858df7c181a85"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-hq-sync.ts",
+      "sha256": "36300054e2990eede8a478e0d16635e253a1afd374ec1293467aca96342c03df"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-hygiene.ts",
+      "sha256": "3dab5a483d39f57f4a74d7e1d85f5cef62c279dae44158f070d7fb46e9a2a482"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-initialize.ts",
+      "sha256": "4e6211d112e8506ad2fdad9fbd303ca9ccd3a35804a70b968248efc652bf12f8"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-jsonl-migration.ts",
+      "sha256": "aa0178b9198b055382fd0054b2b5886999094b87105ddb839bd7dc7d66d69cfa"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-mutation-queue.ts",
+      "sha256": "ab62b0a8c65576e7a405a4332d3b57d66d1d51af626053ab714dadbe0f3bba03"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-recovery.ts",
+      "sha256": "f412b2e76a866a9d5b2dba4f6ae17526c13f55905400c73ece91aa5f235d6f70"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-relationship-sync.ts",
+      "sha256": "904311e243eff474c90a451e5a02296c8bcda729c8b12fd5c60608f037e52c7c"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-remember.ts",
+      "sha256": "cd75bdea8fa5177ae553e839c8abdee3be08560237cf4e40626398a56d368003"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-schema.ts",
+      "sha256": "807fcc3622d683bda03660288d2e45ed3136a0e2436c0f22b01806de7852d436"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-text-index.ts",
+      "sha256": "cf8a1df178ff09569b367f38b1645ad10552f754c9ec180ac6869966c625dc8d"
+    },
+    {
+      "path": "packages/sage/src/sqlite-store-update.ts",
+      "sha256": "2ccf338c43d3757e831e6de65caf484684b4502e61b6b24d7bab17b36e4c08c8"
+    },
+    {
+      "path": "packages/sage/src/tools/memory-tools.ts",
+      "sha256": "9f972ac1d0e4c9920eaf7efd2f52283686dfbae8f9b48a74de0cb3b19d5baa81"
+    },
+    {
+      "path": "packages/sage/src/types.ts",
+      "sha256": "8d1f994b0e9f8f2e3cd7b4673cfd49a04a1c77a7da38c2001cd684cec1a20db4"
+    },
+    {
+      "path": "packages/tools/src/codebase-index/ecosystem-bridge.ts",
+      "sha256": "47b7140b1ca024781e14736bfc535bc0310d91bea7e94d17441959d0a3517440"
+    },
+    {
+      "path": "packages/vector-memory/package.json",
+      "sha256": "79a6c1d99e63bfacd1aedee2fbff66ef8d916b659d0c2769811c1aabe059e364"
+    },
+    {
+      "path": "packages/vector-memory/src/sage-event-mirror.ts",
+      "sha256": "c3b48d4dbbd95704c17db994631b6b0f272fb35ca4c00e13037b474b4714692b"
+    },
+    {
+      "path": "packages/vector-memory/src/sage-port-wrapper.ts",
+      "sha256": "4ea6c12fd312a4f418040cb31c8a2c4e4785a7a2f673da8698fb068a01fd1706"
+    },
+    {
+      "path": "packages/vector-memory/src/schema.ts",
+      "sha256": "7e52f5660bb060c8158b8d2d55465f382982e53835ddae3f4a2f6c0e115c56a8"
+    },
+    {
+      "path": "packages/webui-server/src/server/connections/service-action-restarts.ts",
+      "sha256": "7eebe88a99ac4116a4ee827b3e8e0bf3d3f8e734b908658a2c1a09bdcbaf3f6e"
+    },
+    {
+      "path": "packages/webui-server/src/server/memory-handlers.ts",
+      "sha256": "fcd01d1c31a7a8c4b9b84bdd8d68b9af7ee71e2e871f035eab17224d0d96d871"
+    }
+  ]
+}
