@@ -9,7 +9,9 @@ ran the full native matrix, the default suite and all 35 scope flags: 33 of 36 p
 three failures led to the fixes recorded in the validation log ("Release-build native matrix
 (2026-11-01/02)"), and the full matrix on the final build passed 35 of 36. The one failure is an
 intermittent close of the refinement review after "Refine again", recorded there and not yet
-explained. The backlog below is depth work for later releases, not a release blocker.
+explained. The intermittent `files.tree` timeouts are explained and fixed (replies behind a
+journal replay). A last full matrix on a quiet machine is still owed: the 2026-11-02 rerun ran
+under unrelated heavy load. The backlog below is depth work for later releases, not a release blocker.
 
 What remains before publishing, and needs the owner's authorization:
 

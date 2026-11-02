@@ -37,6 +37,7 @@ function useBackend(
     let offset = 0;
     let timer: ReturnType<typeof setTimeout>;
     setState({ ...emptyEngineState, hydrating: true });
+    operations.replaying();
     const poll = async () => {
       try {
         const result = await request<{ offset: number; events: unknown[]; hasMore?: boolean }>(
@@ -52,6 +53,7 @@ function useBackend(
         offset = result.offset;
         const events = result.events.map(engineEvent).filter((event) => event !== null);
         for (const event of events) operations.receive(event);
+        if (!hasMore) operations.caughtUp();
         if (scope === 'engine' && events.some((event) => event.type === 'run.result'))
           void send('stats.get').catch(onError);
         setState((current) => replayEngineBatch(current, events, hasMore));

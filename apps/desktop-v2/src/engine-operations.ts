@@ -18,7 +18,14 @@ export class EngineReplyError extends Error {
   }
 }
 
-/** Tracks acknowledgements without persisting outgoing payloads or credentials. */
+/**
+ * Tracks acknowledgements without persisting outgoing payloads or credentials.
+ *
+ * A reply can only be seen once the event journal has been read up to it. A window that opens
+ * replays the journal from its start, which takes a while for a long-lived project, so a
+ * request's own timeout only starts once the replay has caught up (`caughtUp`); until then
+ * only a generous cap applies.
+ */
 export class EngineOperations {
   private pending = new Map<
     string,
@@ -27,24 +34,46 @@ export class EngineOperations {
       resolve: (value: Record<string, unknown>) => void;
       reject: (error: Error) => void;
       timer: ReturnType<typeof setTimeout>;
+      timeoutMs: number;
     }
   >();
+  private live = true;
   constructor(
     private send: EngineSend,
     private timeoutMs = 15000,
+    private replayCapMs = 120000,
   ) {}
+  private arm(requestId: string, ms: number): ReturnType<typeof setTimeout> {
+    return setTimeout(() => {
+      const pending = this.pending.get(requestId);
+      if (!pending) return;
+      this.pending.delete(requestId);
+      pending.reject(
+        new Error(
+          'The engine did not acknowledge this request. Refresh this workspace before retrying.',
+        ),
+      );
+    }, ms);
+  }
+  /** The journal is being read from its start again; replies may still be behind. */
+  replaying(): void {
+    this.live = false;
+  }
+  /** The journal has been read up to now: every waiting request gets its own timeout. */
+  caughtUp(): void {
+    if (this.live) return;
+    this.live = true;
+    for (const [requestId, pending] of this.pending) {
+      clearTimeout(pending.timer);
+      pending.timer = this.arm(requestId, pending.timeoutMs);
+    }
+  }
   request: EngineCommand = (type, payload, replies, options) => {
     const requestId = crypto.randomUUID();
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(requestId);
-        reject(
-          new Error(
-            'The engine did not acknowledge this request. Refresh this workspace before retrying.',
-          ),
-        );
-      }, options?.timeoutMs ?? this.timeoutMs);
-      this.pending.set(requestId, { replies, resolve, reject, timer });
+      const timeoutMs = options?.timeoutMs ?? this.timeoutMs;
+      const timer = this.arm(requestId, this.live ? timeoutMs : this.replayCapMs);
+      this.pending.set(requestId, { replies, resolve, reject, timer, timeoutMs });
       void this.send(type, { ...payload, requestId }).catch((error: unknown) => {
         const pending = this.pending.get(requestId);
         if (!pending) return;

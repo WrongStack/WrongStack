@@ -6030,3 +6030,29 @@ staged; the other session's edits stay untouched.
   own close path (the pending review was cleared, which only Escape, a backdrop click or a
   button does) before the refiner answered. The same step passed in that run's `composer` scope
   and in the previous `default` run on the same build; the trigger is not explained.
+
+### Replies behind a journal replay (2026-11-02)
+
+- Root cause of the unexplained `files.tree` "did not acknowledge" failures: every window or
+  panel that opens a project replays that project's event journal from its start (200 events or
+  256 KB per read), and its first request's 15 s timeout ran from the moment it was sent. The
+  project journal of a long session grows to several MB (1.7 to 7 MB in the matrix runs), so
+  the reply was in the journal (the kept journal holds both `files.tree` replies) but the window
+  had not read that far yet. A request's own timeout now starts once the replay has caught up;
+  until then a 120 s cap applies (`EngineOperations.replaying/caughtUp`, `useEngine.ts`,
+  `engine-operations.test.ts`).
+- Hunk review refused with "Git could not safely open this repository" on a busy machine: the
+  config listing that precedes every review command had a 3 s budget while the command itself
+  has 10 s. Both use 10 s now (`git-hunks.ts`). Load-dependent; no deterministic test.
+- Harness: the next-steps countdown check counted every provider call after the cancel; a late
+  background side request (a next-steps retry) made it fail. It now checks that the cancelled
+  suggestion itself was never sent.
+- Still open: each component that reads a project (`useProjectEngine`) replays the journal on
+  its own, so a project window replays it several times. One shared stream per project would
+  remove that cost. Not done for this release.
+- Full matrix on `34c8e7dd2f02-a92ae4ec54ce` (2026-11-02 11:23 to 12:23) ran while the machine
+  was saturated by unrelated work (CPU at 96 %, 78 Node processes from other tools). Every step
+  of 33 scopes passed; `surfaces`, `multi` and `perf` passed all their steps and then timed out
+  in the harness's final process cleanup. `default`, `companion` and `composer` failed in the
+  composer path (engine connection lost, a held run not finishing in time, a 16 s download
+  through WebView2). These are recorded as unproven under load, not as passes.

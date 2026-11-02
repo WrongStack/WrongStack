@@ -9,8 +9,12 @@ import { isUnsafeRelativePath, repoRelativePrefix } from './git-paths.js';
 import { isPathInside } from './path-containment.js';
 import { errMessage, send } from './ws-utils.js';
 
+const GIT_REVIEW_TIMEOUT_MS = 10_000;
+
 export async function gitReviewBytes(cwd: string, args: string[], input?: string) {
-  const isolation = await gitIsolationEnv(cwd, { timeoutMs: 3000 });
+  // The same budget as the command below: a busy machine must not refuse a review because the
+  // config listing that precedes it took longer than the review itself may.
+  const isolation = await gitIsolationEnv(cwd, { timeoutMs: GIT_REVIEW_TIMEOUT_MS });
   if (!isolation) throw Error('Git could not safely open this repository.');
   return await new Promise<Buffer>((resolve, reject) => {
     const child = execFile(
@@ -19,7 +23,7 @@ export async function gitReviewBytes(cwd: string, args: string[], input?: string
       {
         cwd,
         env: { ...buildChildEnv(), ...isolation, GIT_LITERAL_PATHSPECS: '1' },
-        timeout: 10000,
+        timeout: GIT_REVIEW_TIMEOUT_MS,
         maxBuffer: 2 * 1024 * 1024,
         windowsHide: true,
         encoding: 'buffer',

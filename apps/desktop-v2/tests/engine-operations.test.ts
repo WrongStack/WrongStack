@@ -106,4 +106,41 @@ describe('native engine operation acknowledgements', () => {
     operations.clear();
     await expect(detached).rejects.toThrow('detached');
   });
+  it('starts a request timeout only once the journal replay has caught up', async () => {
+    vi.useFakeTimers();
+    let id: unknown;
+    const operations = new EngineOperations(
+      async (_type, payload) => {
+        id = payload!['requestId'];
+      },
+      1000,
+      60000,
+    );
+    // A window replays a long project journal; its first request's reply is still behind.
+    operations.replaying();
+    const tree = operations.request('files.tree', {}, ['files.tree']);
+    let settled = false;
+    void tree.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(settled).toBe(false);
+    operations.receive({ type: 'files.tree', payload: { requestId: id, tree: [] } });
+    await expect(tree).resolves.toMatchObject({ tree: [] });
+    // Once caught up, an unanswered request gets its own timeout from that moment.
+    operations.replaying();
+    const late = operations.request('files.tree', {}, ['files.tree']);
+    const rejected = expect(late).rejects.toThrow('did not acknowledge');
+    await vi.advanceTimersByTimeAsync(5000);
+    operations.caughtUp();
+    await vi.advanceTimersByTimeAsync(1000);
+    await rejected;
+    // A replay that never catches up is still bounded.
+    operations.replaying();
+    const capped = operations.request('files.tree', {}, ['files.tree']);
+    const bounded = expect(capped).rejects.toThrow('did not acknowledge');
+    await vi.advanceTimersByTimeAsync(60000);
+    await bounded;
+  });
 });
