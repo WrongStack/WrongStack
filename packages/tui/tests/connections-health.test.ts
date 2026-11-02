@@ -49,6 +49,9 @@ vi.mock('@wrongstack/tools', () => ({
 }));
 
 vi.mock('@wrongstack/sage', () => ({
+  // Local-SAGE project: no WrongMemory panel override or action refusal.
+  wrongMemoryPanelHealth: async () => undefined,
+  wrongMemoryServiceActionRefusal: () => undefined,
   isSageProjectServerAvailable: mocks.isSageProjectServerAvailable,
   SageProjectServerConnection: class {
     status = mocks.sageStatus;

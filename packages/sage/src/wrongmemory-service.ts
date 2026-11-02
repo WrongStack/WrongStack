@@ -5,6 +5,7 @@
  */
 import * as path from 'node:path';
 import { type ConnectOptions, METHODS, WrongMemoryClient } from '@wrongstack/wrongmemory-client';
+import { sageServiceBackendFor } from './memory-service-registry.js';
 import type { WrongMemoryClientLike } from './wrongmemory-port.js';
 
 export interface WrongMemoryProjectInfo {
@@ -87,4 +88,55 @@ export async function releaseWrongMemoryProject(options: {
   } finally {
     client.close();
   }
+}
+
+/** What a connection-health panel shows for a project WrongMemory serves. */
+export interface WrongMemoryPanelHealth {
+  status: 'healthy' | 'offline';
+  mode: 'wrongmemory-service';
+  detail: string;
+}
+
+/**
+ * Panel health for SAGE when this process serves the project through
+ * WrongMemory; `undefined` when the project uses local SAGE (the caller then
+ * probes the local project server as before). Never starts a daemon.
+ */
+export async function wrongMemoryPanelHealth(
+  projectRoot: string,
+  connect?: Connect | undefined,
+): Promise<WrongMemoryPanelHealth | undefined> {
+  const chosen = sageServiceBackendFor(projectRoot);
+  if (chosen?.backend !== 'wrongmemory') return undefined;
+  const probe = await probeWrongMemoryService({
+    projectRoot,
+    dataRoot: chosen.dataRoot,
+    connect,
+  });
+  if (!probe.running) {
+    return {
+      status: 'offline',
+      mode: 'wrongmemory-service',
+      detail: 'Served by WrongMemory; its daemon is not running and starts on demand.',
+    };
+  }
+  if (!probe.project) {
+    return {
+      status: 'offline',
+      mode: 'wrongmemory-service',
+      detail: 'Served by WrongMemory; the project is registered on first use.',
+    };
+  }
+  return {
+    status: 'healthy',
+    mode: 'wrongmemory-service',
+    detail: `Served by WrongMemory: project ${probe.project.projectId} (${probe.project.storeKind ?? 'store'}, ${probe.project.admission ?? 'access unknown'}).`,
+  };
+}
+
+/** The refusal a SAGE restart/shutdown action returns for a WrongMemory project. */
+export function wrongMemoryServiceActionRefusal(projectRoot: string): string | undefined {
+  return sageServiceBackendFor(projectRoot)?.backend === 'wrongmemory'
+    ? 'SAGE memory is served by the WrongMemory service here, not the local SAGE server; manage it with `wstack sage service` or `wrongmemory daemon`.'
+    : undefined;
 }

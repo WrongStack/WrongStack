@@ -66,6 +66,14 @@ export {
   SqliteMemoryPort,
 } from './memory-port.js';
 export {
+  clearSageServiceBackends,
+  recordSageServiceBackend,
+  SageServedByWrongMemoryError,
+  type SageServiceBackend,
+  type SageServiceBackendRecord,
+  sageServiceBackendFor,
+} from './memory-service-registry.js';
+export {
   createSageContextMonitorMiddleware,
   type SageContextMonitorOptions,
 } from './middleware/context-monitor.js';
@@ -287,6 +295,9 @@ export {
 export {
   probeWrongMemoryService,
   releaseWrongMemoryProject,
+  type WrongMemoryPanelHealth,
   type WrongMemoryProjectInfo,
   type WrongMemoryServiceProbe,
+  wrongMemoryPanelHealth,
+  wrongMemoryServiceActionRefusal,
 } from './wrongmemory-service.js';

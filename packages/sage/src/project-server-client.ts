@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import * as net from 'node:net';
 import { daemonSpawnArgs } from '@wrongstack/persistence';
 import { closeDaemonLogFd, openDaemonLogFd } from './daemon-log.js';
+import { SageServedByWrongMemoryError, sageServiceBackendFor } from './memory-service-registry.js';
 import {
   AUTH_RETRY_DELAY_MS,
   AUTH_RETRY_MAX_ATTEMPTS,
@@ -292,6 +293,9 @@ export class SageProjectServerConnection {
     // election would respawn it until it gives up with a bare pipe ENOENT.
     // Refuse before spawning, and name the cause if the owner appeared
     // mid-election.
+    if (spawnIfMissing && sageServiceBackendFor(this.projectRoot)?.backend === 'wrongmemory') {
+      throw new SageServedByWrongMemoryError(this.projectRoot);
+    }
     const storeDir = resolveProjectSageStorageRoot(this.projectRoot, this.directory);
     if (spawnIfMissing && wrongMemoryOwnsStore(storeDir)) {
       throw new SageStoreOwnedByWrongMemoryError(storeDir);

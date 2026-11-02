@@ -12,7 +12,11 @@ import {
   resolveWstackPaths,
   toErrorMessage,
 } from '@wrongstack/core/utils';
-import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
+import {
+  isSageProjectServerAvailable,
+  SageProjectServerConnection,
+  wrongMemoryServiceActionRefusal,
+} from '@wrongstack/sage';
 import {
   checkCodebaseIndexServerHealth,
   ensureCodebaseIndexServer,
@@ -25,6 +29,10 @@ export async function killSageServer(
   projectRoot: string,
   action: 'shutdown' | 'restart',
 ): Promise<ServiceActionResult> {
+  const servedByWrongMemory = wrongMemoryServiceActionRefusal(projectRoot);
+  if (servedByWrongMemory) {
+    return { serviceId: 'sage', action, success: false, message: servedByWrongMemory };
+  }
   if (!isSageProjectServerAvailable()) {
     return {
       serviceId: 'sage',

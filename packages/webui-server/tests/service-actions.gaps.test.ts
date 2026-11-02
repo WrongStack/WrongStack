@@ -10,6 +10,9 @@ vi.mock('@wrongstack/kanban', () => ({
   isKanbanServerAvailable: vi.fn(async () => false),
 }));
 vi.mock('@wrongstack/sage', () => ({
+  // Local-SAGE project: no WrongMemory panel override or action refusal.
+  wrongMemoryPanelHealth: async () => undefined,
+  wrongMemoryServiceActionRefusal: () => undefined,
   isSageProjectServerAvailable: vi.fn(() => false),
   SageProjectServerConnection: vi.fn(),
 }));
