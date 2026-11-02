@@ -161,17 +161,34 @@ async function fetchGitHubReleaseTag(repo) {
   return data.tag_name.replace(/^(?:bun-v|docker-v|swift-|v)/i, '').replace(/-RELEASE$/i, '');
 }
 
+/**
+ * Newest stable and newest LTS release from nodejs.org/dist/index.json.
+ * The index lists prerelease channels too — Node.js 27 opened an alpha line
+ * (`v27.0.0-alpha.…`) ahead of its stable release — so the first entry is not
+ * necessarily a stable release and must never be written as one.
+ */
+export function selectNodeReleases(list) {
+  const stable = (Array.isArray(list) ? list : []).filter((item) =>
+    /^v\d+\.\d+\.\d+$/.test(String(item?.version ?? '')),
+  );
+  const current = stable[0];
+  const lts = stable.find((item) => item.lts);
+  return {
+    current: current ? String(current.version).slice(1) : undefined,
+    lts: lts ? String(lts.version).slice(1) : undefined,
+  };
+}
+
 export async function collectEcosystemVersions() {
   const ecosystem = {};
 
   await Promise.all([
     (async () => {
-      const list = await fetchJsonSafe('https://nodejs.org/dist/index.json');
-      if (Array.isArray(list) && list.length > 0) {
-        ecosystem.nodeCurrent = String(list[0].version).replace(/^v/, '');
-        const lts = list.find((item) => item.lts);
-        if (lts) ecosystem.nodeLts = String(lts.version).replace(/^v/, '');
-      }
+      const { current, lts } = selectNodeReleases(
+        await fetchJsonSafe('https://nodejs.org/dist/index.json'),
+      );
+      if (current) ecosystem.nodeCurrent = current;
+      if (lts) ecosystem.nodeLts = lts;
     })(),
     (async () => {
       const list = await fetchJsonSafe('https://go.dev/dl/?mode=json');
@@ -338,6 +355,14 @@ export function buildReplacementPairs(npmMap = {}, pypiMap = {}, eco = {}, today
   }
   if (npmMap.three?.version) {
     addRegex(/\bThree\.js 0\.\d+\.\d+\b/g, `Three.js ${npmMap.three.version}`);
+    // three 0.N.x is release rN; keep the "(rN)" label beside it in step.
+    const release = /^0\.(\d+)\./.exec(npmMap.three.version)?.[1];
+    if (release) {
+      addRegex(
+        new RegExp(`(Three\\.js ${npmMap.three.version.replace(/\./g, '\\.')}) \\(r\\d+\\)`, 'g'),
+        `$1 (r${release})`,
+      );
+    }
   }
   if (npmMap['@types/three']?.version) {
     addRegex(/@types\/three 0\.\d+\.\d+\b/g, `@types/three ${npmMap['@types/three'].version}`);
@@ -538,8 +563,9 @@ export function buildReplacementPairs(npmMap = {}, pypiMap = {}, eco = {}, today
     addRegex(/\bNode target is 26\.\d+\.\d+\b/g, `Node target is ${eco.nodeCurrent}`);
   }
   if (eco.nodeLts) {
-    addRegex(/\bLTS 24\.\d+\.\d+\b/g, `LTS ${eco.nodeLts}`);
-    addRegex(/\bv24\.\d+\.\d+ LTS\b/g, `v${eco.nodeLts} LTS`);
+    // Any major: the LTS line moves forward every October (24 → 26 in 2026).
+    addRegex(/\bLTS 2\d\.\d+\.\d+\b/g, `LTS ${eco.nodeLts}`);
+    addRegex(/\bv2\d\.\d+\.\d+ LTS\b/g, `v${eco.nodeLts} LTS`);
   }
   if (eco.bun) {
     addRegex(/\bBun 1\.\d+\.\d+\b/g, `Bun ${eco.bun}`);
@@ -885,6 +911,21 @@ Options:
   console.log(
     `✍️  Propagated version updates across ${updatedFilesCount} bundled skill markdown file(s) (${modifiedSkills.size} skill(s) bumped).`,
   );
+
+  // The repository's AGENTS.md carries the same dated "Latest Tech Specs" list
+  // the usage text promises to refresh; it has no skill version to bump.
+  const agentsPath = path.join(repoRoot, 'AGENTS.md');
+  if (fs.existsSync(agentsPath)) {
+    const original = fs.readFileSync(agentsPath, 'utf8').replace(/\r\n/g, '\n');
+    let next = original;
+    for (const [pattern, replacement] of pairs) {
+      next = next.replace(pattern, replacement);
+    }
+    if (next !== original) {
+      writeLf(agentsPath, next);
+      console.log(`✍️  Updated ${path.relative(repoRoot, agentsPath)}`);
+    }
+  }
 
   // Run check-bundle.ts gate
   const checkBundleScript = path.join(skillsRoot, 'skill-creator/scripts/check-bundle.ts');

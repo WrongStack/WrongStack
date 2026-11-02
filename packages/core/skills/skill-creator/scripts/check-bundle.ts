@@ -9,12 +9,14 @@ import {
   RUNTIME_CAPABILITY_MANIFEST,
   runtimeToolReferencesFromText,
 } from '@wrongstack/contracts/types/runtime-capability-manifest';
+import { buildProgressiveSkillManifestText } from '../../../src/core/system-prompt-skill-bodies.js';
 import { DefaultSkillLoader } from '../../../src/execution/skill-loader.js';
 import {
   parseSkillFrontmatter,
   stripFrontmatter,
   validateSkillDocument,
 } from '../../../src/skills/frontmatter.js';
+import { skillUseWhenText } from '../../../src/skills/prompt-discovery.js';
 import { resolveWstackPaths } from '../../../src/utils/wstack-paths.js';
 
 // Read-only authoring check using the same parser, capabilities and loader as runtime.
@@ -163,6 +165,35 @@ for (const entry of entries) {
   } else if (!(await loader.readSaveBody(entry.name))?.trim()) {
     errors.push(entry.name + ': empty runtime compact body');
   }
+}
+
+// The progressive catalog is the only text the model sees before choosing a
+// skill, and it cuts each description short. The first sentence must survive
+// whole, so authors lead with the frameworks, files and symptoms a request names.
+const catalog = await buildProgressiveSkillManifestText(loader, allTools);
+const rows = new Map(
+  [...catalog.matchAll(/^\| `([a-z0-9-]+)`[^|]*\| (.*) \|$/gm)].map((match) => [
+    match[1] ?? '',
+    (match[2] ?? '').replace(/\\\|/g, '|'),
+  ]),
+);
+for (const manifest of manifests) {
+  const row = rows.get(manifest.name);
+  if (manifest.source !== 'bundled' || row === undefined) continue;
+  const useWhen = skillUseWhenText(manifest.description, manifest.trigger)
+    .replace(/\s+/g, ' ')
+    .trim();
+  const end = [...useWhen.matchAll(/[.!?](?=\s|$)/g)].find(
+    (match) => !/\b(?:e\.g|i\.e|etc|vs|cf)$/i.test(useWhen.slice(0, match.index ?? 0)),
+  )?.index;
+  const sentence = end === undefined ? useWhen : useWhen.slice(0, end + 1);
+  if (!row.startsWith(sentence))
+    errors.push(
+      manifest.name +
+        ': catalog row cuts the first description sentence (' +
+        sentence.length +
+        ' chars); keep it near 135 and lead with the request vocabulary',
+    );
 }
 
 if (errors.length) {

@@ -9,6 +9,7 @@ import {
   buildReplacementPairs,
   bumpPatchVersion,
   REGISTRY_SNAPSHOT_PACKAGES,
+  selectNodeReleases,
 } from '../../skills/tech-stack/scripts/sync-versions.mjs';
 
 const SNAPSHOT_PATH = join(
@@ -29,6 +30,36 @@ describe('tech-stack version sync & registry helpers', () => {
       '8.0.0-rc.27': {},
     });
     expect(selected).toBe('7.10.1');
+  });
+
+  it('never takes a Node.js prerelease as the current stable release', () => {
+    // nodejs.org/dist/index.json on 2026-11-02: the Node 27 alpha channel is
+    // listed first, and Node 26 has just become the active LTS line.
+    const index = [
+      { version: 'v27.0.0-alpha.0.0.0', lts: false },
+      { version: 'v26.13.0', lts: 'Lithium' },
+      { version: 'v25.9.0', lts: false },
+      { version: 'v24.22.2', lts: 'Krypton' },
+    ];
+    expect(selectNodeReleases(index)).toEqual({ current: '26.13.0', lts: '26.13.0' });
+    expect(selectNodeReleases(null)).toEqual({ current: undefined, lts: undefined });
+  });
+
+  it('follows the LTS line across majors', () => {
+    const pairs = buildReplacementPairs({}, {}, { nodeCurrent: '26.13.0', nodeLts: '26.13.0' });
+    let text =
+      'Latest stable Node.js 26.12.1 (LTS 26.0.0, was v24.22.1 LTS); image `node:26.12.1-bookworm-slim`.';
+    for (const [pattern, replacement] of pairs) text = text.replace(pattern, replacement);
+    expect(text).toBe(
+      'Latest stable Node.js 26.13.0 (LTS 26.13.0, was v26.13.0 LTS); image `node:26.13.0-bookworm-slim`.',
+    );
+  });
+
+  it('keeps the three.js release label in step with its version', () => {
+    const pairs = buildReplacementPairs({ three: { version: '0.187.0' } }, {}, {});
+    let text = 'Three.js 0.186.1 (r186), React Three Fiber 9.8.2.';
+    for (const [pattern, replacement] of pairs) text = text.replace(pattern, replacement);
+    expect(text).toBe('Three.js 0.187.0 (r187), React Three Fiber 9.8.2.');
   });
 
   it('bumps 3-part semver patch numbers deterministically', () => {
