@@ -3,8 +3,7 @@ import { ToolValidationError } from '@wrongstack/contracts/types/errors';
 import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
 import { type PluginEnablementSource, resolvePluginEnablement } from '@wrongstack/core/plugin';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import { getDangerousCapabilities, ToolCapabilities } from '@wrongstack/core/security';
-import { toolMutates } from '@wrongstack/core/security';
+import { getDangerousCapabilities, ToolCapabilities, toolMutates } from '@wrongstack/core/security';
 import { validateAgainstSchema } from '@wrongstack/core/utils';
 
 export const PLUGIN_MANAGER_TOOL_NAME = 'plugin_manager';
@@ -170,7 +169,7 @@ export function createPluginManagerTool(opts: CreatePluginManagerToolOptions): T
     },
     category: 'Config',
     inputSchema: INPUT_SCHEMA,
-    permission: 'auto',
+    permission: 'confirm',
     mutating: true,
     riskTier: 'standard',
     subjectKey: 'plugin',

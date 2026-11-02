@@ -312,6 +312,9 @@ jobs:
       - name: Plugin projection snapshot check
         run: bun run plugins:manifest:check
 
+      - name: Tool contracts, catalog, website and schema budgets
+        run: bun run tools:catalog:check && bun run website:tools:check
+
       - name: i18n completeness check
         run: bun run lint:i18n
 

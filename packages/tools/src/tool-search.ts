@@ -1,4 +1,5 @@
 import type { Tool } from '@wrongstack/contracts/types';
+import { toolDiscoveryMetadata } from './tool-discovery-metadata.js';
 
 export interface ToolSearchInput {
   query?: string | undefined;
@@ -22,6 +23,14 @@ export interface ToolSearchOutput {
     category?: string | undefined;
     /** Fine-grained runtime capabilities, when the tool declares them. */
     capabilities?: readonly string[] | undefined;
+    aliases?: readonly string[] | undefined;
+    deprecated?: Tool['deprecated'];
+    cost?: Tool['cost'];
+    preconditions?: Tool['preconditions'];
+    retrySafe?: Tool['retrySafe'];
+    idempotent?: Tool['idempotent'];
+    estimatedDurationMs?: Tool['estimatedDurationMs'];
+    selection?: Tool['selection'];
     permission: string;
     mutating: boolean;
     /** True when the schema was left out; search the exact name to get it. */
@@ -149,6 +158,7 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
             ...(t.usageHint ? { usageHint: t.usageHint } : {}),
             ...(t.category ? { category: t.category } : {}),
             ...(t.capabilities?.length ? { capabilities: t.capabilities } : {}),
+            ...toolDiscoveryMetadata(t),
             permission: t.permission,
             mutating: t.mutating,
           }
@@ -238,8 +248,11 @@ const USAGE_HINT_CHARS = 500;
  * one line per tool.
  */
 function renderToolSearch(output: ToolSearchOutput, input: ToolSearchInput): string {
+  const requested = input.query?.trim().toLowerCase();
   const exactName =
-    output.tools.length > 0 && input.query?.trim().toLowerCase() === output.tools[0]?.name;
+    output.tools.length > 0 &&
+    (requested === output.tools[0]?.name ||
+      output.tools[0]?.aliases?.some((alias) => alias.toLowerCase() === requested));
   const header = [
     `tool_search: ${output.total} match(es)`,
     input.query ? ` for "${input.query}"` : '',
@@ -259,6 +272,25 @@ function renderToolSearch(output: ToolSearchOutput, input: ToolSearchInput): str
     return [
       `${index + 1}. ${tool.name} [${flags}${tool.category ? `, ${tool.category}` : ''}]`,
       `   ${tool.description}`,
+      ...(tool.aliases?.length ? [`   aliases: ${tool.aliases.join(', ')}`] : []),
+      ...(tool.deprecated
+        ? [`   deprecated since ${tool.deprecated.since}; use ${tool.deprecated.replacedBy}`]
+        : []),
+      ...(tool.cost ? [`   cost: ${tool.cost.kind}${tool.cost.fanOut ? ', fan-out' : ''}`] : []),
+      ...(tool.preconditions?.length ? [`   preconditions: ${tool.preconditions.join('; ')}`] : []),
+      ...(tool.retrySafe !== undefined ? [`   retrySafe: ${tool.retrySafe}`] : []),
+      ...(tool.idempotent !== undefined ? [`   idempotent: ${tool.idempotent}`] : []),
+      ...(tool.estimatedDurationMs !== undefined
+        ? [`   estimatedDurationMs: ${tool.estimatedDurationMs}`]
+        : []),
+      ...(tool.selection
+        ? [
+            `   doNotUseWhen: ${tool.selection.doNotUseWhen}`,
+            ...(tool.selection.useInstead?.length
+              ? [`   useInstead: ${tool.selection.useInstead.join(', ')}`]
+              : []),
+          ]
+        : []),
       `   inputSchema: ${JSON.stringify(tool.inputSchema ?? {})}`,
       ...(shownUsage ? [exactName ? `   usage:\n${shownUsage}` : `   usage: ${shownUsage}`] : []),
     ].join('\n');
@@ -357,11 +389,13 @@ function termAlternatives(term: string): string[] {
 function queryScore(t: Tool, query: string): number {
   const name = t.name.toLowerCase();
   const description = t.description.toLowerCase();
+  if (t.aliases?.some((alias) => alias.toLowerCase() === query.trim())) return 2_000;
   if (name === query.trim()) return 2_000;
   if (name.includes(query) || description.includes(query)) return 1_000;
   const nameSegments = new Set(name.split(/[^a-z0-9]+/).filter(Boolean));
   const text = [
     description,
+    ...(t.aliases ?? []).map((alias) => alias.toLowerCase()),
     (t.usageHint ?? '').toLowerCase(),
     (t.category ?? '').toLowerCase(),
     ...(t.capabilities ?? []).map((capability) => capability.toLowerCase()),

@@ -45,6 +45,8 @@ async function anyReadableTarget(
 export function makeCollabDebugTool(director: Host.DirectorCollabPort): Tool {
   return {
     name: 'collab_debug',
+    cost: { kind: 'paid', fanOut: true },
+    retrySafe: false,
     description:
       'Start a collaborative debugging session: BugHunter, RefactorPlanner, and Critic ' +
       'run in parallel on the same target files. BugHunter finds bugs and emits bug.found events. ' +

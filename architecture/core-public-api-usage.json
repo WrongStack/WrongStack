@@ -46,7 +46,7 @@
     "@wrongstack/core/execution": {
       "files": 109,
       "typeOnly": 25,
-      "runtimeOrMixed": 100
+      "runtimeOrMixed": 98
     },
     "@wrongstack/core/execution/refine-decisions": {
       "files": 2,
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 192,
+      "files": 196,
       "typeOnly": 79,
-      "runtimeOrMixed": 116
+      "runtimeOrMixed": 120
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -131,7 +131,7 @@
     "@wrongstack/core/security": {
       "files": 263,
       "typeOnly": 26,
-      "runtimeOrMixed": 240
+      "runtimeOrMixed": 239
     },
     "@wrongstack/core/session-catalog": {
       "files": 18,
@@ -3978,7 +3978,7 @@
       "specifier": "@wrongstack/core/execution",
       "file": "packages/tools/src/management/council-tool.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -6244,6 +6244,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/coordination/tests/tool-contract-governance.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/fleet/src/host-subagent-factory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6562,6 +6568,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/tools/src/tool-catalog.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/tools/src/tool-tier.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6593,6 +6605,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/tools/tests/management/plugin-manager.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/tools/tests/tool-contract-governance.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6817,6 +6835,12 @@
       "file": "packages/webui-server/src/server/types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/introspection-routes.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -8100,7 +8124,7 @@
       "specifier": "@wrongstack/core/security",
       "file": "packages/tools/src/management/plugin-manager.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",

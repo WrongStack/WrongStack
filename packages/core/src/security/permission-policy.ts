@@ -35,7 +35,7 @@ import {
   sessionDenyUnevaluated,
   sessionOverridesFingerprint,
 } from './session-permission-overrides.js';
-import { mergeTrustEntries } from './trust-entry.js';
+import { mergeAliasDenials, mergeTrustEntries } from './trust-entry.js';
 import { LOCKED_DESTRUCTIVE_KINDS } from './yolo-risk.js';
 
 export { AutoApprovePermissionPolicy } from './auto-approve-policy.js';
@@ -70,9 +70,19 @@ export class DefaultPermissionPolicy extends PermissionPolicyState implements Pe
     // policy["bash"] and silently destroyed every {"*": {deny: [...]}} guardrail
     // for bash. Deny patterns from both levels always apply; the permissive
     // fields come from the more specific entry.
-    const entry = mergeTrustEntries(this.policy[tool.name], namespaceEntry);
+    const entry = mergeAliasDenials(
+      mergeTrustEntries(this.policy[tool.name], namespaceEntry),
+      tool,
+      (name) => mergeTrustEntries(this.policy[name], this.findNamespaceEntry(name)),
+    );
     const subject = subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields);
     const cacheKey = `${tool.name}::${subject ?? tool.name}`;
+    // A host prohibition is not an approval prompt: queued grants and YOLO
+    // must never lift a tool's hard default deny.
+    if (tool.permission === 'deny') {
+      this._logDeny(tool.name, subject, 'tool default deny');
+      return { permission: 'deny', source: 'default', reason: 'tool default deny' };
+    }
     // The DECISION CACHE is scoped to the conversation and to the YOLO value
     // that produced the decision. Shared across four tabs it replayed one
     // tab's YOLO "auto" onto another tab's identical call — the cache would
@@ -135,17 +145,6 @@ export class DefaultPermissionPolicy extends PermissionPolicyState implements Pe
         source: 'trust',
         reason: 'session one-shot allow (user pressed yes)',
       };
-      return decision;
-    }
-
-    if (tool.permission === 'deny') {
-      this._logDeny(tool.name, subject, 'tool default deny');
-      const decision: PermissionDecision = {
-        permission: 'deny',
-        source: 'default',
-        reason: 'tool default deny',
-      };
-      this._evalCache.set(evalKey, decision);
       return decision;
     }
 

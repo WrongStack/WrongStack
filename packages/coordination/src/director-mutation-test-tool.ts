@@ -87,9 +87,16 @@ export function makeMutationTestTool(
       'Chaos Monkey mutation testing: deterministically sabotage boundary conditions in the target code (> to >=, + to -, boolean flips, return null), re-run the tests per mutant, and report which mutants were killed. Surviving mutants mean the tests are weak — optionally loop a strengthen-tests repair until they die.',
     usageHint:
       'Use after writing new code AND its tests, before delivering. Pass targets (files) and testCommand. Provide repairSubagentId to auto-strengthen weak tests. Survivors that persist are reported as suspected-equivalent.',
-    permission: 'auto',
-    mutating: false,
-    capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
+    permission: 'confirm',
+    mutating: true,
+    riskTier: 'standard',
+    cost: { kind: 'paid', fanOut: true },
+    retrySafe: false,
+    capabilities: [
+      ToolCapabilities.SUBAGENT_SPAWN,
+      ToolCapabilities.FS_WRITE,
+      ToolCapabilities.SHELL_ARBITRARY,
+    ],
     inputSchema: {
       type: 'object',
       properties: {

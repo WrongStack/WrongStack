@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { ToolRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import {
@@ -55,6 +56,71 @@ function harness(maxToolsCount?: number) {
 }
 
 describe('canonical introspection handler family', () => {
+  it('exports the current host catalog on demand, including late plugin contracts', async () => {
+    const { context, sent } = harness();
+    const execute = vi.fn(async () => 'must not execute');
+    const registry = new ToolRegistry();
+    registry.register({
+      name: 'read',
+      description: 'Read a fixture.',
+      permission: 'auto',
+      mutating: false,
+      inputSchema: { type: 'object' },
+      execute,
+    });
+    registry.setProviderToolNames(['read']);
+    registry.register(
+      {
+        name: 'late_writer',
+        aliases: ['old_writer'],
+        description: 'Write a fixture.',
+        permission: 'confirm',
+        mutating: true,
+        icon: 'edit',
+        inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
+        execute,
+      },
+      'plugin:fixture',
+    );
+    (context.agent as unknown as { tools: ToolRegistry }).tools = registry;
+    await handleIntrospectionRoute(context, {} as WebSocket, {
+      type: 'tools.list',
+      payload: { catalog: true, requestId: 'catalog-1' },
+    });
+    const payload = sent.at(-1)?.payload as {
+      requestId: string;
+      catalog: ReturnType<ToolRegistry['exportCatalog']>;
+    };
+    expect(payload.requestId).toBe('catalog-1');
+    expect(payload.catalog.tools.find((tool) => tool.name === 'late_writer')).toMatchObject({
+      owner: 'plugin:fixture',
+      aliases: ['old_writer'],
+      exposure: 'on-demand',
+      permission: 'confirm',
+      inputSchema: { properties: { path: { type: 'string' } } },
+    });
+    expect(execute).not.toHaveBeenCalled();
+    registry.disable('late_writer');
+    await handleIntrospectionRoute(context, {} as WebSocket, {
+      type: 'tools.list',
+      payload: { catalog: true },
+    });
+    const finalMessage = sent.at(-1);
+    if (!finalMessage) throw new Error('Expected catalog response');
+    expect((finalMessage.payload as typeof payload).catalog.tools.map((tool) => tool.name)).toEqual(
+      ['read'],
+    );
+  });
+  it('keeps catalog export opt-in and reports an unavailable legacy registry explicitly', async () => {
+    const { context, sent } = harness();
+    await handleIntrospectionRoute(context, {} as WebSocket, { type: 'tools.list' });
+    expect(sent.at(-1)?.payload).not.toHaveProperty('catalog');
+    await handleIntrospectionRoute(context, {} as WebSocket, {
+      type: 'tools.list',
+      payload: { catalog: true },
+    });
+    expect(sent.at(-1)?.payload).toHaveProperty('catalog', null);
+  });
   it.each(['disable', 'enable'] as const)(
     'correlates tool %s success and refusal without altering legacy replies',
     async (action) => {
@@ -133,8 +199,11 @@ describe('canonical introspection handler family', () => {
         type: 'side_effects.list',
         ...(payload ? { payload } : {}),
       });
-      const reply = sent.at(-1)?.payload as Record<string, unknown> & {
+      const reply = sent.at(-1)?.payload as {
         sideEffects: Array<{ toolUseId: string }>;
+        total: number;
+        truncated: boolean;
+        start: number;
       };
       return { ...reply, ids: reply.sideEffects.map((effect) => effect.toolUseId) };
     };

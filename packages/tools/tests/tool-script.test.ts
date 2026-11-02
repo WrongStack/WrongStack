@@ -34,6 +34,42 @@ const echo = async (call: Call) => ({
 });
 
 describe('tool_script', () => {
+  it('keeps old ToolFlow function names callable without duplicating discovery names', async () => {
+    const h = harness(echo);
+    h.ctx.catalogTools = [{ ...h.ctx.tools[0]!, name: 'canonical', aliases: ['old'] }];
+    const output = await h.run(
+      "if (tools.names().includes('old')) throw new Error('duplicate discovery identity'); const control = await tools.canonical({id:1}); const alias = await tools.old({id:2}); return { control, alias, names: tools.names() };",
+    );
+    expect(output).toContain('old:');
+    expect(h.calls.map((call) => call.name)).toEqual(['canonical', 'old']);
+    expect(output).toContain('canonical');
+  });
+  it('describes aliases with cost, lifecycle and recovery metadata without executing them', async () => {
+    const h = harness(echo);
+    h.ctx.catalogTools = [
+      {
+        name: 'canonical',
+        aliases: ['old'],
+        description: 'Fixture.',
+        permission: 'confirm',
+        mutating: true,
+        inputSchema: { type: 'object' },
+        cost: { kind: 'paid', fanOut: true },
+        retrySafe: false,
+        preconditions: ['Index ready'],
+        deprecated: { since: '1.4', replacedBy: 'replacement' },
+        async execute() {
+          throw new Error('must not run');
+        },
+      },
+    ];
+    const output = await h.run("return tools.describe('old');");
+    expect(output).toContain('canonical');
+    expect(output).toContain('paid');
+    expect(output).toContain('replacement');
+    expect(output).toContain('Index ready');
+    expect(h.calls).toEqual([]);
+  });
   it('returns structured values only through the explicit data helper and keeps text calls compatible', async () => {
     const h = harness(async () => ({
       content: 'formatted preview',

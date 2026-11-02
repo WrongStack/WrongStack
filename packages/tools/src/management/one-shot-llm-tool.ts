@@ -192,6 +192,8 @@ export function createOneShotLLMTool(
     // spend tokens but never touch the workspace.
     category: 'meta',
     permission: 'auto',
+    cost: { kind: 'paid' },
+    retrySafe: false,
     mutating: false,
     riskTier: 'safe',
     maxOutputBytes: 262_144,

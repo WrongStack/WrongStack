@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { builtinTools } from '../packages/tools/dist/builtin.js';
+import { createBuiltinToolCatalog } from '../packages/tools/dist/tool-catalog.js';
 import { BUILTIN_TIER_COUNTS } from '../packages/tools/dist/tool-tier.js';
 import {
   TOOL_TIER_COUNTS,
@@ -13,6 +13,7 @@ import { toolDetails } from '../website/src/data/tool-details.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const write = process.argv.includes('--write');
+const builtinTools = createBuiltinToolCatalog().tools;
 
 type JsonSchema = {
   type?: string | string[];

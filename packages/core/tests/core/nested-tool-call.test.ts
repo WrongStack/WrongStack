@@ -157,6 +157,75 @@ const turn = {
 const done = { content: [{ type: 'text' as const, text: 'ok' }], stopReason: 'end_turn' as const };
 
 describe('a tool call made from inside a tool', () => {
+  it.each(['direct', 'tool_use', 'tool_script'] as const)(
+    'cannot reach a denied or disabled target through an alias via %s',
+    async (route) => {
+      const execute = vi.fn(async () => 'must not run');
+      for (const blocked of ['deny', 'disabled'] as const) {
+        const target: Tool = {
+          ...tool('alias_target', blocked === 'deny' ? 'deny' : 'auto'),
+          aliases: ['old_target'],
+          execute,
+        };
+        const use: ToolUseBlock = {
+          type: 'tool_use',
+          id: 'blocked-alias',
+          name: route === 'direct' ? 'old_target' : route,
+          input:
+            route === 'direct'
+              ? {}
+              : route === 'tool_use'
+                ? { tool: 'old_target', input: {} }
+                : { script: "return await tools.call('old_target', {});" },
+        };
+        const { agent, events, registry } = await buildAgent(
+          new MockProvider([{ content: [use], stopReason: 'tool_use' }, done]),
+          [target, toolUseTool, toolScriptTool],
+        );
+        if (blocked === 'disabled') registry.disable('alias_target');
+        events.on('tool.confirm_needed', (event) => event.resolve('yes'));
+        await agent.run('Check refusal');
+        expect(execute).not.toHaveBeenCalled();
+      }
+    },
+  );
+  it.each(['direct', 'tool_use', 'tool_script'] as const)(
+    'preserves canonical permission checks and side effects through an alias via %s',
+    async (route) => {
+      const execute = vi.fn(async () => 'approved fixture');
+      const fixture: Tool = {
+        ...tool('canonical_fixture', 'confirm'),
+        aliases: ['old_fixture'],
+        execute,
+      };
+      const use: ToolUseBlock = {
+        type: 'tool_use',
+        id: 'alias-check',
+        name: route === 'direct' ? 'old_fixture' : route,
+        input:
+          route === 'direct'
+            ? {}
+            : route === 'tool_use'
+              ? { tool: 'old_fixture', input: {} }
+              : { script: "return await tools.call('old_fixture', {});" },
+      };
+      for (const allow of [false, true]) {
+        execute.mockClear();
+        const { agent, events } = await buildAgent(
+          new MockProvider([{ content: [use], stopReason: 'tool_use' }, done]),
+          [fixture, toolUseTool, toolScriptTool],
+        );
+        const targets: string[] = [];
+        events.on('tool.confirm_needed', (event) => {
+          if (event.tool.name === fixture.name) targets.push(event.tool.name);
+          event.resolve(event.tool.name === fixture.name && !allow ? 'no' : 'yes');
+        });
+        await agent.run('Check canonical permission');
+        expect(targets).toEqual(['canonical_fixture']);
+        expect(execute).toHaveBeenCalledTimes(allow ? 1 : 0);
+      }
+    },
+  );
   it('refuses declined, invalid and unsupported structured requests without executing their bodies', async () => {
     const execute = vi.fn(async () => ({ count: 1 }));
     const structured: Tool = {

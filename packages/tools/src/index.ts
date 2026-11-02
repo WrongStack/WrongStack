@@ -544,6 +544,8 @@ export {
   type TodoOutput,
   todoTool,
 } from './todo.js';
+// Tool icon mapping — shared across all UIs (WebUI, TUI, REPL)
+export { createBuiltinToolCatalog, exportToolCatalog } from './tool-catalog.js';
 export {
   computeLineDiff,
   DIFF_MAX_LINES,
@@ -552,7 +554,6 @@ export {
   diffFromToolInput,
   type ToolDiff,
 } from './tool-diff.js';
-// Tool icon mapping — shared across all UIs (WebUI, TUI, REPL)
 export {
   FALLBACK_ICON,
   getToolIcon,

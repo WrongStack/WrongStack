@@ -133,6 +133,7 @@ const coreEntries = entryMap([
 
 const toolEntries = entryMap([
   'src/index.ts',
+  'src/tool-catalog.ts',
   'src/builtin.ts',
   'src/browser/index.ts',
   // Agent-facing management tools (council, fallback, MCP control, plugin

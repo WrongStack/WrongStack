@@ -17,6 +17,10 @@
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "exports": {
+    "./tool-catalog": {
+      "types": "./dist/tool-catalog.d.ts",
+      "import": "./dist/tool-catalog.js"
+    },
     "./artifact-presentation": {
       "types": "./dist/artifact-presentation.d.ts",
       "import": "./dist/artifact-presentation.js"

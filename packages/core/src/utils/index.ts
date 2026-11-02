@@ -292,6 +292,7 @@ export {
   setToolResultRenderMode,
   type ToolResultRenderModeRegistryLike,
 } from './tool-result-render-mode.js';
+export { measureToolSchemas } from './tool-schema-budget.js';
 export * from './tool-subject.js';
 export {
   type CompactToolDefinitionForWireOptions,

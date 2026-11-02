@@ -40,6 +40,7 @@ export type ToolIconId =
   | 'diff' // diff — comparing changes
   | 'logs' // logs — log viewing
   | 'settings' // set-working-dir — configuration
+  | 'brain' // memory and agent reasoning
   | 'fallback'; // unknown tool — fallback icon
 
 export interface JSONSchema {
@@ -107,6 +108,20 @@ export type ToolStreamEvent<O = unknown> = ToolProgressEvent | ToolFinalEvent<O>
 export interface Tool<I = unknown, O = unknown> {
   name: string;
   description: string;
+  /** Backward-compatible names; never create extra provider schemas. */
+  aliases?: readonly string[] | undefined;
+  /** Host-side lifecycle metadata, available through discovery. */
+  deprecated?: { since: string; replacedBy: string; removeAfter?: string | undefined } | undefined;
+  /** Intended exposure; hosts may narrow it further for a session or profile. */
+  exposure?: import('./runtime-capability-manifest.js').RuntimeCapabilityExposure | undefined;
+  /** Advisory prerequisites, still validated at execution time. */
+  preconditions?: readonly string[] | undefined;
+  /** Repetition has no additional effect; does not authorize automatic retries. */
+  idempotent?: boolean | undefined;
+  /** Safe to repeat after an ambiguous timeout; unknown by default. */
+  retrySafe?: boolean | undefined;
+  /** Advisory only; actual spend remains governed by host budgets. */
+  cost?: { kind: 'local' | 'network' | 'paid'; fanOut?: boolean | undefined } | undefined;
   /**
    * Pre-computed token estimate for this tool's definition (name +
    * description + JSON-serialized inputSchema). Set by ToolRegistry on

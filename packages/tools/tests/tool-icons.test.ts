@@ -55,7 +55,7 @@ describe('tool-icons', () => {
     expect(getToolIcon('str_replace')).toBe('edit');
     expect(getToolIcon('ripgrep')).toBe('search');
     expect(getToolIcon('find')).toBe('search');
-    expect(getToolIcon('set_working_dir')).toBe('folder');
+    expect(getToolIcon('set_working_dir')).toBe('settings');
     expect(getToolIcon('web_search')).toBe('web');
     expect(getToolIcon('tool_use')).toBe('meta');
     expect(getToolIcon('batch_tool_use')).toBe('meta');

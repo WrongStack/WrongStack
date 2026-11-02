@@ -11,7 +11,9 @@ import {
   applyToolDescriptionModeToTool,
   normalizeToolDescriptionMode,
 } from '../utils/tool-description-mode.js';
-import type { ToolRegistration, ToolWrapper } from './tool-registry-types.js';
+import { projectToolCatalogEntry, toolContractIssues } from './tool-catalog.js';
+import { ToolRegistryStorage } from './tool-registry-storage.js';
+import type { ToolWrapper } from './tool-registry-types.js';
 import {
   isRestrictedBy,
   LAZY_TOOL_GATEWAYS,
@@ -22,8 +24,7 @@ import {
 
 export type { ToolWrapper } from './tool-registry-types.js';
 
-export class ToolRegistry {
-  private readonly tools = new Map<string, ToolRegistration>();
+export class ToolRegistry extends ToolRegistryStorage {
   private readonly descriptionModes = new Map<string, ToolDescriptionMode>();
   /**
    * Disabled tool names plus the audit-trail metadata explaining WHY each
@@ -40,8 +41,6 @@ export class ToolRegistry {
    * auto-thinning pipeline.
    */
   private _events: EventBus | undefined;
-  /** Monotonic version bumped on every registry mutation. */
-  private _version = 0;
   /** Cached `list()` result, frozen after build. Invalidated on _version change. */
   private _listSnapshot: readonly Tool[] | undefined;
   private _listSnapshotVersion = -1;
@@ -73,14 +72,15 @@ export class ToolRegistry {
   private _restriction: ToolRestriction | undefined;
 
   /** Pre-compute tool definition token estimate once at registration time. */
-  private _stampDefTokens(tool: Tool): void {
+  protected _stampDefTokens(tool: Tool): void {
     if (tool._estDefTokens === undefined) {
       tool._estDefTokens = estimateToolDefTokens(tool);
     }
   }
 
   /** Apply the description mode transform and stamp token estimates. */
-  private _prepareForStorage(tool: Tool): Tool {
+  protected _prepareForStorage(tool: Tool): Tool {
+    this.validateAliases(tool);
     const mode = this.descriptionModes.get(tool.name) ?? 'extend';
     return applyToolDescriptionModeToTool(tool, mode);
   }
@@ -108,7 +108,7 @@ export class ToolRegistry {
 
     const stored = this._prepareForStorage(tool);
     this._stampDefTokens(stored);
-    this.tools.set(tool.name, { tool: stored, owner });
+    this.storeRegistration(tool.name, { tool: stored, owner });
     this._version++;
   }
 
@@ -118,66 +118,27 @@ export class ToolRegistry {
     return this.removeRegistration(tool.name, this.tools.get(tool.name)!);
   }
 
-  private removeRegistration(name: string, registration: ToolRegistration): () => void {
-    return () => {
-      if (registration.removed) return;
-      registration.removed = true;
-      const layers: ToolRegistration[] = [];
-      let current = this.tools.get(name);
-      let found = false;
-      while (current) {
-        layers.push(current);
-        if (current === registration) found = true;
-        current = current.previous;
-      }
-      if (!found) return;
-      let base: ToolRegistration | undefined;
-      for (const layer of layers.reverse()) {
-        if (layer.removed) continue;
-        if (!layer.wrapper) {
-          base = layer;
-          continue;
-        }
-        if (!base) continue;
-        let wrapped: Tool;
-        try {
-          wrapped = this._prepareForStorage(
-            layer.wrapper(applyToolDescriptionModeToTool(base.tool, 'extend')),
-          );
-        } catch (error) {
-          // A broken surviving decorator must not leave unloaded code callable.
-          this.tools.delete(name);
-          this._version++;
-          throw error;
-        }
-        wrapped._estDefTokens = undefined;
-        this._stampDefTokens(wrapped);
-        layer.tool = wrapped;
-        layer.owner = `${base.owner}+${layer.wrapperOwner}`;
-        layer.previous = base;
-        base = layer;
-      }
-      if (base) this.tools.set(name, base);
-      else this.tools.delete(name);
-      this._version++;
-    };
-  }
-
   /**
    * Attempt to register a tool. Returns true if successful, false if a tool
    * with the same name is already registered. Useful in multi-agent or plugin
    * scenarios where duplicate registration may be intentional.
    */
   tryRegister(tool: Tool, owner = 'core'): boolean {
-    if (this.tools.has(tool.name)) return false;
+    if (this.tools.has(tool.name) || this.resolveName(tool.name) !== tool.name) return false;
 
     if (!tool.inputSchema || typeof tool.inputSchema !== 'object') {
       return false; // silently reject invalid schema in tryRegister
     }
 
+    try {
+      this.validateAliases(tool);
+    } catch {
+      return false;
+    }
+
     const stored = this._prepareForStorage(tool);
     this._stampDefTokens(stored);
-    this.tools.set(tool.name, { tool: stored, owner });
+    this.storeRegistration(tool.name, { tool: stored, owner });
     this._version++;
     return true;
   }
@@ -205,15 +166,16 @@ export class ToolRegistry {
    * plugin) takes precedence. Use `override` to intentionally replace.
    */
   registerDefault(tool: Tool, owner = 'core'): void {
-    if (this.tools.has(tool.name)) return;
+    if (this.tools.has(tool.name) || this.resolveName(tool.name) !== tool.name) return;
     const stored = this._prepareForStorage(tool);
     this._stampDefTokens(stored);
-    this.tools.set(tool.name, { tool: stored, owner });
+    this.storeRegistration(tool.name, { tool: stored, owner });
     this._version++;
   }
 
   unregister(name: string): boolean {
-    const deleted = this.tools.delete(name);
+    name = this.resolveName(name);
+    const deleted = this.deleteRegistration(name);
     if (deleted) this._version++;
     return deleted;
   }
@@ -223,6 +185,8 @@ export class ToolRegistry {
    * Plugins use this to replace built-in tools with custom implementations.
    */
   override(name: string, tool: Tool, owner = 'core'): void {
+    name = this.resolveName(name);
+    if (tool.name !== name) throw new Error('An override must preserve the canonical tool name');
     if (!this.tools.has(name)) {
       throw new WrongStackError({
         message: `Tool "${name}" not registered; cannot override`,
@@ -233,7 +197,7 @@ export class ToolRegistry {
     }
     const stored = this._prepareForStorage(tool);
     this._stampDefTokens(stored);
-    this.tools.set(name, { tool: stored, owner });
+    this.storeRegistration(name, { tool: stored, owner });
     this._version++;
   }
 
@@ -249,6 +213,7 @@ export class ToolRegistry {
    * registry.wrap('bash', (t) => ({ ...t, permission: 'confirm' }));
    */
   wrap(name: string, wrapper: ToolWrapper, owner = 'core'): void {
+    name = this.resolveName(name);
     const entry = this.tools.get(name);
     if (!entry) {
       throw new WrongStackError({
@@ -259,11 +224,13 @@ export class ToolRegistry {
       });
     }
     const current = applyToolDescriptionModeToTool(entry.tool, 'extend');
-    const wrapped = this._prepareForStorage(wrapper(current));
+    const result = wrapper(current);
+    if (result.name !== name) throw new Error('A wrapper must preserve the canonical tool name');
+    const wrapped = this._prepareForStorage(result);
     // The wrapper may have changed name/description/inputSchema — recompute.
     wrapped._estDefTokens = undefined;
     this._stampDefTokens(wrapped);
-    this.tools.set(name, {
+    this.storeRegistration(name, {
       tool: wrapped,
       owner: `${entry.owner}+${owner}`,
       previous: entry,
@@ -275,11 +242,13 @@ export class ToolRegistry {
 
   /** Scoped wrappers must be pure tool decorators: removal can recompose surviving layers. */
   wrapScoped(name: string, wrapper: ToolWrapper, owner = 'core'): () => void {
+    name = this.resolveName(name);
     this.wrap(name, wrapper, owner);
     return this.removeRegistration(name, this.tools.get(name)!);
   }
 
   setDescriptionMode(name: string, mode: ToolDescriptionMode): boolean {
+    name = this.resolveName(name);
     const normalized = normalizeToolDescriptionMode(mode);
     if (!normalized) return false;
     const entry = this.tools.get(name);
@@ -300,6 +269,7 @@ export class ToolRegistry {
   }
 
   getDescriptionMode(name: string): ToolDescriptionMode {
+    name = this.resolveName(name);
     return this.descriptionModes.get(name) ?? 'extend';
   }
 
@@ -337,9 +307,16 @@ export class ToolRegistry {
 
   /** True when the launch-time restriction hides `name`. */
   isRestricted(name: string): boolean {
-    return this._restriction !== undefined
-      ? isRestrictedBy(this._restriction, name, this.tools.get(name))
-      : false;
+    name = this.resolveName(name);
+    const restriction = this._restriction;
+    if (!restriction) return false;
+    const entry = this.tools.get(name);
+    if (isRestrictedBy(restriction, name, entry)) return true;
+    // A deny of an old name must not reopen the operation under a new name.
+    const { only: _only, ...denyRestriction } = restriction;
+    return (entry?.tool.aliases ?? []).some((alias) =>
+      isRestrictedBy(denyRestriction, alias, entry),
+    );
   }
 
   private isHidden(name: string): boolean {
@@ -347,11 +324,13 @@ export class ToolRegistry {
   }
 
   get(name: string): Tool | undefined {
+    name = this.resolveName(name);
     if (this.isHidden(name)) return undefined;
     return this.tools.get(name)?.tool;
   }
 
   ownerOf(name: string): string | undefined {
+    name = this.resolveName(name);
     return this.tools.get(name)?.owner;
   }
 
@@ -382,6 +361,7 @@ export class ToolRegistry {
     reason: 'user' | 'auto-thinned' = 'user',
     meta?: { caller?: string },
   ): boolean {
+    name = this.resolveName(name);
     if (!this.tools.has(name) || this._disabled.has(name)) return false;
     // A restricted provider surface is safe only while both lazy gateways are
     // callable. If an operator explicitly disables either gateway, fail open
@@ -408,6 +388,7 @@ export class ToolRegistry {
    *          `false` if the tool was not disabled.
    */
   enable(name: string): boolean {
+    name = this.resolveName(name);
     if (!this._disabled.has(name)) return false;
     this._disabled.delete(name);
     this._version++;
@@ -447,11 +428,13 @@ export class ToolRegistry {
    * Check whether a tool is currently disabled.
    */
   isDisabled(name: string): boolean {
+    name = this.resolveName(name);
     return this._disabled.has(name);
   }
 
   /** Return the audit-trail metadata for a disabled tool, if any. */
   disabledMeta(name: string): DisabledToolMeta | undefined {
+    name = this.resolveName(name);
     return this._disabled.get(name);
   }
 
@@ -581,7 +564,6 @@ export class ToolRegistry {
 
   /** Tools serialized into provider requests and described by the system prompt. */
   listForProvider(): Tool[] {
-    if (!this._providerToolNames && !this._providerExcluded) return this.list();
     if (this._providerListSnapshot && this._version === this._providerListSnapshotVersion) {
       return this._providerListSnapshot as Tool[];
     }
@@ -592,7 +574,8 @@ export class ToolRegistry {
         ([name]) =>
           !this.isHidden(name) && (only ? only.has(name) : true) && !(excluded?.has(name) ?? false),
       )
-      .map(([, entry]) => entry.tool);
+      .map(([, entry]) => entry.tool)
+      .filter((tool) => tool.exposure !== 'internal');
     this._providerListSnapshot = arr;
     this._providerListSnapshotVersion = this._version;
     return arr;
@@ -622,7 +605,9 @@ export class ToolRegistry {
    * next provider request. Disabled and unknown tools always return false.
    */
   isExposedToProvider(name: string): boolean {
+    name = this.resolveName(name);
     if (this.isHidden(name) || !this.tools.has(name)) return false;
+    if (this.tools.get(name)?.tool.exposure === 'internal') return false;
     if (this._providerExcluded?.has(name)) return false;
     return this._providerToolNames?.has(name) ?? true;
   }
@@ -653,8 +638,22 @@ export class ToolRegistry {
       .map(([, entry]) => entry);
   }
 
+  /** Current enabled catalog, including tools registered lazily after startup. */
+  exportCatalog() {
+    return {
+      schemaVersion: 1 as const,
+      tools: this.listWithOwner()
+        .map(({ tool, owner }) => ({
+          ...projectToolCatalogEntry(tool, owner, this.isExposedToProvider(tool.name)),
+          issues: toolContractIssues(tool),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }
+
   clear(): void {
     this.tools.clear();
+    this.clearAliasIndex();
     this.descriptionModes.clear();
     this._disabled.clear();
     this._providerToolNames = undefined;
@@ -675,7 +674,7 @@ export class ToolRegistry {
     // Re-register all tools (including disabled ones — they need to be in
     // the copy's _tools map to be re-enableable later).
     for (const [name, { tool, owner }] of this.tools) {
-      copy.tools.set(name, { tool, owner });
+      copy.storeRegistration(name, { tool, owner });
     }
     // Copy the disabled map so the clone has the same visibility state
     // and audit-trail metadata.

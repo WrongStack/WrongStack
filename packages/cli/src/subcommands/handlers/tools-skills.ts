@@ -3,7 +3,7 @@ import type { SubcommandHandler } from '../contracts.js';
 
 export const toolsCmd: SubcommandHandler = async (args, deps) => {
   const verb = args[0] ?? '';
-  if (['list', 'describe', 'run', 'batch', 'agent-guide', 'serve'].includes(verb)) {
+  if (['list', 'describe', 'run', 'batch', 'agent-guide', 'serve', 'catalog'].includes(verb)) {
     const { runToolsCli } = await import('./tools-cli.js');
     return runToolsCli(verb, args.slice(1), deps);
   }

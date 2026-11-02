@@ -36,7 +36,7 @@ import {
   readSessionPermissionOverrides,
   sessionDenyUnevaluated,
 } from './session-permission-overrides.js';
-import { mergeTrustEntries } from './trust-entry.js';
+import { mergeAliasDenials, mergeTrustEntries } from './trust-entry.js';
 
 export interface PermissionExplainContext {
   policy: TrustPolicy;
@@ -114,6 +114,24 @@ export function explainPermissionTrace(
   }
   add('policy valid', false, 'auto', 'default', 'trust policy loaded successfully');
 
+  // A host prohibition wins even over queued or YOLO approvals.
+  if (tool.permission === 'deny') {
+    add(
+      'tool default deny',
+      true,
+      'deny',
+      'default',
+      `tool "${tool.name}" has permission: deny by default`,
+    );
+    return {
+      toolName: tool.name,
+      subject,
+      steps,
+      winnerIndex: steps.length - 1,
+      decision: { permission: 'deny', source: 'default', reason: 'tool default deny' },
+    };
+  }
+
   // Namespace entry resolution
   let namespaceEntry: TrustPolicy[string] | undefined;
   for (const { pattern, value } of state.wildcardEntries) {
@@ -122,7 +140,15 @@ export function explainPermissionTrace(
       break;
     }
   }
-  const entry = mergeTrustEntries(state.policy[tool.name], namespaceEntry);
+  const entry = mergeAliasDenials(
+    mergeTrustEntries(state.policy[tool.name], namespaceEntry),
+    tool,
+    (name) =>
+      mergeTrustEntries(
+        state.policy[name],
+        state.wildcardEntries.find((entry) => matchGlob(entry.pattern, name))?.value,
+      ),
+  );
   const namespaceSource = namespaceEntry
     ? `wildcard entry matched (${Object.keys(state.policy).find((k) => k.includes('*') && matchGlob(k, tool.name))})`
     : 'no namespace match';
@@ -206,24 +232,6 @@ export function explainPermissionTrace(
     'no session-level one-shot allow for this tool+subject',
   );
 
-  // 5. Tool default deny
-  if (tool.permission === 'deny') {
-    add(
-      'tool default deny',
-      true,
-      'deny',
-      'default',
-      `tool "${tool.name}" has permission: deny by default`,
-    );
-    winnerIndex = steps.length - 1;
-    return {
-      toolName: tool.name,
-      subject,
-      steps,
-      winnerIndex,
-      decision: { permission: 'deny', source: 'default', reason: 'tool default deny' },
-    };
-  }
   add(
     'tool default deny',
     false,

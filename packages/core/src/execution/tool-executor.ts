@@ -136,6 +136,9 @@ export class ToolExecutor extends ToolExecutorCore {
       // used by this call, including within a single sequential batch.
       ctx.catalogTools = this.registry.list();
       const tool = this.registry.get(use.name);
+      // Canonicalize before reachability, hooks and policy. An alias cannot
+      // create a new permission subject or widen a conversation's surface.
+      if (tool && tool.name !== use.name) use = { ...use, name: tool.name };
 
       // Registered is not the same as offered: a conversation reaches only its
       // own surface (see session-tool-reach). Both misses answer with the

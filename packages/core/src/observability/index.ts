@@ -50,6 +50,12 @@ export {
 } from './prometheus.js';
 export { redactCommand, redactCommandArgs } from './redact-command.js';
 export {
+  projectToolUsageEvents,
+  summarizeToolUsage,
+  type ToolUsageCatalogEntry,
+  type ToolUsageEvent,
+} from './tool-usage-report.js';
+export {
   type CreateToolUsageSourceDeps,
   createToolUsageSource,
   filterUnderused,

@@ -260,6 +260,7 @@ export function permissionFingerprint(tool: Tool): string {
   return JSON.stringify([
     tool.permission ?? '',
     tool.riskTier ?? '',
+    tool.aliases ?? [],
     tool.mutating ? 'm' : '',
     // WS-058 class: a permission decision now also reads Tool.writeTargets
     // (via fsWriteTargetPaths), so a registry wrap() that adds or removes the
