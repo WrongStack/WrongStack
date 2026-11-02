@@ -153,9 +153,10 @@ Consequences:
 | `/api/events` | GET | `application/json` `{events, total}` | Persisted event envelopes from `<dataDir>/events.jsonl`, newest first. `?limit=` (≤5000) and filters `?type=`, `?clientId=`, `?machineId=`, `?machineKey=` (every process on one computer: `host:<hostname>`, else `mid:<id>`), `?projectId=`, `?since=` / `?until=` (epoch ms), applied inside the scan. The panel backfills Brain / Worktrees / Mailbox from here |
 | `/api/trends/cost` | GET | `application/json` `{samples}` | 5-min-bucketed cost/token/tool-call time series (`HqTimeseriesSample[]`, with `byModel` / `byProvider` / `byProject` / `byMachine` breakdowns), `?since=` epoch-ms filter; `?projectId=` or `?machineKey=` returns that breakdown as the series (`byMachine` is keyed by machine key, so all processes on one host share one series) |
 | `/api/alerts` | GET | `application/json` `{active, history}` | Alert engine state (`?limit=`, default 100) |
-| `/api/alerts/settings` | GET / PUT | `application/json` | Thresholds and daily budgets the dashboard saved (`thresholds`, override `auth.json` `alertRules` field by field), that base (`base`), active mutes (`snoozes`) and the last 24 hours of spend in total, per project and per machine (`spend24h`). PUT `{thresholds}` needs `auth.admin`; stored in `<dataDir>/alerts-config.json` |
+| `/api/alerts/settings` | GET / PUT | `application/json` | Thresholds and daily budgets the dashboard saved (`thresholds`, including the machine-health limits `hostDiskFreePct` 0–50, `hostDiskFreeGiB` 0–100000 and `hostMemAvailablePct` 0–50, override `auth.json` `alertRules` field by field), that base (`base`), active mutes (`snoozes`) and the last 24 hours of spend in total, per project and per machine (`spend24h`). PUT `{thresholds}` needs `auth.admin`; stored in `<dataDir>/alerts-config.json` |
 | `/api/alerts/rules/:ruleId/snooze` | POST / DELETE | `application/json` | Mute one rule for `{minutes}` (at most 24 hours) or unmute it. Needs `control.enqueue`; a budget rule can be muted only while its budget is configured; persisted, so a mute survives a restart |
 | `/api/sessions/history` | GET | `application/json` `{sessions}` | Sessions that ended, newest first (`HqSessionHistoryEntry`: project, machine key, start/last activity/end, `outcome` `ended` or `lost`, cost, tokens, tool calls, agents, models). `?projectId=`, `?machineKey=`, `?limit=` (≤ 2000, default 200). Stored in `<dataDir>/session-history.jsonl` |
+| `/api/machines/health-history` | GET | `application/json` `{key, points}` | One machine's health readings, oldest first (`HqHealthPoint`: `at`, `memUsedPct`, `diskFreeBytes`, `diskTotalBytes`, `load1`, `cpuCount`). `?key=<machine key>` (required), `?hours=` (1–168, default 168). One point per machine at most every 15 minutes, kept 7 days in `<dataDir>/health-history.jsonl` |
 | `/api/notify` | GET | `application/json` | Notification settings and channels with **masked** URLs and delivery status. Needs an admin credential, like every `/api/notify*` route |
 | `/api/notify/settings` | PUT | `application/json` | `{publicUrl, approvalDelaySeconds}`: the HQ address used for links in notifications, and how long an approval or question may wait before it is pushed (0–3600 s, default 60) |
 | `/api/notify/channels` | POST | `application/json` | Add a channel: `{name, type: webhook\|slack\|discord\|ntfy, url, kinds: [alert, machine, approval, question], minSeverity}`. At most 20 |
@@ -164,6 +165,7 @@ Consequences:
 | `/api/machine-tokens` | GET / POST | `application/json` | Client tokens for machines. GET lists id, label, dates, last use and capabilities — never the secret. POST `{label, ttlDays (0 = never, default 90), allowShell}` mints one with `telemetry.publish` (plus `control.execute` when `allowShell`) and returns the secret **once**. Needs an admin credential (see below); every mint is written to `auth-audit.jsonl` |
 | `/api/machine-tokens/:id` | DELETE | `application/json` `{revoked}` | Revoke a client token; machines using it are disconnected on the next credential sweep. Needs `auth.admin`; audited |
 | `/api/machines/:key` | DELETE | `application/json` `{forgotten}` | Forget a machine HQ remembers but that has no connected client (`:key` is the URL-encoded machine key). Needs the `control.enqueue` capability; 409 while any client on it is connected (it would be learned again at once), 404 for an unknown key. Event and spend history are kept |
+| `/api/machines/:key/labels` | PUT | `application/json` `{key, labels}` | Replace a known machine's operator labels with body `{labels: string[]}` (`[]` clears them). Labels are trimmed, lower-cased, de-duplicated and sorted; at most 8, each 1–32 of `a-z 0-9 . _ -` starting with a letter or digit, otherwise 400. Needs the `control.enqueue` capability; 404 for an unknown key. Stored with the machine in `machines.json` and forgotten with it; the snapshot carries them as `machineLabels` (by machine key) |
 | `/api/projects/:projectId/kanban` | GET | `application/json` (`HqKanbanSnapshotPayload`) | Latest persisted boards and tombstones for the repository-stable project identity. Used by the read-only Kanban dashboard view |
 | `/api/sessions` | GET | `application/json` | Live sessions from the cross-process `SessionRegistry` (local machine) |
 | `/api/sessions/:id/events` | GET | `application/json` `{sessionId, source, total, entries}` | Full chat history for a terminal. Local sessions replay the JSONL from disk (`source:"disk"`, merged tool args+results); remote sessions serve the in-memory stream ring (`source:"stream"`). `?limit=` (≤5000, default 200), `?full=1` returns everything |
@@ -782,7 +784,7 @@ tabs below (`packages/hq-next/src/lib/sections.ts`).
 |---|---|---|
 | **Overview** | What needs you (the attention queue), what is running, subagent runs and their spawn budgets, projects, and system health: live link, HQ server and stores, publishers, mailbox gateways, command round-trip, client versions, MCP servers, access-token counts | `hq.snapshot`, `/api/system/health`, `/api/health/mailbox`, `/api/alerts` |
 | **Fleet · Map** | Machine → project → terminal → agent topology as a list or a graph, with search and "hide idle"; click through to the console | `hq.snapshot` |
-| **Fleet · Machines** | One card per machine: online state, clients and their release against HQ, projects, sessions, working agents, spend, MCP health, its health reading (memory, the project's disk, CPU load, uptime, WrongStack's own memory) and that machine's attention items; scope HQ to it in one click. Machines that went offline stay listed with when they were last seen and what they last ran, until forgotten | `hq.snapshot`, `DELETE /api/machines/:key` |
+| **Fleet · Machines** | One card per machine: online state, clients and their release against HQ, projects, sessions, working agents, spend, MCP health, its health reading (memory, the project's disk, CPU load, uptime, WrongStack's own memory) and that machine's attention items; scope HQ to it in one click. Labels you give a machine ("prod", "gpu") show on its card and filter the list (`?label=`). Machines that went offline stay listed with when they were last seen and what they last ran, until forgotten | `hq.snapshot`, `DELETE /api/machines/:key`, `PUT /api/machines/:key/labels` |
 | **Fleet · Projects** | One card per project across every machine it runs on: where it runs (online and offline machines), open sessions with a link to each transcript, working agents, spend, unread and open mail, the sessions that recently ended and that project's attention items; scope HQ to it in one click. A project whose clients are all gone stays listed from the machine roster; *Start a session* opens a new headless session there (see [Starting a session from HQ](#starting-a-session-from-hq)) | `hq.snapshot`, `GET /api/sessions/history?projectId=`, `POST /api/command` (`start-session`) |
 | **Fleet · Console** | A session's full transcript with the agent's model, context fill, tokens and cost; steer / FYI / queue and a confirmed interrupt to the exact client | `/api/sessions/:id/events`, `session.transcript`, `hq.command_status` |
 | **Work · Kanban** | Boards per project; move, assign and dispatch tasks (dispatch is confirmed and warns about unfinished dependencies) | `/api/projects/:projectId/kanban`, `kanban.snapshot` |
@@ -793,7 +795,7 @@ tabs below (`packages/hq-next/src/lib/sections.ts`).
 | **Telemetry · Cost / Trends / Event log / Brain** | Spend by project, session and model; cost, token and tool-call series; the persisted event log filtered by type, client, machine, project and time; Brain decisions and interventions | `hq.snapshot`, `/api/trends/cost`, `/api/events`, `brain.event` |
 | **System · Control** | Reviewed commands to **one session** (all types, typed confirmation for abort and shell) or to **several sessions** at once (see below), plus the live command audit | `POST /api/command`, `/api/commands` |
 | **System · Worktrees** | Isolated checkouts per project on a time axis; conflicts and failures first | `worktree.event` (backfilled) |
-| **System · Notifications** | Push channels (ntfy for phone push, Slack, Discord, JSON webhook) for alerts, machines going offline and coming back or running low on disk or memory, and approvals or questions left waiting; delivery status per channel; alert thresholds and daily spend budgets for the fleet, each project and each machine | `/api/notify*`, `/api/alerts/settings` |
+| **System · Notifications** | Push channels (ntfy for phone push, Slack, Discord, JSON webhook) for alerts, machines going offline and coming back or running low on disk or memory, and approvals or questions left waiting; delivery status per channel; alert thresholds (including when a machine counts as low on disk or memory) and daily spend budgets for the fleet, each project and each machine | `/api/notify*`, `/api/alerts/settings` |
 | **System · MCP** | Every MCP server each terminal runs: health, latency, failures and limit checks, failing servers first. Read-only — HQ cannot restart an MCP server | `hq.snapshot` (`mcpServers`) |
 | **System · Security** | Browser password, two-factor sign-in, sessions and the access log | `/api/auth/*` |
 
@@ -804,7 +806,7 @@ Anything that needs a person outside the scope is counted on the picker
 fleet. Trends follow the scope through the per-machine and per-project
 breakdowns the server records with every cost and tool signal (history from
 before those breakdowns existed counts fleet-wide only); alert thresholds are
-fleet-wide, while daily budgets can be set per project and per machine. The phone app (`/mobile/`: Now, Chat, Board, Mail and a read-only Fleet tab with every machine's health and needs) has its own scope, chosen under its header and stored apart from the desktop one; its badges and notifications still count the whole fleet.
+fleet-wide, while daily budgets can be set per project and per machine. The phone app (`/mobile/`: Now, Chat, Board, Mail and a read-only Fleet tab that lists every machine with its health, labels and needs, and every project with where it runs, its open sessions and what it needs) has its own scope, chosen under its header and stored apart from the desktop one; its badges and notifications still count the whole fleet.
 
 **Several sessions at once.** Control → *Several sessions* sends one steer,
 FYI, queue or abort to up to 50 selected sessions. The review lists every
@@ -881,8 +883,22 @@ sample: memory, free space on the volume holding the project, CPU load (not on
 Windows, which has none), OS uptime and the client's own memory. Machines shows
 the newest one per machine. A sample under five minutes old with the project
 disk under 5% or 2 GiB free, or memory under 5% available, raises an attention
-item and, for channels that hear about machines, one push per episode. Clients
+item and, for channels that hear about machines, one push per episode. The
+three limits are alert thresholds (`hostDiskFreePct`, `hostDiskFreeGiB`,
+`hostMemAvailablePct`; 0 turns one off), set under System → Notifications.
+The server judges each machine against them and puts the verdict on the
+snapshot (`HqMachineRecord.healthProblems`), so the dashboard and the pushes
+always agree; saving new thresholds re-judges every machine at once. Clients
 older than this release send no sample; their machines read "No reading yet".
+
+HQ also keeps one reading per machine every 15 minutes for 7 days
+(`<dataDir>/health-history.jsonl`; forgetting a machine drops its readings).
+Below the current reading, Machines shows the last 7 days: how free space on
+the project disk and memory in use moved, as small lines plus the change in
+words, and — when the disk is filling — when it runs out at the current rate
+("At this rate the project disk is full in about 3 days"). The projection
+needs at least 6 hours of readings, uses a least-squares slope rather than
+first-vs-last, and is shown only within 60 days.
 
 Panel source: `packages/hq-next/` (screens under `src/features/`, the phone app
 under `src/app/mobile/`, the shared store, transport and transcript layer under

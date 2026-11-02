@@ -29,6 +29,7 @@
  */
 import { HqKanbanStore } from './kanban-store.js';
 import { HqEventLog } from './persistence/event-log.js';
+import { HqHealthHistory } from './persistence/health-history.js';
 import { HqMachineRoster } from './persistence/machine-roster.js';
 import { HqSessionHistory } from './persistence/session-history.js';
 import { HqSimpleLog } from './persistence/simple-log.js';
@@ -42,10 +43,12 @@ export {
   HqEventLog,
   hqEventLogPresetFields,
 } from './persistence/event-log.js';
+export { HqHealthHistory, type HqHealthPoint } from './persistence/health-history.js';
 export {
   HqMachineRoster,
   type HqMachineRosterOptions,
   hqMachineKey,
+  parseHqMachineLabels,
 } from './persistence/machine-roster.js';
 export {
   HqSessionHistory,
@@ -75,6 +78,8 @@ export interface HqPersistence {
   machines: HqMachineRoster;
   /** Sessions that ended, with their final figures (`session-history.jsonl`). */
   sessionHistory: HqSessionHistory;
+  /** Machine health readings over the last 7 days (`health-history.jsonl`). */
+  healthHistory: HqHealthHistory;
 }
 
 export function createHqPersistence(dataDir: string): HqPersistence {
@@ -100,5 +105,6 @@ export function createHqPersistence(dataDir: string): HqPersistence {
     }),
     machines: new HqMachineRoster({ dataDir }),
     sessionHistory: new HqSessionHistory({ dataDir }),
+    healthHistory: new HqHealthHistory({ dataDir }),
   };
 }

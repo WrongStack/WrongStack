@@ -510,6 +510,41 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
         await detail.getByRole('link', { name: /short of memory/ }).getAttribute('href'),
       ).toMatch(/^\/mobile\/\?item=host-memory/);
 
+      // Projects, the Fleet tab's second list: the project opens in place and
+      // its links stay inside the installed app.
+      await page
+        .getByRole('navigation', { name: 'Fleet lists' })
+        .getByRole('link', { name: 'Projects' })
+        .click();
+      await page.waitForURL(/\/mobile\/fleet\/projects\//);
+      expect(
+        await page
+          .getByRole('navigation', { name: 'Sections' })
+          .getByRole('link', { name: 'Fleet' })
+          .getAttribute('aria-current'),
+      ).toBe('page');
+      const project = page.locator('[data-mobile-project="mobile-project"]');
+      await project.waitFor({ timeout: 10_000 });
+      expect(await page.getByTestId('mobile-projects-headline').textContent()).toBe(
+        '1 of 1 project with a session open',
+      );
+      expect(await project.textContent()).toContain('Mobile Project');
+      await project.click();
+      await expect
+        .poll(() => new URL(page.url()).searchParams.get('project'))
+        .toBe('mobile-project');
+      const projectDetail = page.getByTestId('mobile-project-detail');
+      expect(
+        await projectDetail
+          .getByRole('link', { name: /VPS-MOBILE/ })
+          .first()
+          .getAttribute('href'),
+      ).toMatch(/^\/mobile\/fleet\/\?machine=host%3Avps-mobile/);
+      expect(
+        await projectDetail.getByRole('link', { name: 'Open its board' }).getAttribute('href'),
+      ).toBe('/mobile/board/?project=mobile-project');
+      await shot('03d-projects');
+
       // Board: move, assign and (after confirming) dispatch from the phone.
       await page
         .getByRole('navigation', { name: 'Sections' })
@@ -610,6 +645,7 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
         '/mobile/board/',
         '/mobile/mail/',
         '/mobile/fleet/',
+        '/mobile/fleet/projects/',
       ]) {
         await page.goto(`http://127.0.0.1:${handle.port}${route}`);
         await page.waitForSelector('[data-testid="hq-mobile"]');

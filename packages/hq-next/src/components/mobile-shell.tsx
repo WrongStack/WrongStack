@@ -215,7 +215,10 @@ function SignedInShell({ children }: { children: ReactNode }): ReactNode {
           className="grid shrink-0 grid-cols-5 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]"
         >
           {TABS.map((tab) => {
-            const active = pathname === tab.href;
+            // Fleet holds two lists; its tab stays lit on both.
+            const active =
+              pathname === tab.href ||
+              (tab.href === '/mobile/fleet/' && pathname.startsWith(tab.href));
             const count = tab.badge === null ? 0 : counts[tab.badge];
             const Icon = tab.icon;
             return (

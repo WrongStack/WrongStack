@@ -27,6 +27,8 @@ const LAST_SEEN_PERSIST_MS = 60_000;
 const MAX_PROJECTS_PER_MACHINE = 20;
 const MAX_IDS_PER_MACHINE = 20;
 const MAX_TEXT = 255;
+const MAX_LABELS_PER_MACHINE = 8;
+const LABEL_PATTERN = /^[a-z0-9][a-z0-9._-]{0,31}$/;
 
 /**
  * The machine key the snapshot groups by: the hostname when known, so every
@@ -41,6 +43,25 @@ export interface HqMachineRosterOptions {
   dataDir: string;
   retentionMs?: number;
   maxMachines?: number;
+}
+
+/**
+ * Operator labels in their stored form: trimmed, lower-case, unique, sorted.
+ * Null when any label is not 1–32 of `a-z 0-9 . _ -` (starting with a letter
+ * or digit) or there are more than eight: the caller says what was wrong
+ * instead of silently dropping what the operator typed.
+ */
+export function parseHqMachineLabels(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const labels = new Set<string>();
+  for (const item of raw) {
+    if (typeof item !== 'string') return null;
+    const label = item.trim().toLowerCase();
+    if (!LABEL_PATTERN.test(label)) return null;
+    labels.add(label);
+  }
+  if (labels.size > MAX_LABELS_PER_MACHINE) return null;
+  return [...labels].sort();
 }
 
 function clip(value: string): string {
@@ -81,9 +102,14 @@ function parseEntry(raw: unknown): HqKnownMachine | null {
     machineIds: machineIds.slice(0, MAX_IDS_PER_MACHINE),
     projects: projects.slice(0, MAX_PROJECTS_PER_MACHINE),
     ...(typeof entry.lastVersion === 'string' ? { lastVersion: clip(entry.lastVersion) } : {}),
+    ...labelsField(parseHqMachineLabels(entry.labels) ?? []),
     firstSeenAt,
     lastSeenAt,
   };
+}
+
+function labelsField(labels: readonly string[]): { labels?: readonly string[] } {
+  return labels.length > 0 ? { labels } : {};
 }
 
 /** What a live snapshot says about one machine. */
@@ -235,6 +261,7 @@ export class HqMachineRoster {
           .map(([projectId, name]) => ({ projectId: clip(projectId), projectName: clip(name) }))
           .slice(-MAX_PROJECTS_PER_MACHINE),
         ...(lastVersion !== undefined ? { lastVersion: clip(lastVersion) } : {}),
+        ...labelsField(previous?.labels ?? []),
         firstSeenAt: previous?.firstSeenAt ?? seenAt,
         lastSeenAt:
           previous !== undefined && previous.lastSeenAt > seenAt ? previous.lastSeenAt : seenAt,
@@ -292,6 +319,28 @@ export class HqMachineRoster {
     if (!this.machines.delete(key)) return 'unknown';
     this.persist(now);
     return 'forgotten';
+  }
+
+  /**
+   * Replace a known machine's labels (already parsed by
+   * `parseHqMachineLabels`); an empty list clears them.
+   */
+  setLabels(key: string, labels: readonly string[], now: number = Date.now()): 'saved' | 'unknown' {
+    const entry = this.machines.get(key);
+    if (entry === undefined) return 'unknown';
+    const { labels: _previous, ...rest } = entry;
+    this.machines.set(key, { ...rest, ...labelsField(labels) });
+    this.persist(now);
+    return 'saved';
+  }
+
+  /** Labels by machine key, labelled machines only. */
+  labelMap(): Record<string, readonly string[]> {
+    const map: Record<string, readonly string[]> = {};
+    for (const entry of this.machines.values()) {
+      if (entry.labels !== undefined && entry.labels.length > 0) map[entry.key] = entry.labels;
+    }
+    return map;
   }
 
   /** Resolves once queued writes settled. For tests and shutdown. */

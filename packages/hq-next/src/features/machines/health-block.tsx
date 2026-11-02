@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 import { relativeTime } from '@/features/attention/model';
 import { cn } from '@/lib/cn';
 import { healthFacts, isFresh, platformLabel } from './health';
+import { HealthHistory } from './health-history';
 import type { MachineSummary } from './model';
 
 export function HealthBlock({ machine, now }: { machine: MachineSummary; now: number }): ReactNode {
@@ -31,7 +32,7 @@ export function HealthBlock({ machine, now }: { machine: MachineSummary; now: nu
         </p>
       ) : (
         <dl className="grid gap-3 sm:grid-cols-2">
-          {healthFacts(health, now).map((fact) => (
+          {healthFacts(health, machine.healthProblems).map((fact) => (
             <div key={fact.label} className="flex flex-col gap-1">
               <dt className="text-xs text-muted-foreground">{fact.label}</dt>
               <dd className={cn('tabular text-sm', fact.warn && 'font-semibold text-warning')}>
@@ -49,6 +50,7 @@ export function HealthBlock({ machine, now }: { machine: MachineSummary; now: nu
           ))}
         </dl>
       )}
+      <HealthHistory machineKey={machine.key} />
     </div>
   );
 }

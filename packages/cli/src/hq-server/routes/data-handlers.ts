@@ -2,15 +2,16 @@ import type * as http from 'node:http';
 import type {
   createHqPersistence,
   HqEventEnvelope,
+  HqHealthHistory,
   HqMachineRoster,
   HqTimeseriesSample,
 } from '@wrongstack/hq';
-import { scopeTimeseriesSamples } from '@wrongstack/hq';
+import { parseHqMachineLabels, scopeTimeseriesSamples } from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 import { authenticateBrowserRequest, hqAuthRequired } from '../auth.js';
 import * as HqServerSnapshot from '../snapshot.js';
 import type { ConnectedClient, HqRouterMutableAuth, HqSessionEntry } from '../types.js';
-import { decodePathSegment, hqMachineKey } from '../utils.js';
+import { decodePathSegment, hqMachineKey, readRequestBody, writeInvalidBody } from '../utils.js';
 import { callerCanEnqueue } from './mailbox-handlers.js';
 
 const rawMachineIdOf = (client: ConnectedClient): string =>
@@ -48,6 +49,8 @@ export function handleApiForgetMachine(
     mutableAuth: HqRouterMutableAuth;
     sessions: Map<string, HqSessionEntry>;
     roster: HqMachineRoster;
+    /** Its readings go with it. */
+    healthHistory?: HqHealthHistory | undefined;
     /** Rebuilds the snapshot, so the roster's live set is current. */
     refresh: () => unknown;
     onChanged?: (() => void) | undefined;
@@ -84,8 +87,107 @@ export function handleApiForgetMachine(
     writeJson(res, 404, { error: 'machine not known', key });
     return;
   }
+  deps.healthHistory?.forget(key);
   deps.onChanged?.();
   writeJson(res, 200, { forgotten: key });
+}
+
+/**
+ * `PUT /api/machines/:key/labels` with `{ labels: string[] }` — replace the
+ * labels of a machine HQ knows (connected or offline); `[]` clears them. Same
+ * capability as forgetting one (`control.enqueue`): it changes what every
+ * operator sees, nothing on the machine itself.
+ */
+export async function handleApiMachineLabels(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  url: URL,
+  rawKey: string,
+  deps: {
+    mutableAuth: HqRouterMutableAuth;
+    sessions: Map<string, HqSessionEntry>;
+    roster: HqMachineRoster;
+    /** Rebuilds the snapshot, so a machine seen a moment ago is known. */
+    refresh: () => unknown;
+    onChanged?: (() => void) | undefined;
+  },
+): Promise<void> {
+  if (req.method !== 'PUT') {
+    writeJson(res, 405, { error: 'method not allowed' });
+    return;
+  }
+  const auth = authenticateBrowserRequest(req, url, deps.mutableAuth, deps.sessions);
+  if (hqAuthRequired(deps.mutableAuth) && !auth) {
+    writeJson(res, 401, { error: 'unauthorized' });
+    return;
+  }
+  if (!callerCanEnqueue(auth, deps.mutableAuth)) {
+    writeJson(res, 403, { error: 'forbidden: token lacks control.enqueue capability' });
+    return;
+  }
+  let key: string | null;
+  try {
+    key = decodeURIComponent(rawKey);
+  } catch {
+    key = null;
+  }
+  if (key === null || key.length > 300 || !/^(host|mid):[^\u0000-\u001f]+$/.test(key)) {
+    writeJson(res, 400, { error: { code: 'VALIDATION_ERROR', message: 'Invalid machine key.' } });
+    return;
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(await readRequestBody(req));
+  } catch (error) {
+    writeInvalidBody(res, error);
+    return;
+  }
+  const labels = parseHqMachineLabels(
+    typeof body === 'object' && body !== null ? (body as { labels?: unknown }).labels : undefined,
+  );
+  if (labels === null) {
+    writeJson(res, 400, {
+      error: {
+        code: 'VALIDATION_ERROR',
+        message:
+          'Labels must be a list of at most 8, each 1-32 of a-z, 0-9, ".", "_" or "-", starting with a letter or digit.',
+      },
+    });
+    return;
+  }
+  deps.refresh();
+  if (deps.roster.setLabels(key, labels) === 'unknown') {
+    writeJson(res, 404, { error: 'machine not known', key });
+    return;
+  }
+  deps.onChanged?.();
+  writeJson(res, 200, { key, labels });
+}
+
+/**
+ * `GET /api/machines/health-history?key=<machine key>&hours=<1..168>` — one
+ * machine's health readings, oldest first (default the last 7 days). True when
+ * handled.
+ */
+export function handleApiHealthHistory(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  url: URL,
+  persistence: ReturnType<typeof createHqPersistence>,
+): boolean {
+  if (url.pathname !== '/api/machines/health-history' || req.method !== 'GET') return false;
+  const key = url.searchParams.get('key') ?? '';
+  if (key.length === 0 || key.length > 300 || !/^(host|mid):[^\u0000-\u001f]+$/.test(key)) {
+    writeJson(res, 400, { error: { code: 'VALIDATION_ERROR', message: 'Invalid machine key.' } });
+    return true;
+  }
+  const hours = Number.parseInt(url.searchParams.get('hours') ?? '168', 10);
+  const window = Math.min(168, Math.max(1, Number.isFinite(hours) ? hours : 168));
+  writeJson(res, 200, {
+    key,
+    points: persistence.healthHistory.points(key, Date.now() - window * 60 * 60_000),
+  });
+  return true;
 }
 
 /**

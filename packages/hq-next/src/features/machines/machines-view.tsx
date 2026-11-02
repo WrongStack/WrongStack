@@ -19,12 +19,15 @@ import { useAttentionQueue } from '@/features/attention/use-attention-queue';
 import { cn } from '@/lib/cn';
 import { setFleetScope, useFleetScope } from '@/lib/use-scope';
 import { HealthBlock } from './health-block';
+import { LabelChips, LabelFilter, MachineLabelsEditor } from './machine-labels';
 import { MachineTokensPanel } from './machine-tokens-panel';
 import {
+  labelCounts,
   type MachineClient,
   type MachineSummary,
   machineSentence,
   machineSummaries,
+  machinesWithLabel,
 } from './model';
 import { RememberedMachineDetail } from './remembered-machine';
 
@@ -53,8 +56,20 @@ export function MachinesView(): ReactNode {
   // even while HQ is scoped to another machine.
   const { items, outside } = useAttentionQueue();
   const all = useMemo(() => [...items, ...outside], [items, outside]);
-  const machines = useMemo(() => machineSummaries(snapshot, all), [snapshot, all]);
+  const everyMachine = useMemo(() => machineSummaries(snapshot, all), [snapshot, all]);
+  const counts = useMemo(() => labelCounts(everyMachine), [everyMachine]);
+  const labelParam = params.get('label');
+  const label = counts.some((entry) => entry.label === labelParam) ? labelParam : null;
+  const machines = machinesWithLabel(everyMachine, label);
   const now = useNow();
+  const hrefFor = (next: string | null): string => {
+    const query = new URLSearchParams(params.toString());
+    if (next === null) query.delete('label');
+    else query.set('label', next);
+    query.delete('machine');
+    const text = query.toString();
+    return text ? `${pathname}?${text}` : pathname;
+  };
 
   const open = machines.find((machine) => machine.key === params.get('machine')) ?? machines[0];
 
@@ -77,7 +92,8 @@ export function MachinesView(): ReactNode {
       <header className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="font-display text-2xl font-semibold" data-testid="machines-headline">
-            {online} of {machines.length} machine{machines.length === 1 ? '' : 's'} online
+            {online} of {machines.length} {label === null ? '' : `${label} `}machine
+            {machines.length === 1 ? '' : 's'} online
           </h2>
           <p className="text-base text-muted-foreground">
             {machines.reduce((sum, machine) => sum + machine.sessions, 0)} sessions ·{' '}
@@ -89,6 +105,8 @@ export function MachinesView(): ReactNode {
           <AddMachineButton />
         </div>
       </header>
+
+      <LabelFilter counts={counts} current={label} hrefFor={hrefFor} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
         <ul className="flex flex-col gap-2" aria-label="Machines">
@@ -132,6 +150,7 @@ export function MachinesView(): ReactNode {
                 <span className="truncate text-xs text-muted-foreground">
                   {machine.projects.map((project) => project.projectName).join(' · ')}
                 </span>
+                <LabelChips labels={machine.labels} />
               </button>
             </li>
           ))}
@@ -217,6 +236,8 @@ function MachineDetail({ machine, now }: { machine: MachineSummary; now: number 
       </dl>
 
       <HealthBlock machine={machine} now={now} />
+
+      <MachineLabelsEditor key={machine.key} machineKey={machine.key} labels={machine.labels} />
 
       {machine.attention.length > 0 && (
         <div className="flex flex-col gap-2">

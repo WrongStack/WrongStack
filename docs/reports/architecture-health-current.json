@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T12:58:13.969Z",
+  "generatedAt": "2026-11-02T13:43:30.538Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5647,
-    "testFiles": 4883,
-    "sourceLines": 1232772,
+    "sourceFiles": 5654,
+    "testFiles": 4886,
+    "sourceLines": 1234088,
     "workspaceEdges": 231,
-    "moduleEdges": 16519,
+    "moduleEdges": 16532,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -482,8 +482,8 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 71,
-      "testFiles": 49,
+      "sourceFiles": 72,
+      "testFiles": 50,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -499,15 +499,15 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 49
+          "testFiles": 50
         }
       ]
     },
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 181,
-      "testFiles": 63,
+      "sourceFiles": 187,
+      "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -524,7 +524,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 63
+          "testFiles": 65
         }
       ]
     },
@@ -13519,6 +13519,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/health-trend-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/hq/auth-revoked.test.ts",
         "projects": [
           "root-node"
@@ -13753,6 +13759,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/machine-labels-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/machines-model.test.ts",
         "projects": [
           "root-node"
@@ -13964,6 +13976,12 @@
       },
       {
         "file": "packages/hq/tests/fleet-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/health-history.test.ts",
         "projects": [
           "root-node"
         ]

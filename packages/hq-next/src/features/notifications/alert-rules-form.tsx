@@ -29,7 +29,10 @@ type NumericField =
   | 'costThresholdUsd'
   | 'staleMachineSeconds'
   | 'maxAgents'
-  | 'tokenExpiryWarningHours';
+  | 'tokenExpiryWarningHours'
+  | 'hostDiskFreePct'
+  | 'hostDiskFreeGiB'
+  | 'hostMemAvailablePct';
 
 const FIELDS: {
   field: NumericField;
@@ -72,6 +75,27 @@ const FIELDS: {
     hint: 'Empty = 24 hours; 0 = only when expired.',
     fallback: 24,
     unit: 'hours',
+  },
+  {
+    field: 'hostDiskFreePct',
+    label: 'Machine disk low below',
+    hint: 'Free space on the disk that holds the project. Empty = 5%; 0 = off.',
+    fallback: 5,
+    unit: '% free',
+  },
+  {
+    field: 'hostDiskFreeGiB',
+    label: 'Machine disk low under',
+    hint: 'Either limit raises it. Empty = 2 GB; 0 = off.',
+    fallback: 2,
+    unit: 'GB free',
+  },
+  {
+    field: 'hostMemAvailablePct',
+    label: 'Machine short of memory below',
+    hint: 'Memory the OS can still hand out. Empty = 5%; 0 = off.',
+    fallback: 5,
+    unit: '% available',
   },
 ];
 

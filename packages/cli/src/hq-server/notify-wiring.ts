@@ -92,7 +92,9 @@ export function createHqNotifyRuntime(
         const key = hqMachineKey(machine.hostname, machine.machineId);
         if (seen.has(key)) return [];
         seen.add(key);
-        return [{ key, label: label(key), health: machine.health }];
+        return [
+          { key, label: label(key), health: machine.health, problems: machine.healthProblems },
+        ];
       });
       for (const note of hostHealth.observe(observations, Date.now())) notifier.notify(note);
     },

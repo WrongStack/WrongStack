@@ -110,6 +110,14 @@ function forget(key: string): Promise<Response> {
   });
 }
 
+function label(key: string, body: unknown, method = 'PUT'): Promise<Response> {
+  return fetch(`http://127.0.0.1:${handle!.port}/api/machines/${encodeURIComponent(key)}/labels`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 const offlineKeys = (snap: HqSnapshot): string[] =>
   (snap.offlineMachines ?? []).map((machine) => machine.key);
 
@@ -134,6 +142,34 @@ describe('HQ machine roster', () => {
     handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
     const restarted = await eventually(snapshot, (snap) => offlineKeys(snap).length === 2);
     expect(offlineKeys(restarted).sort()).toEqual(['host:desk', 'host:lab-02']);
+  });
+
+  it('labels a machine, connected or not, and keeps the labels on the snapshot', async () => {
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    const ws = await connect('lab-client', 'mach-lab', 11, 'proj', 'LAB-02');
+    await snapshot();
+
+    const saved = await label('host:lab-02', { labels: ['Prod', 'gpu'] });
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toEqual({ key: 'host:lab-02', labels: ['gpu', 'prod'] });
+    expect((await snapshot()).machineLabels).toEqual({ 'host:lab-02': ['gpu', 'prod'] });
+
+    expect((await label('host:lab-02', { labels: ['no spaces'] })).status).toBe(400);
+    expect((await label('host:lab-02', { labels: 'prod' })).status).toBe(400);
+    expect((await label('host:never-seen', { labels: ['x'] })).status).toBe(404);
+    expect((await label('not-a-key', { labels: ['x'] })).status).toBe(400);
+    expect(
+      (await fetch(`http://127.0.0.1:${handle.port}/api/machines/host%3Alab-02/labels`)).status,
+    ).toBe(405);
+
+    // Offline, the labels stay, on the map and on the roster entry.
+    ws.close();
+    const after = await eventually(snapshot, (snap) => offlineKeys(snap).length > 0);
+    expect(after.machineLabels).toEqual({ 'host:lab-02': ['gpu', 'prod'] });
+    expect(after.offlineMachines?.[0]?.labels).toEqual(['gpu', 'prod']);
+
+    expect((await label('host:lab-02', { labels: [] })).status).toBe(200);
+    expect((await snapshot()).machineLabels).toBeUndefined();
   });
 
   it('forgets an offline machine and refuses a connected one', async () => {

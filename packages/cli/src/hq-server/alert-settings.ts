@@ -65,6 +65,8 @@ export function createHqAlertSettings(deps: {
   engine: HqAlertEngine;
   timeseries: HqTimeseriesStore;
   baseRules: () => HqAlertRuleConfig | undefined;
+  /** Thresholds changed (saved or loaded): health verdicts on the snapshot move. */
+  onThresholdsChanged?: (() => void) | undefined;
 }): HqAlertSettings {
   let thresholds: HqAlertRuleConfig = {};
 
@@ -121,6 +123,7 @@ export function createHqAlertSettings(deps: {
         thresholds: parsed.thresholds,
       }));
       thresholds = parsed.thresholds;
+      deps.onThresholdsChanged?.();
       return { ok: true, value: this.view() };
     },
     async snooze(ruleId, minutes) {

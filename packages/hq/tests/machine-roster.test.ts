@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { HqMachineRoster } from '../src/persistence/machine-roster.js';
+import { HqMachineRoster, parseHqMachineLabels } from '../src/persistence/machine-roster.js';
 import type { HqClientRecord, HqSnapshot } from '../src/protocol.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -107,6 +107,39 @@ describe('HqMachineRoster', () => {
     expect(roster.forget('host:lab', T0 + 1)).toBe('forgotten');
     expect(roster.forget('host:lab', T0 + 1)).toBe('unknown');
     expect(roster.offline(T0 + 1)).toEqual([]);
+  });
+
+  it('keeps operator labels across sightings, restarts and a clear', async () => {
+    const first = new HqMachineRoster({ dataDir });
+    first.observe(snapshot(T0, [client({ clientId: 'a', hostname: 'lab' })]), T0);
+    expect(first.setLabels('host:lab', ['gpu', 'prod'], T0)).toBe('saved');
+    expect(first.setLabels('host:nowhere', ['gpu'], T0)).toBe('unknown');
+    // A later sighting from the client does not wipe what the operator set.
+    first.observe(snapshot(T0 + 1, [client({ clientId: 'a', hostname: 'lab' })]), T0 + 1);
+    expect(first.labelMap()).toEqual({ 'host:lab': ['gpu', 'prod'] });
+    await first.drain();
+
+    const second = new HqMachineRoster({ dataDir });
+    await second.load(T0 + 5_000);
+    expect(second.offline(T0 + 5_000)[0]?.labels).toEqual(['gpu', 'prod']);
+    second.setLabels('host:lab', [], T0 + 5_000);
+    expect(second.labelMap()).toEqual({});
+    expect(second.offline(T0 + 5_000)[0]).not.toHaveProperty('labels');
+  });
+
+  it('accepts labels only in their stored form, and says no rather than dropping one', () => {
+    expect(parseHqMachineLabels([' Prod ', 'gpu', 'prod', 'eu-west.1'])).toEqual([
+      'eu-west.1',
+      'gpu',
+      'prod',
+    ]);
+    expect(parseHqMachineLabels([])).toEqual([]);
+    expect(parseHqMachineLabels('prod')).toBeNull();
+    expect(parseHqMachineLabels(['two words'])).toBeNull();
+    expect(parseHqMachineLabels(['-dash-first'])).toBeNull();
+    expect(parseHqMachineLabels(['a'.repeat(33)])).toBeNull();
+    expect(parseHqMachineLabels([1])).toBeNull();
+    expect(parseHqMachineLabels(Array.from({ length: 9 }, (_, i) => `l${i}`))).toBeNull();
   });
 
   it('survives a restart through machines.json', async () => {

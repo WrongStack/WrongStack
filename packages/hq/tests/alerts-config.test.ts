@@ -7,6 +7,7 @@ import {
   HQ_ALERTS_CONFIG_VERSION,
   hqAlertsConfigFilePath,
   mutateHqAlertsConfig,
+  parseHqAlertThresholds,
   readHqAlertsConfig,
   writeHqAlertsConfig,
 } from '../src/index.js';
@@ -130,5 +131,19 @@ describe('alerts-config persistence (W2 #13)', () => {
     // at `<dataDir>/alerts-config.json`", which is what `path.join` already
     // guarantees regardless of separator.
     expect(join('/data', 'alerts-config.json')).toBe(hqAlertsConfigFilePath('/data'));
+  });
+});
+
+describe('machine health thresholds', () => {
+  it('accepts them within bounds and refuses them outside', () => {
+    expect(
+      parseHqAlertThresholds({ hostDiskFreePct: 10, hostDiskFreeGiB: 0, hostMemAvailablePct: 3 }),
+    ).toEqual({
+      ok: true,
+      thresholds: { hostDiskFreePct: 10, hostDiskFreeGiB: 0, hostMemAvailablePct: 3 },
+    });
+    expect(parseHqAlertThresholds({ hostDiskFreePct: 51 }).ok).toBe(false);
+    expect(parseHqAlertThresholds({ hostMemAvailablePct: -1 }).ok).toBe(false);
+    expect(parseHqAlertThresholds({ hostDiskFreeGiB: '2' }).ok).toBe(false);
   });
 });

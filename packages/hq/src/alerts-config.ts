@@ -298,6 +298,9 @@ const NUMERIC_THRESHOLDS = {
   tokenExpiryWarningHours: { min: 0, max: 24 * 365 },
   throughputBudgetUsd: { min: 0, max: 1_000_000 },
   dailyBudgetUsd: { min: 0, max: 1_000_000 },
+  hostDiskFreePct: { min: 0, max: 50 },
+  hostDiskFreeGiB: { min: 0, max: 100_000 },
+  hostMemAvailablePct: { min: 0, max: 50 },
 } as const;
 
 /**

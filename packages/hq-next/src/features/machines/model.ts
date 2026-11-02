@@ -3,7 +3,7 @@
  * the snapshot, so an operator can answer "is that box healthy, what runs on
  * it, and does it need me?" without visiting five surfaces.
  */
-import type { HqClientRecord, HqSnapshot } from '@wrongstack/hq';
+import type { HqClientRecord, HqMachineRecord, HqSnapshot } from '@wrongstack/hq';
 import { belongsToMachine, machineKeyResolver } from '../../lib/scope';
 import type { AttentionItem } from '../attention/model';
 import { toMillis } from '../attention/model';
@@ -48,11 +48,25 @@ export interface MachineSummary {
   mcpFailing: number;
   /** Newest host-health sample a client here sent; absent until one arrives. */
   health: MachineHealth | undefined;
+  /** The server's verdict on `health` (thresholds are the operator's). */
+  healthProblems: readonly ('disk' | 'memory')[] | undefined;
+  /** Labels the operator gave this machine, sorted (empty when none). */
+  labels: readonly string[];
   /** Items in the attention queue that belong to this machine. */
   attention: AttentionItem[];
 }
 
 const WORKING = new Set(['running', 'streaming']);
+
+/** The newest health sample among a machine's records, with its verdict. */
+function newestHealth(
+  records: readonly HqMachineRecord[],
+): Pick<MachineSummary, 'health' | 'healthProblems'> {
+  const newest = records
+    .filter((record) => record.health !== undefined)
+    .sort((a, b) => toMillis(b.health!.reportedAt) - toMillis(a.health!.reportedAt))[0];
+  return { health: newest?.health, healthProblems: newest?.healthProblems };
+}
 
 function driftOf(client: HqClientRecord, hub: string | undefined): MachineClient['drift'] {
   if (client.version === undefined || hub === undefined) return 'unknown';
@@ -143,10 +157,8 @@ export function machineSummaries(
       mcpFailing: mcp.filter(
         (server) => server.healthState === 'failed' || server.healthState === 'degraded',
       ).length,
-      health: records
-        .map((record) => record.health)
-        .filter((health): health is MachineHealth => health !== undefined)
-        .sort((a, b) => toMillis(b.reportedAt) - toMillis(a.reportedAt))[0],
+      ...newestHealth(records),
+      labels: snapshot.machineLabels?.[key] ?? [],
       attention: attention.filter(
         (item) => item.origin !== undefined && belongsToMachine(item.origin, key, snapshot),
       ),
@@ -174,6 +186,8 @@ export function machineSummaries(
       mcpTotal: 0,
       mcpFailing: 0,
       health: undefined,
+      healthProblems: undefined,
+      labels: snapshot.machineLabels?.[known.key] ?? known.labels ?? [],
       attention: attention.filter(
         (item) => item.origin !== undefined && belongsToMachine(item.origin, known.key, snapshot),
       ),
@@ -189,6 +203,32 @@ export function machineSummaries(
       (a.online ? 0 : toMillis(b.lastSeenAt) - toMillis(a.lastSeenAt)) ||
       a.hostname.localeCompare(b.hostname),
   );
+}
+
+/** Every label in use, with how many machines carry it, by name. */
+export function labelCounts(
+  machines: readonly MachineSummary[],
+): { label: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const machine of machines) {
+    for (const label of machine.labels) counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
+ * The machines carrying `label`, or all of them for `null`. A label nobody
+ * carries any more (an old link) filters nothing out rather than everything.
+ */
+export function machinesWithLabel(
+  machines: readonly MachineSummary[],
+  label: string | null,
+): readonly MachineSummary[] {
+  if (label === null) return machines;
+  const picked = machines.filter((machine) => machine.labels.includes(label));
+  return picked.length > 0 ? picked : machines;
 }
 
 /** "3 agents working on 2 sessions", "Offline since …", "Idle". */

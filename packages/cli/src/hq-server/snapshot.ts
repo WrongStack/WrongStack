@@ -12,6 +12,8 @@ import type {
   HqEventEnvelope,
   HqFleetSnapshotPayload,
   HqFleetSummary,
+  HqHealthHistory,
+  HqHostHealthThresholds,
   HqMachineRecord,
   HqMachineRoster,
   HqMailboxSummary,
@@ -23,7 +25,7 @@ import type {
   HqSessionSummary,
   HqSnapshot,
 } from '@wrongstack/hq';
-import { summarizeCommandLatency } from '@wrongstack/hq';
+import { hqHostHealthProblems, summarizeCommandLatency } from '@wrongstack/hq';
 import { CLI_VERSION } from '../version.js';
 import { WebSocket } from '../ws-runtime.js';
 import type { ConnectedClient, HqSnapshotBroadcaster } from './types.js';
@@ -159,6 +161,10 @@ export function buildSnapshot(
     roster?: HqMachineRoster | undefined;
     /** Records sessions that left the live set. */
     history?: HqSessionHistory | undefined;
+    /** Machine health over time; folds in each live machine's newest sample. */
+    healthHistory?: HqHealthHistory | undefined;
+    /** Configured health thresholds; the verdict lands on `healthProblems`. */
+    healthThresholds?: HqHostHealthThresholds | undefined;
   },
 ): HqSnapshot {
   reapStaleClientState(clients);
@@ -407,6 +413,13 @@ export function buildSnapshot(
     )
       machine.record.health = health;
   }
+  // The server judges health against the configured thresholds, so the
+  // dashboard and the push notifications read one verdict.
+  const judgedAt = Date.now();
+  for (const { record } of machineMap.values()) {
+    const problems = hqHostHealthProblems(record.health, judgedAt, options?.healthThresholds);
+    if (problems.length > 0) record.healthProblems = problems;
+  }
 
   const machines: HqMachineRecord[] = Array.from(machineMap.values()).map((m) => ({
     ...m.record,
@@ -518,6 +531,7 @@ export function buildSnapshot(
     },
   };
   options?.history?.observe(snapshot);
+  options?.healthHistory?.observe(snapshot);
   return withOfflineMachines(snapshot, options?.roster);
 }
 
@@ -529,7 +543,12 @@ function withOfflineMachines(
   if (roster === undefined) return snapshot;
   roster.observe(snapshot);
   const offline = roster.offline();
-  return offline.length > 0 ? { ...snapshot, offlineMachines: offline } : snapshot;
+  const labels = roster.labelMap();
+  return {
+    ...snapshot,
+    ...(offline.length > 0 ? { offlineMachines: offline } : {}),
+    ...(Object.keys(labels).length > 0 ? { machineLabels: labels } : {}),
+  };
 }
 
 // ── Snapshot broadcaster ───────────────────────────────────────────────────
@@ -554,6 +573,8 @@ export function createSnapshotBroadcaster(
      * not, so dashboards always showed them as unreported.
      */
     tokenStats?: () => HqSnapshot['totals']['tokenStats'] | undefined;
+    /** Current health thresholds, read at build time. */
+    healthThresholds?: () => HqHostHealthThresholds;
   },
 ): HqSnapshotBroadcaster {
   let cached = '';
@@ -578,6 +599,8 @@ export function createSnapshotBroadcaster(
       ...(commandAudit !== undefined ? { commandAudit } : {}),
       roster: persistence?.machines,
       history: persistence?.sessionHistory,
+      healthHistory: persistence?.healthHistory,
+      healthThresholds: options?.healthThresholds?.(),
     });
     const tokenStats = options?.tokenStats?.();
     const msg: HqBrowserMessage = {
@@ -607,6 +630,8 @@ export function createSnapshotBroadcaster(
           buildSnapshot(clients, {
             roster: persistence.machines,
             history: persistence.sessionHistory,
+            healthHistory: persistence.healthHistory,
+            healthThresholds: options?.healthThresholds?.(),
           }),
         );
       }

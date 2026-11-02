@@ -7,7 +7,13 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { HqSnapshot } from '@wrongstack/hq';
-import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/hq';
+import {
+  emptyHqAlertsConfig,
+  HQ_AUTH_FILE_VERSION,
+  HQ_PROTOCOL_VERSION,
+  writeHqAlertsConfig,
+  writeHqAuthFile,
+} from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { WebSocket } from '../src/ws-runtime.js';
@@ -150,6 +156,65 @@ describe('HQ machine health', () => {
     heartbeat(second, 'lab-b', { ...HOST, diskFreeBytes: 9e9 });
     const later = await eventually(snapshot, (s) => healthOf(s, 'LAB-02')?.diskFreeBytes === 9e9);
     expect(healthOf(later, 'LAB-02')?.diskFreeBytes).toBe(9e9);
+  });
+
+  it('judges health on the server: default thresholds flag the near-full disk', async () => {
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    const ws = await connect('lab-a', 'mach-lab', 11, 'proj', 'LAB-02');
+    // 10 GB free of 500 GB is 2%: under the default 5%. Memory 25% available is fine.
+    heartbeat(ws, 'lab-a', HOST);
+    const snap = await eventually(snapshot, (s) => healthOf(s, 'LAB-02') !== undefined);
+    const lab = snap.machines?.find((machine) => machine.hostname === 'LAB-02');
+    expect(lab?.healthProblems).toEqual(['disk']);
+  });
+
+  it('follows the operator thresholds from alerts-config.json', async () => {
+    await writeHqAlertsConfig(dataDir, {
+      ...emptyHqAlertsConfig(),
+      thresholds: { hostDiskFreePct: 1, hostDiskFreeGiB: 0, hostMemAvailablePct: 30 },
+    });
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    const ws = await connect('lab-a', 'mach-lab', 11, 'proj', 'LAB-02');
+    heartbeat(ws, 'lab-a', HOST);
+    // The settings load asynchronously; the verdict follows them once read.
+    const snap = await eventually(
+      snapshot,
+      (s) =>
+        s.machines?.find((machine) => machine.hostname === 'LAB-02')?.healthProblems?.[0] ===
+        'memory',
+    );
+    // 2% free is above the 1% the operator set; 25% available is under 30%.
+    expect(snap.machines?.find((machine) => machine.hostname === 'LAB-02')?.healthProblems).toEqual(
+      ['memory'],
+    );
+  });
+
+  it('keeps a reading per machine and serves it from /api/machines/health-history', async () => {
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    const ws = await connect('lab-a', 'mach-lab', 11, 'proj', 'LAB-02');
+    heartbeat(ws, 'lab-a', HOST);
+    await eventually(snapshot, (s) => healthOf(s, 'LAB-02') !== undefined);
+    const read = async (query: string) =>
+      fetch(`http://127.0.0.1:${handle!.port}/api/machines/health-history?${query}`);
+    const history = await eventually(
+      async () => (await (await read('key=host%3Alab-02')).json()) as { points: unknown[] },
+      (body) => body.points.length > 0,
+    );
+    expect(history.points).toEqual([
+      expect.objectContaining({
+        key: 'host:lab-02',
+        memUsedPct: 75,
+        diskFreeBytes: 10e9,
+        diskTotalBytes: 500e9,
+        load1: 1.5,
+        cpuCount: 8,
+      }),
+    ]);
+    expect((await read('key=nope')).status).toBe(400);
+    expect((await read('key=host%3Aunknown')).status).toBe(200);
+    expect(
+      ((await (await read('key=host%3Aunknown')).json()) as { points: unknown[] }).points,
+    ).toEqual([]);
   });
 
   it('drops a malformed sample and keeps the client connected', async () => {

@@ -14,7 +14,7 @@
  * @module hq/notify-watchers
  */
 
-import { type HqHostHealthProblem, hqHostHealthProblems } from './host-health-verdict.js';
+import type { HqHostHealthProblem } from './host-health-verdict.js';
 import type { HqNotification } from './notifier.js';
 import type { HqEventEnvelope, HqHostHealth, HqKnownMachine } from './protocol.js';
 
@@ -86,6 +86,8 @@ export interface HqHostHealthObservation {
   key: string;
   label: string;
   health: (HqHostHealth & { reportedAt: string }) | undefined;
+  /** The server's verdict on `health` (`HqMachineRecord.healthProblems`). */
+  problems: readonly HqHostHealthProblem[] | undefined;
 }
 
 export class HqHostHealthWatch {
@@ -98,7 +100,7 @@ export class HqHostHealthWatch {
     for (const machine of machines) {
       const health = machine.health;
       if (health === undefined) continue;
-      for (const problem of hqHostHealthProblems(health, now)) {
+      for (const problem of machine.problems ?? []) {
         const id = `${machine.key}|${problem}`;
         current.add(id);
         if (this.open.has(id)) continue;

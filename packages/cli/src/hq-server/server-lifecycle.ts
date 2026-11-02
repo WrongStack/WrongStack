@@ -77,6 +77,7 @@ export function createHqServerShutdown(params: HqServerShutdownParams): () => Pr
           params.persistence.snapshotStore.drain(),
           params.persistence.machines?.drain(),
           params.persistence.sessionHistory?.drain(),
+          params.persistence.healthHistory?.drain(),
           params.persistence.timeseries.drain(),
           params.persistence.kanban.drain(),
           params.persistence.sage?.drain(),

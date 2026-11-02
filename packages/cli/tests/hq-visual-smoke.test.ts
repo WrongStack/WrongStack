@@ -57,6 +57,25 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       }),
     );
 
+    // Three days of LAB-02 readings: its project disk losing 10 GB a day.
+    fs.writeFileSync(
+      path.join(dataDir, 'health-history.jsonl'),
+      [72, 48, 24]
+        .map((hoursAgo, index) =>
+          JSON.stringify({
+            key: 'host:lab-02',
+            at: new Date(Date.now() - hoursAgo * 60 * 60_000).toISOString(),
+            memUsedPct: 55 + index * 5,
+            diskFreeBytes: (31.5 - index * 10) * 1024 ** 3,
+            diskTotalBytes: 500 * 1024 ** 3,
+            load1: 1,
+            cpuCount: 8,
+          }),
+        )
+        .join('\n')
+        .concat('\n'),
+    );
+
     let handle: HqServerHandle | null = null;
     let ws: WebSocket | null = null;
     let lab: WebSocket | null = null;
@@ -814,10 +833,35 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       expect(health).toContain('1.5 GB free of 500 GB');
       expect(health).toContain('load 1.25 on 8 cores');
       expect(health).toContain('5d 0h');
+      // The 7-day trend from the stored readings plus today's: still filling.
+      const trend = main.getByTestId('health-history');
+      await trend.waitFor({ timeout: 10_000 });
+      expect(await trend.textContent()).toContain(
+        'Free space went from 31.5 GB to 1.5 GB over 3 days.',
+      );
+      expect(await main.getByTestId('disk-full-projection').textContent()).toMatch(
+        /^At this rate the project disk is full (within a day|in about \d+ days?)\.$/,
+      );
       expect(await main.getByTestId('machine-detail').textContent()).toContain(
         'LAB-02 is low on disk space',
       );
+      // Label the lab box, then filter the list down to it.
+      const labels = main.getByTestId('machine-labels');
+      await labels.getByRole('button', { name: 'Add labels' }).click();
+      await labels.getByRole('textbox').fill('Lab, gpu');
+      await labels.getByRole('button', { name: 'Save labels' }).click();
+      await expect
+        .poll(async () => main.locator('[data-machine="host:lab-02"]').textContent())
+        .toContain('gpu');
+      expect(await labels.getByRole('button', { name: 'Edit labels' }).count()).toBe(1);
+      await main.locator('[data-label-filter="lab"]').click();
+      await expect.poll(() => main.locator('[data-machine]').count()).toBe(1);
+      expect(new URL(page.url()).searchParams.get('label')).toBe('lab');
+      expect(await main.getByTestId('machines-headline').textContent()).toBe(
+        '1 of 1 lab machine online',
+      );
       await shot('17-machines');
+      await page.goto(`${base}/fleet/machines/`);
 
       // The drift reaches the attention queue as one fleet-wide item.
       await page.goto(`${base}/`);

@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { overviewTarget, relativeTime } from '@/features/attention/model';
 import { errorText } from '@/lib/error-text';
 import { setFleetScope } from '@/lib/use-scope';
+import { MachineLabelsEditor } from './machine-labels';
 import type { MachineSummary } from './model';
 
 export function RememberedMachineDetail({
@@ -67,6 +68,8 @@ export function RememberedMachineDetail({
         was last seen, so a machine that drops out of the fleet does not just disappear. It comes
         back online as soon as a client there reconnects.
       </p>
+
+      <MachineLabelsEditor key={machine.key} machineKey={machine.key} labels={machine.labels} />
 
       <dl className="grid grid-cols-2 gap-4">
         <div className="flex flex-col">

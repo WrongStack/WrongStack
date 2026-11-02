@@ -1,20 +1,18 @@
 /**
  * Machine health in words: what the newest host-health sample a client sent
- * says about memory, the disk that holds the project, CPU load and uptime,
- * and whether any of it needs a person.
+ * says about memory, the disk that holds the project, CPU load and uptime.
+ * Whether any of it needs a person is the SERVER's verdict, judged against the
+ * operator's thresholds; this file only puts it into words.
  */
 import type { HqHostHealth } from '@wrongstack/hq';
 
 export type MachineHealth = HqHostHealth & { reportedAt: string };
 
-/** A sample older than this is shown with its age but raises nothing. */
-export const HEALTH_FRESH_MS = 5 * 60_000;
-const GIB = 1024 ** 3;
-/** Low disk: under 5% free, or under 2 GiB, whichever comes first. */
-const DISK_LOW_FRACTION = 0.05;
-const DISK_LOW_BYTES = 2 * GIB;
-/** Short of memory: under 5% of it available. */
-const MEMORY_LOW_FRACTION = 0.05;
+/** A reading older than this is shown as "not current". */
+const HEALTH_FRESH_MS = 5 * 60_000;
+
+/** The server's verdict on a machine's health (`HqMachineRecord.healthProblems`). */
+export type HealthVerdict = readonly ('disk' | 'memory')[] | undefined;
 
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return '—';
@@ -59,26 +57,24 @@ export function isFresh(health: MachineHealth, now: number): boolean {
   return Number.isFinite(at) && now - at <= HEALTH_FRESH_MS;
 }
 
-/** What in a FRESH sample needs a person. A stale sample raises nothing. */
-export function healthProblems(health: MachineHealth | undefined, now: number): HealthProblem[] {
-  if (health === undefined || !isFresh(health, now)) return [];
+/**
+ * The server's verdict, in words. The server judges against the operator's
+ * thresholds (and only fresh samples), so this never second-guesses it.
+ */
+export function healthProblems(
+  health: MachineHealth | undefined,
+  verdict: HealthVerdict,
+): HealthProblem[] {
+  if (health === undefined || verdict === undefined) return [];
   const problems: HealthProblem[] = [];
   const { diskTotalBytes: total, diskFreeBytes: free } = health;
-  if (
-    total !== undefined &&
-    free !== undefined &&
-    total > 0 &&
-    (free / total < DISK_LOW_FRACTION || free < DISK_LOW_BYTES)
-  ) {
+  if (verdict.includes('disk') && total !== undefined && free !== undefined) {
     problems.push({
       kind: 'disk',
       summary: `low on disk space (${formatBytes(free)} free of ${formatBytes(total)})`,
     });
   }
-  if (
-    health.memTotalBytes > 0 &&
-    health.memAvailableBytes / health.memTotalBytes < MEMORY_LOW_FRACTION
-  ) {
+  if (verdict.includes('memory')) {
     problems.push({
       kind: 'memory',
       summary: `short of memory (${formatBytes(health.memAvailableBytes)} available of ${formatBytes(health.memTotalBytes)})`,
@@ -95,8 +91,8 @@ export interface HealthFact {
   warn?: boolean;
 }
 
-export function healthFacts(health: MachineHealth, now: number): HealthFact[] {
-  const problems = new Set(healthProblems(health, now).map((problem) => problem.kind));
+export function healthFacts(health: MachineHealth, verdict: HealthVerdict): HealthFact[] {
+  const problems = new Set(verdict ?? []);
   const memUsed = health.memTotalBytes - health.memAvailableBytes;
   const facts: HealthFact[] = [
     {

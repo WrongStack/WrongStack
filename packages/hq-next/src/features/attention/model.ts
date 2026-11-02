@@ -264,7 +264,7 @@ export function buildAttentionItems(sources: AttentionSources): AttentionItem[] 
     if (healthChecked.has(key)) continue;
     healthChecked.add(key);
     const hostname = machine.hostname || machine.machineId;
-    for (const problem of healthProblems(machine.health, snapshotAt)) {
+    for (const problem of healthProblems(machine.health, machine.healthProblems)) {
       items.push({
         id: `host-${problem.kind}:${key}`,
         kind: 'host',

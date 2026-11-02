@@ -41,4 +41,5 @@ export function seedHqServerFromDisk(deps: {
   // Machines seen before this run: they show as offline until they return.
   void persistence.machines.load();
   void persistence.sessionHistory.load();
+  void persistence.healthHistory.load();
 }

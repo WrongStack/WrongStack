@@ -25,6 +25,7 @@ import type {
   HqSnapshot,
   HqTranscriptEntry,
 } from '@wrongstack/hq';
+import { hqHostHealthThresholds } from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 import { HQ_HTML } from '../hq-recovery-html.js';
 import { resolveHqDistDir, serveHqStatic } from '../hq-static-serve.js';
@@ -38,6 +39,8 @@ import { handleApiCommand } from './routes/command-handlers.js';
 import {
   handleApiEvents,
   handleApiForgetMachine,
+  handleApiHealthHistory,
+  handleApiMachineLabels,
   handleApiProjectDetail,
   handleApiProjectKanban,
   handleApiSessionHistory,
@@ -229,6 +232,8 @@ export function createHqRouter(
       tokenStats: getTokenStats?.(),
       roster: persistence.machines,
       history: persistence.sessionHistory,
+      healthHistory: persistence.healthHistory,
+      healthThresholds: hqHostHealthThresholds(alertSettings?.config() ?? {}),
     });
   const writeFleetSnapshot = (res: http.ServerResponse): void => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -382,6 +387,7 @@ export function createHqRouter(
 
       if (await handleApiProjectKanban(req, res, url, persistence)) return;
       if (handleApiSessionHistory(req, res, url, persistence)) return;
+      if (handleApiHealthHistory(req, res, url, persistence)) return;
 
       const machineTokens = { dataDir, applyAuthFile };
       const operator = { notifier, alertSettings, mutableAuth, sessions, machineTokens };
@@ -408,6 +414,20 @@ export function createHqRouter(
       const machineMatch = url.pathname.match(/^\/api\/machines\/([^/]+)$/);
       if (machineMatch && req.method === 'DELETE') {
         handleApiForgetMachine(req, res, url, machineMatch[1]!, {
+          mutableAuth,
+          sessions,
+          roster: persistence.machines,
+          healthHistory: persistence.healthHistory,
+          refresh: fleetSnapshot,
+          onChanged: onMachinesChanged,
+        });
+        return;
+      }
+
+      // ── Machines: operator labels ─────────────────────────────────
+      const labelsMatch = url.pathname.match(/^\/api\/machines\/([^/]+)\/labels$/);
+      if (labelsMatch) {
+        await handleApiMachineLabels(req, res, url, labelsMatch[1]!, {
           mutableAuth,
           sessions,
           roster: persistence.machines,

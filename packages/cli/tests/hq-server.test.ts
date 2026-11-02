@@ -1766,7 +1766,10 @@ describe('HQ server fleet telemetry', () => {
     handle = await startOpenHqServer({
       port,
       clientCleanupIntervalMs: 50,
-      sessionSnapshotTtlMs: 200,
+      // Long enough that a loaded machine still sees `s-dead` before it
+      // expires (200 ms flaked in the full parallel run); `s-live` refreshes
+      // every 40 ms, far inside it.
+      sessionSnapshotTtlMs: 1_000,
     });
 
     const client = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);

@@ -9,6 +9,7 @@ export type HqSurface = 'desktop' | 'mobile';
 export const MOBILE_ROUTES: readonly (readonly [desktop: string, mobile: string])[] = [
   ['/fleet/console/', '/mobile/chat/'],
   ['/fleet/machines/', '/mobile/fleet/'],
+  ['/fleet/projects/', '/mobile/fleet/projects/'],
   ['/work/mailbox/', '/mobile/mail/'],
   ['/work/', '/mobile/board/'],
   ['/inbox/', '/mobile/'],

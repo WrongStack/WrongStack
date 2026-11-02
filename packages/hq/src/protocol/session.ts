@@ -167,6 +167,11 @@ export interface HqSnapshot {
    * last-seen first (additive). Live machines are in `machines`.
    */
   offlineMachines?: readonly HqKnownMachine[];
+  /**
+   * Operator labels by machine key (`host:<lower hostname>` / `mid:<id>`), for
+   * connected and offline machines alike; only labelled machines (additive).
+   */
+  machineLabels?: Readonly<Record<string, readonly string[]>>;
   /** Live terminal sessions with their agents — the spine of the fleet tree. */
   liveSessions?: readonly HqSessionSnapshotPayload[];
   /** Latest operational health for each MCP server reported by any connected client. */

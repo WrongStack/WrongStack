@@ -12,13 +12,21 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { MobileFleetSwitch } from '@/components/mobile-fleet-switch';
 import { overviewTarget, relativeTime } from '@/features/attention/model';
 import { useAttentionQueue } from '@/features/attention/use-attention-queue';
 import { cn } from '@/lib/cn';
 import { useSurfaceHref } from '@/lib/surface';
 import { healthProblems } from './health';
 import { HealthBlock } from './health-block';
-import { type MachineSummary, machineSentence, machineSummaries } from './model';
+import { LabelChips, LabelFilter } from './machine-labels';
+import {
+  labelCounts,
+  type MachineSummary,
+  machineSentence,
+  machineSummaries,
+  machinesWithLabel,
+} from './model';
 
 function useNow(): number {
   const [now, setNow] = useState(() => Date.now());
@@ -36,9 +44,21 @@ export function MobileFleetView(): ReactNode {
   const snapshot = useHqStore((state) => state.snapshot);
   const { items, outside } = useAttentionQueue();
   const all = useMemo(() => [...items, ...outside], [items, outside]);
-  const machines = useMemo(() => machineSummaries(snapshot, all), [snapshot, all]);
+  const everyMachine = useMemo(() => machineSummaries(snapshot, all), [snapshot, all]);
+  const counts = useMemo(() => labelCounts(everyMachine), [everyMachine]);
+  const labelParam = params.get('label');
+  const label = counts.some((entry) => entry.label === labelParam) ? labelParam : null;
+  const machines = machinesWithLabel(everyMachine, label);
   const now = useNow();
   const openKey = params.get('machine');
+  const hrefFor = (next: string | null): string => {
+    const query = new URLSearchParams(params.toString());
+    if (next === null) query.delete('label');
+    else query.set('label', next);
+    query.delete('machine');
+    const text = query.toString();
+    return text ? `${pathname}?${text}` : pathname;
+  };
 
   const toggle = (key: string): void => {
     const next = new URLSearchParams(params.toString());
@@ -53,7 +73,8 @@ export function MobileFleetView(): ReactNode {
   }
   if (machines.length === 0) {
     return (
-      <div className="flex flex-col items-start gap-2 p-4">
+      <div className="flex flex-col gap-2 p-4">
+        <MobileFleetSwitch current="machines" />
         <Monitor className="size-6 text-muted-foreground" />
         <h2 className="font-display text-xl font-semibold">No machine has reported yet</h2>
         <p className="text-sm text-muted-foreground">
@@ -65,13 +86,15 @@ export function MobileFleetView(): ReactNode {
 
   const online = machines.filter((machine) => machine.online).length;
   const unhealthy = machines.filter(
-    (machine) => healthProblems(machine.health, now).length > 0,
+    (machine) => healthProblems(machine.health, machine.healthProblems).length > 0,
   ).length;
   return (
     <div className="flex flex-col gap-3 p-4">
+      <MobileFleetSwitch current="machines" />
       <header className="flex flex-col gap-0.5">
         <h2 className="font-display text-xl font-semibold" data-testid="mobile-fleet-headline">
-          {online} of {machines.length} machine{machines.length === 1 ? '' : 's'} online
+          {online} of {machines.length} {label === null ? '' : `${label} `}machine
+          {machines.length === 1 ? '' : 's'} online
         </h2>
         <p className="text-sm text-muted-foreground">
           {unhealthy === 0
@@ -79,6 +102,7 @@ export function MobileFleetView(): ReactNode {
             : `${unhealthy} low on disk or memory.`}
         </p>
       </header>
+      <LabelFilter counts={counts} current={label} hrefFor={hrefFor} />
       <ul className="flex flex-col gap-2" aria-label="Machines">
         {machines.map((machine) => (
           <MachineRow
@@ -106,7 +130,7 @@ function MachineRow({
   now: number;
 }): ReactNode {
   const href = useSurfaceHref();
-  const problems = healthProblems(machine.health, now);
+  const problems = healthProblems(machine.health, machine.healthProblems);
   const detailId = `machine-${machine.key.replace(/[^a-z0-9-]/gi, '-')}`;
   return (
     <li className={cn('border', open ? 'border-primary/60' : 'border-border')}>
@@ -145,6 +169,7 @@ function MachineRow({
               {problem.kind === 'disk' ? 'Low on disk space' : 'Short of memory'}
             </span>
           ))}
+          <LabelChips labels={machine.labels} className="mt-0.5" />
         </span>
         <ChevronDown
           aria-hidden

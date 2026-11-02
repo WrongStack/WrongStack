@@ -6,7 +6,7 @@
 import os from 'node:os';
 import { describe, expect, it } from 'vitest';
 import { collectHqHostHealth, HqHostHealthSampler } from '../src/host-health.js';
-import { hqHostHealthProblems } from '../src/host-health-verdict.js';
+import { hqHostHealthProblems, hqHostHealthThresholds } from '../src/host-health-verdict.js';
 import { HqHostHealthWatch } from '../src/notify-watchers.js';
 import type { HqHostHealth } from '../src/protocol.js';
 import { parseHqEventPayload } from '../src/protocol.js';
@@ -122,6 +122,25 @@ describe('hqHostHealthProblems', () => {
     ).toEqual([]);
     expect(hqHostHealthProblems(undefined, now)).toEqual([]);
   });
+
+  it('follows the operator thresholds, and 0 turns a check off', () => {
+    // 20 GB free of 500 GB = 4%: low by default (under 5%).
+    const sample = { ...SAMPLE, diskFreeBytes: 20e9, memAvailableBytes: 1.2e9, reportedAt: at };
+    expect(hqHostHealthProblems(sample, now)).toEqual(['disk']);
+    const relaxed = hqHostHealthThresholds({ hostDiskFreePct: 3, hostDiskFreeGiB: 0 });
+    expect(relaxed).toEqual({ diskFreePct: 3, diskFreeGiB: 0, memAvailablePct: 5 });
+    expect(hqHostHealthProblems(sample, now, relaxed)).toEqual([]);
+    const strict = hqHostHealthThresholds({ hostDiskFreeGiB: 50, hostMemAvailablePct: 10 });
+    expect(hqHostHealthProblems(sample, now, strict)).toEqual(['disk', 'memory']);
+    const off = hqHostHealthThresholds({
+      hostDiskFreePct: 0,
+      hostDiskFreeGiB: 0,
+      hostMemAvailablePct: 0,
+    });
+    expect(
+      hqHostHealthProblems({ ...sample, diskFreeBytes: 0, memAvailableBytes: 0 }, now, off),
+    ).toEqual([]);
+  });
 });
 
 describe('HqHostHealthWatch', () => {
@@ -133,7 +152,7 @@ describe('HqHostHealthWatch', () => {
   it('announces a low disk once per episode and again after recovery', () => {
     const watch = new HqHostHealthWatch();
     const lab = { key: 'host:lab-02', label: 'LAB-02' };
-    const first = watch.observe([{ ...lab, health: low }], now);
+    const first = watch.observe([{ ...lab, health: low, problems: ['disk'] }], now);
     expect(first).toHaveLength(1);
     expect(first[0]).toMatchObject({
       kind: 'machine',
@@ -143,16 +162,26 @@ describe('HqHostHealthWatch', () => {
     });
     expect(first[0]?.body).toContain('free of');
     // Still low: no repeat.
-    expect(watch.observe([{ ...lab, health: low }], now + 1_000)).toEqual([]);
+    expect(watch.observe([{ ...lab, health: low, problems: ['disk'] }], now + 1_000)).toEqual([]);
     // Recovers, then runs low again: a new episode.
-    expect(watch.observe([{ ...lab, health: ok }], now + 2_000)).toEqual([]);
-    const again = watch.observe([{ ...lab, health: low }], now + 3_000);
+    expect(watch.observe([{ ...lab, health: ok, problems: undefined }], now + 2_000)).toEqual([]);
+    const again = watch.observe([{ ...lab, health: low, problems: ['disk'] }], now + 3_000);
     expect(again).toHaveLength(1);
     expect(again[0]?.dedupeKey).not.toBe(first[0]?.dedupeKey);
   });
 
+  it('announces only what the server judged, not its own reading of the numbers', () => {
+    const watch = new HqHostHealthWatch();
+    // Numbers that look low, but the operator's thresholds say they are fine.
+    expect(
+      watch.observe([{ key: 'host:a', label: 'A', health: low, problems: undefined }], now),
+    ).toEqual([]);
+  });
+
   it('ignores machines without a reading', () => {
     const watch = new HqHostHealthWatch();
-    expect(watch.observe([{ key: 'host:x', label: 'X', health: undefined }], now)).toEqual([]);
+    expect(
+      watch.observe([{ key: 'host:x', label: 'X', health: undefined, problems: ['disk'] }], now),
+    ).toEqual([]);
   });
 });

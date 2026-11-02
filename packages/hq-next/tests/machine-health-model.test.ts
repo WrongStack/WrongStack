@@ -1,10 +1,9 @@
 /**
- * Machine health in words: byte and uptime formatting, the low-disk and
- * low-memory thresholds, staleness, the attention item it raises and the
- * newest sample winning on the machine card.
+ * Machine health in words: byte and uptime formatting, the server's verdict
+ * put into words (the dashboard never judges with thresholds of its own), the
+ * attention item it raises and the newest sample winning on the machine card.
  */
 import type { HqSnapshot } from '@wrongstack/hq';
-import { hqHostHealthProblems } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import { buildAttentionItems } from '../src/features/attention/model';
 import {
@@ -49,41 +48,33 @@ describe('formatting', () => {
 });
 
 describe('healthProblems', () => {
-  it('is quiet for a healthy machine', () => {
-    expect(healthProblems(health(), NOW)).toEqual([]);
-    expect(healthProblems(undefined, NOW)).toEqual([]);
+  it('says nothing without a verdict, whatever the numbers look like', () => {
+    expect(healthProblems(health({ diskFreeBytes: 0, memAvailableBytes: 0 }), undefined)).toEqual(
+      [],
+    );
+    expect(healthProblems(undefined, ['disk'])).toEqual([]);
   });
 
-  it('flags a disk under 5% free or under 2 GB free', () => {
-    expect(healthProblems(health({ diskFreeBytes: 20 * GIB }), NOW).map((p) => p.kind)).toEqual([
-      'disk',
-    ]);
-    // 1.5 GB of a 20 GB volume is 7.5%, still under the 2 GB floor.
+  it('puts the server verdict into words from the reading', () => {
     expect(
-      healthProblems(health({ diskTotalBytes: 20 * GIB, diskFreeBytes: 1.5 * GIB }), NOW)[0]
+      healthProblems(health({ diskTotalBytes: 20 * GIB, diskFreeBytes: 1.5 * GIB }), ['disk'])[0]
         ?.summary,
     ).toBe('low on disk space (1.5 GB free of 20 GB)');
-    // No disk reading: no disk verdict.
     expect(
-      healthProblems(health({ diskTotalBytes: undefined, diskFreeBytes: undefined }), NOW),
+      healthProblems(health({ memAvailableBytes: 0.5 * GIB }), ['memory']).map((p) => p.summary),
+    ).toEqual(['short of memory (512 MB available of 16 GB)']);
+  });
+
+  it('skips a disk verdict when the reading has no disk', () => {
+    expect(
+      healthProblems(health({ diskTotalBytes: undefined, diskFreeBytes: undefined }), ['disk']),
     ).toEqual([]);
-  });
-
-  it('flags memory under 5% available', () => {
-    expect(
-      healthProblems(health({ memAvailableBytes: 0.5 * GIB }), NOW).map((p) => p.kind),
-    ).toEqual(['memory']);
-  });
-
-  it('raises nothing from a stale reading', () => {
-    const stale = new Date(NOW - 6 * 60_000).toISOString();
-    expect(healthProblems(health({ diskFreeBytes: 0, reportedAt: stale }), NOW)).toEqual([]);
   });
 });
 
 describe('healthFacts', () => {
   it('lists memory, disk, CPU, uptime and the process, with meters', () => {
-    const facts = healthFacts(health({ diskFreeBytes: 1 * GIB }), NOW);
+    const facts = healthFacts(health({ diskFreeBytes: 1 * GIB }), ['disk']);
     expect(facts.map((fact) => fact.label)).toEqual([
       'Memory in use',
       'Project disk',
@@ -97,7 +88,9 @@ describe('healthFacts', () => {
   });
 
   it('says cores only where the OS has no load average', () => {
-    const cpu = healthFacts(health({ loadAvg1: undefined }), NOW).find((f) => f.label === 'CPU');
+    const cpu = healthFacts(health({ loadAvg1: undefined }), undefined).find(
+      (f) => f.label === 'CPU',
+    );
     expect(cpu).toEqual({ label: 'CPU', value: '8 cores' });
   });
 });
@@ -132,6 +125,15 @@ describe('attention and machine cards', () => {
         projectIds: ['p'],
         lastActivityAt: fresh,
         health: health({ diskFreeBytes: 1 * GIB, memAvailableBytes: 0.1 * GIB }),
+        healthProblems: ['disk', 'memory'],
+      },
+      {
+        // Looks low, but the operator's thresholds say it is fine.
+        machineId: 'm2',
+        hostname: 'QUIET',
+        projectIds: ['p'],
+        lastActivityAt: fresh,
+        health: health({ diskFreeBytes: 0 }),
       },
     ]);
     const items = buildAttentionItems({
@@ -159,6 +161,7 @@ describe('attention and machine cards', () => {
         projectIds: [],
         lastActivityAt: fresh,
         health: health({ reportedAt: older, diskFreeBytes: 1 }),
+        healthProblems: ['disk'],
       },
       {
         machineId: 'm1b',
@@ -171,29 +174,7 @@ describe('attention and machine cards', () => {
     const [card] = machineSummaries(snapshot, []);
     expect(card?.health?.reportedAt).toBe(fresh);
     expect(card?.health?.diskFreeBytes).toBe(100 * GIB);
-  });
-});
-
-describe('parity with the server verdict', () => {
-  it('flags exactly what the server notifies about', () => {
-    const grid: MachineHealth[] = [];
-    for (const diskFree of [0, 1 * GIB, 1.99 * GIB, 2.01 * GIB, 24 * GIB, 26 * GIB, 400 * GIB]) {
-      for (const memAvailable of [0, 0.79 * GIB, 0.81 * GIB, 8 * GIB]) {
-        for (const age of [0, 4 * 60_000, 6 * 60_000]) {
-          grid.push(
-            health({
-              diskFreeBytes: diskFree,
-              memAvailableBytes: memAvailable,
-              reportedAt: new Date(NOW - age).toISOString(),
-            }),
-          );
-        }
-      }
-    }
-    for (const sample of grid) {
-      expect(healthProblems(sample, NOW).map((problem) => problem.kind)).toEqual(
-        hqHostHealthProblems(sample, NOW),
-      );
-    }
+    // The verdict travels with its own sample, not with an older one.
+    expect(card?.healthProblems).toBeUndefined();
   });
 });

@@ -71,6 +71,15 @@ export interface HqAlertRuleConfig extends HqBudgetConfig {
    * `totalCostUsd` from the snapshot.
    */
   throughputLookbackMinutes?: number;
+  /**
+   * Machine health: a project disk under this share free (percent) is low.
+   * Default 5; 0 turns the percentage check off.
+   */
+  hostDiskFreePct?: number;
+  /** A project disk with less than this many GiB free is low. Default 2; 0 = off. */
+  hostDiskFreeGiB?: number;
+  /** Memory with less than this share available (percent) is short. Default 5; 0 = off. */
+  hostMemAvailablePct?: number;
 }
 
 /** The fully-resolved config passed to rule.evaluate (no optional fields). */

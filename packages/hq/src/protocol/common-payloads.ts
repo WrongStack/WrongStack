@@ -48,6 +48,11 @@ export interface HqMachineRecord {
   lastActivityAt: string;
   /** The newest host-health sample any client on this machine sent (additive). */
   health?: HqHostHealth & { reportedAt: string };
+  /**
+   * What in `health` needs a person, judged by the server against the
+   * configured thresholds (additive; absent when nothing does).
+   */
+  healthProblems?: readonly ('disk' | 'memory')[];
 }
 
 /**
@@ -66,6 +71,11 @@ export interface HqKnownMachine {
   projects: readonly { projectId: string; projectName: string }[];
   /** The newest WrongStack version a client on this machine reported. */
   lastVersion?: string;
+  /**
+   * Labels an operator gave this machine ("prod", "gpu"), lower-case, sorted
+   * (additive). Set from the dashboard, never by a client.
+   */
+  labels?: readonly string[];
   firstSeenAt: string;
   lastSeenAt: string;
 }

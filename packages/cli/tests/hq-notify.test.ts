@@ -188,6 +188,100 @@ describe('HQ notifications', () => {
 });
 
 describe('HQ alert settings', () => {
+  it('re-judges machine health when the admin saves new thresholds, and tells dashboards at once', async () => {
+    const frames: Array<{ machines?: Array<{ hostname?: string; healthProblems?: string[] }> }> =
+      [];
+    // Loopback: the browser socket takes its token from the query.
+    const browser = new WebSocket(`ws://127.0.0.1:${handle!.port}/ws/browser?token=${ADMIN}`);
+    sockets.push(browser);
+    browser.on('message', (raw) => {
+      const message = JSON.parse(raw.toString()) as { type: string; snapshot?: unknown };
+      if (message.type === 'hq.snapshot') frames.push(message.snapshot as (typeof frames)[number]);
+    });
+    await new Promise<void>((resolve, reject) => {
+      browser.once('open', () => resolve());
+      browser.once('error', reject);
+    });
+
+    const client = new WebSocket(`ws://127.0.0.1:${handle!.port}/ws/client?token=${CLIENT}`);
+    sockets.push(client);
+    await new Promise<void>((resolve, reject) => {
+      client.once('open', () => resolve());
+      client.once('error', reject);
+    });
+    const welcomed = new Promise<void>((resolve) => {
+      client.on('message', (raw) => {
+        if (raw.toString().includes('"hq.welcome"')) resolve();
+      });
+    });
+    client.send(
+      JSON.stringify({
+        type: 'client.hello',
+        payload: {
+          protocolVersion: HQ_PROTOCOL_VERSION,
+          client: {
+            clientId: 'lab-client',
+            kind: 'tui',
+            machineId: 'mach-lab',
+            hostname: 'LAB-02',
+            startedAt: new Date().toISOString(),
+          },
+          project: {
+            projectId: 'proj',
+            projectRoot: '/r/proj',
+            projectName: 'Datapipe',
+            machineId: 'mach-lab',
+            workspaceKind: 'git',
+          },
+          capabilities: ['telemetry.publish'],
+        },
+      }),
+    );
+    await welcomed;
+    // 10 GB free of 500 GB (2%): low under the default 5%.
+    client.send(
+      JSON.stringify({
+        type: 'client.event',
+        event: {
+          id: 'hb-1',
+          type: 'client.heartbeat',
+          schemaVersion: HQ_PROTOCOL_VERSION,
+          timestamp: new Date().toISOString(),
+          clientId: 'lab-client',
+          projectId: 'proj',
+          seq: 1,
+          payload: {
+            uptimeMs: 1,
+            status: 'idle',
+            host: {
+              platform: 'linux',
+              arch: 'x64',
+              cpuCount: 4,
+              memTotalBytes: 8e9,
+              memAvailableBytes: 4e9,
+              osUptimeSec: 60,
+              diskTotalBytes: 500e9,
+              diskFreeBytes: 10e9,
+              processRssBytes: 1e8,
+            },
+          },
+        },
+      }),
+    );
+    const lab = (frame: (typeof frames)[number] | undefined) =>
+      frame?.machines?.find((machine) => machine.hostname === 'LAB-02');
+    await until(() => lab(frames.at(-1))?.healthProblems?.[0] === 'disk');
+    expect(lab(frames.at(-1))?.healthProblems).toEqual(['disk']);
+
+    const saved = await api('/api/alerts/settings', ADMIN, 'PUT', {
+      thresholds: { hostDiskFreePct: 1, hostDiskFreeGiB: 0 },
+    });
+    expect(saved.status).toBe(200);
+    // No new heartbeat: the save itself pushes a re-judged snapshot.
+    await until(() => lab(frames.at(-1)) !== undefined && !lab(frames.at(-1))?.healthProblems);
+    expect(lab(frames.at(-1))?.healthProblems).toBeUndefined();
+  });
+
   it('saves budgets as admin only, and lets an operator snooze a rule across restarts', async () => {
     const thresholds = {
       costThresholdUsd: 75,

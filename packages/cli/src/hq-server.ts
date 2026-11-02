@@ -26,6 +26,7 @@ import {
   type HqEventEnvelope,
   type HqToken,
   type HqTranscriptEntry,
+  hqHostHealthThresholds,
   hqTokenKey,
   mintHqCookieSecret,
   mutateHqAuthFile,
@@ -327,8 +328,9 @@ async function startHqServerWithAuth(
       engine: alertEngine,
       timeseries: persistence.timeseries,
       baseRules: () => mutableAuth.alertRules,
+      onThresholdsChanged: () => snapshotBroadcaster.broadcast(),
     });
-    void alertSettings.load();
+    void alertSettings.load().then(() => snapshotBroadcaster.broadcast());
     seedHqServerFromDisk({
       persistence,
       eventLog,
@@ -351,6 +353,7 @@ async function startHqServerWithAuth(
       {
         commandAudit: () => auditLog.recent(200),
         tokenStats: () => authState.tokenStats(),
+        healthThresholds: () => hqHostHealthThresholds(alertSettings.config() ?? {}),
       },
     );
     snapshotBroadcaster.currentSerialized();
@@ -361,6 +364,8 @@ async function startHqServerWithAuth(
           tokenStats: authState.tokenStats(),
           roster: persistence.machines,
           history: persistence.sessionHistory,
+          healthHistory: persistence.healthHistory,
+          healthThresholds: hqHostHealthThresholds(alertSettings.config() ?? {}),
         });
         notify.onSnapshot(snapshot, persistence.machines);
         return snapshot;

@@ -9,6 +9,7 @@
  */
 import type {
   HqAlertRuleConfig,
+  HqHealthPoint,
   HqNotifyChannelView,
   HqNotifySettingsView,
   HqSessionHistoryEntry,
@@ -156,6 +157,21 @@ export interface CommandDispatchResult {
 export function forgetMachine(key: string): Promise<{ forgotten: string }> {
   return sendJson(`/api/machines/${encodeURIComponent(key)}`, 'forgetting the machine', {
     method: 'DELETE',
+  });
+}
+
+/**
+ * Replace a machine's operator labels (`[]` clears them). The server
+ * lower-cases, de-duplicates and validates; it answers with what it stored.
+ */
+export function setMachineLabels(
+  key: string,
+  labels: readonly string[],
+): Promise<{ key: string; labels: string[] }> {
+  return sendJson(`/api/machines/${encodeURIComponent(key)}/labels`, 'saving the labels', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ labels }),
   });
 }
 
@@ -380,6 +396,16 @@ export function revokeMachineToken(id: string): Promise<{ revoked: string }> {
   return sendJson(`/api/machine-tokens/${encodeURIComponent(id)}`, 'revoking the token', {
     method: 'DELETE',
   });
+}
+
+// ── Machine health over time (`/api/machines/health-history`) ───────────────
+
+export function fetchHealthHistory(
+  key: string,
+  hours = 168,
+): Promise<{ key: string; points: HqHealthPoint[] }> {
+  const query = new URLSearchParams({ key, hours: String(hours) });
+  return fetchJson(`/api/machines/health-history?${query.toString()}`);
 }
 
 // ── Ended sessions (`/api/sessions/history`) ────────────────────────────────

@@ -15,6 +15,9 @@ describe('surfaceHref', () => {
     expect(surfaceHref('mobile', '/fleet/machines/?machine=host%3Alab-02')).toBe(
       '/mobile/fleet/?machine=host%3Alab-02',
     );
+    expect(surfaceHref('mobile', '/fleet/projects/?project=p%201')).toBe(
+      '/mobile/fleet/projects/?project=p%201',
+    );
     expect(surfaceHref('mobile', '/work')).toBe('/mobile/board/');
     expect(surfaceHref('mobile', '/')).toBe('/mobile/');
   });
