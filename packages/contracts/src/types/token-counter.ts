@@ -1,4 +1,4 @@
-import type { Usage } from './provider.js';
+import type { Usage } from './usage.js';
 
 export interface ProviderCacheStats {
   provider: string;

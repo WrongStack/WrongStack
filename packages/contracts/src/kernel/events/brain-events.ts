@@ -1,6 +1,6 @@
 import type { BrainDecision, BrainDecisionRequest, BrainDecisionTier } from '../../types/brain.js';
 import type { Usage } from '../../types/provider.js';
-import type { BrainInterventionKind } from '../events.js';
+import type { BrainInterventionKind } from './shared-types.js';
 
 export interface BrainEventMap {
   'brain.decision_requested': {

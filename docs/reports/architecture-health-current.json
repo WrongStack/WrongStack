@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T14:59:59.399Z",
+  "generatedAt": "2026-11-02T15:07:23.383Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,23 +12,19 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5654,
+    "sourceFiles": 5657,
     "testFiles": 4886,
-    "sourceLines": 1234313,
+    "sourceLines": 1234356,
     "workspaceEdges": 231,
-    "moduleEdges": 16533,
+    "moduleEdges": 16537,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 3,
+    "typeModuleCycles": 1,
     "testsWithoutTypecheck": 187,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1034
   },
-  "errors": [
-    "ARCH-CYCLE-TYPE-05: exception expired on 2026-11-01",
-    "ARCH-CYCLE-TYPE-09: exception expired on 2026-11-01",
-    "ARCH-CYCLE-TYPE-12: exception expired on 2026-11-01"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -317,7 +313,7 @@
     {
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
-      "sourceFiles": 126,
+      "sourceFiles": 129,
       "testFiles": 4,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -1258,14 +1254,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/contracts/src/kernel/events.ts",
-          "packages/contracts/src/kernel/events/brain-events.ts",
-          "packages/contracts/src/kernel/events/session-events.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/contracts/src/types/blocks.ts",
           "packages/contracts/src/types/context.ts",
           "packages/contracts/src/types/conversation-state.ts",
@@ -1275,21 +1263,11 @@
           "packages/contracts/src/types/session-events.ts",
           "packages/contracts/src/types/session-storage.ts",
           "packages/contracts/src/types/session.ts",
-          "packages/contracts/src/types/token-counter.ts",
           "packages/contracts/src/types/tool.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/fleet/src/host.ts",
-          "packages/fleet/src/routing.ts"
         ]
       }
     ],
     "matchedExceptions": [
-      "ARCH-CYCLE-TYPE-05",
-      "ARCH-CYCLE-TYPE-09",
       "ARCH-CYCLE-TYPE-12"
     ],
     "unexcepted": []

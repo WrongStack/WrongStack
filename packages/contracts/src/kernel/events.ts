@@ -35,47 +35,9 @@ const MAX_WILDCARDS = 500;
  */
 const MAX_NAMED_LISTENERS = 2000;
 
-/** Distress signals the BrainMonitor watches. See `brain/brain-monitor.ts`. */
-export type BrainInterventionKind =
-  | 'tool_failure_streak'
-  | 'error_storm'
-  | 'agent_stall'
-  | 'file_churn';
-
-/**
- * Structural shape of a tracked agent as flushed by AgentStatusTracker. Kept
- * structural (not imported from the root `session-registry` module) so the
- * low-level kernel layer takes on no dependency on composition modules. The
- * real `AgentEntry` is assignable to this.
- */
-export interface TrackedAgentSnapshot {
-  id: string;
-  name: string;
-  startedAt?: string | undefined;
-  status: string;
-  currentTool?: string | undefined;
-  currentTask?: string | undefined;
-  taskId?: string | undefined;
-  iterations: number;
-  toolCalls: number;
-  costUsd?: number | undefined;
-  tokensIn?: number | undefined;
-  tokensOut?: number | undefined;
-  ctxPct?: number | undefined;
-  model?: string | undefined;
-  partialText?: string | undefined;
-  todos?:
-    | Array<{
-        id: string;
-        content: string;
-        status: 'pending' | 'in_progress' | 'completed';
-        activeForm?: string | undefined;
-      }>
-    | undefined;
-  latestPrompt?: string | undefined;
-  latestPromptAt?: number | undefined;
-  lastActivityAt: string;
-}
+// Leaf types the event-map modules share, kept in their own module so those
+// modules never import this one back (a type-level cycle).
+export type { BrainInterventionKind, TrackedAgentSnapshot } from './events/shared-types.js';
 
 export interface EventMap
   extends AgentEventMap,
