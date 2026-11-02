@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-02T15:07:23.383Z
+**Generated:** 2026-11-02T15:37:22.855Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 46 |
-| Production source files | 5657 |
-| Production source lines | 1234356 |
-| Test files | 4886 |
+| Production source files | 5660 |
+| Production source lines | 1234701 |
+| Test files | 4887 |
 | Workspace dependency edges | 231 |
-| Relative module edges | 16537 |
+| Relative module edges | 16545 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -43,7 +43,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
 | @wrongstack/hq | 72 | 50 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/hq-next | 187 | 65 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/hq-next | 190 | 66 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/kanban | 108 | 86 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 7 | 11 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |

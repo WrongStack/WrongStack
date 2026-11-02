@@ -408,6 +408,13 @@ export function fetchHealthHistory(
   return fetchJson(`/api/machines/health-history?${query.toString()}`);
 }
 
+/** Every machine's readings over the last 7 days, about 84 points each. */
+export function fetchHealthOverview(): Promise<{
+  machines: { key: string; points: HqHealthPoint[] }[];
+}> {
+  return fetchJson('/api/machines/health-overview');
+}
+
 // ── Ended sessions (`/api/sessions/history`) ────────────────────────────────
 
 export function fetchSessionHistory(filters: {

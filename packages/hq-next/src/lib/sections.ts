@@ -54,6 +54,7 @@ export const HQ_SECTIONS: readonly HqSection[] = [
       { view: 'fleet', label: 'Map', href: '/fleet/' },
       { view: 'machines', label: 'Machines', href: '/fleet/machines/' },
       { view: 'projects', label: 'Projects', href: '/fleet/projects/' },
+      { view: 'health', label: 'Health', href: '/fleet/health/' },
       { view: 'console', label: 'Console', href: '/fleet/console/' },
     ],
   },

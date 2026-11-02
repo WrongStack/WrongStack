@@ -14,6 +14,7 @@ import {
   Columns3,
   FolderGit2,
   GitBranch,
+  HeartPulse,
   History,
   Inbox,
   LayoutDashboard,
@@ -54,6 +55,11 @@ const DETAIL: Record<HqViewId, { description: string; icon: LucideIcon }> = {
   projects: {
     description: 'Each project across its machines: open sessions, spend, mail and what it needs.',
     icon: FolderGit2,
+  },
+  health: {
+    description:
+      'Every machine side by side: project disk and memory over 7 days, soonest full first.',
+    icon: HeartPulse,
   },
   console: {
     description: 'Read any session’s transcript and steer, queue or interrupt it.',

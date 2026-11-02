@@ -877,6 +877,17 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       await expect.poll(() => page.getByRole('menu').count()).toBe(0);
       await page.goto(`${base}/fleet/machines/`);
 
+      // Fleet health: both machines side by side, the filling lab disk on top.
+      await page.goto(`${base}/fleet/health/`);
+      const firstRow = main.locator('[data-health-row]').first();
+      await firstRow.waitFor({ timeout: 10_000 });
+      await expect.poll(() => firstRow.getAttribute('data-health-row')).toBe('host:lab-02');
+      await expect
+        .poll(() => firstRow.textContent())
+        .toMatch(/Full (within a day|in about \d+ days?)/);
+      expect(await main.locator('[data-health-row]').count()).toBe(2);
+      await shot('17b-fleet-health');
+
       // The drift reaches the attention queue as one fleet-wide item.
       await page.goto(`${base}/`);
       await expect

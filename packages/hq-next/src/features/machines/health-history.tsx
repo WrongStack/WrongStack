@@ -17,7 +17,13 @@ const REFRESH_MS = 5 * 60_000;
 const W = 240;
 const H = 40;
 
-function Sparkline({ points, max }: { points: readonly SeriesPoint[]; max?: number }): ReactNode {
+export function Sparkline({
+  points,
+  max,
+}: {
+  points: readonly SeriesPoint[];
+  max?: number;
+}): ReactNode {
   if (points.length < 2) return null;
   const first = points[0]!.at;
   const last = points[points.length - 1]!.at;

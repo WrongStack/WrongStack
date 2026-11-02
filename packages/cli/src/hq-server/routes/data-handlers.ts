@@ -166,8 +166,11 @@ export async function handleApiMachineLabels(
 
 /**
  * `GET /api/machines/health-history?key=<machine key>&hours=<1..168>` — one
- * machine's health readings, oldest first (default the last 7 days). True when
- * handled.
+ * machine's health readings, oldest first (default the last 7 days).
+ *
+ * `GET /api/machines/health-overview?hours=<1..168>` — every machine's
+ * readings over the window, thinned to about 84 points each (one per 2 hours
+ * over 7 days), for the fleet-wide health page. True when handled.
  */
 export function handleApiHealthHistory(
   req: http.IncomingMessage,
@@ -175,7 +178,17 @@ export function handleApiHealthHistory(
   url: URL,
   persistence: ReturnType<typeof createHqPersistence>,
 ): boolean {
-  if (url.pathname !== '/api/machines/health-history' || req.method !== 'GET') return false;
+  if (req.method !== 'GET') return false;
+  if (url.pathname === '/api/machines/health-overview') {
+    const hours = Number.parseInt(url.searchParams.get('hours') ?? '168', 10);
+    const window = Math.min(168, Math.max(1, Number.isFinite(hours) ? hours : 168));
+    const windowMs = window * 60 * 60_000;
+    writeJson(res, 200, {
+      machines: persistence.healthHistory.overview(Date.now() - windowMs, windowMs / 84),
+    });
+    return true;
+  }
+  if (url.pathname !== '/api/machines/health-history') return false;
   const key = url.searchParams.get('key') ?? '';
   if (key.length === 0 || key.length > 300 || !/^(host|mid):[^\u0000-\u001f]+$/.test(key)) {
     writeJson(res, 400, { error: { code: 'VALIDATION_ERROR', message: 'Invalid machine key.' } });

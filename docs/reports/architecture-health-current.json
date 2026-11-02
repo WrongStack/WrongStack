@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T15:07:23.383Z",
+  "generatedAt": "2026-11-02T15:37:22.855Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5657,
-    "testFiles": 4886,
-    "sourceLines": 1234356,
+    "sourceFiles": 5660,
+    "testFiles": 4887,
+    "sourceLines": 1234701,
     "workspaceEdges": 231,
-    "moduleEdges": 16537,
+    "moduleEdges": 16545,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -502,8 +502,8 @@
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 187,
-      "testFiles": 65,
+      "sourceFiles": 190,
+      "testFiles": 66,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -520,7 +520,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 65
+          "testFiles": 66
         }
       ]
     },
@@ -13480,6 +13480,12 @@
       },
       {
         "file": "packages/hq-next/tests/externalize-inline-scripts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/fleet-health-model.test.ts",
         "projects": [
           "root-node"
         ]

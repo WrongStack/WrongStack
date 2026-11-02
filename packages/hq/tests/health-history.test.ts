@@ -74,6 +74,30 @@ describe('HqHealthHistory', () => {
     });
   });
 
+  it('serves every machine thinned to a fixed spacing, newest reading always kept', () => {
+    const history = new HqHealthHistory({ dataDir });
+    // 4 hours of readings, every 15 minutes, on two machines.
+    for (let minute = 0; minute <= 240; minute += 15) {
+      const at = T0 + minute * MIN;
+      history.observe(
+        snapshotAt(at, [
+          { hostname: 'A', health: host() },
+          { hostname: 'B', health: host() },
+        ]),
+        at,
+      );
+    }
+    const overview = history.overview(T0, 60 * MIN);
+    expect(overview.map((entry) => entry.key).sort()).toEqual(['host:a', 'host:b']);
+    const minutes = overview[0]!.points.map((point) => (Date.parse(point.at) - T0) / MIN);
+    expect(minutes).toEqual([0, 60, 120, 180, 240]);
+    // A window that starts after the readings leaves nothing to draw.
+    expect(history.overview(T0 + 300 * MIN, 60 * MIN)).toEqual([]);
+    // The newest point is kept even when it is closer than the spacing.
+    const odd = history.overview(T0, 100 * MIN)[0]!.points;
+    expect(odd.map((point) => (Date.parse(point.at) - T0) / MIN)).toEqual([0, 105, 210, 240]);
+  });
+
   it('ignores machines without a reading and the same sample seen twice', () => {
     const history = new HqHealthHistory({ dataDir });
     const snap = snapshotAt(T0, [{ hostname: 'A', health: host() }, { hostname: 'B' }]);
