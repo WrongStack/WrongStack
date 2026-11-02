@@ -1,7 +1,41 @@
 import type { AgentContext } from '../../types/context.js';
 import type { Usage } from '../../types/provider.js';
 import type { WorkspaceCheckpointRef } from '../../types/session.js';
-import type { TrackedAgentSnapshot } from '../events.js';
+
+/**
+ * Structural shape of a tracked agent as flushed by AgentStatusTracker. Kept
+ * structural (not imported from the root `session-registry` module) so the
+ * low-level kernel layer takes on no dependency on composition modules. The
+ * real `AgentEntry` is assignable to this.
+ */
+export interface TrackedAgentSnapshot {
+  id: string;
+  name: string;
+  startedAt?: string | undefined;
+  status: string;
+  currentTool?: string | undefined;
+  currentTask?: string | undefined;
+  taskId?: string | undefined;
+  iterations: number;
+  toolCalls: number;
+  costUsd?: number | undefined;
+  tokensIn?: number | undefined;
+  tokensOut?: number | undefined;
+  ctxPct?: number | undefined;
+  model?: string | undefined;
+  partialText?: string | undefined;
+  todos?:
+    | Array<{
+        id: string;
+        content: string;
+        status: 'pending' | 'in_progress' | 'completed';
+        activeForm?: string | undefined;
+      }>
+    | undefined;
+  latestPrompt?: string | undefined;
+  latestPromptAt?: number | undefined;
+  lastActivityAt: string;
+}
 
 export interface SessionEventMap {
   'session.started': { id: string; sessionId?: string | undefined };

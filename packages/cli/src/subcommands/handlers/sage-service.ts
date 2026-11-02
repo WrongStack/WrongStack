@@ -27,10 +27,10 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { buildChildEnv, toErrorMessage, updateJsonObjectFile } from '@wrongstack/core/utils';
+import { backupCurrent } from '../../config-history.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import { downloadReleaseAsset, downloadReleaseAssetToFile } from '../../release-asset-download.js';
-import { patchProfileConfig } from '../../slash-commands/setmodel-helpers.js';
 import type { SubcommandDeps } from '../contracts.js';
 
 export const WRONGMEMORY_RELEASE_REPO = 'WrongStack/wrongmemory';
@@ -42,7 +42,7 @@ const MAX_SUMS_BYTES = 64 * 1024;
 interface ReleaseAsset {
   name: string;
   browser_download_url: string;
-  digest?: string | null;
+  digest?: string | null | undefined;
 }
 
 interface Release {
@@ -81,7 +81,14 @@ const defaultIo: ServiceIo = {
   downloadText: async (url) =>
     (await downloadReleaseAsset(url, 30_000, MAX_SUMS_BYTES)).toString('utf8'),
   run(exe, args) {
-    const r = spawnSync(exe, args, { encoding: 'utf8', windowsHide: true, timeout: 120_000 });
+    // Sanitized environment: no provider keys or vault passphrase reach the
+    // WrongMemory CLI. Its data root is passed as --data-root instead.
+    const r = spawnSync(exe, args, {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 120_000,
+      env: buildChildEnv(),
+    });
     return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? r.error?.message ?? '' };
   },
 };
@@ -114,8 +121,18 @@ function serviceOf(deps: SubcommandDeps): ServiceConfig {
 }
 
 /** Run WrongMemory's own installer from `exe` and return its JSON report. */
-function runInstaller(io: ServiceIo, exe: string, stopDaemon: boolean): Record<string, unknown> {
-  const r = io.run(exe, ['install', '--json', ...(stopDaemon ? ['--stop-daemon'] : [])]);
+function runInstaller(
+  io: ServiceIo,
+  exe: string,
+  stopDaemon: boolean,
+  dataRoot: string | undefined,
+): Record<string, unknown> {
+  const r = io.run(exe, [
+    ...(dataRoot ? ['--data-root', dataRoot] : []),
+    'install',
+    '--json',
+    ...(stopDaemon ? ['--stop-daemon'] : []),
+  ]);
   if (r.status === 6) {
     throw new Error(
       'a WrongMemory daemon is running; rerun with --stop-daemon to stop it and replace the binaries',
@@ -135,6 +152,8 @@ export async function installWrongMemory(options: {
   version?: string | undefined;
   from?: string | undefined;
   stopDaemon: boolean;
+  /** The WrongMemory data root whose daemon `install` checks (default: its own). */
+  dataRoot?: string | undefined;
   platform?: NodeJS.Platform;
   arch?: string;
   io?: ServiceIo;
@@ -152,7 +171,7 @@ export async function installWrongMemory(options: {
     }
     return {
       source: dir,
-      ...runInstaller(io, path.join(dir, 'wrongmemory.exe'), options.stopDaemon),
+      ...runInstaller(io, path.join(dir, 'wrongmemory.exe'), options.stopDaemon, options.dataRoot),
     };
   }
   const release = await io.fetchRelease(options.version);
@@ -175,7 +194,12 @@ export async function installWrongMemory(options: {
     }
     return {
       source: `${WRONGMEMORY_RELEASE_REPO}@${release.tag_name}`,
-      ...runInstaller(io, path.join(stage, 'wrongmemory.exe'), options.stopDaemon),
+      ...runInstaller(
+        io,
+        path.join(stage, 'wrongmemory.exe'),
+        options.stopDaemon,
+        options.dataRoot,
+      ),
     };
   } finally {
     await fs.rm(stage, { recursive: true, force: true }).catch(() => undefined);
@@ -228,7 +252,9 @@ async function readStatus(deps: SubcommandDeps, sage: Sage): Promise<ServiceStat
 
 async function setMode(deps: SubcommandDeps, mode: Mode): Promise<string> {
   const file = activeProfileConfigPath(deps.paths, deps.config);
-  await patchProfileConfig((cfg) => {
+  // Same write path as /setmodel: backup in config history, then an atomic update.
+  await updateJsonObjectFile(file, async (cfg) => {
+    await backupCurrent(undefined, file);
     const sage = (cfg.Sage && typeof cfg.Sage === 'object' ? cfg.Sage : {}) as Record<
       string,
       unknown
@@ -238,7 +264,8 @@ async function setMode(deps: SubcommandDeps, mode: Mode): Promise<string> {
     ) as Record<string, unknown>;
     sage.service = { ...service, mode };
     cfg.Sage = sage;
-  }, file);
+    return cfg;
+  });
   return file;
 }
 
@@ -288,7 +315,9 @@ async function useMode(
     if (handOff && backup) {
       await fs.mkdir(path.dirname(backup), { recursive: true });
       const r = io.run(status.binary.cli, [
-        ...(service.dataRoot ? ['--data-root', service.dataRoot] : []),
+        ...((service.dataRoot ?? process.env.WRONGMEMORY_HOME)
+          ? ['--data-root', (service.dataRoot ?? process.env.WRONGMEMORY_HOME) as string]
+          : []),
         'backup',
         '--store',
         storePath,
@@ -380,6 +409,7 @@ export async function runSageServiceCommand(
         version: optionValue(args, 'release'),
         from: optionValue(args, 'from'),
         stopDaemon: args.includes('--stop-daemon'),
+        dataRoot: serviceOf(deps).dataRoot ?? process.env.WRONGMEMORY_HOME,
         io,
       });
       if (json) out(JSON.stringify(report, null, 2));

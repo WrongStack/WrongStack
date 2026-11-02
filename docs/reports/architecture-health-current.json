@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T13:18:16.162Z",
+  "generatedAt": "2026-11-02T14:13:56.786Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,22 +14,17 @@
     "packages": 47,
     "sourceFiles": 5576,
     "testFiles": 4855,
-    "sourceLines": 1224261,
+    "sourceLines": 1224311,
     "workspaceEdges": 234,
-    "moduleEdges": 16738,
-    "nonCommandSlashImports": 1,
+    "moduleEdges": 16737,
+    "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 3,
+    "typeModuleCycles": 1,
     "testsWithoutTypecheck": 176,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1023
   },
-  "errors": [
-    "packages/cli/src/subcommands/handlers/sage-service.ts: non-command module imports packages/cli/src/slash-commands/setmodel-helpers.ts; move shared logic to packages/cli/src/services",
-    "ARCH-CYCLE-TYPE-05: exception expired on 2026-11-01",
-    "ARCH-CYCLE-TYPE-09: exception expired on 2026-11-01",
-    "ARCH-CYCLE-TYPE-12: exception expired on 2026-11-01"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -1281,14 +1276,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/contracts/src/kernel/events.ts",
-          "packages/contracts/src/kernel/events/brain-events.ts",
-          "packages/contracts/src/kernel/events/session-events.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/contracts/src/types/blocks.ts",
           "packages/contracts/src/types/context.ts",
           "packages/contracts/src/types/conversation-state.ts",
@@ -1301,18 +1288,9 @@
           "packages/contracts/src/types/token-counter.ts",
           "packages/contracts/src/types/tool.ts"
         ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/fleet/src/host.ts",
-          "packages/fleet/src/routing.ts"
-        ]
       }
     ],
     "matchedExceptions": [
-      "ARCH-CYCLE-TYPE-05",
-      "ARCH-CYCLE-TYPE-09",
       "ARCH-CYCLE-TYPE-12"
     ],
     "unexcepted": []
@@ -32260,14 +32238,7 @@
     }
   ],
   "selfImports": [],
-  "nonCommandSlashImports": [
-    {
-      "from": "packages/cli/src/subcommands/handlers/sage-service.ts",
-      "to": "packages/cli/src/slash-commands/setmodel-helpers.ts",
-      "typeOnly": false,
-      "syntax": "import"
-    }
-  ],
+  "nonCommandSlashImports": [],
   "hotspotCandidates": [
     {
       "file": "packages/acp/src/client/acp-session.ts",

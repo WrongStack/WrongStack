@@ -1,6 +1,12 @@
 import type { BrainDecision, BrainDecisionRequest, BrainDecisionTier } from '../../types/brain.js';
 import type { Usage } from '../../types/provider.js';
-import type { BrainInterventionKind } from '../events.js';
+
+/** Distress signals the BrainMonitor watches. See `brain/brain-monitor.ts`. */
+export type BrainInterventionKind =
+  | 'tool_failure_streak'
+  | 'error_storm'
+  | 'agent_stall'
+  | 'file_churn';
 
 export interface BrainEventMap {
   'brain.decision_requested': {

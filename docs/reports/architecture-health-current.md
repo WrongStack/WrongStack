@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-02T13:18:16.162Z
+**Generated:** 2026-11-02T14:13:56.786Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,22 +9,19 @@
 |---|---:|
 | Workspace packages | 47 |
 | Production source files | 5576 |
-| Production source lines | 1224261 |
+| Production source lines | 1224311 |
 | Test files | 4855 |
 | Workspace dependency edges | 234 |
-| Relative module edges | 16738 |
-| Non-command slash imports | 1 |
+| Relative module edges | 16737 |
+| Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 3 |
+| Type-inclusive module cycles | 1 |
 | Tests without TypeScript test-project coverage | 176 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- packages/cli/src/subcommands/handlers/sage-service.ts: non-command module imports packages/cli/src/slash-commands/setmodel-helpers.ts; move shared logic to packages/cli/src/services
-- ARCH-CYCLE-TYPE-05: exception expired on 2026-11-01
-- ARCH-CYCLE-TYPE-09: exception expired on 2026-11-01
-- ARCH-CYCLE-TYPE-12: exception expired on 2026-11-01
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -86,9 +83,7 @@ None.
 
 ### Type-inclusive
 
-- packages/contracts/src/kernel/events.ts ↔ packages/contracts/src/kernel/events/brain-events.ts ↔ packages/contracts/src/kernel/events/session-events.ts
 - packages/contracts/src/types/blocks.ts ↔ packages/contracts/src/types/context.ts ↔ packages/contracts/src/types/conversation-state.ts ↔ packages/contracts/src/types/messages.ts ↔ packages/contracts/src/types/provider.ts ↔ packages/contracts/src/types/run-env.ts ↔ packages/contracts/src/types/session-events.ts ↔ packages/contracts/src/types/session-storage.ts ↔ packages/contracts/src/types/session.ts ↔ packages/contracts/src/types/token-counter.ts ↔ packages/contracts/src/types/tool.ts
-- packages/fleet/src/host.ts ↔ packages/fleet/src/routing.ts
 
 ## Largest production files
 

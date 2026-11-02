@@ -1,11 +1,12 @@
 /**
  * `wstack sage doctor [--fix[=<ids>]] [--json]` — SAGE store health report
  * and its named, idempotent repairs, run by the project's SAGE daemon (spawned
- * if it is not running, so the doctor works without an open session).
+ * if it is not running, so the doctor works without an open session), or by
+ * WrongMemory when Sage.service.mode selects it.
  */
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
-  createProjectSageMemoryPort,
+  createSageMemoryPortForService,
   formatSageDoctorReport,
   getSageSurface,
   parseDoctorFixArg,
@@ -27,9 +28,13 @@ export async function runSageDoctorCommand(
     deps.renderer.writeError(toErrorMessage(error));
     return 1;
   }
-  const port = createProjectSageMemoryPort({
+  // The configured memory service (Sage.service.mode), as the host uses it:
+  // in `wrongmemory` mode the report comes from the WrongMemory daemon, and a
+  // local store is never created or opened.
+  const port = createSageMemoryPortForService({
     projectRoot: deps.projectRoot,
     directory: deps.config.Sage?.storage?.directory,
+    service: deps.config.Sage?.service,
   });
   try {
     await port.initialize();
