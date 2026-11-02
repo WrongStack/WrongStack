@@ -296,6 +296,35 @@ describe('createMcpControlTool', () => {
     expect(result).toContain('Disabled');
   });
 
+  it('disable: persists enabled:false for a server known only from the merged config', async () => {
+    // Regression (bug-hunt round 18): the write re-read the JSON file and
+    // required the entry via expectDefined(), so disabling a server that came
+    // from the merged config (global layer/defaults) threw an internal
+    // ExpectDefinedError — before writing AND before registry.stop(), leaving
+    // the server enabled and running. `getConfiguredMcpServers` in the same
+    // file already falls back to the merged config, so the file is not the
+    // only source of truth.
+    getConfig = () =>
+      fakeConfig({
+        mcpServers: {
+          github: { name: 'github', transport: 'stdio', command: 'npx', args: [], enabled: true },
+        },
+      });
+    await fs.writeFile(configPath, JSON.stringify({ version: 1, mcpServers: {} }));
+    tool = createMcpControlTool({ getConfig, configPath, registry });
+
+    const result = await tool.execute({ action: 'disable', server: 'github' }, undefined as never, {
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toContain('Disabled');
+    expect(result).not.toContain('Expected value');
+    expect(registry.stop).toHaveBeenCalledWith('github');
+    const written = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    // Minimal override only: layers deep-merge it over the global entry.
+    expect(written.mcpServers.github).toEqual({ enabled: false });
+  });
+
   // ── restart action ───────────────────────────────────────────────────────
 
   it('restart: missing server name throws', async () => {

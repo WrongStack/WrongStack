@@ -16,9 +16,12 @@ import type { Config, MCPServerConfig } from '@wrongstack/contracts/types/config
 import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
 import { allServers, resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import { readJsonObjectFile, setJsonPath, updateJsonObjectFile } from '@wrongstack/core/utils';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { expectDefined } from '@wrongstack/core/utils';
+import {
+  readJsonObjectFile,
+  setJsonPath,
+  toErrorMessage,
+  updateJsonObjectFile,
+} from '@wrongstack/core/utils';
 export interface MCPRegistryHandle {
   start(cfg: MCPServerConfig): Promise<void>;
   stop(name: string): Promise<void>;
@@ -395,13 +398,21 @@ async function runDisable(
     );
   }
 
-  // Write to config using the shared JSON path helper. hasOwn-derived value:
-  // `current` is re-read from the JSON file, so a prototype-chain key must
-  // not satisfy the lookup (Phase 3 truthiness sweep).
+  // Write to config using the shared JSON path helper. `current` is re-read
+  // from the JSON file, so a prototype-chain key must not satisfy the lookup
+  // (Phase 3 truthiness sweep). The record need not exist in THIS file: the
+  // guard above accepts a server from the merged config (`Deps.getConfig()`),
+  // and `getConfiguredMcpServers` in this file falls back to exactly that when
+  // the file has no record — so a global-layer server is disable-able. Writing
+  // the minimal `{ enabled: false }` override lets the config layers deep-merge
+  // it over the global entry; requiring the file entry here threw an internal
+  // `ExpectDefinedError` and skipped `registry.stop()`, leaving the server
+  // enabled and running.
   await updateJsonObjectFile(deps.configPath, (full) => {
     const current = isMcpServerRecord(full.mcpServers) ? full.mcpServers : {};
-    const existing = expectDefined(Object.hasOwn(current, name) ? current[name] : undefined);
-    setJsonPath(full, ['mcpServers', name], { ...existing, enabled: false });
+    const stored = Object.hasOwn(current, name) ? current[name] : undefined;
+    const base = isMcpServerRecord(stored) ? stored : {};
+    setJsonPath(full, ['mcpServers', name], { ...base, enabled: false });
   });
 
   // Stop the running server

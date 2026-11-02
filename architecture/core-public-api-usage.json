@@ -171,7 +171,7 @@
     "@wrongstack/core/utils": {
       "files": 948,
       "typeOnly": 69,
-      "runtimeOrMixed": 916
+      "runtimeOrMixed": 914
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -15012,7 +15012,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/management/mcp-control.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
