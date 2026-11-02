@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { resolveRunInputOrigin } from '../../src/core/context-environment.js';
 import {
+  buildCompletedWorkLedgerBlock,
   buildContextEvidenceDigest,
   buildConversationContinuityBlock,
   buildMissionAnchorBlock,
   createContextEvidenceState,
   markAssistantReferencedEvidence,
+  recordCompletedWorkEvidence,
   recordToolOutputEvidence,
   recordUserIntentEvidence,
   rehydrateContextEvidenceFromMessages,
@@ -740,5 +742,64 @@ describe('context-evidence extraction edges', () => {
     const tool = (ctx as never as { contextEvidence: { toolCalls: Array<{ status: string }> } })
       .contextEvidence.toolCalls[0]!;
     expect(tool.status).toBe('referenced');
+  });
+});
+
+describe('completed-work ledger — model-bound text stays well-formed', () => {
+  /** A lone half of a surrogate pair (invalid when serialized to the wire). */
+  const hasLoneSurrogate = (text: string): boolean => {
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      if (code >= 0xd800 && code <= 0xdbff) {
+        const next = text.charCodeAt(i + 1);
+        if (!(next >= 0xdc00 && next <= 0xdfff)) return true;
+        i++;
+      } else if (code >= 0xdc00 && code <= 0xdfff) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  it('does not split a surrogate pair when truncating the summary', () => {
+    // Regression (bug-hunt round 16): the 300-unit cap used a raw `.slice`,
+    // so a summary whose 300th unit was the high half of an emoji stored a
+    // LONE surrogate — and buildCompletedWorkLedgerBlock renders that entry
+    // into the per-request model prompt, where an unpaired half is invalid on
+    // the wire. sliceWellFormed (the same module's rule) must be used.
+    const ctx = makeCtx();
+    const entry = recordCompletedWorkEvidence(ctx, {
+      key: 'k:split',
+      source: 'manual',
+      summary: `${'a'.repeat(299)}😀tail`,
+    });
+    expect(hasLoneSurrogate(entry.summary), 'stored summary').toBe(false);
+    expect(entry.summary.length).toBeLessThanOrEqual(300);
+
+    const block = buildCompletedWorkLedgerBlock(ctx);
+    expect(block).toBeDefined();
+    expect(hasLoneSurrogate(block?.text ?? ''), 'ledger block').toBe(false);
+  });
+
+  it('still truncates a long summary to the cap', () => {
+    const ctx = makeCtx();
+    const entry = recordCompletedWorkEvidence(ctx, {
+      key: 'k:long',
+      source: 'task',
+      summary: 'x'.repeat(500),
+    });
+    expect(entry.summary).toHaveLength(300);
+  });
+
+  it('keeps a pair that ends exactly at the cap', () => {
+    const ctx = makeCtx();
+    // 298 'a' + one astral pair = exactly 300 units; both halves must survive.
+    const entry = recordCompletedWorkEvidence(ctx, {
+      key: 'k:boundary',
+      source: 'plan',
+      summary: `${'a'.repeat(298)}😀tail`,
+    });
+    expect(entry.summary).toHaveLength(300);
+    expect(entry.summary.endsWith('😀')).toBe(true);
   });
 });
