@@ -52,6 +52,7 @@ vi.mock('@wrongstack/tools', () => ({
   onIndexStateChange,
   indexStateListeners,
   runStartupIndex,
+  setIndexServiceMode: vi.fn(),
   shutdownCodebaseIndexHost,
 }));
 

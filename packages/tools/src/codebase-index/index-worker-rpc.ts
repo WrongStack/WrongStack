@@ -17,6 +17,13 @@ import {
 } from './project-server-client.js';
 
 import type { HostToWorker, OpName, OpShapes, WorkerToHost } from './worker-protocol.js';
+import { resolveIndexDir } from './writer-helpers.js';
+import { IndexOwnedExternallyError, isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
+import {
+  callWrongIndex,
+  resolveIndexRoute,
+  WrongIndexUnavailableError,
+} from './wrongindex/service.js';
 
 // ─── Worker management ───────────────────────────────────────────────────────
 
@@ -151,6 +158,44 @@ export function dispatchIndexOp<O extends OpName>(
   // and exotic runtimes, but it has to be asked for: reaching it because the
   // build could not be located would give this process a private FTS5 database
   // and no indication that it had stopped sharing the project's index.
+  // The WrongIndex service, when selected or when it owns this index. Its
+  // failures are final: an index it owns is never written locally instead.
+  if (resolveIndexRoute(args.projectRoot, args.indexDir) === 'wrongindex') {
+    // The service is down (or not installed) and does not hold the index:
+    // WrongStack's own engine keeps working. An index the service holds is
+    // never written locally, reachable or not.
+    return callWrongIndex(op, args, opts).catch((err: unknown) => {
+      const dir = resolveIndexDir(args.projectRoot, args.indexDir);
+      if (!(err instanceof WrongIndexUnavailableError) || isOwnedByWrongIndex(dir)) throw err;
+      warnServiceUnavailableOnce(err);
+      return dispatchLocal(op, args, opts, indexing);
+    });
+  }
+  return dispatchLocal(op, args, opts, indexing);
+}
+
+/** Services that were unreachable: warn once, not per call. */
+let warnedServiceUnavailable = false;
+
+function warnServiceUnavailableOnce(err: Error): void {
+  if (warnedServiceUnavailable) return;
+  warnedServiceUnavailable = true;
+  process.stderr.write(
+    `codebase-index: ${err.message}; using WrongStack's own index engine (the service does not hold this index).\n`,
+  );
+}
+
+function dispatchLocal<O extends OpName>(
+  op: O,
+  args: OpShapes[O]['args'],
+  opts: CallOpts,
+  indexing: boolean,
+): Promise<OpShapes[O]['result']> {
+  if (isOwnedByWrongIndex(resolveIndexDir(args.projectRoot, args.indexDir))) {
+    return Promise.reject(
+      new IndexOwnedExternallyError(resolveIndexDir(args.projectRoot, args.indexDir)),
+    );
+  }
   const availability = resolveProjectIndexDaemonAvailability(args.projectRoot, args.indexDir);
   if (availability.kind === 'available') {
     return callProjectIndexServer(op, args, opts);

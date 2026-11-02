@@ -26,6 +26,7 @@ import {
   isIndexableFile,
   runStartupIndex,
   setContextQueryEmbedder,
+  setIndexServiceMode,
   shutdownCodebaseIndexHost,
 } from '@wrongstack/tools';
 import { createCodebaseEmbeddingPort } from './codebase-embeddings.js';
@@ -90,6 +91,7 @@ export async function setupCodebaseIndexing(deps: CodebaseIndexingDeps): Promise
   const idx = config.indexing;
   // No config block (e.g. --bare) → opt out entirely.
   if (!idx) return () => {};
+  setIndexServiceMode(idx.service);
 
   const debounceMs = idx.debounceMs ?? 400;
   const onError = (err: unknown) =>

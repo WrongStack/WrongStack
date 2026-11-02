@@ -5,6 +5,7 @@ import {
   checkCodebaseIndexServerHealth,
   type EmbeddingPort,
   ensureCodebaseIndexServer,
+  resolveIndexRoute,
   resolveProjectIndexDaemonAvailability,
   runStartupIndex,
   setContextQueryEmbedder,
@@ -306,8 +307,11 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 
   const projectRoot = resolveIndexProjectRoot(args.projectRoot);
+  // Served by the WrongIndex service (WRONGSTACK_INDEX_SERVICE, or an index
+  // it owns in `auto`): no local project daemon is needed.
+  const viaService = resolveIndexRoute(projectRoot, args.indexDir) === 'wrongindex';
   const availability = resolveProjectIndexDaemonAvailability(projectRoot, args.indexDir);
-  const unavailable = availabilityError(availability);
+  const unavailable = viaService ? null : availabilityError(availability);
   if (unavailable) {
     process.stderr.write(`${SERVER_INFO.name}: cannot use project-scoped IPC: ${unavailable}\n`);
     return 3;

@@ -50,6 +50,7 @@ import {
   normalizeTestConceptEdge,
 } from './writer-concepts.js';
 import { posixIndexPath, resolveIndexDir } from './writer-helpers.js';
+import { IndexOwnedExternallyError, isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
 
 /** What the summariser is given about one file. */
 export interface SummarizeFileInput {
@@ -640,6 +641,9 @@ export async function enrichProjectConcepts(
   const { indexDir, ...rest } = options;
   if (!existsSync(path.join(resolveIndexDir(projectRoot, indexDir), 'index.db'))) {
     return { indexed: false };
+  }
+  if (isOwnedByWrongIndex(resolveIndexDir(projectRoot, indexDir))) {
+    throw new IndexOwnedExternallyError(resolveIndexDir(projectRoot, indexDir));
   }
   const store = indexStorePool.acquire(projectRoot, { indexDir });
   try {

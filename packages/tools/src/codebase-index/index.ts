@@ -264,6 +264,16 @@ export {
 // Re-export shared internal helpers so external consumers (e.g. plug-lsp)
 // can use them without importing from implementation detail files.
 export { codebaseIndexDirOverride, IndexStore, resolveIndexDir } from './writer.js';
+export {
+  IndexOwnedExternallyError,
+  isOwnedByWrongIndex,
+} from './wrongindex/owner-lock.js';
+export {
+  type IndexServiceMode,
+  resolveIndexRoute,
+  resolveIndexServiceMode,
+  setIndexServiceMode,
+} from './wrongindex/service.js';
 
 // ─── Codebase Atlas: centrality, retrieval, projection, concepts, vectors ────
 // Everything below is additive over the structural index. Each layer degrades

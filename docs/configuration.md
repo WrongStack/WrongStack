@@ -1492,6 +1492,31 @@ The structural index that backs `codebase-search`, `codebase-context`,
 | `watchExternal` | `true` | Watch the project root for changes made outside the agent. |
 | `debounceMs` | `400` | Coalescing window for rapid edits to the same file. |
 | `indexTimeoutMs` | `240000` | Watchdog for a full run; an overrun is aborted and counts against the index circuit breaker. |
+| `service` | `local` | Which engine maintains and serves the index: `local`, `auto` or `wrongindex` (see below). Not settable from a repo config; `WRONGSTACK_INDEX_SERVICE` overrides it. |
+
+### `indexing.service` — the WrongIndex service
+
+[WrongIndex](https://github.com/WrongStack/wrongindex) is a per-user service that
+indexes projects in the background and serves the same index file to every
+client.
+
+| Mode | Behaviour |
+|---|---|
+| `local` (default) | WrongStack's own per-project engine. An index WrongIndex owns is refused: index runs fail with `IndexOwnedExternallyError`, and direct readers open it query-only. |
+| `auto` | WrongIndex for an index it owns (claimed in the WrongIndex app or CLI); the local engine otherwise. |
+| `wrongindex` | WrongIndex. The project is registered and claimed (this process's local project server for it is shut down first). When the service is not running or not installed, WrongStack's own engine is used, as long as the index is not held by the service. |
+
+Ownership is the lock file `.wrongindex-owner.lock` in the index directory. The
+WrongIndex service holds it while it owns the index, and the OS releases it
+when the service exits. Some rules hold in every mode:
+
+- WrongStack never writes an index the service owns. This covers indexing, concept enrichment, embeddings and schema initialization.
+- WrongStack's own index engine never depends on WrongIndex. When the service is absent, every mode indexes locally. The one exception is an index the service actually holds (its lock is live); that index is refused rather than written. A lock file left behind by a service that is gone does not count.
+- Closing a session releases only that session's watch lease. The service keeps running.
+
+The client finds the service through `WRONGINDEX_HOME`, or `~/.wrongindex` if
+that is not set. WrongStack versions older than this one ignore the lock, so do
+not run them against an index WrongIndex owns.
 
 ### `indexing.concepts` — the concept layer
 

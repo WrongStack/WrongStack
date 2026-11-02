@@ -197,6 +197,16 @@ export interface IndexingConfig {
   embeddings?: IndexingEmbeddingsConfig | undefined;
   /** The committable atlas projection and its session-start brief. */
   atlas?: IndexingAtlasConfig | undefined;
+  /**
+   * Which engine maintains and serves the index:
+   *   - `local` (default): WrongStack's own per-project engine. An index the
+   *     WrongIndex service owns is refused, never written.
+   *   - `auto`: the WrongIndex service for an index it owns, local otherwise.
+   *   - `wrongindex`: always the WrongIndex service (it registers and claims
+   *     the project); no local fallback.
+   * `WRONGSTACK_INDEX_SERVICE` overrides it. Not settable from a repo config.
+   */
+  service?: 'local' | 'auto' | 'wrongindex' | undefined;
 }
 
 /**

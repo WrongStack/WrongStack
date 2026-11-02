@@ -30,8 +30,27 @@ import * as writerRefs from './writer-refs.js';
 import type { WriterSymbolQueriesHost } from './writer-symbol-queries.js';
 import type { IndexTransactionHost } from './writer-transactions.js';
 import * as writerTransactions from './writer-transactions.js';
+import { isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
 
 const DB_FILE = 'index.db';
+
+/**
+ * Open an index the WrongIndex service owns without changing it: no schema
+ * initialization (which can migrate or repair) and `query_only`, so any write
+ * through this store fails instead of racing the owner. A read-write handle
+ * (not `readOnly`) is used because a read-only connection to a WAL database
+ * needs its shared-memory file to exist.
+ */
+function openOwnedIndexQueryOnly(db: DatabaseSync): {
+  ftsAvailable: boolean;
+  vectorsAvailable: boolean;
+} {
+  db.exec('PRAGMA busy_timeout = 15000');
+  db.exec('PRAGMA query_only = 1');
+  const has = (name: string) =>
+    db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name) !== undefined;
+  return { ftsAvailable: has('symbols_fts'), vectorsAvailable: has('symbol_vectors') };
+}
 
 export abstract class IndexStoreBase {
   protected db: DatabaseSync;
@@ -57,9 +76,19 @@ export abstract class IndexStoreBase {
     fs.mkdirSync(this.indexDir, { recursive: true });
     const Database = loadDatabaseSync();
     this.db = new Database(path.join(this.indexDir, DB_FILE));
+    if (isOwnedByWrongIndex(this.indexDir)) {
+      const { ftsAvailable, vectorsAvailable } = openOwnedIndexQueryOnly(this.db);
+      this.ftsAvailable = ftsAvailable;
+      this.vectorsAvailable = vectorsAvailable;
+      this.ownedExternally = true;
+      return;
+    }
     applyIndexStorePragmas(this.db);
     this.initSchema();
   }
+
+  /** Opened query-only because the WrongIndex service owns this index. */
+  ownedExternally = false;
 
   runWithRetry<T>(fn: () => T): T {
     return runSqliteWithRetry(fn);

@@ -257,6 +257,11 @@ const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set(KNOWN_CONFIG_TO
  */
 const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> = [
   {
+    path: 'indexing.service',
+    reason:
+      'Selects which process owns and writes the codebase index; a repo must not hand its index to (or take it from) an external service.',
+  },
+  {
     path: 'tools.exec.allow',
     reason: 'Extends the exec allow-list; a repo could authorise its own binaries.',
   },
