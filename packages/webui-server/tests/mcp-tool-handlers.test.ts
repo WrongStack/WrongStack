@@ -128,7 +128,7 @@ describe('explicit MCP tool use', () => {
       [{ running: () => true }, { input: {} }, /running/],
       [{}, { input: ['x'] }, /object input/],
     ] as const) {
-      const { frames, context, call } = fixture(opts);
+      const { frames, context, call } = fixture(opts as Parameters<typeof fixture>[0]);
       await call(payload);
       expect(context.nestedToolCall).not.toHaveBeenCalled();
       expect(context.state.appendMessage).not.toHaveBeenCalled();

@@ -72,7 +72,7 @@ describe('FileSessionWriter — transcriptPath / file snapshots / checkpoints', 
     // The marker is written without waiting for the capture.
     await w.writeCheckpoint(4, 'workspace state');
     let settled = false;
-    const done = w.workspaceCheckpointSettled().then(() => {
+    const done = w.workspaceCheckpointSettled!().then(() => {
       settled = true;
     });
     await w.append({ type: 'user_input', ts: now(), content: 'during capture' } as never);

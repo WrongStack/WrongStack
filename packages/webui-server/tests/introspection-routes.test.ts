@@ -151,7 +151,7 @@ describe('canonical introspection handler family', () => {
     expect(oldest).toMatchObject({ start: 0, truncated: false });
     expect(oldest.ids).toHaveLength(20);
     // Invalid paging falls back to the newest page instead of guessing.
-    expect((await page({ before: -1, limit: 0 })).start).toBe(80);
+    expect(await page({ before: -1, limit: 0 })).toMatchObject({ start: 80 });
   });
 
   it('claims every family member and rejects foreign messages', async () => {

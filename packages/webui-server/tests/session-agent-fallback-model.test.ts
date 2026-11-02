@@ -10,7 +10,7 @@
  * in-memory fakes so no network is touched.
  */
 
-import { Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
+import { Container, EventBus, type EventMap, TOKENS } from '@wrongstack/contracts/kernel';
 import {
   type Config,
   type Provider,
@@ -138,12 +138,11 @@ function harness(configOverrides: Partial<Config> = {}) {
   });
 
   // A UI surface: answers every fallback modal with "auto-switch".
-  const pending: Array<Record<string, unknown>> = [];
+  const pending: Array<EventMap['provider.fallback_pending']> = [];
   events.on('provider.fallback_pending', (payload) => {
-    const p = payload as Record<string, unknown>;
-    pending.push(p);
+    pending.push(payload);
     setImmediate(() =>
-      events.emit('provider.fallback_choice', { requestId: p['requestId'], autoSwitch: true }),
+      events.emit('provider.fallback_choice', { requestId: payload.requestId, autoSwitch: true }),
     );
   });
 

@@ -1,9 +1,5 @@
+import { ALIBABA_TOKEN_PLAN_MODELS } from '@wrongstack/core/models';
 import { describe, expect, it } from 'vitest';
-// Import directly from source to avoid esbuild tree-shaking dropping the
-// brand-new export from the @wrongstack/core dist bundle. Once
-// ALIBABA_TOKEN_PLAN_MODELS has at least one consumer inside the core
-// package, this can switch back to `from '@wrongstack/core'`.
-import { ALIBABA_TOKEN_PLAN_MODELS } from '../../core/src/models/alibaba-token-plan-catalog.js';
 import {
   buildProviderConfigFromPreset,
   getTrustedProviderPreset,
