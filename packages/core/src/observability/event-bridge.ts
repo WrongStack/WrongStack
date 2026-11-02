@@ -86,9 +86,8 @@ export function wireMetricsToEvents(events: EventBus, sink: MetricsSink): WiredM
     ),
     events.on('tool.started', (e) => {
       sink.counter('tool.starts.total', 1, { tool: metricToolName(e.name) });
-      // `started` carries no durationMs; record as success-only so the
-      // failure-rate and avg-duration histograms stay correct.
-      record(e.name, true, 0);
+      // Usage counts settled calls exactly once. Starts have their own metric;
+      // counting here as well halves failure rates and doubles invocations.
     }),
     events.on('tool.executed', (e) => {
       const tool = metricToolName(e.name);
