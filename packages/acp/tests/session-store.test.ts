@@ -57,6 +57,50 @@ describe('ACPSessionStore', () => {
     expect(loaded?.cwd).toBe('/test');
   });
 
+  it('treats a persisted session whose history is not the recorded array as corrupt', async () => {
+    // `session/load` iterates this field and replays it verbatim; a parseable
+    // but non-array value used to cross the load boundary and throw
+    // `TypeError: {} is not iterable` inside the request.
+    await fsp.writeFile(
+      path.join(dir, 'sess_bad.json'),
+      JSON.stringify({
+        ...fakeState({ id: 'sess_bad' }),
+        history: {
+          0: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'x' } },
+        },
+      }),
+      'utf8',
+    );
+    await expect(store.load('sess_bad')).resolves.toBeNull();
+  });
+
+  it('treats a persisted session with wrongly typed metadata as corrupt', async () => {
+    await fsp.writeFile(
+      path.join(dir, 'sess_bad_mode.json'),
+      JSON.stringify({ ...fakeState({ id: 'sess_bad_mode', modeId: 42 }) }),
+      'utf8',
+    );
+    await expect(store.load('sess_bad_mode')).resolves.toBeNull();
+  });
+
+  it('still loads valid sessions, including stdio MCP servers and history', async () => {
+    await store.save(
+      fakeState({
+        title: 'Title',
+        mcpServers: [
+          { name: 'fs', command: 'node', args: ['server.js'], env: [{ name: 'A', value: '1' }] },
+        ],
+      }),
+      [{ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'hello' } }],
+    );
+    const loaded = await store.load('sess_test1');
+    expect(loaded?.title).toBe('Title');
+    expect(loaded?.mcpServers).toEqual([
+      { name: 'fs', command: 'node', args: ['server.js'], env: [{ name: 'A', value: '1' }] },
+    ]);
+    expect(loaded?.history).toHaveLength(1);
+  });
+
   it('returns null when loading a non-existent session', async () => {
     const loaded = await store.load('sess_nope');
     expect(loaded).toBeNull();

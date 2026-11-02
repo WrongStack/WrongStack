@@ -9,6 +9,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { isSafePathSegment, resolveContainedPath, withFileLock } from '@wrongstack/core/utils';
+import type { McpServer, SessionConfigOption } from './protocol-contract.js';
 import type { SessionState } from './protocol-handler.js';
 
 /** A persisted conversation turn (user/agent message chunk) for replay. */
@@ -35,6 +36,155 @@ export interface SessionStoreOptions {
  * set if more sidecars are added.
  */
 const RESERVED_SESSION_IDS: ReadonlySet<string> = new Set(['index']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * `history` is iterated and replayed verbatim by `session/load`
+ * (`for (const update of persisted.history)` and `seedFor(…, history)`), so its
+ * array shape and `sessionUpdate` discriminator are load-bearing.
+ */
+function isPersistedHistory(value: unknown): value is PersistedHistoryUpdate[] {
+  return (
+    Array.isArray(value) &&
+    value.every((entry) => isRecord(entry) && typeof entry['sessionUpdate'] === 'string')
+  );
+}
+
+function isNamedValueList(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (entry) =>
+        isRecord(entry) && typeof entry['name'] === 'string' && typeof entry['value'] === 'string',
+    )
+  );
+}
+
+/** `SessionConfigOption` as the client advertises it back on `session/load`. */
+function isConfigOption(value: unknown): value is SessionConfigOption {
+  if (!isRecord(value)) return false;
+  if (typeof value['id'] !== 'string' || typeof value['name'] !== 'string') return false;
+  if (typeof value['type'] !== 'string' || typeof value['currentValue'] !== 'string') return false;
+  const options = value['options'];
+  return (
+    Array.isArray(options) &&
+    options.every(
+      (option) =>
+        isRecord(option) &&
+        typeof option['value'] === 'string' &&
+        typeof option['name'] === 'string' &&
+        (option['description'] === undefined || typeof option['description'] === 'string'),
+    )
+  );
+}
+
+function isConfigOptionList(value: unknown): value is SessionConfigOption[] {
+  return Array.isArray(value) && value.every(isConfigOption);
+}
+
+/**
+ * `McpServer` is a stdio/http/sse union. The stdio variant carries no `type`
+ * in the published type, but a normalising producer may write `type: "stdio"`,
+ * so both spellings are accepted.
+ */
+function isMcpServer(value: unknown): value is McpServer {
+  if (!isRecord(value)) return false;
+  if (typeof value['name'] !== 'string') return false;
+  const type = value['type'];
+  if (type === 'http' || type === 'sse') {
+    return (
+      typeof value['url'] === 'string' &&
+      (value['headers'] === undefined || isNamedValueList(value['headers']))
+    );
+  }
+  if (type !== undefined && type !== 'stdio') return false;
+  if (typeof value['command'] !== 'string') return false;
+  if (
+    value['args'] !== undefined &&
+    (!Array.isArray(value['args']) || !value['args'].every((arg) => typeof arg === 'string'))
+  ) {
+    return false;
+  }
+  return value['env'] === undefined || isNamedValueList(value['env']);
+}
+
+function isMcpServerList(value: unknown): value is McpServer[] {
+  return Array.isArray(value) && value.every(isMcpServer);
+}
+
+/**
+ * Parse a persisted session file into the record the handler consumes.
+ *
+ * The file is external input — hand-edited, restored from a backup, or written
+ * by another server version — so the previous `JSON.parse(data) as
+ * PersistedSession` cast let a parseable-but-wrong payload through:
+ * `history: {}` reached `session/load`'s `for (const update of history)` and
+ * threw `TypeError: {} is not iterable`, and a numeric `modeId` would have been
+ * stored in a string-typed field and advertised to the client. A file that does
+ * not match the persisted shape is now treated exactly like unreadable JSON:
+ * `load()` returns null and the caller answers its normal "session not found".
+ */
+function parsePersistedSession(raw: string): PersistedSession | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!isRecord(parsed)) return null;
+
+  const session: PersistedSession = {};
+  const id = parsed['id'];
+  if (id !== undefined) {
+    if (typeof id !== 'string') return null;
+    session.id = id;
+  }
+  const cwd = parsed['cwd'];
+  if (cwd !== undefined) {
+    if (typeof cwd !== 'string') return null;
+    session.cwd = cwd;
+  }
+  const modeId = parsed['modeId'];
+  if (modeId !== undefined) {
+    if (typeof modeId !== 'string') return null;
+    session.modeId = modeId;
+  }
+  const createdAt = parsed['createdAt'];
+  if (createdAt !== undefined) {
+    if (typeof createdAt !== 'string') return null;
+    session.createdAt = createdAt;
+  }
+  const updatedAt = parsed['updatedAt'];
+  if (updatedAt !== undefined) {
+    if (typeof updatedAt !== 'string') return null;
+    session.updatedAt = updatedAt;
+  }
+  const title = parsed['title'];
+  if (title !== undefined) {
+    if (typeof title !== 'string') return null;
+    session.title = title;
+  }
+
+  const configOptions = parsed['configOptions'];
+  if (configOptions !== undefined) {
+    if (!isConfigOptionList(configOptions)) return null;
+    session.configOptions = configOptions;
+  }
+  const mcpServers = parsed['mcpServers'];
+  if (mcpServers !== undefined) {
+    if (!isMcpServerList(mcpServers)) return null;
+    session.mcpServers = mcpServers;
+  }
+  const history = parsed['history'];
+  if (history !== undefined) {
+    if (!isPersistedHistory(history)) return null;
+    session.history = history;
+  }
+  return session;
+}
 
 export class ACPSessionStore {
   private readonly dir: string;
@@ -173,7 +323,7 @@ export class ACPSessionStore {
     if (target === null) return null;
     try {
       const data = await fsp.readFile(target, 'utf8');
-      return JSON.parse(data) as PersistedSession;
+      return parsePersistedSession(data);
     } catch {
       return null;
     }
