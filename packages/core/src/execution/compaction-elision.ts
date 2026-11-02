@@ -457,9 +457,13 @@ export function eliseOldToolResults(
     if (cached !== undefined) return cached;
     const t =
       b.type === 'tool_result'
-        ? estimateToolResultTokens(b.content)
+        ? isElidedResultContent(b.content)
+          ? 0
+          : estimateToolResultTokens(b.content)
         : b.type === 'tool_use'
-          ? estimateToolInputTokens(b.input)
+          ? isElidedToolInput(b.input)
+            ? 0
+            : estimateToolInputTokens(b.input)
           : 0;
     tokenCache.set(b, t);
     return t;
@@ -518,6 +522,7 @@ export function eliseOldToolResults(
       const b = original[idx];
       if (!b) continue;
       if (b.type === 'tool_use') {
+        if (isElidedToolInput(b.input)) continue;
         const tokens = tokensFor(b);
         if (tokens < opts.eliseThreshold) continue;
         const elidedInput = summarizeToolUseInputElision(b, tokens);
@@ -527,7 +532,7 @@ export function eliseOldToolResults(
         continue;
       }
 
-      if (b.type !== 'tool_result') continue;
+      if (b.type !== 'tool_result' || isElidedResultContent(b.content)) continue;
       const tokens = tokensFor(b);
       if (tokens < opts.eliseThreshold) continue;
       saved += tokens;

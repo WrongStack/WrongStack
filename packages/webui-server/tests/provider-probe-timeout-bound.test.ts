@@ -17,6 +17,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
+import type { ProviderServiceContext } from '../src/server/provider/mutations.js';
+import { createProbeHandlers } from '../src/server/provider/probe.js';
 import { handleProviderRoute, type ProviderRouteHandlers } from '../src/server/provider-routes.js';
 
 /** Mirrors `MAX_PROBE_TIMEOUT_MS` in provider-routes.ts (same as test.run's cap). */
@@ -106,5 +108,36 @@ describe('provider.probe timeoutMs boundary', () => {
     const { deps } = await dispatch({ providerId: 'custom', timeoutMs: 0 });
     expect(deps.probe).toHaveBeenCalledTimes(1);
     expect(deps.probe.mock.calls[0]?.[2]).toBe(0);
+  });
+
+  it('refuses negative or fractional timeoutMs values and treats Object.prototype providerIds as unconfigured (F930)', async () => {
+    for (const badTimeout of [-1, -500, 1.5]) {
+      const { ws, deps } = await dispatch({ providerId: 'custom', timeoutMs: badTimeout });
+      expect(deps.probe).not.toHaveBeenCalled();
+      expect(sentMessages(ws)).toEqual([
+        {
+          type: 'key.operation_result',
+          payload: { success: false, message: 'provider.probe payload is invalid' },
+        },
+      ]);
+    }
+
+    const ws = mockWs();
+    const probeHandlers = createProbeHandlers({
+      async loadConfigProviders() {
+        return {};
+      },
+      sendMessage(target: WebSocket, msg: unknown) {
+        target.send(JSON.stringify(msg));
+      },
+    } as never as ProviderServiceContext);
+
+    await probeHandlers.handleProviderProbe(ws, 'toString');
+    expect(sentMessages(ws)).toEqual([
+      {
+        type: 'provider.probe',
+        payload: { providerId: 'toString', ok: false, status: 'no_provider' },
+      },
+    ]);
   });
 });

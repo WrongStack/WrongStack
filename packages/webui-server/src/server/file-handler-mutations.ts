@@ -6,7 +6,7 @@ import {
   validatedPayload,
   withSessionEcho,
 } from './file-handler-helpers.js';
-import { isSamePath } from './path-containment.js';
+import { isPathInside, isSamePath } from './path-containment.js';
 import { errMessage, messageSessionId, send } from './ws-utils.js';
 
 // ── files.create ──────────────────────────────────────────────────────
@@ -250,14 +250,31 @@ export async function handleFilesRename(
     return;
   }
 
+  let oldStat: Awaited<ReturnType<typeof fs.stat>>;
   try {
     // Source must exist.
-    await fs.access(realOld);
+    oldStat = await fs.stat(realOld);
   } catch {
     send(ws, {
       type: 'files.renamed',
       payload: withSessionEcho(
         { oldPath, newPath, success: false, error: 'Source file does not exist.' },
+        sessionId,
+      ),
+    });
+    return;
+  }
+
+  if (oldStat.isDirectory() && isPathInside(realOld, realNew)) {
+    send(ws, {
+      type: 'files.renamed',
+      payload: withSessionEcho(
+        {
+          oldPath,
+          newPath,
+          success: false,
+          error: 'Cannot rename a directory into itself.',
+        },
         sessionId,
       ),
     });
@@ -394,13 +411,25 @@ export async function handleFilesMove(
   }
 
   // Source must exist.
+  let srcStat: Awaited<ReturnType<typeof fs.stat>>;
   try {
-    await fs.access(realSrc);
+    srcStat = await fs.stat(realSrc);
   } catch {
     send(ws, {
       type: 'files.moved',
       payload: withSessionEcho(
         { srcPath, destPath: '', success: false, error: 'Source file does not exist.' },
+        sessionId,
+      ),
+    });
+    return;
+  }
+
+  if (srcStat.isDirectory() && isPathInside(realSrc, realDestDir)) {
+    send(ws, {
+      type: 'files.moved',
+      payload: withSessionEcho(
+        { srcPath, destPath: '', success: false, error: 'Cannot move a directory into itself.' },
         sessionId,
       ),
     });

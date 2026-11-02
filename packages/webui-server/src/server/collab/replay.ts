@@ -32,6 +32,7 @@ export async function replayHistory(
   sessionId: string,
 ): Promise<void> {
   if (!ctx.reader) return;
+  const initialParticipantId = ctx.registry.findParticipant(ws)?.participantId;
   // Keep only the trailing REPLAY_LIMIT events in a ring instead of
   // materializing the whole session log. `reader.replay` is already an async
   // iterator; buffering all of it just to `slice(-50)` meant a late joiner
@@ -53,8 +54,15 @@ export async function replayHistory(
       : // Unwrap the ring back into chronological order.
         [...ring.slice(seen % REPLAY_LIMIT), ...ring.slice(0, seen % REPLAY_LIMIT)];
   if (tail.length === 0) return; // nothing to replay
+  const isStillSameJoin = (): boolean => {
+    const current = ctx.registry.findParticipant(ws);
+    if (!current || current.sessionId !== sessionId) return false;
+    return initialParticipantId === undefined || current.participantId === initialParticipantId;
+  };
+  if (!isStillSameJoin()) return;
   const scrub = ctx.options.scrubPayload ?? defaultScrub();
   for (const raw of tail) {
+    if (!isStillSameJoin()) return;
     const ev = raw as {
       type?: string | undefined;
       ts?: string | undefined;

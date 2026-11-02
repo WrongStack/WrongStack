@@ -305,7 +305,10 @@ export class FleetSupervisor {
 
     // ── Signal 6: failure streak (highest risk first — most urgent) ──────
     for (const [subagentId, streak] of this.failStreaks) {
-      if (streak >= this.cfg.failureStreak) {
+      if (
+        streak >= this.cfg.failureStreak &&
+        this.canEngageSubagent('failure_streak', subagentId)
+      ) {
         this.failStreaks.delete(subagentId);
         await this.engageFailureStreak(subagentId, streak);
         return; // one engagement per pass
@@ -318,7 +321,7 @@ export class FleetSupervisor {
     // resolve itself.
     for (const s of running) {
       const hits = this.loopHits.get(s.id) ?? 0;
-      if (hits >= this.cfg.loopStreak) {
+      if (hits >= this.cfg.loopStreak && this.canEngageSubagent('looping_agent', s.id)) {
         this.loopHits.delete(s.id);
         await this.engageLooping(s, hits);
         return; // one engagement per pass
@@ -342,12 +345,13 @@ export class FleetSupervisor {
           (t) => now - (this.pendingSince.get(t.id) ?? now) >= this.cfg.pinnedWaitMs,
         );
         if (overloaded || starved.length > 0) {
+          const kind = overloaded ? 'overloaded_worker' : 'pinned_starvation';
           // Overload: move the queue tail, keep the head with its owner.
           // Starvation: move every starved task.
           const movable = overloaded ? tasks.slice(1) : starved;
-          if (movable.length > 0) {
+          if (movable.length > 0 && this.canEngageSubagent(kind, workerId)) {
             await this.engageRebalance(
-              overloaded ? 'overloaded_worker' : 'pinned_starvation',
+              kind,
               workerId,
               movable,
               idle.map((s) => s.id),
@@ -361,7 +365,12 @@ export class FleetSupervisor {
     // ── Signal 4: deep backlog → spawn helper ────────────────────────────
     const backlogged = live > 0 && pending.length > this.cfg.backlogFactor * live;
     this.backlogTicks = backlogged ? this.backlogTicks + 1 : 0;
-    if (backlogged && this.backlogTicks >= 2 && this.cfg.allowSpawn) {
+    if (
+      backlogged &&
+      this.backlogTicks >= 2 &&
+      this.cfg.allowSpawn &&
+      this.canEngageFleet('backlog')
+    ) {
       this.backlogTicks = 0;
       await this.engageBacklog(pending, live);
       return;
@@ -370,7 +379,11 @@ export class FleetSupervisor {
     // ── Signal 5: stuck agent (below the watchdog's reap threshold) ──────
     for (const s of running) {
       const lastSeen = this.lastActivityAt.get(s.id);
-      if (lastSeen !== undefined && now - lastSeen >= this.cfg.stuckMs) {
+      if (
+        lastSeen !== undefined &&
+        now - lastSeen >= this.cfg.stuckMs &&
+        this.canEngageSubagent('stuck_agent', s.id)
+      ) {
         this.lastActivityAt.set(s.id, now); // re-arm
         await this.engageStuck(s);
         return;
@@ -389,6 +402,18 @@ export class FleetSupervisor {
   }
 
   // ── engagements ────────────────────────────────────────────────────────
+
+  private canEngageSubagent(kind: string, subagentId: string): boolean {
+    const key = `${kind}|${subagentId}`;
+    const last = this.lastEngagedAt.get(key) ?? 0;
+    return this.now() - last >= this.cfg.cooldownMs && this.interventionBudgetOk(subagentId);
+  }
+
+  private canEngageFleet(kind: string): boolean {
+    const key = `${kind}|fleet`;
+    const last = this.lastEngagedAt.get(key) ?? 0;
+    return this.now() - last >= this.cfg.cooldownMs;
+  }
 
   private cooldownOk(kind: string, subject: string): boolean {
     const key = `${kind}|${subject}`;

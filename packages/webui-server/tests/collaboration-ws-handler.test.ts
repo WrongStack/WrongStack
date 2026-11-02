@@ -1061,6 +1061,52 @@ describe('CollaborationWebSocketHandler — mirrored payload scrubbing', () => {
     expect(JSON.stringify(replayed[0])).not.toContain(token);
     h.dispose();
   });
+
+  it('does not leak replayed history events after the socket switches sessions during async replay (F929)', async () => {
+    let switched = false;
+    const events = new EventBus();
+    let h!: CollaborationWebSocketHandler;
+    const ws = fakeWs();
+    const fakeReader = {
+      async *replay(sessionId: string) {
+        if (sessionId === 's-old') {
+          await new Promise((r) => setImmediate(r));
+          if (!switched) {
+            switched = true;
+            h.handleMessage(ws, {
+              type: 'collab.leave',
+              payload: { sessionId: 's-old' },
+            });
+            h.handleMessage(ws, {
+              type: 'collab.join',
+              payload: { sessionId: 's-new', role: 'observer' },
+            });
+          }
+          yield {
+            type: 'user_input',
+            ts: '2026-01-01T00:00:01Z',
+            content: 'leaked-from-old-session',
+          };
+        }
+      },
+    };
+    h = new CollaborationWebSocketHandler(events, noopLogger, fakeReader as any);
+    h.addClient(ws);
+    h.handleMessage(ws, {
+      type: 'collab.join',
+      payload: { sessionId: 's-old', role: 'observer' },
+    });
+
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+
+    const replayed = ws.sent.filter(
+      (m: any) => m.type === 'collab.event' && m.payload.replay === true,
+    );
+    expect(replayed).toHaveLength(0);
+    h.dispose();
+  });
 });
 
 // Minimal wiring helper: a fresh handler with a real bus (no

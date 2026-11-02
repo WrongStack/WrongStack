@@ -308,4 +308,32 @@ describe('Director — removeSubagent per-subagent Map cleanup', () => {
     // are no-ops on that key.
     expect(director.priceLookups.size).toBe(0);
   });
+
+  it('retains shared priceLookups entry when another active subagent still uses the same provider and model', async () => {
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
+
+    (director.subagentMeta as Map<string, unknown>).set('s1', {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5',
+    });
+    (director.subagentMeta as Map<string, unknown>).set('s2', {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5',
+    });
+    (director.priceLookups as Map<string, unknown>).set('anthropic/claude-sonnet-4-5', {
+      input: 3,
+    });
+
+    await director.remove('s1');
+    expect(director.subagentMeta.has('s1')).toBe(false);
+    expect(director.subagentMeta.has('s2')).toBe(true);
+    expect(director.priceLookups.has('anthropic/claude-sonnet-4-5')).toBe(true);
+
+    await director.remove('s2');
+    expect(director.priceLookups.has('anthropic/claude-sonnet-4-5')).toBe(false);
+  });
 });

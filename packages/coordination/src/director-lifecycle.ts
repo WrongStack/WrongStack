@@ -127,10 +127,15 @@ export async function removeDirectorSubagent(
   // provider/model from subagentMeta so we delete exactly the right
   // entry instead of guessing or deleting all entries.
   const meta = host.subagentMeta.get(subagentId);
-  if (meta?.provider && meta.model) {
-    host.priceLookups.delete(`${meta.provider}/${meta.model}`);
-  }
   host.subagentMeta.delete(subagentId);
+  if (meta?.provider && meta.model) {
+    const stillUsed = [...host.subagentMeta.values()].some(
+      (m) => m.provider === meta.provider && m.model === meta.model,
+    );
+    if (!stillUsed) {
+      host.priceLookups.delete(`${meta.provider}/${meta.model}`);
+    }
+  }
 }
 
 export async function shutdownDirector(host: DirectorLifecycleHost): Promise<void> {

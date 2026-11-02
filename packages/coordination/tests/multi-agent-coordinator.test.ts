@@ -327,5 +327,32 @@ describe('DefaultMultiAgentCoordinator', () => {
       expect(later?.status).toBe('success');
       expect(coord.listPendingTasks()).toEqual([]);
     });
+
+    it('honors per-task maxToolCalls and timeoutMs overrides on TaskSpec', async () => {
+      const coord = makeCoordinator(makeConfig({ maxConcurrent: 2 }));
+      let observedLimits: { maxToolCalls?: number; timeoutMs?: number } | undefined;
+      coord.setRunner((async (
+        _task: unknown,
+        ctx: { budget: { limits: { maxToolCalls?: number; timeoutMs?: number } } },
+      ) => {
+        observedLimits = {
+          maxToolCalls: ctx.budget.limits.maxToolCalls,
+          timeoutMs: ctx.budget.limits.timeoutMs,
+        };
+        return { result: 'ok', iterations: 1, toolCalls: 1 };
+      }) as never);
+
+      await coord.spawn({ id: 'a1', name: 'A1', maxToolCalls: 40, timeoutMs: 90_000 });
+      await coord.assign({
+        id: 'override-task',
+        description: 'Task with explicit budget overrides',
+        subagentId: 'a1',
+        maxToolCalls: 6,
+        timeoutMs: 15_000,
+      });
+      const [res] = await coord.awaitTasks(['override-task'], { timeoutMs: 500 });
+      expect(res?.status).toBe('success');
+      expect(observedLimits).toEqual({ maxToolCalls: 6, timeoutMs: 15_000 });
+    });
   });
 });

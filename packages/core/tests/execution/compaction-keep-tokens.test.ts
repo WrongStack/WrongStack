@@ -170,6 +170,48 @@ describe('HybridCompactor with keepTokens', () => {
     expect(resultFor(kept, 't15')?.content).toBe(big);
     expect(resultFor(kept, 't2')?.content).not.toBe(big);
   });
+
+  it('does not deduplicate repeated file reads inside the keepTokens verbatim tail (F927)', async () => {
+    const readContent = 'LINE '.repeat(120);
+    const messages: Message[] = [
+      { role: 'user', content: 'read app' },
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'r1', name: 'read_file', input: { path: 'src/app.ts' } }],
+      },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'r1', content: readContent }],
+      },
+      { role: 'user', content: 'read app again' },
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'r2', name: 'read_file', input: { path: 'src/app.ts' } }],
+      },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'r2', content: readContent }],
+      },
+      { role: 'user', content: 'turn 1' },
+      { role: 'assistant', content: 'reply 1' },
+      { role: 'user', content: 'turn 2' },
+      { role: 'assistant', content: 'reply 2' },
+    ];
+    const ctx = fakeContext(messages, {
+      ...policy({ preserveK: 1, keepTokens: 5_000, eliseThreshold: 50_000 }),
+      effectiveMaxContext: 100_000,
+      contextEvidenceState: {
+        seenTools: new Set(['read_file']),
+        readFiles: new Map([['src/app.ts', 2]]),
+        writtenFiles: new Set<string>(),
+        failedCommands: [],
+        lastUpdatedTurn: 1,
+      },
+    });
+    await new HybridCompactor({ preserveK: 1, eliseThreshold: 50_000 }).compact(ctx);
+    const firstBlocks = messages[2]?.content as Array<{ content?: string }> | undefined;
+    expect(firstBlocks?.[0]?.content ?? '').toBe(readContent);
+  });
 });
 
 describe('keepTokens configuration', () => {
