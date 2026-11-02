@@ -531,6 +531,7 @@ export class HqPublisher {
         project: this.options.project,
         capabilities: this.capabilities,
         redactionPolicy: this.resolvedRedactionPolicy,
+        ...(this.options.startsSessions === true ? { startsSessions: true } : {}),
       },
     };
   }

@@ -20,6 +20,7 @@
  */
 
 import type { UserInputResponse } from '@wrongstack/contracts/types/user-input';
+import { type HqStartSessionCommand, parseHqStartSession } from './command-start-session.js';
 import type { HqQueuedCommand } from './protocol/fleet.js';
 
 // ── Command types ───────────────────────────────────────────────────────────
@@ -38,6 +39,7 @@ export const HQ_COMMAND_TYPES = [
   'approve',
   'answer-input',
   'run-command',
+  'start-session',
 ] as const;
 
 export type HqCommandType = (typeof HQ_COMMAND_TYPES)[number];
@@ -250,7 +252,8 @@ export type HqCommand =
   | HqKanbanDispatchCommand
   | HqApproveCommand
   | HqAnswerInputCommand
-  | HqRunCommandCommand;
+  | HqRunCommandCommand
+  | HqStartSessionCommand;
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -482,6 +485,8 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
       if (typeof p['cwd'] === 'string') result.cwd = p['cwd'];
       return withSessionId(result, p);
     }
+    case 'start-session':
+      return parseHqStartSession(p);
     default:
       return null;
   }

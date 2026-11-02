@@ -219,6 +219,8 @@ export interface CreateHqPublisherOptions {
   redactionPolicy?: Partial<HqRedactionPolicy>;
   /** Forwarded to the HqPublisher constructor (Phase 4 control plane). */
   capabilities?: readonly HqClientCapability[];
+  /** Announce `start-session` support in the hello (see HqClientHelloPayload). */
+  startsSessions?: boolean;
   /** Bound offline telemetry retained by this client. */
   maxQueuedMessages?: number;
   /** Forwarded to the HqPublisher constructor (Phase 4 control plane). */
@@ -281,6 +283,7 @@ export function createHqPublisherFromEnv(
     ...(options.socketFactory ? { socketFactory: options.socketFactory } : {}),
     ...(redactionPolicy !== undefined ? { redactionPolicy } : {}),
     ...(options.capabilities !== undefined ? { capabilities: options.capabilities } : {}),
+    ...(options.startsSessions === true ? { startsSessions: true } : {}),
     ...(options.maxQueuedMessages !== undefined
       ? { maxQueuedMessages: options.maxQueuedMessages }
       : {}),

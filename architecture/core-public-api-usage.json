@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 493,
+      "files": 494,
       "typeOnly": 369,
-      "runtimeOrMixed": 155
+      "runtimeOrMixed": 156
     },
     "@wrongstack/core/agent-catalog": {
       "files": 1,
@@ -129,9 +129,9 @@
       "runtimeOrMixed": 14
     },
     "@wrongstack/core/security": {
-      "files": 262,
+      "files": 263,
       "typeOnly": 26,
-      "runtimeOrMixed": 239
+      "runtimeOrMixed": 240
     },
     "@wrongstack/core/session-catalog": {
       "files": 18,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 946,
+      "files": 948,
       "typeOnly": 69,
-      "runtimeOrMixed": 914
+      "runtimeOrMixed": 916
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1523,6 +1523,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/hq/src/approval-bridge.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/hq/tests/command-start-session.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7492,6 +7498,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/hq-start-session.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/hq-totp-2fa.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11386,6 +11398,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/hq-command-controller.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/hq-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11429,6 +11447,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/hq-service.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/hq-session-launcher.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

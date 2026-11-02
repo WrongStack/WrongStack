@@ -9,6 +9,7 @@ export * from './auth-store.js';
 export * from './bootstrap-store.js';
 export * from './brain-bridge.js';
 export * from './bridge-context.js';
+export * from './command-start-session.js';
 export * from './commands.js';
 export * from './cost-bridge.js';
 export * from './exposure.js';

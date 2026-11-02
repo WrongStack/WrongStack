@@ -203,3 +203,35 @@ export function projectWhere(project: ProjectSummary): string {
     return offline === 0 ? 'No machine' : `${offline} machine${offline === 1 ? '' : 's'}, offline`;
   return offline === 0 ? `on ${names}` : `on ${names} · ${offline} offline`;
 }
+
+/** A connected client of the project that may open new sessions there. */
+export interface StartSessionTarget {
+  clientId: string;
+  hostname: string;
+  kind: string;
+}
+
+/**
+ * Where HQ could start a session for this project: connected clients that
+ * advertise `session.start` (they run with `--hq-allow-exec` on a release that
+ * knows the command). Sorted by machine name.
+ */
+export function startSessionTargets(
+  snapshot: HqSnapshot | null,
+  projectId: string,
+): StartSessionTarget[] {
+  if (snapshot === null) return [];
+  return snapshot.clients
+    .filter(
+      (client) =>
+        client.connected &&
+        client.projectId === projectId &&
+        client.capabilities.includes('session.start'),
+    )
+    .map((client) => ({
+      clientId: client.clientId,
+      hostname: client.hostname || client.machineId,
+      kind: client.kind,
+    }))
+    .sort((a, b) => a.hostname.localeCompare(b.hostname) || a.clientId.localeCompare(b.clientId));
+}

@@ -205,9 +205,47 @@ The three prompt-carrying types are:
 | `broadcast` | `broadcast` | Fan out to every agent on the target's project (`to: all`). |
 
 The full set of `HQ_COMMAND_TYPES` (see `packages/hq/src/commands.ts`)
-also includes `abort`, `spawn`, and the gated `run-command`. Only
-`steer` / `btw` / `queue` / `broadcast` write a prompt to the mailbox;
-the others route through the agent's decision loop.
+also includes `abort`, `spawn`, and the gated `run-command` and
+`start-session`. Only `steer` / `btw` / `queue` / `broadcast` write a prompt
+to the mailbox; the others route through the agent's decision loop, except
+`start-session`, which opens a new session (see below).
+
+#### Starting a session from HQ
+
+`start-session` (`payload: { prompt }`, at most 16,000 characters) asks a
+connected client to open a **new** headless session in its project with that
+prompt. The client never runs a shell for it: it launches its own `wstack`
+binary with `--hq-approver --prompt=<prompt>` (the prompt is one argv entry,
+so no character in it is interpreted), in the project folder, with no
+terminal. There is no `PATH` fallback (a Windows `.cmd` shim would go through
+cmd.exe). At most 4 such sessions run at once per client process.
+
+The new process connects to HQ like any other client. Because nobody sits at
+its terminal, `--hq-approver` makes HQ the **approver** for it: its permission
+prompts wait for an answer from the Inbox instead of being auto-denied by the
+headless guard. Everything else is that machine's own configuration: trust
+rules, the permission mode and the approval timeout. A prompt unanswered for
+120 seconds is refused, or decided by the machine's Brain arbiter when one is
+configured (a rule the user wrote to forbid the call is never overruled).
+Other headless runs (CI, scripts) are unchanged: HQ only mirrors their
+prompts.
+
+It is gated like `run-command`, plus one more check:
+
+- the browser session and the target client's token both need
+  `control.execute`;
+- the trust boundary treats it as `critical`, so a raw bearer-token caller
+  is refused (`remote-client`); the dashboard's cookie session is allowed;
+- the client must run with `--hq-allow-exec` and say so in its hello
+  (`startsSessions: true`, which the server turns into the `session.start`
+  capability). Otherwise the server answers `409`. It is a hello field
+  rather than a capability because an older server rejects a hello that
+  names a capability it does not know.
+
+In the dashboard: Fleet → Projects → *Start a session* (shown to credentials
+that hold `control.execute`). You pick the machine, write the prompt, review
+exactly what will run, then confirm; the dialog follows the command until the
+client answers.
 
 #### `/api/command` request
 
@@ -215,7 +253,7 @@ the others route through the agent's decision loop.
 POST /api/command
 {
   "clientId": "<connected client id>",  // required — target must be online
-  "type": "steer",                       // steer | btw | queue | broadcast | abort | spawn | run-command
+  "type": "steer",                       // steer | btw | queue | broadcast | abort | spawn | run-command | start-session
   "payload": {
     "to": "leader",                      // agent address; omitted for broadcast
     "subject": "HQ prompt",
@@ -745,7 +783,7 @@ tabs below (`packages/hq-next/src/lib/sections.ts`).
 | **Overview** | What needs you (the attention queue), what is running, subagent runs and their spawn budgets, projects, and system health: live link, HQ server and stores, publishers, mailbox gateways, command round-trip, client versions, MCP servers, access-token counts | `hq.snapshot`, `/api/system/health`, `/api/health/mailbox`, `/api/alerts` |
 | **Fleet · Map** | Machine → project → terminal → agent topology as a list or a graph, with search and "hide idle"; click through to the console | `hq.snapshot` |
 | **Fleet · Machines** | One card per machine: online state, clients and their release against HQ, projects, sessions, working agents, spend, MCP health, its health reading (memory, the project's disk, CPU load, uptime, WrongStack's own memory) and that machine's attention items; scope HQ to it in one click. Machines that went offline stay listed with when they were last seen and what they last ran, until forgotten | `hq.snapshot`, `DELETE /api/machines/:key` |
-| **Fleet · Projects** | One card per project across every machine it runs on: where it runs (online and offline machines), open sessions with a link to each transcript, working agents, spend, unread and open mail, the sessions that recently ended and that project's attention items; scope HQ to it in one click. A project whose clients are all gone stays listed from the machine roster | `hq.snapshot`, `GET /api/sessions/history?projectId=` |
+| **Fleet · Projects** | One card per project across every machine it runs on: where it runs (online and offline machines), open sessions with a link to each transcript, working agents, spend, unread and open mail, the sessions that recently ended and that project's attention items; scope HQ to it in one click. A project whose clients are all gone stays listed from the machine roster; *Start a session* opens a new headless session there (see [Starting a session from HQ](#starting-a-session-from-hq)) | `hq.snapshot`, `GET /api/sessions/history?projectId=`, `POST /api/command` (`start-session`) |
 | **Fleet · Console** | A session's full transcript with the agent's model, context fill, tokens and cost; steer / FYI / queue and a confirmed interrupt to the exact client | `/api/sessions/:id/events`, `session.transcript`, `hq.command_status` |
 | **Work · Kanban** | Boards per project; move, assign and dispatch tasks (dispatch is confirmed and warns about unfinished dependencies) | `/api/projects/:projectId/kanban`, `kanban.snapshot` |
 | **Work · Mailbox** | Agent mail across projects; read, reply, compose, soft-delete with restore | `hq.snapshot`, `mailbox.event` (backfilled) |
@@ -1178,9 +1216,10 @@ Created client token.
 Connect with: ws://localhost:3499/ws/client?token=f2c9d1b4...
 (Copy the token now — it will not be shown again in full.)
 
-# Explicitly opt a trusted client into the run-command gate. The client
-# must also be launched with --hq-allow-exec; commands still enter through
-# the agent permission policy.
+# Explicitly opt a trusted client into the run-command / start-session gate.
+# The client must also be launched with --hq-allow-exec; run-command still
+# enters through the agent permission policy, and a started session runs
+# under the machine's own permission settings.
 $ wstack hq token create --client \
     --capabilities telemetry.publish,control.execute "trusted-operator"
 

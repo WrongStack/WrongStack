@@ -126,6 +126,7 @@ const HQ_CLIENT_CAPABILITIES = new Set<HqClientCapability>([
   'control.receive',
   'control.approve',
   'kanban.dispatch',
+  'session.start',
 ]);
 const HQ_COMMAND_ACK_STATUSES = new Set<HqClientCommandAckMessage['status']>([
   'accepted',
@@ -193,7 +194,8 @@ function isHqClientHelloPayload(x: unknown): x is HqClientHelloPayload {
         typeof capability === 'string' &&
         HQ_CLIENT_CAPABILITIES.has(capability as HqClientCapability),
     ) &&
-    (v.redactionPolicy === undefined || isHqRedactionPolicy(v.redactionPolicy))
+    (v.redactionPolicy === undefined || isHqRedactionPolicy(v.redactionPolicy)) &&
+    (v.startsSessions === undefined || typeof v.startsSessions === 'boolean')
   );
 }
 

@@ -272,6 +272,11 @@ export function handleClient(
       const acceptedCapabilities = payload.capabilities.filter(
         (capability: string) => capability === 'control.receive' || canPublishTelemetry,
       );
+      // Announced as a hello field so older servers keep accepting the hello;
+      // the command itself stays gated by control.execute on this token.
+      if (payload.startsSessions === true && canPublishTelemetry) {
+        acceptedCapabilities.push('session.start');
+      }
       const declaredRedactionPolicy = resolveHqRedactionPolicy(payload.redactionPolicy);
 
       const supersededLeaders: ConnectedClient[] = [];

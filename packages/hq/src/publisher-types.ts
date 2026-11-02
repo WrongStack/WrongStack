@@ -45,6 +45,8 @@ export interface HqPublisherOptions {
   client: HqClientIdentity;
   project: HqProjectIdentity;
   capabilities?: readonly HqClientCapability[];
+  /** Announce that this client opens sessions on HQ's `start-session` (hello `startsSessions`). */
+  startsSessions?: boolean;
   socketFactory?: HqSocketFactory;
   now?: () => string;
   idFactory?: () => string;

@@ -89,6 +89,8 @@ export const BOOLEAN_FLAGS = new Set([
   'system-quick',
   'hq',
   'hq-allow-exec',
+  // Set on sessions HQ starts: HQ answers their permission prompts.
+  'hq-approver',
   'tunnel',
   // Opt-in to a non-loopback HQ bind with no token/password configured.
   'insecure-open',

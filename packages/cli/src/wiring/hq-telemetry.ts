@@ -24,6 +24,7 @@ import {
 } from '../hq-command-controller.js';
 import { setHqLiveStatusProbe } from '../hq-live-status.js';
 import { startCliHqConnection } from '../hq-publisher.js';
+import { createHqSessionLauncher } from '../hq-session-launcher.js';
 import type { KanbanHqSyncStats } from '../kanban-hq-sync.js';
 import type { ApprovalMirrorRef } from '../permission-prompt-mirror.js';
 
@@ -137,7 +138,11 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
   // them on a reconnect would strand the run waiting on an answer nobody can
   // give. The BRIDGE is what restarts with each connection; it republishes
   // whatever the registry still holds.
-  const approvalRegistry: ApprovalRegistry = createApprovalRegistry(events);
+  // `--hq-approver`: this process was started from HQ and nobody sits at its
+  // terminal, so HQ answers its prompts instead of only mirroring them.
+  const approvalRegistry: ApprovalRegistry = createApprovalRegistry(events, {
+    approver: flags['hq-approver'] === true,
+  });
   teardownHandlers.push(() => approvalRegistry.dispose());
   if (deps.approvalMirror) {
     deps.approvalMirror.current = approvalRegistry;
@@ -153,6 +158,12 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
     });
   }
 
+  // HQ may open new sessions here only on the same opt-in as run-command.
+  const hqSessionLauncher =
+    flags['hq-allow-exec'] === true
+      ? createHqSessionLauncher({ projectRoot: liveProjectRoot })
+      : undefined;
+
   // ── Phase 4 control plane — HQ command dispatch holder ──────────────────
   const hqCommandController: HqCommandController = {
     steerMailbox: brainMailbox as never,
@@ -163,6 +174,9 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
     // object and a captured one goes stale.
     sessionId: () => liveSession().id,
     allowRunCommand: () => flags['hq-allow-exec'] === true,
+    ...(hqSessionLauncher
+      ? { startSession: (prompt: string) => hqSessionLauncher.start(prompt) }
+      : {}),
     resolveApproval: (toolUseId, decision, commandSessionId) =>
       approvalRegistry.resolve(toolUseId, decision, commandSessionId),
     resolveUserInput: (requestId, response, commandSessionId) =>
@@ -314,6 +328,7 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
         'control.approve',
         'kanban.dispatch',
       ],
+      ...(hqSessionLauncher ? { startsSessions: true } : {}),
       onConnect: (publisher) => {
         hqPublisherRef.current = publisher;
         bindSessionScope(publisher);

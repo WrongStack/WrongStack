@@ -18,7 +18,9 @@
 
 import type { UserInputResponse } from '@wrongstack/contracts/types';
 import type { RemoteMailbox } from '@wrongstack/coordination';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type { HqCommand, HqPublisherCommandResult } from '@wrongstack/hq';
+import { parseHqStartSession } from '@wrongstack/hq';
 
 /**
  * Mutable holder for the command dispatch targets. Each field is populated
@@ -76,6 +78,11 @@ export interface HqCommandController {
   ownsSession?: ((sessionId: string) => boolean) | undefined;
   /** Whether raw shell execution is explicitly opted-in by the operator. */
   allowRunCommand: () => boolean;
+  /**
+   * Open a new headless session in this host's project (HQ `start-session`).
+   * Absent on hosts that cannot; only consulted when `allowRunCommand()` holds.
+   */
+  startSession?: ((prompt: string) => { pid: number | undefined }) | undefined;
   /**
    * Answer a permission prompt that is live on this host.
    *
@@ -563,6 +570,37 @@ async function dispatch(
         return { commandId, status: 'accepted', message: 'run-command routed to leader as steer' };
       }
       return { commandId, status: 'rejected', message: 'cannot route run-command (no mailbox)' };
+    }
+
+    case 'start-session': {
+      // Same operator opt-in as run-command: starting a session launches a
+      // process on this machine.
+      if (!controller.allowRunCommand()) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'start-session requires operator opt-in (--hq-allow-exec)',
+        };
+      }
+      if (controller.startSession === undefined) {
+        return { commandId, status: 'rejected', message: 'this client cannot start sessions' };
+      }
+      // Re-checked here: this process launches something, so it does not
+      // trust that the server validated the payload.
+      const parsed = parseHqStartSession(payload);
+      if (parsed === null) {
+        return { commandId, status: 'rejected', message: 'start-session needs a prompt' };
+      }
+      try {
+        const { pid } = controller.startSession(parsed.prompt);
+        return {
+          commandId,
+          status: 'completed',
+          message: pid === undefined ? 'session started' : `session started (pid ${pid})`,
+        };
+      } catch (err) {
+        return { commandId, status: 'failed', message: toErrorMessage(err) };
+      }
     }
 
     default:

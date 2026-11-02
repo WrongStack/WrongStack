@@ -246,7 +246,21 @@ function isDestructive(e: {
   return e.riskTier === 'destructive' || e.decisionSource === 'yolo_destructive';
 }
 
-export function createApprovalRegistry(events: EventBus): ApprovalRegistry {
+export interface ApprovalRegistryOptions {
+  /**
+   * HQ ANSWERS this process's prompts instead of only mirroring them. Set only
+   * for a session HQ itself started (`wstack -p … --hq-approver`): nobody sits
+   * at its terminal, so without this every permission prompt would be
+   * auto-denied by the headless guard. Waits are bounded by the usual human
+   * approval timeout.
+   */
+  approver?: boolean;
+}
+
+export function createApprovalRegistry(
+  events: EventBus,
+  options: ApprovalRegistryOptions = {},
+): ApprovalRegistry {
   const pending = new Map<string, PendingApproval>();
   const pendingInputs = new Map<string, PendingHqUserInput>();
   /**
@@ -268,8 +282,8 @@ export function createApprovalRegistry(events: EventBus): ApprovalRegistry {
   // Declared BEFORE subscribing: the guard in `waitForConfirm` reads this
   // count, and a window where the listener exists but is not yet declared
   // passive is a window where a headless run waits instead of denying.
-  const releaseObserver = markConfirmObserver();
-  const releaseUserInputObserver = markUserInputObserver();
+  const releaseObserver = options.approver ? () => undefined : markConfirmObserver();
+  const releaseUserInputObserver = options.approver ? () => undefined : markUserInputObserver();
 
   const notify = (change: ApprovalChange): void => {
     for (const listener of listeners) {

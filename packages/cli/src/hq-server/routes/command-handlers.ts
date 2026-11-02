@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type * as http from 'node:http';
+import type { TrustBoundary } from '@wrongstack/core/security';
 import type {
   HqCommand,
   HqCommandAuditEntry,
@@ -7,7 +8,6 @@ import type {
   HqQueuedCommand,
 } from '@wrongstack/hq';
 import { tokenHasCapability, validateHqCommand } from '@wrongstack/hq';
-import type { TrustBoundary } from '@wrongstack/core/security';
 import type { WebSocket } from 'ws';
 import { authenticateBrowserRequest, hqAuthRequired, isCookieAuth, isTokenAuth } from '../auth.js';
 import * as HqServerSnapshot from '../snapshot.js';
@@ -15,6 +15,11 @@ import { authorizeHqCommand } from '../trust-boundary.js';
 import type { ConnectedClient, HqRouterMutableAuth, HqSessionEntry } from '../types.js';
 import { readRequestBody, writeInvalidBody } from '../utils.js';
 import { callerCanEnqueue } from './mailbox-handlers.js';
+
+/** Commands that make the target machine execute something (`control.execute`). */
+function isExecuteCommand(type: string): boolean {
+  return type === 'run-command' || type === 'start-session';
+}
 
 export async function handleApiCommand(
   req: http.IncomingMessage,
@@ -133,8 +138,21 @@ export async function handleApiCommand(
     return;
   }
 
+  // Starting a session launches a process on the target machine: it is
+  // gated exactly like `run-command`, and the target must say it can do it.
+  if (validated.type === 'start-session' && !target.capabilities.includes('session.start')) {
+    res.writeHead(409, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: 'client cannot start sessions (needs --hq-allow-exec and a current release)',
+        clientId: body.clientId,
+      }),
+    );
+    return;
+  }
+
   if (
-    validated.type === 'run-command' &&
+    isExecuteCommand(validated.type) &&
     isCookieAuth(auth) &&
     auth.capabilities !== undefined &&
     !auth.capabilities.includes('control.execute')
@@ -149,7 +167,7 @@ export async function handleApiCommand(
   }
 
   if (
-    validated.type === 'run-command' &&
+    isExecuteCommand(validated.type) &&
     !tokenHasCapability(target.authToken, 'control.execute')
   ) {
     res.writeHead(403, { 'Content-Type': 'application/json' });

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T07:22:11.895Z",
+  "generatedAt": "2026-11-02T08:36:57.338Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5643,
-    "testFiles": 4880,
-    "sourceLines": 1232123,
+    "sourceFiles": 5646,
+    "testFiles": 4882,
+    "sourceLines": 1232681,
     "workspaceEdges": 231,
-    "moduleEdges": 16513,
+    "moduleEdges": 16518,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -27,8 +27,7 @@
   "errors": [
     "ARCH-CYCLE-TYPE-05: exception expired on 2026-11-01",
     "ARCH-CYCLE-TYPE-09: exception expired on 2026-11-01",
-    "ARCH-CYCLE-TYPE-12: exception expired on 2026-11-01",
-    "apps/desktop-v2/src/CodeAtlas.tsx: hotspot grew from 914 to 915 lines; review and update the ratchet in the same change"
+    "ARCH-CYCLE-TYPE-12: exception expired on 2026-11-01"
   ],
   "packageCycles": [],
   "coreAreas": {
@@ -213,8 +212,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 625,
-      "testFiles": 682,
+      "sourceFiles": 626,
+      "testFiles": 683,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -266,7 +265,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 682
+          "testFiles": 683
         }
       ]
     },
@@ -483,8 +482,8 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 70,
-      "testFiles": 48,
+      "sourceFiles": 71,
+      "testFiles": 49,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -500,14 +499,14 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 48
+          "testFiles": 49
         }
       ]
     },
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 180,
+      "sourceFiles": 181,
       "testFiles": 63,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -5289,6 +5288,12 @@
       },
       {
         "file": "packages/cli/tests/hq-stale-client-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-start-session.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13905,6 +13910,12 @@
       },
       {
         "file": "packages/hq/tests/command-latency.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/command-start-session.test.ts",
         "projects": [
           "root-node"
         ]

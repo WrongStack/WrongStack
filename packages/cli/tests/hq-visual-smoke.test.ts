@@ -151,6 +151,8 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
             },
             capabilities: ['telemetry.publish', 'session.summary', 'control.receive'],
             redactionPolicy: { rawContent: true, toolArgs: 'summary', paths: 'project-relative' },
+            // Started with --hq-allow-exec: HQ may open sessions here.
+            startsSessions: true,
           },
         }),
       );
@@ -1024,6 +1026,28 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       expect(await projectDetail.textContent()).toContain('DEVBOX-01');
       expect(await projectDetail.locator('[data-project-session]').count()).toBeGreaterThan(0);
       await shot('20b-project');
+      // Start a session on the lab machine: write, then review what will run.
+      // (Confirming is refused for this bearer-token browser at the trust
+      // boundary; the cookie path is covered by hq-start-session.test.ts.)
+      await main.locator('[data-project="proj-lab"]').click();
+      await expect.poll(async () => projectDetail.textContent()).toContain('Datapipe');
+      await projectDetail.getByTestId('start-session').click();
+      const startDialog = page.getByRole('dialog');
+      await startDialog.waitFor();
+      await startDialog.getByTestId('start-session-prompt').fill('Fix the flaky export test');
+      await startDialog.getByRole('button', { name: 'Review' }).click();
+      const review = startDialog.getByTestId('start-session-review');
+      await review.waitFor();
+      const reviewed = await review.textContent();
+      expect(reviewed).toContain('LAB-02');
+      expect(reviewed).toContain('Fix the flaky export test');
+      expect(reviewed).toContain('Inbox');
+      await shot('20d-start-session-review');
+      await page.keyboard.press('Escape');
+      await expect.poll(() => page.getByRole('dialog').count()).toBe(0);
+      // The project without a capable client says how to enable it.
+      await main.locator('[data-project="proj-smoke"]').click();
+      await expect.poll(async () => projectDetail.textContent()).toContain('--hq-allow-exec');
       await main.locator('[data-project="proj-old"]').click();
       const rememberedProject = main.locator(
         '[data-testid="project-detail"][data-remembered="true"]',

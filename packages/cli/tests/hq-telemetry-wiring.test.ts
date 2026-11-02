@@ -144,8 +144,15 @@ describe('setupHqTelemetry', () => {
         projectName: 'repo',
         onCommand: hqOnCommand,
         capabilities: expect.arrayContaining(['control.receive', 'kanban.dispatch']),
+        // `--hq-allow-exec`: this client may open sessions on HQ's request.
+        startsSessions: true,
       }),
     );
+    expect(result.hqCommandController.startSession).toBeTypeOf('function');
+    // Not started from HQ: its prompts are only mirrored, never answered by HQ.
+    expect(mocks.createApprovalRegistry).toHaveBeenCalledWith(expect.anything(), {
+      approver: false,
+    });
     expect(result.hqOnCommand).toBe(hqOnCommand);
     expect(result.hqCommandController.sessionTag()).toBe('tag:session-1');
     expect(result.hqCommandController.allowRunCommand()).toBe(true);
@@ -254,6 +261,10 @@ describe('setupHqTelemetry', () => {
         liveProjectRoot: () => live.root,
         scopeCheckIntervalMs: 100,
       });
+
+      // No `--hq-allow-exec`: no launcher, nothing announced to HQ.
+      expect(result.hqCommandController.startSession).toBeUndefined();
+      expect(mocks.startCliHqConnection.mock.calls[0]?.[0]).not.toHaveProperty('startsSessions');
 
       const sessionIds = () =>
         mocks.startSessionTelemetryBridge.mock.calls.map(

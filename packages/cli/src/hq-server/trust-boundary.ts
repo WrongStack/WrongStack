@@ -1,9 +1,9 @@
-import type { HqCommand } from '@wrongstack/hq';
 import {
   isTrustDecisionAllowed,
   type TrustBoundary,
   type TrustBoundaryRequest,
 } from '@wrongstack/core/security';
+import type { HqCommand } from '@wrongstack/hq';
 import type { ConnectedClient } from './types.js';
 
 export async function authorizeHqCommand(input: {
@@ -55,7 +55,7 @@ export async function authorizeHqCommand(input: {
     actor: { kind: authMethod === 'session' ? 'user' : 'remote-client', id: enqueuedBy },
     surface: 'hq',
     capability:
-      command.type === 'run-command'
+      command.type === 'run-command' || command.type === 'start-session'
         ? 'hq.control.execute'
         : // Approvals get their own capability string so a policy can allow
           // steering while still refusing remote approval of tool calls.
@@ -63,7 +63,9 @@ export async function authorizeHqCommand(input: {
           ? 'hq.control.approve'
           : 'hq.control.enqueue',
     subject,
-    risk: command.type === 'run-command' ? 'critical' : 'high',
+    // Starting a session launches a process on the target: as critical as
+    // running a command, so a bearer-token script cannot do it either.
+    risk: command.type === 'run-command' || command.type === 'start-session' ? 'critical' : 'high',
     scope: { projectId: target.projectId },
     authContext: { method: authMethod, principalId: enqueuedBy },
     metadata: { commandType: command.type, targetKind: target.kind },

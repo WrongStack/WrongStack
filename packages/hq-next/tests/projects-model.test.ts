@@ -6,7 +6,12 @@
 import type { HqSnapshot } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import type { AttentionItem } from '../src/features/attention/model';
-import { projectSentence, projectSummaries, projectWhere } from '../src/features/projects/model';
+import {
+  projectSentence,
+  projectSummaries,
+  projectWhere,
+  startSessionTargets,
+} from '../src/features/projects/model';
 
 const T = '2026-11-01T12:00:00.000Z';
 const snapshot = {
@@ -166,5 +171,66 @@ describe('projectSummaries', () => {
 
   it('returns nothing before the first snapshot', () => {
     expect(projectSummaries(null, [])).toEqual([]);
+  });
+});
+
+describe('startSessionTargets', () => {
+  it('offers only connected clients of the project that announce session.start', () => {
+    const withCaps = {
+      ...snapshot,
+      clients: [
+        {
+          clientId: 'b',
+          machineId: 'm2',
+          hostname: 'lab',
+          projectId: 'alpha',
+          connected: true,
+          kind: 'cli',
+          capabilities: ['session.start'],
+        },
+        {
+          clientId: 'a',
+          machineId: 'm1',
+          hostname: 'Desk',
+          projectId: 'alpha',
+          connected: true,
+          kind: 'tui',
+          capabilities: ['session.start'],
+        },
+        {
+          clientId: 'c',
+          machineId: 'm3',
+          hostname: 'old',
+          projectId: 'alpha',
+          connected: false,
+          kind: 'tui',
+          capabilities: ['session.start'],
+        },
+        {
+          clientId: 'd',
+          machineId: 'm1',
+          hostname: 'Desk',
+          projectId: 'alpha',
+          connected: true,
+          kind: 'webui',
+          capabilities: ['control.receive'],
+        },
+        {
+          clientId: 'e',
+          machineId: 'm1',
+          hostname: 'Desk',
+          projectId: 'beta',
+          connected: true,
+          kind: 'tui',
+          capabilities: ['session.start'],
+        },
+      ],
+    } as unknown as HqSnapshot;
+    expect(startSessionTargets(withCaps, 'alpha')).toEqual([
+      { clientId: 'a', hostname: 'Desk', kind: 'tui' },
+      { clientId: 'b', hostname: 'lab', kind: 'cli' },
+    ]);
+    expect(startSessionTargets(withCaps, 'gamma')).toEqual([]);
+    expect(startSessionTargets(null, 'alpha')).toEqual([]);
   });
 });

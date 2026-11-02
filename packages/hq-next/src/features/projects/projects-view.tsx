@@ -9,6 +9,10 @@
  */
 import { fetchSessionHistory } from '@hq/data/api';
 import { useHqStore } from '@hq/data/store/index';
+import {
+  credentialAllows,
+  useCredentialCapabilities,
+} from '@hq/domain/use-credential-capabilities';
 import { formatUsd } from '@hq/lib/format';
 import type { HqSessionHistoryEntry } from '@wrongstack/hq';
 import { ArrowRight, Crosshair, FolderGit2, MessageSquareText } from 'lucide-react';
@@ -23,7 +27,14 @@ import { sessionDuration } from '@/features/telemetry/session-history-model';
 import { cn } from '@/lib/cn';
 import { errorText } from '@/lib/error-text';
 import { useFleetScope, useSetFleetScope } from '@/lib/use-scope';
-import { type ProjectSummary, projectSentence, projectSummaries, projectWhere } from './model';
+import {
+  type ProjectSummary,
+  projectSentence,
+  projectSummaries,
+  projectWhere,
+  startSessionTargets,
+} from './model';
+import { StartSessionDialog } from './start-session-dialog';
 
 const RECENT_LIMIT = 8;
 
@@ -170,6 +181,14 @@ function ProjectDetail({ project, now }: { project: ProjectSummary; now: number 
   const scoped = scope.kind === 'project' && scope.id === project.projectId;
   const remembered = project.status === 'remembered';
   const encoded = encodeURIComponent(project.projectId);
+  const snapshot = useHqStore((state) => state.snapshot);
+  const targets = useMemo(
+    () => startSessionTargets(snapshot, project.projectId),
+    [snapshot, project.projectId],
+  );
+  // Starting a session launches a process: offered only to credentials that
+  // may execute (the server re-checks).
+  const mayExecute = credentialAllows(useCredentialCapabilities(), 'control.execute');
 
   return (
     <section
@@ -199,6 +218,21 @@ function ProjectDetail({ project, now }: { project: ProjectSummary; now: number 
             <Crosshair className="size-4" />
             {scoped ? 'HQ is scoped here' : 'Scope HQ to this project'}
           </button>
+        )}
+        {!remembered && mayExecute && (
+          <div className="flex w-full flex-col items-end gap-1 sm:w-auto">
+            <StartSessionDialog
+              projectName={project.projectName}
+              root={project.root}
+              targets={targets}
+            />
+            {targets.length === 0 && (
+              <p className="max-w-64 text-right text-xs text-muted-foreground">
+                No client here can start sessions. Run WrongStack on the machine with
+                --hq-allow-exec.
+              </p>
+            )}
+          </div>
         )}
       </header>
 

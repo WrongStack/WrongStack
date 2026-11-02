@@ -19,7 +19,9 @@ export type HqClientCapability =
   | 'mailbox.serve'
   | 'control.receive'
   | 'control.approve'
-  | 'kanban.dispatch';
+  | 'kanban.dispatch'
+  /** Opens new headless sessions on HQ's `start-session` (opted in to remote execution). */
+  | 'session.start';
 
 export interface HqClientIdentity {
   clientId: string;
@@ -38,6 +40,13 @@ export interface HqClientHelloPayload {
   capabilities: readonly HqClientCapability[];
   /** Publisher-side policy already applied before telemetry leaves the client. */
   redactionPolicy?: HqRedactionPolicy;
+  /**
+   * The client opens new sessions on HQ's `start-session` (additive). Sent as
+   * its own field, not as a capability: an older server rejects a hello that
+   * names a capability it does not know, but ignores fields it does not know.
+   * A current server turns it into the `session.start` capability.
+   */
+  startsSessions?: boolean;
 }
 
 export interface HqClientHeartbeatPayload {
