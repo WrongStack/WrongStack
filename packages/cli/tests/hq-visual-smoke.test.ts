@@ -15,7 +15,7 @@ import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_PROTOCOL_VERSION, type HqSnapshot } from '@wrongstack/hq';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { resolveHqDistDir } from '../src/hq-static-serve.js';
 import { CLI_VERSION } from '../src/version.js';
@@ -24,6 +24,12 @@ import { WebSocket } from '../src/ws-runtime.js';
 const E2E = process.env.WSTACK_E2E === '1';
 
 describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
+  // A real browser against a real server: right after a heavy test run a
+  // render can take longer than the 1 s `expect.poll` default. Waiting longer
+  // changes no assertion, only how long a correct page may take to appear.
+  beforeAll(() => vi.setConfig({ expect: { poll: { timeout: 5_000 } } }));
+  afterAll(() => vi.resetConfig());
+
   it('renders every view of the built panel with live data', { timeout: 360_000 }, async () => {
     expect(
       resolveHqDistDir(),
@@ -861,6 +867,14 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
         '1 of 1 lab machine online',
       );
       await shot('17-machines');
+      // The label becomes a scope for the whole of HQ, then back to the fleet.
+      await main.getByRole('button', { name: 'Scope HQ to lab machines' }).click();
+      await expect
+        .poll(() => page.getByTestId('scope-picker').textContent())
+        .toContain('lab machines');
+      await page.getByTestId('scope-picker').click();
+      await page.getByRole('menuitem', { name: 'Whole fleet' }).click();
+      await expect.poll(() => page.getByRole('menu').count()).toBe(0);
       await page.goto(`${base}/fleet/machines/`);
 
       // The drift reaches the attention queue as one fleet-wide item.

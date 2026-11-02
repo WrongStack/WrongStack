@@ -1,17 +1,19 @@
 'use client';
 
+import { useHqStore } from '@hq/data/store/index';
 import type { HqProjectRecord, HqSessionSnapshotPayload } from '@wrongstack/hq';
 import { ArrowRight, CircleDollarSign, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { plural } from '@/features/overview/model';
-import { useScopedSnapshot } from '@/lib/use-scope';
+import { useFleetScope, useScopedSnapshot } from '@/lib/use-scope';
 import { BreakdownTable } from './breakdown-table';
 import {
   breakdown,
   CONCENTRATION_SHARE,
   count,
+  labelSpend,
   percent,
   projectSpend,
   sessionSpend,
@@ -40,6 +42,17 @@ export function CostView(): ReactNode {
   );
   const dayTotals = useMemo(() => trendTotals(day), [day]);
   const dayModels = useMemo(() => breakdown(day, 'byModel'), [day]);
+  // Spend per operator label: only for the whole fleet (a narrower scope's
+  // series no longer carries the per-machine breakdown) and once labels exist.
+  const scope = useFleetScope();
+  const machineLabels = useHqStore((state) => state.snapshot?.machineLabels);
+  const dayLabels = useMemo(
+    () =>
+      scope.kind === 'all' && machineLabels !== undefined && Object.keys(machineLabels).length > 0
+        ? labelSpend(day, machineLabels)
+        : [],
+    [day, machineLabels, scope.kind],
+  );
   const total = snapshot?.totals.totalCostUsd ?? ranked.reduce((sum, row) => sum + row.costUsd, 0);
   const leader = ranked[0];
   const concentrated =
@@ -120,6 +133,19 @@ export function CostView(): ReactNode {
 
       {dayModels.length > 0 && (
         <BreakdownTable title="By model, last 24 hours" rows={dayModels} showTokens />
+      )}
+
+      {dayLabels.length > 0 && (
+        <div className="flex flex-col gap-1" data-testid="spend-by-label">
+          <BreakdownTable
+            title="By machine label, last 24 hours"
+            rows={dayLabels}
+            showTokens={false}
+          />
+          <p className="text-xs text-muted-foreground">
+            A machine with two labels counts under both, so the shares can add up to more than 100%.
+          </p>
+        </div>
       )}
 
       <section className="flex flex-col gap-3">

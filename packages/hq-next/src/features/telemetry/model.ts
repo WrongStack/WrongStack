@@ -252,3 +252,76 @@ export function count(value: number): string {
 export function percent(fraction: number, digits = 0): string {
   return Number.isFinite(fraction) ? `${(fraction * 100).toFixed(digits)}%` : '0%';
 }
+
+/**
+ * The fleet series narrowed to a set of machines (a label scope): each
+ * bucket's totals become the sum of those machines' breakdown entries. The
+ * server does the same for one machine; a label is a set, so it is summed
+ * here from the per-machine breakdown it already sends.
+ */
+export function samplesForMachines(
+  samples: readonly HqTimeseriesSample[],
+  machineKeys: ReadonlySet<string>,
+): HqTimeseriesSample[] {
+  return samples.map((sample) => {
+    let costUsd = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let toolCalls = 0;
+    for (const [key, entry] of Object.entries(sample.byMachine ?? {})) {
+      if (!machineKeys.has(key)) continue;
+      costUsd += entry.costUsd;
+      inputTokens += entry.inputTokens;
+      outputTokens += entry.outputTokens;
+      toolCalls += entry.toolCalls ?? 0;
+    }
+    return { ts: sample.ts, costUsd, inputTokens, outputTokens, toolCalls };
+  });
+}
+
+/** The name the "By label" table gives machines without one. */
+const UNLABELLED = 'no label';
+
+/**
+ * Spend per operator label across the samples, ranked by cost. A machine with
+ * two labels counts in both, so shares are each label's part of the whole
+ * fleet's spend and can add up to more than 100%. Machines without a label are
+ * one row, so the table always accounts for every dollar.
+ */
+export function labelSpend(
+  samples: readonly HqTimeseriesSample[],
+  machineLabels: Readonly<Record<string, readonly string[]>>,
+): BreakdownRow[] {
+  const totals = new Map<string, HqTimeseriesBreakdownEntry>();
+  let fleet = 0;
+  for (const sample of samples) {
+    for (const [key, entry] of Object.entries(sample.byMachine ?? {})) {
+      fleet += entry.costUsd;
+      const labels = Object.hasOwn(machineLabels, key) ? (machineLabels[key] ?? []) : [];
+      for (const label of labels.length > 0 ? labels : [UNLABELLED]) {
+        const sum = totals.get(label) ?? { costUsd: 0, inputTokens: 0, outputTokens: 0 };
+        sum.costUsd += entry.costUsd;
+        sum.inputTokens += entry.inputTokens;
+        sum.outputTokens += entry.outputTokens;
+        sum.cacheRead = (sum.cacheRead ?? 0) + (entry.cacheRead ?? 0);
+        sum.cacheWrite = (sum.cacheWrite ?? 0) + (entry.cacheWrite ?? 0);
+        totals.set(label, sum);
+      }
+    }
+  }
+  return [...totals.entries()]
+    .map(([key, entry]) => ({
+      key,
+      costUsd: entry.costUsd,
+      inputTokens: entry.inputTokens,
+      outputTokens: entry.outputTokens,
+      cacheTokens: (entry.cacheRead ?? 0) + (entry.cacheWrite ?? 0),
+      share: fleet > 0 ? entry.costUsd / fleet : 0,
+    }))
+    .sort(
+      (left, right) =>
+        Number(left.key === UNLABELLED) - Number(right.key === UNLABELLED) ||
+        right.costUsd - left.costUsd ||
+        left.key.localeCompare(right.key),
+    );
+}

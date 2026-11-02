@@ -792,7 +792,7 @@ tabs below (`packages/hq-next/src/lib/sections.ts`).
 | **Inbox · Queue** | Approvals and model questions answered here; failures, stalled subagent runs, failing MCP servers, client release drift, governance warnings, disconnected clients, machines that went offline in the last day, machines low on disk space or memory and alerts explained with a link to where they are fixed | live approvals/questions, `hq.snapshot`, `/api/alerts`, `hq.command_status` |
 | **Inbox · Alert history** | Every alert episode, active and resolved, by rule; a firing rule can be muted for 1, 8 or 24 hours | `/api/alerts`, `hq.alert` |
 | **Telemetry · Sessions** | Every session that ended: project, machine, duration, cost, tool calls, models, and whether it ended or was lost | `/api/sessions/history` |
-| **Telemetry · Cost / Trends / Event log / Brain** | Spend by project, session and model; cost, token and tool-call series; the persisted event log filtered by type, client, machine, project and time; Brain decisions and interventions | `hq.snapshot`, `/api/trends/cost`, `/api/events`, `brain.event` |
+| **Telemetry · Cost / Trends / Event log / Brain** | Spend by project, session, model and (once machines are labelled) machine label; cost, token and tool-call series; the persisted event log filtered by type, client, machine, project and time; Brain decisions and interventions | `hq.snapshot`, `/api/trends/cost`, `/api/events`, `brain.event` |
 | **System · Control** | Reviewed commands to **one session** (all types, typed confirmation for abort and shell) or to **several sessions** at once (see below), plus the live command audit | `POST /api/command`, `/api/commands` |
 | **System · Worktrees** | Isolated checkouts per project on a time axis; conflicts and failures first | `worktree.event` (backfilled) |
 | **System · Notifications** | Push channels (ntfy for phone push, Slack, Discord, JSON webhook) for alerts, machines going offline and coming back or running low on disk or memory, and approvals or questions left waiting; delivery status per channel; alert thresholds (including when a machine counts as low on disk or memory) and daily spend budgets for the fleet, each project and each machine | `/api/notify*`, `/api/alerts/settings` |
@@ -800,13 +800,15 @@ tabs below (`packages/hq-next/src/lib/sections.ts`).
 | **System · Security** | Browser password, two-factor sign-in, sessions and the access log | `/api/auth/*` |
 
 **Scope.** The header's scope picker narrows every desktop surface to the
-whole fleet, one machine or one project; the choice is stored per browser.
+whole fleet, one machine, every machine carrying a label ("gpu machines") or
+one project; the choice is stored per browser.
 Anything that needs a person outside the scope is counted on the picker
 (`+N`) and on the Overview and Inbox, with a one-click way back to the whole
 fleet. Trends follow the scope through the per-machine and per-project
 breakdowns the server records with every cost and tool signal (history from
-before those breakdowns existed counts fleet-wide only); alert thresholds are
-fleet-wide, while daily budgets can be set per project and per machine. The phone app (`/mobile/`: Now, Chat, Board, Mail and a read-only Fleet tab that lists every machine with its health, labels and needs, and every project with where it runs, its open sessions and what it needs) has its own scope, chosen under its header and stored apart from the desktop one; its badges and notifications still count the whole fleet.
+before those breakdowns existed counts fleet-wide only; a label scope sums its
+machines' breakdowns); alert thresholds are
+fleet-wide, while daily budgets can be set per project and per machine. The phone app (`/mobile/`: Now, Chat, Board, Mail and a Fleet tab that lists every machine with its health, labels and needs (labels can be edited there too; nothing else is changed from it), and every project with where it runs, its open sessions and what it needs) has its own scope, chosen under its header and stored apart from the desktop one; its badges and notifications still count the whole fleet.
 
 **Several sessions at once.** Control → *Several sessions* sends one steer,
 FYI, queue or abort to up to 50 selected sessions. The review lists every

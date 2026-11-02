@@ -3,12 +3,16 @@
 /**
  * The cost time series from `/api/trends/cost`, polled every 30 seconds — well
  * inside the server's 5-minute buckets. A machine or project scope asks the
- * server for that breakdown instead of the fleet totals.
+ * server for that breakdown instead of the fleet totals; a label scope sums
+ * its machines from the per-machine breakdown of the fleet series.
  */
 import { fetchJson } from '@hq/data/api';
+import { useHqStore } from '@hq/data/store/index';
 import type { HqTimeseriesSample } from '@wrongstack/hq';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { machineKeysWithLabel } from '@/lib/scope';
 import { useFleetScope } from '@/lib/use-scope';
+import { samplesForMachines } from './model';
 
 const POLL_MS = 30_000;
 
@@ -62,5 +66,15 @@ export function useTrends(): Trends {
     };
   }, [load]);
 
-  return { samples, loading, error, fetchedAt, refresh: () => void load() };
+  const snapshot = useHqStore((state) => state.snapshot);
+  const labelKeys = useMemo(
+    () => (scope.kind === 'label' ? machineKeysWithLabel(snapshot, scope.id) : null),
+    [scope.kind, scope.id, snapshot],
+  );
+  const scoped = useMemo(
+    () => (labelKeys === null ? samples : samplesForMachines(samples, labelKeys)),
+    [samples, labelKeys],
+  );
+
+  return { samples: scoped, loading, error, fetchedAt, refresh: () => void load() };
 }

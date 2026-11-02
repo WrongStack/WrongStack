@@ -1,5 +1,6 @@
 /**
- * The operator's scope: the whole fleet, one machine, or one project.
+ * The operator's scope: the whole fleet, one machine, one project, or every
+ * machine carrying an operator label ("gpu", "prod").
  *
  * One choice, kept in local prefs, narrows every surface the same way. The
  * snapshot is filtered once, here, so a view never has to know which records
@@ -13,11 +14,11 @@
  */
 import type { HqSnapshot } from '@wrongstack/hq';
 
-export type ScopeKind = 'all' | 'machine' | 'project';
+export type ScopeKind = 'all' | 'machine' | 'project' | 'label';
 
 export interface FleetScope {
   kind: ScopeKind;
-  /** The machine key or project id; ignored for `all`. */
+  /** The machine key, project id or label; ignored for `all`. */
   id: string;
 }
 
@@ -71,12 +72,35 @@ export function machineKeyResolver(
       : ((machineId ? keys.get(machineId) : undefined) ?? machineKeyOf(undefined, machineId));
 }
 
-/** Every raw machine id that belongs to a machine key (for id-keyed views). */
-export function machineIdsForKey(snapshot: HqSnapshot | null, key: string): Set<string> {
+/** The machine keys carrying an operator label. */
+export function machineKeysWithLabel(snapshot: HqSnapshot | null, label: string): Set<string> {
+  const keys = new Set<string>();
+  for (const [key, labels] of Object.entries(snapshot?.machineLabels ?? {})) {
+    if (labels.includes(label)) keys.add(key);
+  }
+  return keys;
+}
+
+/**
+ * The machine keys a machine-shaped scope covers: one for a machine, every
+ * labelled one for a label, null for the whole fleet or a project.
+ */
+function scopeMachineKeys(
+  scope: FleetScope,
+  snapshot: HqSnapshot | null,
+): ReadonlySet<string> | null {
+  if (scope.kind === 'machine') return new Set([scope.id]);
+  if (scope.kind === 'label') return machineKeysWithLabel(snapshot, scope.id);
+  return null;
+}
+
+/** Every raw machine id inside a machine-shaped scope (for id-keyed views). */
+export function machineIdsForScope(scope: FleetScope, snapshot: HqSnapshot | null): Set<string> {
+  const keys = scopeMachineKeys(scope, snapshot);
   const ids = new Set<string>();
-  if (snapshot === null) return ids;
+  if (keys === null || snapshot === null) return ids;
   for (const [machineId, machineKey] of keysByMachineId(snapshot)) {
-    if (machineKey === key) ids.add(machineId);
+    if (keys.has(machineKey)) ids.add(machineId);
   }
   return ids;
 }
@@ -90,6 +114,9 @@ export function effectiveScope(scope: FleetScope, snapshot: HqSnapshot | null): 
   if (scope.kind === 'machine') {
     const known = [...keysByMachineId(snapshot).values()].includes(scope.id);
     return known ? scope : ALL_SCOPE;
+  }
+  if (scope.kind === 'label') {
+    return machineKeysWithLabel(snapshot, scope.id).size > 0 ? scope : ALL_SCOPE;
   }
   return snapshot.projects.some((project) => project.projectId === scope.id) ? scope : ALL_SCOPE;
 }
@@ -121,15 +148,16 @@ function resolveTag(
 export function inScope(tag: ScopeTag, scope: FleetScope, snapshot: HqSnapshot | null): boolean {
   if (scope.kind === 'all') return true;
   const { machineKey, projectId } = resolveTag(tag, snapshot);
-  if (scope.kind === 'machine') {
-    if (machineKey !== undefined) return machineKey === scope.id;
+  const machineKeys = scopeMachineKeys(scope, snapshot);
+  if (machineKeys !== null) {
+    if (machineKey !== undefined) return machineKeys.has(machineKey);
     // A project-only record (a mailbox, a governance signal) belongs to the
     // machine when the project runs there.
     if (projectId !== undefined && snapshot !== null) {
       const project = snapshot.projects.find((entry) => entry.projectId === projectId);
       if (project !== undefined) {
         const keys = keysByMachineId(snapshot);
-        return project.machineIds.some((id) => keys.get(id) === scope.id);
+        return project.machineIds.some((id) => machineKeys.has(keys.get(id) ?? ''));
       }
     }
     return true;
@@ -164,6 +192,9 @@ export function scopeSnapshot(snapshot: HqSnapshot | null, scope: FleetScope): H
   if (snapshot === null || scope.kind === 'all') return snapshot;
   const keep = (tag: ScopeTag): boolean => inScope(tag, scope, snapshot);
   const keys = keysByMachineId(snapshot);
+  // A machine or a label: the set of machine keys inside the scope.
+  const machineKeys = scopeMachineKeys(scope, snapshot) ?? new Set<string>();
+  const byProject = scope.kind === 'project';
   const keyOf = machineKeyResolver(snapshot);
   const clients = snapshot.clients.filter((client) =>
     keep({ machineKey: keyOf(client.hostname, client.machineId), projectId: client.projectId }),
@@ -172,21 +203,21 @@ export function scopeSnapshot(snapshot: HqSnapshot | null, scope: FleetScope): H
     keep({ machineKey: keyOf(session.hostname, session.machineId), projectId: session.projectId }),
   );
   const projects = snapshot.projects.filter((project) =>
-    scope.kind === 'project'
+    byProject
       ? project.projectId === scope.id
-      : project.machineIds.some((id) => keys.get(id) === scope.id),
+      : project.machineIds.some((id) => machineKeys.has(keys.get(id) ?? '')),
   );
   const machines = (snapshot.machines ?? []).filter((machine) =>
-    scope.kind === 'machine'
-      ? keyOf(machine.hostname, machine.machineId) === scope.id
-      : machine.projectIds.includes(scope.id),
+    byProject
+      ? machine.projectIds.includes(scope.id)
+      : machineKeys.has(keyOf(machine.hostname, machine.machineId)),
   );
   // A remembered (offline) machine has no live record to scope by: it stays
   // in a project scope when that project ran there.
   const offlineMachines = (snapshot.offlineMachines ?? []).filter((machine) =>
-    scope.kind === 'machine'
-      ? machine.key === scope.id
-      : machine.projects.some((project) => project.projectId === scope.id),
+    byProject
+      ? machine.projects.some((project) => project.projectId === scope.id)
+      : machineKeys.has(machine.key),
   );
   const fleets = snapshot.fleets.filter((fleet) =>
     keep({ clientId: fleet.clientId, projectId: fleet.projectId }),
@@ -250,10 +281,11 @@ export function machineLabel(snapshot: HqSnapshot | null, key: string): string {
   return key.replace(/^(host|mid):/, '');
 }
 
-/** "Whole fleet", a hostname, or a project name. */
+/** "Whole fleet", a hostname, "gpu machines", or a project name. */
 export function scopeLabel(scope: FleetScope, snapshot: HqSnapshot | null): string {
   if (scope.kind === 'all') return 'Whole fleet';
   if (scope.kind === 'machine') return machineLabel(snapshot, scope.id);
+  if (scope.kind === 'label') return `${scope.id} machines`;
   return (
     snapshot?.projects.find((project) => project.projectId === scope.id)?.projectName ?? scope.id
   );

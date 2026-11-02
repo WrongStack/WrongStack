@@ -2,8 +2,10 @@
 
 /**
  * Operator labels on a machine ("prod", "gpu", "eu"): shown as chips, edited
- * in place as one line of words. The server normalises and validates them;
- * the snapshot broadcast brings the saved labels back to every dashboard.
+ * in place as one line of words, on the desktop and on the phone (both need
+ * `control.enqueue`, as the server does). The server normalises and validates
+ * them; the snapshot broadcast brings the saved labels back to every
+ * dashboard.
  */
 import { setMachineLabels } from '@hq/data/api';
 import {

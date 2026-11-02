@@ -9,7 +9,7 @@ import {
   belongsToMachine,
   effectiveScope,
   inScope,
-  machineIdsForKey,
+  machineIdsForScope,
   scopeLabel,
   scopeSnapshot,
 } from '../src/lib/scope';
@@ -81,6 +81,43 @@ describe('scopeSnapshot', () => {
   });
 });
 
+describe('label scope', () => {
+  // Both machines are "lab"; only desk is "gpu".
+  const labelled = {
+    ...snapshot,
+    machineLabels: { 'host:desk': ['gpu', 'lab'], 'host:lab': ['lab'] },
+  } as unknown as HqSnapshot;
+
+  it('narrows to every machine carrying the label', () => {
+    const gpu = scopeSnapshot(labelled, { kind: 'label', id: 'gpu' });
+    expect(gpu?.clients.map((c) => c.clientId)).toEqual(['c1']);
+    expect(gpu?.machines?.map((m) => m.machineId)).toEqual(['m1']);
+    expect(gpu?.projects.map((p) => p.projectId)).toEqual(['alpha']);
+    expect(gpu?.totals.totalCostUsd).toBe(1.5);
+    const lab = scopeSnapshot(labelled, { kind: 'label', id: 'lab' });
+    expect(lab?.clients.map((c) => c.clientId)).toEqual(['c1', 'c2', 'c3']);
+    expect(lab?.totals.totalCostUsd).toBe(7);
+  });
+
+  it('places records by machine, and a project-only record by where it runs', () => {
+    const gpu = { kind: 'label', id: 'gpu' } as const;
+    expect(inScope({ machineKey: 'host:desk' }, gpu, labelled)).toBe(true);
+    expect(inScope({ machineKey: 'host:lab' }, gpu, labelled)).toBe(false);
+    expect(inScope({ projectId: 'alpha' }, gpu, labelled)).toBe(true);
+    expect(inScope({ projectId: 'beta' }, gpu, labelled)).toBe(false);
+    expect(machineIdsForScope(gpu, labelled)).toEqual(new Set(['m1']));
+  });
+
+  it('falls back to the whole fleet when no machine carries the label any more', () => {
+    expect(effectiveScope({ kind: 'label', id: 'gone' }, labelled)).toEqual(ALL_SCOPE);
+    expect(effectiveScope({ kind: 'label', id: 'gpu' }, labelled)).toEqual({
+      kind: 'label',
+      id: 'gpu',
+    });
+    expect(scopeLabel({ kind: 'label', id: 'gpu' }, labelled)).toBe('gpu machines');
+  });
+});
+
 describe('scope rules', () => {
   it('falls back to the whole fleet when the chosen machine or project is gone', () => {
     expect(effectiveScope({ kind: 'machine', id: 'gone' }, snapshot)).toEqual(ALL_SCOPE);
@@ -117,7 +154,10 @@ describe('scope rules', () => {
         },
       ],
     } as unknown as HqSnapshot;
-    expect([...machineIdsForKey(twoIds, 'host:lab')].sort()).toEqual(['m2', 'm2-pid-9']);
+    expect([...machineIdsForScope({ kind: 'machine', id: 'host:lab' }, twoIds)].sort()).toEqual([
+      'm2',
+      'm2-pid-9',
+    ]);
     const lab = scopeSnapshot(twoIds, { kind: 'machine', id: 'host:lab' });
     expect(lab?.clients.map((c) => c.clientId)).toEqual(['c2', 'c3', 'c4']);
     // s2 has no hostname of its own and still lands on lab through its id.

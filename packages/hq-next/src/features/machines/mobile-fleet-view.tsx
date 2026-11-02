@@ -19,7 +19,7 @@ import { cn } from '@/lib/cn';
 import { useSurfaceHref } from '@/lib/surface';
 import { healthProblems } from './health';
 import { HealthBlock } from './health-block';
-import { LabelChips, LabelFilter } from './machine-labels';
+import { LabelChips, LabelFilter, MachineLabelsEditor } from './machine-labels';
 import {
   labelCounts,
   type MachineSummary,
@@ -198,6 +198,7 @@ function MachineRow({
             </ul>
           )}
           {!machine.remembered && <HealthBlock machine={machine} now={now} />}
+          <MachineLabelsEditor key={machine.key} machineKey={machine.key} labels={machine.labels} />
           {machine.clients.length > 0 && (
             <div className="flex flex-col gap-1">
               <h4 className="text-sm font-semibold">WrongStack clients</h4>
