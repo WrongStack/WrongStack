@@ -110,6 +110,27 @@ describe('validateHqCommand', () => {
     ).toBeNull();
   });
 
+  it('rejects a non-string kanban column instead of coercing it into the closed set', () => {
+    // `String(p['to'])` accepted any value that stringified into the set, and
+    // threw on an object whose own `toString` is not callable — so a malformed
+    // dashboard payload either became a command whose `to` violated the
+    // declared union, or escaped the caller's 400 path as an exception.
+    const transition = (to: unknown) => ({
+      boardId: 'board-1',
+      taskId: 'task-1',
+      to,
+      comment: 'HQ mobile operator moved the task',
+    });
+    expect(validateHqCommand(queued('kanban-transition', transition('done')))).toMatchObject({
+      to: 'done',
+    });
+    expect(validateHqCommand(queued('kanban-transition', transition(['done'])))).toBeNull();
+    expect(
+      validateHqCommand(queued('kanban-transition', transition({ toString: 'done' }))),
+    ).toBeNull();
+    expect(validateHqCommand(queued('kanban-transition', transition(42)))).toBeNull();
+  });
+
   it('validates guarded kanban assignments and rejects missing audit fields', () => {
     expect(
       validateHqCommand(
