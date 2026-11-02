@@ -8,19 +8,15 @@ import { runtimeFixtureCommand } from './shell-fixture-command.js';
 
 const isWin = process.platform === 'win32';
 
-function findRuntimeProcessesWithMarker(marker: string): string[] {
-  const ps = spawnSync(
-    'powershell',
-    [
-      '-NoProfile',
-      '-Command',
-      `Get-CimInstance Win32_Process -Filter "name='node.exe' OR name='bun.exe'" | Select-Object -ExpandProperty CommandLine`,
-    ],
-    { encoding: 'utf8', windowsHide: true, timeout: 5000 },
-  );
-  expect(ps.error, ps.stderr).toBeUndefined();
-  expect(ps.status, ps.stderr).toBe(0);
-  return (ps.stdout ?? '').split('\n').filter((l) => l.includes(marker));
+function runtimeProcessIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // Permission failures are not evidence that the process exited.
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+    return false;
+  }
 }
 
 function killMarkedProcesses(marker: string): void {
@@ -52,8 +48,9 @@ describe.runIf(isWin)('bash win32 tree kill', () => {
     const script = path.join(sb.dir, 'spin.js');
     fs.writeFileSync(
       script,
-      "require('node:fs').writeFileSync('spin-ready', 'ready'); setInterval(() => console.log('tick'), 200);\n",
+      "require('node:fs').writeFileSync('spin-ready', String(process.pid)); setInterval(() => console.log('tick'), 200);\n",
     );
+    let childExited = false;
     try {
       const out = await bashTool.execute(
         {
@@ -66,13 +63,17 @@ describe.runIf(isWin)('bash win32 tree kill', () => {
       expect(out.timed_out).toBe(true);
 
       // A timed-out parse error is not evidence that a real child was reaped.
-      expect(fs.readFileSync(path.join(sb.dir, 'spin-ready'), 'utf8')).toBe('ready');
-      await vi.waitFor(() => expect(findRuntimeProcessesWithMarker(marker)).toEqual([]), {
+      const pid = Number(fs.readFileSync(path.join(sb.dir, 'spin-ready'), 'utf8'));
+      expect(Number.isInteger(pid) && pid > 1).toBe(true);
+      // Probe the exact fixture PID. Enumerating every runtime process via
+      // synchronous CIM queries can itself exceed the test timeout under load.
+      await vi.waitFor(() => expect(runtimeProcessIsAlive(pid)).toBe(false), {
         timeout: 5000,
         interval: 100,
       });
+      childExited = true;
     } finally {
-      killMarkedProcesses(marker);
+      if (!childExited) killMarkedProcesses(marker);
       await sb.cleanup();
     }
   }, 20_000);
