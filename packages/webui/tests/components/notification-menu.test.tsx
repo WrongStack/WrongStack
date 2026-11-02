@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationMenu } from '../../src/components/NotificationMenu';
 import {
@@ -222,6 +222,36 @@ describe('NotificationMenu Component', () => {
 
     expect(screen.getByText('Unread message')).not.toBeNull();
     expect(screen.queryByText('Read message')).toBeNull();
+  });
+
+  it('exposes the read-status filter as a labelled group of toggle buttons', () => {
+    // WCAG 4.1.2: the active filter was communicated only by the accent
+    // background, so assistive tech could not determine which subset of the
+    // list is showing. The pair must publish its state (aria-pressed) inside
+    // a named group instead of leaving it to CSS alone.
+    toast.warn('Unread message');
+    toast.success('Read message');
+    useNotificationStore
+      .getState()
+      .markAsRead(useNotificationStore.getState().notifications[0]!.id);
+
+    render(<NotificationMenu defaultOpen />);
+
+    const group = screen.getByRole('group', { name: 'Show' });
+    const all = within(group).getByRole('button', { name: /^All/ });
+    const unread = within(group).getByRole('button', { name: /^Unread/ });
+
+    // Control: both filters remain ordinary, keyboard-reachable buttons.
+    expect(all.tagName).toBe('BUTTON');
+    expect(unread.tagName).toBe('BUTTON');
+
+    expect(all.getAttribute('aria-pressed')).toBe('true');
+    expect(unread.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(unread);
+
+    expect(all.getAttribute('aria-pressed')).toBe('false');
+    expect(unread.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('defaults to important notifications and scopes the badge to the selected type', () => {

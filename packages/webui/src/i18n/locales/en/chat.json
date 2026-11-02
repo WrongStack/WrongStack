@@ -72,6 +72,7 @@
     "collapseInput": "Collapse",
     "startListening": "Voice input (Speech to text)",
     "stopListening": "Listening... (Click to stop)",
+    "runSettings": "Run settings",
     "promptsMenu": "Prompts"
   },
   "header": {

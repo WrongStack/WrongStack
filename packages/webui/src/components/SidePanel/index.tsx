@@ -71,7 +71,7 @@ export function SidePanel() {
   return (
     <>
       <div
-        className="fixed inset-y-0 left-12 right-0 z-30 bg-black/35 backdrop-blur-[2px] md:hidden"
+        className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px] md:hidden"
         onClick={() => setSidebarOpen(false)}
         aria-hidden="true"
       />
@@ -83,7 +83,7 @@ export function SidePanel() {
           ? { role: 'dialog', 'aria-modal': true as const }
           : { role: 'complementary' })}
         aria-label={t('activity:sidebar.label')}
-        className="ws-side-panel fixed inset-y-0 left-12 z-40 flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r border-border/70 backdrop-blur-xl animate-slide-in md:relative md:inset-auto md:z-auto md:shadow-none"
+        className="ws-side-panel fixed inset-y-0 left-0 z-40 flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r border-border/70 backdrop-blur-xl animate-slide-in md:relative md:inset-auto md:z-auto md:shadow-none"
       >
         {/* Resize handle. Was an `<hr>` carrying aria-valuemin/max/now with no
             role: those properties are only meaningful on a focusable separator,

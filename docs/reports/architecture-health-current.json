@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T19:15:46.826Z",
+  "generatedAt": "2026-11-02T19:16:26.592Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5667,
-    "testFiles": 4903,
-    "sourceLines": 1235828,
+    "sourceFiles": 5668,
+    "testFiles": 4906,
+    "sourceLines": 1235935,
     "workspaceEdges": 231,
-    "moduleEdges": 16567,
+    "moduleEdges": 16571,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1084,8 +1084,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 773,
-      "testFiles": 510,
+      "sourceFiles": 774,
+      "testFiles": 513,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1110,7 +1110,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 510
+          "testFiles": 513
         }
       ]
     },
@@ -27867,6 +27867,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/code-editor-empty-state.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/code-editor-lazy-load.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -28443,6 +28449,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/mobile-activity-bar.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/model-editor.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -28450,6 +28462,12 @@
       },
       {
         "file": "packages/webui/tests/components/model-list-schema-editor-render.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/model-prompt-bar-mobile.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

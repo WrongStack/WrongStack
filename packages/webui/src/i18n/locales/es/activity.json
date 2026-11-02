@@ -1788,6 +1788,7 @@
     "sendSelectionAction": "Enviar selección al chat",
     "noFilesOpen": "Sin archivos abiertos",
     "selectToEdit": "Selecciona un archivo del explorador para editar",
+    "openExplorer": "Abrir el explorador de archivos",
     "sendSelectedTitle": "Enviar líneas seleccionadas al chat",
     "mentionFileTitle": "Mencionar este archivo en el chat",
     "sendToChat": "Enviar al chat",

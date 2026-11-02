@@ -228,7 +228,7 @@ export function WorkbenchTopbar({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          {officeMapButton}
+          <div className="hidden min-[480px]:inline-flex">{officeMapButton}</div>
           {/* AGENTS entry — shared top bar, present on every tab/view (icon +
               badge only at this width; the label expands in on lg screens). */}
           <InspectorTrigger />

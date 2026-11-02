@@ -30,6 +30,7 @@ import {
 } from './activity-bar-items.js';
 import { ACTIVITY_BAR_MAX_ICONS, defaultPinnedIds } from './activity-bar-pins.js';
 import { ActivityIcon, UtilitiesMenu } from './activity-bar-utilities.js';
+import { MobileActivityBar } from './mobile-activity-bar';
 import { ToolsLauncher } from './tools-launcher';
 
 export {
@@ -154,128 +155,130 @@ export function ActivityBar() {
   };
 
   return (
-    <div
-      className={cn(
-        'ws-activity-rail flex h-full w-12 min-h-0 shrink-0 flex-col border-r border-border/70 backdrop-blur-xl',
-      )}
-    >
-      {/* ── Branding — edge-to-edge logo (pinned top) ── */}
-      <div className="flex flex-col items-center shrink-0 border-b border-border/60">
-        <button
-          type="button"
-          onClick={() => {
-            // "Home" — open the Session panel, back to chat.
-            showPanel('chat');
-          }}
-          title={
-            projectName
-              ? t('activity:brand.returnToChat', { name: projectName })
-              : t('activity:brand.returnToChatDefault')
-          }
-          className={cn(
-            'relative flex h-11 w-full items-center justify-center overflow-hidden bg-foreground transition-shadow hover:shadow-[0_3px_12px_-2px_hsl(var(--primary)/0.5)]',
-          )}
-        >
-          <img
-            src="/wrongstack.svg"
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="ws-brand-logo h-full w-full"
-          />
-        </button>
-      </div>
+    <>
+      <div
+        className={cn(
+          'ws-activity-rail hidden h-full w-12 min-h-0 shrink-0 flex-col border-r border-border/70 backdrop-blur-xl md:flex',
+        )}
+      >
+        {/* ── Branding — edge-to-edge logo (pinned top) ── */}
+        <div className="flex flex-col items-center shrink-0 border-b border-border/60">
+          <button
+            type="button"
+            onClick={() => {
+              // "Home" — open the Session panel, back to chat.
+              showPanel('chat');
+            }}
+            title={
+              projectName
+                ? t('activity:brand.returnToChat', { name: projectName })
+                : t('activity:brand.returnToChatDefault')
+            }
+            className={cn(
+              'relative flex h-11 w-full items-center justify-center overflow-hidden bg-foreground transition-shadow hover:shadow-[0_3px_12px_-2px_hsl(var(--primary)/0.5)]',
+            )}
+          >
+            <img
+              src="/wrongstack.svg"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="ws-brand-logo h-full w-full"
+            />
+          </button>
+        </div>
 
-      {/* ── Icon column ──
+        {/* ── Icon column ──
             Panels + main-view icons. When the viewport is too short to fit
             all icons, overflow items are moved into the "…" menu instead of
             scrolling. Note: `overflow-hidden` means browser WebUI (full) mode
             also loses scroll fallback — ensure enough slots for core icons. */}
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center pt-2 pb-1">
-        {/* Panel icons */}
-        {visiblePanels.map((def) => (
-          <ActivityIcon
-            key={def.id}
-            icon={def.icon}
-            label={`${navLabel(def.id, def.label)} (${shortcutLabelForActivity(def.id)})`}
-            active={sidebarOpen && activeActivity === def.id}
-            badge={badgeFor(def.id)}
-            onClick={() => openPanel(def.id)}
-          />
-        ))}
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center pt-2 pb-1">
+          {/* Panel icons */}
+          {visiblePanels.map((def) => (
+            <ActivityIcon
+              key={def.id}
+              icon={def.icon}
+              label={`${navLabel(def.id, def.label)} (${shortcutLabelForActivity(def.id)})`}
+              active={sidebarOpen && activeActivity === def.id}
+              badge={badgeFor(def.id)}
+              onClick={() => openPanel(def.id)}
+            />
+          ))}
 
-        {/* Divider between panels and main-view switchers */}
-        {visibleViews.length > 0 && <div className="my-1.5 h-px w-6 shrink-0 bg-border/70" />}
+          {/* Divider between panels and main-view switchers */}
+          {visibleViews.length > 0 && <div className="my-1.5 h-px w-6 shrink-0 bg-border/70" />}
 
-        {/* Main-view icons */}
-        {visibleViews.map((def) => (
-          <ActivityIcon
-            key={def.id}
-            icon={def.icon}
-            label={navLabel(def.id, def.label)}
-            active={currentView === def.id}
-            onClick={() => openMainView(def.id)}
-          />
-        ))}
+          {/* Main-view icons */}
+          {visibleViews.map((def) => (
+            <ActivityIcon
+              key={def.id}
+              icon={def.icon}
+              label={navLabel(def.id, def.label)}
+              active={currentView === def.id}
+              onClick={() => openMainView(def.id)}
+            />
+          ))}
 
-        {calmBar && <ToolsLauncher onCustomize={() => setCustomizeOpen(true)} />}
-      </div>
+          {calmBar && <ToolsLauncher onCustomize={() => setCustomizeOpen(true)} />}
+        </div>
 
-      {/* ── Connection indicator — compact dot between icon column and utilities ── */}
-      <div
-        role="status"
-        aria-label={
-          wsConnected
-            ? t('activity:connection.connected', 'Connected')
-            : t('activity:connection.disconnected', 'Disconnected')
-        }
-        className="flex items-center justify-center py-1"
-      >
-        <span
-          className={cn(
-            'h-1.5 w-1.5 rounded-full',
-            wsConnected ? 'bg-success' : 'bg-muted-foreground/40',
-          )}
-          title={
+        {/* ── Connection indicator — compact dot between icon column and utilities ── */}
+        <div
+          role="status"
+          aria-label={
             wsConnected
               ? t('activity:connection.connected', 'Connected')
               : t('activity:connection.disconnected', 'Disconnected')
           }
-        />
-      </div>
+          className="flex items-center justify-center py-1"
+        >
+          <span
+            className={cn(
+              'h-1.5 w-1.5 rounded-full',
+              wsConnected ? 'bg-success' : 'bg-muted-foreground/40',
+            )}
+            title={
+              wsConnected
+                ? t('activity:connection.connected', 'Connected')
+                : t('activity:connection.disconnected', 'Disconnected')
+            }
+          />
+        </div>
 
-      {/* ── Utilities overflow menu — pinned bottom ──
+        {/* ── Utilities overflow menu — pinned bottom ──
             App-wide controls (palette, command, shortcuts, monitors,
             Settings) collapsed into one popover. Items that don't fit
             the visible icon slots also land here. */}
-      <div className="flex flex-col items-center shrink-0 pt-1 pb-2 border-t border-border/60">
-        {/* ── Customize the bar ──
+        <div className="flex flex-col items-center shrink-0 pt-1 pb-2 border-t border-border/60">
+          {/* ── Customize the bar ──
               Opens the one-screen editor: the icons pinned to the bar on the
               left, everything else on the right. Saving writes the
               selection to the store, so the rail refreshes immediately. */}
-        <button
-          type="button"
-          data-testid="activity-bar-reorder-edit"
-          onClick={() => setCustomizeOpen(true)}
-          aria-label={t('activity:reorder.edit', { max: ACTIVITY_BAR_MAX_ICONS })}
-          title={t('activity:reorder.edit', { max: ACTIVITY_BAR_MAX_ICONS })}
-          className={cn(
-            'ws-nav-button relative flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors',
-            'text-muted-foreground hover:border-border/70 hover:text-foreground hover:bg-muted/60',
-          )}
-        >
-          <span className="h-5 w-5 shrink-0">
-            <Pencil size={16} />
-          </span>
-        </button>
-        <UtilitiesMenu
-          monitorOpen={inspectorOpen}
-          hiddenPanels={hiddenPanels}
-          hiddenViews={hiddenViews}
-        />
+          <button
+            type="button"
+            data-testid="activity-bar-reorder-edit"
+            onClick={() => setCustomizeOpen(true)}
+            aria-label={t('activity:reorder.edit', { max: ACTIVITY_BAR_MAX_ICONS })}
+            title={t('activity:reorder.edit', { max: ACTIVITY_BAR_MAX_ICONS })}
+            className={cn(
+              'ws-nav-button relative flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors',
+              'text-muted-foreground hover:border-border/70 hover:text-foreground hover:bg-muted/60',
+            )}
+          >
+            <span className="h-5 w-5 shrink-0">
+              <Pencil size={16} />
+            </span>
+          </button>
+          <UtilitiesMenu
+            monitorOpen={inspectorOpen}
+            hiddenPanels={hiddenPanels}
+            hiddenViews={hiddenViews}
+          />
+        </div>
       </div>
-
+      <MobileActivityBar onCustomize={() => setCustomizeOpen(true)} />
       <ActivityBarCustomizeModal open={customizeOpen} onOpenChange={setCustomizeOpen} />
-    </div>
+    </>
   );
 }

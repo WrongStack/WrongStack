@@ -326,9 +326,16 @@ export function NotificationMenu({
         </div>
 
         {/* Read-status tabs apply within the selected type. */}
-        <div className="flex shrink-0 border-b border-border/50 bg-background/50 px-3 py-1.5 gap-1.5 text-xs">
+        {/* WCAG 4.1.2: a named group publishes the active filter state. */}
+        {/* biome-ignore lint/a11y/useSemanticElements: native fieldset border/padding would change this styled segmented control. */}
+        <div
+          role="group"
+          aria-label={t('toasts:menu.filterType', { defaultValue: 'Show' })}
+          className="flex shrink-0 border-b border-border/50 bg-background/50 px-3 py-1.5 gap-1.5 text-xs"
+        >
           <button
             type="button"
+            aria-pressed={tab === 'all'}
             onClick={() => setTab('all')}
             className={cn(
               'flex-1 rounded-md px-2.5 py-1 text-center font-medium transition-all',
@@ -341,6 +348,7 @@ export function NotificationMenu({
           </button>
           <button
             type="button"
+            aria-pressed={tab === 'unread'}
             onClick={() => setTab('unread')}
             className={cn(
               'flex-1 rounded-md px-2.5 py-1 text-center font-medium transition-all',

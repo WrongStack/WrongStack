@@ -150,7 +150,8 @@
 
   /* Size toolbar triggers without stretching controls inside their popovers. */
   .ws-composer-options > :where(button, label),
-  .ws-composer-options > span > :where(button, label) {
+  .ws-composer-options > span > :where(button, label),
+  .ws-composer-options > div > span > :where(button, label) {
     min-height: 32px;
   }
 
@@ -468,10 +469,18 @@
       gap: 6px;
     }
     .ws-welcome-shortcut {
-      flex-wrap: wrap;
+      flex-direction: column;
+      justify-content: center;
       gap: 6px;
-      padding: 10px;
+      min-height: 64px;
+      padding: 10px 6px;
       font-size: 11px;
+      text-align: center;
+    }
+    .ws-welcome-shortcut > span {
+      flex: initial;
+      overflow-wrap: normal;
+      white-space: nowrap;
     }
     .ws-welcome-shortcut > svg:last-child {
       display: none;
@@ -486,7 +495,8 @@
       border-radius: 0;
     }
     .ws-composer-options > :where(button, label),
-    .ws-composer-options > span > :where(button, label) {
+    .ws-composer-options > span > :where(button, label),
+    .ws-mobile-run-settings > span > :where(button, label) {
       min-height: 36px;
     }
     .ws-composer-actions {
