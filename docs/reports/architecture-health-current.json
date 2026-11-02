@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T19:11:40.619Z",
+  "generatedAt": "2026-11-02T19:12:19.498Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5660,
-    "testFiles": 4895,
-    "sourceLines": 1235299,
+    "sourceFiles": 5661,
+    "testFiles": 4896,
+    "sourceLines": 1235329,
     "workspaceEdges": 231,
-    "moduleEdges": 16547,
+    "moduleEdges": 16550,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1140,8 +1140,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 329,
-      "testFiles": 367,
+      "sourceFiles": 330,
+      "testFiles": 368,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1176,7 +1176,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 367
+          "testFiles": 368
         }
       ]
     },
@@ -26697,6 +26697,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/provider-probe-timeout-bound.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/provider-quota-refresh.test.ts",
         "projects": [
           "root-node"
@@ -32705,11 +32711,6 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/webui-server/src/server/provider-routes.ts",
-      "lines": 766,
-      "relativeImports": 3
-    },
-    {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "lines": 833,
       "relativeImports": 13
@@ -32927,11 +32928,6 @@
       "relativeImports": 10
     },
     {
-      "file": "packages/webui-server/src/server/provider-routes.ts",
-      "lines": 766,
-      "relativeImports": 3
-    },
-    {
       "file": "packages/fleet/src/host-skill-companion.ts",
       "lines": 756,
       "relativeImports": 3
@@ -33063,6 +33059,11 @@
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
+      "lines": 703,
+      "relativeImports": 6
+    },
+    {
+      "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
     }

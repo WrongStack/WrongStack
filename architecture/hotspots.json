@@ -126,10 +126,6 @@
       "lines": 712,
       "relativeImports": 3
     },
-    "packages/webui-server/src/server/provider-routes.ts": {
-      "lines": 766,
-      "relativeImports": 3
-    },
     "apps/desktop-v2/src/AutomationWorkspace.tsx": {
       "lines": 833,
       "relativeImports": 13

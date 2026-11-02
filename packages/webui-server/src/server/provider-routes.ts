@@ -1,128 +1,15 @@
 import * as fs from 'node:fs/promises';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
-import type { ProviderModelStatusTracker } from '@wrongstack/coordination';
 import { parseNativeCloudSettings } from '@wrongstack/core/cloud-provider';
 import { modelsDevModelSchema } from '@wrongstack/core/models';
 import { getAllProviderQuota, withQuotaPace } from '@wrongstack/core/quota';
 import type { WebSocket } from 'ws';
 import { correlatedReply } from './correlated-reply.js';
+import type { ProviderRouteHandlers } from './provider-route-types.js';
 import type { WSClientMessage } from './types.js';
 import { runWithOperationRequest, send, sendResult } from './ws-utils.js';
 
-export interface ProviderMutationHandlers {
-  handleKeyUpsert: (
-    ws: WebSocket,
-    providerId: string,
-    label: string,
-    apiKey: string,
-  ) => Promise<void>;
-  handleKeyDelete: (ws: WebSocket, providerId: string, label: string) => Promise<void>;
-  handleKeySetActive: (ws: WebSocket, providerId: string, label: string) => Promise<void>;
-  handleProviderAdd: (
-    ws: WebSocket,
-    payload: {
-      id: string;
-      type?: string | undefined;
-      family: string;
-      baseUrl?: string | undefined;
-      apiKey?: string | undefined;
-      models?: string[] | undefined;
-      customModels?: ProviderConfig['customModels'] | undefined;
-    },
-  ) => Promise<boolean>;
-  handleProviderRemove: (ws: WebSocket, providerId: string) => Promise<void>;
-  handleProviderClearModels: (ws: WebSocket, providerId: string) => Promise<void>;
-  handleCustomModelSet: (
-    ws: WebSocket,
-    providerId: string,
-    modelId: string,
-    definition: NonNullable<ProviderConfig['customModels']>[string],
-  ) => Promise<void>;
-  handleCustomModelRemove: (ws: WebSocket, providerId: string, modelId: string) => Promise<void>;
-  handleProviderUndoClear: (
-    ws: WebSocket,
-    providerId: string,
-    previousModels: string[],
-  ) => Promise<void>;
-  handleProviderUpdate: (
-    ws: WebSocket,
-    payload: {
-      id: string;
-      cloud?: ProviderConfig['cloud'] | undefined;
-      family?: string | undefined;
-      baseUrl?: string | undefined;
-      envVars?: string[] | undefined;
-      models?: string[] | undefined;
-      customModels?: ProviderConfig['customModels'] | undefined;
-    },
-  ) => Promise<void>;
-  handleProviderProbe: (
-    ws: WebSocket,
-    providerId: string,
-    timeoutMs?: number | undefined,
-  ) => Promise<void>;
-  /** Read MiniMax / Z.AI plan quota from their account endpoints (provider/quota-refresh.ts). */
-  handleProviderQuotaRefresh: (ws: WebSocket) => Promise<void>;
-  handleProviderModelTestRun: (
-    ws: WebSocket,
-    input: {
-      requestId: string;
-      providerId: string;
-      modelIds: string[];
-      timeoutMs: number;
-      maxTokens: number;
-    },
-  ) => Promise<void>;
-  handleProviderModelTestCancel: (requestId: string) => void;
-  handleOAuthStart: (
-    ws: WebSocket,
-    kind: string,
-    providerId?: string | undefined,
-    attemptId?: string,
-  ) => Promise<void>;
-  handleOAuthCode: (
-    ws: WebSocket,
-    kind: string,
-    input: string,
-    attemptId?: string,
-  ) => Promise<void>;
-  handleOAuthCancel: (ws: WebSocket, kind: string, attemptId?: string) => void;
-  handleOAuthList: (ws: WebSocket) => void;
-  resolveOAuthStrategyId: (input: string) => string | undefined;
-}
-
-export interface ProviderRouteHandlers {
-  listProviders: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
-  listSavedProviders: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
-  listProviderModels: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
-  searchProviderModels: (ws: WebSocket, query: string, limit?: number | undefined) => Promise<void>;
-  switchModel: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
-  refineModel: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
-  /** Forward a model.fallback_choice client message to the EventBus. */
-  fallbackChoice: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
-  /** Suggest fallback profiles from the saved providers' catalogs. */
-  suggestFallbacks: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
-  /** Adopt a just-added provider as the live default when no model is active. */
-  adoptDefaultProviderIfUnset: (providerId: string) => Promise<void>;
-  providerHandlers: ProviderMutationHandlers;
-  /** Live provider/model health tracker (the "waiting room"). Undefined when
-   * the host is not wired with a tracker (e.g. test harnesses). */
-  statusTracker?:
-    | Pick<ProviderModelStatusTracker, 'getSnapshot' | 'getStatus' | 'retryNow' | 'clear'>
-    | undefined;
-  prepareProviderStatus?: (() => Promise<void>) | undefined;
-  persistProviderStatusControl?:
-    | ((
-        providerId: string,
-        model: string,
-        before: ReturnType<ProviderModelStatusTracker['getStatus']>,
-        reason: string,
-      ) => Promise<void>)
-    | undefined;
-  /** Durable block/open audit trail (JSONL) next to the profile config.
-   * Undefined when the host did not provide a profile path (test harnesses). */
-  providerAuditFile?: string | undefined;
-}
+export type { ProviderMutationHandlers, ProviderRouteHandlers } from './provider-route-types.js';
 
 function asPayloadRecord(msg: WSClientMessage): Record<string, unknown> | null {
   const payload = msg.payload;
@@ -177,6 +64,19 @@ function optionalStringArray(
   return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : null;
 }
 
+/**
+ * Upper bound for a client-supplied `provider.probe` timeout, in ms.
+ *
+ * The probe arms `AbortSignal.timeout(timeoutMs)` on an outbound fetch that
+ * carries this provider's saved API key, so `timeoutMs` is a client-chosen
+ * request lifetime. `provider.test.run` below already bounds the same field;
+ * the probe route reached the sink with only a finiteness check, and the sink's
+ * own ceiling is `2_147_483_647` ms — the maximum legal timer, ~24.8 days — so
+ * a hostile frame pinned a credential-bearing request (and this connection's
+ * sequential message dispatch) for that whole window. `0` is still accepted: it
+ * is the CLI probe wrapper's documented "use the default timeout" spelling.
+ */
+const MAX_PROBE_TIMEOUT_MS = 120_000;
 const SAFE_CONFIG_KEY = /^(?!__proto__$|prototype$|constructor$)[^\u0000-\u001f]{1,256}$/;
 const CUSTOM_MODEL_BOOLEAN_CAPS = new Set([
   'tools',
@@ -554,7 +454,17 @@ async function dispatchProviderRoute(
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       const timeoutMs = payload ? optionalNumber(payload, 'timeoutMs') : null;
-      if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || timeoutMs === null)
+      // `timeoutMs` is refused, not clamped: it becomes the lifetime of a
+      // server-side request that carries this provider's saved API key, so
+      // guessing a different value would silently change the probe the operator
+      // asked for. Rejecting the frame is the same contract `provider.test.run`
+      // already applies to this field.
+      if (
+        !providerId ||
+        !SAFE_CONFIG_KEY.test(providerId) ||
+        timeoutMs === null ||
+        (typeof timeoutMs === 'number' && timeoutMs > MAX_PROBE_TIMEOUT_MS)
+      )
         return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderProbe(ws, providerId, timeoutMs);
       return true;
