@@ -15,6 +15,7 @@ import {
   isIndexableFile,
   onIndexStateChange,
   runStartupIndex,
+  setIndexServiceMode,
   shutdownCodebaseIndexHost,
 } from '@wrongstack/tools';
 import { clearCodemapGraphCache } from './codemap-cache.js';
@@ -50,6 +51,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
   };
 
   if (idx) {
+    setIndexServiceMode(idx.service);
     void ensureCodebaseIndexServer({
       projectRoot: deps.projectRoot,
       indexDir,

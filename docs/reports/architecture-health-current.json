@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T14:00:23.544Z",
+  "generatedAt": "2026-11-02T14:57:43.534Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5654,
-    "testFiles": 4886,
-    "sourceLines": 1234088,
+    "sourceFiles": 5657,
+    "testFiles": 4887,
+    "sourceLines": 1234892,
     "workspaceEdges": 231,
-    "moduleEdges": 16532,
+    "moduleEdges": 16550,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 187,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1034
+    "testOnlyExports": 1039
   },
   "errors": [
     "ARCH-CYCLE-TYPE-05: exception expired on 2026-11-01",
@@ -979,8 +979,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 391,
-      "testFiles": 373,
+      "sourceFiles": 394,
+      "testFiles": 374,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -999,7 +999,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 373
+          "testFiles": 374
         }
       ]
     },
@@ -22285,6 +22285,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/wrongindex-adapter.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/agent-swarm-panel-visibility.test.ts",
         "projects": [
           "root-node"
@@ -35819,6 +35825,26 @@
     {
       "file": "packages/tools/src/codebase-index/writer-refs.ts",
       "name": "FAMILY_MATCH_SQL"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
+      "name": "encodeFrame"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
+      "name": "FrameReader"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
+      "name": "OWNER_LOCK_FILE"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/service.ts",
+      "name": "resetWrongIndexConnection"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/service.ts",
+      "name": "toIndexResult"
     },
     {
       "file": "packages/tools/src/diff.ts",

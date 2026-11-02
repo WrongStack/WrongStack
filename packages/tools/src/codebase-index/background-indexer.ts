@@ -77,6 +77,22 @@ import type {
   VectorSearchOpResult,
 } from './worker-protocol.js';
 import { indexStorePool } from './writer.js';
+import {
+  acquireWrongIndexSession,
+  releaseWrongIndexSessions,
+  resolveIndexRoute,
+  setBeforeWrongIndexClaim,
+  wrongIndexHealth,
+} from './wrongindex/service.js';
+
+// Before this process lets WrongIndex claim an index, its own local owner of
+// that index (the detached project server and pooled stores) steps down.
+setBeforeWrongIndexClaim(async (projectRoot, indexDir) => {
+  await shutdownProjectIndexServer(projectRoot, indexDir, 'wrongindex-takeover').catch(
+    () => undefined,
+  );
+  indexStorePool.evict(projectRoot, indexDir);
+});
 
 export { isIndexableFile, resolveLastError } from './background-indexer-policy.js';
 
@@ -174,6 +190,8 @@ export async function shutdownCodebaseIndexHost(): Promise<void> {
   closeProjectIndexServerClients();
   indexStorePool.closeAll();
   await shutdownIndexWorker();
+  // Only this process's watch leases; the global WrongIndex daemon stays up.
+  await releaseWrongIndexSessions();
 }
 
 // ─── Process-wide write mutex ────────────────────────────────────────────────
@@ -543,6 +561,13 @@ export function shutdownCodebaseIndexServer(
   indexDir?: string,
   reason?: string,
 ): Promise<ProjectIndexServerShutdownResult> {
+  if (resolveIndexRoute(projectRoot, indexDir) === 'wrongindex') {
+    // The global service is not this client's to stop.
+    return releaseWrongIndexSessions().then(() => ({
+      stopped: false,
+      reason: 'served by the WrongIndex service; only this client session was released',
+    }));
+  }
   return shutdownProjectIndexServer(projectRoot, indexDir, reason);
 }
 
@@ -552,6 +577,25 @@ export function checkCodebaseIndexServerHealth(
   indexDir?: string,
   options: { timeoutMs?: number | undefined } = {},
 ): Promise<ProjectIndexServerClientHealth> {
+  if (resolveIndexRoute(projectRoot, indexDir) === 'wrongindex') {
+    const t0 = Date.now();
+    return wrongIndexHealth().then(
+      (h): ProjectIndexServerClientHealth => ({
+        status: h['draining'] ? 'degraded' : 'healthy',
+        checkedAt: Date.now(),
+        lastHealthyAt: Date.now(),
+        latencyMs: Date.now() - t0,
+        missedHeartbeats: 0,
+      }),
+      (): ProjectIndexServerClientHealth => ({
+        status: 'unresponsive',
+        checkedAt: Date.now(),
+        lastHealthyAt: null,
+        latencyMs: null,
+        missedHeartbeats: 1,
+      }),
+    );
+  }
   return checkProjectIndexServerHealth(projectRoot, indexDir, options);
 }
 
@@ -563,6 +607,11 @@ export function ensureCodebaseIndexServer(options: {
   debounceMs?: number | undefined;
   coalesceWindowMs?: number | undefined;
 }): Promise<void> {
+  if (resolveIndexRoute(options.projectRoot, options.indexDir) === 'wrongindex') {
+    // The service watches the project while a session lease is held (policy
+    // `session`); the local detached server is never started for it.
+    return acquireWrongIndexSession(options.projectRoot, options.indexDir);
+  }
   const availability = resolveProjectIndexDaemonAvailability(options.projectRoot, options.indexDir);
   if (availability.kind !== 'available') {
     if (availability.kind === 'endpoint-invalid') warnEndpointInvalidOnce(availability);

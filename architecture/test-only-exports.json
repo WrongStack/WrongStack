@@ -1513,6 +1513,17 @@
     "packages/tools/src/codebase-index/writer-refs.ts": [
       "FAMILY_MATCH_SQL"
     ],
+    "packages/tools/src/codebase-index/wrongindex/client.ts": [
+      "encodeFrame",
+      "FrameReader"
+    ],
+    "packages/tools/src/codebase-index/wrongindex/owner-lock.ts": [
+      "OWNER_LOCK_FILE"
+    ],
+    "packages/tools/src/codebase-index/wrongindex/service.ts": [
+      "resetWrongIndexConnection",
+      "toIndexResult"
+    ],
     "packages/tools/src/diff.ts": [
       "refLooksLikeOutsidePath"
     ],

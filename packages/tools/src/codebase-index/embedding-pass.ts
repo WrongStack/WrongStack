@@ -38,6 +38,7 @@ import * as path from 'node:path';
 import { xxhash64String } from './content-hash.js';
 import { type IndexStore, indexStorePool } from './writer.js';
 import { posixIndexPath, resolveIndexDir } from './writer-helpers.js';
+import { IndexOwnedExternallyError, isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
 
 /**
  * The host-supplied embedding model.
@@ -254,6 +255,9 @@ export async function embedProjectFiles(
   const { indexDir, ...rest } = options;
   if (!existsSync(path.join(resolveIndexDir(projectRoot, indexDir), 'index.db'))) {
     return { indexed: false };
+  }
+  if (isOwnedByWrongIndex(resolveIndexDir(projectRoot, indexDir))) {
+    throw new IndexOwnedExternallyError(resolveIndexDir(projectRoot, indexDir));
   }
   const store = indexStorePool.acquire(projectRoot, { indexDir });
   try {

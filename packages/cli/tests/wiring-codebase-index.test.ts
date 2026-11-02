@@ -9,6 +9,7 @@ const {
   enqueueReindexMock,
   ensureCodebaseIndexServerMock,
   cancelPendingReindexesMock,
+  setIndexServiceModeMock,
 } = vi.hoisted(() => ({
   runStartupIndexMock: vi.fn(async () => ({
     filesIndexed: 3,
@@ -20,6 +21,7 @@ const {
   enqueueReindexMock: vi.fn(),
   ensureCodebaseIndexServerMock: vi.fn(async () => {}),
   cancelPendingReindexesMock: vi.fn(),
+  setIndexServiceModeMock: vi.fn(),
 }));
 vi.mock('@wrongstack/tools', () => ({
   runStartupIndex: runStartupIndexMock,
@@ -27,6 +29,7 @@ vi.mock('@wrongstack/tools', () => ({
   ensureCodebaseIndexServer: ensureCodebaseIndexServerMock,
   cancelPendingReindexes: cancelPendingReindexesMock,
   shutdownCodebaseIndexHost: vi.fn(),
+  setIndexServiceMode: setIndexServiceModeMock,
   isIndexableFile: (p: string) => /\.(ts|tsx|js|jsx|go|py|rs)$/.test(p),
 }));
 
@@ -78,6 +81,23 @@ beforeEach(() => {
 });
 
 describe('setupCodebaseIndexing — startup', () => {
+  it('passes the configured index service to the tools layer', async () => {
+    const p = createDefaultPipelines();
+    await setupCodebaseIndexing(
+      deps(
+        {
+          onSessionStart: false,
+          onEdit: false,
+          watchExternal: false,
+          debounceMs: 400,
+          service: 'auto',
+        },
+        p,
+      ),
+    );
+    expect(setIndexServiceModeMock).toHaveBeenLastCalledWith('auto');
+  });
+
   it('starts a background startup index when onSessionStart is true', async () => {
     const p = createDefaultPipelines();
     await setupCodebaseIndexing(

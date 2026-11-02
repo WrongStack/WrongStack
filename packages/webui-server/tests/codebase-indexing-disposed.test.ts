@@ -25,6 +25,7 @@ vi.mock('@wrongstack/tools', () => ({
   isIndexableFile: () => true,
   onIndexStateChange: () => () => {},
   runStartupIndex: async () => ({}),
+  setIndexServiceMode: vi.fn(),
   shutdownCodebaseIndexHost: async () => {},
 }));
 vi.mock('../src/server/codemap-cache.js', () => ({ clearCodemapGraphCache: vi.fn() }));

@@ -17,6 +17,9 @@ import {
 } from './project-server-client.js';
 
 import type { HostToWorker, OpName, OpShapes, WorkerToHost } from './worker-protocol.js';
+import { resolveIndexDir } from './writer-helpers.js';
+import { IndexOwnedExternallyError, isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
+import { callWrongIndex, resolveIndexRoute } from './wrongindex/service.js';
 
 // ─── Worker management ───────────────────────────────────────────────────────
 
@@ -151,6 +154,16 @@ export function dispatchIndexOp<O extends OpName>(
   // and exotic runtimes, but it has to be asked for: reaching it because the
   // build could not be located would give this process a private FTS5 database
   // and no indication that it had stopped sharing the project's index.
+  // The WrongIndex service, when selected or when it owns this index. Its
+  // failures are final: an index it owns is never written locally instead.
+  if (resolveIndexRoute(args.projectRoot, args.indexDir) === 'wrongindex') {
+    return callWrongIndex(op, args, opts);
+  }
+  if (isOwnedByWrongIndex(resolveIndexDir(args.projectRoot, args.indexDir))) {
+    return Promise.reject(
+      new IndexOwnedExternallyError(resolveIndexDir(args.projectRoot, args.indexDir)),
+    );
+  }
   const availability = resolveProjectIndexDaemonAvailability(args.projectRoot, args.indexDir);
   if (availability.kind === 'available') {
     return callProjectIndexServer(op, args, opts);
