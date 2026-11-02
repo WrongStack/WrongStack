@@ -19,6 +19,7 @@ import type {
 } from '@wrongstack/contracts/types';
 import type { ConnectOptions } from '@wrongstack/wrongmemory-client';
 import { createProjectSageMemoryPort } from './memory-port.js';
+import { recordSageServiceBackend } from './memory-service-registry.js';
 import type { ProjectSageMemoryPortOptions } from './remote-memory-port.js';
 import {
   probeWrongMemoryProject,
@@ -77,10 +78,12 @@ export function createSageMemoryPortForService(
   const local = createLocal ?? createProjectSageMemoryPort;
   switch (resolveSageServiceMode(options.service)) {
     case 'wrongmemory':
+      recordSageServiceBackend(options.projectRoot, 'wrongmemory', options.service?.dataRoot);
       return wrongMemoryPort(options);
     case 'auto':
       return new AutoSageMemoryPort(options, () => local(localOptions));
     case 'local':
+      recordSageServiceBackend(options.projectRoot, 'local');
       return local(localOptions);
   }
 }
@@ -131,6 +134,7 @@ export class AutoSageMemoryPort implements MemoryPort {
       port = this.createLocal();
       this.backend = 'local';
     }
+    recordSageServiceBackend(this.options.projectRoot, this.backend, service.dataRoot);
     await port.initialize();
     this.delegate = port;
     return port;

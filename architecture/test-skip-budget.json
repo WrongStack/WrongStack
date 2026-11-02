@@ -457,6 +457,11 @@
       "fingerprint": "08950baaff5eac45"
     },
     {
+      "file": "packages/sage/tests/memory-service-registry.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "4d8283ff013adc86"
+    },
+    {
       "file": "packages/sage/tests/project-server-auth-gate.test.ts",
       "kind": "skipIf",
       "fingerprint": "3a6ff4cff9bd0ee7"

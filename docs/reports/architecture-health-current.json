@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T14:56:31.963Z",
+  "generatedAt": "2026-11-02T16:34:27.717Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 47,
-    "sourceFiles": 5576,
-    "testFiles": 4857,
-    "sourceLines": 1224318,
+    "sourceFiles": 5577,
+    "testFiles": 4858,
+    "sourceLines": 1224496,
     "workspaceEdges": 234,
-    "moduleEdges": 16737,
+    "moduleEdges": 16741,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -804,8 +804,8 @@
     {
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
-      "sourceFiles": 169,
-      "testFiles": 172,
+      "sourceFiles": 170,
+      "testFiles": 173,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -824,7 +824,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 172
+          "testFiles": 173
         }
       ]
     },
@@ -17691,6 +17691,12 @@
       },
       {
         "file": "packages/sage/tests/memory-port.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/memory-service-registry.test.ts",
         "projects": [
           "root-node"
         ]
