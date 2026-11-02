@@ -6057,6 +6057,10 @@ staged; the other session's edits stay untouched.
   load, logs `.temp_files/desktop-v2-native/final-1102g/`): `files`, `atlas`, `history`, `multi`
   and `surfaces` exit 0, with `files` 184 s to 98 s, `multi` 197 s to 106 s and `history` 295 s
   to 207 s against the previous run.
+- Full matrix on that build `276a44e8e229-a92ae4ec54ce` (2026-11-02 14:49 to 15:59, still under
+  the same unrelated load; logs `final-1102g`, `final-1102h`, `final-1102i`): **36 of 36 exit 0**,
+  including `default`, `companion`, `composer` and `perf`, which had failed under load before,
+  and the "Refine again" step whose intermittent close is still not explained.
 - Full matrix on `34c8e7dd2f02-a92ae4ec54ce` (2026-11-02 11:23 to 12:23) ran while the machine
   was saturated by unrelated work (CPU at 96 %, 78 Node processes from other tools). Every step
   of 33 scopes passed; `surfaces`, `multi` and `perf` passed all their steps and then timed out
