@@ -353,6 +353,13 @@ async function useMode(
         );
       }
     } else if (status.storeOwnedByWrongMemory) {
+      if (status.daemon === 'running') {
+        const marker = path.join(storeDir, sage.WRONGMEMORY_ADOPTION_MARKER_FILE);
+        throw new Error(
+          `WrongMemory owns the store (${marker}), but the service at this data root does not serve the project; ` +
+            'release it from the WrongMemory data root that adopted it, or delete the marker if none does',
+        );
+      }
       throw new Error(
         'WrongMemory holds the store but its daemon is not reachable; start it (`wrongmemory daemon start`) and retry',
       );
