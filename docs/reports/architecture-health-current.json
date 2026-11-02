@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T19:05:35.066Z",
+  "generatedAt": "2026-11-02T19:06:07.084Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5660,
-    "testFiles": 4890,
-    "sourceLines": 1235004,
+    "testFiles": 4891,
+    "sourceLines": 1235012,
     "workspaceEdges": 231,
     "moduleEdges": 16545,
     "nonCommandSlashImports": 0,
@@ -712,7 +712,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 25,
-      "testFiles": 19,
+      "testFiles": 20,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -723,7 +723,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 19
+          "testFiles": 20
         }
       ]
     },
@@ -16702,6 +16702,12 @@
       },
       {
         "file": "packages/primitives/tests/redaction-attached-password-argv.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/redaction-colon-separated-flags.test.ts",
         "projects": [
           "root-node"
         ]
