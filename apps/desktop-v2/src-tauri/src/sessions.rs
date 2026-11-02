@@ -33,6 +33,8 @@ pub struct HostState {
     pub registry: Mutex<Registry>,
     pub live: Mutex<HashMap<String, LiveSession>>,
     pub dir: PathBuf,
+    /// The engine a later launch handed over when this host was started without one.
+    adopted_engine: Mutex<Option<PathBuf>>,
 }
 impl HostState {
     pub fn new(dir: &Path) -> Result<Arc<Self>> {
@@ -44,13 +46,15 @@ impl HostState {
             registry: Mutex::new(registry),
             live: Mutex::new(HashMap::new()),
             dir: dir.into(),
+            adopted_engine: Mutex::new(None),
         }))
     }
     pub fn request(self: &Arc<Self>, method: &str, p: &Value) -> Result<Value> {
         match method {
             "ping" => Ok(
-                json!({"protocol":1,"pid":std::process::id(),"projectApi":1,"engineBuild":crate::host::engine_build(),"requestFrameBytes":crate::host::REQUEST_FRAME_BYTES}),
+                json!({"protocol":1,"pid":std::process::id(),"projectApi":1,"engineBuild":crate::host::engine_build(),"requestFrameBytes":crate::host::REQUEST_FRAME_BYTES,"engine":self.engine_command().is_ok()}),
             ),
+            "engine.adopt" => self.adopt_engine(field(p, "path")?),
             "snapshot" => {
                 let r = self.registry.lock().map_err(err)?;
                 Ok(
@@ -359,6 +363,24 @@ impl HostState {
         });
         Ok(())
     }
+    fn engine_command(&self) -> Result<Command> {
+        let adopted = self.adopted_engine.lock().map_err(err)?.clone();
+        engine_command(adopted.as_deref())
+    }
+    /// A host started from a build output with no engine beside it outlives that window, so a
+    /// later launch that has an engine hands it over instead of failing every workspace. An
+    /// engine the host already has is never replaced.
+    fn adopt_engine(&self, path: &str) -> Result<Value> {
+        if self.engine_command().is_ok() {
+            return Ok(json!({"adopted":false}));
+        }
+        let path = PathBuf::from(path);
+        if !path.is_absolute() || !path.is_file() {
+            return Err("Invalid desktop engine executable path".into());
+        }
+        *self.adopted_engine.lock().map_err(err)? = Some(path);
+        Ok(json!({"adopted":true}))
+    }
     pub(crate) fn start_engine(
         self: &Arc<Self>,
         runtime_id: &str,
@@ -377,7 +399,7 @@ impl HostState {
         let reservation = TcpListener::bind("127.0.0.1:0").map_err(err)?;
         let port = reservation.local_addr().map_err(err)?.port();
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
-        let mut command = engine_command()?;
+        let mut command = self.engine_command()?;
         let ready_path = self
             .dir
             .join("transcripts")
@@ -632,6 +654,45 @@ mod history_tests {
     use super::*;
 
     #[test]
+    fn a_host_started_without_an_engine_takes_one_from_a_later_launch() {
+        if std::env::var_os("WRONGSTACK_DESKTOP_ENGINE").is_some()
+            || std::env::var_os("WRONGSTACK_DESKTOP_ENTRY").is_some()
+        {
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("desktop-engine-adopt-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        assert_eq!(host.request("ping", &json!({})).unwrap()["engine"], false);
+        assert!(host.engine_command().unwrap_err().contains("portable"));
+        assert!(host
+            .request("engine.adopt", &json!({"path":"relative-engine.exe"}))
+            .is_err());
+        let engine = dir.join("wrongstack-engine.exe");
+        std::fs::write(&engine, b"").unwrap();
+        let path = engine.to_string_lossy().to_string();
+        assert_eq!(
+            host.request("engine.adopt", &json!({"path":path})).unwrap()["adopted"],
+            true
+        );
+        assert_eq!(host.request("ping", &json!({})).unwrap()["engine"], true);
+        // An engine the host already has is never replaced.
+        let other = dir.join("other.exe");
+        std::fs::write(&other, b"").unwrap();
+        assert_eq!(
+            host.request("engine.adopt", &json!({"path":other.to_string_lossy()}))
+                .unwrap()["adopted"],
+            false
+        );
+        assert_eq!(
+            host.engine_command().unwrap().get_program(),
+            engine.as_os_str()
+        );
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn restore_requires_a_source_and_refuses_alternate_roots_before_creating_tabs() {
         let dir = std::env::temp_dir().join(format!("desktop-restore-contract-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -688,7 +749,7 @@ mod history_tests {
         assert!(history_source(&json!({"history":{"id":"sess_ok","mode":"new"}})).is_err());
     }
 }
-fn engine_command() -> Result<Command> {
+fn engine_command(adopted: Option<&Path>) -> Result<Command> {
     if let (Ok(bun), Ok(entry)) = (
         std::env::var("WRONGSTACK_DESKTOP_BUN"),
         std::env::var("WRONGSTACK_DESKTOP_ENTRY"),
@@ -702,7 +763,12 @@ fn engine_command() -> Result<Command> {
     }
     let path = std::env::var_os("WRONGSTACK_DESKTOP_ENGINE")
         .map(PathBuf::from)
-        .ok_or("Desktop engine is not bundled yet. Launch with bun run desktop:v2.")?;
+        .or_else(|| adopted.map(Path::to_path_buf))
+        .ok_or(
+            "No desktop engine was found. Start wrongstack-desktop-native.exe from its portable \
+             folder (apps/desktop-v2/dist-native/<build>), next to wrongstack-engine.exe, or run \
+             bun run desktop:v2 for development.",
+        )?;
     if !path.is_absolute() || !path.is_file() {
         return Err("Invalid desktop engine executable path".into());
     }
