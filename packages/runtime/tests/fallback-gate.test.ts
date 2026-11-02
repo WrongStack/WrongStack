@@ -34,7 +34,7 @@ describe('createFallbackGate (runtime)', () => {
         model: 'y',
       });
       events.emit('provider.fallback_choice', {
-        requestId: p['requestId'],
+        requestId: String(p['requestId']),
         providerId: 'google',
         model: 'gemini-pro',
       });
@@ -52,7 +52,10 @@ describe('createFallbackGate (runtime)', () => {
     const events = new EventBus();
     events.on('provider.fallback_pending', (payload) => {
       const p = payload as Record<string, unknown>;
-      events.emit('provider.fallback_choice', { requestId: p['requestId'], autoSwitch: true });
+      events.emit('provider.fallback_choice', {
+        requestId: String(p['requestId']),
+        autoSwitch: true,
+      });
     });
     await expect(createFallbackGate(events)(params(events, 'r2'))).resolves.toBeNull();
   });

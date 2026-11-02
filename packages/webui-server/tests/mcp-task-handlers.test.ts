@@ -75,11 +75,14 @@ describe('session-scoped MCP task routes', () => {
       const peekAgent = (id?: string) => (id === 'tab-b' ? ({ ctx: f.owner } as Agent) : undefined);
       const table =
         host === 'standalone'
-          ? createMcpRouteTable({
-              context: root,
-              peekAgent,
-              mcpRegistry: f.deps.registry,
-            } as unknown as Parameters<typeof createMcpRouteTable>[0])
+          ? createMcpRouteTable(
+              {
+                context: root,
+                peekAgent,
+                mcpRegistry: f.deps.registry,
+              } as unknown as Parameters<typeof createMcpRouteTable>[0],
+              () => false,
+            )
           : createEmbeddedMcpRoutes({
               opts: { agent: { ctx: root }, mcpRegistry: f.deps.registry },
               sessionCtx: { peekAgent },

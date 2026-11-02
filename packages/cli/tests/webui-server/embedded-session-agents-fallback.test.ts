@@ -111,7 +111,10 @@ function harness(appConfig: Config | undefined) {
     const p = payload as Record<string, unknown>;
     pending.push(p);
     setImmediate(() =>
-      events.emit('provider.fallback_choice', { requestId: p['requestId'], autoSwitch: true }),
+      events.emit('provider.fallback_choice', {
+        requestId: String(p['requestId']),
+        autoSwitch: true,
+      }),
     );
   });
   const { sessionAgents } = createEmbeddedSessionAgents(

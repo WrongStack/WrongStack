@@ -105,6 +105,15 @@ const INTENTIONALLY_UNHANDLED = new Set<string>([
   // files.search; its own search UI uses a separate implementation. The native
   // FileContentSearch consumes these correlated replies through EngineOperations.
   'files.search',
+  // Desktop-owned multi-item file operations: FileWorkspace issues
+  // files.copy_many / move_many / delete_many and consumes these correlated
+  // replies through EngineOperations. The WebUI does not issue them.
+  'files.copied_many',
+  'files.moved_many',
+  'files.deleted_many',
+  // Desktop engine-state clears its fallback banner on this; the WebUI shows
+  // the fallback through provider.fallback and has no restored-state surface.
+  'provider.primary_restored',
   // Desktop's GitWorkspace owns correlated hunk/conflict review requests;
   // the WebUI does not issue these requests (it uses git.diff instead).
   'git.hunks',

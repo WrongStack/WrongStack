@@ -135,6 +135,8 @@ describe('security helpers are wired, not just present', () => {
       'packages/mcp/src/authorization.ts',
       'packages/mcp/src/server-http.ts', // existing HTTP comparison relocated from server.ts
       'packages/webui-server/src/server/ws-auth.ts', // delegates; name kept for its callers
+      // WrongMemory server-proof HMAC; the vendored client has no dependencies
+      'packages/wrongmemory-client/src/client.ts',
     ]);
 
     const importers = SOURCES.filter(({ text }) =>

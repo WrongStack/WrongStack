@@ -117,6 +117,11 @@
       "fingerprint": "07183e30819b9cfe"
     },
     {
+      "file": "packages/cli/tests/subcommands/automation-preview.test.ts",
+      "kind": "runIf",
+      "fingerprint": "34d6e94b6a8251ab"
+    },
+    {
       "file": "packages/cli/tests/wrongtrace-gate.live.test.ts",
       "kind": "skipIf",
       "fingerprint": "bc732f7e132831e5"
@@ -495,6 +500,11 @@
       "file": "packages/sage/tests/verify-on-mutation-wiring.test.ts",
       "kind": "skipIf",
       "fingerprint": "c9c4e8fc58f814b7"
+    },
+    {
+      "file": "packages/sage/tests/wrongmemory-port.integration.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b0ee50ec6afa48ea"
     },
     {
       "file": "packages/sdd/tests/verify-task.test.ts",
@@ -980,6 +990,11 @@
       "file": "packages/vector-memory/tests/search-race.test.ts",
       "kind": "skip",
       "fingerprint": "39bbb4246f5caff0"
+    },
+    {
+      "file": "packages/webui-server/tests/file-batch-mutations.test.ts",
+      "kind": "runIf",
+      "fingerprint": "7a54e484dfbfa5b0"
     },
     {
       "file": "packages/webui-server/tests/path-containment.test.ts",

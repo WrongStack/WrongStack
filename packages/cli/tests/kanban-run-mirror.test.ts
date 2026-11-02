@@ -1,7 +1,7 @@
-import { listBoards } from '@wrongstack/kanban';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { listBoards } from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
 import {
   buildTaskGraphFromGoalPhase,
@@ -304,20 +304,26 @@ describe('KanbanRunMirror SDD verification + field preservation', () => {
       expect(mirrored?.status).toBe('completed');
 
       // Seed kanban-local fields the sync must never clobber.
-      await updateTask(dir, board!.id, mirrored!.id, {
-        atomic: true,
-        decomposition: {
-          id: 'prop-x',
-          taskId: mirrored!.id,
-          status: 'proposed',
-          mode: 'approval',
-          proposedSubtasks: [
-            { title: 'A', description: 'a' },
-            { title: 'B', description: 'b' },
-          ],
-          proposedAt: new Date().toISOString(),
+      await updateTask(
+        dir,
+        board!.id,
+        mirrored!.id,
+        {
+          atomic: true,
+          decomposition: {
+            id: 'prop-x',
+            taskId: mirrored!.id,
+            status: 'proposed',
+            mode: 'approval',
+            proposedSubtasks: [
+              { title: 'A', description: 'a' },
+              { title: 'B', description: 'b' },
+            ],
+            proposedAt: new Date().toISOString(),
+          },
         },
-      });
+        { sessionId: '2026-08-26/sess_01TESTKANBAN0000000000000' },
+      );
 
       // Tick 2: changed snapshot (new stamp) re-syncs the same graph.
       events.emit('sdd.board.snapshot', {

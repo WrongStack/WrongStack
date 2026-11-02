@@ -38,6 +38,19 @@ const USAGE = [
   '  wstack sage mcp [--origin <name>]',
   '  wstack sage sync [--restart-service]',
   '  wstack sage doctor [--fix[=<ids>]] [--json]',
+  '  wstack sage handoff [--yes] [--json]',
+  '  wstack sage service status|install|use <local|wrongmemory|auto> [--yes]',
+  '',
+  'service: choose the memory service. `install` downloads WrongMemory (checksum',
+  'verified) or installs it from --from <dir>; `use wrongmemory --yes` backs the',
+  'store up, hands it to WrongMemory and sets Sage.service.mode in the active',
+  'profile; `use local --yes` releases it again. Without --yes: the plan.',
+  '',
+  "handoff: hand this project's SAGE store to the WrongMemory service. Without",
+  '--yes it prints the plan. With --yes it stops the running SAGE project server',
+  '(authenticated shutdown), adopts the store in WrongMemory with write ownership,',
+  'and leaves it locked so local SAGE refuses it; then set Sage.service.mode to',
+  '"wrongmemory". Take a backup first (wrongmemory backup --store <path>).',
   '',
   'doctor: health report of the project SAGE store (expired memories,',
   'graph hubs, dangling edges, runtime-mode audiences, FTS, maintenance,',
@@ -164,10 +177,19 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
     'restart-service',
     'fix',
     'json',
+    'yes',
+    'release',
+    'from',
+    'stop-daemon',
   ]);
   const words = positionals(args, ['origin', 'command', 'fix']);
   const sub = words[0];
   const out = (line: string) => deps.renderer.write(`${line}\n`);
+
+  if (sub === 'service') {
+    const { runSageServiceCommand } = await import('./sage-service.js');
+    return runSageServiceCommand(args.slice(args.indexOf('service') + 1), deps);
+  }
 
   if (sub === 'sync') {
     const { runSageHqSyncCommand } = await import('./sage-sync.js');
@@ -183,6 +205,62 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
       wantsFix ? (fixValue ?? true) : undefined,
       args.includes('--json'),
     );
+  }
+
+  if (sub === 'handoff') {
+    const { handOffSageToWrongMemory } = await import('@wrongstack/sage');
+    try {
+      const report = await handOffSageToWrongMemory({
+        projectRoot: deps.projectRoot,
+        directory: deps.config.Sage?.storage?.directory,
+        service: deps.config.Sage?.service,
+        apply: args.includes('--yes'),
+      });
+      if (args.includes('--json')) {
+        out(JSON.stringify(report, null, 2));
+      } else {
+        out(
+          report.applied
+            ? 'SAGE handoff to WrongMemory: done'
+            : 'SAGE handoff to WrongMemory: plan (rerun with --yes)',
+        );
+        for (const step of report.steps) out(`  - ${step}`);
+        if (report.applied) {
+          out(
+            `  project ${report.projectId} (${report.admission}); owner lock held: ${report.ownerLocked}`,
+          );
+          out(
+            `  Next: set Sage.service.mode to "wrongmemory" in your user or profile configuration.`,
+          );
+        }
+      }
+      return report.applied && !report.ownerLocked ? 1 : 0;
+    } catch (error) {
+      out(`wstack sage handoff: ${error instanceof Error ? error.message : String(error)}`);
+      return 1;
+    }
+  }
+
+  if (sub === 'mcp' || sub === 'connect') {
+    const { wrongMemorySageOwner, wrongMemoryBridgeHint, serveWrongMemoryMcp } = await import(
+      '../../sage-mcp-owner.js'
+    );
+    const owner = await wrongMemorySageOwner(deps.projectRoot, deps.config.Sage?.service);
+    if (owner && sub === 'mcp') {
+      // stdout is the client's JSON-RPC channel: WrongMemory's bridge owns it.
+      return serveWrongMemoryMcp(
+        owner,
+        deps.projectRoot,
+        deps.config.Sage?.service,
+        optionValue(args, 'origin')?.trim() || 'mcp-client',
+        'wstack sage mcp',
+      );
+    }
+    if (owner) {
+      // Client configuration belongs to WrongMemory's own `connect`.
+      out(wrongMemoryBridgeHint(owner, `wstack sage ${sub}`));
+      return 3;
+    }
   }
 
   if (sub === 'mcp') {

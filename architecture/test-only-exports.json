@@ -382,22 +382,6 @@
     "packages/cli/src/fleet-statusline.ts": [
       "renderFleetLine"
     ],
-    "packages/fleet/src/acp-wrongstack-bridge.ts": [
-      "bridgeNote",
-      "bridgeTaskKickoff",
-      "wstackLaunch",
-      "wstackToolsCommand"
-    ],
-    "packages/fleet/src/host-explore-companion.ts": [
-      "formatExploreNote"
-    ],
-    "packages/fleet/src/host-helpers.ts": [
-      "DEFAULT_SUBAGENT_HIDDEN_TOOLS",
-      "NEVER_SUBAGENT_TOOLS"
-    ],
-    "packages/fleet/src/skill-companion-outcomes.ts": [
-      "skillOutcomesPath"
-    ],
     "packages/cli/src/fleet/wrongforge-gateway.ts": [
       "WORKER_WITHHELD_TOOLS"
     ],
@@ -551,6 +535,9 @@
       "renderBlockToString",
       "renderGenericHelp",
       "subcommandsWithFocusedHelp"
+    ],
+    "packages/cli/src/subcommands/handlers/sage-service.ts": [
+      "installWrongMemory"
     ],
     "packages/cli/src/subcommands/handlers/sage.ts": [
       "findExecutableOnPath"
@@ -838,6 +825,22 @@
       "PROXY_EXCLUDED_PROVIDERS",
       "subscribeToProxyConfig"
     ],
+    "packages/fleet/src/acp-wrongstack-bridge.ts": [
+      "bridgeNote",
+      "bridgeTaskKickoff",
+      "wstackLaunch",
+      "wstackToolsCommand"
+    ],
+    "packages/fleet/src/host-explore-companion.ts": [
+      "formatExploreNote"
+    ],
+    "packages/fleet/src/host-helpers.ts": [
+      "DEFAULT_SUBAGENT_HIDDEN_TOOLS",
+      "NEVER_SUBAGENT_TOOLS"
+    ],
+    "packages/fleet/src/skill-companion-outcomes.ts": [
+      "skillOutcomesPath"
+    ],
     "packages/goal/src/phase-orchestrator-integration.ts": [
       "markPhaseMergeFailed"
     ],
@@ -977,9 +980,7 @@
       "discoverSlotCapabilities"
     ],
     "packages/mcp/src/server-dispatch.ts": [
-      "INVALID_REQUEST",
-      "MAX_REPORTED_SCHEMA_ERRORS",
-      "METHOD_NOT_FOUND"
+      "MAX_REPORTED_SCHEMA_ERRORS"
     ],
     "packages/mcp/src/test-helpers/mock-server.ts": [
       "MockMCPServer"
@@ -1879,6 +1880,9 @@
     ],
     "packages/webui-server/src/server/http-server/api-handlers.ts": [
       "fleetBroadcastTargets"
+    ],
+    "packages/webui-server/src/server/mcp-tool-handlers.ts": [
+      "conversationNote"
     ],
     "packages/webui-server/src/server/pref-config-write.ts": [
       "writeGlobalConfigFile"
