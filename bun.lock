@@ -609,6 +609,7 @@
         "@wrongstack/hq": "workspace:*",
         "@wrongstack/persistence": "workspace:*",
         "@wrongstack/primitives": "workspace:*",
+        "@wrongstack/wrongmemory-client": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^26.6.5",
@@ -953,6 +954,14 @@
       "devDependencies": {
         "@types/node": "^22.20.5",
         "@wrongstack/coordination": "workspace:*",
+        "typescript": "^7.0.2",
+      },
+    },
+    "packages/wrongmemory-client": {
+      "name": "@wrongstack/wrongmemory-client",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "^26.6.5",
         "typescript": "^7.0.2",
       },
     },
@@ -1814,6 +1823,8 @@
     "@wrongstack/webui-server": ["@wrongstack/webui-server@workspace:packages/webui-server"],
 
     "@wrongstack/worktree": ["@wrongstack/worktree@workspace:packages/worktree"],
+
+    "@wrongstack/wrongmemory-client": ["@wrongstack/wrongmemory-client@workspace:packages/wrongmemory-client"],
 
     "@wrongstack/wrongtrace": ["@wrongstack/wrongtrace@workspace:packages/wrongtrace"],
 
@@ -2733,6 +2744,8 @@
 
     "@wrongstack/webui-server/@types/node": ["@types/node@26.6.5", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg=="],
 
+    "@wrongstack/wrongmemory-client/@types/node": ["@types/node@26.6.5", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg=="],
+
     "@xyflow/react/zustand": ["zustand@4.5.7", "", { "dependencies": { "use-sync-external-store": "^1.2.2" }, "peerDependencies": { "@types/react": ">=16.8", "immer": ">=9.0.6", "react": ">=16.8" }, "optionalPeers": ["@types/react", "immer", "react"] }, "sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw=="],
 
     "cliui/string-width": ["string-width@4.2.3", "", { "dependencies": { "emoji-regex": "^8.0.0", "is-fullwidth-code-point": "^3.0.0", "strip-ansi": "^6.0.1" } }, "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g=="],
@@ -2924,6 +2937,8 @@
     "@wrongstack/webui-server/@types/node/undici-types": ["undici-types@8.9.0", "", {}, "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="],
 
     "@wrongstack/webui/@types/node/undici-types": ["undici-types@8.9.0", "", {}, "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="],
+
+    "@wrongstack/wrongmemory-client/@types/node/undici-types": ["undici-types@8.9.0", "", {}, "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="],
 
     "cliui/string-width/is-fullwidth-code-point": ["is-fullwidth-code-point@3.0.0", "", {}, "sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg=="],
 

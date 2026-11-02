@@ -74,12 +74,12 @@
     {
       "file": "packages/cli/tests/hq-mobile-visual-smoke.test.ts",
       "kind": "skipIf",
-      "fingerprint": "a2e2879eb3e716ce"
+      "fingerprint": "8fd1e3255101c8c5"
     },
     {
       "file": "packages/cli/tests/hq-visual-smoke.test.ts",
       "kind": "skipIf",
-      "fingerprint": "cdceee059ef2523c"
+      "fingerprint": "ace5eeaed36e3013"
     },
     {
       "file": "packages/cli/tests/project-manifest.test.ts",
@@ -115,6 +115,11 @@
       "file": "packages/cli/tests/subagent-models-tui-e2e.test.ts",
       "kind": "skipIf",
       "fingerprint": "07183e30819b9cfe"
+    },
+    {
+      "file": "packages/cli/tests/subcommands/automation-preview.test.ts",
+      "kind": "runIf",
+      "fingerprint": "34d6e94b6a8251ab"
     },
     {
       "file": "packages/cli/tests/wrongtrace-gate.live.test.ts",
@@ -452,6 +457,11 @@
       "fingerprint": "08950baaff5eac45"
     },
     {
+      "file": "packages/sage/tests/memory-service-registry.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "4d8283ff013adc86"
+    },
+    {
       "file": "packages/sage/tests/project-server-auth-gate.test.ts",
       "kind": "skipIf",
       "fingerprint": "3a6ff4cff9bd0ee7"
@@ -495,6 +505,11 @@
       "file": "packages/sage/tests/verify-on-mutation-wiring.test.ts",
       "kind": "skipIf",
       "fingerprint": "c9c4e8fc58f814b7"
+    },
+    {
+      "file": "packages/sage/tests/wrongmemory-port.integration.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b0ee50ec6afa48ea"
     },
     {
       "file": "packages/sdd/tests/verify-task.test.ts",
@@ -980,6 +995,11 @@
       "file": "packages/vector-memory/tests/search-race.test.ts",
       "kind": "skip",
       "fingerprint": "39bbb4246f5caff0"
+    },
+    {
+      "file": "packages/webui-server/tests/file-batch-mutations.test.ts",
+      "kind": "runIf",
+      "fingerprint": "7a54e484dfbfa5b0"
     },
     {
       "file": "packages/webui-server/tests/path-containment.test.ts",

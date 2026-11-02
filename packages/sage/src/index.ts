@@ -38,6 +38,17 @@ export {
   sageHygieneOptionsFromConfig,
   setupSage,
 } from './host-wiring.js';
+export {
+  AutoSageMemoryPort,
+  createSageMemoryPortForService,
+  createWrongMemoryHqSyncConnection,
+  resolveSageServiceMode,
+  SageBackendNotSelectedError,
+  type SageHqSyncConnection,
+  type SageMemoryPortForServiceOptions,
+  type SageServiceMode,
+  type SageServiceSelection,
+} from './memory-backend.js';
 export * from './memory-doctor-types.js';
 export {
   createProjectSageMemoryPort,
@@ -54,6 +65,14 @@ export {
   type SageRetrievalCapability,
   SqliteMemoryPort,
 } from './memory-port.js';
+export {
+  clearSageServiceBackends,
+  recordSageServiceBackend,
+  SageServedByWrongMemoryError,
+  type SageServiceBackend,
+  type SageServiceBackendRecord,
+  sageServiceBackendFor,
+} from './memory-service-registry.js';
 export {
   createSageContextMonitorMiddleware,
   type SageContextMonitorOptions,
@@ -236,3 +255,49 @@ export {
 } from './triage/system-one.js';
 export type { UpdateSageInput } from './types.js';
 export * from './types.js';
+export {
+  findWrongMemoryBinary,
+  readWrongMemoryInstallManifest,
+  type WrongMemoryBinary,
+  type WrongMemoryBinaryKind,
+  type WrongMemoryBinarySource,
+  wrongMemoryExecutableName,
+  wrongMemoryInstallDir,
+} from './wrongmemory-binaries.js';
+export {
+  handOffSageToWrongMemory,
+  type LocalSageOwner,
+  type SageHandoffReport,
+} from './wrongmemory-handoff.js';
+export {
+  prepareWrongMemoryMcpBridge,
+  WRONGMEMORY_MCP_GRANT_LABEL,
+  type WrongMemoryMcpLaunch,
+  wrongMemoryCliPath,
+} from './wrongmemory-mcp-bridge.js';
+export {
+  assertStoreNotOwnedByWrongMemory,
+  SageStoreOwnedByWrongMemoryError,
+  WRONGMEMORY_OWNER_LOCK_FILE,
+  wrongMemoryOwnsStore,
+} from './wrongmemory-owner-guard.js';
+export {
+  probeWrongMemoryProject,
+  resolveWrongMemoryProject,
+  WRONGMEMORY_BACKEND,
+  type WrongMemoryClientLike,
+  WrongMemoryNotImplementedError,
+  WrongMemoryPort,
+  type WrongMemoryPortOptions,
+  WrongMemoryProjectNotRegisteredError,
+  WrongMemoryUnavailableError,
+} from './wrongmemory-port.js';
+export {
+  probeWrongMemoryService,
+  releaseWrongMemoryProject,
+  type WrongMemoryPanelHealth,
+  type WrongMemoryProjectInfo,
+  type WrongMemoryServiceProbe,
+  wrongMemoryPanelHealth,
+  wrongMemoryServiceActionRefusal,
+} from './wrongmemory-service.js';

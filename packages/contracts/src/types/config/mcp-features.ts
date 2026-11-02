@@ -278,6 +278,26 @@ export interface SageConfig {
         directory?: string | undefined;
       }
     | undefined;
+  /**
+   * Memory service backend. `local` (default) keeps the project SAGE server /
+   * SQLite store. `wrongmemory` routes every memory operation to the
+   * WrongMemory daemon (no local SQLite fallback). `auto` uses WrongMemory only
+   * when a daemon is reachable AND this project is registered with it.
+   * User/profile config only: denied in repo-supplied project config.
+   */
+  service?:
+    | {
+        mode?: 'local' | 'wrongmemory' | 'auto' | undefined;
+        /** `on-demand` starts `wrongmemoryd` when none is reachable. Default: on-demand. */
+        startPolicy?: 'on-demand' | 'never' | undefined;
+        /** Registered WrongMemory project id; default: locate/register by project root. */
+        projectId?: string | undefined;
+        /** WrongMemory data root. Default: WRONGMEMORY_HOME or ~/.wrongmemory. */
+        dataRoot?: string | undefined;
+        /** Path to the `wrongmemoryd` executable for on-demand start. */
+        daemonPath?: string | undefined;
+      }
+    | undefined;
   inject?:
     | {
         /** Add relevant memory to ordinary turn-level context. Default: false (opt-in). */

@@ -33,12 +33,17 @@ export const TEST_EVENT_CONTEXT: KanbanEventContext = {
  * so too — otherwise every bound call site is a compile error that the test run
  * itself never sees. Two trailing slots are relaxed, not one: a few signatures
  * (`moveTask`'s `targetOrder`) carry an explicit `| undefined` slot just before
- * the context, and tests legitimately omit both.
+ * the context, and tests legitimately omit both. A signature whose context is
+ * followed by an optional options object keeps that options type instead.
  */
 type WithBoundTail<F> = F extends (...args: infer A) => infer R
-  ? A extends [...infer Head, infer Penult, infer _Last]
-    ? (...args: [...Head, Penult?, KanbanEventContext?]) => R
-    : A extends [...infer Head2, infer _Only]
+  ? Required<A> extends [...infer Head, infer Penult, infer Last]
+    ? // The context followed by an optional trailing options slot
+      // (`updateTask(..., eventContext, options = {})`): keep the options type.
+      [Penult] extends [KanbanEventContext]
+      ? (...args: [...Head, Penult?, Last?]) => R
+      : (...args: [...Head, Penult?, KanbanEventContext?]) => R
+    : Required<A> extends [...infer Head2, infer _Only]
       ? (...args: [...Head2, KanbanEventContext?]) => R
       : F
   : F;

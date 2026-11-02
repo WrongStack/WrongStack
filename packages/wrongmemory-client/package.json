@@ -1,0 +1,43 @@
+{
+  "name": "@wrongstack/wrongmemory-client",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Vendored TypeScript client for the WrongMemory daemon (from WrongMemory packages/client-ts @ 7f35326).",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WrongStack/WrongStack.git",
+    "directory": "packages/wrongmemory-client"
+  },
+  "homepage": "https://github.com/WrongStack/WrongStack#readme",
+  "bugs": "https://github.com/WrongStack/WrongStack/issues",
+  "author": "ECOSTACK TECHNOLOGY OÜ",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit && bun ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",
+    "test": "bun --bun run vitest run --config vitest.config.ts",
+    "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

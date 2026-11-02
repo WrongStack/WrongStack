@@ -1,3 +1,4 @@
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   chunkHqSageRecords,
   compareHqSageRecords,
@@ -7,12 +8,21 @@ import {
   isHqSageRecord,
   MAX_HQ_SAGE_RECORD_BYTES,
 } from '@wrongstack/hq';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { SageProjectServerConnection } from '@wrongstack/sage';
+import { type SageHqSyncConnection, SageProjectServerConnection } from '@wrongstack/sage';
 
-/** Uses the single SQLite owner over IPC, including writes from MCP and other hosts. */
-export function createSageHqSync(projectRoot: string, publisher: HqPublisher, directory?: string) {
-  const connection = new SageProjectServerConnection(projectRoot, directory);
+/**
+ * Uses the single SQLite owner over IPC, including writes from MCP and other
+ * hosts. `owner` replaces the SAGE project server when another service owns
+ * the store (WrongMemory, see `createWrongMemoryHqSyncConnection`).
+ */
+export function createSageHqSync(
+  projectRoot: string,
+  publisher: HqPublisher,
+  directory?: string,
+  owner?: SageHqSyncConnection,
+) {
+  const connection = (owner ??
+    new SageProjectServerConnection(projectRoot, directory)) as SageProjectServerConnection;
   const acknowledged = new Map<string, string>();
   const sent = new Map<string, string>();
   const warned = new Map<string, string>();

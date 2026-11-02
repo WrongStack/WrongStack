@@ -18,7 +18,11 @@ import { SessionCatalogProjectClient } from '@wrongstack/core/session-catalog';
 import { resolveWstackPaths, withDaemonVersion } from '@wrongstack/core/utils';
 import { getKanbanServerConnection } from '@wrongstack/kanban';
 import { readGovernanceDaemonOperatorStatus } from '@wrongstack/runtime/governance-bootstrap';
-import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
+import {
+  isSageProjectServerAvailable,
+  SageProjectServerConnection,
+  wrongMemoryPanelHealth,
+} from '@wrongstack/sage';
 import {
   checkCodebaseIndexServerHealth,
   getIndexState,
@@ -274,6 +278,20 @@ async function codebaseIndexHealth(projectRoot: string): Promise<ConnectionHealt
 
 async function sageHealth(projectRoot: string): Promise<ConnectionHealthService> {
   const startedAt = Date.now();
+  // A project served by WrongMemory has no local SAGE server to probe (and
+  // probing must not start one); report the service instead.
+  const viaWrongMemory = await wrongMemoryPanelHealth(projectRoot).catch(() => undefined);
+  if (viaWrongMemory) {
+    return {
+      id: 'sage',
+      label: 'SAGE memory',
+      status: viaWrongMemory.status,
+      required: false,
+      mode: viaWrongMemory.mode,
+      detail: viaWrongMemory.detail,
+      latencyMs: Date.now() - startedAt,
+    };
+  }
   if (!isSageProjectServerAvailable()) {
     return {
       id: 'sage',

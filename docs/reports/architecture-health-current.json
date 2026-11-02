@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T19:16:26.592Z",
+  "generatedAt": "2026-11-02T19:44:34.523Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,18 +11,18 @@
     ]
   },
   "summary": {
-    "packages": 46,
-    "sourceFiles": 5668,
-    "testFiles": 4906,
-    "sourceLines": 1235935,
-    "workspaceEdges": 231,
-    "moduleEdges": 16571,
+    "packages": 47,
+    "sourceFiles": 5684,
+    "testFiles": 4917,
+    "sourceLines": 1240368,
+    "workspaceEdges": 232,
+    "moduleEdges": 16633,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 187,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1034
+    "testOnlyExports": 1033
   },
   "errors": [],
   "packageCycles": [],
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 626,
-      "testFiles": 683,
+      "sourceFiles": 628,
+      "testFiles": 685,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 683
+          "testFiles": 685
         }
       ]
     },
@@ -797,7 +797,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 36,
-      "testFiles": 38,
+      "testFiles": 39,
       "workspaceDependencies": [
         "@wrongstack/builtin-plugins",
         "@wrongstack/chronicle",
@@ -822,22 +822,23 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 38
+          "testFiles": 39
         }
       ]
     },
     {
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
-      "sourceFiles": 162,
-      "testFiles": 166,
+      "sourceFiles": 170,
+      "testFiles": 173,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
         "@wrongstack/core",
         "@wrongstack/hq",
         "@wrongstack/persistence",
-        "@wrongstack/primitives"
+        "@wrongstack/primitives",
+        "@wrongstack/wrongmemory-client"
       ],
       "tsconfigs": [
         {
@@ -848,7 +849,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 166
+          "testFiles": 173
         }
       ]
     },
@@ -1199,6 +1200,25 @@
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
           "testFiles": 4
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/wrongmemory-client",
+      "dir": "packages/wrongmemory-client",
+      "sourceFiles": 6,
+      "testFiles": 1,
+      "workspaceDependencies": [],
+      "tsconfigs": [
+        {
+          "path": "packages/wrongmemory-client/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/wrongmemory-client/tsconfig.test.json",
+          "error": null,
+          "testFiles": 1
         }
       ]
     },
@@ -6124,6 +6144,18 @@
       },
       {
         "file": "packages/cli/tests/sage-hq-sync.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/sage-mcp-owner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/sage-service-install.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17835,6 +17867,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/container-sage-service.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/container-sqlite-unavailable.test.ts",
         "projects": [
           "root-node"
@@ -18268,6 +18306,12 @@
       },
       {
         "file": "packages/sage/tests/memory-port.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/memory-service-registry.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18994,6 +19038,42 @@
       },
       {
         "file": "packages/sage/tests/verify.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-binaries.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-handoff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-owner-guard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-port.integration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-port.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-service.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30651,6 +30731,12 @@
         ]
       },
       {
+        "file": "packages/wrongmemory-client/tests/framing.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/wrongtrace/src/__tests__/agent-helpers.test.ts",
         "projects": [
           "root-node"
@@ -32681,6 +32767,11 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/sage/src/wrongmemory-port.ts",
+      "lines": 1664,
+      "relativeImports": 14
+    },
+    {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
       "lines": 703,
       "relativeImports": 6
@@ -32881,6 +32972,11 @@
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
       "lines": 2016,
       "relativeImports": 29
+    },
+    {
+      "file": "packages/sage/src/wrongmemory-port.ts",
+      "lines": 1664,
+      "relativeImports": 14
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
@@ -33119,11 +33215,6 @@
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
-      "lines": 703,
-      "relativeImports": 6
-    },
-    {
-      "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
     }
@@ -34088,6 +34179,10 @@
     {
       "file": "packages/cli/src/subcommands/handlers/per-subcommand-help.ts",
       "name": "subcommandsWithFocusedHelp"
+    },
+    {
+      "file": "packages/cli/src/subcommands/handlers/sage-service.ts",
+      "name": "installWrongMemory"
     },
     {
       "file": "packages/cli/src/subcommands/handlers/sage.ts",
@@ -35079,15 +35174,7 @@
     },
     {
       "file": "packages/mcp/src/server-dispatch.ts",
-      "name": "INVALID_REQUEST"
-    },
-    {
-      "file": "packages/mcp/src/server-dispatch.ts",
       "name": "MAX_REPORTED_SCHEMA_ERRORS"
-    },
-    {
-      "file": "packages/mcp/src/server-dispatch.ts",
-      "name": "METHOD_NOT_FOUND"
     },
     {
       "file": "packages/mcp/src/test-helpers/mock-server.ts",

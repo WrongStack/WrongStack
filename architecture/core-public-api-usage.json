@@ -169,9 +169,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 948,
+      "files": 951,
       "typeOnly": 69,
-      "runtimeOrMixed": 914
+      "runtimeOrMixed": 917
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -11680,6 +11680,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/sage-mcp-owner.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/commit-message.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12581,6 +12587,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/sage-doctor.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/subcommands/handlers/sage-service.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14423,6 +14435,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/sage/src/sqlite-store-schema.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/sage/src/wrongmemory-port.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

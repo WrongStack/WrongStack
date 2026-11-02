@@ -117,6 +117,11 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   'coordination/src/single-instance-mailbox.ts': REASON_TRUSTED_DAEMON,
   'coordination/src/mailbox-project-server-client.ts': REASON_TRUSTED_DAEMON,
   'sage/src/project-server-client.ts': REASON_TRUSTED_DAEMON,
+  // Vendored WrongMemory client (verbatim copy, not edited in place). WrongStack never
+  // calls its `startDaemon`: WrongMemoryPort connects with `start: false` and spawns
+  // wrongmemoryd itself through buildChildEnv (sage/src/wrongmemory-port.ts).
+  'wrongmemory-client/src/client.ts':
+    'Vendored WrongMemory client startDaemon; unused by WrongStack, which spawns wrongmemoryd via buildChildEnv in sage/src/wrongmemory-port.ts.',
   'kanban/src/server/client.ts': REASON_TRUSTED_DAEMON,
   'kanban/src/verification/verification-process.ts': REASON_TRUSTED_DAEMON,
   'governance/src/daemon-launcher.ts': REASON_TRUSTED_DAEMON,

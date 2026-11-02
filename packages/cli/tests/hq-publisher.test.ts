@@ -67,10 +67,13 @@ describe('CLI HQ publisher connection', () => {
       ownSageSync: true,
       socketFactory: () => new FakeSocket(),
     });
+    // No `Sage.service` configured: the local SAGE project server stays the
+    // owner, so no WrongMemory connection is passed.
     expect(createSageHqSync).toHaveBeenCalledWith(
       '/copy/custom',
       connection.getPublisher(),
       'custom-memories',
+      undefined,
     );
     connection.stop();
   });
