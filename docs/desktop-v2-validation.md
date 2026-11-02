@@ -6047,9 +6047,16 @@ staged; the other session's edits stay untouched.
 - Harness: the next-steps countdown check counted every provider call after the cancel; a late
   background side request (a next-steps retry) made it fail. It now checks that the cancelled
   suggestion itself was never sent.
-- Still open: each component that reads a project (`useProjectEngine`) replays the journal on
-  its own, so a project window replays it several times. One shared stream per project would
-  remove that cost. Not done for this release.
+- Each component that read a project (`useProjectEngine`) replayed the journal on its own, so a
+  project window replayed it several times. Every view of one backend now shares one journal
+  reader, its state and its acknowledgements (`engine-stream.ts`); a view that opens later starts
+  from the state already read, idle polls no longer re-render, and the reader stops with its
+  last view. A quick unsubscribe and resubscribe keeps a single reader
+  (`engine-stream.test.ts`, red without the run guard: 20 reads instead of at most 11).
+  Release build `276a44e8e229-a92ae4ec54ce` (2026-11-02 14:49, still under the same unrelated
+  load, logs `.temp_files/desktop-v2-native/final-1102g/`): `files`, `atlas`, `history`, `multi`
+  and `surfaces` exit 0, with `files` 184 s to 98 s, `multi` 197 s to 106 s and `history` 295 s
+  to 207 s against the previous run.
 - Full matrix on `34c8e7dd2f02-a92ae4ec54ce` (2026-11-02 11:23 to 12:23) ran while the machine
   was saturated by unrelated work (CPU at 96 %, 78 Node processes from other tools). Every step
   of 33 scopes passed; `surfaces`, `multi` and `perf` passed all their steps and then timed out
