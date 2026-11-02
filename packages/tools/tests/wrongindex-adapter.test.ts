@@ -199,6 +199,65 @@ describe.runIf(process.platform === 'win32')('an index the service owns', () => 
   });
 });
 
+describe('WrongStack without WrongIndex', () => {
+  it('indexes and searches with its own engine when the service is not there', async () => {
+    const root = tmp('wi-none-');
+    writeProject(root);
+    const indexDir = path.join(root, '.idx');
+    const opts = { timeoutMs: 60_000 };
+    for (const mode of ['local', 'auto', 'wrongindex'] as const) {
+      // An empty data root: no service, no discovery metadata.
+      setIndexServiceMode(mode, { dataRoot: tmp('wi-nohome-') });
+      resetWrongIndexConnection();
+      const run = await dispatchIndexOp('index', { projectRoot: root, indexDir }, opts, true);
+      expect(run.symbolsIndexed, mode).toBeGreaterThan(0);
+      const hits = await dispatchIndexOp(
+        'search',
+        { projectRoot: root, indexDir, query: 'alphaEntry', limit: 5 },
+        opts,
+        false,
+      );
+      expect(JSON.stringify(hits), mode).toContain('alphaEntry');
+    }
+  });
+
+  it('a lock file left behind by a service that is gone does not block it', async () => {
+    const root = tmp('wi-stale-');
+    writeProject(root);
+    const indexDir = path.join(root, '.idx');
+    fs.mkdirSync(indexDir, { recursive: true });
+    fs.writeFileSync(path.join(indexDir, OWNER_LOCK_FILE), '');
+    fs.writeFileSync(
+      path.join(indexDir, '.wrongindex-owner.json'),
+      JSON.stringify({ owner: 'wrongindexd', pid: process.pid, epoch: 3 }),
+    );
+    expect(isOwnedByWrongIndex(indexDir)).toBe(false);
+    const run = await dispatchIndexOp(
+      'index',
+      { projectRoot: root, indexDir },
+      { timeoutMs: 60_000 },
+      true,
+    );
+    expect(run.symbolsIndexed).toBeGreaterThan(0);
+  });
+
+  it.runIf(process.platform === 'win32')(
+    'an index the service holds is still never written when the service cannot be reached',
+    async () => {
+      const root = tmp('wi-held-');
+      writeProject(root);
+      const indexDir = path.join(root, '.idx');
+      await holdLock(indexDir);
+      setIndexServiceMode('wrongindex', { dataRoot: tmp('wi-nohome-') });
+      resetWrongIndexConnection();
+      await expect(
+        dispatchIndexOp('index', { projectRoot: root, indexDir }, { timeoutMs: 60_000 }, true),
+      ).rejects.toThrow(/WrongIndex service unavailable/);
+      expect(fs.existsSync(path.join(indexDir, 'index.db'))).toBe(false);
+    },
+  );
+});
+
 const daemonExe = process.env['WRONGINDEX_TEST_DAEMON'];
 
 describe.runIf(Boolean(daemonExe) && process.platform === 'win32')(

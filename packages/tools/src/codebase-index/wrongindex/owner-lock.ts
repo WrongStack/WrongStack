@@ -49,25 +49,48 @@ function pidAlive(pid: number): boolean {
  * Whether WrongIndex currently owns the index in `indexDir`.
  *
  * Windows: the lock file cannot be opened while the owner holds it
- * (sharing violation, reported as EBUSY/EPERM/EACCES). Elsewhere Node has no
- * `flock`, so a live owner process recorded next to an existing lock counts.
+ * (sharing violation, reported as EBUSY/EPERM/EACCES); a lock file left by a
+ * service that is gone opens fine and does not count. Elsewhere Node has no
+ * `flock`: a live `wrongindexd` process recorded next to the lock counts.
+ * WrongStack's own engine must keep working without WrongIndex, so anything
+ * short of a live owner is "not owned".
  */
 export function isOwnedByWrongIndex(indexDir: string): boolean {
   const lock = path.join(indexDir, OWNER_LOCK_FILE);
   if (process.platform === 'win32') {
-    let fd: number;
-    try {
-      fd = fs.openSync(lock, 'r');
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      return code === 'EBUSY' || code === 'EPERM' || code === 'EACCES';
+    // A stale lock file (service gone, uninstalled) opens fine: not owned.
+    // A sharing violation is retried once, so a scanner holding the file
+    // for a moment is not mistaken for the service.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let fd: number;
+      try {
+        fd = fs.openSync(lock, 'r');
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'EACCES') return false;
+        if (attempt === 0) {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+          continue;
+        }
+        return true;
+      }
+      fs.closeSync(fd);
+      return false;
     }
-    fs.closeSync(fd);
     return false;
   }
+  // Elsewhere Node cannot test the owner's flock. Count the index as owned
+  // only when the recorded owner is a live WrongIndex service process, so a
+  // stale lock whose pid was reused never blocks WrongStack's own engine.
   if (!fs.existsSync(lock)) return false;
   const owner = readWrongIndexOwner(indexDir);
-  return typeof owner?.pid === 'number' && owner.pid > 0 && pidAlive(owner.pid);
+  if (typeof owner?.pid !== 'number' || owner.pid <= 0 || !pidAlive(owner.pid)) return false;
+  try {
+    return fs.readFileSync(`/proc/${owner.pid}/comm`, 'utf8').trim().startsWith('wrongindexd');
+  } catch {
+    // No /proc (macOS): the WrongIndex service does not run there yet.
+    return false;
+  }
 }
 
 /** Raised when a local write would touch an index WrongIndex owns. */

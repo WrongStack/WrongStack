@@ -77,11 +77,14 @@ import type {
   VectorSearchOpResult,
 } from './worker-protocol.js';
 import { indexStorePool } from './writer.js';
+import { resolveIndexDir } from './writer-helpers.js';
+import { isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
 import {
   acquireWrongIndexSession,
   releaseWrongIndexSessions,
   resolveIndexRoute,
   setBeforeWrongIndexClaim,
+  WrongIndexUnavailableError,
   wrongIndexHealth,
 } from './wrongindex/service.js';
 
@@ -587,13 +590,22 @@ export function checkCodebaseIndexServerHealth(
         latencyMs: Date.now() - t0,
         missedHeartbeats: 0,
       }),
-      (): ProjectIndexServerClientHealth => ({
-        status: 'unresponsive',
-        checkedAt: Date.now(),
-        lastHealthyAt: null,
-        latencyMs: null,
-        missedHeartbeats: 1,
-      }),
+      (err: unknown): Promise<ProjectIndexServerClientHealth> | ProjectIndexServerClientHealth => {
+        // Service gone and the index free: report the local engine instead.
+        if (
+          err instanceof WrongIndexUnavailableError &&
+          !isOwnedByWrongIndex(resolveIndexDir(projectRoot, indexDir))
+        ) {
+          return checkProjectIndexServerHealth(projectRoot, indexDir, options);
+        }
+        return {
+          status: 'unresponsive',
+          checkedAt: Date.now(),
+          lastHealthyAt: null,
+          latencyMs: null,
+          missedHeartbeats: 1,
+        };
+      },
     );
   }
   return checkProjectIndexServerHealth(projectRoot, indexDir, options);
@@ -609,9 +621,24 @@ export function ensureCodebaseIndexServer(options: {
 }): Promise<void> {
   if (resolveIndexRoute(options.projectRoot, options.indexDir) === 'wrongindex') {
     // The service watches the project while a session lease is held (policy
-    // `session`); the local detached server is never started for it.
-    return acquireWrongIndexSession(options.projectRoot, options.indexDir);
+    // `session`); the local detached server is not started for it - unless
+    // the service is unavailable and does not hold the index.
+    return acquireWrongIndexSession(options.projectRoot, options.indexDir).catch((err: unknown) => {
+      const dir = resolveIndexDir(options.projectRoot, options.indexDir);
+      if (!(err instanceof WrongIndexUnavailableError) || isOwnedByWrongIndex(dir)) throw err;
+      return ensureLocalIndexServer(options);
+    });
   }
+  return ensureLocalIndexServer(options);
+}
+
+function ensureLocalIndexServer(options: {
+  projectRoot: string;
+  indexDir?: string | undefined;
+  watchExternal?: boolean | undefined;
+  debounceMs?: number | undefined;
+  coalesceWindowMs?: number | undefined;
+}): Promise<void> {
   const availability = resolveProjectIndexDaemonAvailability(options.projectRoot, options.indexDir);
   if (availability.kind !== 'available') {
     if (availability.kind === 'endpoint-invalid') warnEndpointInvalidOnce(availability);

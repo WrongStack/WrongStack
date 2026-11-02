@@ -1504,14 +1504,14 @@ client.
 |---|---|
 | `local` (default) | WrongStack's own per-project engine. An index WrongIndex owns is refused: index runs fail with `IndexOwnedExternallyError`, and direct readers open it query-only. |
 | `auto` | WrongIndex for an index it owns (claimed in the WrongIndex app or CLI); the local engine otherwise. |
-| `wrongindex` | Always WrongIndex. The project is registered and claimed (this process's local project server for it is shut down first), and there is no local fallback. |
+| `wrongindex` | WrongIndex. The project is registered and claimed (this process's local project server for it is shut down first). When the service is not running or not installed, WrongStack's own engine is used, as long as the index is not held by the service. |
 
 Ownership is the lock file `.wrongindex-owner.lock` in the index directory. The
 WrongIndex service holds it while it owns the index, and the OS releases it
 when the service exits. Some rules hold in every mode:
 
 - WrongStack never writes an index the service owns. This covers indexing, concept enrichment, embeddings and schema initialization.
-- A service that cannot be reached is an error, never a reason to write locally.
+- WrongStack's own index engine never depends on WrongIndex. When the service is absent, every mode indexes locally. The one exception is an index the service actually holds (its lock is live); that index is refused rather than written. A lock file left behind by a service that is gone does not count.
 - Closing a session releases only that session's watch lease. The service keeps running.
 
 The client finds the service through `WRONGINDEX_HOME`, or `~/.wrongindex` if
