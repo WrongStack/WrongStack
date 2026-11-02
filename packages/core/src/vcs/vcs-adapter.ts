@@ -181,9 +181,15 @@ export function normalizeVcsPath(input: string): string | null {
   ) {
     return null;
   }
-  const normalized = input.replace(/\\/g, '/').replace(/^\.\//, '');
-  const resolved = path.posix.normalize(normalized);
-  if (!resolved || resolved === '.' || resolved === '..' || resolved.startsWith('../')) return null;
+  // `path.posix.normalize` already drops a leading `./` and collapses empty
+  // segments. Stripping the `./` prefix first was wrong: it turned `.//x` into
+  // `/x` — an ABSOLUTE path, not the root-relative `x` the contract promises —
+  // and `.//../x` into `/../x`, which normalize then resolved against `/`
+  // instead of rejecting, so an input that leaves the root came back as an
+  // absolute path (and `path.resolve(root, result)` escapes `root`).
+  const resolved = path.posix.normalize(input.replace(/\\/g, '/'));
+  if (!resolved || path.posix.isAbsolute(resolved)) return null;
+  if (resolved === '.' || resolved === '..' || resolved.startsWith('../')) return null;
   return resolved;
 }
 
