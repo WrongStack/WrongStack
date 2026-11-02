@@ -27,7 +27,16 @@ export function matchesSessionFilter(
   if (criteria.until && summary.startedAt > criteria.until) return false;
   if (criteria.provider && summary.provider !== criteria.provider) return false;
   if (criteria.model && summary.model !== criteria.model) return false;
-  if (criteria.minTokens !== undefined && summary.tokenTotal < criteria.minTokens) return false;
+  if (criteria.minTokens !== undefined) {
+    // Mirror the catalog's `COALESCE(tokenTotal, 0)` (store-maintenance.ts
+    // readCatalogRecords). These rows are parsed from on-disk `summary.json` /
+    // stored `summary_json`, so a legacy or damaged summary can omit the field.
+    // `undefined < n` is FALSE, which INCLUDED a row the catalog backend
+    // excluded: the same filtered list returned different sessions depending on
+    // whether the catalog daemon was running.
+    const tokens = Number.isFinite(summary.tokenTotal) ? summary.tokenTotal : 0;
+    if (tokens < criteria.minTokens) return false;
+  }
   if (criteria.titleContains) {
     const needle = criteria.titleContains.toLocaleLowerCase();
     if (!summary.title.toLocaleLowerCase().includes(needle)) return false;

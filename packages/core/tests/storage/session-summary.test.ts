@@ -114,6 +114,29 @@ describe('matchesSessionFilter', () => {
     expect(matchesSessionFilter(noTokens, { minTokens: 100 })).toBe(false);
   });
 
+  it('treats a MISSING tokenTotal as 0, like the catalog backend (parity)', () => {
+    // Regression (bug-hunt round 15): the catalog filters with
+    // `COALESCE(json_extract(summary_json,'$.tokenTotal'),0) >= ?`, so a legacy
+    // or damaged summary that omits the field is excluded. This predicate used
+    // the raw compare, and `undefined < 100` is FALSE — the same filtered list
+    // returned different sessions depending on whether the catalog daemon was
+    // running. `tokenTotal` is required on the type, but these rows are parsed
+    // from on-disk JSON, which is not type-checked.
+    const { tokenTotal: _omitted, ...rest } = makeSummary();
+    const legacy = rest as SessionSummary;
+    expect(matchesSessionFilter(legacy, { minTokens: 100 })).toBe(false);
+    // A zero/absent floor still admits it, exactly as `0 >= 0` does in SQL.
+    expect(matchesSessionFilter(legacy, { minTokens: 0 })).toBe(true);
+    expect(matchesSessionFilter(legacy, {})).toBe(true);
+    expect(matchesSessionFilter(legacy, { minTokens: undefined })).toBe(true);
+  });
+
+  it('treats a non-finite tokenTotal as 0 as well', () => {
+    expect(matchesSessionFilter(makeSummary({ tokenTotal: Number.NaN }), { minTokens: 1 })).toBe(
+      false,
+    );
+  });
+
   it('edge: undefined minTokens does not filter', () => {
     expect(matchesSessionFilter(summary, { minTokens: undefined })).toBe(true);
   });

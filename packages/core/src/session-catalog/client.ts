@@ -446,14 +446,23 @@ export class SessionCatalogProjectClient {
 
   private onData(socket: net.Socket, chunk: string): void {
     if (socket !== this.socket) return;
-    if (this.buffer.length + chunk.length > SESSION_CATALOG_MAX_FRAME_CHARS) {
-      socket.destroy(new Error('Session Catalog response exceeded frame limit'));
-      return;
-    }
+    // The cap bounds ONE FRAME, exactly what the server enforces per encoded
+    // frame (`project-server.ts#send`). It must not sum a whole read: TCP
+    // coalesces back-to-back writes, so two legitimate responses individually
+    // under the cap arrived in one chunk, the sum tripped this guard, and the
+    // connection was destroyed with "response exceeded frame limit" even though
+    // every frame was legal.
+    const no = (message: string): void => {
+      socket.destroy(new Error(message));
+    };
     // Scan only the new chunk: the pending tail never holds a newline, and
     // re-scanning it per chunk made a large response O(n²) to receive.
     let newline = chunk.indexOf('\n');
     if (newline < 0) {
+      if (this.buffer.length + chunk.length > SESSION_CATALOG_MAX_FRAME_CHARS) {
+        no('Session Catalog response exceeded frame limit');
+        return;
+      }
       this.buffer += chunk;
       return;
     }
@@ -461,11 +470,15 @@ export class SessionCatalogProjectClient {
     let start = newline + 1;
     this.buffer = '';
     while (true) {
+      if (line.length > SESSION_CATALOG_MAX_FRAME_CHARS) {
+        no('Session Catalog response exceeded frame limit');
+        return;
+      }
       if (line) {
         try {
           this.onMessage(JSON.parse(line) as SessionCatalogServerMessage);
         } catch {
-          socket.destroy(new Error('Invalid Session Catalog response'));
+          no('Invalid Session Catalog response');
           return;
         }
       }

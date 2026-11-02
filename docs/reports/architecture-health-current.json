@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T19:06:46.148Z",
+  "generatedAt": "2026-11-02T19:07:24.425Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5660,
-    "testFiles": 4891,
-    "sourceLines": 1235049,
+    "testFiles": 4892,
+    "sourceLines": 1235088,
     "workspaceEdges": 231,
-    "moduleEdges": 16545,
+    "moduleEdges": 16546,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 635,
-      "testFiles": 691,
+      "testFiles": 692,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 691
+          "testFiles": 692
         }
       ]
     },
@@ -11398,6 +11398,12 @@
       },
       {
         "file": "packages/core/tests/session-agents.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/session-catalog-client-frame-cap.test.ts",
         "projects": [
           "root-node"
         ]

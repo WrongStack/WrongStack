@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { SessionRegistryEntry } from '../../src/session-catalog/session-registry-types.js';
 import { SessionCatalogStore } from '../../src/session-catalog/store.js';
 import { matchesSessionFilter } from '../../src/storage/session-summary.js';
+import { loadDatabaseSync } from '../../src/utils/sqlite-database.js';
 
 const roots: string[] = [];
 
@@ -566,5 +567,74 @@ describe('SessionCatalogStore', () => {
 
     store.release(cred);
     store.close();
+  });
+});
+
+describe('SessionCatalogStore — auto-rebuild ignores sidecar-only directories', () => {
+  function readCatalogMeta(root: string): { reconciliation?: string; generation: number } {
+    const DatabaseSync = loadDatabaseSync();
+    const db = new DatabaseSync(path.join(root, 'sessions', 'catalog.sqlite'), { readOnly: true });
+    try {
+      const rows = db.prepare('SELECT key, value FROM catalog_meta').all() as Array<{
+        key: string;
+        value: string;
+      }>;
+      const meta = new Map(rows.map((row) => [row.key, row.value]));
+      return {
+        ...(meta.has('last_reconciliation')
+          ? { reconciliation: meta.get('last_reconciliation') as string }
+          : {}),
+        generation: Number(meta.get('generation') ?? '0'),
+      };
+    } finally {
+      db.close();
+    }
+  }
+
+  async function projectWithSessions(files: Record<string, string>): Promise<string> {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wrongstack-session-catalog-rebuild-'));
+    roots.push(root);
+    await fs.mkdir(path.join(root, 'sessions'), { recursive: true });
+    for (const [name, content] of Object.entries(files)) {
+      const target = path.join(root, 'sessions', name);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, content, 'utf8');
+    }
+    return root;
+  }
+
+  it('does not rebuild when only the mailbox and session sidecars remain', async () => {
+    // `_mailbox.jsonl` and the `.audit.jsonl` / `.annotations.jsonl` sidecars
+    // are not transcripts. Counting them rebuilt the whole catalog on every
+    // open (writing last_reconciliation and bumping the generation clients
+    // watch) once every session had been deleted.
+    const root = await projectWithSessions({
+      '_mailbox.jsonl': `${JSON.stringify({ id: 'm1' })}\n`,
+      '2026-01-01/sess_gone.audit.jsonl': `${JSON.stringify({ tool: 'x' })}\n`,
+      '2026-01-01/sess_gone.annotations.jsonl': `${JSON.stringify({ note: 'x' })}\n`,
+    });
+    new SessionCatalogStore(root).close();
+    const meta = readCatalogMeta(root);
+    expect(meta.reconciliation).toBeUndefined();
+    expect(meta.generation).toBe(0);
+  });
+
+  it('still rebuilds when a real transcript is on disk', async () => {
+    const root = await projectWithSessions({
+      'sess_a.jsonl': `${JSON.stringify({
+        type: 'session_start',
+        ts: '2026-01-01T00:00:00.000Z',
+        model: 'model-a',
+        provider: 'provider-a',
+      })}\n`,
+    });
+    new SessionCatalogStore(root).close();
+    expect(readCatalogMeta(root).reconciliation).toBeDefined();
+  });
+
+  it('still rebuilds from a cold (.jsonl.gz) transcript', async () => {
+    const root = await projectWithSessions({ 'sess_cold.jsonl.gz': 'not-really-gzip' });
+    new SessionCatalogStore(root).close();
+    expect(readCatalogMeta(root).reconciliation).toBeDefined();
   });
 });
