@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HqNotifier } from '../src/notifier.js';
+import { type HqNotification, HqNotifier } from '../src/notifier.js';
 import { maskHqNotifyUrl, validateHqNotifyUrl } from '../src/notify-config.js';
 import { HqMachineWatch, HqPendingRequestWatch } from '../src/notify-watchers.js';
 import type { HqEventEnvelope, HqKnownMachine } from '../src/protocol.js';
@@ -214,6 +214,52 @@ describe('HqNotifier', () => {
     expect(sent.every((entry) => entry.init.redirect === 'error')).toBe(true);
   });
 
+  it('limits a channel to labelled machines, never dropping what is about no machine', async () => {
+    const notifier = make();
+    notifier.setMachineLabels((key) => (key === 'host:prod-1' ? ['prod'] : ['lab']));
+    const added = await notifier.addChannel({
+      name: 'Prod only',
+      type: 'webhook',
+      url: 'https://p.test/h',
+      kinds: ['machine', 'alert', 'approval'],
+      machineLabels: [' Prod '],
+    });
+    expect(added).toMatchObject({ ok: true, value: { machineLabels: ['prod'] } });
+    const note = (dedupeKey: string, machineKey?: string) =>
+      notifier.notify({
+        kind: 'machine',
+        severity: 'warn',
+        title: 't',
+        body: 'b',
+        dedupeKey,
+        ...(machineKey !== undefined ? { machineKey } : {}),
+      });
+    note('about-prod', 'host:prod-1');
+    note('about-lab', 'host:lab-2');
+    note('about-no-machine');
+    await notifier.drain();
+    const bodies = sent.map((entry) => String(entry.init.body));
+    expect(bodies).toHaveLength(2);
+
+    // Bad labels are refused; `[]` lifts the limit; a partial update keeps it.
+    const id = notifier.view().channels[0]!.id;
+    expect(await notifier.updateChannel(id, { machineLabels: ['no spaces'] })).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    expect(await notifier.updateChannel(id, { name: 'Renamed' })).toMatchObject({
+      ok: true,
+      value: { machineLabels: ['prod'] },
+    });
+    expect(await notifier.updateChannel(id, { machineLabels: [] })).toMatchObject({
+      ok: true,
+      value: { machineLabels: [] },
+    });
+    note('about-lab-again', 'host:lab-2');
+    await notifier.drain();
+    expect(sent).toHaveLength(3);
+  });
+
   it('rate-limits a channel and counts what it dropped', async () => {
     const notifier = make();
     await notifier.addChannel({
@@ -341,6 +387,8 @@ describe('HqMachineWatch', () => {
     expect(watch.observe(new Set(), [machine('host:lab', 0)], 30_000, label)).toEqual([]);
     const offline = watch.observe(new Set(), [machine('host:lab', 0)], 61_000, label);
     expect(offline.map((note) => note.title)).toEqual(['LAB went offline']);
+    // Each machine note names its machine, so a channel can be limited to labels.
+    expect(offline[0]?.machineKey).toBe('host:lab');
     expect(watch.observe(new Set(), [machine('host:lab', 0)], 90_000, label)).toEqual([]);
     const back = watch.observe(new Set(['host:lab']), [], 120_000, label);
     expect(back.map((note) => note.title)).toEqual(['host:lab is back online']);
@@ -401,6 +449,23 @@ describe('HqPendingRequestWatch', () => {
     watch.observe(event('approval.requested', { toolUseId: 'c', toolName: 'bash' }), origin);
     vi.advanceTimersByTime(61_000);
     expect(emitted).toHaveLength(2);
+  });
+
+  it('names the machine a request came from, when the server knows it', () => {
+    const notes: HqNotification[] = [];
+    const watch = new HqPendingRequestWatch({
+      delayMs: () => 0,
+      stillConnected: () => true,
+      emit: (note) => notes.push(note),
+    });
+    watch.observe(event('approval.requested', { toolUseId: 'k', toolName: 'bash' }), {
+      ...origin,
+      machineKey: 'host:lab-02',
+    });
+    watch.observe(event('approval.requested', { toolUseId: 'u', toolName: 'bash' }), origin);
+    vi.advanceTimersByTime(1);
+    expect(notes.map((note) => note.machineKey)).toEqual(['host:lab-02', undefined]);
+    watch.close();
   });
 
   it('lets only the client that asked resolve it, and caps each client on its own', () => {

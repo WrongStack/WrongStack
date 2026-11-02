@@ -14,6 +14,7 @@
  *
  * @module hq/notify-config
  */
+
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
@@ -22,6 +23,7 @@ import {
   SECRET_FILE_MODE,
   withFileLock,
 } from '@wrongstack/persistence';
+import { parseHqMachineLabels } from './persistence/machine-roster.js';
 
 export const HQ_NOTIFY_CONFIG_VERSION = 1 as const;
 
@@ -50,6 +52,13 @@ export interface HqNotifyChannel {
   kinds: readonly HqNotifyKind[];
   /** Alerts below this severity are not sent. Other kinds ignore it. */
   minSeverity: HqNotifySeverity;
+  /**
+   * Only notifications about machines carrying one of these operator labels
+   * (absent or empty: every machine). A notification about no single machine
+   * (a fleet-wide alert, a request HQ cannot place) is still sent: a limit
+   * narrows what the channel hears, it never hides what HQ could not place.
+   */
+  machineLabels?: readonly string[];
 }
 
 export interface HqNotifyConfigFile {
@@ -128,6 +137,7 @@ export interface HqNotifyChannelInput {
   enabled?: unknown;
   kinds?: unknown;
   minSeverity?: unknown;
+  machineLabels?: unknown;
 }
 
 /**
@@ -170,6 +180,17 @@ export function parseHqNotifyChannel(
     input.minSeverity === undefined ? (base?.minSeverity ?? 'warn') : input.minSeverity;
   if (!isSeverity(minSeverity)) return { ok: false, error: 'Unknown minimum severity.' };
   const enabled = input.enabled === undefined ? (base?.enabled ?? true) : input.enabled === true;
+  const machineLabels =
+    input.machineLabels === undefined
+      ? [...(base?.machineLabels ?? [])]
+      : parseHqMachineLabels(input.machineLabels);
+  if (machineLabels === null) {
+    return {
+      ok: false,
+      error:
+        'Machine labels must be at most 8, each 1-32 of a-z, 0-9, ".", "_" or "-", starting with a letter or digit.',
+    };
+  }
   return {
     ok: true,
     channel: {
@@ -180,6 +201,7 @@ export function parseHqNotifyChannel(
       enabled,
       kinds,
       minSeverity,
+      ...(machineLabels.length > 0 ? { machineLabels } : {}),
     },
   };
 }

@@ -43,9 +43,17 @@ const ALERT_SEVERITY: Record<HqAlert['severity'], HqNotifySeverity> = {
 export function createHqNotifyRuntime(
   dataDir: string,
   clients: Map<WebSocket, ConnectedClient>,
+  /** Operator labels by machine key, for channels limited to some labels. */
+  machineLabels?: () => Readonly<Record<string, readonly string[]>>,
 ): HqNotifyRuntime {
   const notifier = new HqNotifier(dataDir);
   void notifier.load();
+  if (machineLabels !== undefined) {
+    notifier.setMachineLabels((key) => {
+      const map = machineLabels();
+      return Object.hasOwn(map, key) ? (map[key] ?? []) : [];
+    });
+  }
   const machines = new HqMachineWatch();
   const hostHealth = new HqHostHealthWatch();
   const requests = new HqPendingRequestWatch({
@@ -118,6 +126,10 @@ export function createHqNotifyRuntime(
       requests.observe(event, {
         hostname: owner?.hostname || owner?.machineId || 'an unknown machine',
         projectName: owner?.project.projectName || event.projectId,
+        machineKey:
+          owner === undefined
+            ? undefined
+            : hqMachineKey(owner.hostname, owner.machineId || owner.project.machineId),
       });
     },
     async close() {

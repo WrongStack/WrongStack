@@ -20,7 +20,7 @@ import { cn } from '@/lib/cn';
 import { errorText } from '@/lib/error-text';
 
 /** "prod, gpu  eu" → ["prod", "gpu", "eu"]; the server does the rest. */
-function splitLabels(text: string): string[] {
+export function splitLabels(text: string): string[] {
   return text
     .split(/[\s,]+/)
     .map((word) => word.trim())

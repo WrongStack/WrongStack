@@ -1163,6 +1163,14 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
         expect(hooks[0]).toMatchObject({ title: 'WrongStack HQ test notification' });
         await expect.poll(async () => channel.textContent()).toContain('Test message delivered.');
         await shot('22-notifications');
+        // Limit the channel to the lab machines; the fleet-wide budget alert
+        // below must still reach it (it is about no single machine).
+        await channel.getByRole('button', { name: 'Change' }).click();
+        await channel.getByRole('textbox').fill('lab');
+        await channel.getByRole('button', { name: 'Save' }).click();
+        await expect
+          .poll(() => channel.getByTestId('channel-machines').textContent())
+          .toContain('Only lab machines');
 
         // A daily budget on the lab project, which already spent $0.25: the
         // next alert check fires it, the channel is told, and the alert

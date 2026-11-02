@@ -291,6 +291,8 @@ export interface NotifyChannelInput {
   enabled?: boolean;
   kinds?: HqNotifyChannelView['kinds'];
   minSeverity?: HqNotifyChannelView['minSeverity'];
+  /** Only notifications about machines with one of these labels; `[]` = every machine. */
+  machineLabels?: readonly string[];
 }
 
 export function addNotifyChannel(input: NotifyChannelInput): Promise<HqNotifyChannelView> {

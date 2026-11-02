@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T17:06:49.968Z",
+  "generatedAt": "2026-11-02T17:34:40.390Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 46,
-    "sourceFiles": 5668,
-    "testFiles": 4905,
-    "sourceLines": 1235889,
+    "sourceFiles": 5660,
+    "testFiles": 4888,
+    "sourceLines": 1234883,
     "workspaceEdges": 231,
-    "moduleEdges": 16571,
+    "moduleEdges": 16546,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -336,7 +336,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 190,
-      "testFiles": 184,
+      "testFiles": 183,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -354,15 +354,15 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 184
+          "testFiles": 183
         }
       ]
     },
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 639,
-      "testFiles": 695,
+      "sourceFiles": 635,
+      "testFiles": 689,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 695
+          "testFiles": 689
         }
       ]
     },
@@ -528,7 +528,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 88,
+      "testFiles": 86,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -542,7 +542,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 88
+          "testFiles": 86
         }
       ]
     },
@@ -712,7 +712,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 25,
-      "testFiles": 20,
+      "testFiles": 19,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -723,7 +723,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 20
+          "testFiles": 19
         }
       ]
     },
@@ -975,8 +975,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 393,
-      "testFiles": 375,
+      "sourceFiles": 391,
+      "testFiles": 373,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -995,7 +995,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 375
+          "testFiles": 373
         }
       ]
     },
@@ -1084,8 +1084,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 774,
-      "testFiles": 513,
+      "sourceFiles": 773,
+      "testFiles": 510,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1110,7 +1110,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 513
+          "testFiles": 510
         }
       ]
     },
@@ -1140,8 +1140,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 330,
-      "testFiles": 368,
+      "sourceFiles": 329,
+      "testFiles": 366,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1176,7 +1176,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 368
+          "testFiles": 366
         }
       ]
     },
@@ -8907,12 +8907,6 @@
         ]
       },
       {
-        "file": "packages/coordination/tests/tool-contract-governance.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/coordination/tests/tool-lifecycle.test.ts",
         "projects": [
           "root-node"
@@ -10785,12 +10779,6 @@
         ]
       },
       {
-        "file": "packages/core/tests/observability/tool-usage-report.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/core/tests/observability/tool-usage-source.test.ts",
         "projects": [
           "root-node"
@@ -10972,12 +10960,6 @@
       },
       {
         "file": "packages/core/tests/registry/slash-command-registry.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/registry/tool-governance.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11325,12 +11307,6 @@
         ]
       },
       {
-        "file": "packages/core/tests/security/tool-alias-permission.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/core/tests/security/totp.test.ts",
         "projects": [
           "root-node"
@@ -11416,12 +11392,6 @@
       },
       {
         "file": "packages/core/tests/session-agents.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/session-catalog-client-frame-cap.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11836,12 +11806,6 @@
       },
       {
         "file": "packages/core/tests/storage/in-project-fleet-delegate-denied.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/storage/in-project-model-endpoint-denied.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13012,12 +12976,6 @@
       },
       {
         "file": "packages/core/tests/utils/tool-result-render-mode.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/utils/tool-schema-budget.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14415,12 +14373,6 @@
         ]
       },
       {
-        "file": "packages/kanban/tests/kanban-supervisor-bridge-dispose-race.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/kanban/tests/kanban-supervisor-bridge.test.ts",
         "projects": [
           "root-node"
@@ -14596,12 +14548,6 @@
       },
       {
         "file": "packages/kanban/tests/task-graph-import-parent-remap.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/kanban/tests/test-support-session.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16744,12 +16690,6 @@
       },
       {
         "file": "packages/primitives/tests/redaction-attached-password-argv.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/primitives/tests/redaction-colon-separated-flags.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22197,12 +22137,6 @@
         ]
       },
       {
-        "file": "packages/tools/tests/tool-contract-governance.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/tools/tests/tool-diff.test.ts",
         "projects": [
           "root-node"
@@ -22210,12 +22144,6 @@
       },
       {
         "file": "packages/tools/tests/tool-icon-map.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/tool-icon-parity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25713,12 +25641,6 @@
         ]
       },
       {
-        "file": "packages/webui-server/tests/custom-context-modes-save-order.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/webui-server/tests/custom-context-modes.test.ts",
         "projects": [
           "root-node"
@@ -26728,12 +26650,6 @@
       },
       {
         "file": "packages/webui-server/tests/provider-operations-oauth.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-server/tests/provider-probe-timeout-bound.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27861,12 +27777,6 @@
         ]
       },
       {
-        "file": "packages/webui/tests/components/code-editor-empty-state.test.tsx",
-        "projects": [
-          "webui-jsdom"
-        ]
-      },
-      {
         "file": "packages/webui/tests/components/code-editor-lazy-load.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -28443,12 +28353,6 @@
         ]
       },
       {
-        "file": "packages/webui/tests/components/mobile-activity-bar.test.tsx",
-        "projects": [
-          "webui-jsdom"
-        ]
-      },
-      {
         "file": "packages/webui/tests/components/model-editor.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -28456,12 +28360,6 @@
       },
       {
         "file": "packages/webui/tests/components/model-list-schema-editor-render.test.tsx",
-        "projects": [
-          "webui-jsdom"
-        ]
-      },
-      {
-        "file": "packages/webui/tests/components/model-prompt-bar-mobile.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -32765,6 +32663,11 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/webui-server/src/server/provider-routes.ts",
+      "lines": 766,
+      "relativeImports": 3
+    },
+    {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "lines": 833,
       "relativeImports": 13
@@ -32982,6 +32885,11 @@
       "relativeImports": 10
     },
     {
+      "file": "packages/webui-server/src/server/provider-routes.ts",
+      "lines": 766,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/fleet/src/host-skill-companion.ts",
       "lines": 756,
       "relativeImports": 3
@@ -33113,11 +33021,6 @@
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
-      "lines": 703,
-      "relativeImports": 6
-    },
-    {
-      "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
     }
