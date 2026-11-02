@@ -536,6 +536,9 @@
       "renderGenericHelp",
       "subcommandsWithFocusedHelp"
     ],
+    "packages/cli/src/subcommands/handlers/sage-service.ts": [
+      "installWrongMemory"
+    ],
     "packages/cli/src/subcommands/handlers/sage.ts": [
       "findExecutableOnPath"
     ],

@@ -169,9 +169,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 943,
+      "files": 944,
       "typeOnly": 69,
-      "runtimeOrMixed": 911
+      "runtimeOrMixed": 912
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -12515,6 +12515,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/sage-doctor.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/subcommands/handlers/sage-service.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

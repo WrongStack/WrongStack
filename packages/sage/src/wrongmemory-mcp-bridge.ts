@@ -16,7 +16,6 @@
  * reused while it is active and its secret file exists.
  */
 import { existsSync } from 'node:fs';
-import * as path from 'node:path';
 import {
   type ConnectOptions,
   grantSecretFile,
@@ -25,6 +24,7 @@ import {
   WrongMemoryClient,
 } from '@wrongstack/wrongmemory-client';
 import type { SageServiceSelection } from './memory-backend.js';
+import { findWrongMemoryBinary } from './wrongmemory-binaries.js';
 import { type WrongMemoryClientLike, WrongMemoryPort } from './wrongmemory-port.js';
 
 export const WRONGMEMORY_MCP_GRANT_LABEL = 'wrongstack-mcp';
@@ -45,16 +45,9 @@ export interface WrongMemoryMcpLaunch {
   grantId: string;
 }
 
-/** `wrongmemory` next to the configured daemon, next to this executable, or on PATH. */
+/** The `wrongmemory` CLI (see {@link findWrongMemoryBinary}), or the bare name for PATH. */
 export function wrongMemoryCliPath(service: SageServiceSelection | undefined): string {
-  const exe = process.platform === 'win32' ? 'wrongmemory.exe' : 'wrongmemory';
-  for (const dir of [
-    service?.daemonPath ? path.dirname(service.daemonPath) : undefined,
-    path.dirname(process.execPath),
-  ]) {
-    if (dir && existsSync(path.join(dir, exe))) return path.join(dir, exe);
-  }
-  return 'wrongmemory';
+  return findWrongMemoryBinary('cli', { daemonPath: service?.daemonPath })?.path ?? 'wrongmemory';
 }
 
 /**

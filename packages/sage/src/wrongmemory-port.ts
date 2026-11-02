@@ -99,6 +99,7 @@ import type {
   SessionConsolidationResult,
   UpdateSageInput,
 } from './types.js';
+import { findWrongMemoryBinary } from './wrongmemory-binaries.js';
 
 export const WRONGMEMORY_BACKEND = 'wrongmemory';
 
@@ -1529,14 +1530,14 @@ export interface StartDaemonOptions {
 export async function startWrongMemoryDaemon(
   options: StartDaemonOptions,
 ): Promise<WrongMemoryClientLike> {
-  const exe =
-    options.daemonPath ??
-    path.join(
-      path.dirname(process.execPath),
-      process.platform === 'win32' ? 'wrongmemoryd.exe' : 'wrongmemoryd',
+  const exe = options.daemonPath ?? findWrongMemoryBinary('daemon')?.path;
+  if (!exe || !existsSync(exe)) {
+    throw new WrongMemoryError(
+      'UNAVAILABLE',
+      exe
+        ? `daemon executable not found: ${exe}`
+        : 'WrongMemory is not installed (no wrongmemoryd found); run `wstack sage service install`',
     );
-  if (!existsSync(exe)) {
-    throw new WrongMemoryError('UNAVAILABLE', `daemon executable not found: ${exe}`);
   }
   const child = spawn(exe, ['--data-root', resolveDataRoot(options.dataRoot)], {
     detached: true,

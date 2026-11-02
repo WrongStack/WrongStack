@@ -34,7 +34,6 @@ import {
   sageProjectServerEndpoint,
   sageProjectServerLogPath,
 } from './project-server-endpoint.js';
-import { SageStoreOwnedByWrongMemoryError, wrongMemoryOwnsStore } from './wrongmemory-owner-guard.js';
 import {
   encodeSageProjectServerMessage,
   type SageProjectServerInfo,
@@ -43,6 +42,10 @@ import {
   type SageServerOperationName,
   type SageServerOperations,
 } from './project-server-protocol.js';
+import {
+  SageStoreOwnedByWrongMemoryError,
+  wrongMemoryOwnsStore,
+} from './wrongmemory-owner-guard.js';
 
 export {
   type SageProjectServerConnectionOptions,

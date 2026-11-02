@@ -39,6 +39,12 @@ const USAGE = [
   '  wstack sage sync [--restart-service]',
   '  wstack sage doctor [--fix[=<ids>]] [--json]',
   '  wstack sage handoff [--yes] [--json]',
+  '  wstack sage service status|install|use <local|wrongmemory|auto> [--yes]',
+  '',
+  'service: choose the memory service. `install` downloads WrongMemory (checksum',
+  'verified) or installs it from --from <dir>; `use wrongmemory --yes` backs the',
+  'store up, hands it to WrongMemory and sets Sage.service.mode in the active',
+  'profile; `use local --yes` releases it again. Without --yes: the plan.',
   '',
   "handoff: hand this project's SAGE store to the WrongMemory service. Without",
   '--yes it prints the plan. With --yes it stops the running SAGE project server',
@@ -172,10 +178,18 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
     'fix',
     'json',
     'yes',
+    'release',
+    'from',
+    'stop-daemon',
   ]);
   const words = positionals(args, ['origin', 'command', 'fix']);
   const sub = words[0];
   const out = (line: string) => deps.renderer.write(`${line}\n`);
+
+  if (sub === 'service') {
+    const { runSageServiceCommand } = await import('./sage-service.js');
+    return runSageServiceCommand(args.slice(args.indexOf('service') + 1), deps);
+  }
 
   if (sub === 'sync') {
     const { runSageHqSyncCommand } = await import('./sage-sync.js');
@@ -215,7 +229,9 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
           out(
             `  project ${report.projectId} (${report.admission}); owner lock held: ${report.ownerLocked}`,
           );
-          out(`  Next: set Sage.service.mode to "wrongmemory" in your user or profile configuration.`);
+          out(
+            `  Next: set Sage.service.mode to "wrongmemory" in your user or profile configuration.`,
+          );
         }
       }
       return report.applied && !report.ownerLocked ? 1 : 0;

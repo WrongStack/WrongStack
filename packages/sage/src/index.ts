@@ -248,6 +248,15 @@ export {
 export type { UpdateSageInput } from './types.js';
 export * from './types.js';
 export {
+  findWrongMemoryBinary,
+  readWrongMemoryInstallManifest,
+  type WrongMemoryBinary,
+  type WrongMemoryBinaryKind,
+  type WrongMemoryBinarySource,
+  wrongMemoryExecutableName,
+  wrongMemoryInstallDir,
+} from './wrongmemory-binaries.js';
+export {
   handOffSageToWrongMemory,
   type LocalSageOwner,
   type SageHandoffReport,
@@ -275,3 +284,9 @@ export {
   WrongMemoryProjectNotRegisteredError,
   WrongMemoryUnavailableError,
 } from './wrongmemory-port.js';
+export {
+  probeWrongMemoryService,
+  releaseWrongMemoryProject,
+  type WrongMemoryProjectInfo,
+  type WrongMemoryServiceProbe,
+} from './wrongmemory-service.js';

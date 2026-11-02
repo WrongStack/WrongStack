@@ -25,6 +25,7 @@ import type { SageServiceSelection } from './memory-backend.js';
 import { DEFAULT_SAGE_DIR } from './paths.js';
 import { SageProjectServerConnection } from './project-server-client.js';
 import { sageProjectServerMetadataPath } from './project-server-endpoint.js';
+import { findWrongMemoryBinary } from './wrongmemory-binaries.js';
 import { wrongMemoryOwnsStore } from './wrongmemory-owner-guard.js';
 import type { WrongMemoryClientLike } from './wrongmemory-port.js';
 
@@ -95,11 +96,13 @@ export async function handOffSageToWrongMemory(options: {
   // Reach WrongMemory first, starting the daemon as `Sage.service` allows, so
   // an unreachable service leaves the local owner running and nothing changed.
   const service = options.service ?? {};
+  const daemonPath =
+    service.daemonPath ?? findWrongMemoryBinary('daemon', { daemonPath: service.daemonPath })?.path;
   const connect = options.connect ?? ((o: ConnectOptions) => WrongMemoryClient.connect(o) as never);
   const client = await connect({
     dataRoot: service.dataRoot,
     start: service.startPolicy !== 'never',
-    ...(service.daemonPath ? { daemonPath: service.daemonPath } : {}),
+    ...(daemonPath ? { daemonPath } : {}),
     clientName: 'wrongstack-handoff',
   } as ConnectOptions);
   if (running) {
