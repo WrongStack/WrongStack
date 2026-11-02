@@ -229,3 +229,13 @@ describe('WelcomeScreen launchers under calm chrome', () => {
     expect(screen.getByRole('button', { name: /setup:welcome\.perfStart/ })).toBeTruthy();
   });
 });
+
+describe('WelcomeScreen connection state', () => {
+  it('does not claim the agent is connected while the backend is offline', () => {
+    useConfigStore.setState({ wsConnected: false, wsStatus: { state: 'closed' } });
+    render(<WelcomeScreen />);
+
+    expect(screen.getByText('setup:welcome.heroSubtitleDisconnected')).toBeTruthy();
+    expect(screen.queryByText('setup:welcome.heroSubtitle')).toBeNull();
+  });
+});
