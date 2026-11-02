@@ -19,6 +19,15 @@
 const PROXY_PATH_PREFIX = '/proxy/';
 
 /**
+ * HTTP gateway status codes 502/503/504 as STANDALONE tokens. `\b` anchors
+ * them to word boundaries so digits embedded in longer runs — a rate-limit
+ * "retry after 5024ms", a byte count "502413", a port "15021" — are not
+ * mistaken for gateway failures. No `/g` flag: `.test()` must stay stateless
+ * across calls (a shared lastIndex would make classification alternate).
+ */
+const GATEWAY_STATUS_TOKEN = /\b50[234]\b/;
+
+/**
  * Providers whose base URLs MUST NOT be rewritten. openai-codex talks
  * directly to the ChatGPT backend over an OAuth-issued token, and the
  * `client_id` / audience in the token constrains the request origin —
@@ -290,6 +299,12 @@ export function deactivateProxyOnConnectionFailure(err: unknown): boolean {
     } catch {}
   }
 
+  // Gateway status codes must appear as STANDALONE numeric tokens. Bare
+  // `includes('502')` also matched them embedded in longer digit runs — a
+  // rate-limit "retry after 5024ms", a byte count "502413 bytes", or a port
+  // "15021" — and falsely deactivated WrongProxy on errors that have nothing
+  // to do with the proxy, silently rerouting every later provider call
+  // direct (routing is baked at provider construction; the flag flip persists).
   if (
     !isProxyFail &&
     (msg.includes('econnrefused') ||
@@ -299,9 +314,7 @@ export function deactivateProxyOnConnectionFailure(err: unknown): boolean {
       msg.includes('failed to fetch') ||
       msg.includes('connect error') ||
       msg.includes('proxy error') ||
-      msg.includes('502') ||
-      msg.includes('503') ||
-      msg.includes('504'))
+      GATEWAY_STATUS_TOKEN.test(msg))
   ) {
     isProxyFail = true;
   }
