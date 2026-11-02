@@ -111,7 +111,19 @@ export const setTaskChain = bindTrailing(domain.setTaskChain, 4);
 export const splitTask = bindTrailing(domain.splitTask, 5);
 export const updateCheckOnTask = bindTrailing(domain.updateCheckOnTask, 6);
 export const updateGoalMetricOnTask = bindTrailing(domain.updateGoalMetricOnTask, 6);
-export const updateTask = bindTrailing(domain.updateTask, 5);
+// updateTask has options AFTER its event context. A trailing-context wrapper
+// cannot infer that optional suffix or fill an omitted context before it.
+type UpdateTaskArgs = Parameters<typeof domain.updateTask>;
+export function updateTask(
+  projectRoot: UpdateTaskArgs[0],
+  boardId: UpdateTaskArgs[1],
+  taskId: UpdateTaskArgs[2],
+  input: UpdateTaskArgs[3],
+  eventContext: KanbanEventContext = TEST_EVENT_CONTEXT,
+  options?: UpdateTaskArgs[5],
+): ReturnType<typeof domain.updateTask> {
+  return domain.updateTask(projectRoot, boardId, taskId, input, eventContext, options);
+}
 export const updateTaskAssignment = bindTrailing(domain.updateTaskAssignment, 5);
 export const upsertContractNode = bindTrailing(domain.upsertContractNode, 4);
 export const assessTaskAtomicity = bindOptions(domain.assessTaskAtomicity, 3);
