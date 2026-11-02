@@ -30,7 +30,7 @@ describe('handOffSageToWrongMemory', () => {
   }
 
   function client(calls: Array<{ method: string; params: unknown }>) {
-    return async (options: Record<string, unknown>) => {
+    return async (options: { start?: boolean; daemonPath?: string }) => {
       calls.push({ method: 'connect', params: options });
       return {
         call: async (method: string, params: unknown) => {

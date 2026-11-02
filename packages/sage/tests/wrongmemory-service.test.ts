@@ -6,7 +6,7 @@ function fakeConnect(
   projects: Array<{ projectId: string; root: string; storeKind?: string }>,
   calls: string[],
 ) {
-  return async (options: Record<string, unknown>) => {
+  return async (options: { start?: boolean; daemonPath?: string }) => {
     calls.push(`connect start=${String(options.start)}`);
     return {
       call: async (method: string, params: { projectId?: string }) => {
