@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/contracts",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "license": "MIT",
   "description": "WrongStack contracts: the shared type vocabulary (types/) and the DI kernel (kernel/) every package builds against.",

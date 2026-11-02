@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-11-02
+
+Desktop v2 reaches release depth: conversations, files, Git review, Kanban,
+Goal and SDD runs, MCP, automation and memory all work from the native app, and
+a full native test matrix on the release build passes. HQ becomes a Next.js
+dashboard for many machines, Goal runs gain token and cost budgets, and SAGE
+memory and the codebase index can run on the WrongMemory and WrongIndex
+services. The
+notes below also carry the changes released in 1.3.0, which had no section of
+its own.
+
+### Highlights since 1.3.0
+
+- **Desktop v2 at release depth.** Plain conversation and session screens with
+  continuation modes, steering, rewind with edit and redo, refinement reviews
+  that survive restarts, and an agent todo list; a code editor with find and
+  replace, line comments and indentation; line-level Git staging, branch lanes
+  and review-note threads; Kanban boards that run as Goal or SDD runs; MCP OAuth,
+  tools as conversation steps and in-place media; automation run comparison;
+  context modes, SAGE injection history and vector memory controls; Windows
+  dictation; a high-contrast appearance; and windows that reopen where they were.
+- **Desktop v2 reliability and speed.** Every view of a project shares one
+  journal reader, requests time out only after the journal replay has caught
+  up, YOLO switches off before other settings are saved, read-only Git never
+  rewrites the index, and full-scope code atlas graphs are placed in linear time.
+- **HQ dashboard.** A Next.js HQ for many machines and projects with machine
+  health history, alert limits, labels, spend per label, phone projects and
+  starting a session on a machine from the dashboard.
+- **Goal budgets.** Goal runs stop at provider-token and USD cost limits priced
+  from the model catalog, record every phase verification attempt, and report
+  whether a run can be reverted.
+- **Standalone engine parity.** The standalone WebUI engine gains worker
+  delegation, a model fallback chain for every conversation agent, Goal and SDD
+  mirroring into Kanban, and leader tier guards per conversation.
+- **WrongMemory and WrongIndex services (opt-in).** `Sage.service` and
+  `indexing.service` choose `local` (default), `auto` or the external service;
+  `wstack sage service` installs WrongMemory, verifies its release checksums and
+  hands a project's store over. A service-owned store or index is never written
+  locally, and both settings are denied in repository config.
+- **Tool contracts.** Tool aliases resolve to the canonical tool before hooks
+  and policy, so an old-name denial survives a rename and an old-name grant never
+  widens access; fleet-ending, mutation-testing, Kanban dispatch and
+  `plugin_manager` tools ask for confirmation; `wstack tools catalog` and a
+  generated catalog with schema budgets are gated in CI and release.
+- **WebUI on a phone.** A phone-width workbench with a bottom activity bar and
+  touch-sized controls, and a welcome screen that explains a disconnected server
+  or a missing provider.
+- **Bundled skills rewritten** for discovery and depth.
+- **Automation safety.** Containers that received a credential are never kept,
+  crashed runs remove their services and network, and the profile credential
+  stays out of the conversation checkpoint.
+
 The Electron desktop app gives way to a native Tauri desktop app, failed runs
 resume on their own after transient provider errors, and a broad hardening
 pass lands across the mailbox, Kanban, SDD, worktrees, SAGE and every

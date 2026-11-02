@@ -55,23 +55,27 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
-### What's new in 1.2.2
+### What's new in 1.4.0
 
-- **A native desktop app:** the Electron shell is gone; Desktop v2 is a Tauri
-  app for multiple projects and persistent sessions with its own interface and
-  a bundled engine (see [Surfaces](#surfaces)).
-- **Runs that recover on their own:** in `auto` autonomy a run stopped by a
-  transient provider error resumes by itself, and a hung model moves to its
-  fallback sooner.
-- **Live metering for tool-heavy turns:** the token and speed meter keeps moving
-  while a WrongForge leader works through tools.
-- **Kanban cards from the WebUI** run in isolated workers with the same lease
-  fencing as management dispatch.
-- **A broad hardening pass:** the mailbox migrates old databases and scopes
-  reads per actor; Kanban, SDD and worktrees release and protect what they own;
-  SAGE enforces session ownership on every candidate.
+- **Desktop v2 at release depth:** conversations, files, Git review, Kanban,
+  Goal and SDD runs, MCP, automation and memory all work from the native app
+  (see [Surfaces](#surfaces)).
+- **A faster, steadier desktop:** every view of a project shares one journal
+  reader, and the full native test matrix passes on the release build.
+- **HQ for many machines:** a Next.js dashboard with machine health history,
+  alert limits, labels, spend per label and remote session start.
+- **Goal budgets:** Goal runs stop at token and USD cost limits priced from the
+  model catalog.
+- **Standalone engine parity:** worker delegation, model fallback chains and
+  Goal/SDD mirroring into Kanban in the standalone WebUI engine.
+- **Memory and index services (opt-in):** SAGE memory can run on WrongMemory
+  (`wstack sage service`) and the codebase index on WrongIndex.
+- **Tool contracts:** aliases that never widen access, confirmation for
+  fleet-ending and dispatch tools, and a gated tool catalog.
 
-1.2.1 replaced SimpleUI with VibeUI, made the WebUI activity bar customizable
+1.3.0 added durable Desktop v2 workspaces, reviewed file writes and resumable
+benchmarks; 1.2.2 replaced the Electron shell with the native Desktop v2 app
+and added automatic resume after transient provider errors; 1.2.1 replaced SimpleUI with VibeUI, made the WebUI activity bar customizable
 and cut irrelevant SAGE injections; 1.2.0 added live model-output activity in
 every workspace, calmer VibeUI views with a file shelf and practical companion
 budgets; 1.1.16 added six proof-driven hunt modes beside `/bughunt`; 1.1.15 fixed Git

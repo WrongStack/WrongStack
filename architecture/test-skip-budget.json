@@ -847,6 +847,21 @@
       "fingerprint": "e8a8b69ec14729ac"
     },
     {
+      "file": "packages/tools/tests/wrongindex-adapter.test.ts",
+      "kind": "runIf",
+      "fingerprint": "18c8d342e8ef0d84"
+    },
+    {
+      "file": "packages/tools/tests/wrongindex-adapter.test.ts",
+      "kind": "runIf",
+      "fingerprint": "45f34e9b608a607a"
+    },
+    {
+      "file": "packages/tools/tests/wrongindex-adapter.test.ts",
+      "kind": "runIf",
+      "fingerprint": "d8d44d2e7e1e1025"
+    },
+    {
       "file": "packages/tui/tests/git-info-large-output.test.ts",
       "kind": "conditional-skip",
       "fingerprint": "550496734a0391b3"
