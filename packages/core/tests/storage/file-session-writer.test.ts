@@ -1054,7 +1054,7 @@ describe('FileSessionWriter', () => {
       const sinkBarrier = new Promise<void>((r) => {
         releaseSink = r;
       });
-      const counts: number[] = [];
+      const counts: Array<number | undefined> = [];
 
       const w = new FileSessionWriter(
         TEST_ID,

@@ -4,6 +4,9 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   assertStoreNotOwnedByWrongMemory,
+  readWrongMemoryAdoptionMarker,
+  SageStoreOwnedByWrongMemoryError,
+  WRONGMEMORY_ADOPTION_MARKER_FILE,
   WRONGMEMORY_OWNER_LOCK_FILE,
   wrongMemoryOwnsStore,
 } from '../src/wrongmemory-owner-guard.js';
@@ -47,5 +50,27 @@ describe('WrongMemory owner guard (WM-107)', () => {
     expect(wrongMemoryOwnsStore(d, 'linux')).toBe(false);
     writeFileSync(lock, 'not json');
     expect(wrongMemoryOwnsStore(d, 'linux')).toBe(false);
+  });
+
+  it('an adoption marker owns the store with no daemon and no lock', () => {
+    const d = dir();
+    const marker = path.join(d, WRONGMEMORY_ADOPTION_MARKER_FILE);
+    expect(readWrongMemoryAdoptionMarker(d)).toBeUndefined();
+    writeFileSync(
+      marker,
+      `${JSON.stringify({ schemaVersion: 1, projectId: 'p_1', dataRoot: 'D:/wm-data' })}\n`,
+    );
+    expect(readWrongMemoryAdoptionMarker(d)).toEqual({ projectId: 'p_1', dataRoot: 'D:/wm-data' });
+    for (const platform of ['win32', 'linux'] as const) {
+      expect(wrongMemoryOwnsStore(d, platform)).toBe(true);
+    }
+    expect(() => assertStoreNotOwnedByWrongMemory(d)).toThrow(SageStoreOwnedByWrongMemoryError);
+    // Damaged content still marks the store as adopted; JSON without a schema does not.
+    writeFileSync(marker, 'not json');
+    expect(readWrongMemoryAdoptionMarker(d)).toEqual({});
+    expect(wrongMemoryOwnsStore(d, 'win32')).toBe(true);
+    writeFileSync(marker, '{"authToken":"x"}');
+    expect(readWrongMemoryAdoptionMarker(d)).toBeUndefined();
+    expect(wrongMemoryOwnsStore(d, 'win32')).toBe(false);
   });
 });

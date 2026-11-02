@@ -78,7 +78,26 @@ describe('handOffSageToWrongMemory', () => {
     expect(state.alive).toBe(true);
   });
 
-  it('starts the daemon per policy, stops the local owner, then adopts the store', async () => {
+  it('starts a missing daemon through WrongStack, never through the client', async () => {
+    const { state, local } = owner();
+    const starts: unknown[] = [];
+    await expect(
+      handOffSageToWrongMemory({
+        projectRoot: root,
+        service: { mode: 'wrongmemory', daemonPath: path.join(root, 'missing', 'wrongmemoryd.exe') },
+        apply: true,
+        local,
+        connect: async (options) => {
+          starts.push(options.start);
+          throw Object.assign(new Error('no daemon'), { code: 'UNAVAILABLE' });
+        },
+      }),
+    ).rejects.toThrow(/daemon executable not found/);
+    expect(starts).toEqual([false]);
+    expect(state.shutdowns).toEqual([]);
+  });
+
+  it('attaches to the daemon, stops the local owner, then adopts the store', async () => {
     const { state, local } = owner();
     const calls: Array<{ method: string; params: unknown }> = [];
     const report = await handOffSageToWrongMemory({
@@ -88,10 +107,7 @@ describe('handOffSageToWrongMemory', () => {
       local,
       connect: client(calls),
     });
-    expect(calls[0]).toMatchObject({
-      method: 'connect',
-      params: { start: true, daemonPath: 'C:\\wm\\wrongmemoryd.exe' },
-    });
+    expect(calls[0]).toMatchObject({ method: 'connect', params: { start: false } });
     expect(state.shutdowns).toEqual(['handoff-to-wrongmemory']);
     expect(calls.map((c) => c.method)).toEqual(['connect', 'project.register', 'memory.stats']);
     expect(calls[1]!.params).toMatchObject({ storeKind: 'adopted', write: true });

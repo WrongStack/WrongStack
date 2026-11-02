@@ -44,34 +44,26 @@ async function startServer(): Promise<HqServerHandle> {
   return startHqServer({ port: getPort(), dataDir });
 }
 
-function assetPath(
-  document: { querySelector: (s: string) => { getAttribute: (a: string) => string | null } | null },
+/** Every `attribute` of `selector` in the page; each must be a local Next asset. */
+function nextAssetPaths(
+  document: { querySelectorAll: (s: string) => ArrayLike<{ getAttribute: (a: string) => string | null }> },
   selector: string,
   attribute: 'href' | 'src',
-): string {
-  const value = document.querySelector(selector)?.getAttribute(attribute);
-  expect(value).toMatch(/^\/assets\//);
-  return value as string;
-}
-
-function lazyChunkPath(script: string, name: 'app-shell' | 'mobile-app'): string {
-  const match = script.match(new RegExp(`${name}-[A-Za-z0-9_-]+\\.js`));
-  expect(match?.[0]).toBeTruthy();
-  return `/assets/${match![0]}`;
+  prefix: string,
+): string[] {
+  const values = Array.from(document.querySelectorAll(selector), (el) => el.getAttribute(attribute));
+  expect(values.length).toBeGreaterThan(0);
+  for (const value of values) expect(value?.startsWith(prefix)).toBe(true);
+  return values as string[];
 }
 
 describe('HQ React dashboard delivery', () => {
-  it('serves a local, split React shell with no CDN dependency', async () => {
+  it('serves the exported Next shell with local, immutable assets and no CDN dependency', async () => {
     handle = await startServer();
-    const response = await fetch(`http://127.0.0.1:${handle.port}/`);
+    const base = `http://127.0.0.1:${handle.port}`;
+    const response = await fetch(`${base}/`);
     const html = await response.text();
-    const document = new JSDOM(html).window.document as unknown as {
-      querySelector: (
-        s: string,
-      ) => { textContent: string | null; getAttribute: (a: string) => string | null } | null;
-      getElementById: (id: string) => unknown;
-      querySelectorAll: (s: string) => unknown[];
-    };
+    const document = new JSDOM(html).window.document;
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/html');
@@ -80,52 +72,58 @@ describe('HQ React dashboard delivery', () => {
     expect(document.getElementById('boot')).toBeNull();
     expect(html).not.toMatch(/https?:\/\//);
 
-    const scriptPath = assetPath(document, 'script[type="module"]', 'src');
-    const stylePath = assetPath(document, 'link[rel="stylesheet"]', 'href');
-    expect(document.querySelectorAll('link[rel="modulepreload"]').length).toBeGreaterThan(0);
-
-    const [scriptResponse, styleResponse] = await Promise.all([
-      fetch(`http://127.0.0.1:${handle.port}${scriptPath}`),
-      fetch(`http://127.0.0.1:${handle.port}${stylePath}`),
-    ]);
-    const [script, style] = await Promise.all([scriptResponse.text(), styleResponse.text()]);
-    const desktopChunkPath = lazyChunkPath(script, 'app-shell');
-    const mobileChunkPath = lazyChunkPath(script, 'mobile-app');
-    const [desktopChunk, mobileChunk] = await Promise.all([
-      fetch(`http://127.0.0.1:${handle.port}${desktopChunkPath}`).then((value) => value.text()),
-      fetch(`http://127.0.0.1:${handle.port}${mobileChunkPath}`).then((value) => value.text()),
-    ]);
-
-    expect(scriptResponse.status).toBe(200);
-    expect(scriptResponse.headers.get('content-type')).toContain('application/javascript');
-    expect(script).toContain('/ws/browser');
-    expect(script).toContain('/mobile');
-    expect(desktopChunk).toContain('hq-workbench');
-    expect(mobileChunk).toContain('hq-mobile');
-    expect(script).not.toContain('hq-activity-rail');
-    expect(styleResponse.status).toBe(200);
-    expect(styleResponse.headers.get('content-type')).toContain('text/css');
-    // The bundle carries the dashboard's own stylesheet (the SDD board's
-    // react-flow CSS ships in the same file) — proves styling is served
-    // locally, not from a CDN. The old .hq-secondary-nav class no longer
-    // exists in the restyled shell.
-    expect(style).toContain('.react-flow');
-    expect(style).not.toContain('.hq-activity-rail');
+    const scriptPaths = nextAssetPaths(document, 'script[src]', 'src', '/_next/static/');
+    const stylePaths = nextAssetPaths(
+      document,
+      'link[rel="stylesheet"]',
+      'href',
+      '/_next/static/css/',
+    );
+    const scripts = await Promise.all(scriptPaths.map((p) => fetch(`${base}${p}`)));
+    const styles = await Promise.all(stylePaths.map((p) => fetch(`${base}${p}`)));
+    for (const r of scripts) {
+      expect(r.status).toBe(200);
+      expect(r.headers.get('content-type')).toContain('application/javascript');
+      expect(r.headers.get('cache-control')).toContain('immutable');
+    }
+    for (const r of styles) {
+      expect(r.status).toBe(200);
+      expect(r.headers.get('content-type')).toContain('text/css');
+      expect(r.headers.get('cache-control')).toContain('immutable');
+    }
+    const scriptText = (await Promise.all(scripts.map((r) => r.text()))).join('\n');
+    const styleText = (await Promise.all(styles.map((r) => r.text()))).join('\n');
+    // The shell's own chunks open the browser socket.
+    expect(scriptText).toContain('/ws/browser');
+    // The dashboard's own stylesheet (the SDD board's react-flow CSS ships
+    // with it) is served locally, not from a CDN; the old activity rail is gone.
+    expect(styleText).toContain('.react-flow');
+    expect(styleText).not.toContain('.hq-activity-rail');
   });
 
-  it('returns the React shell for client-side routes', async () => {
+  it('serves exported routes as their own pages and unknown routes as the not-found page', async () => {
     handle = await startServer();
-    const [rootHtml, routeResponse, mobileResponse] = await Promise.all([
-      fetch(`http://127.0.0.1:${handle.port}/`).then((response) => response.text()),
-      fetch(`http://127.0.0.1:${handle.port}/fleet/map`),
-      fetch(`http://127.0.0.1:${handle.port}/mobile`),
+    const base = `http://127.0.0.1:${handle.port}`;
+    const [rootHtml, fleet, mobile, unknown] = await Promise.all([
+      fetch(`${base}/`).then((response) => response.text()),
+      fetch(`${base}/fleet/`),
+      fetch(`${base}/mobile`),
+      fetch(`${base}/fleet/map`),
     ]);
 
-    expect(routeResponse.status).toBe(200);
-    expect(routeResponse.headers.get('content-type')).toContain('text/html');
-    expect(await routeResponse.text()).toBe(rootHtml);
-    expect(mobileResponse.status).toBe(200);
-    expect(await mobileResponse.text()).toBe(rootHtml);
+    for (const page of [fleet, mobile]) {
+      expect(page.status).toBe(200);
+      expect(page.headers.get('content-type')).toContain('text/html');
+      const text = await page.text();
+      expect(text).toContain('WrongStack HQ');
+      // A route's own exported page, not the root shell under another URL.
+      expect(text).not.toBe(rootHtml);
+    }
+    // Rendering the root page under an unknown URL would hydrate the wrong
+    // route; the export's not-found page answers instead.
+    expect(unknown.status).toBe(404);
+    expect(unknown.headers.get('content-type')).toContain('text/html');
+    expect(await unknown.text()).not.toBe(rootHtml);
   });
 
   it('keeps API routes out of the SPA fallback', async () => {

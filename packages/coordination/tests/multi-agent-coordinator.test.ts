@@ -330,7 +330,9 @@ describe('DefaultMultiAgentCoordinator', () => {
 
     it('honors per-task maxToolCalls and timeoutMs overrides on TaskSpec', async () => {
       const coord = makeCoordinator(makeConfig({ maxConcurrent: 2 }));
-      let observedLimits: { maxToolCalls?: number; timeoutMs?: number } | undefined;
+      let observedLimits:
+        | { maxToolCalls?: number | undefined; timeoutMs?: number | undefined }
+        | undefined;
       coord.setRunner((async (
         _task: unknown,
         ctx: { budget: { limits: { maxToolCalls?: number; timeoutMs?: number } } },
