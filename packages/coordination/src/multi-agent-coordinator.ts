@@ -610,6 +610,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
 
     const budget = createSubagentTaskBudget({
       subagentConfig: subagent.config,
+      task,
       defaultBudget: this.config.defaultBudget,
       subagentId,
       sessionOf: (id) => this.sessionOf(id),

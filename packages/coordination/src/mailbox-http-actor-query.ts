@@ -13,6 +13,7 @@ import type {
 } from './mailbox-types.js';
 import {
   isActionRequiredForActor,
+  isMailboxLeader,
   isMailboxMessageVisibleTo,
   sessionRecipient,
 } from './mailbox-types.js';
@@ -89,7 +90,12 @@ export async function queryMessagesForActor(
 
   const recipients =
     requestedRecipient === undefined ? [...eligibleRecipients] : [requestedRecipient];
-  const batches = await Promise.all(recipients.map((to) => mailbox.query({ ...query, to })));
+  const effectiveReaderRole = isMailboxLeader(actor.actorId, actor.role)
+    ? 'leader'
+    : (actor.role ?? 'member');
+  const batches = await Promise.all(
+    recipients.map((to) => mailbox.query({ readerRole: effectiveReaderRole, ...query, to })),
+  );
   const seen = new Set<string>();
   const visible = batches.flat().filter((message) => {
     if (seen.has(message.id)) return false;

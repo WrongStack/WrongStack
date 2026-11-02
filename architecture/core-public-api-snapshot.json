@@ -1088,7 +1088,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 107,
-      "sourceLines": 26311
+      "sourceLines": 26336
     },
     {
       "directory": "extension",
@@ -1193,7 +1193,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 20,
-      "sourceLines": 5723
+      "sourceLines": 5726
     },
     {
       "directory": "skills",
@@ -1214,7 +1214,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 119,
-      "sourceLines": 26587
+      "sourceLines": 26624
     },
     {
       "directory": "tasking",

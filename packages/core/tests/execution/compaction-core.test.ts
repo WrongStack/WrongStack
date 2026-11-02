@@ -991,4 +991,83 @@ describe('dedupStaleReads', () => {
     expect(res.changed).toBe(false);
     expect(res.messages).toBe(msgs);
   });
+
+  it('does not re-elide already elided tool results or tool inputs on lower-threshold passes (F925)', () => {
+    const msgs: Message[] = [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'u1',
+            name: 'write_file',
+            input: { path: 'src/a.ts', content: 'A'.repeat(4000) },
+          },
+        ],
+      } as Message,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'u1', content: 'R'.repeat(4000) }],
+      } as Message,
+      strMsg('user', 'u1'),
+      strMsg('assistant', 'a1'),
+      strMsg('user', 'u2'),
+      strMsg('assistant', 'a2'),
+    ];
+    const pass1 = eliseOldToolResults(msgs, { preserveK: 1, eliseThreshold: 200 });
+    expect(pass1.changed).toBe(true);
+    const pass2 = eliseOldToolResults(pass1.messages, { preserveK: 1, eliseThreshold: 10 });
+    expect(pass2.changed).toBe(false);
+    expect(pass2.saved).toBe(0);
+    expect(pass2.messages).toBe(pass1.messages);
+    const firstBlocks = pass2.messages[0]?.content as
+      | Array<{ input?: Record<string, unknown> }>
+      | undefined;
+    expect((firstBlocks?.[0]?.input?.['fields'] as Record<string, unknown>)?.['path']).toBe(
+      'src/a.ts',
+    );
+  });
+
+  it('invalidates superseded file reads even after mutation tool_use input has been elided (F926)', () => {
+    const msgs: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'r1', name: 'read', input: { file_path: 'src/app.ts' } }],
+      } as Message,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'r1', content: 'OLD '.repeat(50) }],
+      } as Message,
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'w1',
+            name: 'write',
+            input: { file_path: 'src/app.ts', content: 'NEW '.repeat(1200) },
+          },
+        ],
+      } as Message,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'w1', content: 'ok' }],
+      } as Message,
+      strMsg('user', 'u1'),
+      strMsg('assistant', 'a1'),
+      strMsg('user', 'u2'),
+      strMsg('assistant', 'a2'),
+    ];
+    const afterOldElide = eliseOldToolResults(msgs, { preserveK: 1, eliseThreshold: 200 });
+    const afterAckElide = eliseAcknowledgedToolResults(afterOldElide.messages, {
+      rawPairKeep: 0,
+      rawTokenBudget: 0,
+    });
+    const r1Block = (
+      afterAckElide.messages[1]?.content as Array<{ content?: string }> | undefined
+    )?.[0];
+    expect(r1Block?.content).toContain(
+      'stale read of src/app.ts — invalidated by a later successful mutation',
+    );
+  });
 });

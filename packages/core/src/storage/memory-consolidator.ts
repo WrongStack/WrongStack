@@ -343,7 +343,7 @@ export class SessionMemoryConsolidator implements AgentExtension {
     if (result.iterations < this.minIterations) return;
 
     const provider = this.provider ?? ctx.provider;
-    if (!provider?.complete) return;
+    if (!provider?.complete && !this.oneShotOrchestrator) return;
 
     // Capture narrowed values for the fire-and-forget closure.
     const _finalText: string = result.finalText;
@@ -375,7 +375,7 @@ export class SessionMemoryConsolidator implements AgentExtension {
       const prompt = buildConsolidationPrompt(_finalText, _iterations, existingEntries, _evidence);
 
       // Call the LLM with a focused, one-shot prompt
-      let text: string;
+      let text = '';
       if (this.oneShotOrchestrator) {
         const oneShotResult = await this.oneShotOrchestrator.call({
           system: prompt,
@@ -384,7 +384,7 @@ export class SessionMemoryConsolidator implements AgentExtension {
           timeoutMs: 15_000,
         });
         text = oneShotResult.text;
-      } else {
+      } else if (provider?.complete) {
         // Legacy path: direct provider.complete()
         const signal = AbortSignal.timeout(15_000);
         const response = await provider.complete(

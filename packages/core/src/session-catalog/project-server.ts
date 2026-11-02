@@ -402,13 +402,16 @@ async function handleMessage(
     const eventKind = eventForOperation(message.op);
     if (eventKind) {
       const args = message.args as Record<string, unknown>;
-      const nested = args['entry'] as { sessionId?: unknown } | undefined;
+      const nested = (args['entry'] ?? args['credential']) as { sessionId?: unknown } | undefined;
+      const summary = args['summary'] as { id?: unknown } | undefined;
       const sessionId =
         typeof args['sessionId'] === 'string'
           ? args['sessionId']
           : typeof nested?.sessionId === 'string'
             ? nested.sessionId
-            : undefined;
+            : typeof summary?.id === 'string'
+              ? summary.id
+              : undefined;
       emitEvent(eventKind, sessionId);
     }
   } catch (error) {

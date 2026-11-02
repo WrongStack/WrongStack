@@ -23,7 +23,7 @@
       "relativeImports": 1
     },
     "packages/coordination/src/multi-agent-coordinator.ts": {
-      "lines": 725,
+      "lines": 726,
       "relativeImports": 13
     },
     "packages/coordination/src/provider-status-tracker.ts": {
@@ -31,7 +31,7 @@
       "relativeImports": 4
     },
     "packages/coordination/src/sqlite-mailbox.ts": {
-      "lines": 737,
+      "lines": 748,
       "relativeImports": 14
     },
     "packages/core/src/core/agent-tools.ts": {
@@ -41,6 +41,10 @@
     "packages/core/src/execution/auto-compaction-middleware.ts": {
       "lines": 703,
       "relativeImports": 18
+    },
+    "packages/core/src/storage/file-session-writer.ts": {
+      "lines": 707,
+      "relativeImports": 12
     },
     "packages/fleet/src/host-skill-companion.ts": {
       "lines": 756,

@@ -15,6 +15,7 @@ import { resolveGracefulFinish } from './subagent-finish.js';
 
 export interface CreateSubagentBudgetParams {
   subagentConfig: SubagentConfig;
+  task?: Pick<TaskSpec, 'maxToolCalls' | 'timeoutMs'> | undefined;
   defaultBudget?:
     | {
         maxIterations?: number | undefined;
@@ -31,17 +32,17 @@ export interface CreateSubagentBudgetParams {
 }
 
 export function createSubagentTaskBudget(params: CreateSubagentBudgetParams): SubagentBudget {
-  const { subagentConfig, subagentId, sessionOf, applyRosterBudget } = params;
+  const { subagentConfig, task, subagentId, sessionOf, applyRosterBudget } = params;
   // The coordinator's defaults are for its own workers. ACP workers run an
   // external loop; keep their explicit limits and ACP inactivity default.
   const defaultBudget = isExternalAgentProvider(subagentConfig.provider)
     ? undefined
     : params.defaultBudget;
   const rawMaxIterations = subagentConfig.maxIterations;
-  const rawMaxToolCalls = subagentConfig.maxToolCalls;
+  const rawMaxToolCalls = task?.maxToolCalls ?? subagentConfig.maxToolCalls;
   const rawMaxTokens = subagentConfig.maxTokens;
   const rawMaxCostUsd = subagentConfig.maxCostUsd;
-  const rawTimeoutMs = subagentConfig.timeoutMs;
+  const rawTimeoutMs = task?.timeoutMs ?? subagentConfig.timeoutMs;
   const rawIdleTimeoutMs = subagentConfig.idleTimeoutMs;
   const configWithRosterDefaults = applyRosterBudget(subagentConfig);
 

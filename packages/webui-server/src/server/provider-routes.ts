@@ -463,7 +463,8 @@ async function dispatchProviderRoute(
         !providerId ||
         !SAFE_CONFIG_KEY.test(providerId) ||
         timeoutMs === null ||
-        (typeof timeoutMs === 'number' && timeoutMs > MAX_PROBE_TIMEOUT_MS)
+        (typeof timeoutMs === 'number' &&
+          (!Number.isInteger(timeoutMs) || timeoutMs < 0 || timeoutMs > MAX_PROBE_TIMEOUT_MS))
       )
         return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderProbe(ws, providerId, timeoutMs);

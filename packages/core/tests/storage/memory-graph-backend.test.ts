@@ -269,4 +269,36 @@ describe('GraphMemoryBackend.forget — exact entry id', () => {
     expect((await backend.list(scope, memFile)).map((e) => e.text)).toEqual(['keep this memory']);
     expect(backend.getGraph().nodes.map((n) => n.entry.text)).toEqual(['keep this memory']);
   });
+
+  it('does not leak cross-scope graph nodes in list() and removes stale tags when updating an existing node', async () => {
+    const userMemFile = `${tmp}/user-MEMORY.md`;
+    await backend.remember(
+      'user-memory',
+      {
+        scope: 'user-memory',
+        text: 'user preference dark mode',
+        ts: '2026-08-08T10:00:00.000Z',
+        tags: ['oldtag'],
+      },
+      userMemFile,
+    );
+    await backend.remember(scope, entry('project convention strict ts'), memFile);
+
+    const projectEntries = await backend.list(scope, memFile);
+    expect(projectEntries.map((e) => e.scope)).toEqual([scope]);
+
+    await backend.remember(
+      'user-memory',
+      {
+        scope: 'user-memory',
+        text: 'user preference dark mode',
+        ts: '2026-08-08T10:01:00.000Z',
+        tags: ['newtag'],
+      },
+      userMemFile,
+    );
+
+    expect(await backend.search('user-memory', 'oldtag', userMemFile)).toEqual([]);
+    expect((await backend.search('user-memory', 'newtag', userMemFile)).length).toBe(1);
+  });
 });

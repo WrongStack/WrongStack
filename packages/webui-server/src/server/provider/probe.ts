@@ -23,7 +23,7 @@ export function createProbeHandlers(ctx: ProviderServiceContext) {
       ctx.sendMessage(ws, { type: 'provider.probe', payload: { providerId, ...payload } });
     try {
       const providers = await ctx.loadConfigProviders();
-      const cfg = providers[providerId];
+      const cfg = Object.hasOwn(providers, providerId) ? providers[providerId] : undefined;
       if (!cfg) {
         reply({ ok: false, status: 'no_provider' });
         return;

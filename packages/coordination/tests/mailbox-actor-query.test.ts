@@ -6,6 +6,7 @@ import { MAILBOX_MAX_QUERY_LIMIT } from '../src/mailbox-constants.js';
 import {
   isMessageUnreadForActor,
   type MailboxActorReadScope,
+  queryMessagesForActor,
   unreadCountForActor,
 } from '../src/mailbox-http-actor-query.js';
 import type { MailboxMessageProjection } from '../src/mailbox-types.js';
@@ -97,6 +98,31 @@ describe('unreadCountForActor', () => {
     });
 
     expect(await unreadCountForActor(mailbox, ACTOR)).toBe(0);
+  });
+
+  it('does not starve visible messages under limit when newer leader-only broadcasts exist', async () => {
+    const visible = await mailbox.send({
+      from: 'leader',
+      to: 'agent-b',
+      type: 'note',
+      subject: 'visible to agent-b',
+      body: 'body',
+      priority: 'normal',
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    await mailbox.send({
+      from: 'leader',
+      to: '*',
+      type: 'broadcast',
+      audience: 'leaders',
+      subject: 'leaders only',
+      body: 'body',
+      priority: 'normal',
+    });
+
+    const result = await queryMessagesForActor(mailbox, ACTOR, { limit: 1 });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe(visible.id);
   });
 });
 

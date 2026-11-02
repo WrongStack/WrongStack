@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T21:40:41.743Z",
+  "generatedAt": "2026-11-02T21:49:44.282Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 47,
     "sourceFiles": 5687,
     "testFiles": 4918,
-    "sourceLines": 1241371,
+    "sourceLines": 1241531,
     "workspaceEdges": 232,
     "moduleEdges": 16655,
     "nonCommandSlashImports": 0,
@@ -32734,7 +32734,7 @@
     },
     {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
-      "lines": 725,
+      "lines": 726,
       "relativeImports": 13
     },
     {
@@ -32744,7 +32744,7 @@
     },
     {
       "file": "packages/coordination/src/sqlite-mailbox.ts",
-      "lines": 737,
+      "lines": 748,
       "relativeImports": 14
     },
     {
@@ -32756,6 +32756,11 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
+    },
+    {
+      "file": "packages/core/src/storage/file-session-writer.ts",
+      "lines": 707,
+      "relativeImports": 12
     },
     {
       "file": "packages/fleet/src/host-skill-companion.ts",
@@ -33110,6 +33115,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/coordination/src/sqlite-mailbox.ts",
+      "lines": 748,
+      "relativeImports": 14
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
       "lines": 746,
       "relativeImports": 13
@@ -33118,11 +33128,6 @@
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
       "lines": 746,
       "relativeImports": 15
-    },
-    {
-      "file": "packages/coordination/src/sqlite-mailbox.ts",
-      "lines": 737,
-      "relativeImports": 14
     },
     {
       "file": "packages/webui-server/src/server/completion-handlers.ts",
@@ -33141,7 +33146,7 @@
     },
     {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
-      "lines": 725,
+      "lines": 726,
       "relativeImports": 13
     },
     {
@@ -33195,6 +33200,11 @@
       "relativeImports": 23
     },
     {
+      "file": "packages/core/src/storage/file-session-writer.ts",
+      "lines": 707,
+      "relativeImports": 12
+    },
+    {
       "file": "packages/mailbox-mcp/src/adapter.ts",
       "lines": 707,
       "relativeImports": 3
@@ -33218,11 +33228,6 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
-    },
-    {
-      "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
-      "lines": 703,
-      "relativeImports": 6
     }
   ],
   "testOnlyExports": [

@@ -20,10 +20,26 @@ function isFileMutationToolName(name: string): boolean {
   return /^(edit|write|replace|patch|apply_patch)$/.test(name.toLowerCase());
 }
 
+function unwrapToolInput(
+  input: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!input) return undefined;
+  if (
+    typeof input['__elided_tool_input'] === 'string' &&
+    input['fields'] &&
+    typeof input['fields'] === 'object' &&
+    !Array.isArray(input['fields'])
+  ) {
+    return input['fields'] as Record<string, unknown>;
+  }
+  return input;
+}
+
 function didFileMutationRun(use: ToolUseBlock): boolean {
   const name = use.name.toLowerCase();
-  if (name === 'replace') return use.input?.['dry_run'] === false;
-  if (name === 'patch') return use.input?.['dry_run'] !== true;
+  const fields = unwrapToolInput(use.input);
+  if (name === 'replace') return fields?.['dry_run'] === false;
+  if (name === 'patch') return fields?.['dry_run'] !== true;
   return true;
 }
 
@@ -36,9 +52,10 @@ function sameFilePath(a: string, b: string): boolean {
 }
 
 export function readPathOf(input: Record<string, unknown> | undefined): string | undefined {
-  if (!input) return undefined;
+  const fields = unwrapToolInput(input);
+  if (!fields) return undefined;
   for (const key of ['file_path', 'path', 'file', 'filename']) {
-    const v = input[key];
+    const v = fields[key];
     if (typeof v === 'string' && v.trim()) return v.trim();
   }
   return undefined;

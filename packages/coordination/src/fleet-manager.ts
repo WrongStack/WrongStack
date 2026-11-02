@@ -679,10 +679,15 @@ export class FleetManager implements IFleetManager {
     // price-lookup entry for the lifetime of the leader process.
     this.manifestEntries.delete(subagentId);
     const meta = this.subagentMeta.get(subagentId);
-    if (meta?.provider && meta.model) {
-      this.priceLookups.delete(`${meta.provider}/${meta.model}`);
-    }
     this.subagentMeta.delete(subagentId);
+    if (meta?.provider && meta.model) {
+      const stillUsed = [...this.subagentMeta.values()].some(
+        (m) => m.provider === meta.provider && m.model === meta.model,
+      );
+      if (!stillUsed) {
+        this.priceLookups.delete(`${meta.provider}/${meta.model}`);
+      }
+    }
   }
 
   /** Release all resources: clear the manifest debounce timer and dispose the usage aggregator. */

@@ -568,6 +568,21 @@ describe('SessionCatalogStore', () => {
     store.release(cred);
     store.close();
   });
+
+  it('preserves terminal closing status across lease expiry reaping so heartbeats cannot resurrect it', async () => {
+    const { store } = await fixture();
+    const id = '2026-08-08/sess_closing_expired';
+    const cred = store.claimNew(entry(id), 'owner-a', 1_000);
+    store.markClosing(cred);
+    await new Promise((resolve) => setTimeout(resolve, 1_050));
+
+    expect(store.getLive(id)?.status).toBe('closing');
+    store.heartbeat(cred, 'active');
+    expect(store.getLive(id)?.status).toBe('closing');
+
+    store.release(cred);
+    store.close();
+  });
 });
 
 describe('SessionCatalogStore — auto-rebuild ignores sidecar-only directories', () => {

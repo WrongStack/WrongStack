@@ -101,13 +101,13 @@ export class GraphMemoryBackend implements MemoryBackend {
     const nodeId = this.nodeId(entry);
     const existing = this.nodes.get(nodeId);
     if (existing) {
+      // Update inverted index for the modified node's text and tags before overwriting existing.entry
+      this.updateNodeIndex(nodeId, entry);
       existing.count++;
       existing.entry = entry;
       existing.type = entry.type;
       existing.tags = entry.tags;
       existing.priority = entry.priority;
-      // Update inverted index for the modified node's text and tags
-      this.updateNodeIndex(nodeId, entry);
     } else {
       this.nodes.set(nodeId, {
         id: nodeId,
@@ -211,6 +211,7 @@ export class GraphMemoryBackend implements MemoryBackend {
     // Add graph-only nodes not in file (shouldn't happen normally, but safety)
     const fileIds = new Set(fileEntries.map((e) => this.nodeId(e)));
     for (const [id, node] of this.nodes) {
+      if (node.entry.scope !== scope) continue;
       if (!fileIds.has(id)) {
         enriched.push(node.entry);
       }

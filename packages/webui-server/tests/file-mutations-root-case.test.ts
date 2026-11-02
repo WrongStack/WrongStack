@@ -111,6 +111,33 @@ describe('file mutations — project root guard vs case-variant root spelling', 
     expect(fsSync.existsSync(path.join(root, 'src'))).toBe(false);
     expect(fsSync.existsSync(root)).toBe(true);
   });
+
+  it('refuses to rename or move a directory into its own descendant without mutating disk (F928)', async () => {
+    const wsRename = mockWs();
+    await handleFilesRename(
+      wsRename,
+      {
+        type: 'files.rename',
+        payload: { oldPath: 'src', newPath: 'src/nested/deep/src-renamed' },
+      },
+      root,
+    );
+    expect(wsRename.sent[0]?.payload.success).toBe(false);
+    expect(fsSync.existsSync(path.join(root, 'src', 'nested'))).toBe(false);
+
+    fsSync.mkdirSync(path.join(root, 'src', 'sub'), { recursive: true });
+    const wsMove = mockWs();
+    await handleFilesMove(
+      wsMove,
+      {
+        type: 'files.move',
+        payload: { srcPath: 'src', destDir: 'src/sub' },
+      },
+      root,
+    );
+    expect(wsMove.sent[0]?.payload.success).toBe(false);
+    expect(fsSync.existsSync(path.join(root, 'src', 'keep.ts'))).toBe(true);
+  });
 });
 
 describe('isSamePath', () => {
