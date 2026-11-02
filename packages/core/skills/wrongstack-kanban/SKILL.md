@@ -7,7 +7,7 @@ description: |
   managed Backlog→Todo→Running→Review→Done lifecycle, lease-fenced dispatch,
   and what "verified" means before a card reaches Done.
 trigger: "Record substantial project work on WrongStack's IPC-backed Kanban board so it survives the session and other agents can see it. Covers card detail, the managed Backlog\u2192Todo\u2192Running\u2192Review\u2192Done lifecycle, lease-fenced dispatch, and what \"verified\" means before a card reaches Done."
-version: 1.1.2
+version: 1.1.3
 required-capabilities: [work.plan]
 required-tools: [kanban]
 metadata:
@@ -20,6 +20,10 @@ metadata:
 - Task: Operate WrongStack task-board lifecycle.
 - Start: Read the board for this project and the card the work belongs to before mutating anything.
 - Finish: Every material action is reflected on the board, and cards are completed only with evidence.
+
+## Overview
+
+The board is the durable record of substantial work: each material action becomes a card change, and a card reaches Done only with evidence, never as fake progress.
 
 ## What the board is for
 

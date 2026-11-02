@@ -2,7 +2,7 @@
 name: mobile-release
 description: "Mobile release: iOS/Android signing, build numbers, TestFlight, Play tracks, EAS Build/Submit, .ipa/.aab, privacy manifests, rollout. Use when preparing, debugging or verifying a signed mobile build, store upload, review rejection or rollout; report build, upload, review and live states separately. Not for app feature code (use the platform skill) or web deploys (use release-rollback)."
 trigger: "Use when a task involves signing, provisioning, keystores, versionCode/CFBundleVersion, TestFlight, Play Console tracks, eas build/submit or a store rejection."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-A mobile release cannot be recalled from users' devices, so every release needs a strictly increasing build number, verified entitlements and privacy declarations, archived crash symbols, and a written answer to "how do we stop this if it is bad".
+A mobile release cannot be recalled from users' devices, so it needs an increasing build number, verified entitlements and privacy declarations, archived symbols and a plan to halt it.
 Refresh current Apple/Google submission requirements, framework SDK support and signing tooling before each release. Read [iOS delivery](references/ios.md) or [Android delivery](references/android.md) for the selected platform.
 
 ## Rules

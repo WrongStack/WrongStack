@@ -1,7 +1,7 @@
 ---
 name: micro-animation-gif
 description: "Animated GIFs for Slack/Discord emoji, GitHub PRs and release notes via Pillow, FFmpeg palettegen and gifsicle, under byte budgets. Use when making an animated emoji, loading spinner, badge loop or short screen-recording GIF, or shrinking a GIF that is too large, flickers or has fringed transparency. Not for full videos with audio (use media-production) or live web UI animation (use motion-design)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A GIF is a 256-color, 1-bit-alpha format timed in hundredths of a second: small, smooth and clean results come from designing for those limits (few colors, one shared palette, small changing regions, delays of 20 ms or more), not from compression after the fact.
+A GIF is a 256-color, 1-bit-alpha format timed in hundredths of a second: good results come from designing for those limits — few colors, one shared palette, delays of 20 ms or more. Small changing regions matter more than compression after the fact.
 Tooling (checked 2026-11-02: Pillow 13.0.0 on PyPI, FFmpeg 9.0.2 stable, sharp 0.35.5 on npm).
 File size scales with the pixels that change per frame times the frame count; colors are the second lever.
 

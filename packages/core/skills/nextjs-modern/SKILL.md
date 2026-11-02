@@ -1,7 +1,7 @@
 ---
 name: nextjs-modern
 description: "Next.js 16 App Router: Server Components, Server Actions, use cache/cacheComponents, proxy.ts, route handlers and next.config. Use when building, migrating or debugging Next.js routes, data fetching, caching and revalidation, auth checks in actions, hydration errors or production deployment. Not for React component logic outside Next.js (use react-modern) or container packaging (use docker-deploy)."
-version: 1.3.1
+version: 1.3.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -20,7 +20,7 @@ paths: ["next.config.*"]
 
 ## Overview
 
-In the App Router every component is a Server Component until a `'use client'` boundary says otherwise, and every Server Action is a public POST endpoint — security and caching decisions follow from those two facts.
+In the App Router every component is a Server Component until `'use client'` says otherwise, and every Server Action is a public POST endpoint; security and caching follow from that.
 Target the latest stable release: Next.js 16.4.4 with React/react-dom 19.3.1,
 verified from npm on 2026-11-02. Refresh the registry before a new install or
 upgrade. The installed version explains migration work; it does not make an

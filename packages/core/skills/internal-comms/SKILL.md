@@ -1,7 +1,7 @@
 ---
 name: internal-comms
 description: "Internal engineering comms: status reports, live incident updates, blameless postmortems, launch and deprecation notices, escalations. Use when writing a weekly or project status update, an incident update or postmortem, a release, change or deprecation announcement, a leadership decision memo, or an escalation asking for help. Not for RFCs, design docs or ADRs (use doc-coauthoring)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-Internal comms succeed when a busy reader can act from the first two lines: lead with what changed and what you need, keep every fact checkable, and match the format to the channel and the reader's decision.
+Internal comms succeed when a busy reader can act from the first two lines: lead with what changed and what you need, keep every fact checkable, and fit the format to the channel.
 Formats below were reviewed 2026-11-02 against common engineering practice; the organization's own templates and severity definitions take precedence.
 
 ## Rules

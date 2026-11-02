@@ -2,7 +2,7 @@
 name: mobile-performance
 description: "Mobile app speed: slow cold start, scroll jank, frame drops, ANRs, memory leaks and battery drain, via Perfetto, Instruments, DevTools. Use when a React Native, Flutter, Android or iOS app starts slowly, stutters, leaks memory, drains battery or gets ANRs; compare release builds on real devices under matched conditions. Not for web pages (use web-performance) or feature work without a measured symptom."
 trigger: "Use when a mobile app is slow to start, janks while scrolling or animating, leaks memory, triggers ANRs or drains battery."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Mobile performance work is only valid on release or profile builds on real devices: debug builds add JIT, assertions and dev tooling that change every number, and simulators do not reproduce GPU, thermal or memory limits.
+Mobile performance work is valid only on release or profile builds on real devices: debug builds change every number, and simulators do not reproduce GPU, thermal or memory limits.
 Use the current framework profiler and platform tools supported by the installed app/toolchain; latest framework targets are verified in the corresponding implementation skills.
 Every fix starts from a trace that names the thread or layer responsible.
 

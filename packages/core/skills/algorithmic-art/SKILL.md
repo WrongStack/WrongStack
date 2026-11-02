@@ -1,7 +1,7 @@
 ---
 name: algorithmic-art
 description: "Generative art in p5.js, Canvas2D, SVG or shaders: seeded noise flow fields, particles, circle packing, plotter SVG, PNG exports. Use when making code-driven artwork, a reproducible series from seeds, a high-resolution print or pen-plotter export, or an animated generative loop. Not for 3D scenes (use threejs-3d) or static editorial posters (use canvas-design)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-Generative art is a system plus a seed: a piece is finished when one seed reproduces the same image at any output size and most seeds in the parameter space are worth keeping, not when one render looks lucky.
+Generative art is a system plus a seed: a piece is finished when one seed reproduces the same image at any size and most seeds in the parameter space are worth keeping.
 Target standalone HTML with p5.js or plain Canvas2D (checked 2026-11-02: p5 2.3.4 stable on npm/CDN; verify 2.x async setup/preload changes when upgrading from 1.11.x).
 Composition decisions (margins, density variation, a focal area, negative space, value structure) matter more than how many algorithms are stacked.
 

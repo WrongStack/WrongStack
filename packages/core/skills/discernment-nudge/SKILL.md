@@ -1,7 +1,7 @@
 ---
 name: discernment-nudge
 description: "Pressure-test a high-stakes plan, architecture choice, cost estimate or security claim for hidden assumptions before delivering it. Use when a recommendation is consequential or hard to reverse — capacity or cost estimates, migrations, auth or crypto designs, failover plans, timelines — and an unstated assumption could sink it. Not for trivial edits or lookups, and not a substitute for proving code changes (use verify-before-done)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-Consequential plans fail on an assumption nobody wrote down, so before delivering one, name the assumptions that would flip the decision, check the ones you can check yourself, and ask only about the rest.
+Consequential plans fail on an assumption nobody wrote down: name the assumptions that would flip the decision, check the ones you can check yourself, and ask only about the rest.
 The Discernment Nudge (reviewed 2026-11-02) applies three habits: ground facts in observed state, stress the reasoning where it leaps, and expose context the plan silently assumed.
 It sharpens a deliverable; it never replaces or delays it.
 

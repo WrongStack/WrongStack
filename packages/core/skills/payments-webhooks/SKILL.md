@@ -2,7 +2,7 @@
 name: payments-webhooks
 description: "Stripe and payment-provider integrations: Checkout, subscriptions, raw-body webhook signatures, idempotency keys and entitlements. Use when building checkout or billing, handling payment or subscription webhooks, granting access from payment state, reconciling with the provider, or upgrading a payment SDK or API version. Not for generic queue semantics (use queues-jobs) or sign-in flows (use authentication-sessions)."
 trigger: "Use when code creates charges, Checkout sessions or subscriptions, receives provider webhooks, or grants access based on payment state."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Payment bugs are state-machine bugs: webhooks arrive late, twice and out of order, the redirect page lies, and a timeout after the provider committed is not a failure, so entitlements must follow verified provider state, never the browser.
+Payment bugs are state-machine bugs: webhooks arrive late, twice and out of order, the redirect page lies, so entitlements must follow verified provider state, never the browser. A timeout after the provider committed is not a failure.
 Checked Stripe Node SDK target: 23.1.0 on 2026-10-23. Provider API version is a separate contract; inspect account/API compatibility and official migration notes before upgrades.
 Webhook payloads are rendered in the webhook endpoint's API version (or the account default), not the SDK's pinned version, so upgrading the SDK does not change what your handler receives.
 

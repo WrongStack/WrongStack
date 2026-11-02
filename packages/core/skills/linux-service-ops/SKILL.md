@@ -2,7 +2,7 @@
 name: linux-service-ops
 description: "systemd services on Linux: unit files, drop-ins, systemctl, journalctl, timers, sockets, service users, sandboxing and cgroup limits. Use when writing or fixing a .service, .timer or .socket unit, a service fails to start or restarts in a loop, logs need reading, or a daemon needs a dedicated user, secrets, resource limits or hardening. Not for container runtimes (use container-debugging) or proxy and TLS config (use reverse-proxy-tls)."
 trigger: "Use when a request touches systemd units, systemctl or journalctl output, a failed or restarting service, timers replacing cron, or service users and permissions."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["*.{service,timer,socket}"]
 
 ## Overview
 
-systemd runs a service in a minimal, non-login environment under its own user, namespaces and cgroup; most "works in my shell, fails as a service" bugs are that difference, and the merged unit (`systemctl cat`) plus the exit status already name it.
+systemd runs a service in a minimal, non-login environment under its own user, namespaces and cgroup; that difference explains most "works in my shell, fails as a service" bugs. The merged unit (`systemctl cat`) and the exit status usually name it.
 Checked upstream systemd release: 262.1 (2026-10-23). Use the distro-supported systemd package and its actual unit directives; upstream latest does not justify replacing the host OS service manager.
 systemd 258 removed cgroup v1, and SysV init-script support is deprecated or removed in later releases; check the NEWS for the host's version.
 

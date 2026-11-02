@@ -2,7 +2,7 @@
 name: node-backend
 description: "Node.js HTTP services with Fastify, Hono, NestJS and Express 5: routes, schema validation, timeouts and graceful shutdown. Use when adding or fixing Node server endpoints, plugins, middleware or guards, server lifecycle, or upgrading Node or the framework major. Not for event-loop, stream and runtime detail (use node-modern) or HTTP contract design (use api-design)."
 trigger: "Use when a change touches a Node HTTP server: Fastify plugins, Hono routes, NestJS modules, Express handlers, or server startup and shutdown."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Node services fail at their edges: unvalidated bodies, outbound calls with no deadline, keep-alive timeouts shorter than the load balancer's, and shutdowns that close the pool before in-flight requests finish.
+Node services fail at their edges: unvalidated bodies, outbound calls without deadlines, keep-alive timeouts shorter than the load balancer's, and shutdowns that drop in-flight requests.
 Checked 2026-11-02: Hono 4.13.16, Fastify 5.12.8 and NestJS 12.3.2. Latest stable Node target is 26.13.0 (LTS 26.13.0); verify framework/plugins/adapter requirements together.
 Current Node can run TypeScript by stripping types, but only erasable syntax: enums, namespaces and parameter properties still need a build step.
 

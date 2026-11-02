@@ -4,7 +4,7 @@ description: |
   Browser support facts for CSS, HTML and ARIA features (container queries, :has, popover, anchor positioning) before relying on them.
   Use this skill before asserting that a CSS, HTML or accessibility capability is available, unavailable, or the right tool — it carries dated, refreshable platform facts and refuses to let stale knowledge be stated as current.
   Triggers: user says "container query", "can I use", "browser support", "modern CSS", ":has", "subgrid", "view transition", "popover", "dialog", "anchor positioning", "scroll-driven animation", "baseline", "polyfill", "is it supported", "fallback needed".
-version: 1.1.4
+version: 1.1.5
 required-capabilities: [filesystem.read]
 required-tools: [skill, search, fetch]
 optional-capabilities: [web.research]
@@ -19,6 +19,10 @@ metadata:
 - Task: Choose compatible HTML, CSS and browser APIs.
 - Start: Name the exact feature and the browsers or Baseline target the project supports.
 - Finish: The answer gives the feature's support status with a dated source, plus the fallback when one is needed.
+
+## Overview
+
+Never state browser support from memory: cite a dated reference or verify live, prefer the native platform feature, and ship a fallback when the target browsers need one.
 
 ## Why this exists
 

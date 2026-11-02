@@ -2,7 +2,7 @@
 name: storage-uploads
 description: "File uploads and object storage on S3, R2, GCS or MinIO: presigned URLs, multipart, checksums, content-type safety, lifecycle. Use when building attachment or avatar uploads, direct-to-bucket uploads, signed downloads, image processing, or bucket CORS and lifecycle rules, or upgrading the AWS SDK. Not for database backups (use backup-recovery) or retention and erasure policy (use data-governance)."
 trigger: "Use when code presigns URLs, calls PutObject, GetObject or multipart APIs, accepts multipart/form-data files, or configures bucket CORS or lifecycle."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-An upload is a two-party transaction between your database and a bucket that never commit together, so every flow needs a pending state, a server-side verification step and a sweeper for whatever the client abandoned.
+An upload is a two-party transaction between your database and a bucket that never commit together, so every flow needs a pending state, server-side verification and a sweeper.
 Checked AWS S3 JavaScript SDK target: 3.1161.0 on 2026-10-23. Verify provider-specific API/binding support; S3-compatible does not mean every operation or signature setting is identical.
 Since early 2025 the v3 SDK adds CRC checksums to uploads by default (`requestChecksumCalculation: "WHEN_SUPPORTED"`), which breaks some S3-compatible stores and presigned-URL clients until set to `"WHEN_REQUIRED"`.
 

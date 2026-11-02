@@ -2,7 +2,7 @@
 name: i18n-localization
 description: "i18n and l10n: ICU plural and select messages, Intl dates, numbers and currency, time zones, RTL with logical CSS, locale routing. Use when adding languages or locales, extracting hard-coded strings, fixing plural, date, time-zone, currency, sorting or hydration bugs, or supporting Arabic or Hebrew RTL layouts; preserve message ids and the project's i18n library (i18next, FormatJS, next-intl, Lingui, vue-i18n). Not for single-language copy editing or visual redesign (use design-craft)."
 trigger: "Use when text, numbers, dates or layout must work in more than one language, locale, time zone or writing direction."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Localization bugs are grammar and data-model bugs, not missing strings: a message is a whole sentence with its plural and select logic inside, a date is an instant plus a time zone, money is minor units plus a currency code, and direction is a layout property.
+Localization bugs are grammar and data-model bugs: a message is a whole sentence with its plural logic inside, a date is an instant plus a time zone, money is minor units plus a currency. Direction is a layout property, not a string.
 Use current platform Intl and the project installed localization framework. Verify framework-specific server/client locale loading before changing packages.
 
 ## Rules

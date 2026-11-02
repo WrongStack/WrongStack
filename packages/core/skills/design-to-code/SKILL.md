@@ -2,7 +2,7 @@
 name: design-to-code
 description: "Build a Figma design, screenshot, mockup or live site as working UI and prove the match with measured per-axis fidelity scores. Use when matching a reference or handling design handoff (Figma frames, PNG mockups, a written spec, a URL whose look must be reproduced); preserve its layout, content and interaction intent. Not for measuring a reference without building (use design-reference-read) or inventing a new direction (use design-craft)."
 trigger: "Use when a supplied design or reference must be implemented and its visual fidelity proven, not eyeballed."
-version: 2.0.1
+version: 2.0.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research, browser.interact]
@@ -23,6 +23,10 @@ justified adaptation.
 - Task: Implement a supplied design or reference and prove fidelity.
 - Start: Open the reference (URL extract, image record or Figma frames), record its viewports and match-or-adapt per region in `.design/brief.md`, and list the project's existing tokens.
 - Finish: the last `fidelity.md` has every axis ≥ 0.9 for a literal match (≥ 0.75 for an authorized adaptation) or a recorded adaptation, screenshots were compared per width, and keyboard and state checks passed.
+
+## Overview
+
+Implementing a supplied design is finished only when the match is measured: read the reference's numbers, build to them, and prove fidelity per axis on the rendered result.
 
 ## 1. Get a measurable reference
 

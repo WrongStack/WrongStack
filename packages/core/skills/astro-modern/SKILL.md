@@ -2,7 +2,7 @@
 name: astro-modern
 description: "Astro sites: .astro pages, islands and client: directives, content collections, Actions, server islands, adapters and astro.config. Use when building or fixing Astro routes, content schemas, on-demand rendering, view transitions or an Astro upgrade; hydrate only what is interactive. Not for the UI framework inside an island (use react-modern, vue-nuxt or sveltekit-modern) or general page speed work (use web-performance)."
 trigger: "Use when the change touches *.astro files, astro.config.*, src/content.config.ts, src/actions or an Astro adapter."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["*.astro", "astro.config.*"]
 
 ## Overview
 
-Astro ships HTML first: every byte of client JavaScript is an explicit island decision, and every route is either prerendered at build time or rendered on demand — confusing the two is the root of most Astro bugs.
+Astro ships HTML first: every byte of client JavaScript is an explicit island decision, and each route is prerendered or rendered on demand — confusing the two causes most Astro bugs.
 Checked 2026-11-02: Astro 7.4.5. Verify the current runtime/adapter and UI integration versions before install or migration.
 Request data (cookies, headers, sessions) exists only on on-demand routes; on prerendered routes it is build-time data.
 

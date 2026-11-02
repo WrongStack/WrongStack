@@ -1,6 +1,6 @@
 ---
 name: accessibility
-version: 1.1.0
+version: 1.1.1
 description: "WCAG 2.2 accessibility fixes and audits: keyboard and focus, ARIA, screen readers, contrast, target size, forms, dialogs, axe findings. Use when a control, dialog, menu, form or drag interaction fails keyboard, screen-reader, zoom or contrast checks, an axe violation is reported, or a /uipolish or /a11yhunt round runs. Not for visual taste critique (use design-critique) or general test strategy (use testing)."
 trigger: "Use when a UI must work by keyboard, screen reader, zoom, forced colors or touch, or a WCAG 2.2 AA gap is reported."
 required-capabilities: [filesystem.read, filesystem.write]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-Accessibility is a property of the rendered DOM and its behavior, not of the source or a scanner score: native elements first, then focus that always lands somewhere visible, then names, states and announcements a screen reader actually reads.
+Accessibility is a property of the rendered DOM and its behavior, not of the source or a scanner score: native elements first, then visible focus, then names and states a screen reader reads.
 WCAG 2.2 (W3C Recommendation, 4.1.1 Parsing obsolete) is the default target. Legal and procurement targets often still cite WCAG 2.1 AA (EN 301 549, the 2024 ADA Title II rule); 2.2 AA covers 2.1 AA, so confirm which one a conformance claim names.
 Automated checkers find a minority of real barriers; keyboard and screen-reader passes find the rest.
 

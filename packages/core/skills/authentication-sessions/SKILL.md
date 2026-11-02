@@ -2,7 +2,7 @@
 name: authentication-sessions
 description: "Sign-in and sessions: OAuth 2.x/OIDC with PKCE, passkeys, passwords and MFA, session cookies, JWTs, refresh rotation, Better Auth. Use when building or fixing login, OAuth callbacks, logout, session renewal, account linking, MFA or tenant-scoped authorization, or upgrading an auth library. Not for a requested defensive security review (use security-scanner) or HTTP status contracts (use api-design)."
 trigger: "Use when a change touches login or logout, OAuth callbacks, session cookies, JWT verification, refresh tokens, passkeys, MFA or account linking."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Authentication fails at the seams between steps: a callback that skips `state`, an account linked by an unverified email, a JWT decoded instead of verified, a refresh that resurrects a logged-out session, and a valid login treated as permission.
+Authentication fails at the seams: a callback that skips `state`, accounts linked by unverified email, a JWT decoded but not verified, a refresh that revives a logged-out session. A valid login is never permission by itself.
 Checked 2026-11-02: Better Auth 1.7.15 and jose 6.2.15. Use current provider/library contracts and OAuth security guidance; an OAuth draft is not automatically a stable replacement for the deployed protocol.
 RFC 9700 (OAuth 2.0 Security BCP) is the baseline: PKCE for every client, exact redirect URI matching, no implicit or password grants, and rotated or sender-constrained refresh tokens for public clients.
 

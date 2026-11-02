@@ -1,7 +1,7 @@
 ---
 name: theme-factory
 description: "Themes and palettes: font pairings, OKLCH color ramps, light and dark modes, Tailwind v4 @theme tokens, contrast-checked accents. Use when choosing or generating a visual theme for a deck, document, web artifact, landing page or app, adding dark mode, or fixing a palette that fails contrast; output semantic tokens with measured ratios. Not for WrongStack's own brand (use brand-guidelines) or extending a project's established tokens (use design-system)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A theme is a set of semantic roles with measured relationships, not a list of hex codes: canvas, surface, text, muted, border, accent, accent-fg and accent-text, each verified against what it sits on in every mode it ships in.
+A theme is a set of semantic roles with measured relationships, not a list of hex codes: each role is verified against what it sits on in every mode it ships in. The roles: canvas, surface, text, muted, border, accent, accent-fg and accent-text.
 Themes must stay cohesive across web components, presentations, and documents (checked 2026-11-02: Tailwind CSS 4.3.3 `@theme` variables and WCAG 2.2 contrast standards).
 
 ## Rules

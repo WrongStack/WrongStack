@@ -1,7 +1,7 @@
 ---
 name: xlsx
 description: "Excel .xlsx workbooks with openpyxl or ExcelJS: formulas and cached values, number formats, tables, charts, financial models. Use when generating a spreadsheet, budget or KPI tracker, editing an existing workbook without losing formulas or charts, fixing #NAME? or #REF! errors or numbers stored as text, or auditing a model's calculations. Not for Word or slide output (use docx or pptx)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A workbook is software whose results are computed by someone else's engine: libraries write formulas but not their values, so a generated file is unverified until an engine recalculates it and you read the results back.
+A workbook is software computed by someone else's engine: libraries write formulas but not values, so a generated file is unverified until an engine recalculates it and you read results back.
 Libraries: exceljs (npm) and openpyxl (Python; checked 2026-11-02: exceljs 4.4.0, openpyxl 3.1.5).
 Formats only change display; the stored value is what formulas, exports and pandas see.
 

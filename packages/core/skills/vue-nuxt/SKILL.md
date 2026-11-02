@@ -2,7 +2,7 @@
 name: vue-nuxt
 description: "Vue 3 and Nuxt 4: .vue SFCs, Composition API, composables, Pinia, useFetch/useAsyncData, Nitro server/api routes, routeRules and SSR. Use when building or fixing Vue components, composables, Nuxt pages, server routes, hydration issues or a Nuxt upgrade; distinguish client-only Vue from Nuxt server features. Not for generic TypeScript typing (use typescript-strict) or HTTP contract design (use api-design)."
 trigger: "Use when the change touches *.vue files, nuxt.config.*, composables, Pinia stores, server/api routes or Nuxt data fetching."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["*.vue", "nuxt.config.*"]
 
 ## Overview
 
-Vue reactivity breaks silently at boundaries — destructuring, passing a value instead of a ref, a module-level ref shared by every SSR request — so the expert habit is to track where a reactive link is created and where it could be lost.
+Vue reactivity breaks silently at boundaries — destructuring, passing a value instead of a ref, a module-level ref shared by SSR requests — so track where each reactive link could be lost.
 Checked 2026-11-02: Vue 3.5.44 and Nuxt 4.6.3. Refresh current stable versions, peer/runtime requirements and official migration notes before adding or upgrading.
 In Nuxt, every page renders twice (server, then client hydration); anything non-deterministic or request-private needs a deliberate home.
 

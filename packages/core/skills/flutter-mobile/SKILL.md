@@ -2,7 +2,7 @@
 name: flutter-mobile
 description: "Flutter and Dart apps: widgets, state (Riverpod, Bloc, Provider), go_router, platform channels/Pigeon, pubspec.yaml and builds. Use when building or fixing Flutter screens, state, navigation, plugins, Android/iOS build failures or a Flutter SDK upgrade; distinguish stable SDK releases from future branch schedules. Not for React Native (use react-native-expo) or store submission (use mobile-release)."
 trigger: "Use when the change touches *.dart files, pubspec.yaml, Flutter platform folders or a Flutter build."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["pubspec.yaml", "*.dart"]
 
 ## Overview
 
-Flutter rebuilds widgets constantly, so correctness depends on `build()` being pure, state living in owned objects that are disposed, and no `BuildContext` used after an `await` without a `mounted` check.
+Flutter rebuilds widgets constantly: keep `build()` pure, keep state in owned objects that are disposed, and never use a `BuildContext` after an `await` without a `mounted` check.
 Checked 2026-11-02: Flutter 3.47.9 stable with bundled Dart SDK 3.13.7 (verified via official releases_linux.json). Use its bundled Dart SDK, not an independently guessed Dart upgrade. Refresh the official stable archive before installation; future Flutter 3.50 scheduling is not a released stable target.
 
 ## Rules

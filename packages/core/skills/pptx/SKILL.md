@@ -1,7 +1,7 @@
 ---
 name: pptx
 description: "PowerPoint .pptx decks with PptxGenJS or python-pptx: slide masters, layouts, placeholders, native charts, notes, 16:9 sizing. Use when building a pitch, briefing or executive deck, filling a corporate template, turning a document into slides, or fixing text overflow, wrong slide size or broken layouts. Not for documents meant to be read as pages (use docx or pdf)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A deck is an argument made of one-message slides built on the template's masters and placeholders: action titles carry the story, layouts come from the slide master, and overflow only shows up after rendering.
+A deck is an argument of one-message slides built on the template's masters and placeholders: action titles carry the story, and overflow only shows up after rendering.
 Libraries: PptxGenJS for Node and python-pptx for Python (checked 2026-11-02: pptxgenjs 4.0.1, python-pptx 1.0.2).
 A slide that needs a paragraph to be understood belongs in a document or in the speaker notes.
 

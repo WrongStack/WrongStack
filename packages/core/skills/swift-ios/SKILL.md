@@ -2,7 +2,7 @@
 name: swift-ios
 description: "Native iOS with Swift: SwiftUI, UIKit, Swift 6 concurrency (actors, Sendable, MainActor), @Observable, SwiftData, Xcode and Package.swift. Use when building or fixing iOS screens, navigation, data flow, concurrency errors, platform integrations or Swift/Xcode migrations; verify toolchain, deployment target and device behavior separately. Not for cross-platform apps (use react-native-expo or flutter-mobile) or App Store submission (use mobile-release)."
 trigger: "Use when the change touches *.swift files, Package.swift, Info.plist, an Xcode project or Swift concurrency diagnostics."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["*.swift", "Package.swift", "Info.plist"]
 
 ## Overview
 
-Swift 6 turns data races into compile errors, so iOS work is mostly about isolation: UI state on the main actor, shared mutable state inside actors, values crossing boundaries `Sendable`, and every task owned by something that cancels it.
+Swift 6 turns data races into compile errors, so iOS work is about isolation: UI state on the main actor, shared state in actors, `Sendable` values across boundaries, tasks that get cancelled.
 Checked stable Swift target: 6.4.2 on 2026-10-23. Xcode/SDK, Swift language mode and minimum deployment OS are separate constraints; verify current supported combinations before migration.
 The compiler version, the language mode (5 or 6) and the deployment target are three different settings; read all three before changing code.
 

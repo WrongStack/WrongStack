@@ -2,7 +2,7 @@
 name: visual-regression
 description: "Screenshot and visual regression tests: Playwright toHaveScreenshot, Storybook or Vitest baselines, flaky diffs, masks, thresholds. Use when adding screenshot checks, reviewing a failing diff, stabilizing snapshots that flake across OS, fonts or animation, or investigating layout and theme regressions; never update a baseline just to turn CI green. Not for functional journey tests (use webapp-testing) or design taste review (use design-critique)."
 trigger: "Use when a UI change needs pixel-level evidence, or a screenshot test fails, flakes or needs a new baseline."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-A visual test is only as good as its determinism and its review: pin everything that changes pixels without changing the product (OS fonts, DPR, time, data, animation, viewport), then treat every baseline update as a code change someone must read.
+A visual test is only as good as its determinism and review: pin what changes pixels without changing the product (fonts, DPR, time, data, animation), and review every baseline update.
 Current checked targets: Playwright 1.64.1 and Storybook React 10.6.5 (2026-10-23). Refresh registry and browser/tool compatibility before installation.
 
 ## Rules

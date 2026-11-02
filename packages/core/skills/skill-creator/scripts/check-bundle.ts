@@ -16,6 +16,7 @@ import {
   stripFrontmatter,
   validateSkillDocument,
 } from '../../../src/skills/frontmatter.js';
+import { SKILL_LIMITS } from '../../../src/skills/limits.js';
 import { skillUseWhenText } from '../../../src/skills/prompt-discovery.js';
 import { resolveWstackPaths } from '../../../src/utils/wstack-paths.js';
 
@@ -64,6 +65,26 @@ for (const entry of entries) {
     errors.push(entry.name + ': missing routing-group metadata');
   if (!/^## (?:Before returning|Acceptance checks)\s*$/m.test(body))
     errors.push(entry.name + ': missing explicit acceptance checks');
+  // Without a hand-written SKILL.save.md, fleet subagents and compact prompts
+  // get an auto-compacted body built from whole Overview sentences: the first
+  // one must exist and fit, or the skill's essence never reaches them.
+  if (!(await fs.stat(path.join(root, 'SKILL.save.md')).catch(() => undefined))) {
+    const overview = /^## Overview\s*\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(body)?.[1];
+    const flat = (overview ?? '').replace(/\s+/g, ' ').trim();
+    const stop = [...flat.matchAll(/[.!?](?=\s|$)/g)].find(
+      (match) => !/\b(?:e\.g|i\.e|etc|vs|cf)$/i.test(flat.slice(0, match.index ?? 0)),
+    )?.index;
+    const first = stop === undefined ? flat : flat.slice(0, stop + 1);
+    if (!first) errors.push(entry.name + ': missing ## Overview for the compact body');
+    else if (first.length > SKILL_LIMITS.COMPACT_OVERVIEW_MAX)
+      errors.push(
+        entry.name +
+          ': first Overview sentence is ' +
+          first.length +
+          ' chars; compact bodies keep only whole sentences within ' +
+          SKILL_LIMITS.COMPACT_OVERVIEW_MAX,
+      );
+  }
   if (raw.split('\n').length > 200)
     errors.push(
       entry.name + ': entrypoint exceeds 200 lines; move conditional details to resources',

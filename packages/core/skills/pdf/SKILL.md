@@ -1,7 +1,7 @@
 ---
 name: pdf
 description: "PDF generation and processing: HTML-to-PDF via Playwright/Chromium, Typst, pdf-lib merge and forms, embedded fonts, PDF/A, inspection. Use when rendering invoices, reports or printable pages to PDF, fixing page breaks, headers, footers or missing glyphs, merging, splitting, stamping or filling PDFs, or producing archival PDF/A. Not for editable Word output (use docx) or slide decks (use pptx)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A PDF is a fixed-layout contract with printers and archives: page geometry, embedded fonts, real text (not pictures of text) and document structure are what you verify, because no reader will reflow your mistakes.
+A PDF is a fixed-layout contract with printers and archives: verify page geometry, embedded fonts, real text (not pictures of text) and structure, because no reader reflows your mistakes.
 Generators: headless Chromium through Playwright or Puppeteer for HTML, Typst or LaTeX for typeset documents, pdf-lib for assembly (`@playwright/test` / Puppeteer; checked 2026-11-02: pdf-lib 1.17.1, Playwright 1.64.1, Puppeteer 25.16.0).
 Chromium writes RGB, non-archival PDFs; PDF/A, PDF/UA and press-ready PDF/X are separate, validated deliverables.
 

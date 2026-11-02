@@ -2,7 +2,7 @@
 name: skill-router
 description: "Pick the right bundled skill, or order several, for unclear or multi-domain requests (design + code, media + web, ops + review). Use for an unclear request, overlapping skill descriptions, or work combining design, web/mobile, video, backend and deployment. Exact single-technology tasks should load their specialized skill directly."
 trigger: "choose skills, hangi skill, ne kullanmalı, mixed design/video/mobile/deploy workflows, unclear task routing"
-version: 1.1.0
+version: 1.1.1
 required-capabilities: [filesystem.read]
 required-tools: [skill]
 optional-capabilities: []
@@ -16,6 +16,10 @@ metadata:
 - Task: select a small, ordered skill pipeline for an ambiguous or multi-domain request.
 - Start: extract the requested result, exact technology, action and acceptance check.
 - Finish: load each selected skill before its phase and verify the delivered result.
+
+## Overview
+
+Route by the requested result and the exact platform: load one primary specialist, add supporting skills only for distinct steps, and never load the whole catalog.
 
 ## Rules
 

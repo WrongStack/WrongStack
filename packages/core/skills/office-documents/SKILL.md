@@ -1,7 +1,7 @@
 ---
 name: office-documents
 description: "Office files across formats (Word .docx, Excel .xlsx, PowerPoint .pptx, PDF): create, edit, convert via LibreOffice, render, verify. Use when a request spans several formats, converts between them, inspects an unknown office file, or needs the shared rules for templates, fonts, metadata and rendered verification; route single-format depth to docx, xlsx, pptx or pdf. Not for web pages or Google Workspace APIs."
-version: 1.3.1
+version: 1.3.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-Office files are ZIP packages of XML that only a renderer turns into pages: preserve the template's structure, convert with a real engine, and judge the result from rendered pages and recalculated values, never from the code that produced them.
+Office files are ZIP packages of XML that only a renderer turns into pages: keep the template's structure, convert with a real engine, and judge rendered pages and recalculated values.
 Latest stable npm tools checked 2026-11-02: docx 9.15.1, ExcelJS 4.4.0, PptxGenJS 4.0.1 and pdf-lib 1.17.1. Recheck versions and import/API compatibility before installation. A long interval between releases does not prove deprecation.
 
 ## Rules

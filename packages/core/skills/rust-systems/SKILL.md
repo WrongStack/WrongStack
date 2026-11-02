@@ -2,7 +2,7 @@
 name: rust-systems
 description: "Rust services, CLIs and crates with Tokio, Axum, serde, sqlx, thiserror and Cargo workspaces: async tasks, errors, unsafe, MSRV. Use when adding or fixing Rust handlers, async tasks, channels, error types, serde contracts or unsafe/FFI code, or moving edition, MSRV or crate majors. Not for HTTP contract design (use api-design) or container builds (use docker-deploy)."
 trigger: "Use when a change touches Cargo.toml, Rust source, Tokio tasks or channels, Axum extractors, serde types or an edition/MSRV upgrade."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["*.rs", "Cargo.toml"]
 
 ## Overview
 
-Rust moves memory bugs to compile time but leaves the expensive ones at runtime: futures dropped mid-operation, tasks that silently detach, blocking calls on async workers, and panics on input the compiler never saw.
+Rust moves memory bugs to compile time but leaves costly ones at runtime: futures dropped mid-operation, silently detached tasks, blocking calls on async workers, panics on unseen input.
 Checked stable Rust target: 1.99.1 on 2026-10-23. Verify rust-version, edition, workspace/toolchain pins and crate support before upgrading.
 Edition 2024 (Rust 1.85+) changed temporary drop order in `if let` and tail expressions, made `std::env::set_var` unsafe, requires `#[unsafe(no_mangle)]`, and defaults to the MSRV-aware resolver ("3").
 

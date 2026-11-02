@@ -2,7 +2,7 @@
 name: offline-sync
 description: "Offline-first apps: IndexedDB, SQLite on OPFS, Expo SQLite, service workers, mutation outboxes, sync cursors and conflicts. Use when users must keep working without a connection, drafts must survive restarts, or offline edits must reconcile with the server without duplicates or silent overwrites. Not for live push between online clients (use realtime-systems) or server queue workers (use queues-jobs)."
 trigger: "Use when a change adds local persistence, an offline outbox, background sync, service worker caching or conflict handling to a web or mobile app."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Offline sync is distributed systems on hardware you do not control: clocks drift, storage gets evicted, two tabs replay the same outbox, and a request can succeed on the server while the client sees a network error.
+Offline sync is distributed systems on hardware you do not control: clocks drift, storage gets evicted, two tabs replay one outbox, and a request can succeed while the client sees an error.
 Verify current persistence/sync libraries against the chosen browser/mobile runtime. Latest SDK versions do not define application conflict policy.
 
 ## Rules

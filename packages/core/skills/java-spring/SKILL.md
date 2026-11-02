@@ -2,7 +2,7 @@
 name: java-spring
 description: "Spring Boot and Java services: controllers, Spring Data JPA, @Transactional, Spring Security, Jackson, virtual threads, Maven/Gradle. Use when adding or fixing Spring endpoints, JPA queries, transactions, scheduled or async work, or upgrading the JDK, Spring Boot 3 to 4, or the build wrapper. Not for HTTP contract design (use api-design) or broker delivery semantics (use queues-jobs)."
 trigger: "Use when a change touches application.yml/properties, pom.xml or build.gradle, Spring beans, JPA entities or repositories, or a JDK or Spring Boot upgrade."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["application.{properties,yml,yaml}", "application-*.{properties,yml,yaml
 
 ## Overview
 
-Spring bugs hide behind proxies and defaults: `@Transactional` that never applies, lazy loads firing during JSON rendering, connection pools starved by HTTP calls inside transactions, and defaults that changed between Boot majors.
+Spring bugs hide behind proxies and defaults: `@Transactional` that never applies, lazy loads firing during JSON rendering, and pools starved by HTTP calls inside transactions. Defaults also change between Boot majors.
 Checked 2026-11-02: JDK 27 GA and Spring Boot 4.1.2 stable. Spring Boot 4.2.0-RC1 and JDK 28 are previews/early access. Gradle current release is 9.8.2; verify its JDK/plugin matrix.
 JDK 25 is the current LTS and JDK 27 a short-lived feature release; target the JDK the deployment image actually runs.
 

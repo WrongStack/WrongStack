@@ -1,7 +1,7 @@
 ---
 name: brand-guidelines
 description: "WrongStack brand: five-block logo, signal-pink and orange tokens, warm paper and ink surfaces, Space Grotesk type, voice and OG cards. Use when making WrongStack-branded collateral (README art, social or OG images, slides, release posts, website sections) or checking one against the shipped brand. Not for a user's own product tokens (use design-system) or picking a generic theme (use theme-factory)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-WrongStack looks like an operator's instrument panel on warm paper — ink text, two brand signals (signal pink, then orange) and status colors as the only other voices — not a neon terminal and not a purple gradient.
+WrongStack looks like an operator's instrument panel on warm paper: ink text, two brand signals (signal pink, then orange) and status colors — not a neon terminal or a purple gradient.
 The code is the source of truth: website tokens in `website/src/index.css`, product UI tokens in `packages/webui/src/index.css`, generated desktop tokens in `apps/desktop-v2/src/brand-tokens.css`. Re-read them before shipping; the table below is a snapshot (checked 2026-11-02: Tailwind CSS 4.3.3 `@theme` token alignment).
 
 ## Rules

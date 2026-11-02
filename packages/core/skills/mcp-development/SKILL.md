@@ -1,6 +1,6 @@
 ---
 name: mcp-development
-version: 1.1.1
+version: 1.1.2
 description: "MCP servers and clients: tools, resources and prompts over stdio or Streamable HTTP, JSON Schema contracts, OAuth, MCP Inspector tests. Use when building, debugging or reviewing a Model Context Protocol server or client, choosing a transport, wiring auth, or fixing handshake, reconnect, cancellation or tool-schema problems; do not assume all protocol versions share one session model. Not for calling an LLM API directly (use llm-runtime)."
 trigger: "Use when exposing tools, resources or prompts over MCP, or fixing an MCP server's transport, auth, schemas or lifecycle."
 required-capabilities: [filesystem.read, filesystem.write]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-An MCP server is an API whose caller is a model: tool names and descriptions are prompt text, outputs land in a context window, and the model may be steered by injected content — so contracts must be small, bounded, honest and enforced in code.
+An MCP server is an API whose caller is a model: tool descriptions are prompt text, outputs land in a context window, and injected content can steer it, so contracts must be small and enforced.
 Latest checked targets on 2026-11-02: MCP specification 2026-07-28 and
 @modelcontextprotocol/sdk 1.32.2. Verify the SDK's supported protocol versions
 and clients before combining them. Latest SDK does not imply support for every

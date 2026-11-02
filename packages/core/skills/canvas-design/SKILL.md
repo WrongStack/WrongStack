@@ -1,7 +1,7 @@
 ---
 name: canvas-design
 description: "Posters, prints, book covers, social graphics and editorial one-pagers rendered to PDF, PNG or SVG: grid, type scale, bleed, DPI. Use when composing a single static visual (poster, flyer, cover, event or album art, infographic sheet, 4:5 or 16:9 social image) or preparing one for print. Not for code-driven generative art (use algorithmic-art), slide decks (use pptx) or multi-page documents (use pdf)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A canvas piece is judged at two distances: build one dominant idea that reads as a thumbnail, then reward the close look with typographic detail; the rest is spec work — size, bleed, resolution, color mode and fonts.
+A canvas piece is judged at two distances: one dominant idea that reads as a thumbnail, typographic detail that rewards the close look; the rest is spec — size, bleed, resolution, color, fonts.
 Deliver high-DPI vector SVG, print-ready PDF, or crisp raster PNG (minimum 300 DPI for print; checked 2026-11-02: Playwright 1.64.1, pdf-lib 1.17.1, sharp 0.35.5).
 Generic template tells — everything centered, a gradient blob behind a card, three equal boxes, low-contrast text on a busy photo — are the failure to avoid.
 

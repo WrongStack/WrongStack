@@ -2,7 +2,7 @@
 name: database-development
 description: "SQL and data access with PostgreSQL, MySQL, SQLite, MongoDB, Redis, Prisma and Drizzle: queries, indexes, transactions, pools. Use when writing or fixing queries, ORM models, upserts, locking, pagination, connection pooling or slow queries, or upgrading a driver or ORM. Not for schema rollout and backfills (use database-migrations) or backup and restore (use backup-recovery)."
 trigger: "Use when a change touches SQL, ORM queries or models, transactions, indexes, connection pools, or MongoDB and Redis access."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["*.sql"]
 
 ## Overview
 
-Database bugs are concurrency and volume bugs: check-then-insert races that pass every single-user test, queries fine at a thousand rows that collapse at ten million, and transactions held open across network calls.
+Database bugs are concurrency and volume bugs: check-then-insert races that pass single-user tests, queries that collapse at ten million rows, and transactions held open across network calls.
 Checked 2026-11-02: PostgreSQL 18.6, MongoDB stable 9.0 series, Redis server 8.10.3; Prisma/client 7.10.1, Drizzle 0.45.4, MongoDB Node driver 7.8.0, Redis Node client 6.3.1. Prisma latest tag currently points at 8.0.0-rc.29: choose the verified stable release unless preview is requested.
 A client or ORM version is not the server version: check `SELECT version()`, `db.version()` or `INFO server` on the real target before relying on engine features.
 

@@ -2,7 +2,7 @@
 name: sveltekit-modern
 description: "Svelte 5 runes and SvelteKit: .svelte components, +page/+layout loads, form actions, hooks, $env, adapters and svelte.config. Use when building or fixing Svelte components or SvelteKit routes, load/action data flow, SSR, auth in hooks or an upgrade; follow the installed runtime and migration contract. Not for generic TypeScript typing (use typescript-strict) or HTTP contract design (use api-design)."
 trigger: "Use when the change touches *.svelte or .svelte.ts files, svelte.config.*, +page/+layout/+server files, hooks.server.ts or a SvelteKit adapter."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["*.svelte", "svelte.config.*"]
 
 ## Overview
 
-SvelteKit splits every route into code that runs only on the server, code that runs on both, and component code — almost every SvelteKit bug is code running on the wrong side of that line or state shared across requests.
+SvelteKit splits each route into server-only, universal and component code; almost every SvelteKit bug is code on the wrong side of that line or state shared across requests.
 Checked 2026-11-02: Svelte 5.57.3 and SvelteKit 3.1.1. SvelteKit 3.1.1 declares peer typescript ^6.0.0 while latest TypeScript is 7.0.2; verify adapter/runtime and peer requirements before upgrading.
 Svelte 5 runes make reactivity explicit; legacy `export let`, `$:` and stores still run but should not be mixed into the same component.
 

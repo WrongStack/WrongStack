@@ -7,7 +7,7 @@ description: |
   code change during a session.
   Triggers: user says "auto review", "otomatik review", "auto code review",
   "her değişiklikte review", "/auto-review".
-version: 2.2.2
+version: 2.2.3
 required-capabilities: [version-control.manage]
 required-tools: [git]
 optional-capabilities: [fleet.delegate, verification.run]
@@ -25,9 +25,7 @@ metadata:
 
 ## Overview
 
-The **`wstack-auto-review`** plugin (built into `@wrongstack/core`) detects
-every git-tracked file change during a session and automatically dispatches
-a review subagent after a trailing file-quiet window. It extends the Chimera
+The **`wstack-auto-review`** plugin (built into `@wrongstack/core`) watches git-tracked file changes in a session and dispatches a review subagent after a quiet window. It extends the Chimera
 review pipeline with **mid-session** reviews while leaving any work still
 waiting at `session.ended` to the post-session Chimera path.
 

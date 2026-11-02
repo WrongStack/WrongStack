@@ -2,7 +2,7 @@
 name: kotlin-android
 description: "Native Android with Kotlin: Jetpack Compose, ViewModel/StateFlow, coroutines, Room, WorkManager, Hilt, Gradle/AGP and AndroidManifest. Use when building or fixing Android screens, navigation, permissions, background work, release-only crashes or Kotlin/AGP/SDK upgrades. Not for Flutter or React Native (use flutter-mobile or react-native-expo) or store submission (use mobile-release)."
 trigger: "Use when the change touches Kotlin Android sources, Compose UI, AndroidManifest.xml, Gradle build files or libs.versions.toml."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["AndroidManifest.xml"]
 
 ## Overview
 
-Android kills and recreates your process and activity at will, so the expert stance is: UI is a function of a `StateFlow` held by a ViewModel, anything the user typed or navigated to survives through `SavedStateHandle`, and all work is owned by a lifecycle-aware scope.
+Android kills and recreates your process at will, so UI is a function of a ViewModel's `StateFlow`, user input survives in `SavedStateHandle`, and all work is owned by a lifecycle-aware scope.
 Checked 2026-11-02: Kotlin 2.4.21 and Gradle 9.8.2. Verify current AGP/Compose/compiler/JDK and Android SDK matrix; independently latest versions may not form a supported build.
 Since Kotlin 2.0 the Compose compiler ships as a Kotlin compiler plugin whose version follows Kotlin; there is no separate Compose compiler version to pin.
 

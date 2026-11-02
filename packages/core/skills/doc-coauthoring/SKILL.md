@@ -1,7 +1,7 @@
 ---
 name: doc-coauthoring
 description: "Specs, RFCs, design docs, PRDs and ADRs: context gathering, decision framing, options and trade-offs, review asks, cold-reader test. Use when drafting or restructuring a substantial technical document, writing an architecture decision record, turning notes or a thread into a proposal, or preparing a doc for review. Not for status updates, announcements or postmortems (use internal-comms)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A design document exists to get a specific decision made by specific people: write for the reader who missed every meeting, put the decision and the ask first, and prove the doc works by testing it on a reader with no context.
+A design document exists to get a specific decision made by specific people: write for the reader who missed every meeting, lead with the decision and the ask, and test it on a cold reader.
 The workflow runs in three stages (reviewed 2026-11-02): context gathering, section-by-section drafting with the author, and cold-reader testing.
 The author owns the content and the decision; you own structure, clarity and the gaps you surface.
 

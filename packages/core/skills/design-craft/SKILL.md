@@ -1,7 +1,7 @@
 ---
 name: design-craft
 description: "New screens, landing pages and redesigns that look generic or AI-made: visual direction, layout, type, color and a rendered build loop. Use for a new screen or page, a substantial restyle, typography or layout work, or UI that feels templated, and to write the design brief; small fixes keep the existing design without a new brief. Not for token or kit work (use design-system) or matching a supplied reference (use design-to-code)."
-version: 2.2.1
+version: 2.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: [design, skill]
 optional-capabilities: [web.research, browser.interact, verification.run]
@@ -20,7 +20,7 @@ paths: [".design/brief.md"]
 
 ## Overview
 
-The outcome is an interface suited to this product, its content and its users: originality comes from the product's own content and workflow, quality is proven on the rendered surface, and token consistency alone establishes neither.
+The outcome is an interface suited to this product, its content and its users: originality comes from the product's own content, and quality is proven on the rendered surface, not by tokens.
 A kit supplies reusable decisions, not a finished composition. Removing gradients
 or changing three cards to four does not make a design original.
 

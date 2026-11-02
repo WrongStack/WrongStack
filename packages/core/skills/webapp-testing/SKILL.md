@@ -1,7 +1,7 @@
 ---
 name: webapp-testing
 description: "Playwright e2e and browser tests: locators, web-first assertions, auth state, network mocks, traces, flaky tests, dev-server lifecycle. Use when writing or fixing browser journeys, reproducing a frontend bug in a real browser, debugging flaky or CI-only failures, or wiring playwright.config webServer, projects and storageState. Not for screenshot baselines (use visual-regression) or unit-level test design (use testing)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write, execution.shell]
 required-tools: []
 optional-capabilities: [browser.interact, verification.run, web.research]
@@ -20,7 +20,7 @@ paths: ["playwright.config.*"]
 
 ## Overview
 
-Playwright tests are reliable when every wait is an assertion on user-visible state and every test owns its data: role and label locators, web-first assertions that retry, a server started by config, and a trace for each failure instead of a sleep.
+Playwright tests are reliable when every wait is an assertion on user-visible state and every test owns its data: role locators, retrying web-first assertions, and a trace instead of a sleep.
 Use Playwright (checked 2026-11-02: `@playwright/test` 1.64.1 and Vitest 5.1.0) with explicit server lifecycle management to test dynamic client-side state, form submissions, accessibility roles and network boundaries.
 
 ## Rules

@@ -1,6 +1,6 @@
 ---
 name: cloudflare-workers
-version: 1.1.1
+version: 1.1.2
 description: "Cloudflare Workers with Wrangler: wrangler.jsonc, KV, R2, D1, Durable Objects, Queues and Hyperdrive bindings, versions, deploys. Use when writing or debugging a Worker handler, adding a binding, migrating D1, designing a Durable Object, upgrading Wrangler or shipping a gradual deployment or rollback. Not for generic HTTP contract design (use api-design) or generic pipeline plumbing (use ci-cd)."
 trigger: "Use when a request touches wrangler.jsonc or wrangler.toml, a Worker fetch/queue/scheduled handler, or Cloudflare KV, R2, D1, Durable Objects or Queues."
 required-capabilities: [filesystem.read, filesystem.write]
@@ -20,7 +20,7 @@ paths: ["wrangler.{toml,json,jsonc}"]
 
 ## Overview
 
-A Worker runs in a short-lived V8 isolate with per-request I/O, small memory and strict concurrency limits; bindings, not globals, carry state, and each storage product has its own consistency contract.
+A Worker runs in a short-lived V8 isolate with per-request I/O and small memory; bindings, not globals, carry state, and each storage product has its own consistency contract.
 Latest checked 2026-11-02: Wrangler 4.156.2 and workers-types 5.20261102.1.
 Refresh before installation. Wrangler-generated types and compatibility dates should match the project's actual bindings and runtime, not a guessed Node API set.
 

@@ -1,7 +1,7 @@
 ---
 name: web-artifacts
 description: "Single-file HTML artifacts: mini-tools, calculators, dashboards, simulators, prototypes; React or vanilla JS, Tailwind, Lucide. Use when producing a standalone page or embed that runs without a backend (opened from a file, a sandboxed iframe or static hosting) with client-side state, charts and exports. Not for features inside an existing app codebase (use react-modern or nextjs-modern) or browser test automation (use webapp-testing)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, browser.interact, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A web artifact is an app whose only server is the browser: everything it needs loads from the file or from pinned URLs, every feature survives the sandbox it runs in, and every result derives from state small enough to serialize into the URL.
+A web artifact is an app whose only server is the browser: it loads from the file or pinned URLs, survives the sandbox it runs in, and keeps state small enough to serialize into the URL.
 
 ## Rules
 

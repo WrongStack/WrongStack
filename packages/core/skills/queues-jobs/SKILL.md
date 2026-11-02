@@ -2,7 +2,7 @@
 name: queues-jobs
 description: "Background jobs and consumers on BullMQ, SQS, RabbitMQ, Kafka, Celery, Sidekiq or Postgres queues: retries, idempotency, DLQs. Use when adding producers or workers, scheduling recurring jobs, fixing duplicate, stuck or lost jobs, tuning retries and concurrency, or upgrading a queue library. Not for live push to clients (use realtime-systems) or webhook signature handling (use payments-webhooks)."
 trigger: "Use when work moves to a queue or worker: BullMQ queues, SQS or RabbitMQ consumers, Kafka groups, Celery or Sidekiq jobs, or cron schedules."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Every production queue is at-least-once: a job can run twice, out of order, after its lock expired, or never because it was enqueued inside a transaction that rolled back, so correctness lives in the handler, not the broker.
+Every production queue is at-least-once: a job can run twice, out of order, after its lock expired, or never if enqueued in a rolled-back transaction, so correctness lives in the handler.
 Checked BullMQ stable target: 6.5.3 on 2026-10-23. Verify current broker/client/worker compatibility and actual delivery guarantees before implementation.
 BullMQ 6 removed legacy repeatable jobs (`repeat` options, `getRepeatableJobs`): recurring work uses Job Schedulers (`upsertJobScheduler`), and v6 errors on legacy repeat metadata left in Redis.
 

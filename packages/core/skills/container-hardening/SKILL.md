@@ -2,7 +2,7 @@
 name: container-hardening
 description: "Container hardening in Dockerfiles, Compose and pods: non-root USER, cap_drop, read-only rootfs, build secrets, digests, CVE scans. Use when reducing container privileges, removing secrets from images, slimming and pinning bases, triaging Trivy, Grype or Docker Scout findings, or meeting Pod Security restricted. Not for crash diagnosis (use container-debugging) or application-code vulnerabilities (use security-scanner)."
 trigger: "Use when a request asks to harden, slim or secure a container image or runtime config, or to triage image CVE scanner output."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Hardening is a set of restrictions proven against the app's real start, request and shutdown paths; a restriction that silently breaks the app gets reverted, so measure what the process needs before taking anything away.
+Hardening is a set of restrictions proven against the app's real start, request and shutdown paths: measure what the process needs before taking anything away, or the change gets reverted.
 Use current Docker/OCI/runtime documentation and the deployed platform version. Checked Docker target: 29.9.2; apply settings supported by the actual runtime.
 Scanner counts are inputs, not verdicts: what matters is what ships in the final stage and is reachable.
 

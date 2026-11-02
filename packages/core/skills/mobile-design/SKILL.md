@@ -2,7 +2,7 @@
 name: mobile-design
 description: "Mobile UI design: touch targets, safe areas, keyboard insets, tab bars, sheets, gestures, Dynamic Type and phone/tablet/foldable layouts. Use when designing or reviewing a mobile screen or flow, adapting a web design to phones, or fixing cramped, clipped or unreachable mobile UI; device evidence matters alongside visual tokens. Not for platform code mechanics (use swift-ios, kotlin-android, flutter-mobile or react-native-expo) or desktop web layout (use design-craft)."
 trigger: "Use when a mobile screen, sheet, tab bar, form or gesture is designed, reviewed or fixed for touch, keyboard, safe-area or large-text behavior."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-A mobile screen succeeds when its one primary task stays reachable under the worst conditions — keyboard open, largest text, smallest device, one thumb — so design from those conditions, not from the comfortable mockup.
+A mobile screen succeeds when its primary task stays reachable under the worst conditions — keyboard open, largest text, smallest device, one thumb — so design from those, not the mockup.
 
 Mobile interface design adapts user tasks to thumb zones, dynamic safe-area insets (notches, Dynamic Island, gesture bars), on-screen virtual keyboards, variable window size classes (compact phones, foldables, tablets), and native iOS HIG / Material 3 navigation idioms. High-craft mobile UI keeps primary actions reachable when the keyboard is open and respects OS-level Dynamic Type and gesture expectations.
 

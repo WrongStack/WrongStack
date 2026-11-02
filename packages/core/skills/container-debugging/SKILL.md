@@ -2,7 +2,7 @@
 name: container-debugging
 description: "Docker container failures: build errors, exit codes 127/137/139, OOMKilled, exec format error, crash loops, DNS, ports, mounts. Use when an image fails to build, a container exits or restarts, a service is unreachable from the host or sibling containers, or an image behaves differently on another machine. Not for Compose wiring (use compose-operations) or privilege reduction (use container-hardening)."
 trigger: "Use when a container exits, crash-loops, is OOMKilled, cannot be reached, or an image build fails or behaves differently on another host."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-Read the container's recorded state before touching it: the exit code, OOM flag, health log and image platform usually name the failing layer, and guessing with restarts or prunes destroys that evidence.
+Read the container's recorded state before touching it: exit code, OOM flag, health log and image platform usually name the failing layer, and restarts or prunes destroy that evidence.
 Current checked engine target is Docker 29.9.2. Inspect actual daemon/client/build runtime and platform; build success and final-stage startup are separate checks.
 Docker 29 raised the minimum API version to 1.44 and makes the containerd image store the default on new installs; old clients and SDKs fail with "client version is too old".
 

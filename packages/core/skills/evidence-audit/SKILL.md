@@ -4,7 +4,7 @@ description: "Proof-driven audit rounds in any language: find defects a runnable
 required-capabilities: [filesystem.read, filesystem.write, execution.shell, verification.run, version-control.manage]
 required-tools: []
 trigger: "Use when asked to audit, bug-hunt, prove and fix, or continue an audit round on a package, module, directory or service."
-version: 1.1.3
+version: 1.1.4
 metadata:
   routing-group: quality
 ---
@@ -17,6 +17,10 @@ Invoke as `$evidence-audit <scope>`. The text after the skill name is the scope.
 - Task: Find, prove, fix and independently verify real defects.
 - Start: Pin the scope and revision, read the existing audit ledgers for already-used finding ids, and record the environment.
 - Finish: Every reported finding has a failing proof on current code, an in-scope patch and a passing verifier, all recorded in the round ledger.
+
+## Overview
+
+Every round yields a ledger in which each finding has a proof that fails on current code, a patch confined to the scope, and a verifier that passes after it.
 
 ## Setup (every round, before any analysis)
 

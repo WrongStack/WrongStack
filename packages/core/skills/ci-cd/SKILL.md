@@ -1,6 +1,6 @@
 ---
 name: ci-cd
-version: 1.1.1
+version: 1.1.2
 description: "CI/CD pipelines in GitHub Actions, GitLab CI, Jenkins and CircleCI: workflow YAML, caches, matrices, secrets, OIDC, deploy gates. Use when a pipeline fails, hangs or flakes, needs hardening (permissions, pinned actions, pull_request_target), or must build, sign and promote an artifact. Not for image internals (use docker-deploy) or branch and tag policy (use git-flow)."
 trigger: "Use when editing .github/workflows, .gitlab-ci.yml or a Jenkinsfile, or when a CI run fails, leaks secrets or deploys the wrong artifact."
 required-capabilities: [filesystem.read, filesystem.write]
@@ -20,7 +20,7 @@ paths: [".github/workflows/*.{yml,yaml}", ".gitlab-ci.yml", "Jenkinsfile", ".cir
 
 ## Overview
 
-A pipeline is a privileged program that runs attacker-influenced input; treat its token, triggers and third-party actions as the attack surface, and its green check as evidence only for the exact commit and artifact it built.
+A pipeline is a privileged program running attacker-influenced input: its token, triggers and third-party actions are the attack surface, and a green check proves only the commit it built.
 Local check, hosted CI result, published artifact and deployed service are separate evidence boundaries.
 Use the latest stable toolchain when updating; verify runner image, action versions and engine constraints from official migration notes.
 

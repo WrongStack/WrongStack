@@ -2,7 +2,7 @@
 name: kubernetes-operations
 description: "Kubernetes workloads with kubectl, Helm and Kustomize: Deployments, StatefulSets, probes, requests, HPA, PDBs, Services, Gateway API. Use when changing manifests or charts, debugging Pending, CrashLoopBackOff, ImagePullBackOff or OOMKilled pods, tuning probes and resources, rolling out or back, or migrating off ingress-nginx. Not for cluster provisioning (use infrastructure-as-code) or image hardening (use container-hardening)."
 trigger: "Use when a request touches Kubernetes manifests, Helm charts, kustomization files, kubectl output, or a pod that is pending, crashing or not receiving traffic."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["kustomization.{yml,yaml}", "Chart.yaml", "**/k8s/**/*.{yml,yaml}"]
 
 ## Overview
 
-Every object has an owner that will reconcile it: find the controller or GitOps source first, change that source, and judge success by rollout status and served traffic rather than by `kubectl apply` returning zero.
+Every object has an owner that reconciles it: change the controller or GitOps source, and judge success by rollout status and served traffic, not by `kubectl apply` returning zero.
 Checked stable Kubernetes target: 1.37.2 on 2026-10-23. Verify managed-provider support, API versions, client/server skew and addon compatibility before upgrades.
 The community ingress-nginx controller was retired in March 2026 (no further releases or security fixes); Gateway API is the upstream successor.
 

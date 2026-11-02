@@ -2,7 +2,7 @@
 name: php-laravel
 description: "Laravel and PHP apps: routes, Form Requests, Policies, Eloquent, API Resources, queues and Horizon, Octane, Pest and Composer upgrades. Use when adding or fixing Laravel controllers, validation, authorization, Eloquent queries, jobs or scheduled commands, or upgrading PHP or Laravel. Not for HTTP contract design (use api-design) or broker-agnostic queue semantics (use queues-jobs)."
 trigger: "Use when a change touches artisan, routes/*.php, app/Http, app/Models, composer.json, queued jobs or a PHP or Laravel upgrade."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["artisan", "routes/{web,api,console}.php", "app/Http/**/*.php", "app/Mod
 
 ## Overview
 
-Laravel's conveniences are where its production bugs live: mass assignment from `$request->all()`, lazy loading that turns one page into hundreds of queries, jobs that run before their transaction commits, and long-lived workers running last week's code.
+Laravel's conveniences hide its production bugs: mass assignment from `$request->all()`, lazy-loading query storms, jobs that run before their transaction commits, workers on stale code.
 Checked 2026-11-02: PHP 8.5.12 and Laravel 13.39.0. Verify Composer platform requirements, extensions and framework migration notes before combining current releases.
 Laravel 13 needs PHP 8.3+. Since Laravel 11 the slim skeleton configures middleware, exceptions and routing in `bootstrap/app.php`, and the base `Controller` no longer includes `AuthorizesRequests`.
 

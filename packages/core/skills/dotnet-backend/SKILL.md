@@ -2,7 +2,7 @@
 name: dotnet-backend
 description: "ASP.NET Core and .NET services: Minimal APIs, controllers, DI lifetimes, EF Core, BackgroundService, Options and ProblemDetails. Use when adding or fixing .NET endpoints, hosted workers, EF Core queries or migrations, configuration, or moving a project to a newer TargetFramework or SDK. Not for HTTP contract design (use api-design) or sign-in flows (use authentication-sessions)."
 trigger: "Use when a change touches *.csproj, Program.cs, appsettings*.json, ASP.NET Core endpoints, EF Core DbContexts or hosted services."
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -21,7 +21,7 @@ paths: ["*.csproj", "appsettings*.json", "Program.cs"]
 
 ## Overview
 
-ASP.NET Core bugs live in lifetimes: a scoped `DbContext` captured by a singleton, a request token never passed down, a hosted service that dies and takes the host with it, a retry strategy that breaks your transaction.
+ASP.NET Core bugs live in lifetimes: a scoped `DbContext` captured by a singleton, a request token never passed down, a crashing hosted service, a retry strategy that breaks your transaction.
 Checked 2026-11-02: .NET stable SDK 10.0.403 and runtime 10.0.14. .NET 11 RC is a preview, not the stable target. Verify framework/package compatibility before upgrade.
 .NET 10 is the current LTS; .NET 8 LTS support ends in November 2026, so net8.0 projects need a planned move rather than another patch.
 

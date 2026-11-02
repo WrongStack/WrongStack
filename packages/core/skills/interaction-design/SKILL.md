@@ -2,7 +2,7 @@
 name: interaction-design
 description: "Interaction flows: forms and validation timing, wizards, optimistic updates, undo vs confirm, loading, error recovery and focus. Use when designing or fixing how a flow behaves (onboarding, checkout, settings, inline edit, delete, async save) or when users double-submit, lose drafts, get stuck or miss feedback. Not for tokens (use design-system) or visual composition (use design-craft)."
 trigger: "Use when a user flow's states, feedback, validation, navigation or recovery behavior is designed or fixed."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -20,7 +20,7 @@ metadata:
 
 ## Overview
 
-A flow is a state machine the user can see: every action answers within about 100 ms, every failure keeps the user's work and says what to do next, and no navigation — back, refresh, double click — repeats a side effect or drops a draft.
+A flow is a state machine the user can see: every action answers within about 100 ms, every failure keeps the user's work, and no back, refresh or double click repeats a side effect.
 Use the current project design system and actual platform conventions. Refresh platform guidance before choosing a new interaction model.
 
 ## Rules

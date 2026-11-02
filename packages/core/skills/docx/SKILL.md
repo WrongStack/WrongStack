@@ -1,7 +1,7 @@
 ---
 name: docx
 description: "Word .docx authoring and editing with docx (npm) or python-docx: styles, numbering, tables, headers, fields, tracked changes. Use when generating a Word report or contract, filling a Word template, editing an existing .docx without breaking its formatting, adding comments or redlines, or fixing layout that differs between Word and LibreOffice. Not for PDF-only output (use pdf) or drafting the content itself (use doc-coauthoring)."
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-A good .docx is styled, not decorated: content carries paragraph and character styles, layout comes from section and table properties, and computed parts (TOC, page numbers, cross-references) are fields that Word fills in.
+A good .docx is styled, not decorated: content carries paragraph and character styles, layout comes from section and table properties, and TOC and page numbers are fields Word fills in.
 Libraries: docx for Node and python-docx for Python (checked 2026-11-02: npm docx 9.15.1, PyPI python-docx 1.2.0; refresh registry before installing).
 Neither library renders pages, paginates or updates fields; only a renderer (Word, LibreOffice) shows what the reader will see.
 

@@ -2,7 +2,7 @@
 name: wrongstack-mailbox-mcp
 description: Coordinate with WrongStack agents through the project-scoped Mailbox MCP server. Use when an external coding agent needs to inspect unread or incomplete messages, query conversation history, discover online agents, send direct/reply/broadcast/steer messages, acknowledge outcomes, maintain its presence, soft-delete or restore messages, watch for changes, or perform explicitly authorized Mailbox administration without reading Mailbox files or SQLite directly.
 audience: external
-version: 1.1.3
+version: 1.1.4
 required-capabilities: [mcp.dynamic]
 required-tools: [mcp_use]
 trigger: "Coordinate with WrongStack agents through the project-scoped Mailbox MCP server. Use when an external coding agent needs to inspect unread or incomplete messages, query conversation history, discover online agents, send direct/reply/broadcast/steer messages, acknowledge outcomes, maintain its presence, soft-delete or restore messages, watch for changes, or perform explicitly authorized Mailbox administration without reading Mailbox files or SQLite directly."
@@ -19,6 +19,10 @@ credential files, bridge locks, or token files directly.
 - Task: Use the roster mailbox MCP transport.
 - Start: Connect through the project's Mailbox MCP server and confirm your identity and mode.
 - Finish: Coordination happened only through MCP calls, with unread messages handled and no direct store or token access.
+
+## Overview
+
+The project Mailbox MCP server is the only mailbox boundary: coordinate through its calls and never open the mailbox database, legacy files or token files directly.
 
 ## Connect
 

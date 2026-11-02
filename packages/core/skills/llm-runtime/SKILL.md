@@ -1,7 +1,7 @@
 ---
 name: llm-runtime
 description: "LLM API integration: streaming, tool calling, structured outputs, prompt caching, retries with backoff, token budgets and fallbacks. Use when implementing or debugging an AI feature or agent runtime against OpenAI, Anthropic, Google or Vercel AI SDK APIs: tool-calling loops, SSE streaming, JSON outputs, cost and latency. Not for writing the prompt text itself (use prompt-engineering) or exposing tools over MCP (use mcp-development)."
-version: 1.2.0
+version: 1.2.1
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -19,7 +19,7 @@ metadata:
 
 ## Overview
 
-Treat the model as an unreliable remote service that returns untrusted text: every output is validated, every call is bounded in time, tokens and retries, and the conversation prefix is kept byte-stable so caching works.
+Treat the model as an unreliable remote service returning untrusted text: validate every output, bound every call in time, tokens and retries, and keep the prompt prefix byte-stable for caching.
 Checked 2026-11-02 stable SDK targets: openai 7.47.0, @anthropic-ai/sdk 1.3.0, @google/genai 2.32.0, Vercel AI SDK (ai) 7.0.159, and zod 4.6.7.
 Model ids, context limits and prices change; read them from configuration or the provider's models endpoint, never from memory.
 

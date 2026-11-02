@@ -1,6 +1,6 @@
 ---
 name: database-migrations
-version: 1.1.0
+version: 1.1.1
 description: "Schema migrations and backfills on PostgreSQL, MySQL and SQLite via Prisma, Drizzle, Alembic, Django, Rails, Flyway or EF Core. Use when adding columns, indexes or constraints, changing types, renaming or dropping fields, running large backfills, or recovering a failed or dirty migration. Not for query and transaction code (use database-development) or restore drills (use backup-recovery)."
 trigger: "Use when a change adds or edits files under migrations/, alters a live table, needs a data backfill, or must recover a failed migration."
 required-capabilities: [filesystem.read, filesystem.write]
@@ -20,7 +20,7 @@ paths: ["**/migrations/**"]
 
 ## Overview
 
-A migration is a deploy that runs while old and new code both serve traffic: the danger is rarely the SQL itself but the lock it waits for, the table it rewrites, and the old pods still reading the column you just dropped.
+A migration is a deploy that runs while old and new code both serve traffic: the danger is the lock it waits for, the table it rewrites and old pods reading a column you just dropped.
 Database engine, version and migration tool determine transactional DDL, locking, index creation and rollback behavior.
 
 ## Rules
