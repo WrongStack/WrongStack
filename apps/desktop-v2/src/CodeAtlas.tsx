@@ -27,7 +27,7 @@ import { AtlasExplorer, AtlasNodeEvidence } from './AtlasDetails';
 import { AtlasImpactView, AtlasMatrixView, AtlasSubsystemView } from './AtlasViews';
 import { atlasTour, dependencyPath } from './atlas-analysis';
 import { DesktopCodeAssist } from './DesktopCodeAssist';
-import type { EngineHttp } from './engine-http';
+import { type EngineHttp, retryWhileUnavailable } from './engine-http';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { contentText, entries, record } from './engine-values';
@@ -88,6 +88,7 @@ export function CodeAtlas({
   const building = useRef(false);
   const posting = useRef(false);
   const expectedJob = useRef<number | null>(null);
+  const graphHttp = useMemo(() => retryWhileUnavailable(http), [http]);
   const load = useCallback(async () => {
     const generation = ++graphRequest.current;
     setLoading(true);
@@ -98,7 +99,7 @@ export function CodeAtlas({
         : path.package
           ? `/api/codemap/files?package=${encodeURIComponent(path.package)}`
           : '/api/codemap/packages';
-      const result = await http(resource);
+      const result = await graphHttp(resource);
       if (generation !== graphRequest.current) return;
       setData(result);
       setSelected((selected) =>
@@ -111,7 +112,7 @@ export function CodeAtlas({
     } finally {
       if (generation === graphRequest.current) setLoading(false);
     }
-  }, [http, path]);
+  }, [graphHttp, path]);
   useEffect(() => {
     void load();
     return () => {

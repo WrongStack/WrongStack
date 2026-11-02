@@ -34,6 +34,9 @@ export async function exerciseNativeMultiWindow({
       `${lane.project.name} window`,
       60000,
     );
+    // Says which way a window went if it disappears under load.
+    lane.page.on('crash', () => console.error(`${lane.title} window: renderer crashed`));
+    lane.page.on('close', () => console.error(`${lane.title} window: page closed`));
     await lane.page
       .getByRole('status', { name: 'Local engine connected', exact: true })
       .waitFor({ timeout: 60000 });

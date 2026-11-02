@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-01T23:40:07.596Z
+**Generated:** 2026-11-02T07:22:11.895Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,19 +9,22 @@
 |---|---:|
 | Workspace packages | 46 |
 | Production source files | 5643 |
-| Production source lines | 1232089 |
-| Test files | 4879 |
+| Production source lines | 1232123 |
+| Test files | 4880 |
 | Workspace dependency edges | 231 |
 | Relative module edges | 16513 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 185 |
+| Tests without TypeScript test-project coverage | 186 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- ARCH-CYCLE-TYPE-05: exception expired on 2026-11-01
+- ARCH-CYCLE-TYPE-09: exception expired on 2026-11-01
+- ARCH-CYCLE-TYPE-12: exception expired on 2026-11-01
+- apps/desktop-v2/src/CodeAtlas.tsx: hotspot grew from 914 to 915 lines; review and update the ratchet in the same change
 
 ## Workspace packages
 
@@ -38,7 +41,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 126 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 183 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 635 | 688 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 372 | 185 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 372 | 186 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -99,7 +102,7 @@ None.
 | 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 927 | `apps/desktop-v2/src/ProjectKnowledge.tsx` |
 | 917 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
-| 914 | `apps/desktop-v2/src/CodeAtlas.tsx` |
+| 915 | `apps/desktop-v2/src/CodeAtlas.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
 | 889 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 833 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
@@ -149,7 +152,7 @@ None.
 
 ## TypeScript test coverage debt
 
-- 185 test files are not included in a package TypeScript test project.
+- 186 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

@@ -289,6 +289,13 @@
   border-bottom: 0;
   border-top: 1px solid var(--border);
 }
+/* Keeps the composer in the chat layout as if the wrapper were not there. */
+.composer-host {
+  display: contents;
+}
+.composer-host[hidden] {
+  display: none;
+}
 @media (max-height: 760px) {
   .workspace-focused .topbar {
     display: none;

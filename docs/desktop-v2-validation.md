@@ -5981,3 +5981,46 @@ staged; the other session's edits stay untouched.
   offered only when the profile can be read, defaulting to the project engine, and a saved model
   stays selectable before the catalog answers). Desktop 689 tests; typecheck clean. Not exercised
   natively: the SDD native scope does not start a run from the window.
+
+### Release-build native matrix (2026-11-01/02)
+
+- Build: `build:engine`, `tauri build --no-bundle` and portable staging. First pass on
+  `da5e707baab9-f8ddb53dd698`: the default suite and all 35 scope flags (the 31 of 2026-10-30
+  plus `companion`, `surfaces`, `multi`, `perf`). **33 of 36 exit 0.** Logs:
+  `.temp_files/desktop-v2-native/final-1101/`.
+- The three failures, and the defects behind them, each fixed with a test written RED first
+  where the defect was in product code:
+  - `multi`: a window's conversation ran a tool without asking although YOLO had just been
+    switched off. `prefs.update` saved the settings to disk before applying `yolo: false`, so a
+    prompt that arrived during the save still ran under YOLO. Switching YOLO or YOLO+ off now
+    applies before anything in the handler awaits; switching them on still waits for the save
+    (`prefs-handlers.ts`, `prefs-handlers.test.ts`).
+  - `companion`: the user's own `git commit` failed with "index.lock: File exists" while the
+    engine's background `git status` refreshed the index. Every isolated read git now runs with
+    `GIT_OPTIONAL_LOCKS=0`, so it never takes the index lock (`primitives/git-isolation.ts`,
+    `git-isolation.test.ts`: a status under the environment leaves the index bytes unchanged,
+    a plain status rewrites them). The scope also sent profile calls past the companion's
+    services host; the composer step now uses the same routing as every other step.
+  - `default`: the file manager's `files.tree` was not acknowledged within 15 s after the bulk
+    copy steps. Not reproduced in the later runs and not explained: the engine logs show no
+    error, the engine's WS rate limit (600 frames/min) was measured at no more than 200 per
+    minute in this suite, and its event journal reads lines of any size. The harness now keeps
+    the project and profile service journals with `WRONGSTACK_DESKTOP_TEST_KEEP_TRANSCRIPTS=1`
+    (and always on failure), so a recurrence carries the engine's replies.
+- Defects found while rerunning, fixed:
+  - A pending form question unmounted the composer, which closed an open refinement review
+    and lost the composer's local state; the composer is now hidden, not unmounted, while a
+    form waits (`EngineWorkspace.tsx`, `chat.css`).
+  - Picking a project in Find anything (Ctrl+K) opened Mission control instead of the project;
+    it now opens the project's page, like the sidebar (`WorkspaceDialogs.tsx`).
+  - The code atlas stayed empty when it loaded during a background index refresh (the engine
+    answers 503 then). Graph reads retry a 503 1, 2, 4, 8 and 16 s apart
+    (`retryWhileUnavailable` in `engine-http.ts`, `engine-http-retry.test.ts`).
+  - `sync-brand.ts` read a CSS comment inside a token block as part of the next token, which
+    broke the frontend build; comments are stripped first.
+- Harness: the approvals step clicked "Jump to latest" after the button had already gone.
+- Reruns on the final build `e377df1e3828-3abed0419677`: `multi` twice, `companion`, `atlas`
+  and `default` exit 0. A later `default` rerun ended at shell boot after the machine slept
+  for seven hours; it is not counted.
+- Package checks: desktop 711 tests, primitives `git-isolation` 11, webui-server prefs 33;
+  typecheck clean for desktop, primitives and webui-server; Biome clean on changed files.

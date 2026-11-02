@@ -109,6 +109,26 @@ describe('gitIsolationEnv', () => {
   it('the sync form agrees', async () => {
     expect(gitIsolationEnvSync(repo)).toEqual(await gitIsolationEnv(repo));
   });
+
+  it("never rewrites the index on a read, so it cannot hold the user's index.lock", async () => {
+    git('config', '--remove-section', 'filter.evil');
+    git('checkout', '-q', '--', 'a.ts');
+    // Same content, new timestamp: a plain status refreshes and rewrites the index for it.
+    const stale = new Date(Date.now() + 5000);
+    fs.utimesSync(path.join(repo, 'a.ts'), stale, stale);
+    const index = path.join(repo, '.git', 'index');
+    const before = fs.readFileSync(index);
+    const env = await gitIsolationEnv(repo);
+    expect(env?.['GIT_OPTIONAL_LOCKS']).toBe('0');
+    execFileSync('git', ['status', '--porcelain'], {
+      cwd: repo,
+      env: { ...process.env, ...env },
+      stdio: 'pipe',
+    });
+    expect(fs.readFileSync(index).equals(before)).toBe(true);
+    git('status', '--porcelain');
+    expect(fs.readFileSync(index).equals(before)).toBe(false);
+  });
 });
 
 describe('gitConfigEnv', () => {

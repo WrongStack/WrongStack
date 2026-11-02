@@ -496,7 +496,7 @@ export function EngineWorkspace({
             command={command}
             onAddToPrompt={(text) => void onDraftChange(appendToDraft(draft, text))}
           />
-          {state.inputs.length > 0 ? (
+          {state.inputs.length > 0 && (
             <div className="input-waiting-controls">
               <span>Answer the form to continue.</span>
               <button type="button" className="button secondary" onClick={() => perform('abort')}>
@@ -504,7 +504,10 @@ export function EngineWorkspace({
                 Stop run
               </button>
             </div>
-          ) : (
+          )}
+          {/* Hidden, not unmounted, while a form waits: an open refinement review or other
+              composer state must survive the question. */}
+          <div hidden={state.inputs.length > 0} className="composer-host">
             <SessionComposer
               key={id}
               state={state}
@@ -531,7 +534,7 @@ export function EngineWorkspace({
                 else onProject(target);
               }}
             />
-          )}
+          </div>
         </>
       ) : tab === 'side-effects' ? (
         <Suspense fallback={<p role="status">Opening side-effect history…</p>}>

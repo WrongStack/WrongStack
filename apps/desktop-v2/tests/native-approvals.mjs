@@ -51,7 +51,8 @@ export async function exerciseNativeApprovals({
   const send = async (kind) => {
     await idle();
     const latest = page.getByRole('button', { name: 'Jump to latest', exact: true });
-    if (await latest.count()) await latest.click();
+    // The button leaves once the view is following again; gone means already at the latest.
+    if (await latest.count()) await latest.click({ timeout: 2000 }).catch(() => {});
     await page.getByRole('combobox', { name: 'Message delivery mode' }).selectOption('btw');
     await input().fill(`[native-composer-approval-${kind}] Run the isolated fixture command.`);
     await page.getByRole('button', { name: 'Send message', exact: true }).click();

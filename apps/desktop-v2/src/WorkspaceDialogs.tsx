@@ -21,9 +21,6 @@ import type { DesktopController } from './useDesktop';
 export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
   const {
     snapshot,
-    setProject,
-    setSelected,
-    setSection,
     search,
     setSearch,
     dialog,
@@ -199,9 +196,8 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                     type="button"
                     key={p.id}
                     onClick={() => {
-                      setProject(p.id);
-                      setSelected(null);
-                      setSection('fleet');
+                      // The same destination as the project in the sidebar: its own page.
+                      vm.openProjectPage(p.id);
                       setDialog(null);
                       setSearch('');
                     }}

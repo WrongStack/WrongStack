@@ -532,6 +532,27 @@ const restartForModelDrafts = async (cold, beforeLaunch) => {
   return { cold, previous, current };
 };
 
+/** Every host and project-service terminal/engine transcript, into the artifact directory. */
+async function copyTranscripts() {
+  const versionedScopes = (
+    await readdir(join(dir, 'project-services-v1'), { withFileTypes: true }).catch(() => [])
+  )
+    .filter((entry) => entry.isDirectory() && /^(?:[a-f0-9]{64}|development)$/.test(entry.name))
+    .map((entry) => join('project-services-v1', entry.name));
+  for (const scope of ['', 'project-services-v1', ...versionedScopes]) {
+    const transcriptDirectory = join(dir, scope, 'transcripts');
+    for (const file of await readdir(transcriptDirectory).catch(() => [])) {
+      // Project and profile services keep their engine replies only in their event journal.
+      const journal = file.startsWith('project-') && file.endsWith('.events.jsonl');
+      if (!file.endsWith('.bin') && !journal) continue;
+      await copyFile(
+        join(transcriptDirectory, file),
+        join(artifactDir, `${scope ? 'service' : 'primary'}-${file}${journal ? '' : '.log'}`),
+      ).catch(() => {});
+    }
+  }
+}
+
 try {
   providerFixture = await startLocalProvider(
     refinementPolicyOnly
@@ -1725,7 +1746,8 @@ try {
       configPath: join(dir, 'wrongstack/profiles/default/config.json'),
       identity,
       agent,
-      rpc,
+      // Profile calls must reach the services host, which is separate in companion mode.
+      rpc: workspaceRpc,
       artifactDir,
       waitFor,
       providerFixture,
@@ -2156,21 +2178,7 @@ try {
   try {
     await writeFile(join(artifactDir, 'native-host.log'), await readFile(join(dir, 'host.log')));
   } catch {}
-  const versionedScopes = (
-    await readdir(join(dir, 'project-services-v1'), { withFileTypes: true }).catch(() => [])
-  )
-    .filter((entry) => entry.isDirectory() && /^(?:[a-f0-9]{64}|development)$/.test(entry.name))
-    .map((entry) => join('project-services-v1', entry.name));
-  for (const scope of ['', 'project-services-v1', ...versionedScopes]) {
-    const transcriptDirectory = join(dir, scope, 'transcripts');
-    for (const file of await readdir(transcriptDirectory).catch(() => [])) {
-      if (!file.endsWith('.bin')) continue;
-      await copyFile(
-        join(transcriptDirectory, file),
-        join(artifactDir, `${scope ? 'service' : 'primary'}-${file}.log`),
-      ).catch(() => {});
-    }
-  }
+  await copyTranscripts();
   if (endpoint) {
     const snapshot = await rpc('snapshot');
     await writeFile(join(artifactDir, 'failed-state.json'), JSON.stringify(snapshot, null, 2));
@@ -2204,6 +2212,8 @@ try {
   }
   await stopUi();
   if (providerFixture) await providerFixture.close();
+  // Engine output of a passing run, for diagnosing intermittent failures.
+  if (process.env.WRONGSTACK_DESKTOP_TEST_KEEP_TRANSCRIPTS === '1') await copyTranscripts();
   // WebView2 can outlive a forcibly terminated UI. Terminate only browser
   // processes and detached engine daemons whose command lines name this test's unique directory.
   await cleanupOwnedProcesses();

@@ -1,7 +1,28 @@
 # Desktop v2: continuation and remaining delivery work
 
-Updated: 2026-10-30. This is the handoff for the next implementation agent. The full native
-acceptance matrix passed on the committed build (see the validation log, 2026-10-30).
+Updated: 2026-11-02. This is the handoff for the next implementation agent.
+
+## Release status (2026-11-02)
+
+Desktop v2 is feature-complete for its first release. The release build with the bundled engine
+ran the full native matrix, the default suite and all 35 scope flags: 33 of 36 passed first, the
+three failures led to the fixes recorded in the validation log ("Release-build native matrix
+(2026-11-01/02)"), and the failed scopes pass on the final build. The backlog below is depth
+work for later releases, not a release blocker.
+
+What remains before publishing, and needs the owner's authorization:
+
+- Signed installer/update artifacts and the hosted release pipeline (`release-check`, tag push;
+  release is binary-only).
+- Manual passes the harness cannot do: a real microphone for dictation, a screen reader, and
+  long localized labels.
+
+Known limits shipped with the release:
+
+- Terminal output is bounded by ConPTY and PowerShell console writes (about 14k lines/s across
+  three terminals), not by the desktop.
+- Each open project runs six Bun project daemons, about 70–100 MB working set each.
+- Drawing 20,000 graph nodes in the code atlas's all-nodes mode creates that many DOM elements.
 
 ## Start here
 
@@ -570,8 +591,8 @@ and `SessionUsage.tsx`.
 - Screen-reader behavior, long localized labels and consistent light/dark/theme rendering.
   Dialogs (Escape, backdrop click, focus return), the file context menu and the composer
   options popover own the keyboard, and a high contrast mode exists (2026-10-29). The full
-  native-smoke matrix passed on 2026-10-30 (32/32), but it does not exercise screen readers or
-  long localized labels; those still need a manual pass.
+  native-smoke matrix ran on the release build on 2026-11-01/02 (see "Release status"), but it
+  does not exercise screen readers or long localized labels; those still need a manual pass.
 - Concurrent WebView stress exists for queue, draft and reconnect load (2026-11-01,
   `tests/native-multi-window.mjs`, `--multi`): two project windows each hold a turn at the
   provider at the same time with two prompts queued behind it and their own unsent draft; one

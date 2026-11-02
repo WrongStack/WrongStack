@@ -87,10 +87,16 @@ export function gitConfigEnv(
 }
 
 function isolationEnv(keys: readonly string[], baseEnv: NodeJS.ProcessEnv): Record<string, string> {
-  return gitConfigEnv(
-    [['core.fsmonitor', 'false'], ...keys.map((key) => [key, ''] as const)],
-    baseEnv,
-  );
+  return {
+    ...gitConfigEnv(
+      [['core.fsmonitor', 'false'], ...keys.map((key) => [key, ''] as const)],
+      baseEnv,
+    ),
+    // A background `status` otherwise takes `.git/index.lock` to refresh the index, and the
+    // user's own commit or checkout at that moment fails with "index.lock: File exists".
+    // Only optional locks are skipped; writes still take theirs.
+    GIT_OPTIONAL_LOCKS: '0',
+  };
 }
 
 function fromListings(

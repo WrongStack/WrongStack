@@ -60,6 +60,35 @@ describe('canonical preference handlers', () => {
     });
     expect(state.meta['featureToolCoach']).toBe(false);
   });
+  it('switches YOLO and YOLO+ off before the settings are saved, and on only after', async () => {
+    const state = makeContext();
+    state.meta['yolo'] = true;
+    state.meta['yoloPlus'] = true;
+    let finishSave!: () => void;
+    state.persist.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    // A prompt that arrives while the save is on disk must already ask for approval.
+    const off = handlePrefsUpdate(state.context, ws, { yolo: false, yoloPlus: false });
+    await Promise.resolve();
+    expect(state.setYolo).toHaveBeenCalledWith(false, undefined);
+    expect(state.meta['yolo']).toBe(false);
+    expect(state.meta['yoloPlus']).toBe(false);
+    finishSave();
+    await off;
+    // Loosening waits for the save: a failed save leaves the protection on.
+    state.setYolo.mockClear();
+    const on = handlePrefsUpdate(state.context, ws, { yolo: true });
+    await Promise.resolve();
+    expect(state.setYolo).not.toHaveBeenCalled();
+    expect(state.meta['yolo']).toBe(false);
+    finishSave();
+    await on;
+    expect(state.setYolo).toHaveBeenCalledWith(true, undefined);
+  });
   it('returns the live preference snapshot', () => {
     const { context, meta, sent } = makeContext();
     meta['autonomy'] = 'auto';

@@ -30,7 +30,11 @@ const tokens = [
 ];
 export function readBrandSource() {
   const registry = readFileSync(join(root, 'packages/webui/src/lib/palettes.ts'), 'utf8');
-  const css = readFileSync(join(root, 'packages/webui/src/index.css'), 'utf8');
+  // Comments inside a token block would otherwise be read as part of the next declaration.
+  const css = readFileSync(join(root, 'packages/webui/src/index.css'), 'utf8').replace(
+    /\/\*[\s\S]*?\*\//g,
+    '',
+  );
   const labels = JSON.parse(
     readFileSync(join(root, 'packages/webui/src/i18n/locales/en/settings.json'), 'utf8'),
   ) as { general: Record<string, string> };

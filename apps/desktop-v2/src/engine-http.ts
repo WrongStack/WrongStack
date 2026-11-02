@@ -30,3 +30,23 @@ function scopedHttp(scope: 'engine' | 'project' | 'profile', id: string): Engine
     return response.data;
   };
 }
+/**
+ * Retries a read the engine answers with 503 while its data is being rebuilt (the code index
+ * during a background refresh), 1, 2, 4, 8 and 16 seconds apart; after that the error stands.
+ */
+export function retryWhileUnavailable(
+  http: EngineHttp,
+  delays: readonly number[] = [1000, 2000, 4000, 8000, 16000],
+): EngineHttp {
+  return async (resource, method = 'GET', body) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await http(resource, method, body);
+      } catch (error) {
+        const unavailable = error instanceof EngineHttpError && error.status === 503;
+        if (!unavailable || method !== 'GET' || attempt >= delays.length) throw error;
+        await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+      }
+    }
+  };
+}

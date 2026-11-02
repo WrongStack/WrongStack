@@ -387,6 +387,14 @@ export async function handlePrefsUpdate(
     return;
   }
   const payload = parsed.value.prefs;
+  // Switching YOLO or YOLO+ off applies before anything below awaits: a prompt sent right after
+  // must already ask for approval. Switching them on still waits until the settings are saved.
+  for (const key of ['yolo', 'yoloPlus'] as const) {
+    if (payload[key] !== false) continue;
+    (SESSION_SCOPED_PREF_KEYS.has(key) ? (ctx.metaFor?.(sessionId) ?? ctx.meta) : ctx.meta)[key] =
+      false;
+    if (key === 'yolo') ctx.setYolo?.(false, sessionId);
+  }
   if (typeof payload['subagentsAllowed'] === 'boolean') {
     if (!ctx.setSubagentsAllowed) {
       sendResult(ctx, ws, false, 'Session subagent policy is unavailable.');
