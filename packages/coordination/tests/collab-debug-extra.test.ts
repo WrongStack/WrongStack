@@ -9,6 +9,7 @@ import type {
   SharedFileSnapshot,
 } from '../src/collab-debug.js';
 import { CollabSession } from '../src/collab-debug.js';
+import { readCollabSnapshotFiles } from '../src/collab-snapshot.js';
 import { FleetBus } from '../src/fleet-bus.js';
 
 const bug = (): BugFinding => ({
@@ -795,5 +796,41 @@ describe('CollabSession concurrent-session isolation', () => {
     expect(reportA.evaluations.map((e) => e.id)).toEqual(['eval-A']);
     expect(reportB.refactorPlans.map((p) => p.id)).toEqual(['plan-B']);
     expect(reportB.evaluations.map((e) => e.id)).toEqual(['eval-B']);
+  });
+});
+
+describe('collab snapshot target limit counts files', () => {
+  it('ignores directories a glob target expands to', async () => {
+    // Regression (bug-hunt round 14): `expandGlob('src/**')` returned the
+    // directory entries too, and this reader counted them against the limit —
+    // a target holding 3 files was refused as "5 files, which exceeds the
+    // limit (default limit=30)".
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-collab-glob-dirs-'));
+    try {
+      await fs.mkdir(path.join(root, 'src', 'deep', 'x'), { recursive: true });
+      for (const name of ['a.ts', 'b.ts', 'c.ts']) {
+        await fs.writeFile(path.join(root, 'src', name), 'export const x = 1;\n', 'utf8');
+      }
+      const snap: SharedFileSnapshot = {
+        id: 'snap-dirs',
+        createdAt: new Date().toISOString(),
+        files: [],
+      };
+      await readCollabSnapshotFiles(
+        snap,
+        {
+          targetPaths: [`${path.resolve(root).replace(/\\/g, '/')}/src/**`],
+          projectRoot: root,
+        },
+        4,
+      );
+      expect(snap.files.map((file) => path.basename(file.path)).sort()).toEqual([
+        'a.ts',
+        'b.ts',
+        'c.ts',
+      ]);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
   });
 });

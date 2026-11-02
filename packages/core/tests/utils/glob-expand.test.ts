@@ -110,4 +110,22 @@ describe('expandGlob', () => {
     expect(await expandGlob('app/[id]/page.tsx')).toEqual(['app/[id]/page.tsx']);
     expect(await expandGlob('app/[nope]/page.tsx')).toEqual([]);
   });
+
+  it('resolves to file paths: directories are traversed, never returned', async () => {
+    // Regression (bug-hunt round 14): the trailing-`**` and leaf-segment
+    // branches added every readdir entry, so `expandGlob('**')` returned
+    // directory paths as matches. Consumers that count the result as files
+    // over-counted — `collab_debug` refused a target holding 3 files as
+    // "5 files, which exceeds the limit".
+    for (const pattern of ['**', '*', 'sub/*', './**']) {
+      const directories: string[] = [];
+      for (const result of await expandGlob(pattern)) {
+        if ((await fs.stat(result)).isDirectory()) directories.push(result);
+      }
+      expect(directories, pattern).toEqual([]);
+    }
+    // Every file, including the nested one, is still found.
+    expect((await expandGlob('**')).map(base).sort()).toEqual(['a.ts', 'b.ts', 'c.js', 'd.ts']);
+    expect((await expandGlob('sub/*')).map(base)).toEqual(['d.ts']);
+  });
 });
