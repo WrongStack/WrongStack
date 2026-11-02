@@ -283,9 +283,18 @@ function parseItems(content: string, stopAtNonItem: boolean): ParsedNextStep[] {
     }
     const text = decodeItemText(match[2]!.trim());
     if (text === undefined) continue;
-    const index = match[1] === undefined ? steps.length + 1 : Number.parseInt(match[1], 10);
-    if (seenNumbers.has(index)) continue;
-    seenNumbers.add(index);
+    // `seenNumbers` guards repeated ITEM NUMBERS ("1. a" then "1. b"), not
+    // positional indices. A bullet has no number of its own, so inferring one
+    // from `steps.length + 1` must not let it consume the next explicit
+    // number: `1. a / - detail / 2. b` used to drop the real `2. b` as a
+    // "duplicate", silently losing a suggestion the block also stripped from
+    // the body.
+    const explicit = match[1] === undefined ? undefined : Number.parseInt(match[1], 10);
+    if (explicit !== undefined) {
+      if (seenNumbers.has(explicit)) continue;
+      seenNumbers.add(explicit);
+    }
+    const index = explicit ?? steps.length + 1;
     const auto = !!match[3] && steps.length === 0 && index === 1;
     pushStep(steps, index, text, auto);
     if (steps.length >= MAX_STEPS) break;

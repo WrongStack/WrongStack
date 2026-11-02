@@ -315,6 +315,33 @@ describe('parseNextSteps (WebUI parity — previously NextStepsBar.tsx)', () => 
     expect(steps[1]?.text).toBe('OK');
   });
 
+  it('keeps a numbered item that follows a bullet item', () => {
+    // Regression (bug-hunt round 17): the duplicate-index guard compared a
+    // bullet's positional index against explicit item numbers, so
+    // `1. First / - detail / 2. Second` dropped the real `2. Second` — and
+    // the block is stripped from the body, so the user lost that suggestion
+    // entirely. The guard must only drop repeated ITEM NUMBERS.
+    const content = `<nextsteps>
+1. First
+- detail
+2. Second
+</nextsteps>`;
+    const { texts } = parseNextSteps(content);
+    expect(texts).toEqual(['First', 'detail', 'Second']);
+  });
+
+  it('keeps every numbered item when several bullets sit between them', () => {
+    const content = `<nextsteps>
+1. Alpha
+- a1
+- a2
+2. Beta
+3. Gamma
+</nextsteps>`;
+    const { texts } = parseNextSteps(content);
+    expect(texts).toEqual(['Alpha', 'a1', 'a2', 'Beta', 'Gamma']);
+  });
+
   it('caps runaway whitespace to 2 consecutive newlines in stripped output', () => {
     const content = `Before.
 
