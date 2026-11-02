@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T19:09:40.724Z",
+  "generatedAt": "2026-11-02T19:10:15.058Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5660,
-    "testFiles": 4892,
-    "sourceLines": 1235110,
+    "testFiles": 4894,
+    "sourceLines": 1235136,
     "workspaceEdges": 231,
     "moduleEdges": 16546,
     "nonCommandSlashImports": 0,
@@ -528,7 +528,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 86,
+      "testFiles": 88,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -542,7 +542,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 86
+          "testFiles": 88
         }
       ]
     },
@@ -14391,6 +14391,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/kanban-supervisor-bridge-dispose-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/kanban-supervisor-bridge.test.ts",
         "projects": [
           "root-node"
@@ -14566,6 +14572,12 @@
       },
       {
         "file": "packages/kanban/tests/task-graph-import-parent-remap.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/test-support-session.test.ts",
         "projects": [
           "root-node"
         ]
