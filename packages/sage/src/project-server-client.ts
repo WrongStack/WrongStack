@@ -29,7 +29,12 @@ import {
   readSageServerAuthToken,
   resolveProjectServerUrl,
 } from './project-server-client-launch.js';
-import { sageProjectServerEndpoint, sageProjectServerLogPath } from './project-server-endpoint.js';
+import {
+  resolveProjectSageStorageRoot,
+  sageProjectServerEndpoint,
+  sageProjectServerLogPath,
+} from './project-server-endpoint.js';
+import { SageStoreOwnedByWrongMemoryError, wrongMemoryOwnsStore } from './wrongmemory-owner-guard.js';
 import {
   encodeSageProjectServerMessage,
   type SageProjectServerInfo,
@@ -279,7 +284,21 @@ export class SageProjectServerConnection {
   }
 
   private async connectWithElection(spawnIfMissing: boolean): Promise<void> {
-    return connectWithElection(this.internals(), spawnIfMissing);
+    // A server spawned for a store WrongMemory owns exits at startup with
+    // SageStoreOwnedByWrongMemoryError, which only reaches its log file: the
+    // election would respawn it until it gives up with a bare pipe ENOENT.
+    // Refuse before spawning, and name the cause if the owner appeared
+    // mid-election.
+    const storeDir = resolveProjectSageStorageRoot(this.projectRoot, this.directory);
+    if (spawnIfMissing && wrongMemoryOwnsStore(storeDir)) {
+      throw new SageStoreOwnedByWrongMemoryError(storeDir);
+    }
+    try {
+      return await connectWithElection(this.internals(), spawnIfMissing);
+    } catch (error) {
+      if (wrongMemoryOwnsStore(storeDir)) throw new SageStoreOwnedByWrongMemoryError(storeDir);
+      throw error;
+    }
   }
 
   /**

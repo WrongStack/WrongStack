@@ -5,6 +5,8 @@
  * Operator-initiated only (`wstack sage handoff --yes`): adopting a live store
  * is a separately requested step. The sequence:
  *
+ *  0. Connect to WrongMemory, starting the daemon unless
+ *     `Sage.service.startPolicy` is `never`. Failing here changes nothing.
  *  1. If a SAGE project server runs for the project, ask it to stop through
  *     its authenticated `shutdown` (the token is read from the owner-only
  *     `server.json`) and wait until it no longer answers.
@@ -86,27 +88,35 @@ export async function handOffSageToWrongMemory(options: {
       : 'no SAGE project server is running for this project',
     'register the project in WrongMemory as an adopted store with write ownership',
     'open the store in the daemon so it holds the owner lock (local SAGE then refuses the store)',
-    'set Sage.service.mode to "wrongmemory" in the project configuration',
+    'set Sage.service.mode to "wrongmemory" in your user or profile configuration (repo configuration may not select the memory service)',
   );
   if (!options.apply) return report;
 
-  if (running) {
-    const stop = await local.shutdown('handoff-to-wrongmemory');
-    if (!stop.stopped) throw new Error(`the SAGE project server did not stop: ${stop.reason}`);
-    const deadline = Date.now() + (options.waitMs ?? 10_000);
-    while ((await local.status()) !== null) {
-      if (Date.now() > deadline) throw new Error('the SAGE project server is still answering');
-      await new Promise((r) => setTimeout(r, 200));
-    }
-    report.localServerStopped = true;
-  }
+  // Reach WrongMemory first, starting the daemon as `Sage.service` allows, so
+  // an unreachable service leaves the local owner running and nothing changed.
   const service = options.service ?? {};
   const connect = options.connect ?? ((o: ConnectOptions) => WrongMemoryClient.connect(o) as never);
   const client = await connect({
     dataRoot: service.dataRoot,
-    start: false,
+    start: service.startPolicy !== 'never',
+    ...(service.daemonPath ? { daemonPath: service.daemonPath } : {}),
     clientName: 'wrongstack-handoff',
   } as ConnectOptions);
+  if (running) {
+    try {
+      const stop = await local.shutdown('handoff-to-wrongmemory');
+      if (!stop.stopped) throw new Error(`the SAGE project server did not stop: ${stop.reason}`);
+      const deadline = Date.now() + (options.waitMs ?? 10_000);
+      while ((await local.status()) !== null) {
+        if (Date.now() > deadline) throw new Error('the SAGE project server is still answering');
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    } catch (error) {
+      client.close();
+      throw error;
+    }
+    report.localServerStopped = true;
+  }
   try {
     const leftover = existsSync(
       sageProjectServerMetadataPath(options.projectRoot, options.directory),

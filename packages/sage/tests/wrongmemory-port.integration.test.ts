@@ -4,10 +4,10 @@
  * the WrongMemory checkout next to this repo (`cargo build -p wrongmemoryd`).
  * Skipped when no daemon binary is available.
  */
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { METHODS, WrongMemoryClient } from '@wrongstack/wrongmemory-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createWrongMemoryHqSyncConnection } from '../src/memory-backend.js';
@@ -32,6 +32,9 @@ const DAEMON =
     exe,
   );
 const available = existsSync(DAEMON);
+const distReady = existsSync(
+  fileURLToPath(new URL('../dist/project-server.js', import.meta.url)),
+);
 
 describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () => {
   let tmp: string;
@@ -618,6 +621,25 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     ).rejects.toMatchObject({ code: 'SAGE_STORE_OWNED_BY_WRONGMEMORY' });
     await second.dispose?.().catch(() => undefined);
 
+    // The host's path: a spawned SAGE project server refuses the store at
+    // startup; the client reports why instead of a bare pipe error.
+    if (distReady) {
+      const { SageProjectServerConnection } = (await import(
+        pathToFileURL(fileURLToPath(new URL('../dist/index.js', import.meta.url))).href
+      )) as typeof import('../src/index.js');
+      const conn = new SageProjectServerConnection(root);
+      try {
+        await expect(conn.connect()).rejects.toMatchObject({
+          code: 'SAGE_STORE_OWNED_BY_WRONGMEMORY',
+        });
+      } finally {
+        conn.close();
+      }
+      // Refused before any spawn: no server was started for the store.
+      const log = path.join(root, '.wrongstack', 'memories', 'daemon.log');
+      expect(existsSync(log) ? readFileSync(log, 'utf8') : '').not.toContain('spawn endpoint');
+    }
+
     // Releasing the store in WrongMemory hands it back to local SAGE.
     const host = await WrongMemoryClient.connect({ dataRoot: home, clientName: 'guard' });
     try {
@@ -693,6 +715,55 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     ).rejects.toMatchObject({ code: 'SAGE_STORE_OWNED_BY_WRONGMEMORY' });
     await blocked.dispose?.().catch(() => undefined);
   });
+
+  it('handoff reaches WrongMemory before stopping the local owner, starting it on demand (WM-107)', async () => {
+    const root = path.join(tmp, 'handoff-start');
+    mkdirSync(root, { recursive: true });
+    const seed = createProjectSageMemoryPort({ projectRoot: root });
+    await seed.initialize?.();
+    await getSageService(seed)!.rememberSage({ text: 'Handoff start: local fact' });
+    await seed.dispose?.();
+    let alive = true;
+    const shutdowns: unknown[] = [];
+    const local = {
+      status: async () => (alive ? { pid: 1 } : null),
+      shutdown: async (reason?: string) => {
+        shutdowns.push(reason);
+        alive = false;
+        return { stopped: true };
+      },
+    };
+    // No daemon on this data root, and starting is not allowed: the handoff
+    // fails before it touches the local owner.
+    const freshHome = path.join(tmp, 'handoff-start-home');
+    await expect(
+      handOffSageToWrongMemory({
+        projectRoot: root,
+        service: { mode: 'wrongmemory', dataRoot: freshHome, startPolicy: 'never' },
+        apply: true,
+        local,
+      }),
+    ).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    expect(shutdowns).toEqual([]);
+    expect(alive).toBe(true);
+
+    // On demand (the default) with a daemon path, it starts the daemon.
+    try {
+      const done = await handOffSageToWrongMemory({
+        projectRoot: root,
+        service: { mode: 'wrongmemory', dataRoot: freshHome, daemonPath: DAEMON },
+        apply: true,
+        local,
+      });
+      expect(shutdowns).toEqual(['handoff-to-wrongmemory']);
+      expect(done).toMatchObject({ applied: true, localServerStopped: true, ownerLocked: true });
+    } finally {
+      const c = await WrongMemoryClient.connect({ dataRoot: freshHome, clientName: 'stop' });
+      await c.call('daemon.shutdown', {}).catch(() => undefined);
+      c.close();
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }, 60_000);
 
   it('consolidateSession turns session facts into candidates (WM-511 surface)', async () => {
     await getSageService(port)!.rememberSage({ text: 'Consolidate: lockfiles are committed' });

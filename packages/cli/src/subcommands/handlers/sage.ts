@@ -215,7 +215,7 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
           out(
             `  project ${report.projectId} (${report.admission}); owner lock held: ${report.ownerLocked}`,
           );
-          out(`  Next: set Sage.service.mode to "wrongmemory" in this project's configuration.`);
+          out(`  Next: set Sage.service.mode to "wrongmemory" in your user or profile configuration.`);
         }
       }
       return report.applied && !report.ownerLocked ? 1 : 0;

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-01T19:20:32.474Z
+**Generated:** 2026-11-02T10:25:56.566Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 47 |
 | Production source files | 5573 |
-| Production source lines | 1223590 |
+| Production source lines | 1223619 |
 | Test files | 4853 |
 | Workspace dependency edges | 234 |
-| Relative module edges | 16726 |
+| Relative module edges | 16727 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
@@ -21,7 +21,9 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- ARCH-CYCLE-TYPE-05: exception expired on 2026-11-01
+- ARCH-CYCLE-TYPE-09: exception expired on 2026-11-01
+- ARCH-CYCLE-TYPE-12: exception expired on 2026-11-01
 
 ## Workspace packages
 
