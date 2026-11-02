@@ -6,6 +6,7 @@ vi.mock('node:dns/promises', () => ({ lookup: (...a: unknown[]) => lookupMock(..
 import {
   assertNotPrivateHost,
   expandIPv6,
+  isLoopbackHost,
   isPrivateIPv4,
   isPrivateIPv6,
 } from '../../src/utils/ip-guard.js';
@@ -189,6 +190,52 @@ describe('isPrivateIPv6', () => {
       expect(isPrivateIPv6('2002:808:808::')).toBe(false); // 8.8.8.8
       expect(isPrivateIPv6('::ffff:0:808:808')).toBe(false);
     });
+  });
+});
+
+describe('isLoopbackHost', () => {
+  it('accepts localhost and the whole 127/8 IPv4 block', () => {
+    for (const host of ['localhost', '127.0.0.1', '127.42.7.9', '127.255.255.255']) {
+      expect(isLoopbackHost(host), host).toBe(true);
+    }
+  });
+
+  it('accepts every legal spelling of the IPv6 loopback address', () => {
+    for (const host of ['::1', '[::1]', '0:0:0:0:0:0:0:1', '[0:0:0:0:0:0:0:1]']) {
+      expect(isLoopbackHost(host), host).toBe(true);
+    }
+  });
+
+  it('accepts the IPv4-mapped loopback in dotted, hex and expanded forms', () => {
+    for (const host of [
+      '::ffff:127.0.0.1',
+      '[::ffff:127.0.0.1]',
+      // WHATWG URL serialises IPv4-mapped addresses in hex; this is the shape
+      // settings.ts and ws-auth.ts actually hand the guard.
+      '::ffff:7f00:1',
+      '[::ffff:7f00:1]',
+      '0:0:0:0:0:ffff:7f00:1',
+    ]) {
+      expect(isLoopbackHost(host), host).toBe(true);
+    }
+    expect(isLoopbackHost(new URL('http://[::ffff:127.0.0.1]:8080/').hostname)).toBe(true);
+  });
+
+  it('rejects remote addresses in both families', () => {
+    for (const host of [
+      '10.0.0.5',
+      '8.8.8.8',
+      '0.0.0.0',
+      'example.com',
+      '::',
+      '::2',
+      '[2001:db8::1]',
+      '::ffff:808:808', // ::ffff:8.8.8.8
+      '::ffff:c0a8:1', // ::ffff:192.168.0.1 — private, but not loopback
+      '::ffff:a9fe:a9fe', // ::ffff:169.254.169.254
+    ]) {
+      expect(isLoopbackHost(host), host).toBe(false);
+    }
   });
 });
 
