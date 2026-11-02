@@ -1523,9 +1523,10 @@ export interface StartDaemonOptions {
 }
 
 /**
- * Spawn `wrongmemoryd --data-root <root>` detached with a sanitized
- * environment ({@link buildChildEnv}: no provider keys or vault passphrase)
- * and wait until it accepts a connection.
+ * Start `wrongmemoryd --data-root <root>` with a sanitized environment
+ * ({@link buildChildEnv}: no provider keys or vault passphrase), through the
+ * WrongMemory CLI when it sits next to the daemon, and wait until it accepts
+ * a connection.
  */
 export async function startWrongMemoryDaemon(
   options: StartDaemonOptions,
@@ -1539,23 +1540,54 @@ export async function startWrongMemoryDaemon(
         : 'WrongMemory is not installed (no wrongmemoryd found); run `wstack sage service install`',
     );
   }
-  const child = spawn(exe, ['--data-root', resolveDataRoot(options.dataRoot)], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
-    env: buildChildEnv(),
-  });
-  child.unref();
+  const dataRoot = resolveDataRoot(options.dataRoot);
   const deadline = Date.now() + (options.readyTimeoutMs ?? 15_000);
+  const cli = path.join(
+    path.dirname(exe),
+    process.platform === 'win32' ? 'wrongmemory.exe' : 'wrongmemory',
+  );
+  if (existsSync(cli)) {
+    // The WrongMemory CLI starts the daemon outside the caller's job object
+    // and without inherited handles. A Node `detached` spawn stays in the
+    // job, so a tool's process-tree cleanup could take the shared daemon
+    // down with it; a daemon gone that way also releases its owner lock.
+    // The CLI returns once the daemon answers; it is awaited so that no
+    // starter outlives this call and restarts a daemon stopped since.
+    const starter = spawn(cli, ['--data-root', dataRoot, 'daemon', 'start'], {
+      stdio: 'ignore',
+      windowsHide: true,
+      env: buildChildEnv(),
+    });
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        starter.unref();
+        resolve();
+      }, deadline - Date.now());
+      const done = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      starter.once('exit', done);
+      starter.once('error', done);
+    });
+  } else {
+    const child = spawn(exe, ['--data-root', dataRoot], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: buildChildEnv(),
+    });
+    child.unref();
+  }
   let last: unknown;
-  while (Date.now() < deadline) {
+  do {
     try {
       return await options.connect();
     } catch (error) {
       last = error;
       await new Promise((r) => setTimeout(r, 100));
     }
-  }
+  } while (Date.now() < deadline);
   throw new WrongMemoryError(
     'UNAVAILABLE',
     `daemon did not become ready: ${last instanceof Error ? last.message : String(last)}`,

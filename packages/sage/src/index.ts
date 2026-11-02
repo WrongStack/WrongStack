@@ -277,8 +277,11 @@ export {
 } from './wrongmemory-mcp-bridge.js';
 export {
   assertStoreNotOwnedByWrongMemory,
+  readWrongMemoryAdoptionMarker,
   SageStoreOwnedByWrongMemoryError,
+  WRONGMEMORY_ADOPTION_MARKER_FILE,
   WRONGMEMORY_OWNER_LOCK_FILE,
+  type WrongMemoryAdoptionMarker,
   wrongMemoryOwnsStore,
 } from './wrongmemory-owner-guard.js';
 export {

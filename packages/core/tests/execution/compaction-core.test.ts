@@ -1060,8 +1060,7 @@ describe('dedupStaleReads', () => {
     ];
     const afterOldElide = eliseOldToolResults(msgs, { preserveK: 1, eliseThreshold: 200 });
     const afterAckElide = eliseAcknowledgedToolResults(afterOldElide.messages, {
-      rawPairKeep: 0,
-      rawTokenBudget: 0,
+      maxRetainedTokens: 0,
     });
     const r1Block = (
       afterAckElide.messages[1]?.content as Array<{ content?: string }> | undefined

@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
 import { WrongMemoryError } from '@wrongstack/wrongmemory-client';
 import { describe, expect, it } from 'vitest';
 import {
@@ -12,8 +15,10 @@ import {
   getSageSurface,
   SAGE_SERVICE_CAPABILITY,
 } from '../src/memory-port.js';
+import { sageServiceBackendFor } from '../src/memory-service-registry.js';
 import { InvalidSearchCursorError } from '../src/service-contract.js';
 import type { Sage } from '../src/types.js';
+import { WRONGMEMORY_ADOPTION_MARKER_FILE } from '../src/wrongmemory-owner-guard.js';
 import {
   probeWrongMemoryProject,
   type WrongMemoryClientLike,
@@ -783,6 +788,49 @@ describe('Sage.service backend selection', () => {
     }) as AutoSageMemoryPort;
     await down.initialize();
     expect(down.getSelectedBackend()).toBe('local');
+  });
+
+  it('a store WrongMemory adopted is reached through it in every mode and never registered', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'wm-adopted-'));
+    try {
+      const storeDir = path.join(root, '.wrongstack', 'memories');
+      mkdirSync(storeDir, { recursive: true });
+      writeFileSync(
+        path.join(storeDir, WRONGMEMORY_ADOPTION_MARKER_FILE),
+        '{"schemaVersion":1,"projectId":"p_1"}\n',
+      );
+      for (const service of [undefined, { mode: 'local' as const }, { mode: 'auto' as const }]) {
+        const registered = new FakeClient((m, p) =>
+          m === 'project.list' ? { projects: [{ ...PROJECT, root }] } : defaults(m, p),
+        );
+        const port = createSageMemoryPortForService({
+          projectRoot: root,
+          service,
+          connect: async () => registered,
+          createLocal: () => {
+            throw new Error('local store constructed');
+          },
+        });
+        expect(port).toBeInstanceOf(WrongMemoryPort);
+        expect(sageServiceBackendFor(root)?.backend).toBe('wrongmemory');
+        await port.initialize();
+        expect(getSageService(port)).toBeDefined();
+
+        const unknown = new FakeClient((m) => (m === 'project.list' ? { projects: [] } : {}));
+        const refused = createSageMemoryPortForService({
+          projectRoot: root,
+          service,
+          connect: async () => unknown,
+          createLocal: localPort,
+        });
+        await expect(refused.initialize()).rejects.toBeInstanceOf(
+          WrongMemoryProjectNotRegisteredError,
+        );
+        expect(unknown.methods()).not.toContain('project.register');
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('probe never starts a daemon and closes its connection', async () => {

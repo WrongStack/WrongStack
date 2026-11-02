@@ -27,7 +27,7 @@ import { SageProjectServerConnection } from './project-server-client.js';
 import { sageProjectServerMetadataPath } from './project-server-endpoint.js';
 import { findWrongMemoryBinary } from './wrongmemory-binaries.js';
 import { wrongMemoryOwnsStore } from './wrongmemory-owner-guard.js';
-import type { WrongMemoryClientLike } from './wrongmemory-port.js';
+import { startWrongMemoryDaemon, type WrongMemoryClientLike } from './wrongmemory-port.js';
 
 export interface SageHandoffReport {
   projectRoot: string;
@@ -99,12 +99,22 @@ export async function handOffSageToWrongMemory(options: {
   const daemonPath =
     service.daemonPath ?? findWrongMemoryBinary('daemon', { daemonPath: service.daemonPath })?.path;
   const connect = options.connect ?? ((o: ConnectOptions) => WrongMemoryClient.connect(o) as never);
-  const client = await connect({
+  const connectOptions = {
     dataRoot: service.dataRoot,
-    start: service.startPolicy !== 'never',
-    ...(daemonPath ? { daemonPath } : {}),
+    start: false,
     clientName: 'wrongstack-handoff',
-  } as ConnectOptions);
+  } as ConnectOptions;
+  let client: WrongMemoryClientLike;
+  try {
+    client = await connect(connectOptions);
+  } catch (error) {
+    if (service.startPolicy === 'never') throw error;
+    client = await startWrongMemoryDaemon({
+      dataRoot: service.dataRoot,
+      daemonPath,
+      connect: () => connect(connectOptions),
+    });
+  }
   if (running) {
     try {
       const stop = await local.shutdown('handoff-to-wrongmemory');

@@ -7,6 +7,12 @@
  * - `auto`: WrongMemory only when a daemon is reachable (never started by the
  *   probe) AND the project root is already registered; otherwise `local`.
  *   The choice is made once, in `initialize()`.
+ *
+ * A store WrongMemory adopted for writing (it carries the durable adoption
+ * marker) is reached through WrongMemory in every mode, starting the daemon
+ * on demand: opening it locally would put a second writer next to the
+ * service, also while its daemon is stopped. Such a project is never
+ * registered from here; the service must already know it.
  */
 import type {
   MemoryCapability,
@@ -20,6 +26,7 @@ import type {
 import type { ConnectOptions } from '@wrongstack/wrongmemory-client';
 import { createProjectSageMemoryPort } from './memory-port.js';
 import { recordSageServiceBackend } from './memory-service-registry.js';
+import { resolveProjectSageStorageRoot } from './project-server-endpoint.js';
 import type { ProjectSageMemoryPortOptions } from './remote-memory-port.js';
 import {
   probeWrongMemoryProject,
@@ -28,6 +35,7 @@ import {
   WrongMemoryPort,
   type WrongMemoryPortOptions,
 } from './wrongmemory-port.js';
+import { readWrongMemoryAdoptionMarker } from './wrongmemory-owner-guard.js';
 
 export type SageServiceMode = 'local' | 'wrongmemory' | 'auto';
 
@@ -70,13 +78,24 @@ function wrongMemoryPort(
   });
 }
 
+/** Whether this project's store carries WrongMemory's adoption marker. */
+function storeAdoptedByWrongMemory(options: SageMemoryPortForServiceOptions): boolean {
+  const storeDir = resolveProjectSageStorageRoot(options.projectRoot, options.directory);
+  return readWrongMemoryAdoptionMarker(storeDir) !== undefined;
+}
+
 /** Build the host memory port for the configured `Sage.service` mode. */
 export function createSageMemoryPortForService(
   options: SageMemoryPortForServiceOptions,
 ): MemoryPort {
   const { service: _service, createLocal, connect: _connect, ...localOptions } = options;
   const local = createLocal ?? createProjectSageMemoryPort;
-  switch (resolveSageServiceMode(options.service)) {
+  const mode = resolveSageServiceMode(options.service);
+  if (mode !== 'wrongmemory' && storeAdoptedByWrongMemory(options)) {
+    recordSageServiceBackend(options.projectRoot, 'wrongmemory', options.service?.dataRoot);
+    return wrongMemoryPort(options, { register: false });
+  }
+  switch (mode) {
     case 'wrongmemory':
       recordSageServiceBackend(options.projectRoot, 'wrongmemory', options.service?.dataRoot);
       return wrongMemoryPort(options);
