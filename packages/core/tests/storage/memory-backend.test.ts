@@ -72,6 +72,38 @@ describe('FileMemoryBackend remember/readAll/list', () => {
     expect(raw).toContain('[low]');
   });
 
+  it('round-trips type/priority/tags through list() instead of leaking them into the text', async () => {
+    // Regression (bug-hunt round 12/25): remember() wrote `- [ts] mem_<id>
+    // [type|priority] #tags text`, but lineToEntry reads the documented order
+    // `- [ts] [type|priority] mem_<id> text #tags`. The bracket never matched,
+    // so every entry lost its type/priority on the next read and the metadata
+    // leaked into the text injected into the model's context.
+    await backend.remember(
+      scope,
+      entry('use pnpm', { type: 'convention', priority: 'high', tags: ['build'] }),
+      file,
+    );
+    const [item] = await backend.list(scope, file);
+    expect(item?.text).toBe('use pnpm');
+    expect(item?.type).toBe('convention');
+    expect(item?.priority).toBe('high');
+    expect(item?.tags).toEqual(['build']);
+  });
+
+  it('round-trips single-slot metadata and leaves other bracketed text alone', async () => {
+    await backend.remember(scope, entry('prefers tabs', { type: 'preference' }), file);
+    await backend.remember(scope, entry('rotate the keys', { priority: 'critical' }), file);
+    await backend.remember(scope, entry('[IMPORTANT] do not drop the prod db'), file);
+    const texts = (await backend.list(scope, file)).map((item) => item.text);
+    expect(texts).toContain('prefers tabs');
+    expect(texts).toContain('rotate the keys');
+    // An unrecognized bracket is user text, not a metadata slot.
+    expect(texts).toContain('[IMPORTANT] do not drop the prod db');
+    const byText = Object.fromEntries((await backend.list(scope, file)).map((i) => [i.text, i]));
+    expect(byText['prefers tabs']?.type).toBe('preference');
+    expect(byText['rotate the keys']?.priority).toBe('critical');
+  });
+
   it('readAll returns empty for a missing file', async () => {
     expect(await backend.readAll(scope, path.join(dir, 'nope.md'))).toBe('');
   });

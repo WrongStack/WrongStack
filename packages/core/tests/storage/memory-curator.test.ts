@@ -265,4 +265,68 @@ describe('SessionMemoryCurator', () => {
 
     expect(sage.updateSage).not.toHaveBeenCalled();
   });
+
+  it('ignores operations that target a memory outside the reviewed candidates', async () => {
+    // Regression (bug-hunt round 17/25): `targetMap.get(id)` is undefined for an
+    // id the model was never shown, and `undefined?.persistence === 'permanent'`
+    // is false — so a hallucinated (or content-planted) id was superseded anyway.
+    // Only reviewed memories may be mutated by the unattended after-run hook.
+    const reviewed: CuratorSageRecord = {
+      id: 'mem_reviewed',
+      text: 'reviewed memory',
+      scope: 'project',
+    };
+    const updateSage = vi.fn(async () => ({}));
+    const sageWithCandidate = {
+      ...sage,
+      updateSage,
+      retrieveForPath: vi.fn(async () => [reviewed]),
+    } as never as CuratorSage;
+    const provider = mkProvider(
+      JSON.stringify({
+        operations: [
+          { action: 'supersede', targetId: 'mem_never_shown', reason: 'hallucinated' },
+          { action: 'contradict', targetId: 'mem_never_shown', reason: 'hallucinated' },
+        ],
+      }),
+    );
+    const curator = new SessionMemoryCurator({
+      memoryStore: store,
+      Sage: sageWithCandidate,
+      provider,
+    });
+
+    await curator.afterRun(ctx(provider), result());
+
+    expect(updateSage).not.toHaveBeenCalledWith('mem_never_shown', expect.anything());
+  });
+
+  it('never retires a reviewed permanent memory', async () => {
+    const permanent: CuratorSageRecord = {
+      id: 'mem_permanent',
+      text: 'permanent decision',
+      scope: 'project',
+      persistence: 'permanent',
+    };
+    const updateSage = vi.fn(async () => ({}));
+    const sageWithCandidate = {
+      ...sage,
+      updateSage,
+      retrieveForPath: vi.fn(async () => [permanent]),
+    } as never as CuratorSage;
+    const provider = mkProvider(
+      JSON.stringify({
+        operations: [{ action: 'supersede', targetId: 'mem_permanent', reason: 'x' }],
+      }),
+    );
+    const curator = new SessionMemoryCurator({
+      memoryStore: store,
+      Sage: sageWithCandidate,
+      provider,
+    });
+
+    await curator.afterRun(ctx(provider), result());
+
+    expect(updateSage).not.toHaveBeenCalledWith('mem_permanent', expect.anything());
+  });
 });

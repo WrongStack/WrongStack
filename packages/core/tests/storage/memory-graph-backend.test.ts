@@ -240,3 +240,33 @@ describe('GraphMemoryBackend.findRelated + persistence', () => {
     expect(backend.getGraph().edges.length).toBe(0);
   });
 });
+
+describe('GraphMemoryBackend.forget — exact entry id', () => {
+  it('prunes the node so list() does not resurrect the deleted entry', async () => {
+    // Regression (bug-hunt round 16/25): the file layer forgets by exact entry
+    // id (`mem_<ts>_<rand>`), but the graph pruned nodes by TEXT only, so the
+    // node survived — and list()'s "graph-only nodes" branch served the deleted
+    // memory on every read.
+    await backend.remember(scope, entry('keep this memory'), memFile);
+    await backend.remember(scope, entry('delete this memory'), memFile);
+    const raw = await backend.readAll(scope, memFile);
+    const line = raw.split('\n').find((l) => l.includes('delete this memory'));
+    const id = line ? /mem_\d+_\w+/.exec(line)?.[0] : undefined;
+    expect(id).toBeDefined();
+
+    expect(await backend.forget(scope, id as string, memFile)).toBe(1);
+
+    const texts = (await backend.list(scope, memFile)).map((e) => e.text);
+    expect(texts).not.toContain('delete this memory');
+    expect(texts).toContain('keep this memory');
+    expect(backend.getGraph().nodes.map((n) => n.entry.text)).not.toContain('delete this memory');
+  });
+
+  it('still forgets and prunes by substring', async () => {
+    await backend.remember(scope, entry('keep this memory'), memFile);
+    await backend.remember(scope, entry('delete this memory'), memFile);
+    expect(await backend.forget(scope, 'delete this', memFile)).toBe(1);
+    expect((await backend.list(scope, memFile)).map((e) => e.text)).toEqual(['keep this memory']);
+    expect(backend.getGraph().nodes.map((n) => n.entry.text)).toEqual(['keep this memory']);
+  });
+});
