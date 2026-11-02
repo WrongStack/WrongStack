@@ -262,6 +262,7 @@
       "type": "object"
     },
     "Usage": {
+      "description": "Token usage of one provider request, in its own leaf module so token counters and session records can name it without importing the provider contract (which reaches tools and the agent context). `provider.ts` re-exports it unchanged.",
       "properties": {
         "cacheRead": {
           "type": "number"
