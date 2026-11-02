@@ -6024,3 +6024,9 @@ staged; the other session's edits stay untouched.
   for seven hours; it is not counted.
 - Package checks: desktop 711 tests, primitives `git-isolation` 11, webui-server prefs 33;
   typecheck clean for desktop, primitives and webui-server; Biome clean on changed files.
+- Full matrix again on the final build `e377df1e3828-3abed0419677` (2026-11-02, 09:24 to 10:18,
+  logs `.temp_files/desktop-v2-native/final-1102e/`): **35 of 36 exit 0**. `default` failed at
+  "Interrupted refinement runs again": after "Refine again" the review dialog closed through its
+  own close path (the pending review was cleared, which only Escape, a backdrop click or a
+  button does) before the refiner answered. The same step passed in that run's `composer` scope
+  and in the previous `default` run on the same build; the trigger is not explained.
