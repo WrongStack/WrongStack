@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T14:41:22.293Z",
+  "generatedAt": "2026-11-02T14:52:03.726Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 47,
     "sourceFiles": 5576,
-    "testFiles": 4855,
-    "sourceLines": 1224316,
+    "testFiles": 4857,
+    "sourceLines": 1224318,
     "workspaceEdges": 234,
     "moduleEdges": 16737,
     "nonCommandSlashImports": 0,
@@ -805,7 +805,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 169,
-      "testFiles": 170,
+      "testFiles": 172,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -824,7 +824,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 170
+          "testFiles": 172
         }
       ]
     },
@@ -18428,6 +18428,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/wrongmemory-handoff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/wrongmemory-owner-guard.test.ts",
         "projects": [
           "root-node"
@@ -18441,6 +18447,12 @@
       },
       {
         "file": "packages/sage/tests/wrongmemory-port.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-service.test.ts",
         "projects": [
           "root-node"
         ]

@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "files": [
+    "packages/kanban-mcp/src/cli.ts",
     "packages/vibeui/src/app/layout.tsx",
     "packages/vibeui/src/app/page.tsx",
     "packages/vibeui/src/components/agent-monitor.tsx",

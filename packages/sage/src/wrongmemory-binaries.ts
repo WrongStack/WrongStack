@@ -45,7 +45,9 @@ export function wrongMemoryInstallDir(
 ): string | undefined {
   if (platform !== 'win32') return undefined;
   const local = env.LOCALAPPDATA;
-  return local ? path.join(local, 'WrongMemory', 'bin') : undefined;
+  // Windows path rules on every host, so a computed path does not depend on
+  // where the code runs (tests on Linux CI).
+  return local ? path.win32.join(local, 'WrongMemory', 'bin') : undefined;
 }
 
 /** Locate a WrongMemory executable, or `undefined` when none is found. */
