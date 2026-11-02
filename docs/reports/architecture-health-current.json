@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T19:10:58.078Z",
+  "generatedAt": "2026-11-02T19:11:40.619Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5660,
-    "testFiles": 4894,
-    "sourceLines": 1235286,
+    "testFiles": 4895,
+    "sourceLines": 1235299,
     "workspaceEdges": 231,
     "moduleEdges": 16547,
     "nonCommandSlashImports": 0,
@@ -1141,7 +1141,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 329,
-      "testFiles": 366,
+      "testFiles": 367,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1176,7 +1176,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 366
+          "testFiles": 367
         }
       ]
     },
@@ -25672,6 +25672,12 @@
       },
       {
         "file": "packages/webui-server/tests/create-http-server-options-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/custom-context-modes-save-order.test.ts",
         "projects": [
           "root-node"
         ]

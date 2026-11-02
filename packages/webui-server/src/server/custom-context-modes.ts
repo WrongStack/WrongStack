@@ -127,13 +127,26 @@ export function createCustomModeStore(wrongstackDir: string): CustomModeStore {
     }
   };
 
-  const save = async (): Promise<void> => {
-    if (unreadable) {
-      throw new Error(`${STORE_FILENAME} could not be read; refusing to overwrite it`);
-    }
-    const arr = [...modes.values()];
-    const json = JSON.stringify({ modes: arr }, null, 2);
-    await atomicWrite(storePath(wrongstackDir), json);
+  // Saves are serialized. create/update/remove fire `void save()` and return
+  // synchronously, and save() used to snapshot the map BEFORE awaiting the
+  // atomic write: several writes for one file were then in flight at once, and
+  // rename order is not guaranteed, so an earlier (stale) snapshot could land
+  // last and silently discard an accepted update. Chaining them keeps them in
+  // call order and takes the snapshot when its own write runs.
+  let saveChain: Promise<void> = Promise.resolve();
+  const save = (): Promise<void> => {
+    const run = saveChain.then(async () => {
+      if (unreadable) {
+        throw new Error(`${STORE_FILENAME} could not be read; refusing to overwrite it`);
+      }
+      const arr = [...modes.values()];
+      const json = JSON.stringify({ modes: arr }, null, 2);
+      await atomicWrite(storePath(wrongstackDir), json);
+    });
+    // A failed write must not wedge the chain: later saves still run, while the
+    // caller of the failed one still observes its rejection.
+    saveChain = run.catch(() => {});
+    return run;
   };
 
   const create = (mode: CustomContextMode): { ok: boolean; error?: string | undefined } => {
