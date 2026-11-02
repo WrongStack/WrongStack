@@ -109,9 +109,13 @@ export function setBeforeWrongIndexClaim(
 }
 
 async function registerAndClaim(projectRoot: string, indexDir: string): Promise<ProjectState> {
+  // `session`: the service watches the checkout while a WrongStack host
+  // holds a lease (`indexing.watchExternal`), and not otherwise. A project
+  // WrongIndex already knows keeps the policy set there.
   const reg = await call<{ project: { projectId: string } }>('project.register', null, {
     checkoutRoot: projectRoot,
     indexDir,
+    watchPolicy: 'session',
   });
   const projectId = reg.project.projectId;
   if (isOwnedByWrongIndex(indexDir)) return { projectId, claimed: true };
@@ -277,6 +281,14 @@ export async function acquireWrongIndexSession(
   );
   timer.unref?.();
   sessions.set(projectId, { sessionId: lease.sessionId, timer });
+}
+
+/** Register (and in `wrongindex` mode claim) the project, without a lease. */
+export async function registerWrongIndexProject(
+  projectRoot: string,
+  indexDir?: string,
+): Promise<void> {
+  await project(projectRoot, indexDir);
 }
 
 /** Release this process's leases only; the global daemon keeps running. */
