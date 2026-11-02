@@ -1,4 +1,4 @@
-import { entries, record } from './engine-values';
+import { entries, record } from './engine-values.js';
 
 export interface ContextMode {
   id: string;

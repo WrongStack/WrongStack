@@ -143,7 +143,10 @@ function harness(configOverrides: Partial<Config> = {}) {
     const p = payload as Record<string, unknown>;
     pending.push(p);
     setImmediate(() =>
-      events.emit('provider.fallback_choice', { requestId: p['requestId'], autoSwitch: true }),
+      events.emit('provider.fallback_choice', {
+        requestId: String(p['requestId']),
+        autoSwitch: true,
+      }),
     );
   });
 

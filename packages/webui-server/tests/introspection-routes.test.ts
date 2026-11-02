@@ -135,6 +135,7 @@ describe('canonical introspection handler family', () => {
       });
       const reply = sent.at(-1)?.payload as Record<string, unknown> & {
         sideEffects: Array<{ toolUseId: string }>;
+        start: number;
       };
       return { ...reply, ids: reply.sideEffects.map((effect) => effect.toolUseId) };
     };

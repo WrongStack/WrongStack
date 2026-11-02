@@ -32,9 +32,7 @@ const DAEMON =
     exe,
   );
 const available = existsSync(DAEMON);
-const distReady = existsSync(
-  fileURLToPath(new URL('../dist/project-server.js', import.meta.url)),
-);
+const distReady = existsSync(fileURLToPath(new URL('../dist/project-server.js', import.meta.url)));
 
 describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () => {
   let tmp: string;
@@ -189,7 +187,10 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     const ok = await service.verify(m.id);
     expect(ok.map((r) => [r.memoryId, r.status])).toEqual([[m.id, 'verified']]);
     rmSync(path.join(proj, 'src', 'gone.rs'));
-    const stale = await getSageRetrieval(port)!.verifyForPaths!(['src/gone.rs']);
+    const stale = (await getSageRetrieval(port)!.verifyForPaths!(['src/gone.rs'])) as Array<{
+      memoryId: string;
+      status: string;
+    }>;
     expect(stale.map((r) => [r.memoryId, r.status])).toEqual([[m.id, 'stale']]);
     expect((await service.getSage(m.id))?.status).toBe('stale');
   });
@@ -566,7 +567,7 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
         );
       },
     };
-    const hits = await svc.searchSageWithBreakdown('rollbacks blue-green', {
+    const hits = await svc.searchSageWithBreakdown!('rollbacks blue-green', {
       vectorRecall,
       sessionId: 'fusion-me',
       limit: 10,
@@ -585,7 +586,7 @@ describe.skipIf(!available)('WrongMemoryPort against a real wrongmemoryd', () =>
     } as never);
     expect(flat.map((m) => m.id)).toEqual(hits.map((h) => h.memory.id));
     // Without a vector channel the port stays lexical (the host wrapper fuses).
-    const lexical = await svc.searchSageWithBreakdown('rollbacks blue-green', { limit: 10 });
+    const lexical = await svc.searchSageWithBreakdown!('rollbacks blue-green', { limit: 10 });
     expect(lexical.every((h) => h.source === 'lexical')).toBe(true);
   });
 

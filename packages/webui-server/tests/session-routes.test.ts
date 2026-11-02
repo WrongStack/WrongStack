@@ -13,6 +13,7 @@ function handlers(): SessionRouteHandlers {
   return {
     newSession: vi.fn(async () => undefined),
     clearContext: vi.fn(async () => undefined),
+    redoSession: vi.fn(async () => undefined),
     debugContext: vi.fn(async () => undefined),
     compactContext: vi.fn(async () => undefined),
     repairContext: vi.fn(async () => undefined),
