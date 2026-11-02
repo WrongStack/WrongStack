@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T19:04:57.760Z",
+  "generatedAt": "2026-11-02T19:05:35.066Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5660,
-    "testFiles": 4889,
-    "sourceLines": 1234969,
+    "testFiles": 4890,
+    "sourceLines": 1235004,
     "workspaceEdges": 231,
-    "moduleEdges": 16544,
+    "moduleEdges": 16545,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 635,
-      "testFiles": 690,
+      "testFiles": 691,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 690
+          "testFiles": 691
         }
       ]
     },
@@ -11812,6 +11812,12 @@
       },
       {
         "file": "packages/core/tests/storage/in-project-fleet-delegate-denied.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/in-project-model-endpoint-denied.test.ts",
         "projects": [
           "root-node"
         ]
