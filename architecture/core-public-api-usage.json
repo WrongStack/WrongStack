@@ -74,9 +74,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/models": {
-      "files": 45,
+      "files": 46,
       "typeOnly": 11,
-      "runtimeOrMixed": 35
+      "runtimeOrMixed": 36
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -4919,6 +4919,12 @@
     {
       "specifier": "@wrongstack/core/models",
       "file": "packages/providers/tests/overlay-invalidation.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/providers/tests/trusted-presets.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

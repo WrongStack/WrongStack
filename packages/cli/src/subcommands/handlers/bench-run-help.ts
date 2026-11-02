@@ -1,5 +1,4 @@
 import { color } from '@wrongstack/core/utils';
-import type { TerminalRenderer } from '../../renderer.js';
 
 /**
  * Per-flag help data for `wstack bench run`.
@@ -367,16 +366,6 @@ function buildFlagBlock(): string[] {
     rows.push(`  ${paddedFlag} ${desc}`);
   }
   return rows;
-}
-
-/**
- * Render the `wstack bench run` help block directly to a
- * renderer. Thin wrapper over `renderBenchRunHelpToString()`
- * for callers that have a `TerminalRenderer` in hand (e.g.
- * the `wstack bench run --help` bypass in `bench.ts`).
- */
-export function renderBenchRunHelp(renderer: TerminalRenderer): void {
-  renderer.write(renderBenchRunHelpToString());
 }
 
 /**

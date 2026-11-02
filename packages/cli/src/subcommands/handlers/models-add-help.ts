@@ -1,5 +1,4 @@
 import { color } from '@wrongstack/core/utils';
-import type { TerminalRenderer } from '../../renderer.js';
 
 /**
  * Per-flag help data for `wstack models add`.
@@ -250,17 +249,6 @@ function buildFlagBlock(): string[] {
     rows.push(`  ${paddedFlag} ${f.description}`);
   }
   return rows;
-}
-
-/**
- * Render the `wstack models add` help block directly to a
- * renderer. Thin wrapper over `renderModelsAddHelpToString()`
- * for callers that have a `TerminalRenderer` in hand (e.g.
- * the `wstack models add --help` bypass in
- * `providers-models.ts`).
- */
-export function renderModelsAddHelp(renderer: TerminalRenderer): void {
-  renderer.write(renderModelsAddHelpToString());
 }
 
 /**
