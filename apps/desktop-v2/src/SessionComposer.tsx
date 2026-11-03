@@ -18,7 +18,6 @@ import {
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AgentModeControl } from './AgentModeControl';
 import { AutonomyControl } from './AutonomyControl';
-import { sessionAutonomy } from './autonomy-model';
 import { BtwReceipts } from './BtwReceipts';
 import { btwReceiptKey, btwReceipts, type SavedBtwReceipts } from './btw-receipts';
 import {
@@ -745,7 +744,7 @@ export function SessionComposer({
             <JournalRecallLoader projectId={projectId} onLoad={onRecallLoad} />
           )}
           <AutonomyControl
-            mode={sessionAutonomy(state.results['prefs.updated']).mode}
+            prefs={state.results['prefs.updated']}
             command={command}
             disabled={!state.connected || state.needsSetup}
           />

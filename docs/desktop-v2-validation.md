@@ -6657,3 +6657,12 @@ copies, starting with SAGE memory.
   "Memory N" (the WebUI header's memory badge); it opens the context details, which list the
   injector's runs and the memories that entered and left.
 - Checks: a status-bar test covers the count; desktop tests and typecheck pass.
+
+### YOLO level in the composer (2026-11-03)
+
+- Beside the continuation mode, the composer has the conversation's YOLO level, as the WebUI's
+  session panel offers it: "Approvals on", "YOLO" (calls run without asking; damaging kinds still
+  ask) and "YOLO+" (nothing asks; deny rules still refuse). It saves with `prefs.update` exactly as
+  `/yolo off|on|plus` does, and shows the engine's reported level.
+- Checks: the continuation-control test covers both selects; desktop tests pass (771, plus the
+  graph-layout timing test, which passes alone); typecheck and Biome clean.
