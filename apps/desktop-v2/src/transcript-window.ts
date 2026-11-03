@@ -47,3 +47,11 @@ export function dayLabel(
       new Date(message.at).getFullYear() === new Date(now).getFullYear() ? undefined : 'numeric',
   });
 }
+
+const megabytes = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+/** How far a first read of a long conversation got, as the WebUI's restore progress says it. */
+export function replayProgress(replay: { read: number; total: number }): string {
+  const percent = Math.min(100, Math.floor((replay.read / replay.total) * 100));
+  return `${percent}% · ${megabytes(replay.read)} of ${megabytes(replay.total)}`;
+}

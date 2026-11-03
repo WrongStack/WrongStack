@@ -81,10 +81,12 @@ export class BackendStream {
     this.operations.replaying();
     const poll = async () => {
       try {
-        const result = await request<{ offset: number; events: unknown[]; hasMore?: boolean }>(
-          `${this.scope}.events`,
-          { ...this.target(), offset: this.offset },
-        );
+        const result = await request<{
+          offset: number;
+          events: unknown[];
+          hasMore?: boolean;
+          size?: number;
+        }>(`${this.scope}.events`, { ...this.target(), offset: this.offset });
         if (run !== this.run || this.stopped) return;
         const hasMore =
           result.hasMore ?? (result.events.length === 200 || result.offset - this.offset >= 262144);
@@ -99,7 +101,10 @@ export class BackendStream {
           void this.send('stats.get').catch((error) => this.error(error));
         // An idle poll changes nothing, so it does not re-render every view ten times a second.
         if (events.length || this.state.hydrating !== hasMore) {
-          this.state = replayEngineBatch(this.state, events, hasMore);
+          this.state = replayEngineBatch(this.state, events, hasMore, {
+            read: result.offset,
+            total: result.size ?? 0,
+          });
           for (const subscriber of this.subscribers) subscriber.changed();
         }
         this.timer = setTimeout(poll, hasMore ? 0 : 100);

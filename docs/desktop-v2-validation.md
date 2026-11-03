@@ -6674,3 +6674,12 @@ copies, starting with SAGE memory.
   shrinks. It is saved with the rest of the desktop's appearance (`settings.save appearance`), so
   it follows every window.
 - Checks: parsing and applying it are tested (jsdom); desktop tests and typecheck pass.
+
+### Conversation loading progress (2026-11-03)
+
+- While a long conversation is read for the first time, "Loading this conversation…" now says
+  how far it got ("25% · 3.0 MB of 12.0 MB"), as the WebUI's transcript restore shows percent
+  and bytes. The native host's journal pages report the journal's length (`size`) for this.
+- Checks: Rust `engine::tests` pass (the page-limit test also checks `size`); the progress text
+  and its reset on catching up are tested; desktop tests pass (one load-sensitive timing test
+  aside, which passes alone); typecheck and Biome clean.

@@ -89,7 +89,12 @@ export type EngineTab =
   | 'kanban';
 export type { EngineSend } from './engine-operations';
 
-import { dayLabel, hiddenMessageCount, TRANSCRIPT_WINDOW } from './transcript-window';
+import {
+  dayLabel,
+  hiddenMessageCount,
+  replayProgress,
+  TRANSCRIPT_WINDOW,
+} from './transcript-window';
 
 export function EngineWorkspace({
   id,
@@ -404,6 +409,7 @@ export function EngineWorkspace({
               <div className="native-chat-welcome" role="status">
                 <LoaderCircle size={18} className="spin" />
                 <p>Loading this conversation…</p>
+                {state.replay && <small>{replayProgress(state.replay)}</small>}
               </div>
             )}
             {state.synced && !state.messages.length && !state.inputs.length && (

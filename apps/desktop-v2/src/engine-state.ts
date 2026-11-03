@@ -129,12 +129,15 @@ export interface EngineState {
   lastAt: number;
   /** Each subagent's own transcript in this conversation. */
   agents: AgentTranscripts;
+  /** How much of the journal a first read has replayed, while it is still replaying. */
+  replay: { read: number; total: number } | null;
 }
 /** Recent activity frames kept for the Activity view; streamed deltas are merged first. */
 export const ACTIVITY_LIMIT = 400;
 export const emptyEngineState: EngineState = {
   lastAt: 0,
   agents: {},
+  replay: null,
   hydrating: false,
   synced: true,
   pendingUserMessages: {},
@@ -189,11 +192,13 @@ export function replayEngineBatch(
   state: EngineState,
   events: readonly EngineEvent[],
   hasMore: boolean,
+  position?: { read: number; total: number },
 ): EngineState {
   return {
     ...events.reduce(reduceEngine, state),
     hydrating: hasMore,
     synced: state.synced || !hasMore,
+    replay: hasMore && position && position.total > 0 ? position : null,
   };
 }
 /** Applies one frame; messages it adds take the frame's time, or the latest time seen. */

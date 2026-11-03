@@ -141,6 +141,10 @@ mod tests {
         let tail = Engine::events(&path, first["offset"].as_u64().unwrap()).unwrap();
         assert_eq!(tail["events"].as_array().unwrap().len(), 1);
         assert_eq!(tail["hasMore"], false);
+        assert_eq!(
+            tail["size"], tail["offset"],
+            "The page reports the journal's length"
+        );
         fs::remove_file(path).unwrap();
     }
 
@@ -338,6 +342,8 @@ impl Engine {
             }
             Err(e) => return Err(err(e)),
         };
+        // The journal's length, so a reader replaying it can show how far it got.
+        let size = file.metadata().map_or(0, |meta| meta.len());
         let mut reader = BufReader::new(file);
         reader.seek(SeekFrom::Start(offset)).map_err(err)?;
         let mut events = Vec::new();
@@ -355,7 +361,7 @@ impl Engine {
             }
         }
         let has_more = events.len() == 200 || cursor - offset >= 262144;
-        Ok(json!({"offset":cursor,"events":events,"hasMore":has_more}))
+        Ok(json!({"offset":cursor,"events":events,"hasMore":has_more,"size":size}))
     }
     pub fn event_path(&self) -> &Path {
         &self.path
