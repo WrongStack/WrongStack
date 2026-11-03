@@ -6335,3 +6335,34 @@ copies, starting with SAGE memory.
   in-progress `packages/core` change, so this build reused the last engine binary.
 - Checks: desktop 706 tests and WebUI tests pass; typecheck clean for the package, the WebUI and
   the desktop.
+
+### Context dashboard in the desktop (2026-11-03)
+
+- A conversation's Tools menu opens "Context dashboard", the WebUI's `context` view: context
+  pressure with the soft/hard/max axis, the session (provider, model, mode, context mode,
+  project, uptime), what the next request is made of (system prompt, tools, messages, top tools),
+  the threshold map, the compaction engine, cache residency and history retention, per-agent
+  footprints, the conversation's memory panels and token metrics. The desktop's own "Context &
+  instructions" dialog (compaction, repair, clear, the context editor, modes) is unchanged; the
+  WebUI's context editor is a dialog too, so there was no standalone editor page to port.
+- `packages/project-surfaces/src/context` holds the dashboard, its sections, primitives,
+  residency section and `ContextBar`; the WebUI keeps its old paths as re-exports. The view reads
+  a `ContextFeed`: the conversation and its token use, model and modes, agents with a context
+  footprint, a key whose change means a new connection, an abortable `context.debug` request,
+  the application's memory panels and the way back. A newer request (refresh, another
+  conversation) cancels the one before it, so a late reply no longer replaces the breakdown on
+  screen.
+- The page header stays on top while scrolling; it was translucent (the zone tint was its only
+  background, and Tailwind utilities override the page CSS layer), so cards showed through it.
+  It is now opaque with the tint as its own layer, in the WebUI as well.
+- Desktop: `SessionContextDashboard` reads the conversation's engine state through a React
+  context: tokens and window from the context usage, mode and start from `session.start`, the
+  context mode from the newest of `context.mode.changed`, `context.modes.list` and
+  `session.start`, the leader's iteration while a turn runs, and the SAGE memory panel the
+  desktop already had. The breakdown is a `context.debug` engine command; a reply that is not a
+  breakdown shows its message.
+- Seen in the native window on build `b7bec339b8ca-c5436fe756a5`, light and dark, on a
+  WrongMemory conversation: every section rendered from live data (glm-5.3-flash on
+  zai-coding-plan, 1.0M window, balanced mode, 6.3k system prompt); no page errors.
+- Checks: desktop 710 tests and WebUI 6,239 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.

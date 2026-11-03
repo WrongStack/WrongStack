@@ -1,15 +1,17 @@
-/* The shared Session Story fills the conversation's workspace below its tabs. */
+/* The shared Session Story and context dashboard fill the conversation's workspace below its tabs. */
 .engine-workspace > .ws-surface-frame.is-fill {
   flex: 1;
   min-height: 0;
 }
-.session-story-surface {
+.session-story-surface,
+.session-context-surface {
   display: flex;
   flex: 1;
   min-width: 0;
   min-height: 0;
 }
-.session-story-surface > * {
+.session-story-surface > *,
+.session-context-surface > * {
   flex: 1;
   min-width: 0;
 }

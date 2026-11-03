@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Coins,
   Folder,
+  Gauge,
   History,
   KeyRound,
   ListChecks,
@@ -25,6 +26,7 @@ export function WorkspaceTools({
   onSideEffects,
   onUsage,
   onStory,
+  onContext,
   onPlan,
   onProject,
   onSettings,
@@ -38,6 +40,7 @@ export function WorkspaceTools({
   onSideEffects: () => void;
   onUsage: () => void;
   onStory: () => void;
+  onContext: () => void;
   onPlan: () => void;
   onProject: () => void;
   onSettings: () => void;
@@ -74,6 +77,16 @@ export function WorkspaceTools({
             <strong>Session story</strong>
             <span>
               Replay the conversation: agent lanes, context over time, models, tools and files.
+            </span>
+          </div>
+          <ArrowUpRight size={15} />
+        </button>
+        <button type="button" onClick={onContext}>
+          <Gauge size={21} />
+          <div>
+            <strong>Context dashboard</strong>
+            <span>
+              Context pressure, what fills the window, cache residency, thresholds and memory.
             </span>
           </div>
           <ArrowUpRight size={15} />

@@ -66,6 +66,11 @@ const SessionUsage = lazy(() =>
 const SessionStory = lazy(() =>
   import('./SessionStory').then((module) => ({ default: module.SessionStory })),
 );
+const SessionContextDashboard = lazy(() =>
+  import('./SessionContextDashboard').then((module) => ({
+    default: module.SessionContextDashboard,
+  })),
+);
 export type EngineTab =
   | 'chat'
   | 'activity'
@@ -75,6 +80,7 @@ export type EngineTab =
   | 'side-effects'
   | 'usage'
   | 'story'
+  | 'context'
   | 'plan'
   | 'files'
   | 'changes'
@@ -149,6 +155,10 @@ export function EngineWorkspace({
     );
   }, [projectId, state.sessionId]);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const openTool = (name: EngineTab) => () => {
+    setTab(name);
+    setToolsOpen(false);
+  };
   const end = useRef<HTMLDivElement>(null);
   const chatPane = useRef<HTMLDivElement>(null);
   const following = useRef(true);
@@ -247,6 +257,7 @@ export function EngineWorkspace({
               'side-effects',
               'usage',
               'story',
+              'context',
               'plan',
             ].includes(tab)
               ? 'chosen-tab project-tools-button'
@@ -271,38 +282,15 @@ export function EngineWorkspace({
       {toolsOpen && (
         <WorkspaceTools
           onClose={() => setToolsOpen(false)}
-          onHistory={() => {
-            setTab('history');
-            setToolsOpen(false);
-          }}
-          onSkills={() => {
-            setTab('skills');
-            setToolsOpen(false);
-          }}
-          onMcpTasks={() => {
-            setTab('mcp-tasks');
-            setToolsOpen(false);
-          }}
-          onProcesses={() => {
-            setTab('processes');
-            setToolsOpen(false);
-          }}
-          onSideEffects={() => {
-            setTab('side-effects');
-            setToolsOpen(false);
-          }}
-          onUsage={() => {
-            setTab('usage');
-            setToolsOpen(false);
-          }}
-          onStory={() => {
-            setTab('story');
-            setToolsOpen(false);
-          }}
-          onPlan={() => {
-            setTab('plan');
-            setToolsOpen(false);
-          }}
+          onHistory={openTool('history')}
+          onSkills={openTool('skills')}
+          onMcpTasks={openTool('mcp-tasks')}
+          onProcesses={openTool('processes')}
+          onSideEffects={openTool('side-effects')}
+          onUsage={openTool('usage')}
+          onStory={openTool('story')}
+          onContext={openTool('context')}
+          onPlan={openTool('plan')}
           onProject={() => {
             setToolsOpen(false);
             onProject();
@@ -311,10 +299,7 @@ export function EngineWorkspace({
             setToolsOpen(false);
             onSettings();
           }}
-          onActivity={() => {
-            setTab('activity');
-            setToolsOpen(false);
-          }}
+          onActivity={openTool('activity')}
         />
       )}
       {state.error && (
@@ -575,6 +560,17 @@ export function EngineWorkspace({
             projectRoot={projectRoot}
             state={state}
             send={send}
+            command={command}
+            onBack={backToChat}
+          />
+        </Suspense>
+      ) : tab === 'context' ? (
+        <Suspense fallback={<p role="status">Opening the context dashboard…</p>}>
+          <SessionContextDashboard
+            key={state.sessionId}
+            projectId={projectId}
+            projectRoot={projectRoot}
+            state={state}
             command={command}
             onBack={backToChat}
           />

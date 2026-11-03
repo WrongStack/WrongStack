@@ -2,6 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { HistoryRetention, RequestResidency } from '@wrongstack/core/utils/residency-labels';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ResidencySection } from '../../src/components/context-dashboard-residency.js';
+import '../../src/i18n';
 
 afterEach(cleanup);
 
