@@ -6,6 +6,7 @@ import { entries, record } from './engine-values';
 import { HistoryImage } from './HistoryImage';
 import { MarkdownContent } from './MarkdownContent';
 import type { HistorySearchSelection } from './ProjectHistorySearch';
+import { SessionInspectSummary } from './SessionInspectSummary';
 import { recoveryDate } from './session-recovery-model';
 import { StructuredToolValue } from './ToolApprovalCard';
 
@@ -119,6 +120,7 @@ export function SessionTranscript({
       className="history-transcript"
       aria-label="Recorded session transcript"
     >
+      <SessionInspectSummary key={id} id={id} command={command} />
       <header>
         <div>
           <h3>Conversation</h3>

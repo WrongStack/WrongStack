@@ -6801,3 +6801,14 @@ copies, starting with SAGE memory.
   loader dropped with its reason. The list is read-only; rules are edited in the global config
   file. It reads the `rules` and `ruleErrors` already in `brain.config`.
 - Checks: tested in jsdom (order, action, off, dropped rules); typecheck clean.
+
+### Recorded session summary in history (2026-11-04)
+
+- A recorded conversation in the project's history now opens with a "Session summary", as the
+  WebUI's session inspector shows it: token, message, iteration, tool-call (with failures), file
+  and compaction totals, the outcome, the tool breakdown by use, the file changes with their tool
+  and operation, and an event timeline filterable by label or type.
+- It is read with `session.inspect` only when the summary is first opened, so selecting a row
+  still reads just the transcript page.
+- Checks: tested in jsdom (lazy single read, totals, ordering, filter, failed read); desktop tests
+  pass; typecheck clean.
