@@ -6461,3 +6461,34 @@ copies, starting with SAGE memory.
   still disconnected; the setting was not changed for the check, since it is shared with the
   WebUI and CLI.
 - Checks: desktop 730 tests pass; WebUI i18n tests pass; typecheck and Biome clean.
+
+### Proof-Driven Hunt commands (2026-11-03)
+
+- The composer runs the WebUI's seven hunts with the same names and aliases: `/bughunt`,
+  `/sechunt` (`/secproof`), `/racehunt` (`/leakhunt`, `/flakehunt`), `/debloat` (`/deadcode`,
+  `/excise`), `/uipolish` (`/a11yhunt`, `/uihunt`), `/typehunt` (`/boundaryhunt`) and `/testgap`
+  (`/covhunt`, `/invarianthunt`). Each takes `[--rounds 1..10] [scope]`, `stop` or `help`; they are
+  listed under "Hunts" in `/help` and in the slash popup.
+- Starting one does what the WebUI does: it turns subagents off for the conversation (the
+  read-only companions stay), reads the builtin protocol, and sends round 1 with the run rules
+  ("desktop run configuration"). The first round's text is built by the same shared function as
+  the WebUI's, so both send the same instruction apart from the client name.
+- Each finished round (status `done`) starts the next one, until the requested count. Every
+  round's prompt carries the WebUI's hunt metadata, so the conversation itself says which round
+  is running: nothing else is stored. Only a result that arrives while the conversation is open
+  starts a round by itself; a hunt whose round finished while it was closed, or whose next round
+  could not be sent, shows "paused after round n/m" with Continue and End hunt.
+- `/<hunt> stop` lets the running round finish and starts no further round; between rounds it
+  ends the hunt. Automatic next-step continuation waits while a hunt has rounds left.
+- A round is shown in the transcript as a card (hunt name, "Round n of m", scope) instead of
+  its protocol text; Copy still copies the full prompt.
+- The hunt argument grammar, aliases and message format moved to
+  `@wrongstack/project-surfaces/lib/bug-hunt-commands` and `lib/bug-hunt-message`; the WebUI keeps
+  its paths as re-exports and its router uses the shared parser.
+- The queued-prompt panel moved out of the composer into `ComposerQueue.tsx` (no change in
+  behaviour), which keeps the composer under its size ratchet.
+- Not seen in the native window yet; running a hunt changes code in the project, so it was not
+  started for the check.
+- Checks: desktop 741 tests pass (the context-editor test now formats its expectation with the
+  runtime locale, since Node on this machine prints `1.200`); WebUI hunt, slash-routing and
+  bug-hunt store tests pass (215); typecheck and Biome clean.

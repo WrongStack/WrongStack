@@ -1,0 +1,51 @@
+.hunt-paused {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.hunt-paused > svg {
+  color: var(--accent);
+}
+.hunt-paused > span {
+  flex: 1;
+  min-width: 12rem;
+}
+.hunt-round-card {
+  display: grid;
+  gap: 8px;
+  min-width: 15rem;
+}
+.hunt-round-card > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+}
+.hunt-round-card > strong > svg {
+  color: var(--accent);
+}
+.hunt-round-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.hunt-round-card > div > span {
+  max-width: 100%;
+  padding: 4px 8px;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.hunt-round-card > div > .hunt-round {
+  border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+}

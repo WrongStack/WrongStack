@@ -1,7 +1,13 @@
+import { parseHuntSlashArgs } from '@wrongstack/project-surfaces/lib/bug-hunt-commands';
+import {
+  BUG_HUNT_MODE_DESCRIPTIONS,
+  type BugHuntMode,
+} from '@wrongstack/project-surfaces/lib/bug-hunt-message';
 import { agentModes } from './AgentModeControl';
 import { AUTONOMY_MODES, sessionAutonomy } from './autonomy-model';
 import type { SubmitMode } from './composer-model';
 import { type DesktopNavigation, parseDesktopCommand } from './desktop-commands';
+import { type HuntRequest, huntLabel } from './desktop-hunt';
 import type { EngineCommand } from './engine-operations';
 
 /** What a command needs from the composer and the conversation it is typed in. */
@@ -9,6 +15,10 @@ export interface DesktopCommandContext {
   command: EngineCommand;
   /** This conversation's preferences as the engine last reported them (`prefs.updated`). */
   prefs: Record<string, unknown>;
+  /** Whether a turn is running in this conversation. */
+  running: boolean;
+  /** Stops the running hunt after its current round; the notice to show, or null without one. */
+  stopHunt(): string | null;
   openHelp(): void;
   openPrompts(view: 'library' | 'journal'): void;
   openContext(action: 'inspect' | 'compact' | 'compact-aggressive' | 'repair' | 'clear'): void;
@@ -30,7 +40,8 @@ export interface DesktopCommandContext {
 export type DesktopCommandOutcome =
   | { kind: 'handled' }
   | { kind: 'refused'; message: string }
-  | { kind: 'submit'; text: string; mode?: SubmitMode | undefined };
+  | { kind: 'submit'; text: string; mode?: SubmitMode | undefined }
+  | { kind: 'hunt'; request: HuntRequest };
 
 const HANDLED: DesktopCommandOutcome = { kind: 'handled' };
 const refused = (message: string): DesktopCommandOutcome => ({ kind: 'refused', message });
@@ -164,6 +175,35 @@ function reviewPrompt(focus: string): string {
   );
 }
 
+function runHunt(
+  mode: BugHuntMode,
+  name: string,
+  argument: string,
+  context: DesktopCommandContext,
+): DesktopCommandOutcome {
+  const label = huntLabel(mode);
+  const usage = `${name} [--rounds 1..10] [scope]`;
+  const parsed = parseHuntSlashArgs(argument);
+  switch (parsed.kind) {
+    case 'help':
+      context.notify(
+        `${label}: ${BUG_HUNT_MODE_DESCRIPTIONS[mode]} Usage: ${usage}, or ${name} stop.`,
+      );
+      return HANDLED;
+    case 'error':
+      return refused(`Usage: ${usage}. A hunt runs 1 to 10 rounds.`);
+    case 'stop':
+      context.notify(context.stopHunt() ?? 'No Proof-Driven Hunt is running in this conversation.');
+      return HANDLED;
+    case 'start':
+      if (context.running)
+        return refused(
+          `Wait for the current turn to finish (or /stop it) before starting ${label}.`,
+        );
+      return { kind: 'hunt', request: { mode, maxBugs: parsed.maxBugs, scope: parsed.scope } };
+  }
+}
+
 /**
  * Runs a draft that starts with a command against the composer and its conversation; null
  * when the draft is ordinary text.
@@ -212,6 +252,8 @@ export function runDesktopCommand(
       return runYolo(argument, context);
     case 'nextsteps':
       return runNextSteps(argument, context);
+    case 'hunt':
+      return command.hunt ? runHunt(command.hunt, command.name, argument, context) : HANDLED;
     case 'help':
       context.openHelp();
       return HANDLED;

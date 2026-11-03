@@ -1,7 +1,6 @@
 import {
   ArrowUp,
   BookOpen,
-  ChevronDown,
   Clock3,
   CornerDownLeft,
   FilePlus2,
@@ -29,6 +28,7 @@ import {
   useComposerAttachments,
 } from './ComposerAttachments';
 import { usePasteHint } from './ComposerPasteHint';
+import { ComposerQueue } from './ComposerQueue';
 import { ComposerReferenceChips } from './ComposerReferenceChips';
 import { type ComposerAttachment, wireAttachments } from './composer-attachments';
 import { dispatchComposer, type SubmitMode, supportsQueue } from './composer-model';
@@ -44,6 +44,7 @@ import { type DesktopCommandContext, runDesktopCommand } from './desktop-command
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
+import { useHunts } from './HuntRounds';
 import { JournalRecallLoader } from './JournalRecallLoader';
 import { Modal } from './Modal';
 import { NextStepsPanel } from './NextStepsPanel';
@@ -240,6 +241,51 @@ export function SessionComposer({
     }, 500);
     return () => clearTimeout(timer);
   }, [draft, state.connected, state.running, state.results['session.start'], send]);
+  const dispatchPorts: Parameters<typeof dispatchComposer>[2] = {
+    current: () => current.current,
+    send,
+    command,
+    onBtwSaved: (messageId, text) =>
+      void btwReceipts.record(current.current.sessionId, {
+        messageId,
+        text,
+        sentAt: Date.now(),
+      }),
+    waitForIdle: async () => {
+      const started = Date.now();
+      while (current.current.running) {
+        if (!mounted.current || !current.current.connected)
+          throw Error('The session detached while stopping. Your draft is kept.');
+        if (Date.now() - started > 30000)
+          throw Error(
+            'The engine has not finished stopping. Your draft is kept; check the run before retrying.',
+          );
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    },
+  };
+  // A hunt round goes out as it is: file references and attachments staged in the composer stay.
+  const hunts = useHunts({
+    state,
+    command,
+    onDraftChange,
+    report: (notice, problem) => {
+      if (!mounted.current) return;
+      setNotice(notice);
+      setError(problem);
+    },
+    sendRound: async (text) => {
+      if (busy.current) throw Error('A submit is already in progress.');
+      busy.current = true;
+      setSending(true);
+      try {
+        return await dispatchComposer(text, 'steer', dispatchPorts);
+      } finally {
+        busy.current = false;
+        if (mounted.current) setSending(false);
+      }
+    },
+  });
   const deliver = async (
     text: string,
     selected: SubmitMode,
@@ -261,29 +307,7 @@ export function SessionComposer({
       const response = await dispatchComposer(
         referenceMessage(text, attached, projectRoot),
         selected,
-        {
-          current: () => current.current,
-          send,
-          command,
-          onBtwSaved: (messageId, text) =>
-            void btwReceipts.record(current.current.sessionId, {
-              messageId,
-              text,
-              sentAt: Date.now(),
-            }),
-          waitForIdle: async () => {
-            const started = Date.now();
-            while (current.current.running) {
-              if (!mounted.current || !current.current.connected)
-                throw Error('The session detached while stopping. Your draft is kept.');
-              if (Date.now() - started > 30000)
-                throw Error(
-                  'The engine has not finished stopping. Your draft is kept; check the run before retrying.',
-                );
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-          },
-        },
+        dispatchPorts,
         refinedFrom !== undefined
           ? referenceMessage(refinedFrom, attached, projectRoot)
           : undefined,
@@ -397,6 +421,8 @@ export function SessionComposer({
     runDesktopCommand(text, {
       command,
       prefs: state.results['prefs.updated'] ?? {},
+      running: state.running,
+      stopHunt: hunts.stop,
       openHelp: () => setCommandHelp(true),
       openPrompts: setPromptWorkspace,
       openContext: setContextPanel,
@@ -434,6 +460,7 @@ export function SessionComposer({
       setError('');
       return void onDraftChange('');
     }
+    if (outcome?.kind === 'hunt') return void hunts.start(outcome.request);
     const text = outcome?.text ?? (draft.startsWith('//') ? draft.slice(1) : draft);
     void beginSubmission(text, outcome?.mode ?? mode).catch(() => {});
   };
@@ -575,6 +602,7 @@ export function SessionComposer({
         !draft.trim() &&
         !references.length &&
         !attachments.length &&
+        !hunts.continues &&
         (() => {
           const continuation = sessionAutonomy(state.results['prefs.updated']);
           const step = autoContinueStep({
@@ -595,72 +623,28 @@ export function SessionComposer({
             />
           ) : null;
         })()}
+      {hunts.view}
       <BtwReceipts
         sessionId={state.sessionId}
         command={command}
         mailboxEvent={state.results['mailbox.event'] ?? state.results['mailbox.received']}
       />
-      {state.queue.length > 0 && (
-        <details className="composer-queue" ref={queuePanel}>
-          <summary>
-            <ListPlus size={14} /> {state.queue.length} queued{' '}
-            {state.queue.length === 1 ? 'prompt' : 'prompts'}
-            <small>Engine-owned · runs after this turn</small>
-            <ChevronDown size={13} />
-          </summary>
-          <div className="composer-queue-heading">
-            <span>Pending prompts</span>
-            <button
-              type="button"
-              disabled={queueBusy || !state.connected}
-              onClick={() => void queueAction('queue.clear')}
-            >
-              Clear queue
-            </button>
-          </div>
-          <ol>
-            {state.queue.map((item) => (
-              <li key={item.id}>
-                <p>
-                  {splitReferenceMessage(item.text).text || 'Project file references'}
-                  {splitReferenceMessage(item.text).paths.length > 0 && (
-                    <small>
-                      {' '}
-                      · {splitReferenceMessage(item.text).paths.length} referenced files
-                    </small>
-                  )}
-                  {item.imageCount > 0 && <small> · {item.imageCount} attachments</small>}
-                </p>
-                <div>
-                  <button
-                    type="button"
-                    title="Copy queued text into the composer; the original stays queued"
-                    disabled={sending}
-                    onClick={() => {
-                      const view = splitReferenceMessage(item.text);
-                      if (draft.trim() || references.length || attachments.length) setRestore(view);
-                      else {
-                        onDraftChange(view.text);
-                        onReferencesChange(view.references);
-                      }
-                    }}
-                  >
-                    <Pencil size={13} /> {item.imageCount > 0 ? 'Copy text only' : 'Copy to draft'}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Remove queued prompt ${item.text}`}
-                    disabled={queueBusy || !state.connected}
-                    onClick={() => void queueAction('queue.remove', { id: item.id })}
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </details>
-      )}
+      <ComposerQueue
+        queue={state.queue}
+        panel={queuePanel}
+        busy={queueBusy}
+        connected={state.connected}
+        sending={sending}
+        onAction={(type, payload) => void queueAction(type, payload)}
+        onCopy={(text) => {
+          const view = splitReferenceMessage(text);
+          if (draft.trim() || references.length || attachments.length) setRestore(view);
+          else {
+            onDraftChange(view.text);
+            onReferencesChange(view.references);
+          }
+        }}
+      />
       {error && (
         <p className="composer-error" role="alert">
           {error}

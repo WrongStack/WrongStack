@@ -1,109 +1,18 @@
 import {
-  BUG_HUNT_LIMITS,
+  parseHuntSlashArgs,
+  resolveHuntSlashCommand,
+} from '@wrongstack/project-surfaces/lib/bug-hunt-commands';
+import {
   BUG_HUNT_MODE_DESCRIPTIONS,
   BUG_HUNT_MODE_LABELS,
   BUG_HUNT_MODE_SLUGS,
-  type BugHuntLimit,
-  type BugHuntMode,
   buildBugHuntMessage,
+  firstHuntRoundInstruction,
 } from '@/lib/bug-hunt-message';
 import { launchBuiltinRound, type RoundLauncherClient } from '@/lib/launch-builtin-round';
 import { useBugHuntRunStore } from '@/stores/bug-hunt-run-store';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { ChatAssistantMessage, SlashRoutingClient } from './slash-routing-types.js';
-
-interface HuntSlashCommandRoute {
-  mode: BugHuntMode;
-  canonicalCmd: string;
-}
-
-const HUNT_COMMAND_ROUTES: Readonly<Record<string, HuntSlashCommandRoute>> = {
-  '/bughunt': { mode: 'bughunt', canonicalCmd: '/bughunt' },
-  '/sechunt': { mode: 'sechunt', canonicalCmd: '/sechunt' },
-  '/secproof': { mode: 'sechunt', canonicalCmd: '/sechunt' },
-  '/racehunt': { mode: 'racehunt', canonicalCmd: '/racehunt' },
-  '/leakhunt': { mode: 'racehunt', canonicalCmd: '/racehunt' },
-  '/flakehunt': { mode: 'racehunt', canonicalCmd: '/racehunt' },
-  '/debloat': { mode: 'debloat', canonicalCmd: '/debloat' },
-  '/deadcode': { mode: 'debloat', canonicalCmd: '/debloat' },
-  '/excise': { mode: 'debloat', canonicalCmd: '/debloat' },
-  '/uipolish': { mode: 'uipolish', canonicalCmd: '/uipolish' },
-  '/a11yhunt': { mode: 'uipolish', canonicalCmd: '/uipolish' },
-  '/uihunt': { mode: 'uipolish', canonicalCmd: '/uipolish' },
-  '/typehunt': { mode: 'typehunt', canonicalCmd: '/typehunt' },
-  '/boundaryhunt': { mode: 'typehunt', canonicalCmd: '/typehunt' },
-  '/testgap': { mode: 'testgap', canonicalCmd: '/testgap' },
-  '/covhunt': { mode: 'testgap', canonicalCmd: '/testgap' },
-  '/invarianthunt': { mode: 'testgap', canonicalCmd: '/testgap' },
-};
-
-export function resolveHuntSlashCommand(cmd: string): HuntSlashCommandRoute | undefined {
-  return HUNT_COMMAND_ROUTES[cmd.toLowerCase()];
-}
-
-function isBugHuntLimit(value: number): value is BugHuntLimit {
-  return (BUG_HUNT_LIMITS as readonly number[]).includes(value);
-}
-
-export function parseWebUIHuntSlashArgs(
-  rawArgs: string,
-):
-  | { kind: 'stop' }
-  | { kind: 'help' }
-  | { kind: 'error' }
-  | { kind: 'start'; maxBugs: BugHuntLimit; scope: string } {
-  const trimmed = rawArgs.trim();
-  if (!trimmed) {
-    return { kind: 'start', maxBugs: 1, scope: '' };
-  }
-  const lower = trimmed.toLowerCase();
-  if (lower === 'stop') {
-    return { kind: 'stop' };
-  }
-  if (lower === 'help' || lower === '--help' || lower === '-h') {
-    return { kind: 'help' };
-  }
-
-  const tokens = trimmed.split(/\s+/);
-  let maxBugs: BugHuntLimit = 1;
-  const scopeParts: string[] = [];
-
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i]!;
-    if (token === '--rounds' || token === '-n') {
-      const next = tokens[i + 1];
-      if (!next || !/^\d+$/.test(next)) {
-        return { kind: 'error' };
-      }
-      const parsed = Number.parseInt(next, 10);
-      if (!isBugHuntLimit(parsed)) {
-        return { kind: 'error' };
-      }
-      maxBugs = parsed;
-      i++;
-      continue;
-    }
-    if (token.startsWith('--rounds=')) {
-      const value = token.slice('--rounds='.length);
-      if (!/^\d+$/.test(value)) {
-        return { kind: 'error' };
-      }
-      const parsed = Number.parseInt(value, 10);
-      if (!isBugHuntLimit(parsed)) {
-        return { kind: 'error' };
-      }
-      maxBugs = parsed;
-      continue;
-    }
-    scopeParts.push(token);
-  }
-
-  return {
-    kind: 'start',
-    maxBugs,
-    scope: scopeParts.join(' ').trim(),
-  };
-}
 
 function isFullRoundLauncherClient(
   client: SlashRoutingClient | null | undefined,
@@ -133,7 +42,7 @@ export function runHuntSlashCommand(options: RunHuntSlashCommandOptions): boolea
   const { mode, canonicalCmd } = route;
   const label = BUG_HUNT_MODE_LABELS[mode];
   const slug = BUG_HUNT_MODE_SLUGS[mode];
-  const parsed = parseWebUIHuntSlashArgs(options.args);
+  const parsed = parseHuntSlashArgs(options.args);
 
   if (parsed.kind === 'help') {
     options.addMessage({
@@ -208,16 +117,13 @@ export function runHuntSlashCommand(options: RunHuntSlashCommandOptions): boolea
       subagentsAllowed: prefsState.subagentsAllowed,
       sessionId: resolvedSessionId,
       setPrefs: (patch) => useLocalPrefs.getState().set(patch),
-      compose: (content) => {
-        const scopeText = scope ? `${scope} and all of its descendants` : 'the whole project';
-        return buildBugHuntMessage(
-          `${content}
-
-## WebUI run configuration (mandatory)
-This is round 1/${maxBugs}. Investigate at most one proven bug in this round: discovery, proof, fix, verification, and cleanup. If no legitimate proof is possible, report no-proven-bug or blocked without changing production code. Stop after the round report; the WebUI will start another round only after this one finishes successfully and only while below the configured limit. Stay strictly within ${scopeText}.`,
-          { scope, maxBugs, currentRound: 1, ...modePatch },
-        );
-      },
+      compose: (content) =>
+        buildBugHuntMessage(firstHuntRoundInstruction(content, { scope, maxBugs }, 'WebUI'), {
+          scope,
+          maxBugs,
+          currentRound: 1,
+          ...modePatch,
+        }),
       onSent: (id, content) => {
         if (resolvedSessionId) {
           useBugHuntRunStore.getState().start(resolvedSessionId, {

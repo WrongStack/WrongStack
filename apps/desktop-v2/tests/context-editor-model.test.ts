@@ -61,7 +61,7 @@ describe('context editor model', () => {
         before: { messages: 4, fullRequestTokens: 1200 },
         after: { messages: 2, fullRequestTokens: 900 },
       }),
-    ).toBe('4 → 2 messages · ~1,200 → ~900 request tokens');
+    ).toBe(`4 → 2 messages · ~${(1200).toLocaleString()} → ~900 request tokens`);
     expect(metricsSummary({ before: { messages: 4 } })).toBe('');
   });
 });

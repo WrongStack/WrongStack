@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T18:17:05.528Z",
+  "generatedAt": "2026-11-03T19:15:26.742Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5938,
-    "testFiles": 4924,
-    "sourceLines": 1239802,
+    "sourceFiles": 5943,
+    "testFiles": 4926,
+    "sourceLines": 1240295,
     "workspaceEdges": 239,
-    "moduleEdges": 17251,
+    "moduleEdges": 17264,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 189,
+    "testsWithoutTypecheck": 191,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -389,8 +389,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 382,
-      "testFiles": 189,
+      "sourceFiles": 385,
+      "testFiles": 191,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -735,7 +735,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 235,
+      "sourceFiles": 237,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1584,6 +1584,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/desktop-hunt.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/desktop-office-feed.test.ts",
         "projects": [
           "root-node"
@@ -2065,6 +2071,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/persisted-fields.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/pinned-sessions.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31175,6 +31187,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/desktop-hunt.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/desktop-office-feed.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31736,6 +31755,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/persisted-fields.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/pinned-sessions.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32459,6 +32485,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/HuntRounds.tsx",
+      "specifier": "./hunt.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/JevSettings.tsx",
       "specifier": "./brain-policy.css",
       "syntax": "import"
@@ -33079,8 +33110,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1108,
-      "relativeImports": 34
+      "lines": 1092,
+      "relativeImports": 36
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -33110,14 +33141,14 @@
       "relativeImports": 34
     },
     {
-      "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1108,
-      "relativeImports": 34
-    },
-    {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
       "lines": 1098,
       "relativeImports": 0
+    },
+    {
+      "file": "apps/desktop-v2/src/SessionComposer.tsx",
+      "lines": 1092,
+      "relativeImports": 36
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",

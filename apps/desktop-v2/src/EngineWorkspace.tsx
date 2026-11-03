@@ -1,3 +1,4 @@
+import { parseBugHuntMessage } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
 import { stripNextStepsBlock } from '@wrongstack/webui-protocol';
 import {
   ChevronDown,
@@ -26,6 +27,7 @@ import {
 import { EngineDataView } from './EngineDataView';
 import { FallbackPicker } from './FallbackPicker';
 import { workspaceFilePath } from './file-model';
+import { HuntRoundCard } from './HuntRounds';
 import { InputRequestCard } from './InputRequestCard';
 import type { InputDraft } from './input-form-model';
 import { MarkdownContent } from './MarkdownContent';
@@ -663,6 +665,8 @@ export function EngineWorkspace({
   );
 }
 function UserComposerMessage({ text }: { text: string }) {
+  const hunt = parseBugHuntMessage(text);
+  if (hunt) return <HuntRoundCard round={hunt} />;
   const view = splitReferenceMessage(text);
   return (
     <>

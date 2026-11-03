@@ -1,3 +1,5 @@
+import type { BugHuntMode } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
+import { HUNT_COMMANDS } from './desktop-hunt';
 import type { ProjectPage } from './useDesktop';
 
 /** A conversation tab a command can open. */
@@ -17,7 +19,14 @@ export type ConversationTab =
 /** Where a navigation command goes: one of the conversation's tabs or a project page. */
 export type DesktopNavigation = { tab: ConversationTab } | { page: ProjectPage };
 
-export type DesktopCommandCategory = 'Run' | 'Conversation' | 'Tools' | 'Agent' | 'Project' | 'App';
+export type DesktopCommandCategory =
+  | 'Run'
+  | 'Conversation'
+  | 'Tools'
+  | 'Agent'
+  | 'Hunts'
+  | 'Project'
+  | 'App';
 
 type CommandAction =
   | 'help'
@@ -41,7 +50,8 @@ type CommandAction =
   | 'autonomy'
   | 'mode'
   | 'yolo'
-  | 'nextsteps';
+  | 'nextsteps'
+  | 'hunt';
 
 export interface DesktopCommand {
   name: string;
@@ -53,6 +63,8 @@ export interface DesktopCommand {
   action: CommandAction;
   /** Where an `open` command goes. */
   opens?: DesktopNavigation;
+  /** Which Proof-Driven Hunt a `hunt` command starts. */
+  hunt?: BugHuntMode;
 }
 
 const tab = (name: ConversationTab): DesktopNavigation => ({ tab: name });
@@ -63,6 +75,7 @@ export const DESKTOP_CATEGORY_ORDER: readonly DesktopCommandCategory[] = [
   'Conversation',
   'Tools',
   'Agent',
+  'Hunts',
   'Project',
   'App',
 ];
@@ -284,6 +297,18 @@ export const desktopCommands: readonly DesktopCommand[] = [
     description: 'Make next steps optional or required; cap automatic continuation',
     action: 'nextsteps',
   },
+  // Hunts: one proven defect per round, as many rounds as asked
+  ...HUNT_COMMANDS.map(
+    (hunt): DesktopCommand => ({
+      name: hunt.name,
+      aliases: hunt.aliases,
+      category: 'Hunts',
+      usage: '[--rounds 1..10] [scope] · stop',
+      description: `${hunt.label} — ${hunt.description}`,
+      action: 'hunt',
+      hunt: hunt.mode,
+    }),
+  ),
   // Project
   {
     name: '/memory',

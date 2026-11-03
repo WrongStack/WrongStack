@@ -11,6 +11,8 @@ function contextWith(prefs: Record<string, unknown> = {}, reply: Record<string, 
   const context = {
     command: vi.fn(async () => reply),
     prefs,
+    running: false,
+    stopHunt: vi.fn((): string | null => null),
     openHelp: vi.fn(),
     openPrompts: vi.fn(),
     openContext: vi.fn(),
@@ -63,6 +65,7 @@ describe('desktop command catalog', () => {
       '/compact',
       '/compact!',
       '/usage',
+      '/testgap',
     ]);
   });
 });
