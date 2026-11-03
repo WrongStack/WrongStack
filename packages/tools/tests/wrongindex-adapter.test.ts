@@ -20,7 +20,9 @@ import {
   isOwnedByWrongIndex,
   OWNER_LOCK_FILE,
 } from '../src/codebase-index/wrongindex/owner-lock.js';
+import { ensureCodebaseIndexServer } from '../src/codebase-index/background-indexer.js';
 import {
+  releaseWrongIndexSessions,
   resetWrongIndexConnection,
   resolveIndexRoute,
   resolveIndexServiceMode,
@@ -297,13 +299,43 @@ describe.runIf(Boolean(daemonExe) && process.platform === 'win32')(
         path.join(root, 'src', 'c.ts'),
         'export function gammaAdded() {\n  return 1;\n}\n',
       );
+      // A targeted run, as WrongStack's own: only the listed file is read.
       const inc = await dispatchIndexOp(
         'index',
         { projectRoot: root, indexDir, files: [path.join(root, 'src', 'c.ts')] },
         opts,
         true,
       );
-      expect(inc.symbolsIndexed).toBeGreaterThan(run.symbolsIndexed);
+      expect(inc.changedFiles).toBe(1);
+      expect(inc.filesIndexed).toBe(1);
+      const added = await dispatchIndexOp(
+        'search',
+        { projectRoot: root, indexDir, query: 'gammaAdded', limit: 5 },
+        opts,
+        false,
+      );
+      expect(JSON.stringify(added)).toContain('gammaAdded');
+
+      // External edits: with `watchExternal` the host holds a lease and the
+      // service watches the checkout (policy `session`).
+      await ensureCodebaseIndexServer({ projectRoot: root, indexDir, watchExternal: true });
+      fs.writeFileSync(
+        path.join(root, 'src', 'd.ts'),
+        'export function deltaWatched() {\n  return 2;\n}\n',
+      );
+      const deadline = Date.now() + 60_000;
+      for (;;) {
+        const r = await dispatchIndexOp(
+          'search',
+          { projectRoot: root, indexDir, query: 'deltaWatched', limit: 5 },
+          opts,
+          false,
+        );
+        if (JSON.stringify(r).includes('deltaWatched')) break;
+        if (Date.now() > deadline) throw new Error('the service did not pick up an external edit');
+        await new Promise((res) => setTimeout(res, 250));
+      }
+      await releaseWrongIndexSessions();
 
       setIndexServiceMode('local');
       await expect(
