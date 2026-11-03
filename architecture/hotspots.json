@@ -114,7 +114,7 @@
       "lines": 705,
       "relativeImports": 5
     },
-    "packages/webui/src/components/codemap-model.ts": {
+    "packages/project-surfaces/src/atlas/codemap-model.ts": {
       "lines": 1098,
       "relativeImports": 0
     },
@@ -137,10 +137,6 @@
     "apps/desktop-v2/src/AutomationWorkspace.tsx": {
       "lines": 833,
       "relativeImports": 13
-    },
-    "apps/desktop-v2/src/CodeAtlas.tsx": {
-      "lines": 915,
-      "relativeImports": 11
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
       "lines": 2016,

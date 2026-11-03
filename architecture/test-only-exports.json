@@ -1231,6 +1231,20 @@
       "pruneWindow",
       "windowSpend"
     ],
+    "packages/project-surfaces/src/atlas/codemap-model.ts": [
+      "_clearNormalizedPathCacheForTests",
+      "_normalizedPathCacheSizeForTests",
+      "inferGraphCommunities",
+      "SMART_CANVAS_EDGE_LIMIT",
+      "SMART_CANVAS_NODE_LIMIT"
+    ],
+    "packages/project-surfaces/src/atlas/CodeMapVisuals.tsx": [
+      "HUB_RANK",
+      "rankAccentWidth"
+    ],
+    "packages/project-surfaces/src/atlas/frames.ts": [
+      "ATLAS_FRAME_TYPES"
+    ],
     "packages/project-surfaces/src/kanban/KanbanBoardChrome.tsx": [
       "PRESENCE_RECENT_INACTIVE",
       "visiblePresence"
@@ -1254,6 +1268,9 @@
     ],
     "packages/project-surfaces/src/kanban/TaskIntelligencePanel.tsx": [
       "deriveTaskIntelligence"
+    ],
+    "packages/project-surfaces/src/lib/arrow-pane-registry.ts": [
+      "resetArrowPaneRegistryForTests"
     ],
     "packages/project-surfaces/src/office/AgentOfficeView/model.ts": [
       "shortModelName"
@@ -1979,17 +1996,6 @@
     "packages/webui/src/components/ChatInput/image-attachments.ts": [
       "MAX_PROCESSED_IMAGE_BYTES"
     ],
-    "packages/webui/src/components/codemap-model.ts": [
-      "_clearNormalizedPathCacheForTests",
-      "_normalizedPathCacheSizeForTests",
-      "inferGraphCommunities",
-      "SMART_CANVAS_EDGE_LIMIT",
-      "SMART_CANVAS_NODE_LIMIT"
-    ],
-    "packages/webui/src/components/CodeMapVisuals.tsx": [
-      "HUB_RANK",
-      "rankAccentWidth"
-    ],
     "packages/webui/src/components/ConfirmModal.tsx": [
       "alertModal"
     ],
@@ -2130,9 +2136,6 @@
       "AGENT_STATUS_LABEL",
       "classifyCtxPct",
       "isAgentActive"
-    ],
-    "packages/webui/src/lib/arrow-pane-registry.ts": [
-      "resetArrowPaneRegistryForTests"
     ],
     "packages/webui/src/lib/default-prompt-pools.ts": [
       "DEFAULT_PROMPT_CARDS",

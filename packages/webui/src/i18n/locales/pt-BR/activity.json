@@ -3332,6 +3332,9 @@
   "codeMap": {
     "snapshotUnavailable": "Grafo do CodeMap indisponível — inicie o servidor WebUI para carregá-lo.",
     "codeAtlas": "Atlas de código",
+    "mapView": "Mapa",
+    "mapViewHint": "Explorar código e referências",
+    "atlasViews": "Visualizações do atlas",
     "architectureIntelligence": "Inteligência de arquitetura",
     "codeMapBreadcrumb": "Trilha do mapa de código",
     "back": "Voltar",

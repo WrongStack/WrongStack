@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T11:03:08.856Z",
+  "generatedAt": "2026-11-03T14:43:02.892Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5835,
+    "sourceFiles": 5867,
     "testFiles": 4914,
-    "sourceLines": 1237801,
+    "sourceLines": 1237325,
     "workspaceEdges": 238,
-    "moduleEdges": 17017,
+    "moduleEdges": 17071,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 182,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1037
+    "testOnlyExports": 1038
   },
   "errors": [
     "packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change"
@@ -388,7 +388,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 368,
+      "sourceFiles": 369,
       "testFiles": 182,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -734,7 +734,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 150,
+      "sourceFiles": 181,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1324,12 +1324,6 @@
         ]
       },
       {
-        "file": "apps/desktop-v2/tests/atlas-analysis.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "apps/desktop-v2/tests/atlas-boundary-model.test.ts",
         "projects": [
           "root-node"
@@ -1337,6 +1331,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/atlas-communities.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/atlas-frames.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30812,13 +30812,6 @@
         "typecheckProjects": []
       },
       {
-        "file": "apps/desktop-v2/tests/atlas-analysis.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
         "file": "apps/desktop-v2/tests/atlas-boundary-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -30827,6 +30820,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/atlas-communities.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/atlas-frames.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32298,11 +32298,6 @@
       "syntax": "import"
     },
     {
-      "from": "apps/desktop-v2/src/CodeAtlas.tsx",
-      "specifier": "./atlas-views.css",
-      "syntax": "import"
-    },
-    {
       "from": "apps/desktop-v2/src/ComposerAttachments.tsx",
       "specifier": "./composer-attachments.css",
       "syntax": "import"
@@ -32315,6 +32310,11 @@
     {
       "from": "apps/desktop-v2/src/CouncilCard.tsx",
       "specifier": "./surfaces.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/desktop-atlas-host.tsx",
+      "specifier": "./atlas-views.css",
       "syntax": "import"
     },
     {
@@ -32480,6 +32480,11 @@
     {
       "from": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
       "specifier": "./project-agent-roster.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/ProjectAtlas.tsx",
+      "specifier": "./atlas-tools.css",
       "syntax": "import"
     },
     {
@@ -32782,6 +32787,11 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
+      "lines": 1098,
+      "relativeImports": 0
+    },
+    {
       "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
       "lines": 718,
       "relativeImports": 14
@@ -32857,11 +32867,6 @@
       "relativeImports": 5
     },
     {
-      "file": "packages/webui/src/components/codemap-model.ts",
-      "lines": 1098,
-      "relativeImports": 0
-    },
-    {
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 737,
       "relativeImports": 3
@@ -32880,11 +32885,6 @@
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "lines": 833,
       "relativeImports": 13
-    },
-    {
-      "file": "apps/desktop-v2/src/CodeAtlas.tsx",
-      "lines": 915,
-      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
@@ -32984,7 +32984,7 @@
       "relativeImports": 32
     },
     {
-      "file": "packages/webui/src/components/codemap-model.ts",
+      "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
       "lines": 1098,
       "relativeImports": 0
     },
@@ -33002,11 +33002,6 @@
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
       "lines": 917,
       "relativeImports": 16
-    },
-    {
-      "file": "apps/desktop-v2/src/CodeAtlas.tsx",
-      "lines": 915,
-      "relativeImports": 11
     },
     {
       "file": "packages/tools/src/codebase-index/infra-parser.ts",
@@ -33207,6 +33202,11 @@
       "file": "packages/coordination/src/fleet-manager.ts",
       "lines": 700,
       "relativeImports": 9
+    },
+    {
+      "file": "packages/coordination/src/subagent-budget.ts",
+      "lines": 699,
+      "relativeImports": 2
     }
   ],
   "testOnlyExports": [
@@ -35483,6 +35483,38 @@
       "name": "windowSpend"
     },
     {
+      "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
+      "name": "_clearNormalizedPathCacheForTests"
+    },
+    {
+      "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
+      "name": "_normalizedPathCacheSizeForTests"
+    },
+    {
+      "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
+      "name": "inferGraphCommunities"
+    },
+    {
+      "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
+      "name": "SMART_CANVAS_EDGE_LIMIT"
+    },
+    {
+      "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
+      "name": "SMART_CANVAS_NODE_LIMIT"
+    },
+    {
+      "file": "packages/project-surfaces/src/atlas/CodeMapVisuals.tsx",
+      "name": "HUB_RANK"
+    },
+    {
+      "file": "packages/project-surfaces/src/atlas/CodeMapVisuals.tsx",
+      "name": "rankAccentWidth"
+    },
+    {
+      "file": "packages/project-surfaces/src/atlas/frames.ts",
+      "name": "ATLAS_FRAME_TYPES"
+    },
+    {
       "file": "packages/project-surfaces/src/kanban/KanbanBoardChrome.tsx",
       "name": "PRESENCE_RECENT_INACTIVE"
     },
@@ -35521,6 +35553,10 @@
     {
       "file": "packages/project-surfaces/src/kanban/TaskIntelligencePanel.tsx",
       "name": "deriveTaskIntelligence"
+    },
+    {
+      "file": "packages/project-surfaces/src/lib/arrow-pane-registry.ts",
+      "name": "resetArrowPaneRegistryForTests"
     },
     {
       "file": "packages/project-surfaces/src/office/AgentOfficeView/model.ts",
@@ -36787,34 +36823,6 @@
       "name": "MAX_PROCESSED_IMAGE_BYTES"
     },
     {
-      "file": "packages/webui/src/components/codemap-model.ts",
-      "name": "_clearNormalizedPathCacheForTests"
-    },
-    {
-      "file": "packages/webui/src/components/codemap-model.ts",
-      "name": "_normalizedPathCacheSizeForTests"
-    },
-    {
-      "file": "packages/webui/src/components/codemap-model.ts",
-      "name": "inferGraphCommunities"
-    },
-    {
-      "file": "packages/webui/src/components/codemap-model.ts",
-      "name": "SMART_CANVAS_EDGE_LIMIT"
-    },
-    {
-      "file": "packages/webui/src/components/codemap-model.ts",
-      "name": "SMART_CANVAS_NODE_LIMIT"
-    },
-    {
-      "file": "packages/webui/src/components/CodeMapVisuals.tsx",
-      "name": "HUB_RANK"
-    },
-    {
-      "file": "packages/webui/src/components/CodeMapVisuals.tsx",
-      "name": "rankAccentWidth"
-    },
-    {
       "file": "packages/webui/src/components/ConfirmModal.tsx",
       "name": "alertModal"
     },
@@ -37145,10 +37153,6 @@
     {
       "file": "packages/webui/src/lib/agent-status.ts",
       "name": "isAgentActive"
-    },
-    {
-      "file": "packages/webui/src/lib/arrow-pane-registry.ts",
-      "name": "resetArrowPaneRegistryForTests"
     },
     {
       "file": "packages/webui/src/lib/default-prompt-pools.ts",

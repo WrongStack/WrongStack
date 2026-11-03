@@ -3394,6 +3394,9 @@
   "codeMap": {
     "snapshotUnavailable": "CodeMap grafı kullanılamıyor — yüklemek için WebUI sunucusunu başlatın.",
     "codeAtlas": "Kod Atlası",
+    "mapView": "Harita",
+    "mapViewHint": "Kodu ve referansları keşfet",
+    "atlasViews": "Atlas görünümleri",
     "architectureIntelligence": "Mimari zekâsı",
     "codeMapBreadcrumb": "Kod haritası içerik yolu",
     "back": "Geri",

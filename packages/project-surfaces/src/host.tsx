@@ -6,6 +6,7 @@ import {
   useContext,
   useLayoutEffect,
 } from 'react';
+import type { AtlasHost } from './atlas/atlas-host';
 import type { KanbanHost } from './kanban/kanban-host';
 import type { OfficeFeed } from './office/feed-types';
 
@@ -111,6 +112,8 @@ export interface SurfaceHost {
   office?: OfficeFeed | undefined;
   /** What the Kanban surfaces need; hosts without a board leave it out. */
   kanban?: KanbanHost | undefined;
+  /** What the application adds to the Code Atlas (its code-assist panel, views and evidence). */
+  atlas?: AtlasHost | undefined;
   /** Renders a message's markdown the way the application renders its own messages. */
   Markdown?: ComponentType<{ children: string }> | undefined;
 }

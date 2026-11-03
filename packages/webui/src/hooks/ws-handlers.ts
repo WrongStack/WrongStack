@@ -1,3 +1,4 @@
+import { applyAtlasFrame } from '@wrongstack/project-surfaces/atlas/frames';
 import { messageSessionId, pipeViz, sessionFor } from '@/lib/ws-client-utils';
 import type { SideEffectEntry } from '@/stores';
 import {
@@ -16,7 +17,6 @@ import {
   useSideEffectStore,
   useSpecsStore,
 } from '@/stores';
-import { useCodemapIndexStore } from '@/stores/codemap-index-store';
 import type { WSGoalAssessResult, WSServerMessage } from '@/types';
 import {
   handleMemoryList,
@@ -463,68 +463,27 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
     },
     'tool.progress': (msg: WSServerMessage) => {
       handleToolProgress(msg);
-      const activities = extractActivitiesFromMessage(msg);
-      const store = useCodemapActivityStore.getState();
-      for (const activity of activities) store.recordFileEvent(activity);
+      applyAtlasFrame(msg);
     },
     'tool.started': (msg: WSServerMessage) => {
       handleToolStarted(msg);
-      const activities = extractActivitiesFromMessage(msg);
-      if (activities.length > 0) {
-        useCodemapActivityStore.getState().startActivities(activities);
-      }
+      applyAtlasFrame(msg);
     },
     'tool.executed': (msg: WSServerMessage) => {
       handleToolExecuted(msg);
-      const payload = msg.payload as {
-        id?: string | undefined;
-        durationMs?: number | undefined;
-        ok?: boolean | undefined;
-      };
-      if (payload.id) {
-        useCodemapActivityStore.getState().finishTool(payload.id, {
-          durationMs: payload.durationMs,
-          ok: payload.ok !== false,
-        });
-      }
+      applyAtlasFrame(msg);
     },
     'codemap.tool_started': (msg: WSServerMessage) => {
       pipeViz(msg);
-      const activities = extractActivitiesFromMessage(msg);
-      if (activities.length > 0) {
-        useCodemapActivityStore.getState().startActivities(activities);
-      }
+      applyAtlasFrame(msg);
     },
     'codemap.tool_executed': (msg: WSServerMessage) => {
       pipeViz(msg);
-      const payload = msg.payload as {
-        id?: string | undefined;
-        durationMs?: number | undefined;
-        ok?: boolean | undefined;
-      };
-      if (payload.id) {
-        useCodemapActivityStore.getState().finishTool(payload.id, {
-          durationMs: payload.durationMs,
-          ok: payload.ok !== false,
-        });
-      }
+      applyAtlasFrame(msg);
     },
-    'codemap.file_event': (msg: WSServerMessage) => {
-      const activities = extractActivitiesFromMessage(msg);
-      const store = useCodemapActivityStore.getState();
-      for (const activity of activities) store.recordFileEvent(activity);
-    },
-    'codemap.index_updated': (msg: WSServerMessage) => {
-      const payload = msg.payload as { at?: number } | undefined;
-      useCodemapIndexStore.getState().notifyIndexUpdated(payload?.at);
-    },
-    'file.saved': (msg: WSServerMessage) => {
-      const activities = extractActivitiesFromMessage(msg);
-      if (activities.length > 0) {
-        const store = useCodemapActivityStore.getState();
-        for (const activity of activities) store.recordFileEvent(activity);
-      }
-    },
+    'codemap.file_event': applyAtlasFrame,
+    'codemap.index_updated': applyAtlasFrame,
+    'file.saved': applyAtlasFrame,
     'memory.event': (msg: WSServerMessage) => {
       handleMemoryEvent(msg);
       const activities = extractActivitiesFromMessage(msg);

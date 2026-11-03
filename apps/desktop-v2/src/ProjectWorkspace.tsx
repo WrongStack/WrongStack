@@ -16,12 +16,12 @@ import {
   Workflow,
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { CodeAtlas } from './CodeAtlas';
 import { projectHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import { FileWorkspace } from './FileWorkspace';
 import { MailboxUnread } from './MailboxUnread';
 import { isLive, type Project } from './model';
+import { ProjectAtlas } from './ProjectAtlas';
 import { ProjectChronicle } from './ProjectChronicle';
 import { ProjectGoals } from './ProjectGoals';
 import { type KanbanFocus, ProjectKanban } from './ProjectKanban';
@@ -340,12 +340,13 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           }}
         />
       ) : vm.projectPage === 'atlas' ? (
-        <CodeAtlas
+        <ProjectAtlas
+          projectId={project.id}
+          projectRoot={project.root}
           http={http}
           send={send}
           state={state}
           command={command}
-          projectRoot={project.root}
           onOpenFile={(path) => {
             setFileTarget(path);
             vm.setProjectPage('files');

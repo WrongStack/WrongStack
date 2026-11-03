@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-03T11:03:08.856Z
+**Generated:** 2026-11-03T14:43:02.892Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 5835 |
-| Production source lines | 1237801 |
+| Production source files | 5867 |
+| Production source lines | 1237325 |
 | Test files | 4914 |
 | Workspace dependency edges | 238 |
-| Relative module edges | 17017 |
+| Relative module edges | 17071 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -38,7 +38,7 @@
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 184 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 639 | 696 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 368 | 182 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 369 | 182 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -53,7 +53,7 @@
 | @wrongstack/plugin-sdk | 12 | 10 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 152 | 133 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 25 | 20 | — |
-| @wrongstack/project-surfaces | 150 | 0 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban |
+| @wrongstack/project-surfaces | 181 | 0 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban |
 | @wrongstack/providers | 138 | 122 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 20 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
@@ -95,11 +95,10 @@ None.
 | 1559 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1150 | `apps/desktop-v2/src/SessionComposer.tsx` |
-| 1098 | `packages/webui/src/components/codemap-model.ts` |
+| 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1019 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 917 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
-| 915 | `apps/desktop-v2/src/CodeAtlas.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
 | 889 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 833 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
@@ -140,10 +139,11 @@ None.
 | 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
 | 701 | `packages/coordination/src/provider-status-tracker.ts` |
 | 700 | `packages/coordination/src/fleet-manager.ts` |
+| 699 | `packages/coordination/src/subagent-budget.ts` |
 
 ## Exports only tests reference
 
-- 1037 runtime exports are referenced by tests and by no other production file.
+- 1038 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

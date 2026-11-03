@@ -3394,6 +3394,9 @@
   "codeMap": {
     "snapshotUnavailable": "CodeMap graph unavailable — start the WebUI server to load it.",
     "codeAtlas": "Code Atlas",
+    "mapView": "Map",
+    "mapViewHint": "Explore code and references",
+    "atlasViews": "Atlas views",
     "architectureIntelligence": "Architecture intelligence",
     "codeMapBreadcrumb": "Code map breadcrumb",
     "back": "Back",

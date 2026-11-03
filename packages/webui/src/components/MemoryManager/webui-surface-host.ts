@@ -7,6 +7,7 @@ import {
 import type { KanbanHost } from '@wrongstack/project-surfaces/kanban/kanban-host';
 import { type OfficeFeed, WEBUI_SELF } from '@wrongstack/project-surfaces/office/feed';
 import { useCallback, useMemo } from 'react';
+import { CodeAssistPanel } from '@/components/CodeAssistPanel';
 import { confirmModal } from '@/components/ConfirmModal';
 import { useProviderModels } from '@/hooks/useProviderModels';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
@@ -92,6 +93,7 @@ export const webuiSurfaceHost: SurfaceHost = {
   requestRoster: (type, payload, signal) => sendRosterMessage(type, payload, signal),
   office: webuiOfficeFeed,
   kanban: webuiKanbanHost,
+  atlas: { CodeAssist: CodeAssistPanel },
   Markdown: WebuiSurfaceMarkdown,
 };
 setDefaultSurfaceHost(webuiSurfaceHost);

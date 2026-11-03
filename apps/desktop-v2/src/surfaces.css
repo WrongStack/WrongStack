@@ -41,3 +41,21 @@
   min-width: 0;
   min-height: 0;
 }
+
+/* The WebUI's thin scrollbars, so the surfaces' narrow toolbars and lists keep their size. */
+.ws-surfaces ::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.ws-surfaces ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ws-surfaces ::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.28);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background-clip: padding-box;
+}
+.ws-surfaces ::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--primary) / 0.6);
+}

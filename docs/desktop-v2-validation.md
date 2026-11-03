@@ -6230,3 +6230,39 @@ copies, starting with SAGE memory.
 - Checks: desktop 697 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
   WebUI and the desktop; architecture health passes except a hotspot in another session's
   in-progress `packages/core` change.
+
+### Code Atlas is the WebUI's own atlas (2026-11-03)
+
+- The desktop Code Atlas page renders the WebUI's atlas: the code tree with search, the
+  dependency canvas (layers, relations and subsystem layouts, smart scope, blast overlay,
+  relation filters), the relation inspector with its guided tour and path finder, and the live
+  agent overlay, event stream and file activity drawer.
+- `packages/project-surfaces/src/atlas` holds those components, the graph model, the activity
+  and index stores and the activity extractor; the WebUI keeps its old paths as re-exports, and
+  `lib/arrow-pane-registry` moved with the tree. Graph reads go through the host's `fetch`. An
+  `AtlasHost` adds an application's own parts: the code-assist panel, header controls, views
+  beside the map (shown as tabs that replace the canvas) and evidence about the selected node.
+  The WebUI passes its `CodeAssistPanel`.
+- `atlas/frames.ts` feeds engine frames to the stores (`applyAtlasFrame`, `bindAtlasFrames`).
+  The WebUI's socket handlers now call it for the tool, codemap and file-saved frames, so both
+  applications read activity the same way.
+- Desktop: `ProjectAtlas` binds the project journal's frames (watcher file events and index
+  updates) and clears the activity store per project. Only the host's panels read the engine
+  state, so the map does not render again on every engine frame. The desktop keeps its own
+  parts: the Index project control with build status, the Subsystems, Dependency matrix and
+  Change impact views, file evidence (WrongTrace signals, open in the file workspace, SAGE
+  knowledge, file history) and its code assist with the before/after review of editing runs.
+  The old page, its explorer, tour and route finder are removed (the shared inspector has a
+  tour and a path finder), and `atlas.css` keeps only the rules other pages still use.
+- The shared surfaces use the WebUI's 9px scrollbars on the desktop; the canvas toolbar showed
+  the platform's thick ones.
+- Seen in the native window on build `5e49caddf229-c5436fe756a5`, light and dark, on the
+  WrongMemory project: the package map, a file's symbols, a selected symbol with its inspector,
+  evidence and code assist, and the three analysis views; no page errors. On WrongStack the map
+  loaded once (71 packages, 1,894 links) and then timed out: its codebase-index server has kept
+  one core busy since the engine started, and today's log shows the startup index exceeding its
+  240-second watchdog repeatedly. That is separate from this change.
+- Open: the native harness `atlas` scenario (`native-atlas.mjs`) drives the removed page and
+  must be rewritten.
+- Checks: desktop 696 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.
