@@ -6782,3 +6782,14 @@ copies, starting with SAGE memory.
   reports) goes into that conversation's draft. Sending it stays the user's action there. Without
   an agent conversation it offers to start one.
 - Checks: tested in jsdom (instruction text, target choice, no-conversation case); typecheck clean.
+
+### SDD board activity feed (2026-11-04)
+
+- With no task selected, the SDD board shows the WebUI's live activity feed beside its tasks:
+  each task pickup, completion, failure, retry, wave, deadlock, conflict or split as a line with
+  how long ago it happened, newest first, from the board snapshot's `feed`. Selecting a task shows
+  its details as before.
+- `SddBoardDetail.tsx` chooses between the two, which also takes three lines out of
+  `ProjectSdd.tsx` (hotspot ratchet lowered to 743).
+- Checks: tested in jsdom (order, wording, empty feed, selected task); SDD board tests pass;
+  typecheck clean.

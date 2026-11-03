@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T22:42:53.400Z",
+  "generatedAt": "2026-11-03T22:46:53.441Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5968,
-    "testFiles": 4947,
-    "sourceLines": 1242942,
+    "sourceFiles": 5969,
+    "testFiles": 4948,
+    "sourceLines": 1243019,
     "workspaceEdges": 239,
-    "moduleEdges": 17324,
+    "moduleEdges": 17326,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 211,
+    "testsWithoutTypecheck": 212,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 407,
-      "testFiles": 211,
+      "sourceFiles": 408,
+      "testFiles": 212,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2360,6 +2360,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/sage-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/sdd-board-feed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32224,6 +32230,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/sdd-board-feed.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/sdd-run-options.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33407,7 +33420,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 746,
+      "lines": 743,
       "relativeImports": 13
     },
     {
@@ -33548,14 +33561,14 @@
       "relativeImports": 14
     },
     {
-      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 746,
-      "relativeImports": 13
-    },
-    {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
       "lines": 746,
       "relativeImports": 15
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
+      "lines": 743,
+      "relativeImports": 13
     },
     {
       "file": "packages/webui-server/src/server/completion-handlers.ts",

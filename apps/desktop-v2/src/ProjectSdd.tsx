@@ -16,10 +16,10 @@ import type { RunFocus } from './kanban-board-source';
 import { ProjectRequirements } from './ProjectRequirements';
 import type { RequirementDraftStorage } from './requirement-draft';
 import type { RequirementRecordDraftStorageFactory } from './requirement-record-draft';
+import { SddBoardDetail } from './SddBoardDetail';
 import { SddDependencyGraph } from './SddDependencyGraph';
 import { SddLifecycle } from './SddLifecycle';
 import { RunOptions, runModelPayload, type SddRunModel } from './SddRunOptions';
-import { SddTaskDetails } from './SddTaskDetails';
 import './project-sdd.css';
 
 const text = (value: unknown, fallback = 'Not reported') =>
@@ -723,17 +723,14 @@ export function ProjectSdd({
                     </button>
                   ))}
                 </div>
-                {task && (
-                  <SddTaskDetails
-                    key={`${runId}:${String(task['id'])}`}
-                    task={task}
-                    tasks={tasks}
-                    board={board}
-                    waiting={Boolean(waiting)}
-                    request={request}
-                    onSelect={setSelectedTask}
-                  />
-                )}
+                <SddBoardDetail
+                  task={task}
+                  tasks={tasks}
+                  board={board}
+                  waiting={Boolean(waiting)}
+                  request={request}
+                  onSelect={setSelectedTask}
+                />
               </>
             )}
           </div>
