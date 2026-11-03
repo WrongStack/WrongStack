@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T18:08:31.651Z",
+  "generatedAt": "2026-11-03T18:10:49.250Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5936,
-    "testFiles": 4922,
-    "sourceLines": 1239708,
+    "testFiles": 4923,
+    "sourceLines": 1239712,
     "workspaceEdges": 239,
     "moduleEdges": 17245,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 187,
+    "testsWithoutTypecheck": 188,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -390,7 +390,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 381,
-      "testFiles": 187,
+      "testFiles": 188,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2389,6 +2389,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/snippet-references.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/surface-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32108,6 +32114,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/surface-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/system-prompt-presets.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32775,6 +32788,11 @@
     {
       "from": "apps/desktop-v2/src/surface-i18n.ts",
       "specifier": "../../../packages/webui/src/i18n/locales/en/common.json",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/surface-i18n.ts",
+      "specifier": "../../../packages/webui/src/i18n/locales/en/setup.json",
       "syntax": "import"
     },
     {

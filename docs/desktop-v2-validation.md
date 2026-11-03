@@ -6412,6 +6412,9 @@ copies, starting with SAGE memory.
   (referral codes) and `@radix-ui/react-scroll-area`, as the WebUI already did.
 - The desktop ships the WebUI's provider logos and their MIT license under
   `public/provider-logos`; a test keeps the two copies byte-identical.
+- The desktop's surface translations now load the WebUI's `setup` namespace too (they had
+  only `common` and `activity`, so the screen would have shown its keys);
+  `tests/surface-i18n.test.ts` checks that every namespace the shared surfaces use is loaded.
 - Not seen in the native window: the profile engine on this machine is still disconnected
   ("Loading your WrongStack profile…" since 16:28), so settings do not open in any build.
   Covered by a WebUI test that drives the screen on a fake host (catalog, key save, probe,
