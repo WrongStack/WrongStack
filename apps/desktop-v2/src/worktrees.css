@@ -44,3 +44,132 @@
   padding-left: 18px;
   font-size: 11px;
 }
+.worktree-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.worktree-layouts {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.worktree-layouts button {
+  padding: 3px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.worktree-layouts button[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.worktree-lanes {
+  display: grid;
+  gap: 6px;
+}
+.worktree-lane {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.worktree-lane code {
+  width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.worktree-lane-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.worktree-active .worktree-lane-dot,
+.worktree-committing .worktree-lane-dot {
+  background: hsl(var(--ws-warning));
+}
+.worktree-merging .worktree-lane-dot {
+  background: hsl(var(--ws-info));
+}
+.worktree-merged .worktree-lane-dot {
+  background: hsl(var(--ws-success));
+}
+.worktree-needs-review,
+.worktree-failed {
+  border-color: var(--danger);
+}
+.worktree-needs-review .worktree-lane-dot,
+.worktree-failed .worktree-lane-dot {
+  background: var(--danger);
+}
+.worktree-lane-owner,
+.worktree-lane-status,
+.worktree-lane > small {
+  color: var(--muted);
+}
+.worktree-lane-stat {
+  font-family: var(--mono, monospace);
+}
+.worktree-lane-stat > span:first-child {
+  color: hsl(var(--ws-success));
+}
+.worktree-lane-stat > span:nth-child(2),
+.worktree-lane-conflict {
+  color: var(--danger);
+}
+.worktree-lane-bar {
+  width: 6rem;
+  height: 4px;
+  margin-left: auto;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+}
+.worktree-lane-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, hsl(var(--ws-success)), var(--danger));
+}
+.worktree-lane-status {
+  width: 5.5rem;
+  text-align: right;
+}
+.worktree-lane > small {
+  flex-basis: 100%;
+  padding-left: 21px;
+  font-size: 11px;
+}
+.worktree-graph {
+  overflow-x: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.worktree-graph svg {
+  min-width: 420px;
+}
+.worktree-graph-branch {
+  fill: var(--text);
+  font-family: var(--mono, monospace);
+  font-size: 12px;
+}
+.worktree-graph-muted {
+  fill: var(--muted);
+  font-size: 11px;
+}

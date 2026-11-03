@@ -3,6 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import {
+  WorktreeGraph,
+  WorktreeLanes,
+  type WorktreeLayout,
+  WorktreeLayoutSwitch,
+} from './WorktreeViews';
+import {
   cleanupOutcome,
   diffSummary,
   mergeOutcome,
@@ -31,6 +37,7 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
     [error, setError] = useState(''),
     [waiting, setWaiting] = useState(''),
     [outcome, setOutcome] = useState('');
+  const [layout, setLayout] = useState<WorktreeLayout>('list');
   const baseline = useRef<Record<string, unknown>>({});
   const request = (type: string, payload: Record<string, unknown>, resultType: string) => {
     setError('');
@@ -132,9 +139,16 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
       )}
       {waiting && <p role="status">Waiting for the engine…</p>}
       {outcome && <p role="status">{outcome}</p>}
-      <h3>In use by runs</h3>
+      <div className="worktree-heading">
+        <h3>In use by runs</h3>
+        {live.worktrees.length > 0 && <WorktreeLayoutSwitch value={layout} onChange={setLayout} />}
+      </div>
       {live.worktrees.length === 0 ? (
         <p className="field-help">No run in this engine is using a worktree.</p>
+      ) : layout === 'lanes' ? (
+        <WorktreeLanes worktrees={live.worktrees} baseBranch={live.baseBranch} />
+      ) : layout === 'graph' ? (
+        <WorktreeGraph worktrees={live.worktrees} baseBranch={live.baseBranch} />
       ) : (
         <ul className="worktree-list">
           {live.worktrees.map((worktree) => (

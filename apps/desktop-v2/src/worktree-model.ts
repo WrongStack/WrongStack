@@ -12,6 +12,10 @@ export interface WorktreeView {
   files: number;
   conflictFiles: string[];
   lastError: string;
+  /** When the engine handed the worktree out; lanes and the graph keep this order. */
+  allocatedAt: number;
+  /** The newest lifecycle note (`kind: text`), or empty. */
+  latest: string;
 }
 
 export interface WorktreeOrphan {
@@ -22,6 +26,11 @@ export interface WorktreeOrphan {
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
 const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+
+function latestActivity(value: unknown) {
+  const last = entries(value).at(-1);
+  return last ? [text(last['kind']), text(last['text'])].filter(Boolean).join(': ') : '';
+}
 
 /** Worktrees the engine is tracking for runs in this project (`worktree.state`). */
 export function worktreeViews(payload: unknown): { baseBranch: string; worktrees: WorktreeView[] } {
@@ -40,6 +49,8 @@ export function worktreeViews(payload: unknown): { baseBranch: string; worktrees
       files: count(row['files']),
       conflictFiles: Array.isArray(row['conflictFiles']) ? row['conflictFiles'].map(String) : [],
       lastError: text(row['lastError']),
+      allocatedAt: count(row['allocatedAt']),
+      latest: latestActivity(row['recentActivity']),
     })),
   };
 }

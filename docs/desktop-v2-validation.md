@@ -6838,3 +6838,15 @@ copies, starting with SAGE memory.
   `FileWorkspace.tsx` shrinks (hotspot ratchet lowered to 2012) without a new import.
 - Checks: tested in jsdom (both sides, sizes, onion slider, added image, notices, unsafe URL);
   desktop tests pass; typecheck clean.
+
+### Worktree lanes and graph (2026-11-04)
+
+- The Worktrees page draws the worktrees runs are using three ways, as the WebUI's Goal view
+  does: the list with its change and merge actions (default), swim lanes in the order the engine
+  handed them out (status, branch, owner, live diff stat with a magnitude bar, newest lifecycle
+  note), and a branch graph with the base branch as trunk, a fork per worktree and a fold-back
+  once merged. Conflicts and failures are marked in both.
+- The worktree model now reads `allocatedAt` and the newest `recentActivity` entry from
+  `worktree.state`. The WebUI's per-session timeline view is not ported.
+- Checks: tested in jsdom through the page (default list, lane order and notes, graph forks and
+  merge); worktree model tests pass; typecheck clean.
