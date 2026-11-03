@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T19:42:50.384Z",
+  "generatedAt": "2026-11-03T19:47:37.012Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 5950,
     "testFiles": 4930,
-    "sourceLines": 1240993,
+    "sourceLines": 1241001,
     "workspaceEdges": 239,
     "moduleEdges": 17288,
     "nonCommandSlashImports": 0,
@@ -32624,6 +32624,11 @@
     {
       "from": "apps/desktop-v2/src/main.tsx",
       "specifier": "./shell.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/MarkdownContent.tsx",
+      "specifier": "./syntax-highlight.css",
       "syntax": "import"
     },
     {

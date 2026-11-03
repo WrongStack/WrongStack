@@ -1,0 +1,123 @@
+/* ===========================================================================
+   Syntax Highlighting Theme — WrongStack (the WebUI palette on desktop tokens)
+   Uses CSS custom properties to adapt to light/dark mode automatically.
+   Color palette: warm graphite base, signal-amber accents.
+   =========================================================================== */
+
+.hljs {
+  color: var(--text);
+  background: transparent;
+}
+/* ── Comments ── */
+.hljs-comment,
+.hljs-quote {
+  color: color-mix(in srgb, var(--muted) 75%, transparent);
+  font-style: italic;
+}
+/* ── Keywords (reddish-warm) ── */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-type,
+.hljs-literal {
+  color: #d65a9a;
+}
+/* ── Strings (green) ── */
+.hljs-string,
+.hljs-attr,
+.hljs-template-tag,
+.hljs-template-variable {
+  color: #3b8c5a;
+}
+/* ── Numbers (amber) ── */
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--accent);
+}
+/* ── Functions (blue-teal) ── */
+.hljs-function .hljs-keyword,
+.hljs-title.function_,
+.hljs-title.class_,
+.hljs-title.class_.inherited__ {
+  color: #3178c6;
+}
+/* ── Variables and parameters (foreground) ── */
+.hljs-variable,
+.hljs-params {
+  color: var(--text);
+}
+/* ── Tags (JSX/HTML) — warm rose ── */
+.hljs-tag,
+.hljs-name {
+  color: #c93a5e;
+}
+/* ── Attributes / properties ── */
+.hljs-attribute,
+.hljs-property {
+  color: #d4893a;
+}
+/* ── Regex (teal) ── */
+.hljs-regexp {
+  color: #17998e;
+}
+/* ── Punctuation / operators — muted ── */
+.hljs-punctuation,
+.hljs-operator {
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+/* ── Meta / doctype — muted ── */
+.hljs-meta,
+.hljs-doctag,
+.hljs-section {
+  color: var(--muted);
+}
+/* ── Additions / deletions (diff) ── */
+.hljs-addition {
+  color: #3b8c5a;
+  background: hsl(150 58% 36% / 0.1);
+}
+.hljs-deletion {
+  color: #d63c3c;
+  background: hsl(0 72% 48% / 0.1);
+}
+/* ── Emphasis ── */
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+/* ── Links ── */
+.hljs-link {
+  text-decoration: underline;
+  color: var(--accent);
+}
+
+/* ── Dark mode: after every light rule, so its higher specificity never fights the order ── */
+:root[data-mode="dark"] .hljs-keyword,
+:root[data-mode="dark"] .hljs-selector-tag,
+:root[data-mode="dark"] .hljs-type,
+:root[data-mode="dark"] .hljs-literal {
+  color: #f28dbc;
+}
+:root[data-mode="dark"] .hljs-string,
+:root[data-mode="dark"] .hljs-attr {
+  color: #64d488;
+}
+:root[data-mode="dark"] .hljs-function .hljs-keyword,
+:root[data-mode="dark"] .hljs-title.function_,
+:root[data-mode="dark"] .hljs-title.class_,
+:root[data-mode="dark"] .hljs-title.class_.inherited__ {
+  color: #6cb6ff;
+}
+:root[data-mode="dark"] .hljs-tag,
+:root[data-mode="dark"] .hljs-name {
+  color: #f47a95;
+}
+:root[data-mode="dark"] .hljs-attribute,
+:root[data-mode="dark"] .hljs-property {
+  color: #ffb055;
+}
+:root[data-mode="dark"] .hljs-regexp {
+  color: #49d3c5;
+}

@@ -6563,3 +6563,14 @@ copies, starting with SAGE memory.
 - Checks: Rust `engine::tests` pass (5, with a new stamping test); desktop tests pass (755, plus
   the graph-layout timing test, which passes alone); typecheck and Biome clean.
 - Not verified in the native window, for the same disconnected-engine reason as above.
+
+### Code highlighting in answers (2026-11-03)
+
+- Code blocks with a named language are highlighted, as in the WebUI: the same
+  `rehype-highlight` 7.0.2 (now a desktop dependency, already in the workspace) and the WebUI's
+  palette, mapped onto the desktop's theme tokens for light and dark. Code without a language
+  stays plain.
+- The Markdown allowlist now admits `span`, which only the highlighter produces: raw HTML in a
+  message is still skipped before the allowlist applies, and the existing "does not execute
+  HTML" test still passes.
+- Checks: desktop tests pass (758); typecheck and Biome clean.

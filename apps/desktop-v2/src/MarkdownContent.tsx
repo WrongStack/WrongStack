@@ -1,9 +1,14 @@
 import { Image as ImageIcon } from 'lucide-react';
 import { Children, isValidElement, memo, type ReactNode } from 'react';
 import Markdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import { CopyButton } from './CopyButton';
 import { markdownTarget } from './markdown-target';
+import './syntax-highlight.css';
+
+// Code with a named language is highlighted, as in the WebUI; unnamed code stays plain.
+const REHYPE_PLUGINS = [rehypeHighlight];
 
 function textContent(children: ReactNode): string {
   return Children.toArray(children)
@@ -59,6 +64,8 @@ const elements = [
   'td',
   'input',
   'img',
+  // Only the highlighter makes spans: raw HTML in a message is skipped before this list applies.
+  'span',
 ];
 export const MarkdownContent = memo(function MarkdownContent({
   text,
@@ -71,6 +78,7 @@ export const MarkdownContent = memo(function MarkdownContent({
     <div className="markdown-content">
       <Markdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={REHYPE_PLUGINS}
         skipHtml
         allowedElements={elements}
         urlTransform={(url) => (markdownTarget(url) ? url : '')}
