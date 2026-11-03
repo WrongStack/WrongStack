@@ -17,9 +17,8 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AgentModeControl } from './AgentModeControl';
-import { AutoContinue } from './AutoContinue';
 import { AutonomyControl } from './AutonomyControl';
-import { autoContinueStep, sessionAutonomy } from './autonomy-model';
+import { sessionAutonomy } from './autonomy-model';
 import { BtwReceipts } from './BtwReceipts';
 import { btwReceiptKey, btwReceipts, type SavedBtwReceipts } from './btw-receipts';
 import {
@@ -40,6 +39,7 @@ import {
   splitReferenceMessage,
 } from './composer-resources-model';
 import { DesktopCommandHelp } from './DesktopCommandHelp';
+import { DraftCounter } from './DraftCounter';
 import { type DesktopCommandContext, runDesktopCommand } from './desktop-command-runner';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand, EngineSend } from './engine-operations';
@@ -48,7 +48,6 @@ import { FailedRunContinue } from './FailedRunContinue';
 import { useHunts } from './HuntRounds';
 import { JournalRecallLoader } from './JournalRecallLoader';
 import { Modal } from './Modal';
-import { NextStepsPanel } from './NextStepsPanel';
 import { PromptRefinement } from './PromptRefinement';
 import { PromptWorkspace } from './PromptWorkspace';
 import { projectFormDraftStorage } from './platform';
@@ -57,6 +56,7 @@ import type { ProjectFormDraftStorage } from './requirement-draft';
 import { SessionAgentPlan } from './SessionAgentPlan';
 import { SessionContextPanel } from './SessionContextPanel';
 import { SessionModelControls } from './SessionModelControls';
+import { TurnFollowUps } from './TurnFollowUps';
 import { useComposerInput } from './useComposerInput';
 import { useDetailsDismiss } from './useDetailsDismiss';
 import { SavedRefinementNotice, useRefinementDraft } from './useRefinementDraft';
@@ -582,44 +582,18 @@ export function SessionComposer({
         </p>
       )}
       {input.popup}
-      {!state.running &&
-        !state.hydrating &&
-        !state.inputs.length &&
-        !state.approvals.length &&
-        state.nextSteps.length > 0 && (
-          <NextStepsPanel
-            steps={state.nextSteps}
-            onAdd={(text) => input.replace(appendToDraft(currentDraft.current, text))}
-          />
-        )}
-      {!state.running &&
-        !state.hydrating &&
-        !state.inputs.length &&
-        !state.approvals.length &&
-        !draft.trim() &&
-        !references.length &&
-        !attachments.length &&
-        !hunts.continues &&
-        (() => {
-          const continuation = sessionAutonomy(state.results['prefs.updated']);
-          const step = autoContinueStep({
-            ...continuation,
-            count: autoContinued.current,
-            steps: state.nextSteps,
-          });
-          return step ? (
-            <AutoContinue
-              stepKey={state.nextSteps.map((item) => `${item.index}:${item.text}`).join('|')}
-              text={step.text}
-              onSubmit={(text) => {
-                autoContinued.current += 1;
-                void deliver(text, 'steer').catch(() => {
-                  // deliver() reports its own error in the composer.
-                });
-              }}
-            />
-          ) : null;
-        })()}
+      <TurnFollowUps
+        state={state}
+        composerEmpty={!draft.trim() && !references.length && !attachments.length}
+        huntContinues={hunts.continues}
+        continued={autoContinued}
+        sending={sending}
+        onAdd={(text) => input.replace(appendToDraft(currentDraft.current, text))}
+        send={sendAsIs}
+        report={report}
+        // deliver() reports its own error in the composer.
+        onContinue={(text) => void deliver(text, 'steer').catch(() => {})}
+      />
       {hunts.view}
       <FailedRunContinue state={state} send={sendAsIs} report={report} />
       <BtwReceipts
@@ -707,56 +681,59 @@ export function SessionComposer({
           onChange={onReferencesChange}
         />
         {pasteHint.element}
-        <textarea
-          ref={textarea}
-          aria-label="Message WrongStack"
-          placeholder={
-            state.running
-              ? 'Add a note, queue the next task, or steer…'
-              : 'Describe what you want to build…'
-          }
-          value={draft}
-          readOnly={sending}
-          onPaste={(event) => {
-            if (sending) return;
-            if (!event.clipboardData.files.length) {
-              pasteHint.onPaste(event);
-              return;
+        <div className="composer-input">
+          <textarea
+            ref={textarea}
+            aria-label="Message WrongStack"
+            placeholder={
+              state.running
+                ? 'Add a note, queue the next task, or steer…'
+                : 'Describe what you want to build…'
             }
-            event.preventDefault();
-            void media.add(Array.from(event.clipboardData.files));
-            const text = event.clipboardData.getData('text/plain');
-            if (text) {
-              const el = event.currentTarget;
-              input.replace(
-                draft.slice(0, el.selectionStart) + text + draft.slice(el.selectionEnd),
-                el.selectionStart + text.length,
-              );
-            }
-          }}
-          onChange={(e) => {
-            input.onChange(e.target.value, e.target.selectionStart);
-            setNotice('');
-          }}
-          onSelect={(event) => input.onSelect(event.currentTarget.selectionStart)}
-          onKeyDown={(event) => {
-            if (
-              event.defaultPrevented ||
-              event.nativeEvent.isComposing ||
-              event.nativeEvent.keyCode === 229
-            )
-              return;
-            if (input.onKey(event.key, event.shiftKey)) {
+            value={draft}
+            readOnly={sending}
+            onPaste={(event) => {
+              if (sending) return;
+              if (!event.clipboardData.files.length) {
+                pasteHint.onPaste(event);
+                return;
+              }
               event.preventDefault();
-              return;
-            }
-            if (event.key === 'Escape' && state.running) return void stop();
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              submit();
-            }
-          }}
-        />
+              void media.add(Array.from(event.clipboardData.files));
+              const text = event.clipboardData.getData('text/plain');
+              if (text) {
+                const el = event.currentTarget;
+                input.replace(
+                  draft.slice(0, el.selectionStart) + text + draft.slice(el.selectionEnd),
+                  el.selectionStart + text.length,
+                );
+              }
+            }}
+            onChange={(e) => {
+              input.onChange(e.target.value, e.target.selectionStart);
+              setNotice('');
+            }}
+            onSelect={(event) => input.onSelect(event.currentTarget.selectionStart)}
+            onKeyDown={(event) => {
+              if (
+                event.defaultPrevented ||
+                event.nativeEvent.isComposing ||
+                event.nativeEvent.keyCode === 229
+              )
+                return;
+              if (input.onKey(event.key, event.shiftKey)) {
+                event.preventDefault();
+                return;
+              }
+              if (event.key === 'Escape' && state.running) return void stop();
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submit();
+              }
+            }}
+          />
+          <DraftCounter draft={draft} context={state.context} />
+        </div>
         <footer className="composer-toolbar">
           <SessionModelControls
             state={state}

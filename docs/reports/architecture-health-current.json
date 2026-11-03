@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T19:51:12.683Z",
+  "generatedAt": "2026-11-03T19:59:41.630Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,21 +12,22 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5950,
-    "testFiles": 4931,
-    "sourceLines": 1241052,
+    "sourceFiles": 5952,
+    "testFiles": 4933,
+    "sourceLines": 1241201,
     "workspaceEdges": 239,
-    "moduleEdges": 17288,
+    "moduleEdges": 17293,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 196,
+    "testsWithoutTypecheck": 197,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1041
+    "testOnlyExports": 1042
   },
   "errors": [
     "packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change",
-    "packages/core/src/session-catalog/store-agents.ts: \"readSessionAgentRows\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
+    "packages/core/src/session-catalog/store-agents.ts: \"readSessionAgentRows\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/core/src/session-catalog/store-rebuild.ts: \"summarizeTranscriptFile\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
   ],
   "packageCycles": [],
   "coreAreas": {
@@ -365,7 +366,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 639,
-      "testFiles": 696,
+      "testFiles": 697,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -382,15 +383,15 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 696
+          "testFiles": 697
         }
       ]
     },
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 392,
-      "testFiles": 196,
+      "sourceFiles": 394,
+      "testFiles": 197,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1609,6 +1610,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/display-language.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/draft-counter.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12121,6 +12128,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-analyzer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-catalog-rebuild-summary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31252,6 +31265,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/draft-counter.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/draft-merge.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32520,6 +32540,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/DraftCounter.tsx",
+      "specifier": "./draft-counter.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ExecutionPolicySettings.tsx",
       "specifier": "./execution-policy.css",
       "syntax": "import"
@@ -33195,7 +33220,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1091,
+      "lines": 1068,
       "relativeImports": 37
     },
     {
@@ -33232,7 +33257,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1091,
+      "lines": 1068,
       "relativeImports": 37
     },
     {
@@ -34872,6 +34897,10 @@
     {
       "file": "packages/core/src/session-catalog/store-agents.ts",
       "name": "readSessionAgentRows"
+    },
+    {
+      "file": "packages/core/src/session-catalog/store-rebuild.ts",
+      "name": "summarizeTranscriptFile"
     },
     {
       "file": "packages/core/src/skills/github-fetcher.ts",

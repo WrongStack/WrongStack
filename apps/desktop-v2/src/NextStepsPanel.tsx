@@ -1,27 +1,44 @@
 import type { ParsedNextStep } from '@wrongstack/webui-protocol';
-import { Lightbulb, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowUp, Lightbulb, Plus } from 'lucide-react';
+import { useEffect, useId, useState } from 'react';
 import './next-steps.css';
 
-/** Suggestions come only from the engine's completed turn, never generated locally. */
+/**
+ * Suggestions come only from the engine's completed turn, never generated locally. As in the
+ * WebUI, chosen steps and an optional message of your own are sent together in one click, or
+ * added to the draft to edit first.
+ */
 export function NextStepsPanel({
   steps,
   onAdd,
+  onSend,
+  sending = false,
 }: {
   steps: readonly ParsedNextStep[];
   onAdd: (text: string) => void;
+  /** Sends the text as the next prompt; resolves false when it was not sent. */
+  onSend?: ((text: string) => Promise<boolean>) | undefined;
+  sending?: boolean | undefined;
 }) {
   const [selected, setSelected] = useState<number[]>([]);
+  const [message, setMessage] = useState('');
+  const messageId = useId();
   useEffect(() => {
     setSelected([]);
+    setMessage('');
   }, [steps]);
+  const chosen = steps.filter((step) => selected.includes(step.index)).map((step) => step.text);
+  const batch = message.trim() ? [...chosen, message.trim()] : chosen;
   return (
     <details className="next-steps-panel">
       <summary>
         <Lightbulb size={14} /> Suggested next steps <small>{steps.length}</small>
       </summary>
       <div className="next-steps-body">
-        <p>Choose suggestions to add to your draft. You can edit them and choose how to send.</p>
+        <p>
+          Choose suggestions, add your own message if you like, and send them together, or add them
+          to your draft to edit first.
+        </p>
         {steps.map((step) => (
           <label key={step.index} className="next-step">
             <input
@@ -38,22 +55,48 @@ export function NextStepsPanel({
             <span>{step.text}</span>
           </label>
         ))}
-        <button
-          type="button"
-          className="button secondary small"
-          disabled={!selected.length}
-          onClick={() => {
-            onAdd(
-              steps
-                .filter((step) => selected.includes(step.index))
-                .map((step) => step.text)
-                .join('\n'),
-            );
-            setSelected([]);
-          }}
-        >
-          <Plus size={13} /> Add selected to draft
-        </button>
+        {onSend && (
+          <label className="next-steps-message" htmlFor={messageId}>
+            Your message
+            <textarea
+              id={messageId}
+              rows={2}
+              value={message}
+              placeholder="Add another instruction or write your own next step…"
+              onChange={(event) => setMessage(event.target.value)}
+            />
+          </label>
+        )}
+        <div className="next-steps-actions">
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={!batch.length}
+            onClick={() => {
+              onAdd(batch.join('\n'));
+              setSelected([]);
+              setMessage('');
+            }}
+          >
+            <Plus size={13} /> Add selected to draft
+          </button>
+          {onSend && (
+            <button
+              type="button"
+              className="button small"
+              disabled={!batch.length || sending}
+              onClick={() =>
+                void onSend(batch.join('\n')).then((sent) => {
+                  if (!sent) return;
+                  setSelected([]);
+                  setMessage('');
+                })
+              }
+            >
+              <ArrowUp size={13} /> Send {batch.length} {batch.length === 1 ? 'step' : 'steps'}
+            </button>
+          )}
+        </div>
       </div>
     </details>
   );

@@ -6583,3 +6583,18 @@ copies, starting with SAGE memory.
 - "WrongStack is working…" counts the running turn's time each second.
 - Checks: desktop tests pass (760, plus the graph-layout timing test, which passes alone);
   typecheck and Biome clean.
+
+### Next steps in one click and the draft counter (2026-11-03)
+
+- Suggested next steps can now be sent directly, as in the WebUI: choose steps, optionally write
+  "Your message", and "Send N steps" sends them together as one prompt (the composer's draft,
+  references and attachments stay as they are). "Add selected to draft" still adds them to the
+  draft to edit first. Sending resets the automatic-continuation count like any prompt the user
+  sends.
+- The composer shows the WebUI's draft counter in its corner: characters, and for drafts of 400
+  characters or more a rough token count (4 characters a token) and, when the model's window is
+  known, how full the context would be with it, marked from 85% and again from 100%.
+- The next-steps panel and the automatic-continuation countdown moved out of the composer into
+  `TurnFollowUps.tsx`; the composer's line ratchet drops to 1,068.
+- Checks: desktop tests pass (762, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean. The native next-steps scenario's button label is unchanged.

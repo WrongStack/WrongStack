@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-03T19:51:12.683Z
+**Generated:** 2026-11-03T19:59:41.630Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,21 +8,22 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 5950 |
-| Production source lines | 1241052 |
-| Test files | 4931 |
+| Production source files | 5952 |
+| Production source lines | 1241201 |
+| Test files | 4933 |
 | Workspace dependency edges | 239 |
-| Relative module edges | 17288 |
+| Relative module edges | 17293 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 196 |
+| Tests without TypeScript test-project coverage | 197 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
 - packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change
 - packages/core/src/session-catalog/store-agents.ts: "readSessionAgentRows" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- packages/core/src/session-catalog/store-rebuild.ts: "summarizeTranscriptFile" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 
 ## Workspace packages
 
@@ -38,8 +39,8 @@
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 184 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/core | 639 | 696 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 392 | 196 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/core | 639 | 697 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/desktop-v2 | 394 | 197 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -96,7 +97,7 @@ None.
 | 1559 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
-| 1091 | `apps/desktop-v2/src/SessionComposer.tsx` |
+| 1068 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1019 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 957 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 917 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
@@ -144,13 +145,13 @@ None.
 
 ## Exports only tests reference
 
-- 1041 runtime exports are referenced by tests and by no other production file.
+- 1042 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 196 test files are not included in a package TypeScript test project.
+- 197 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.
