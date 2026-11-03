@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T20:33:55.807Z",
+  "generatedAt": "2026-11-03T20:38:26.085Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5959,
-    "testFiles": 4940,
-    "sourceLines": 1241915,
+    "sourceFiles": 5960,
+    "testFiles": 4941,
+    "sourceLines": 1242033,
     "workspaceEdges": 239,
-    "moduleEdges": 17307,
+    "moduleEdges": 17310,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 204,
+    "testsWithoutTypecheck": 205,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 400,
-      "testFiles": 204,
+      "sourceFiles": 401,
+      "testFiles": 205,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2102,6 +2102,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/oauth-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/palette-actions.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31875,6 +31881,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/oauth-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/palette-actions.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

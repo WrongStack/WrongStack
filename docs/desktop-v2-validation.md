@@ -6696,3 +6696,15 @@ copies, starting with SAGE memory.
   desktop they need a native notification plugin, which is a separate decision.
 - Checks: desktop tests pass (778); the sound hook is tested in jsdom with stand-in chimes; WebUI
   tests that touch the chime pass (44); typecheck clean for the desktop, WebUI and package.
+
+### Actions in the Ctrl+K palette (2026-11-03)
+
+- The palette lists actions beside projects and conversations, as the WebUI's command palette
+  does: start an agent session or a terminal, open WrongStack settings, switch light or dark mode,
+  conversation density and run sounds, and open any of the current project's pages (each with the
+  slash command that opens it, so typing "/kanban" or "office" finds it). With nothing typed it
+  shows the first six; typing searches them all. Choosing one closes the palette first.
+- Only the palette's two new lines were committed in `WorkspaceDialogs.tsx`; the file also holds
+  another session's unfinished change to the new-session dialog, which stays out of this commit.
+- Checks: the actions are tested in jsdom (listing, search, close-then-run, no project); desktop
+  tests pass (one load-sensitive timing test aside, which passes alone); typecheck clean.
