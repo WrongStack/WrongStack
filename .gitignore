@@ -94,7 +94,8 @@ security-report/*
 .design/
 CLAUDE.md
 AGENTS.md
-.github/copilot-instructions.md
+# Any depth: agent-setup tools write it into whichever folder they run in.
+**/.github/copilot-instructions.md
 .windsurfrules
 .cursorrules
 .claude/
