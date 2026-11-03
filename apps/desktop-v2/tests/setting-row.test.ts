@@ -8,6 +8,7 @@ import {
   settingChange,
   settingsSections,
   settingValue,
+  writeOnlySettings,
 } from '../src/settings-fields';
 import { prepareSettingsPatch } from '../src/settings-save-model';
 
@@ -97,5 +98,63 @@ describe('engine settings the WebUI already offered', () => {
     const { host } = row(field('fsAccess') as SettingField, 'project');
     expect((host.querySelector('select') as HTMLSelectElement).value).toBe('project');
     expect(host.textContent).toContain('Project — confined to the project root');
+  });
+});
+
+describe('HQ, proxy and Telegram settings', () => {
+  const section = settingsSections.find((item) => item.id === 'notifications');
+  const keyed = (key: string) => field(key) as SettingField;
+
+  it('covers the WebUI integration preferences, Telegram only once configured', () => {
+    const fields = (section?.fields ?? []) as readonly SettingField[];
+    expect(fields.map((item) => item.key)).toEqual([
+      'wrongProxyEnabled',
+      'wrongProxyUrl',
+      'hqEnabled',
+      'hqUrl',
+      'hqToken',
+      'hqRawContent',
+      'tgSessionEnd',
+      'tgDelegate',
+      'tgLongToolMs',
+      'tgPollIntervalSec',
+      'tgChatId',
+    ]);
+    expect(fields.filter((item) => item.when === 'tgConfigured')).toHaveLength(5);
+  });
+
+  it('never reads back the HQ token, and an emptied token keeps the saved one', () => {
+    expect([...writeOnlySettings]).toEqual(['hqToken']);
+    const { host, onChange } = row(keyed('hqToken'), undefined);
+    const input = host.querySelector('input') as HTMLInputElement;
+    expect(input.type).toBe('password');
+    expect(input.value).toBe('');
+    expect(host.textContent).toContain('A saved token is never shown here.');
+    const type = (target: HTMLInputElement, value: string) =>
+      act(() => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
+          target,
+          value,
+        );
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    type(input, 'hq-client-token');
+    expect(onChange).toHaveBeenLastCalledWith('hq-client-token');
+    // With a token typed into the draft, emptying the field drops it from the draft again.
+    const typed = row(keyed('hqToken'), 'hq-client-token');
+    type(typed.host.querySelector('input') as HTMLInputElement, '');
+    expect(typed.onChange).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('edits a URL as text and holds a chat ID to a non-zero integer', () => {
+    const proxy = row(keyed('wrongProxyUrl'), 'http://localhost:3444');
+    expect((proxy.host.querySelector('input') as HTMLInputElement).value).toBe(
+      'http://localhost:3444',
+    );
+    const chat = row(keyed('tgChatId'), '');
+    const input = chat.host.querySelector('input') as HTMLInputElement;
+    const pattern = new RegExp(`^(?:${input.pattern})$`);
+    expect(['123', '-100200'].every((id) => pattern.test(id))).toBe(true);
+    expect(['0', '12a', '-0'].some((id) => pattern.test(id))).toBe(false);
   });
 });

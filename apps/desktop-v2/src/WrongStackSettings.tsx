@@ -15,6 +15,7 @@ import {
   Route,
   Save,
   Search,
+  Send,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -58,7 +59,14 @@ import { SystemPromptPresets } from './SystemPromptPresets';
 import './review-policy.css';
 import { SettingRow } from './SettingRow';
 import { SkillLibrary } from './SkillLibrary';
-import { changedSettings, settingChange, settingsSections, settingValue } from './settings-fields';
+import {
+  changedSettings,
+  type SettingField,
+  settingChange,
+  settingsSections,
+  settingValue,
+  writeOnlySettings,
+} from './settings-fields';
 import type { DesktopController } from './useDesktop';
 import { useProfileEngine } from './useEngine';
 
@@ -210,7 +218,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
       await command('prefs.update', patch, ['key.operation_result']);
       const result = await command('prefs.get', {}, ['prefs.updated']);
       for (const [key, value] of Object.entries(patch)) {
-        if (!sameSetting(result[key], value))
+        if (!writeOnlySettings.has(key) && !sameSetting(result[key], value))
           throw new Error('The saved settings could not be verified. Reload before retrying.');
       }
       const { requestId: _requestId, sessionId: _sessionId, ...values } = result;
@@ -333,6 +341,12 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               { id: 'brain', title: 'Brain policy', Icon: Brain, group: 'Agents & tools' },
               { id: 'skills', title: 'Profile skills', Icon: BookOpen, group: 'Agents & tools' },
               { id: 'integrations', title: 'Connected tools', Icon: Plug, group: 'Agents & tools' },
+              {
+                id: 'notifications',
+                title: 'HQ, proxy & Telegram',
+                Icon: Send,
+                group: 'Agents & tools',
+              },
               { id: 'health', title: 'Provider diagnostics', Icon: Gauge, group: 'Diagnostics' },
               { id: 'quota', title: 'Plan quota', Icon: Gauge, group: 'Diagnostics' },
               { id: 'model-tests', title: 'Model tests', Icon: FlaskConical, group: 'Diagnostics' },
@@ -505,14 +519,16 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                 }}
               >
                 <fieldset className="settings-form-fields" disabled={busy}>
-                  {fields?.fields.map((field) => (
-                    <SettingRow
-                      key={field.key}
-                      field={field}
-                      value={settingValue(draft, field.key)}
-                      onChange={(value) => change(...settingChange(draft, field.key, value))}
-                    />
-                  ))}
+                  {(fields?.fields as readonly SettingField[] | undefined)
+                    ?.filter((field) => !field.when || settingValue(draft, field.when) === true)
+                    .map((field) => (
+                      <SettingRow
+                        key={field.key}
+                        field={field}
+                        value={settingValue(draft, field.key)}
+                        onChange={(value) => change(...settingChange(draft, field.key, value))}
+                      />
+                    ))}
                   {section === 'routing' && (
                     <FallbackPolicySettings draft={draft} change={change} command={command} />
                   )}

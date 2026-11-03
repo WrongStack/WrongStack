@@ -6812,3 +6812,17 @@ copies, starting with SAGE memory.
   still reads just the transcript page.
 - Checks: tested in jsdom (lazy single read, totals, ordering, filter, failed read); desktop tests
   pass; typecheck clean.
+
+### HQ, proxy and Telegram settings (2026-11-04)
+
+- WrongStack settings has a new "HQ, proxy & Telegram" section with the WebUI's integration
+  preferences: WrongProxy routing and its URL; HQ publishing, URL, client token and raw content;
+  and, once a Telegram bot token is configured, session-end and delegate notifications, the
+  long-running tool threshold, the polling interval (1-60 s) and the notification chat.
+- The HQ token is write-only, as the engine keeps it: the field starts empty, typing a new token
+  replaces the saved one on save, emptying it keeps the saved one, and the save does not try to
+  read it back. The chat ID must be a non-zero integer before the form saves.
+- The field registry gained `text` and `secret` kinds, placeholders, a pattern, and fields shown
+  only while another setting is on.
+- Checks: the section, the token's write-only behaviour, text editing and the chat-ID pattern are
+  tested (jsdom for the row); desktop tests pass; typecheck clean.

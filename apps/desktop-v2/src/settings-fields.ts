@@ -7,7 +7,8 @@ export interface SettingField {
   key: string;
   label: string;
   description: string;
-  kind: 'toggle' | 'number' | 'select' | 'lines';
+  /** `secret` is write-only: the engine never reports it back, so it starts empty. */
+  kind: 'toggle' | 'number' | 'select' | 'lines' | 'text' | 'secret';
   options?: readonly string[];
   unit?: string;
   /** Stored value per displayed unit: a millisecond setting shown in seconds has 1000. */
@@ -20,6 +21,11 @@ export interface SettingField {
   numeric?: boolean;
   /** For a setting that may stay unset: what unset means. Such a number may be left empty. */
   unsetNote?: string;
+  placeholder?: string;
+  /** An HTML pattern a text value must match before the form saves. */
+  pattern?: string;
+  /** Shown only while this boolean setting is on (Telegram fields need a bot token). */
+  when?: string;
 }
 export const settingsSections = [
   {
@@ -301,6 +307,100 @@ export const settingsSections = [
     ],
   },
   {
+    id: 'notifications',
+    title: 'HQ, proxy & Telegram',
+    description:
+      'Publishing to WrongStack HQ, the local WrongProxy route for provider requests, and Telegram notifications. Telegram settings appear once a bot token is configured.',
+    fields: [
+      {
+        key: 'wrongProxyEnabled',
+        label: 'Route provider requests through WrongProxy',
+        description:
+          'Rewrites every provider’s base URL through the local proxy (default http://localhost:3444/proxy/<host><path>). openai-codex is excluded; it talks to the ChatGPT backend directly. Applies to the next request.',
+        kind: 'toggle',
+      },
+      {
+        key: 'wrongProxyUrl',
+        label: 'Proxy URL',
+        description:
+          'Where the proxy daemon listens. Its /api/health is probed; an unreachable daemon turns rewriting off until it answers again.',
+        kind: 'text',
+        placeholder: 'http://localhost:3444',
+      },
+      {
+        key: 'hqEnabled',
+        label: 'HQ publishing',
+        description: 'Publish this client’s sessions to WrongStack HQ.',
+        kind: 'toggle',
+      },
+      {
+        key: 'hqUrl',
+        label: 'HQ URL',
+        description: 'Leave empty for same-machine auto-discovery.',
+        kind: 'text',
+        placeholder: 'http://host:3499',
+      },
+      {
+        key: 'hqToken',
+        label: 'HQ client token',
+        description: 'The client token issued by WrongStack HQ.',
+        kind: 'secret',
+        placeholder: 'Type a new token to replace the saved one',
+        unsetNote: 'A saved token is never shown here.',
+      },
+      {
+        key: 'hqRawContent',
+        label: 'Raw HQ content',
+        description: 'Send raw content previews to HQ instead of redacted previews.',
+        kind: 'toggle',
+      },
+      {
+        key: 'tgSessionEnd',
+        label: 'Telegram: session end',
+        description: 'Send a summary when a session ends.',
+        kind: 'toggle',
+        when: 'tgConfigured',
+      },
+      {
+        key: 'tgDelegate',
+        label: 'Telegram: delegate finished',
+        description: 'Send a note when a subagent completes.',
+        kind: 'toggle',
+        when: 'tgConfigured',
+      },
+      {
+        key: 'tgLongToolMs',
+        label: 'Telegram: long-running tools',
+        description: 'Notify when a tool runs longer than this. 0 turns it off.',
+        kind: 'number',
+        unit: 'seconds',
+        scale: 1000,
+        when: 'tgConfigured',
+      },
+      {
+        key: 'tgPollIntervalSec',
+        label: 'Telegram polling interval',
+        description:
+          'Seconds between Telegram polls. Lower is more responsive but makes more API calls.',
+        kind: 'number',
+        unit: 'seconds',
+        min: 1,
+        max: 60,
+        when: 'tgConfigured',
+      },
+      {
+        key: 'tgChatId',
+        label: 'Telegram notification chat',
+        description:
+          'Default chat ID for notifications. A positive ID pairs your private chat with the bot; group IDs (negative) are refused unless allowGroupChats is enabled in the config. Leave empty to clear.',
+        kind: 'text',
+        pattern: '-?[1-9][0-9]*',
+        placeholder: 'Chat ID',
+        when: 'tgConfigured',
+      },
+    ],
+  },
+  {
     id: 'logging',
     title: 'Logs & diagnostics',
     description: 'Control the detail recorded by WrongStack.',
@@ -370,3 +470,11 @@ export function settingChange(
   const { [inner]: _previous, ...rest } = group(values[top]);
   return [top, value === undefined ? rest : { ...rest, [inner]: value }];
 }
+
+/** Settings the engine accepts but never reports back, so a save cannot read them to verify. */
+export const writeOnlySettings: ReadonlySet<string> = new Set(
+  settingsSections
+    .flatMap((section) => section.fields as readonly SettingField[])
+    .filter((field) => field.kind === 'secret')
+    .map((field) => field.key),
+);

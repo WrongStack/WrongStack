@@ -102,6 +102,22 @@ export function SettingRow({
             />
             {field.unit && <span>{field.unit}</span>}
           </span>
+        ) : field.kind === 'text' || field.kind === 'secret' ? (
+          <input
+            id={`setting-${field.key}`}
+            type={field.kind === 'secret' ? 'password' : 'text'}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={field.placeholder}
+            pattern={field.pattern}
+            value={typeof value === 'string' ? value : ''}
+            onChange={(event) =>
+              // An emptied secret means "keep the saved one": it is never read back to clear.
+              onChange(
+                field.kind === 'secret' && !event.target.value ? undefined : event.target.value,
+              )
+            }
+          />
         ) : (
           <textarea
             id={`setting-${field.key}`}
