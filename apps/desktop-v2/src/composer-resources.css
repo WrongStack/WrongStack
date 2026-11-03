@@ -46,7 +46,8 @@
   border: 1px solid var(--border);
   border-radius: 6px;
 }
-.resource-list > button {
+.resource-list > button,
+.command-group > button {
   display: grid;
   width: 100%;
   gap: 6px;
@@ -55,8 +56,23 @@
   border-bottom: 1px solid var(--border);
 }
 .resource-list > button[aria-pressed="true"],
-.resource-list > button:hover {
+.resource-list > button:hover,
+.command-group > button:hover {
   background: var(--base);
+}
+/* The desktop command help lists one section per category. */
+.command-group > h3 {
+  position: sticky;
+  top: 0;
+  margin: 0;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .resource-list strong {
   display: flex;

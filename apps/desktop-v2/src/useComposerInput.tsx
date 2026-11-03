@@ -2,12 +2,8 @@ import { detectSkillMention, insertSkillMention } from '@wrongstack/webui-protoc
 import { Terminal } from 'lucide-react';
 import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { ComposerMentionPicker } from './ComposerMentionPicker';
-import {
-  type ComposerFileReference,
-  desktopCommands,
-  fileMention,
-  withReference,
-} from './composer-resources-model';
+import { type ComposerFileReference, fileMention, withReference } from './composer-resources-model';
+import { matchDesktopCommands } from './desktop-commands';
 import type { ChatMessage } from './engine-state';
 import { recallHistory } from './journal-recall';
 
@@ -42,15 +38,7 @@ export function useComposerInput({
   const file = dismissed === identity || skill ? null : fileMention(draft, cursor);
   const commandQuery =
     dismissed !== identity && /^\/[\w!-]*$/.test(draft) ? draft.toLowerCase() : null;
-  const commands =
-    commandQuery === null
-      ? []
-      : desktopCommands.filter(
-          (command) =>
-            command.name.startsWith(commandQuery) ||
-            ('aliases' in command &&
-              command.aliases.some((alias) => alias.startsWith(commandQuery))),
-        );
+  const commands = commandQuery === null ? [] : matchDesktopCommands(commandQuery);
   const replace = (text: string, nextCursor = text.length) => {
     pending.current = { text, cursor: nextCursor };
     onDraftChange(text);
@@ -160,7 +148,10 @@ export function useComposerInput({
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => replace(`${command.name} `)}
             >
-              <strong>{command.name}</strong>
+              <strong>
+                {command.name}
+                {command.usage && <small> {command.usage}</small>}
+              </strong>
               <span>{command.description}</span>
             </button>
           ))}

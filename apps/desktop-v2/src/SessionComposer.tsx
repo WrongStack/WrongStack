@@ -35,13 +35,12 @@ import { dispatchComposer, type SubmitMode, supportsQueue } from './composer-mod
 import {
   appendToDraft,
   type ComposerFileReference,
-  type DesktopCommandAction,
-  desktopCommands,
-  parseDesktopCommand,
   referenceKey,
   referenceMessage,
   splitReferenceMessage,
 } from './composer-resources-model';
+import { DesktopCommandHelp } from './DesktopCommandHelp';
+import { type DesktopCommandContext, runDesktopCommand } from './desktop-command-runner';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -103,9 +102,7 @@ export function SessionComposer({
   attachments: ComposerAttachment[];
   onAttachmentsChange: (items: ComposerAttachment[]) => Promise<boolean>;
   onReferencesChange: (refs: ComposerFileReference[]) => Promise<boolean>;
-  onNavigate: (
-    target: 'files' | 'changes' | 'skills' | 'memory' | 'kanban' | 'atlas' | 'mailbox' | 'history',
-  ) => void;
+  onNavigate: DesktopCommandContext['navigate'];
   /** Native storage for this session's unsaved model plan. */
   planDraftStorage?: FormDraftStorage;
   /** Native storage for a completed refinement review awaiting a decision. */
@@ -396,40 +393,28 @@ export function SessionComposer({
       if (mounted.current) setTopicBusy(false);
     }
   };
-  const runCommand = (action: DesktopCommandAction | 'unknown', argument: string): boolean => {
-    if (['queue', 'btw', 'steer'].includes(action) && argument) return false;
-    if (action === 'unknown') {
-      setError(
-        'This desktop command is not available. Your draft was not sent. Prefix it with // to send it as literal text.',
-      );
-      return true;
-    }
-    if (argument) {
-      setError('This command takes no arguments. Your draft was not sent.');
-      return true;
-    }
-    setError('');
-    if (action === 'help') setCommandHelp(true);
-    else if (action === 'library' || action === 'journal') setPromptWorkspace(action);
-    else if (
-      action === 'context' ||
-      action === 'compact' ||
-      action === 'compact-aggressive' ||
-      action === 'repair' ||
-      action === 'clear'
-    )
-      setContextPanel(action === 'context' ? 'inspect' : action);
-    else if (action === 'stop') stop();
-    else if (action === 'enhance') void setEnhance(!enhanceEnabled);
-    else if (action === 'settings') onSettings();
-    else if (action === 'queue') {
-      if (queuePanel.current) queuePanel.current.open = true;
-      else setNotice('There are no pending queued prompts.');
-    } else if (action === 'btw' || action === 'steer') onModeChange(action);
-    else onNavigate(action);
-    onDraftChange('');
-    return true;
-  };
+  const runCommand = (text: string) =>
+    runDesktopCommand(text, {
+      command,
+      prefs: state.results['prefs.updated'] ?? {},
+      openHelp: () => setCommandHelp(true),
+      openPrompts: setPromptWorkspace,
+      openContext: setContextPanel,
+      stop,
+      toggleEnhance: () => void setEnhance(!enhanceEnabled),
+      openSettings: onSettings,
+      openQueue: () => {
+        if (queuePanel.current) queuePanel.current.open = true;
+        return Boolean(queuePanel.current);
+      },
+      setMode: onModeChange,
+      navigate: onNavigate,
+      notify: (message) => {
+        setError('');
+        setNotice(message);
+      },
+      fail: setError,
+    });
   const submit = () => {
     if (
       (!draft.trim() && !references.length && !attachments.length) ||
@@ -443,14 +428,14 @@ export function SessionComposer({
     )
       return;
     if (prefBusy || state.hydrating) return;
-    const parsed = parseDesktopCommand(draft);
-    if (parsed && runCommand(parsed.action, parsed.argument)) return;
-    const selected =
-      parsed && (parsed.action === 'queue' || parsed.action === 'btw' || parsed.action === 'steer')
-        ? parsed.action
-        : mode;
-    const text = parsed?.argument || (draft.startsWith('//') ? draft.slice(1) : draft);
-    void beginSubmission(text, selected).catch(() => {});
+    const outcome = runCommand(draft);
+    if (outcome?.kind === 'refused') return setError(outcome.message);
+    if (outcome?.kind === 'handled') {
+      setError('');
+      return void onDraftChange('');
+    }
+    const text = outcome?.text ?? (draft.startsWith('//') ? draft.slice(1) : draft);
+    void beginSubmission(text, outcome?.mode ?? mode).catch(() => {});
   };
   const queueAction = async (type: string, payload: Record<string, unknown> = {}) => {
     setQueueBusy(true);
@@ -1109,40 +1094,13 @@ export function SessionComposer({
         />
       )}
       {commandHelp && (
-        <Modal onClose={() => setCommandHelp(false)}>
-          <div className="composer-dialog resource-dialog">
-            <header>
-              <h2 id="dialog-title">Desktop commands</h2>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Close desktop commands"
-                onClick={() => setCommandHelp(false)}
-              >
-                <X size={18} />
-              </button>
-            </header>
-            <p>
-              Choose to insert a command, then press Enter to run it. Unknown commands stay in your
-              draft; use <code>{'//'}</code> for literal slash-prefixed text.
-            </p>
-            <div className="resource-list">
-              {desktopCommands.map((command) => (
-                <button
-                  type="button"
-                  key={command.name}
-                  onClick={() => {
-                    input.replace(`${command.name} `);
-                    setCommandHelp(false);
-                  }}
-                >
-                  <strong>{command.name}</strong>
-                  <span>{command.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </Modal>
+        <DesktopCommandHelp
+          onChoose={(text) => {
+            input.replace(text);
+            setCommandHelp(false);
+          }}
+          onClose={() => setCommandHelp(false)}
+        />
       )}
     </div>
   );

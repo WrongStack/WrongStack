@@ -6366,3 +6366,28 @@ copies, starting with SAGE memory.
   zai-coding-plan, 1.0M window, balanced mode, 6.3k system prompt); no page errors.
 - Checks: desktop 710 tests and WebUI 6,239 tests pass; typecheck clean for the package, the
   WebUI and the desktop.
+
+### Slash commands in the desktop composer (2026-11-03)
+
+- The composer already completed and ran 22 desktop commands; it now has 45, grouped by
+  category in `/help` with their arguments and aliases. New: this conversation's tools
+  (`/dashboard`, `/story`, `/usage` with `/stats` and `/cost`, `/activity`, `/processes` with
+  `/ps` and `/kill`, `/side-effects`, `/mcp-tasks`, `/plan`), project pages (`/goals`,
+  `/fleet` with `/agents`, `/office`, `/roster`, `/worktree`, `/automations`, `/chronicle`,
+  `/diag`), and the WebUI's agent commands: `/review [focus]` (`/cr`), `/fix [error]` and
+  `/suggest` send the WebUI's prompts; `/autonomy`, `/mode`, `/yolo` and `/nextsteps` show the
+  conversation's setting without an argument and change it with one, through the same engine
+  operations as the composer's controls (`autonomy.switch`, `mode.switch`, `prefs.update`).
+  `/load` and `/resume` open recorded conversations.
+- `/review` used to open the Changes view; that is `/diff` and `/changes` now, and `/review`
+  asks the agent for a review as in the WebUI.
+- Not ported: the WebUI's proof-driven hunts (`/bughunt` and the rest launch builtin prompts
+  with their own result cards), `/goal` subcommands, `/brain`, `/mcp`, `/doctor`, `/browser`,
+  `/working-dir`, `/terminal`, `/new`, `/export`, the F-key panels and `/exit`.
+- `desktop-commands.ts` holds the catalog and parsing, `desktop-command-runner.ts` runs a draft
+  against the composer (handled, refused with the draft kept, or sent as a prompt) and
+  `DesktopCommandHelp` lists them; the composer shrank by 42 lines.
+- Seen in the native window on build `95b457567c24-c5436fe756a5`, light and dark, on a
+  WrongMemory conversation: the suggestions with argument hints, the grouped help, `/yolo`
+  reporting that conversation's YOLO+ and `/stats` opening Usage & cost; no page errors.
+- Checks: desktop 720 tests pass; typecheck and Biome clean.

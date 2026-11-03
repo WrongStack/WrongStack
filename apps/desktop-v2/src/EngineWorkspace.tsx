@@ -513,11 +513,9 @@ export function EngineWorkspace({
               projectRoot={projectRoot}
               planDraftStorage={planDraftStorage}
               refineDraftStorage={refineDraftStorage}
-              onNavigate={(target) => {
-                if (target === 'files' || target === 'changes' || target === 'skills')
-                  setTab(target);
-                else onProject(target);
-              }}
+              onNavigate={(target) =>
+                'tab' in target ? setTab(target.tab) : onProject(target.page)
+              }
             />
           </div>
         </>
