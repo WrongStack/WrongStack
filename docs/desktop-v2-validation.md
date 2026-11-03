@@ -6612,3 +6612,10 @@ copies, starting with SAGE memory.
 - Checks: desktop tests pass (766, plus the graph-layout timing test, which passes alone);
   typecheck and Biome clean. Not verified in the native window, for the disconnected-engine
   reason above.
+
+### New-message count on Jump to latest (2026-11-03)
+
+- When the reader has scrolled up, "Jump to latest" says how many messages arrived since
+  ("Jump to latest · 3 new"), as the WebUI's jump button counts unread messages.
+- Checks: typecheck and Biome clean; the count lives in the conversation view, which the node
+  test runner cannot render (it needs the native engine bridge), so it has no unit test.

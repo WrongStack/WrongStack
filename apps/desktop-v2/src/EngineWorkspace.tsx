@@ -162,6 +162,8 @@ export function EngineWorkspace({
   const chatPane = useRef<HTMLDivElement>(null);
   const following = useRef(true);
   const [showLatest, setShowLatest] = useState(false);
+  // Messages there were when the reader scrolled away from the end, to count what arrived since.
+  const leftAt = useRef(0);
   const [showConversation, setShowConversation] = useState(false);
   // Long conversations render their newest messages; earlier ones load on request.
   const [shownMessages, setShownMessages] = useState(TRANSCRIPT_WINDOW);
@@ -386,6 +388,7 @@ export function EngineWorkspace({
               const near = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80;
               if (following.current !== near) {
                 following.current = near;
+                if (!near) leftAt.current = state.messages.length;
                 setShowLatest(!near);
               }
             }}
@@ -477,6 +480,8 @@ export function EngineWorkspace({
                 }}
               >
                 Jump to latest
+                {state.messages.length > leftAt.current &&
+                  ` · ${state.messages.length - leftAt.current} new`}
               </button>
             </div>
           )}
