@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T22:58:18.728Z",
+  "generatedAt": "2026-11-03T09:33:13.578Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 47,
     "sourceFiles": 5687,
-    "testFiles": 4918,
-    "sourceLines": 1241531,
+    "testFiles": 4919,
+    "sourceLines": 1241554,
     "workspaceEdges": 232,
     "moduleEdges": 16655,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 187,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1037
+    "testOnlyExports": 1040
   },
   "errors": [],
   "packageCycles": [],
@@ -977,7 +977,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 396,
-      "testFiles": 376,
+      "testFiles": 377,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -996,7 +996,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 376
+          "testFiles": 377
         }
       ]
     },
@@ -22439,6 +22439,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/wrongindex-wire-contract.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/agent-swarm-panel-visibility.test.ts",
         "projects": [
           "root-node"
@@ -36013,11 +36019,23 @@
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
+      "name": "BASELINE_PROFILE_ID"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
       "name": "FrameReader"
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
+      "name": "OWNER_INFO_FILE"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
       "name": "OWNER_LOCK_FILE"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
+      "name": "readWrongIndexOwner"
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/service.ts",
