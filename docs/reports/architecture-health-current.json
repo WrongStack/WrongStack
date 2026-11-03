@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T23:17:51.924Z",
+  "generatedAt": "2026-11-03T23:21:28.817Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5973,
-    "testFiles": 4952,
-    "sourceLines": 1243802,
-    "workspaceEdges": 239,
-    "moduleEdges": 17335,
+    "sourceFiles": 5974,
+    "testFiles": 4953,
+    "sourceLines": 1243914,
+    "workspaceEdges": 240,
+    "moduleEdges": 17336,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 216,
+    "testsWithoutTypecheck": 217,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,12 +390,13 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 412,
-      "testFiles": 216,
+      "sourceFiles": 413,
+      "testFiles": 217,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/kanban",
+        "@wrongstack/plugins",
         "@wrongstack/project-surfaces",
         "@wrongstack/webui-protocol",
         "@wrongstack/webui-server"
@@ -2162,6 +2163,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/pinned-sessions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/plugin-toggles.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32017,6 +32024,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/pinned-sessions.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/plugin-toggles.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

@@ -31,6 +31,7 @@ import { prepareExecutionPolicyPatch } from './execution-policy-model';
 import { FleetPolicySettings } from './FleetPolicySettings';
 import { fleetPolicyIssue } from './fleet-policy-model';
 import { IntegrationSettings } from './IntegrationSettings';
+import { PluginToggles } from './PluginToggles';
 import { RefinementPolicySettings } from './RefinementPolicySettings';
 import { prepareRefinementPolicyPatch } from './refinement-policy-model';
 import { SettingsSectionSelect } from './SettingsSectionSelect';
@@ -539,6 +540,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   {section === 'routing' && (
                     <FallbackPolicySettings draft={draft} change={change} command={command} />
                   )}
+                  {section === 'capabilities' && <PluginToggles draft={draft} change={change} />}
                   {section === 'refinement' && (
                     <RefinementPolicySettings
                       draft={draft}

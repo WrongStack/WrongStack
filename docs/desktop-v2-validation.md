@@ -6861,3 +6861,15 @@ copies, starting with SAGE memory.
   placement, title animation, keyboard shortcuts) are not profile settings and are not ported.
 - Checks: section keys, the engine's allowed values and the thinking-word rule are tested;
   typecheck clean.
+
+### Per-plugin controls (2026-11-04)
+
+- Settings > Capabilities lists every plugin in the catalog the CLI's plugin manager uses, as the
+  WebUI's per-plugin controls do, with its summary, a search, an "Enabled only" filter and a
+  switch. Plugins the profile decides show the engine's effective state from `pluginsEnabled`;
+  the rest show the catalog default. Plugins that cannot be disabled are locked. Flipping one is
+  saved with the other profile settings and takes effect in the next session.
+- The desktop now depends on the workspace package `@wrongstack/plugins` for its catalog module
+  (`plugin-audit-catalog`, a 25 KB data module with no imports).
+- Checks: tested in jsdom (full list, decided vs default state, the saved map, locked plugins,
+  filters); desktop tests pass; typecheck clean.

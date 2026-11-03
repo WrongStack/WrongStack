@@ -36,6 +36,7 @@
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
         "@wrongstack/kanban": "workspace:*",
+        "@wrongstack/plugins": "workspace:*",
         "@wrongstack/project-surfaces": "workspace:*",
         "@wrongstack/webui-protocol": "workspace:*",
         "@wrongstack/webui-server": "workspace:*",
