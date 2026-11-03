@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { EngineHttp } from '../src/engine-http';
 import { EngineHttpError } from '../src/engine-http-error';
 import type { BackendStream } from '../src/engine-stream';
-import { prefList, prefProfiles, profileSurfaceHost } from '../src/profile-surface-host';
+import {
+  chooseSetupModel,
+  prefList,
+  prefProfiles,
+  profileSurfaceHost,
+} from '../src/profile-surface-host';
 
 type Listener = (event: { type: string; payload: Record<string, unknown> }) => void;
 
@@ -72,5 +77,34 @@ describe('model preference readers', () => {
       broken: [],
     });
     expect(prefProfiles(undefined)).toEqual({});
+  });
+});
+
+describe('first-run setup model choice', () => {
+  const done = () => ({ configured: vi.fn(), saved: vi.fn() });
+
+  it('makes the choice the default, then returns to the conversation or reports it', async () => {
+    const command = vi.fn(async () => ({ success: true }));
+    const starting = done();
+    await expect(
+      chooseSetupModel(command, { provider: 'zai', model: 'glm-5', start: true }, starting),
+    ).resolves.toEqual({ success: true });
+    expect(command).toHaveBeenCalledWith('model.switch', { provider: 'zai', model: 'glm-5' }, [
+      'model.switch_result',
+    ]);
+    expect(starting.configured).toHaveBeenCalledWith('zai', 'glm-5');
+    const saving = done();
+    await chooseSetupModel(command, { provider: 'zai', model: 'glm-5', start: false }, saving);
+    expect(saving.configured).not.toHaveBeenCalled();
+    expect(saving.saved).toHaveBeenCalledWith('zai / glm-5 is now the default model.');
+  });
+
+  it("passes the engine's refusal back without leaving settings", async () => {
+    const command = vi.fn(async () => ({ success: false, message: 'Unknown model.' }));
+    const starting = done();
+    await expect(
+      chooseSetupModel(command, { provider: 'zai', model: 'nope', start: true }, starting),
+    ).resolves.toEqual({ success: false, message: 'Unknown model.' });
+    expect(starting.configured).not.toHaveBeenCalled();
   });
 });

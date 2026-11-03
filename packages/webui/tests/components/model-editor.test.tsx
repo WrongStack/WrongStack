@@ -1,54 +1,37 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { type SurfaceHost, setDefaultSurfaceHost } from '@wrongstack/project-surfaces/host';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+// The editor lives in the shared package and translates with the app's i18next instance.
+import '../../src/i18n';
 
 // ── Mock seams ──────────────────────────────────────────────────────────────
-// ModelEditor calls `getWSClient(wsUrl).searchProviderModels(query, limit)` and
+// ModelEditor asks the setup host's client for `provider.models.search` and
 // listens for `provider.models.search_result`. We capture the `on` callback so
 // the test can emit synthetic search results.
 
-const { mockOn, mockSearchProviderModels, mockEmit } = vi.hoisted(() => {
+const { mockOn, mockSend, mockEmit } = vi.hoisted(() => {
   const listeners = new Map<string, ((msg: unknown) => void) | undefined>();
   return {
     mockOn: vi.fn((type: string, cb: (msg: unknown) => void) => {
       listeners.set(type, cb);
       return () => listeners.delete(type);
     }),
-    mockSearchProviderModels: vi.fn(),
+    mockSend: vi.fn(),
     mockEmit: (type: string, msg: unknown) => listeners.get(type)?.(msg),
   };
 });
 
-vi.mock('@/lib/ws-client', () => ({
-  getWSClient: () => ({
-    on: (...args: unknown[]) => mockOn(args[0] as string, args[1] as (msg: unknown) => void),
-    searchProviderModels: (...args: unknown[]) => mockSearchProviderModels(...args),
-  }),
-}));
-
-vi.mock('@/stores', () => ({
-  useConfigStore: (selector?: (s: Record<string, unknown>) => unknown) =>
-    selector ? selector({ wsUrl: 'ws://test' }) : { wsUrl: 'ws://test' },
-}));
-
-vi.mock('@/i18n', () => ({
-  useAppTranslation: () => ({
-    t: (key: string) => {
-      const map: Record<string, string> = {
-        'setup:screen.custom.models': 'Models',
-        'setup:screen.custom.addModel': 'Add model',
-        'setup:screen.custom.modelSearchPlaceholder': 'Search catalog models…',
-        'setup:screen.custom.noCatalogMatch': 'No catalog match.',
-        'setup:screen.custom.useCustomId': 'Enter custom ID',
-        'setup:screen.custom.customModelIdPlaceholder': 'Custom model id',
-        'setup:screen.custom.cancel': 'Cancel',
-        'setup:screen.custom.add': 'Add',
-        'setup:screen.custom.modelSingular': 'model',
-        'setup:screen.custom.modelPlural': 'models',
-      };
-      return map[key] ?? key;
-    },
-  }),
-}));
+// One client for every render, as the application's socket is.
+const client = { on: mockOn, send: mockSend };
+const setupHost = {
+  setup: {
+    useClient: () => client,
+    useConnected: () => true,
+    useCurrentModel: () => '',
+    notify: { success: vi.fn(), error: vi.fn() },
+    chooseModel: vi.fn(),
+  },
+} as unknown as SurfaceHost;
 
 vi.mock('lucide-react', () => ({
   Check: () => null,
@@ -61,6 +44,7 @@ vi.mock('lucide-react', () => ({
 import { ModelEditor, type ModelEntry } from '@/components/SetupScreen/ModelEditor';
 
 beforeEach(() => {
+  setDefaultSurfaceHost(setupHost);
   vi.useFakeTimers({ shouldAdvanceTime: true });
 });
 
@@ -91,10 +75,13 @@ describe('ModelEditor', () => {
     const input = screen.getByPlaceholderText('Search catalog models…');
     fireEvent.change(input, { target: { value: 'deepseek' } });
     // Before debounce fires
-    expect(mockSearchProviderModels).not.toHaveBeenCalled();
+    expect(mockSend).not.toHaveBeenCalled();
     // After 250ms debounce
     await flushDebounce();
-    expect(mockSearchProviderModels).toHaveBeenCalledWith('deepseek', 8);
+    expect(mockSend).toHaveBeenCalledWith({
+      type: 'provider.models.search',
+      payload: { query: 'deepseek', limit: 8 },
+    });
   });
 
   it('renders catalog matches and adds model with metadata on click', async () => {
@@ -185,7 +172,8 @@ describe('ModelEditor', () => {
 
     const customInput = screen.getByPlaceholderText('Custom model id');
     fireEvent.change(customInput, { target: { value: 'my-custom-id' } });
-    fireEvent.click(screen.getByText('Add'));
+    // The English catalog labels the custom-model add button "Add Provider".
+    fireEvent.click(screen.getByText('Add Provider'));
 
     expect(onChange).toHaveBeenCalledTimes(1);
     const added = onChange.mock.calls[0]![0] as ModelEntry[];

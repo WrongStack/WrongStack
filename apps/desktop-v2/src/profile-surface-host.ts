@@ -6,9 +6,11 @@ import type {
 } from '@wrongstack/project-surfaces/host';
 import type { ProviderClient } from '@wrongstack/project-surfaces/providers/provider-host';
 import { createSageSocket, type SurfaceSend } from '@wrongstack/project-surfaces/sage/socket';
+import type { SetupModelResult } from '@wrongstack/project-surfaces/setup/setup-host';
 import { useRef } from 'react';
 import type { EngineHttp } from './engine-http';
 import { EngineHttpError } from './engine-http-error';
+import type { EngineCommand } from './engine-operations';
 import type { BackendStream } from './engine-stream';
 import { record } from './engine-values';
 
@@ -83,4 +85,22 @@ export function profileSurfaceHost(
       on,
     },
   };
+}
+
+/**
+ * Makes a first-run setup choice the profile's default model. Starting takes the user back to
+ * the conversation that sent them to settings; saving only reports the new default.
+ */
+export async function chooseSetupModel(
+  command: EngineCommand,
+  choice: { provider: string; model: string; start: boolean },
+  done: { configured(provider: string, model: string): void; saved(text: string): void },
+): Promise<SetupModelResult> {
+  const { provider, model } = choice;
+  const reply = await command('model.switch', { provider, model }, ['model.switch_result']);
+  if (reply['success'] === false)
+    return { success: false, message: String(reply['message'] ?? '') };
+  if (choice.start) done.configured(provider, model);
+  else done.saved(`${provider} / ${model} is now the default model.`);
+  return { success: true };
 }

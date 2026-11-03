@@ -11,6 +11,7 @@ import type { ContextFeed } from './context/context-host';
 import type { KanbanHost } from './kanban/kanban-host';
 import type { OfficeFeed } from './office/feed-types';
 import type { ProviderHost } from './providers/provider-host';
+import type { SetupHost } from './setup/setup-host';
 import type { StoryFeed } from './story/story-host';
 
 /**
@@ -123,6 +124,8 @@ export interface SurfaceHost {
   context?: ContextFeed | undefined;
   /** What the provider test and plan-quota pages read; hosts without them leave it out. */
   providers?: ProviderHost | undefined;
+  /** What the first-run setup reads and does; hosts without it leave it out. */
+  setup?: SetupHost | undefined;
   /** Renders a message's markdown the way the application renders its own messages. */
   Markdown?: ComponentType<{ children: string }> | undefined;
 }

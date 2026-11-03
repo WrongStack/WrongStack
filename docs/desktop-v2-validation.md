@@ -6391,3 +6391,30 @@ copies, starting with SAGE memory.
   WrongMemory conversation: the suggestions with argument hints, the grouped help, `/yolo`
   reporting that conversation's YOLO+ and `/stats` opening Usage & cost; no page errors.
 - Checks: desktop 720 tests pass; typecheck and Biome clean.
+
+### First-run setup in the desktop settings (2026-11-03)
+
+- WrongStack settings gain "Quick setup", the WebUI's setup screen on the profile engine: the
+  popular providers as key cards (save a key, probe it, get-a-key and referral links), the rest
+  of the catalog, a self-hosted or OpenAI-compatible provider with its models, then the model
+  picker and "Start Session" / "Save Configuration". A profile that still needs a provider
+  opens settings on this section; the conversation's "Configure provider" banner leads there.
+  "Start Session" makes the choice the profile default and returns to the conversation that
+  opened settings, as the desktop's own provider form does; "Save Configuration" reports the new
+  default. The desktop's "Providers & models" form is unchanged.
+- `packages/project-surfaces/src/setup` holds the screen, the key card, the custom provider
+  section, the model editor and their helpers; `ProviderLogo`, `provider-brand`,
+  `useFieldKeyboardNav` and `ScrollArea` moved with them, and the WebUI keeps its old paths as
+  re-exports. The screen reads a `SetupHost`: the profile connection, whether it is up, the
+  current model, notices, the sources of an updated popular-provider list (the WebUI's served
+  and published copies; the desktop uses the list built into the app) and `chooseModel`.
+  The package now depends on `@wrongstack/providers` (the popular-provider catalog), `qrcode`
+  (referral codes) and `@radix-ui/react-scroll-area`, as the WebUI already did.
+- The desktop ships the WebUI's provider logos and their MIT license under
+  `public/provider-logos`; a test keeps the two copies byte-identical.
+- Not seen in the native window: the profile engine on this machine is still disconnected
+  ("Loading your WrongStack profile…" since 16:28), so settings do not open in any build.
+  Covered by a WebUI test that drives the screen on a fake host (catalog, key save, probe,
+  model list, start and save, a refused model) and by desktop tests of the model choice.
+- Checks: desktop 723 tests and WebUI 6,241 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.

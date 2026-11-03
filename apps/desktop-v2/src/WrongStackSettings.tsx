@@ -78,7 +78,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     document: null,
     text: '',
   });
-  const [section, setSection] = useState('providers'),
+  const [section, setSection] = useState(() => (state.needsSetup ? 'setup' : 'providers')),
     [base, setBase] = useState<Record<string, unknown>>({}),
     [draft, setDraft] = useState<Record<string, unknown>>({}),
     [busy, setBusy] = useState(false),
@@ -282,6 +282,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
           </label>
           {(
             [
+              { id: 'setup', title: 'Quick setup', Icon: Sparkles, group: 'Models' },
               { id: 'providers', title: 'Providers & models', Icon: KeyRound, group: 'Models' },
               { id: 'models', title: 'Model catalog', Icon: Layers3, group: 'Models' },
               { id: 'model-visibility', title: 'Model visibility', Icon: Layers3, group: 'Models' },
@@ -445,10 +446,12 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   : []
               }
             />
-          ) : section === 'quota' || section === 'model-tests' ? (
+          ) : section === 'setup' || section === 'quota' || section === 'model-tests' ? (
             <ProviderSurfaces
-              page={section === 'quota' ? 'quota' : 'tests'}
+              page={section === 'model-tests' ? 'tests' : section === 'quota' ? 'quota' : 'setup'}
               state={state}
+              command={command}
+              onConfigured={configured}
               updatePrefs={(patch) =>
                 void command('prefs.update', { ...patch }, ['key.operation_result']).catch(
                   vm.reportError,

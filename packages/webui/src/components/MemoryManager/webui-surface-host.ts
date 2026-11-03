@@ -27,6 +27,7 @@ import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { useActiveSessionId } from '@/stores/session-lanes';
 import { webuiContextFeed } from './webui-context-feed';
 import { webuiProviderHost } from './webui-provider-host';
+import { webuiSetupHost } from './webui-setup-host';
 import { webuiStoryFeed } from './webui-story-feed';
 import { WebuiSurfaceMarkdown } from './webui-surface-markdown';
 
@@ -100,6 +101,7 @@ export const webuiSurfaceHost: SurfaceHost = {
   story: webuiStoryFeed,
   context: webuiContextFeed,
   providers: webuiProviderHost,
+  setup: webuiSetupHost,
   Markdown: WebuiSurfaceMarkdown,
 };
 setDefaultSurfaceHost(webuiSurfaceHost);

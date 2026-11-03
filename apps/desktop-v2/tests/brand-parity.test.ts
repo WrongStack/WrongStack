@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readBrandSource } from '../scripts/sync-brand';
@@ -32,5 +32,14 @@ describe('canonical WrongStack brand parity', () => {
           .update(readFileSync(resolve(root, 'apps/desktop-v2/src-tauri/icons', file!)))
           .digest('hex'),
       ).toBe(digest);
+  });
+  it('ships the WebUI provider logos and their license unchanged, for the shared setup screen', () => {
+    const webui = resolve(root, 'packages/webui/public/provider-logos');
+    const desktop = resolve(root, 'apps/desktop-v2/public/provider-logos');
+    const files = readdirSync(webui).sort();
+    expect(files).toContain('LICENSE');
+    expect(readdirSync(desktop).sort()).toEqual(files);
+    for (const file of files)
+      expect(readFileSync(resolve(desktop, file))).toEqual(readFileSync(resolve(webui, file)));
   });
 });

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T17:17:44.471Z",
+  "generatedAt": "2026-11-03T17:57:30.861Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5918,
-    "testFiles": 4920,
-    "sourceLines": 1239520,
-    "workspaceEdges": 238,
-    "moduleEdges": 17212,
+    "sourceFiles": 5934,
+    "testFiles": 4921,
+    "sourceLines": 1239680,
+    "workspaceEdges": 239,
+    "moduleEdges": 17241,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -735,12 +735,13 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 219,
+      "sourceFiles": 234,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
-        "@wrongstack/kanban"
+        "@wrongstack/kanban",
+        "@wrongstack/providers"
       ],
       "tsconfigs": [
         {
@@ -1108,8 +1109,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 780,
-      "testFiles": 515,
+      "sourceFiles": 781,
+      "testFiles": 516,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1135,7 +1136,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 515
+          "testFiles": 516
         }
       ]
     },
@@ -29027,6 +29028,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/setup-screen.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/side-effect-timeline.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -33284,9 +33291,9 @@
       "relativeImports": 9
     },
     {
-      "file": "packages/coordination/src/subagent-budget.ts",
+      "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
       "lines": 699,
-      "relativeImports": 2
+      "relativeImports": 39
     }
   ],
   "testOnlyExports": [
