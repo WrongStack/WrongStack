@@ -63,6 +63,7 @@ describe('Codebase Index MCP CLI — flag values', () => {
       await fs.mkdir(linked, { recursive: true });
       await fs.writeFile(path.join(linked, '.git'), `gitdir: ${linkedGitDir}\n`);
       await fs.writeFile(path.join(linkedGitDir, 'commondir'), '../..\n');
+      await fs.writeFile(path.join(linkedGitDir, 'gitdir'), `${path.join(linked, '.git')}\n`);
 
       expect(resolveIndexProjectRoot(linked)).toBe(path.resolve(linked));
       expect(resolveIndexProjectRoot(linked)).not.toBe(path.resolve(main));

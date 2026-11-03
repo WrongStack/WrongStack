@@ -49,6 +49,7 @@ describe('SAGE project server identity', () => {
       await fs.mkdir(linked, { recursive: true });
       await fs.writeFile(path.join(linked, '.git'), `gitdir: ${linkedGitDir}\n`);
       await fs.writeFile(path.join(linkedGitDir, 'commondir'), '../..\n');
+      await fs.writeFile(path.join(linkedGitDir, 'gitdir'), `${path.join(linked, '.git')}\n`);
 
       expect(sageProjectServerEndpoint(linked)).toBe(sageProjectServerEndpoint(main));
       expect(resolveProjectSageStorageRoot(linked)).toBe(resolveProjectSageStorageRoot(main));

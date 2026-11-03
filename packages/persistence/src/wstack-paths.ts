@@ -180,11 +180,28 @@ function onDiskCase(root: string): string {
   }
 }
 
+/**
+ * Whether `<gitDir>/gitdir` (written by `git worktree add`, absolute or, with
+ * `worktree.useRelativePaths`, relative to `gitDir`) names `checkoutRoot`'s own
+ * `.git` file. Both sides are compared as real paths.
+ */
+function worktreeBacklinkMatches(gitDir: string, checkoutRoot: string): boolean {
+  const recorded = fs.readFileSync(path.join(gitDir, 'gitdir'), 'utf8').trim();
+  if (!recorded) return false;
+  const target = fs.realpathSync.native(path.resolve(gitDir, recorded));
+  const own = path.join(fs.realpathSync.native(checkoutRoot), '.git');
+  return process.platform === 'win32'
+    ? target.toLowerCase() === own.toLowerCase()
+    : target === own;
+}
+
 function gitIdentityRoot(checkoutRoot: string): string {
   const dotGit = path.join(checkoutRoot, '.git');
 
   try {
-    if (!fs.statSync(dotGit).isFile()) return checkoutRoot;
+    // lstat: the checkout's own `.git` entry, never a link to another
+    // worktree's (which would make the back-link check below agree).
+    if (!fs.lstatSync(dotGit).isFile()) return checkoutRoot;
 
     const gitDirLine = fs.readFileSync(dotGit, 'utf8').trim();
     const match = /^gitdir:\s*(.+)$/i.exec(gitDirLine);
@@ -201,6 +218,11 @@ function gitIdentityRoot(checkoutRoot: string): string {
     if (path.basename(worktreesDir).toLowerCase() !== 'worktrees') return checkoutRoot;
     if (onDiskCase(path.resolve(worktreesDir, '..')) !== onDiskCase(commonDir)) return checkoutRoot;
     if (path.basename(commonDir).toLowerCase() !== '.git') return checkoutRoot;
+    // Check the link from both sides, as Git does: the worktree entry records
+    // this checkout's `.git` file in its `gitdir` file. A `.git` file planted
+    // in an unrelated directory and naming another checkout's worktree entry
+    // would otherwise share that project's identity (sessions, SAGE store).
+    if (!worktreeBacklinkMatches(gitDir, checkoutRoot)) return checkoutRoot;
     return path.dirname(commonDir);
   } catch {
     // Missing/malformed administrative files must never make path resolution
