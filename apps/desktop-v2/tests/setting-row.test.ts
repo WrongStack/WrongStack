@@ -158,3 +158,29 @@ describe('HQ, proxy and Telegram settings', () => {
     expect(['0', '12a', '-0'].some((id) => pattern.test(id))).toBe(false);
   });
 });
+
+describe('terminal display settings', () => {
+  it('offers the terminal preferences the WebUI syncs, with the engine’s allowed values', () => {
+    const fields = (settingsSections.find((item) => item.id === 'terminal-display')?.fields ??
+      []) as readonly SettingField[];
+    expect(fields.map((item) => item.key)).toEqual([
+      'statuslineMode',
+      'thinkingWord',
+      'animationStyle',
+      'showModelReasoning',
+      'preRefineSeconds',
+      'multiDiffSummaryThreshold',
+    ]);
+    expect(field('statuslineMode')?.options).toEqual(['minimum', 'detailed', 'no-color']);
+    expect(field('animationStyle')?.options).toHaveLength(7);
+  });
+
+  it('holds the thinking word to one short word and never saves it empty', () => {
+    const { host } = row(field('thinkingWord') as SettingField, 'working');
+    const input = host.querySelector('input') as HTMLInputElement;
+    expect(input.required).toBe(true);
+    const word = new RegExp(`^(?:${input.pattern})$`, 'v');
+    expect(['working', 'çalış_1', 'a-b'].every((value) => word.test(value))).toBe(true);
+    expect(['two words', 'x'.repeat(17)].some((value) => word.test(value))).toBe(false);
+  });
+});

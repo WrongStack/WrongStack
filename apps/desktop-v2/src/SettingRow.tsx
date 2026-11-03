@@ -110,6 +110,7 @@ export function SettingRow({
             spellCheck={false}
             placeholder={field.placeholder}
             pattern={field.pattern}
+            required={field.required}
             value={typeof value === 'string' ? value : ''}
             onChange={(event) =>
               // An emptied secret means "keep the saved one": it is never read back to clear.

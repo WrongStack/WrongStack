@@ -24,6 +24,8 @@ export interface SettingField {
   placeholder?: string;
   /** An HTML pattern a text value must match before the form saves. */
   pattern?: string;
+  /** A text value that may not be left empty. */
+  required?: boolean;
   /** Shown only while this boolean setting is on (Telegram fields need a bot token). */
   when?: string;
 }
@@ -397,6 +399,62 @@ export const settingsSections = [
         pattern: '-?[1-9][0-9]*',
         placeholder: 'Chat ID',
         when: 'tgConfigured',
+      },
+    ],
+  },
+  {
+    id: 'terminal-display',
+    title: 'Terminal display',
+    description:
+      'How the WrongStack terminal UI shows work in progress. These profile settings do not change the desktop app’s own view.',
+    fields: [
+      {
+        key: 'statuslineMode',
+        label: 'Statusline mode',
+        description: 'Density of the terminal statusline rail.',
+        kind: 'select',
+        options: ['minimum', 'detailed', 'no-color'],
+        optionLabels: { minimum: 'Minimum', detailed: 'Detailed', 'no-color': 'No color' },
+      },
+      {
+        key: 'thinkingWord',
+        label: 'Thinking word',
+        description:
+          'One short word shown in the terminal status chip while the agent works: up to 16 letters, numbers, underscores or hyphens.',
+        kind: 'text',
+        pattern: '[\\p{L}\\p{N}_\\-]{1,16}',
+        required: true,
+      },
+      {
+        key: 'animationStyle',
+        label: 'Animation style',
+        description: 'Animation of the terminal’s working-state chip.',
+        kind: 'select',
+        options: ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'static', 'cycle'],
+      },
+      {
+        key: 'showModelReasoning',
+        label: 'Show model reasoning',
+        description: 'Show the model’s reasoning blocks in the terminal and WebUI chat history.',
+        kind: 'toggle',
+      },
+      {
+        key: 'preRefineSeconds',
+        label: 'Pre-refine countdown',
+        description:
+          'Grace period before the prompt refiner starts. 0 skips the countdown and refines at once.',
+        kind: 'number',
+        unit: 'seconds',
+        min: 0,
+      },
+      {
+        key: 'multiDiffSummaryThreshold',
+        label: 'Multi-diff summary',
+        description:
+          'Minimum number of changed files before the aggregate “N files · +X −Y” line is shown above the per-file diffs. 0 turns it off.',
+        kind: 'number',
+        unit: 'files',
+        min: 0,
       },
     ],
   },

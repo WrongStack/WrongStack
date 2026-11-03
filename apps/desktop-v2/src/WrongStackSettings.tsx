@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  SquareTerminal,
   Wrench,
 } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
@@ -350,6 +351,12 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               { id: 'health', title: 'Provider diagnostics', Icon: Gauge, group: 'Diagnostics' },
               { id: 'quota', title: 'Plan quota', Icon: Gauge, group: 'Diagnostics' },
               { id: 'model-tests', title: 'Model tests', Icon: FlaskConical, group: 'Diagnostics' },
+              {
+                id: 'terminal-display',
+                title: 'Terminal display',
+                Icon: SquareTerminal,
+                group: 'Diagnostics',
+              },
               {
                 id: 'logging',
                 title: 'Logs & diagnostics',

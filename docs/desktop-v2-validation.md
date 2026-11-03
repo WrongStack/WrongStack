@@ -6850,3 +6850,14 @@ copies, starting with SAGE memory.
   `worktree.state`. The WebUI's per-session timeline view is not ported.
 - Checks: tested in jsdom through the page (default list, lane order and notes, graph forks and
   merge); worktree model tests pass; typecheck clean.
+
+### Terminal display settings (2026-11-04)
+
+- WrongStack settings has a "Terminal display" section with the profile preferences the WebUI's
+  display tab syncs for the terminal UI: statusline mode, thinking word (one word of up to 16
+  letters, numbers, underscores or hyphens; never saved empty), animation style, show model
+  reasoning, the pre-refine countdown and the multi-diff summary threshold. The section says
+  these do not change the desktop app's own view. The WebUI-only workbench switches (swarm panel
+  placement, title animation, keyboard shortcuts) are not profile settings and are not ported.
+- Checks: section keys, the engine's allowed values and the thinking-word rule are tested;
+  typecheck clean.
