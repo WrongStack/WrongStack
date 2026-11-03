@@ -635,6 +635,8 @@ export class FileSessionWriter implements SessionWriter {
   }
 
   async clearSession(): Promise<void> {
+    await this.workspaceCapture;
+    this.initPromise ??= Promise.resolve();
     if (this.filePath) await clearRedoStash(this.filePath).catch(() => undefined);
     await executeClearSession({
       id: this.id,

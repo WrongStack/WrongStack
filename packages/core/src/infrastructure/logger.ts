@@ -158,7 +158,6 @@ export class DefaultLogger implements Logger {
     child.stderr = this.stderr;
     child.maxFileBytes = this.maxFileBytes;
     child.parent = this;
-    child.writesSinceRotateCheck = this.writesSinceRotateCheck;
     return child;
   }
 
@@ -186,7 +185,7 @@ export class DefaultLogger implements Logger {
    * statSync / renameSync syscall on the hot log path.
    */
   private enqueueRotate(file: string): void {
-    if (this.writesSinceRotateCheck++ % DefaultLogger.ROTATE_CHECK_EVERY !== 0) return;
+    if (this.root.writesSinceRotateCheck++ % DefaultLogger.ROTATE_CHECK_EVERY !== 0) return;
     this._tail = this._tail
       .then(async () => {
         let st;

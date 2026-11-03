@@ -214,6 +214,6 @@ export async function executeClearSession(ctx: ClearSessionContext): Promise<voi
   await ctx.handle.close();
   await atomicWrite(ctx.filePath, record, { mode: 0o600 });
   ctx.summaryTracker.reset(resetAt);
-  ctx.scheduleMetadataCheckpoint();
   ctx.onCleared();
+  ctx.scheduleMetadataCheckpoint();
 }

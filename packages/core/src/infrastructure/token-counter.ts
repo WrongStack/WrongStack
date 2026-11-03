@@ -51,6 +51,7 @@ export class DefaultTokenCounter implements TokenCounter {
    */
   private readonly agentId?: string | (() => string | undefined) | undefined;
   private priceCache = new Map<string, PriceEntry>();
+  private resetEpoch = 0;
   /** Most recently accounted request's tokens. Used for per-request context pressure. */
   private lastInput = 0;
   private lastCacheRead = 0;
@@ -126,6 +127,10 @@ export class DefaultTokenCounter implements TokenCounter {
         ? (usage.cacheWrite5m ?? 0) + (usage.cacheWrite1h ?? 0)
         : 0;
     const cacheWriteTotal = usage.cacheWrite ?? ttlAggregate;
+    const effectiveUsage: Usage =
+      cacheWriteTotal > 0 && usage.cacheWrite === undefined
+        ? { ...usage, cacheWrite: cacheWriteTotal }
+        : usage;
     this.cacheWrite += cacheWriteTotal;
     // Mirror the TTL split. `?? undefined` preserves the "absent" signal so
     // cacheStats() can omit the TTL row when the upstream never exposed one,
@@ -147,8 +152,8 @@ export class DefaultTokenCounter implements TokenCounter {
     const priceKey = providerId && model ? `${providerId}\0${model}` : undefined;
     const price = priceKey ? this.priceCache.get(priceKey) : undefined;
     if (price) {
-      const deltaCost = this.applyPrice(usage, price);
-      this.emitAccounted(eventSessionId, model, providerId, usage, deltaCost);
+      const deltaCost = this.applyPrice(effectiveUsage, price);
+      this.emitAccounted(eventSessionId, model, providerId, effectiveUsage, deltaCost);
       return;
     }
 
@@ -158,28 +163,31 @@ export class DefaultTokenCounter implements TokenCounter {
         const keys = [...this.priceCache.keys()];
         this.priceCache.delete(keys[0] ?? '');
       }
+      const epoch = this.resetEpoch;
       // Async lookup — populate cache, but don't block this call.
       void this.registry
         .getModel(providerId, model)
         .then((m) => {
+          if (this.resetEpoch !== epoch) return;
           let deltaCost: { input: number; output: number; total: number } | undefined;
           if (m) {
             const p = priceFromModel(m);
             this.priceCache.set(priceKey!, p);
-            deltaCost = this.applyPrice(usage, p);
+            deltaCost = this.applyPrice(effectiveUsage, p);
           }
           // Token totals are authoritative even when pricing is unresolved.
           // Emit after the lookup settles so live UIs update for unknown models
           // without double-emitting when pricing is resolved.
-          this.emitAccounted(eventSessionId, model, providerId, usage, deltaCost);
+          this.emitAccounted(eventSessionId, model, providerId, effectiveUsage, deltaCost);
         })
         .catch(() => {
+          if (this.resetEpoch !== epoch) return undefined;
           // Emit so observability tooling can detect unknown models.
           this.events?.emit('token.cost_estimate_unavailable', {
             ...(eventSessionId ? { sessionId: eventSessionId } : {}),
             model: model ?? '<unknown>',
           });
-          this.emitAccounted(eventSessionId, model, providerId, usage);
+          this.emitAccounted(eventSessionId, model, providerId, effectiveUsage);
           return undefined;
         });
       return;
@@ -187,7 +195,7 @@ export class DefaultTokenCounter implements TokenCounter {
 
     // No pricing source exists. Still emit token totals so live UIs do not stay
     // at 0 just because cost cannot be estimated.
-    this.emitAccounted(eventSessionId, model, providerId, usage);
+    this.emitAccounted(eventSessionId, model, providerId, effectiveUsage);
   }
 
   /** Synchronous variant for code paths that have already resolved the model. */
@@ -205,6 +213,10 @@ export class DefaultTokenCounter implements TokenCounter {
         ? (usage.cacheWrite5m ?? 0) + (usage.cacheWrite1h ?? 0)
         : 0;
     const cacheWriteTotal = usage.cacheWrite ?? ttlAggregate;
+    const effectiveUsage: Usage =
+      cacheWriteTotal > 0 && usage.cacheWrite === undefined
+        ? { ...usage, cacheWrite: cacheWriteTotal }
+        : usage;
     this.cacheWrite += cacheWriteTotal;
     // Mirror the TTL split captured in `account()` for the synchronous path.
     // When the upstream only emits an aggregate (OpenAI family), both fields
@@ -229,8 +241,14 @@ export class DefaultTokenCounter implements TokenCounter {
       this.priceCache.delete(keys[0] ?? '');
     }
     this.priceCache.set(`${resolved.providerId}\0${resolved.modelId}`, price);
-    const deltaCost = this.applyPrice(usage, price);
-    this.emitAccounted(eventSessionId, resolved.modelId, resolved.providerId, usage, deltaCost);
+    const deltaCost = this.applyPrice(effectiveUsage, price);
+    this.emitAccounted(
+      eventSessionId,
+      resolved.modelId,
+      resolved.providerId,
+      effectiveUsage,
+      deltaCost,
+    );
   }
 
   total(): Usage {
@@ -357,6 +375,7 @@ export class DefaultTokenCounter implements TokenCounter {
   }
 
   reset(): void {
+    this.resetEpoch++;
     this.input = 0;
     this.output = 0;
     this.cacheRead = 0;

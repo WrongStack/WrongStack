@@ -1126,4 +1126,36 @@ describe('FileSessionWriter', () => {
       await fsp.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('clearSession before first append marks initPromise settled so resumed session does not emit stale session_resumed (F940)', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-f940-'));
+    try {
+      const filePath = path.join(dir, 'session.jsonl');
+      const realHandle = await fsp.open(filePath, 'a', 0o600);
+      const w = new FileSessionWriter(
+        TEST_ID,
+        realHandle as never,
+        STARTED_AT,
+        makeMeta(),
+        undefined,
+        {
+          filePath,
+          resumed: true,
+          metadataCheckpointMs: 0,
+        },
+      );
+      await w.clearSession();
+      await w.append({ type: 'user_input', ts: now(), content: 'after clear' } as SessionEvent);
+      await w.close();
+
+      const types = (await fsp.readFile(filePath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line).type);
+      expect(types).toEqual(['session_start', 'user_input']);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

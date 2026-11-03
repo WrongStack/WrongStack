@@ -269,4 +269,14 @@ describe('DefaultSkillLoader', () => {
     await loader.list();
     expect(loader.diagnostics().shadowed.length).toBeGreaterThan(0);
   });
+
+  it('deduplicates concurrent list()/find() calls on a cold cache without duplicating diagnostics (F936)', async () => {
+    const paths = resolveWstackPaths({ projectRoot, globalRoot, userHome: tmp });
+    const loader = new DefaultSkillLoader({ paths, bundledDir: bundled });
+
+    await Promise.all([loader.list(), loader.find('alpha'), loader.list()]);
+    const diag = loader.diagnostics();
+    expect(diag.skipped.filter((s) => s.entry === 'malformed')).toHaveLength(1);
+    expect(diag.shadowed.filter((s) => s.name === 'alpha')).toHaveLength(1);
+  });
 });

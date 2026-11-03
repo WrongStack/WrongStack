@@ -271,4 +271,16 @@ describe('createContextManagerTool', () => {
   it('exports default instance without compactor', () => {
     expect(contextManagerTool.name).toBe('context_manager');
   });
+
+  it('uses opts.summarizer on action: summary when input.text is omitted (F944)', async () => {
+    const tool = createContextManagerTool({
+      summarizer: async (msgs) => `Summarized ${msgs.length} turns`,
+    });
+    const ctx = makeCtx([
+      { role: 'user', content: 'turn 1' },
+      { role: 'assistant', content: 'turn 2' },
+    ]);
+    const res = await tool.execute({ action: 'summary', from: 0, to: 1 }, ctx);
+    expect(res.summary).toBe('Summarized 2 turns');
+  });
 });

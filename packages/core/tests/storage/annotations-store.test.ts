@@ -396,4 +396,49 @@ describe('AnnotationsStore', () => {
       vi.mocked(fs.open).mockReset();
     }
   });
+
+  it('resolve() propagates read/parse errors and emits storage.error without spurious list reads', async () => {
+    const events = new EventBus();
+    const emitSpy = vi.spyOn(events, 'emit');
+    const loggedStore = new AnnotationsStore({ dir, events });
+    const added = await loggedStore.add({
+      sessionId: 's-resolve-err',
+      atEventIndex: 1,
+      authorId: 'alice',
+      text: 'fix this',
+    });
+    emitSpy.mockClear();
+
+    await loggedStore.resolve({
+      sessionId: 's-resolve-err',
+      annotationId: added.id,
+      resolvedBy: 'bob',
+    });
+    expect(emitSpy).not.toHaveBeenCalledWith('storage.read', expect.anything());
+
+    vi.mocked(fs.readFile).mockRejectedValueOnce(
+      Object.assign(new Error('EIO i/o error'), { code: 'EIO' }),
+    );
+    try {
+      await expect(
+        loggedStore.resolve({
+          sessionId: 's-resolve-err',
+          annotationId: added.id,
+          resolvedBy: 'bob',
+        }),
+      ).rejects.toMatchObject({ code: 'EIO' });
+      expect(emitSpy).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          store: 'annotations',
+          operation: 'resolve',
+          outcome: 'failure',
+          sessionId: 's-resolve-err',
+          error: expect.stringContaining('EIO'),
+        }),
+      );
+    } finally {
+      vi.mocked(fs.readFile).mockReset();
+    }
+  });
 });

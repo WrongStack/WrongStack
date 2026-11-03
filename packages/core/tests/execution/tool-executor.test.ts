@@ -372,4 +372,90 @@ describe('ToolExecutor scoped inline approval', () => {
     expect(getToolImages(batch.outputs[0]?.result)).toEqual([img1]);
     expect(getToolImages(batch.outputs[1]?.result)).toEqual([img2]);
   });
+
+  it('serializes catalog gateway (tool_use) calls to mutating tools under parallel and smart strategies (F934)', async () => {
+    let activeParallel = 0;
+    let maxParallel = 0;
+    let activeSmart = 0;
+    let maxSmart = 0;
+
+    const buildGatewayExecutor = (onStart: () => void, onEnd: () => void) => {
+      const writeTool = { ...createMockTool({ name: 'write' }), mutating: true };
+      writeTool.execute = async () => {
+        onStart();
+        await new Promise((r) => setTimeout(r, 20));
+        onEnd();
+        return 'ok';
+      };
+      const gatewayTool = createMockTool({ name: 'tool_use', mutating: false });
+      gatewayTool.execute = async (input, c, opts) => {
+        return writeTool.execute((input as any).input, c, opts);
+      };
+      return new ToolExecutor(makeRegistry([writeTool, gatewayTool]), {
+        events: new EventBus(),
+        secretScrubber: noopScrubber,
+        permissionPolicy: {
+          evaluate: vi.fn().mockResolvedValue({ permission: 'auto', source: 'default' }),
+        },
+      } as any);
+    };
+
+    const parExec = buildGatewayExecutor(
+      () => {
+        activeParallel++;
+        maxParallel = Math.max(maxParallel, activeParallel);
+      },
+      () => {
+        activeParallel--;
+      },
+    );
+    await parExec.executeBatch(
+      [
+        {
+          type: 'tool_use',
+          id: 'p1',
+          name: 'tool_use',
+          input: { tool: 'write', input: { path: 'same.txt' } },
+        },
+        {
+          type: 'tool_use',
+          id: 'p2',
+          name: 'tool_use',
+          input: { tool: 'write', input: { path: 'same.txt' } },
+        },
+      ],
+      makeCtx(),
+      'parallel',
+    );
+    expect(maxParallel).toBe(1);
+
+    const smartExec = buildGatewayExecutor(
+      () => {
+        activeSmart++;
+        maxSmart = Math.max(maxSmart, activeSmart);
+      },
+      () => {
+        activeSmart--;
+      },
+    );
+    await smartExec.executeBatch(
+      [
+        {
+          type: 'tool_use',
+          id: 's1',
+          name: 'tool_use',
+          input: { tool: 'write', input: { path: 'a.txt' } },
+        },
+        {
+          type: 'tool_use',
+          id: 's2',
+          name: 'tool_use',
+          input: { tool: 'write', input: { path: 'b.txt' } },
+        },
+      ],
+      makeCtx(),
+      'smart',
+    );
+    expect(maxSmart).toBe(1);
+  });
 });

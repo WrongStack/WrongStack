@@ -239,4 +239,20 @@ describe('DefaultLogger secret redaction (WS-SEC-07)', () => {
     await root.flush();
     expect(fs.readFileSync(logFile, 'utf8')).toContain('grandchild-entry');
   });
+
+  it('shares writesSinceRotateCheck on root so short-lived child loggers still trigger log rotation (F945)', async () => {
+    const logFile = path.join(tmp, 'child-rotate.log');
+    const root = new DefaultLogger({
+      level: 'info',
+      file: logFile,
+      stderr: false,
+      maxFileBytes: 400,
+    });
+    root.info('boot');
+    for (let i = 0; i < 150; i++) {
+      root.child({ req: i }).info('x'.repeat(80));
+    }
+    await root.flush();
+    expect(fs.existsSync(`${logFile}.1`)).toBe(true);
+  });
 });

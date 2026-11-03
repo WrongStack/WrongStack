@@ -256,5 +256,61 @@ describe('SessionEventBridge', () => {
       bridge.setAuditLevel(undefined as never);
       expect(bridge.level).toBe('standard');
     });
+
+    it('samples tool_progress before clearing progressCounters on tool_call_end in appendBatch (F939)', async () => {
+      const written: any[] = [];
+      const bridge = createSessionEventBridge(
+        {
+          append: async (e: any) => {
+            written.push(e);
+          },
+          appendBatch: async (es: any[]) => {
+            written.push(...es);
+          },
+        } as never,
+        'full',
+        { sampling: { toolProgress: { sampleRate: 5 } } },
+      );
+
+      await bridge.append({
+        type: 'tool_progress',
+        id: 'call_1',
+        name: 'bash',
+        event: { type: 'log', message: 'p1-kept' },
+        ts: '2026-01-01T00:00:00.000Z',
+      } as never);
+
+      await bridge.appendBatch([
+        {
+          type: 'tool_progress',
+          id: 'call_1',
+          name: 'bash',
+          event: { type: 'log', message: 'p2-dropped' },
+          ts: '2026-01-01T00:00:01.000Z',
+        } as never,
+        {
+          type: 'tool_call_end',
+          id: 'call_1',
+          name: 'bash',
+          output: 'ok',
+          isError: false,
+          durationMs: 5,
+          ts: '2026-01-01T00:00:02.000Z',
+        } as never,
+      ]);
+
+      await bridge.append({
+        type: 'tool_progress',
+        id: 'call_1',
+        name: 'bash',
+        event: { type: 'log', message: 'next-run-p1-kept' },
+        ts: '2026-01-01T00:00:03.000Z',
+      } as never);
+
+      const keptMessages = written
+        .filter((e) => e.type === 'tool_progress')
+        .map((e) => e.event.message);
+      expect(keptMessages).toEqual(['p1-kept', 'next-run-p1-kept']);
+    });
   });
 });

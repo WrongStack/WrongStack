@@ -60,6 +60,7 @@ export class CouncilOrchestrator extends CouncilOrchestratorCore {
     let votes: CouncilVoteResult[] = [];
     for (let round = 1; round <= profile.deliberationRounds; round++) {
       const previous = roundVotes[roundVotes.length - 1];
+      const initial = roundVotes[0];
       const current = await mapConcurrent(
         profile.seats,
         Math.min(this.maxConcurrency, profile.seats.length),
@@ -69,6 +70,7 @@ export class CouncilOrchestrator extends CouncilOrchestratorCore {
             vote = await this.callSeat(question, profile, seat, i, signal, usage, {
               round,
               ...(previous ? { previous } : {}),
+              ...(initial ? { initial } : {}),
             });
           } catch (error) {
             const timedOut = signal.aborted && !question.signal?.aborted;
@@ -115,9 +117,17 @@ export class CouncilOrchestrator extends CouncilOrchestratorCore {
     // it replaced: falling back to the last round that produced any usable
     // ballot keeps a transport failure in round 2 from discarding a perfectly
     // good round 1.
+    let warningRounds: readonly (readonly CouncilVoteResult[])[] = roundVotes;
     if (roundVotes.length > 1 && !votes.some((vote) => vote.status === 'valid')) {
-      const lastUsable = [...roundVotes].reverse().find((r) => r.some((v) => v.status === 'valid'));
-      if (lastUsable) votes = lastUsable;
+      const lastUsableIdx =
+        roundVotes.length -
+        1 -
+        [...roundVotes].reverse().findIndex((r) => r.some((v) => v.status === 'valid'));
+      const lastUsable = lastUsableIdx < roundVotes.length ? roundVotes[lastUsableIdx] : undefined;
+      if (lastUsable) {
+        votes = lastUsable;
+        warningRounds = roundVotes.slice(0, lastUsableIdx + 1);
+      }
     }
     const warnings = [
       ...(votes[0]?.round !== undefined && votes[0].round < roundVotes.length
@@ -126,7 +136,7 @@ export class CouncilOrchestrator extends CouncilOrchestratorCore {
           ]
         : []),
       ...distinctnessWarnings(votes, profile),
-      ...deliberationWarnings(roundVotes, profile),
+      ...deliberationWarnings(warningRounds, profile),
     ];
     const errors = votes
       .filter((vote) => vote.status === 'failed' || vote.status === 'invalid')
@@ -199,14 +209,21 @@ export class CouncilOrchestrator extends CouncilOrchestratorCore {
     signal: AbortSignal,
     usage: UsageAccumulator,
     /** Round 1 is independent; later rounds carry the previous ballots. */
-    ctx: { round: number; previous?: readonly CouncilVoteResult[] | undefined } = { round: 1 },
+    ctx: {
+      round: number;
+      previous?: readonly CouncilVoteResult[] | undefined;
+      initial?: readonly CouncilVoteResult[] | undefined;
+    } = { round: 1 },
   ): Promise<CouncilVoteResult> {
     const { round } = ctx;
+    const initialSelf = ctx.initial?.find((vote) => vote.seatId === seat.id);
     const priorSelf = ctx.previous?.find((vote) => vote.seatId === seat.id);
+    const baselineSelf = initialSelf?.status === 'valid' ? initialSelf : priorSelf;
     /** Did this seat move? Only meaningful once it has a previous ballot. */
     const markChange = (vote: CouncilVoteResult): CouncilVoteResult => {
-      if (priorSelf?.status !== 'valid' || vote.status !== 'valid') return vote;
-      const moved = (vote.optionId ?? vote.stance) !== (priorSelf.optionId ?? priorSelf.stance);
+      if (baselineSelf?.status !== 'valid' || vote.status !== 'valid') return vote;
+      const moved =
+        (vote.optionId ?? vote.stance) !== (baselineSelf.optionId ?? baselineSelf.stance);
       return moved ? { ...vote, changed: true } : vote;
     };
     if (signal.aborted) {

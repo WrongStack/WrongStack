@@ -144,9 +144,12 @@ export class IntelligentCompactor implements Compactor {
     if (saved1 > 0) reductions.push({ phase: 'elision', saved: saved1 });
 
     // Phase 1b: collapse superseded repeated reads under the elise threshold.
-    const dedup = dedupStaleReads(ctx.messages, ctx.contextEvidence?.repeatedReads ?? [], {
-      preserveK: this.preserveK,
-    });
+    const dedup = dedupStaleReads(
+      ctx.messages,
+      ctx.contextEvidence?.repeatedReads ?? [],
+      { preserveK: this.preserveK },
+      (msgs, k) => widenTailCut(ctx, msgs, findPreserveStart(msgs, k * 2)),
+    );
     if (dedup.changed) ctx.state.replaceMessages(dedup.messages);
     if (dedup.saved > 0) reductions.push({ phase: 'elision', saved: dedup.saved });
 
@@ -230,7 +233,7 @@ export class IntelligentCompactor implements Compactor {
     const result = eliseOldToolResults(
       ctx.messages,
       { preserveK: this.preserveK, eliseThreshold: this.eliseThreshold },
-      (msgs, k) => widenTailCut(ctx, msgs, findPreserveStart(msgs, k)),
+      (msgs, k) => widenTailCut(ctx, msgs, findPreserveStart(msgs, k * 2)),
     );
     if (result.changed) ctx.state.replaceMessages(result.messages);
     return result.saved;

@@ -390,7 +390,22 @@ export async function loadPlugins(
     });
   }
 
+  const loadedNames = new Set<string>();
   for (const plugin of sorted) {
+    const failedDep = (plugin.dependsOn ?? [])
+      .map(normalizeDep)
+      .find((dep) => !loadedNames.has(dep.name));
+    if (failedDep) {
+      const err = new PluginError({
+        message: `Plugin "${plugin.name}" depends on failed plugin "${failedDep.name}"`,
+        code: ERROR_CODES.PLUGIN_MISSING_DEPENDENCY,
+        pluginName: plugin.name,
+        context: { dependency: failedDep.name },
+      });
+      opts.log.error(err.message);
+      failed.push({ plugin, err });
+      continue;
+    }
     if (!satisfies(plugin.apiVersion, kernelVersion)) {
       const err = new PluginError({
         message: `Plugin "${plugin.name}" requires apiVersion ${plugin.apiVersion}; kernel is ${kernelVersion}`,
@@ -471,6 +486,7 @@ export async function loadPlugins(
       registrations.push(registration);
       registerLegacy(registration);
       loaded.push(plugin);
+      loadedNames.add(plugin.name);
       opts.log.info(`Plugin "${plugin.name}" loaded`);
     } catch (err) {
       opts.log.error(`Plugin "${plugin.name}" setup failed`, {

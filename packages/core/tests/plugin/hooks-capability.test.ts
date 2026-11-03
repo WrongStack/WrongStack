@@ -7,10 +7,15 @@
  * PluginError (when `enforceCapabilities: true`).
  */
 
-import type { Plugin, PluginAPI } from '@wrongstack/contracts/types/plugin';
+import type { Plugin, PluginAPI, PluginPipelines } from '@wrongstack/contracts/types/plugin';
 import { describe, expect, it, vi } from 'vitest';
+import { HookRegistry } from '../../src/hooks/registry.js';
+import { Container, EventBus } from '../../src/index.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
+import { DefaultPluginAPI } from '../../src/plugin/api.js';
 import { loadPlugins, unloadPlugins } from '../../src/plugin/loader.js';
+import { ProviderRegistry } from '../../src/registry/provider-registry.js';
+import { ToolRegistry } from '../../src/registry/tool-registry.js';
 
 const baseLog = new DefaultLogger({ level: 'error' });
 
@@ -147,5 +152,41 @@ describe('loadPlugins — capabilities.hooks enforcement', () => {
       apiFactory: () => makeMockApi(registerHook),
       log: makeStubLog(warn),
     });
+  });
+
+  it('preserves DefaultPluginAPI this-binding on registerHook in warn-only mode when hooks:false', async () => {
+    const hookRegistry = new HookRegistry();
+    const warn = vi.fn();
+    const log = makeStubLog(warn);
+    const plugin = p({
+      name: 'warn-real-api',
+      capabilities: { hooks: false },
+      setup: (api: PluginAPI) => {
+        api.registerHook('Stop', undefined, () => undefined);
+      },
+    });
+
+    const handle = await loadPlugins([plugin], {
+      apiFactory: (plug) =>
+        new DefaultPluginAPI({
+          ownerName: plug.name,
+          container: new Container(),
+          events: new EventBus(),
+          pipelines: {} as PluginPipelines,
+          toolRegistry: new ToolRegistry(),
+          providerRegistry: new ProviderRegistry(),
+          hookRegistry,
+          config: {} as never,
+          log: baseLog,
+        }),
+      log,
+      enforceCapabilities: false,
+    });
+
+    expect(handle.loaded).toHaveLength(1);
+    expect(handle.failed).toHaveLength(0);
+    expect(hookRegistry.list('Stop')).toHaveLength(1);
+    await handle.dispose();
+    expect(hookRegistry.list('Stop')).toHaveLength(0);
   });
 });

@@ -114,7 +114,7 @@ export class DefaultConfigLoader implements ConfigLoader {
       skipIdentityValidation?: boolean;
     } = {},
   ): Promise<Config> {
-    let cfg: PartialConfig = { ...CONFIG_BEHAVIOR_DEFAULTS } as PartialConfig;
+    let cfg: PartialConfig = structuredClone(CONFIG_BEHAVIOR_DEFAULTS) as PartialConfig;
 
     // Materialize behavior/settings defaults into the active profile before
     // env vars or CLI flags are applied. The root config remains bootstrap-only.

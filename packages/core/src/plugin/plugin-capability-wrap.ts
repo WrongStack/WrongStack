@@ -162,8 +162,8 @@ export function wrapApiForCapabilityCheck(
                   o?: unknown,
                 ) => unknown;
                 return options === undefined
-                  ? register(event, matcher, hook)
-                  : register(event, matcher, hook, options);
+                  ? register.call(target, event, matcher, hook)
+                  : register.call(target, event, matcher, hook, options);
               };
             }
             return Reflect.get(target, prop, receiver);

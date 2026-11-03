@@ -412,7 +412,9 @@ export function createContextManagerTool(
             };
           }
           const summaryText =
-            input.text ?? '[summary placeholder — provide "text" to record the summary]';
+            input.text ??
+            (opts.summarizer ? await opts.summarizer(messages.slice(from, to + 1)) : undefined) ??
+            '[summary placeholder — provide "text" to record the summary]';
           const summaryMsg: Message = {
             role: 'system',
             content: `[summary of messages ${from}–${to}]: ${summaryText}`,

@@ -541,4 +541,21 @@ describe('ToolRegistry capability restriction', () => {
         .sort(),
     ).toEqual(['clarify', 'plugin_reader']);
   });
+
+  it('preserves active descriptionMode on the base tool after unwrapping a scoped wrapper and keeps core+core tools visible under requireDeclaredCapabilities (F943, F944)', () => {
+    const r = new ToolRegistry();
+    const longDesc =
+      'Sentence one explains the primary behavior in detail. ' +
+      'Sentence two adds important caveats about usage. ' +
+      'Sentence three provides extended examples that exceed the 180-character simple-mode limit significantly.';
+    r.register({ ...t('read'), description: longDesc }, 'core');
+    const unwrap = r.wrapScoped('read', (orig) => ({ ...orig }), 'core');
+    r.setSessionRestriction({ requireDeclaredCapabilities: true });
+    expect(r.get('read')).toBeDefined();
+
+    r.setDescriptionMode('read', 'simple');
+    const whileWrappedDesc = r.get('read')!.description;
+    unwrap();
+    expect(r.get('read')!.description).toBe(whileWrappedDesc);
+  });
 });

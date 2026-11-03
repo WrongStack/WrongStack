@@ -245,10 +245,7 @@ export class Agent {
     // nudges after a model switch, retry-after-error) and must execute;
     // an unbounded dedup used to swallow it silently, leaving the session
     // looking dead until the user typed something different.
-    const inputText =
-      typeof userInput === 'string'
-        ? userInput
-        : ((userInput as { prompt?: string })?.prompt ?? '');
+    const { blocks: normalizedBlocks, text: inputText } = normalizeInput(userInput);
     if (inputText.length > 0) {
       const hash = createHash('sha256').update(inputText).digest('hex');
       const elapsed = Date.now() - (this._lastInputHashAt ?? Number.NaN);
@@ -327,7 +324,8 @@ export class Agent {
         'agent.executionStrategy': opts.executionStrategy ?? this.executionStrategy,
       });
 
-      const { blocks, text } = normalizeInput(userInput);
+      const blocks = normalizedBlocks;
+      const text = inputText;
       const inputPayload = { content: blocks, text, ctx: this.ctx };
 
       await this.extensions.runBeforeRun(this.ctx, inputPayload);
@@ -367,7 +365,7 @@ export class Agent {
       // start of the provider run. A slow first run can exceed the whole
       // window under load; an immediately queued duplicate must still be
       // suppressed once that run finishes.
-      if (newInputHash !== undefined) this._lastInputHashAt = Date.now();
+      if (this._lastInputHash !== undefined) this._lastInputHashAt = Date.now();
       this.events.emit('agent.run.completed', {
         sessionId,
         ctx: this.ctx,

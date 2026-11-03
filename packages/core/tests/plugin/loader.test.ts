@@ -69,4 +69,52 @@ describe('loadPlugins', () => {
       /conflict/,
     );
   });
+
+  it('skips downstream plugins when a required dependency fails to load', async () => {
+    const executed: string[] = [];
+    const depBad = p({
+      name: 'dep-bad',
+      setup: () => {
+        executed.push('dep-bad');
+        throw new Error('dep boom');
+      },
+    });
+    const consumer = p({
+      name: 'consumer',
+      dependsOn: ['dep-bad'],
+      setup: () => {
+        executed.push('consumer');
+      },
+    });
+    const transitiveConsumer = p({
+      name: 'transitive-consumer',
+      dependsOn: ['consumer'],
+      setup: () => {
+        executed.push('transitive-consumer');
+      },
+    });
+    const optionalConsumer = p({
+      name: 'optional-consumer',
+      optionalDeps: ['dep-bad'],
+      setup: () => {
+        executed.push('optional-consumer');
+      },
+    });
+
+    const { loaded, failed } = await loadPlugins(
+      [transitiveConsumer, consumer, depBad, optionalConsumer],
+      {
+        apiFactory: () => fakeApi,
+        log,
+      },
+    );
+
+    expect(executed).toEqual(['dep-bad', 'optional-consumer']);
+    expect(loaded.map((x) => x.name)).toEqual(['optional-consumer']);
+    expect(failed.map((f) => f.plugin.name)).toEqual([
+      'dep-bad',
+      'consumer',
+      'transitive-consumer',
+    ]);
+  });
 });
