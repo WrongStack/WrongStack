@@ -47,6 +47,7 @@ import type { ProjectPage } from './useDesktop';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
 
+const CouncilCard = lazy(() => import('./CouncilCard'));
 const SessionMcpTasks = lazy(() =>
   import('./SessionMcpTasks').then((module) => ({ default: module.SessionMcpTasks })),
 );
@@ -387,7 +388,13 @@ export function EngineWorkspace({
                     <CopyButton text={message.text} label="Copy message" />
                   </header>
                   <div className={message.role === 'user' ? 'user-chat-body' : undefined}>
-                    {message.role === 'assistant' ? (
+                    {message.council ? (
+                      <Suspense
+                        fallback={<MarkdownContent text={message.text} onLink={openLink} />}
+                      >
+                        <CouncilCard decision={message.council} />
+                      </Suspense>
+                    ) : message.role === 'assistant' ? (
                       <MarkdownContent text={stripNextStepsBlock(message.text)} onLink={openLink} />
                     ) : (
                       <UserComposerMessage text={message.text} />

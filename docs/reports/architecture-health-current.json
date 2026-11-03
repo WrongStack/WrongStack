@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T09:24:18.579Z",
+  "generatedAt": "2026-11-03T09:49:26.122Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5740,
-    "testFiles": 4915,
-    "sourceLines": 1239754,
+    "sourceFiles": 5748,
+    "testFiles": 4916,
+    "sourceLines": 1239987,
     "workspaceEdges": 235,
-    "moduleEdges": 16816,
+    "moduleEdges": 16830,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 184,
+    "testsWithoutTypecheck": 185,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1036
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 372,
-      "testFiles": 184,
+      "sourceFiles": 374,
+      "testFiles": 185,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -731,7 +731,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 53,
+      "sourceFiles": 59,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/core"
@@ -1530,6 +1530,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/conversation-notices.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/council-decisions.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31065,6 +31071,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/council-decisions.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/dead-code-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32325,6 +32338,11 @@
     {
       "from": "apps/desktop-v2/src/ContextUsageSummary.tsx",
       "specifier": "./session-status.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/CouncilCard.tsx",
+      "specifier": "./surfaces.css",
       "syntax": "import"
     },
     {

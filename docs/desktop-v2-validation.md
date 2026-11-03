@@ -6136,3 +6136,28 @@ copies, starting with SAGE memory.
 - Checks: desktop 703 tests and WebUI 6,230 tests pass; typecheck clean for the desktop, the
   WebUI and the package; test typecheck has no new diagnostics; architecture health passes; host
   Rust tests 30 of 30.
+
+### Brain council decisions in the conversation (2026-11-03)
+
+- A Brain council (one provider call per seat) now leaves the WebUI's decision card in the
+  desktop conversation: verdict, vote distribution, each seat's persona, model, vote and
+  rationale, judge, deliberation rounds, tokens, duration and warnings such as a correlated panel.
+- `packages/project-surfaces/src/council` holds the card, its seat card and the panel fold
+  (`applyCouncilVote`, `applyCouncilResolution`, `noteCouncilQuestion`, `councilDecisionData`,
+  `councilDecisionText`). The WebUI council log store and its brain handler call the same
+  functions; its old module paths re-export them.
+- Desktop: `brain.event` frames reach every conversation of a project, so the reducer folds only
+  this conversation's (`council-decisions.ts`). A resolution that changes its panel adds one
+  message carrying the decision; a replayed or older resolution adds none. `CouncilCard` loads on
+  first use, so the shared stylesheet stays out of the chat's startup bundle. Tests:
+  `council-decisions.test.ts`; the WebUI council tests (208) pass unchanged.
+- Not yet seen in the native window: no council has run in this machine's journals.
+
+### Kanban supervisor status no longer floods the journals (2026-11-03)
+
+- The project journal of 371 MB was 92% `kanban.supervisor.status` frames (139k of 151k lines in
+  ten hours, 164 boards), and a 1.9 GB conversation journal held 767k of them: the supervisor
+  broadcast every audit of every board every ten seconds. It now broadcasts a board when the audit
+  finds something new, and an unchanged snapshot at most every five minutes (commit `2ca6e2695`,
+  test in `packages/cli/tests/kanban-supervisor.test.ts`). The engine binary needs a rebuild
+  before the desktop sees it; journals already on disk keep their size.

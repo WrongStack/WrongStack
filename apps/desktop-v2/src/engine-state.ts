@@ -1,5 +1,11 @@
 import type { UserInputRequest } from '@wrongstack/contracts/types';
 import {
+  type CouncilLog,
+  councilDecisionText,
+  EMPTY_COUNCIL_LOG,
+} from '@wrongstack/project-surfaces/council/panels';
+import type { CouncilDecisionData } from '@wrongstack/project-surfaces/council/types';
+import {
   type ParsedNextStep,
   parseNextSteps,
   projectNextStepsToolInput,
@@ -18,6 +24,7 @@ import {
   type ConversationNotice,
   conversationNotice,
 } from './conversation-notices.js';
+import { reduceCouncil } from './council-decisions.js';
 import { appendDelegation, type DelegationRecord, delegationRecord } from './delegations.js';
 import { contentText, entries, record } from './engine-values.js';
 import { parseInputRequest } from './input-form-model.js';
@@ -41,6 +48,8 @@ export interface ChatMessage {
   text: string;
   attachments?: ComposerAttachment[];
   streamId?: string;
+  /** A Brain council's decision, drawn as the WebUI's council card. */
+  council?: CouncilDecisionData;
 }
 export interface ProviderTestRun {
   id: string;
@@ -104,6 +113,8 @@ export interface EngineState {
   noticeCount: number;
   /** Worker delegations this conversation finished, as the engine reported them. */
   delegations: DelegationRecord[];
+  /** This conversation's Brain council panels, folded from `brain.event` frames. */
+  council: CouncilLog;
   nextSteps: ParsedNextStep[];
   results: Record<string, Record<string, unknown>>;
   error: string;
@@ -143,6 +154,7 @@ export const emptyEngineState: EngineState = {
   notices: [],
   noticeCount: 0,
   delegations: [],
+  council: EMPTY_COUNCIL_LOG,
   nextSteps: [],
   results: {},
   error: '',
@@ -317,6 +329,18 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   if (event.type === 'delegate.completed') {
     const delegation = delegationRecord(p, String(state.delegations.length));
     if (delegation) next.delegations = appendDelegation(state.delegations, delegation);
+  }
+  // Brain frames reach every conversation of the project; keep this one's councils.
+  if (event.type === 'brain.event' && next.sessionId && p['sessionId'] === next.sessionId) {
+    const fold = reduceCouncil(state.council, p);
+    next.council = fold.log;
+    if (fold.decision) {
+      const id = `council:${fold.decision.requestId}:${fold.decision.resolvedAt ?? state.messages.length}`;
+      next.messages = [
+        ...next.messages,
+        { id, role: 'assistant', text: councilDecisionText(fold.decision), council: fold.decision },
+      ];
+    }
   }
   // Memory frames are project-scoped; keep only this conversation's own.
   if (

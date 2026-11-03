@@ -1,11 +1,10 @@
+import {
+  councilDecisionData,
+  councilDecisionText,
+} from '@wrongstack/project-surfaces/council/panels';
 import { toast } from '@/components/Toaster';
 import { chatFor, messageSessionId } from '@/lib/ws-client-utils';
-import {
-  type BrainDecisionData,
-  type CouncilDecisionData,
-  useCouncilLogStore,
-  useVizStore,
-} from '@/stores';
+import { type BrainDecisionData, useCouncilLogStore, useVizStore } from '@/stores';
 import type { WSServerMessage } from '@/types';
 
 /**
@@ -193,56 +192,10 @@ export function handleBrainEvent(msg: WSServerMessage) {
     // The reducer rejects duplicate/older frames. Replaying one must not add
     // another transcript card or show the same warning toast again.
     if (panel && panel === previous) return;
-    const seats = panel?.seats ?? [];
-    const seatLines = seats.map(
-      (seat) =>
-        `- **${seat.persona}**${seat.veto ? ' (veto)' : ''} → ${seat.status === 'valid' ? (seat.optionId ?? 'stance') : seat.status}${seat.model ? ` · \`${seat.model}\`` : ''}`,
-    );
-    // `distinctTargetCount` is reported next to the seat count on purpose: a
-    // panel whose seats resolved to the SAME model looks like a normal
-    // unanimous verdict while adding cost without adding independence.
-    const headline = [
-      `⚖️ **Council ${p.resolution ?? 'resolved'}**`,
-      `${p.validVoteCount ?? seats.length}/${p.configuredSeatCount ?? seats.length} seats`,
-      `${p.distinctTargetCount ?? 0} distinct target${p.distinctTargetCount === 1 ? '' : 's'}`,
-      p.judgeUsed ? 'judge used' : undefined,
-      p.usage?.totalTokens ? `${p.usage.totalTokens} tok` : undefined,
-    ]
-      .filter(Boolean)
-      .join(' · ');
-
-    const councilDecision: CouncilDecisionData = {
-      requestId,
-      phase: panel?.phase,
-      startedAt: panel?.startedAt,
-      resolvedAt: panel?.resolvedAt,
-      status: p.status ?? panel?.status ?? 'decided',
-      resolution: p.resolution ?? panel?.resolution ?? 'decided',
-      optionId: p.optionId ?? panel?.optionId,
-      question: panel?.question ?? p.request?.question,
-      reason: p.reason ?? panel?.reason,
-      configuredSeatCount: p.configuredSeatCount ?? panel?.configuredSeatCount ?? seats.length,
-      validVoteCount: p.validVoteCount ?? panel?.validVoteCount ?? seats.length,
-      distinctTargetCount:
-        p.distinctTargetCount ??
-        panel?.distinctTargetCount ??
-        new Set(seats.map((s) => s.model || s.persona)).size,
-      judgeUsed: Boolean(p.judgeUsed ?? panel?.judgeUsed),
-      judgeModel: panel?.judgeLabel,
-      judgeIsVoter: panel?.judgeIsVoter,
-      rounds: panel?.rounds,
-      deliberationChanges: panel?.deliberationChanges,
-      totalTokens: p.usage?.totalTokens ?? panel?.totalTokens,
-      durationMs: p.usage?.durationMs ?? panel?.durationMs,
-      warnings: p.warnings ?? panel?.warnings,
-      seats: seats.length > 0 ? seats : (panel?.seats ?? []),
-    };
-
+    const councilDecision = councilDecisionData(panel, p as Record<string, unknown>);
     chat.addMessage({
       role: 'assistant',
-      content: [headline, ...seatLines, ...(p.warnings ?? []).map((w) => `> ⚠ ${w}`)]
-        .filter(Boolean)
-        .join('\n'),
+      content: councilDecisionText(councilDecision),
       councilDecision,
     });
     for (const warning of p.warnings ?? []) toast.warn(warning);
