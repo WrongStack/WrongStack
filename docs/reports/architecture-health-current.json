@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T19:15:26.742Z",
+  "generatedAt": "2026-11-03T19:27:23.644Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5943,
-    "testFiles": 4926,
-    "sourceLines": 1240295,
+    "sourceFiles": 5946,
+    "testFiles": 4928,
+    "sourceLines": 1240608,
     "workspaceEdges": 239,
-    "moduleEdges": 17264,
+    "moduleEdges": 17274,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 191,
+    "testsWithoutTypecheck": 193,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -389,8 +389,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 385,
-      "testFiles": 191,
+      "sourceFiles": 388,
+      "testFiles": 193,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1698,6 +1698,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/failed-run.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/fallback-picker.test.ts",
         "projects": [
           "root-node"
@@ -2437,6 +2443,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/tool-input-view.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/transcript-message.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31320,6 +31332,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/failed-run.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/fallback-picker.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32188,6 +32207,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/transcript-message.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/transcript-window.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32457,6 +32483,11 @@
     {
       "from": "apps/desktop-v2/src/ExecutionPolicySettings.tsx",
       "specifier": "./execution-policy.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/FailedRunContinue.tsx",
+      "specifier": "./failed-run.css",
       "syntax": "import"
     },
     {
@@ -32855,6 +32886,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/TranscriptMessage.tsx",
+      "specifier": "./transcript-message.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/TurnTools.tsx",
       "specifier": "./session-status.css",
       "syntax": "import"
@@ -33110,8 +33146,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1092,
-      "relativeImports": 36
+      "lines": 1090,
+      "relativeImports": 37
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -33147,8 +33183,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1092,
-      "relativeImports": 36
+      "lines": 1090,
+      "relativeImports": 37
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",

@@ -44,6 +44,7 @@ import { type DesktopCommandContext, runDesktopCommand } from './desktop-command
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
+import { FailedRunContinue } from './FailedRunContinue';
 import { useHunts } from './HuntRounds';
 import { JournalRecallLoader } from './JournalRecallLoader';
 import { Modal } from './Modal';
@@ -264,28 +265,24 @@ export function SessionComposer({
       }
     },
   };
-  // A hunt round goes out as it is: file references and attachments staged in the composer stay.
-  const hunts = useHunts({
-    state,
-    command,
-    onDraftChange,
-    report: (notice, problem) => {
-      if (!mounted.current) return;
-      setNotice(notice);
-      setError(problem);
-    },
-    sendRound: async (text) => {
-      if (busy.current) throw Error('A submit is already in progress.');
-      busy.current = true;
-      setSending(true);
-      try {
-        return await dispatchComposer(text, 'steer', dispatchPorts);
-      } finally {
-        busy.current = false;
-        if (mounted.current) setSending(false);
-      }
-    },
-  });
+  // Hunt rounds and run resumes go out as they are: staged references and attachments stay.
+  const sendAsIs = async (text: string) => {
+    if (busy.current) throw Error('A submit is already in progress.');
+    busy.current = true;
+    setSending(true);
+    try {
+      return await dispatchComposer(text, 'steer', dispatchPorts);
+    } finally {
+      busy.current = false;
+      if (mounted.current) setSending(false);
+    }
+  };
+  const report = (notice: string, problem: string) => {
+    if (!mounted.current) return;
+    setNotice(notice);
+    setError(problem);
+  };
+  const hunts = useHunts({ state, command, onDraftChange, report, sendRound: sendAsIs });
   const deliver = async (
     text: string,
     selected: SubmitMode,
@@ -624,6 +621,7 @@ export function SessionComposer({
           ) : null;
         })()}
       {hunts.view}
+      <FailedRunContinue state={state} send={sendAsIs} report={report} />
       <BtwReceipts
         sessionId={state.sessionId}
         command={command}

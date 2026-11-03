@@ -1,0 +1,23 @@
+.message-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.message-actions > .copy-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.message-actions > .copy-button[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.message-source {
+  max-height: 40rem;
+  margin: 0;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -6492,3 +6492,29 @@ copies, starting with SAGE memory.
 - Checks: desktop 741 tests pass (the context-editor test now formats its expectation with the
   runtime locale, since Node on this machine prints `1.200`); WebUI hunt, slash-routing and
   bug-hunt store tests pass (215); typecheck and Biome clean.
+
+### Failed-run recovery and message actions (2026-11-03)
+
+- A run that ends `failed` now shows its error above the composer with Continue, as the WebUI
+  shows it under the failed answer (the top error banner no longer repeats the same message).
+  Continue sends the WebUI's resume prompt. Extra lines of the error fold under Details.
+- In `auto` mode a run a provider killed on a recoverable error resumes by itself after a
+  countdown with Cancel, using the shared policy in
+  `@wrongstack/contracts/types/failed-run-resume`: numbered resume prompts with the provider's
+  reason, a growing wait, at most three in a row, then "Automatic resume paused" until a run
+  completes. Only a failure that arrives while the conversation is open arms the countdown, so
+  reopening an old failure never sends anything on its own. A stopped run (`aborted`) shows
+  nothing.
+- Every message gets actions next to Copy. A prompt has "Edit in composer", which puts its text
+  and file references in the composer (disabled while the composer holds a draft, since it
+  would replace it; hunt rounds have none). The latest answer has "Ask again", which sends the
+  prompt behind it again through the same path as the History tab's retry (disabled while a turn
+  runs). An answer can switch to its Markdown "Source". Unlike the WebUI's edit and regenerate,
+  these do not hide later messages: the transcript stays the engine's journal, and rewinding the
+  engine's context stays in the History tab.
+- The message rendering moved out of `EngineWorkspace.tsx` into `TranscriptMessage.tsx`.
+- Not verified in the native window: on this machine every conversation's engine is still
+  disconnected, so conversations stay on "Loading this conversation…". The slash popup was seen
+  listing `/bughunt` with its usage on build `80febebbf29a-c5436fe756a5`.
+- Checks: desktop tests pass (745, plus the graph-layout timing test, which passes alone and
+  fails only under full-suite load); typecheck and Biome clean.

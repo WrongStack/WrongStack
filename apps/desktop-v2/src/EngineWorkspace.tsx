@@ -1,5 +1,4 @@
 import { parseBugHuntMessage } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
-import { stripNextStepsBlock } from '@wrongstack/webui-protocol';
 import {
   ChevronDown,
   FolderCode,
@@ -11,26 +10,21 @@ import {
   Square,
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AttachmentPreview } from './ComposerAttachments';
 import { ConversationNotices } from './ConversationNotices';
-import { CopyButton } from './CopyButton';
 import type { ComposerAttachment } from './composer-attachments';
 import type { SubmitMode } from './composer-model';
 import {
   appendToDraft,
   type ComposerFileReference,
-  referenceKey,
-  referenceLabel,
   splitReferenceMessage,
   withReference,
 } from './composer-resources-model';
 import { EngineDataView } from './EngineDataView';
 import { FallbackPicker } from './FallbackPicker';
+import { failedRun } from './failed-run-model';
 import { workspaceFilePath } from './file-model';
-import { HuntRoundCard } from './HuntRounds';
 import { InputRequestCard } from './InputRequestCard';
 import type { InputDraft } from './input-form-model';
-import { MarkdownContent } from './MarkdownContent';
 import { markdownTarget } from './markdown-target';
 import { ProjectSessionTools } from './ProjectSessionTools';
 import { openExternal, projectFormDraftStorage, sessionObjectDraftStorage } from './platform';
@@ -44,12 +38,12 @@ import { SessionStatusBar } from './SessionStatusBar';
 import { SessionTodos } from './SessionTodos';
 import { SessionWorklist } from './SessionWorklist';
 import { ToolApprovalCard } from './ToolApprovalCard';
-import { LiveRunActivity, TurnTools } from './TurnTools';
+import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
+import { LiveRunActivity } from './TurnTools';
 import type { ProjectPage } from './useDesktop';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
 
-const CouncilCard = lazy(() => import('./CouncilCard'));
 const SessionMcpTasks = lazy(() =>
   import('./SessionMcpTasks').then((module) => ({ default: module.SessionMcpTasks })),
 );
@@ -212,6 +206,36 @@ export function EngineWorkspace({
   const perform = (type: string, payload?: Record<string, unknown>) => {
     void send(type, payload).catch(onError);
   };
+  const openFile = (path: string) => {
+    setFileTarget(path);
+    setTab('files');
+  };
+  const resendPrompt = async (text: string) => {
+    const capabilities = state.results['session.start']?.['protocolCapabilities'];
+    if (!Array.isArray(capabilities) || !capabilities.includes('session.user-ack'))
+      throw Error('this engine cannot confirm that it accepted the prompt');
+    await command(
+      'user_message',
+      { id: crypto.randomUUID(), content: text, timestamp: Date.now() },
+      ['key.operation_result'],
+    );
+  };
+  const editAction = (message: { role: string; text: string }): MessageAction | undefined => {
+    if (message.role !== 'user' || parseBugHuntMessage(message.text)) return undefined;
+    if (draft.trim() || references.length)
+      return { reason: 'Send or clear the composer draft first; editing would replace it' };
+    const view = splitReferenceMessage(message.text);
+    return {
+      run: () => void onDraftChange(view.text).then(() => onReferencesChange(view.references)),
+    };
+  };
+  const askAgainAction = (): MessageAction | undefined => {
+    const prompt = state.messages.findLast((message) => message.role === 'user');
+    if (!prompt) return undefined;
+    if (state.running) return { reason: 'Wait for the running turn to finish' };
+    if (!state.connected) return { reason: 'The engine is not connected' };
+    return { run: () => void resendPrompt(prompt.text).catch(onError) };
+  };
   const openLink = useCallback(
     (url: string) => {
       const target = markdownTarget(url);
@@ -304,7 +328,7 @@ export function EngineWorkspace({
           onActivity={openTool('activity')}
         />
       )}
-      {state.error && (
+      {state.error && state.error !== failedRun(state)?.message && (
         <div className="session-error" role="alert">
           {state.error}
         </div>
@@ -378,40 +402,23 @@ export function EngineWorkspace({
             )}
             {state.synced &&
               (!state.inputs.length || showConversation) &&
-              state.messages.slice(hiddenMessages).map((message) => (
-                <article className={`chat-message ${message.role}`} key={message.id}>
-                  <header className={message.role === 'user' ? 'user-chat-label' : undefined}>
-                    <span>{message.role === 'user' ? 'You' : 'WrongStack'}</span>
-                    <CopyButton text={message.text} label="Copy message" />
-                  </header>
-                  <div className={message.role === 'user' ? 'user-chat-body' : undefined}>
-                    {message.council ? (
-                      <Suspense
-                        fallback={<MarkdownContent text={message.text} onLink={openLink} />}
-                      >
-                        <CouncilCard decision={message.council} />
-                      </Suspense>
-                    ) : message.role === 'assistant' ? (
-                      <MarkdownContent text={stripNextStepsBlock(message.text)} onLink={openLink} />
-                    ) : (
-                      <UserComposerMessage text={message.text} />
-                    )}
-                    {!!message.attachments?.length && (
-                      <AttachmentPreview items={message.attachments} />
-                    )}
-                  </div>
-                  {(state.turnActivity[message.id] || state.turnStats[message.id]) && (
-                    <TurnTools
-                      events={state.turnActivity[message.id] ?? []}
-                      stats={state.turnStats[message.id]}
-                      onOpenFile={(path) => {
-                        setFileTarget(path);
-                        setTab('files');
-                      }}
-                    />
-                  )}
-                </article>
-              ))}
+              state.messages
+                .slice(hiddenMessages)
+                .map((message, index, shown) => (
+                  <TranscriptMessage
+                    key={message.id}
+                    message={message}
+                    state={state}
+                    onLink={openLink}
+                    onOpenFile={openFile}
+                    edit={editAction(message)}
+                    askAgain={
+                      index === shown.length - 1 && message.role === 'assistant'
+                        ? askAgainAction()
+                        : undefined
+                    }
+                  />
+                ))}
             {state.inputs.map((request) => (
               <InputRequestCard
                 key={request.id}
@@ -615,14 +622,7 @@ export function EngineWorkspace({
             });
           }}
           onRetryPrompt={async (text) => {
-            const capabilities = state.results['session.start']?.['protocolCapabilities'];
-            if (!Array.isArray(capabilities) || !capabilities.includes('session.user-ack'))
-              throw Error('this engine cannot confirm that it accepted the prompt');
-            await command(
-              'user_message',
-              { id: crypto.randomUUID(), content: text, timestamp: Date.now() },
-              ['key.operation_result'],
-            );
+            await resendPrompt(text);
             setTab('chat');
           }}
         />
@@ -662,22 +662,5 @@ export function EngineWorkspace({
       )}
       <SessionStatusBar state={state} command={command} refresh={() => perform('stats.get')} />
     </div>
-  );
-}
-function UserComposerMessage({ text }: { text: string }) {
-  const hunt = parseBugHuntMessage(text);
-  if (hunt) return <HuntRoundCard round={hunt} />;
-  const view = splitReferenceMessage(text);
-  return (
-    <>
-      {view.text}
-      {view.paths.length > 0 && (
-        <section className="chat-file-references" aria-label="Referenced project files">
-          {view.references.map((ref) => (
-            <code key={referenceKey(ref)}>{referenceLabel(ref)}</code>
-          ))}
-        </section>
-      )}
-    </>
   );
 }
