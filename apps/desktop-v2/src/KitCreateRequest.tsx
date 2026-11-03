@@ -50,7 +50,7 @@ export function KitCreateRequest({
   return (
     <section className="kit-request" aria-label="Create a Project Kit">
       <header>
-        <h3>Create a kit</h3>
+        <h3 className="kit-request-title">Create a kit</h3>
         <button
           type="button"
           className="icon-button"

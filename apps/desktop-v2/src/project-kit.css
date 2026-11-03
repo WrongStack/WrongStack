@@ -163,7 +163,7 @@
   justify-content: space-between;
   gap: 12px;
 }
-.kit-request > header h3 {
+.kit-request-title {
   margin: 0;
 }
 .kit-request textarea {
