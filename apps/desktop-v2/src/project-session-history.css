@@ -371,3 +371,19 @@
 .project-usage-summary code {
   word-break: break-all;
 }
+.history-delete-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--danger-soft);
+  font-size: 12px;
+}
+.history-delete-confirm p {
+  flex-basis: 100%;
+  margin: 0;
+}

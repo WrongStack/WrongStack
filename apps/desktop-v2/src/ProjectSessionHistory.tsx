@@ -1,8 +1,8 @@
-import { ArrowRight, Copy, History, Pencil, RefreshCw, Search } from 'lucide-react';
+import { Copy, History, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CopyButton } from './CopyButton';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
+import { HistoryEmptyCleanup, HistorySelection } from './HistorySelection';
 import { type HistoryCatalogPage, readHistoryPage } from './history-page-model';
 import { Modal } from './Modal';
 import { markdownTarget } from './markdown-target';
@@ -261,6 +261,29 @@ export function ProjectSessionHistory({
       if (mounted.current) setSaving(false);
     }
   };
+  // Deletes recorded sessions one by one (the engine refuses one a client still shows or runs),
+  // then reads the page again so what was removed, and what was refused, is visible.
+  const deleteRecorded = async (ids: string[]) => {
+    if (mutation.current || !ids.length) return;
+    mutation.current = true;
+    setSaving(true);
+    setError('');
+    let deleted = 0;
+    try {
+      for (const id of ids) {
+        await command('session.delete', { id }, ['key.operation_result']);
+        deleted++;
+      }
+    } catch (error) {
+      if (mounted.current) setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      mutation.current = false;
+      if (mounted.current) setSaving(false);
+    }
+    if (!mounted.current || !deleted) return;
+    setNotice(`${deleted} recorded ${deleted === 1 ? 'session' : 'sessions'} deleted.`);
+    await load(page.offset);
+  };
   const prepare = async () => {
     if (!target || mutation.current) return;
     mutation.current = true;
@@ -402,6 +425,13 @@ export function ProjectSessionHistory({
           />
           Include empty journals
         </label>
+        <HistoryEmptyCleanup
+          ids={rows
+            .filter((item) => !links[String(item['id'])] && !historyHasContent(item))
+            .map((item) => String(item['id']))}
+          saving={saving}
+          onDelete={deleteRecorded}
+        />
       </div>
       {busy && <p role="status">Reading project session history…</p>}
       <nav className="history-page-controls" aria-label="History catalog pages">
@@ -494,68 +524,24 @@ export function ProjectSessionHistory({
         <div className="history-reader">
           {row ? (
             <>
-              <header className="history-selection">
-                <span className="eyebrow">RECORDED CONVERSATION</span>
-                <h2>{historyTitle(row, owner)}</h2>
-                <p>
-                  {String(row['provider'])} / {String(row['model'])} · Started{' '}
-                  {recoveryDate(row['startedAt'])}
-                </p>
-                <div>
-                  <CopyButton text={selected} label="Copy recorded session ID" />
-                  <button
-                    type="button"
-                    className="button secondary small"
-                    disabled={busy || saving}
-                    onClick={() => {
-                      setName(String(row['name'] ?? ''));
-                      setRename(row);
-                      setError('');
-                    }}
-                  >
-                    <Pencil size={13} />
-                    Rename recorded session
-                  </button>
-                  {owner && (
-                    <button
-                      type="button"
-                      className="button primary small"
-                      onClick={() => onOpen(owner)}
-                    >
-                      Open desktop conversation
-                      <ArrowRight size={13} />
-                    </button>
-                  )}
-                  {!owner && (
-                    <button
-                      type="button"
-                      className="button primary small"
-                      onClick={() => {
-                        setError('');
-                        setRestore({ id: selected, title: historyTitle(row), mode: 'resume' });
-                      }}
-                    >
-                      Resume recorded conversation
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="button secondary small"
-                    onClick={() => {
-                      setError('');
-                      setRestore({ id: selected, title: historyTitle(row, owner), mode: 'fork' });
-                    }}
-                  >
-                    Continue a copy
-                  </button>
-                </div>
-                <p className="field-help">
-                  {owner
-                    ? 'Return to the open desktop conversation without starting another session.'
-                    : 'Read-only history. Reading does not resume or run the agent.'}{' '}
-                  File links open the current project file.
-                </p>
-              </header>
+              <HistorySelection
+                row={row}
+                selected={selected}
+                owner={owner}
+                busy={busy}
+                saving={saving}
+                onRename={(item) => {
+                  setName(String(item['name'] ?? ''));
+                  setRename(item);
+                  setError('');
+                }}
+                onOpen={onOpen}
+                onRestore={(next) => {
+                  setError('');
+                  setRestore(next);
+                }}
+                onDelete={deleteRecorded}
+              />
               <SessionTranscript
                 key={`${projectId}:${selected}:${searchSelection?.revision ?? ''}:${readerVersion}`}
                 id={selected}

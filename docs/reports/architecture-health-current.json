@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T23:21:28.817Z",
+  "generatedAt": "2026-11-03T23:26:37.280Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5974,
-    "testFiles": 4953,
-    "sourceLines": 1243914,
+    "sourceFiles": 5975,
+    "testFiles": 4954,
+    "sourceLines": 1244062,
     "workspaceEdges": 240,
-    "moduleEdges": 17336,
+    "moduleEdges": 17340,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 217,
+    "testsWithoutTypecheck": 218,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 413,
-      "testFiles": 217,
+      "sourceFiles": 414,
+      "testFiles": 218,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1869,6 +1869,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/history-page-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/history-selection.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31687,6 +31693,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/history-selection.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/history-view-store.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33501,7 +33514,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 746,
+      "lines": 732,
       "relativeImports": 15
     },
     {
@@ -33637,11 +33650,6 @@
       "relativeImports": 14
     },
     {
-      "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 746,
-      "relativeImports": 15
-    },
-    {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
       "lines": 743,
       "relativeImports": 13
@@ -33655,6 +33663,11 @@
       "file": "packages/vibeui/src/components/provider-manager.tsx",
       "lines": 733,
       "relativeImports": 6
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
+      "lines": 732,
+      "relativeImports": 15
     },
     {
       "file": "packages/tools/src/process-registry.ts",

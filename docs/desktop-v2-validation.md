@@ -6873,3 +6873,18 @@ copies, starting with SAGE memory.
   (`plugin-audit-catalog`, a 25 KB data module with no imports).
 - Checks: tested in jsdom (full list, decided vs default state, the saved map, locked plugins,
   filters); desktop tests pass; typecheck clean.
+
+### Delete recorded sessions (2026-11-04)
+
+- Session history can delete a recorded conversation, as the WebUI's session list can: "Delete…"
+  on the selected record asks first ("cannot be undone"), then sends `session.delete` and reads
+  the page again. It is not offered while an open desktop conversation owns the record, and the
+  engine still refuses one a client shows or a run is using.
+- "Delete N empty" beside "Include empty journals" removes, after asking, the empty journals on
+  the current page that no open desktop conversation owns. Deletes go one by one; a refusal stops
+  the batch and is shown, and the page is read again with what was removed.
+- The selected-record heading moved to `HistorySelection.tsx`, which takes the page from 746 to
+  732 lines (hotspot ratchet lowered). Sessions are not pinned here; another change adds that.
+- Checks: tested in jsdom with a stand-in delete (confirmation, keep, owner hides delete, resume
+  unchanged, empty cleanup); no recorded session was deleted for verification. Desktop tests
+  pass; typecheck clean.
