@@ -112,3 +112,6 @@ export function DiffPreview({
     </section>
   );
 }
+
+// The Changes view's other preview: an image's two versions, or why a binary file has no review.
+export { BinaryChange } from './BinaryChange';

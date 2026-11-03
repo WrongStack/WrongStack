@@ -1,0 +1,112 @@
+.image-diff {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+}
+.image-diff > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.image-diff-modes {
+  display: flex;
+  gap: 4px;
+}
+.image-diff-modes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.image-diff-modes button[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.image-diff-side {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 12px;
+}
+.image-diff figure {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+.image-diff figure > div,
+.image-diff-stack {
+  display: flex;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background-color: var(--raised);
+  background-image:
+    linear-gradient(45deg, var(--subtle) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--subtle) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--subtle) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--subtle) 75%);
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+  background-size: 16px 16px;
+}
+.image-diff img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+}
+.image-diff-onion {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+.image-diff-stack {
+  display: grid;
+  max-width: 100%;
+}
+.image-diff-stack img {
+  grid-area: 1 / 1;
+  place-self: center;
+}
+.image-diff-onion label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 28rem);
+  color: var(--muted);
+  font-size: 12px;
+}
+.image-diff-onion input {
+  flex: 1;
+}
+.image-diff-captions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+.image-diff figcaption {
+  display: flex;
+  gap: 8px;
+  color: var(--muted);
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+}
+.image-diff figcaption strong {
+  color: var(--text);
+}

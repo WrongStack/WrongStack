@@ -6826,3 +6826,15 @@ copies, starting with SAGE memory.
   only while another setting is on.
 - Checks: the section, the token's write-only behaviour, text editing and the chat-ID pattern are
   tested (jsdom for the row); desktop tests pass; typecheck clean.
+
+### Image diff in Changes (2026-11-04)
+
+- A changed image in the file workspace's Changes mode now shows what the engine already sends
+  with `git.diff`, as the WebUI's Changes view does: the HEAD version beside the working tree's,
+  or the two stacked with an opacity slider (onion skin), each with its pixel and file size. An
+  added or deleted image shows its one side. Other binary or oversized files keep their notices,
+  and only image data URLs are ever rendered.
+- `BinaryChange.tsx` holds the branch and is imported through `DiffPreview`, so
+  `FileWorkspace.tsx` shrinks (hotspot ratchet lowered to 2012) without a new import.
+- Checks: tested in jsdom (both sides, sizes, onion slider, added image, notices, unsafe URL);
+  desktop tests pass; typecheck clean.

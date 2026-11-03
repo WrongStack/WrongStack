@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ComposerFileReference } from './composer-resources-model';
-import { DiffPreview } from './DiffPreview';
+import { BinaryChange, DiffPreview } from './DiffPreview';
 import { DraftMergeChoices } from './DraftMergeChoices';
 import { EditorFindBar } from './EditorFindBar';
 import { replacementRange } from './editor-indent';
@@ -1359,11 +1359,7 @@ export function FileWorkspace({
                   diff?.['error'] ? (
                     <p className="file-quiet-state">{String(diff['error'])}</p>
                   ) : diff?.['binary'] || diff?.['tooLarge'] ? (
-                    <p className="file-quiet-state">
-                      {diff['binary']
-                        ? 'Binary file — text review is unavailable.'
-                        : 'File exceeds the text review limit.'}
-                    </p>
+                    <BinaryChange diff={diff} path={active} />
                   ) : diff ? (
                     <>
                       {change?.['status'] !== 'U' && (

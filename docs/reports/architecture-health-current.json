@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T23:04:26.245Z",
+  "generatedAt": "2026-11-03T23:07:38.109Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5971,
-    "testFiles": 4950,
-    "sourceLines": 1243380,
+    "sourceFiles": 5972,
+    "testFiles": 4951,
+    "sourceLines": 1243517,
     "workspaceEdges": 239,
-    "moduleEdges": 17331,
+    "moduleEdges": 17333,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 214,
+    "testsWithoutTypecheck": 215,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 410,
-      "testFiles": 214,
+      "sourceFiles": 411,
+      "testFiles": 215,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1424,6 +1424,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/background-services.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/binary-change.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31150,6 +31156,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/binary-change.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/brain-decisions.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32726,6 +32739,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/BinaryChange.tsx",
+      "specifier": "./image-diff.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/BrainDecisions.tsx",
       "specifier": "./brain-policy.css",
       "syntax": "import"
@@ -33406,7 +33424,7 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2016,
+      "lines": 2012,
       "relativeImports": 29
     },
     {
@@ -33478,7 +33496,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2016,
+      "lines": 2012,
       "relativeImports": 29
     },
     {
