@@ -91,6 +91,35 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
       await load().catch(() => {});
     }
   };
+  // As the WebUI's "Restart all": every running service the engine controls. Sleeping
+  // on-demand services are left alone; a restart would only start them to stop them again.
+  const running =
+    report?.services.filter(
+      (service) =>
+        service.controllable && service.status !== 'offline' && service.status !== 'unavailable',
+    ) ?? [];
+  const restartAll = async () => {
+    setBusy('all:restart');
+    setStopping('');
+    setNotice('');
+    setError('');
+    const failed: string[] = [];
+    for (const service of running) {
+      try {
+        await command('connections.service_action', { serviceId: service.id, action: 'restart' }, [
+          'connections.service_action_result',
+        ]);
+      } catch (failure) {
+        failed.push(
+          `${service.label}: ${failure instanceof Error ? failure.message : String(failure)}`,
+        );
+      }
+    }
+    setNotice(`Restarted ${running.length - failed.length} of ${running.length} services.`);
+    if (failed.length) setError(failed.join(' · '));
+    setBusy('');
+    await load().catch(() => {});
+  };
   return (
     <section className="brain-decisions" aria-label="Background services">
       <h3>
@@ -162,6 +191,16 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
             </li>
           ))}
         </ol>
+      )}
+      {running.length > 0 && (
+        <button
+          type="button"
+          className="button secondary small"
+          disabled={Boolean(busy)}
+          onClick={() => void restartAll()}
+        >
+          {busy === 'all:restart' ? 'Restarting all…' : `Restart all running (${running.length})`}
+        </button>
       )}
       <button
         type="button"

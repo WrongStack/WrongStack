@@ -6764,3 +6764,12 @@ copies, starting with SAGE memory.
   the value so the engine default applies.
 - Checks: new fields, nested-key read/write, the cleared-watchdog patch, the row's unset default,
   numeric select and labels are tested (jsdom for the row); desktop tests pass; typecheck clean.
+
+### Restart all background services (2026-11-04)
+
+- Settings > Health > Background services has the WebUI's "Restart all": it restarts, one after
+  another, every running service the engine controls, and reports how many came back and which
+  failed, continuing past a failure. Sleeping on-demand services are skipped, since a restart would
+  only start them to stop them again; the WebUI transport and governance are never touched.
+- Checks: tested in jsdom with a stand-in engine (targets, order, partial failure); typecheck clean.
+  No service was restarted for verification.
