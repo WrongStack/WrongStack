@@ -98,7 +98,8 @@ describe.skipIf(!existsSync(DAEMON))('WrongMemoryPort in a linked worktree (real
   }, 30_000);
 
   it('shares the project, resolves its own paths and keeps worktree evidence local', async (ctx) => {
-    const projectId = mainPort.getProject()?.projectId;
+    const projectId = mainPort.getProject()?.projectId ?? '';
+    expect(projectId).not.toBe('');
     expect(worktreePort.getProject()?.projectId).toBe(projectId);
     const c = await WrongMemoryClient.connect({ dataRoot: home, clientName: 'probe' });
     const supported = await c
@@ -122,7 +123,9 @@ describe.skipIf(!existsSync(DAEMON))('WrongMemoryPort in a linked worktree (real
     expect(found.map((m) => m.id)).toEqual([created.id]);
 
     // Verified against the worktree (the file is gone there), labeled, not persisted.
-    const [local] = (await worktreePort.verify(created.id)) as Array<Record<string, unknown>>;
+    const [local] = (await worktreePort.verify(created.id)) as unknown as Array<
+      Record<string, unknown>
+    >;
     expect(local).toMatchObject({ memoryId: created.id, status: 'stale' });
     expect(local!['checkout']).toMatchObject({ kind: 'linkedWorktree' });
     const shared = await getSageService(mainPort)!.getSage(created.id);
@@ -130,7 +133,9 @@ describe.skipIf(!existsSync(DAEMON))('WrongMemoryPort in a linked worktree (real
     expect(shared?.lastVerifiedAt).toBeUndefined();
 
     // The main checkout's verification is the shared one.
-    const [fromMain] = (await mainPort.verify(created.id)) as Array<Record<string, unknown>>;
+    const [fromMain] = (await mainPort.verify(created.id)) as unknown as Array<
+      Record<string, unknown>
+    >;
     expect(fromMain).toMatchObject({ memoryId: created.id, status: 'verified' });
     expect(fromMain!['checkout']).toBeUndefined();
   });
