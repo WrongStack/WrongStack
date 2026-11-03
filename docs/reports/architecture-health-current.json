@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T22:15:25.945Z",
+  "generatedAt": "2026-11-03T08:53:29.524Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 46,
     "sourceFiles": 5657,
-    "testFiles": 4887,
-    "sourceLines": 1234991,
+    "testFiles": 4888,
+    "sourceLines": 1234997,
     "workspaceEdges": 231,
     "moduleEdges": 16552,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 187,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1039
+    "testOnlyExports": 1045
   },
   "errors": [
     "ARCH-CYCLE-TYPE-05: exception expired on 2026-11-01",
@@ -980,7 +980,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 394,
-      "testFiles": 374,
+      "testFiles": 375,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -999,7 +999,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 374
+          "testFiles": 375
         }
       ]
     },
@@ -22291,6 +22291,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/wrongindex-wire-contract.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/agent-swarm-panel-visibility.test.ts",
         "projects": [
           "root-node"
@@ -35828,6 +35834,10 @@
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
+      "name": "BASELINE_PROFILE_ID"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
       "name": "encodeFrame"
     },
     {
@@ -35835,8 +35845,28 @@
       "name": "FrameReader"
     },
     {
+      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
+      "name": "MAX_FRAME_BYTES"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
+      "name": "PROTOCOL_MAJOR"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
+      "name": "PROTOCOL_MINOR"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
+      "name": "OWNER_INFO_FILE"
+    },
+    {
       "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
       "name": "OWNER_LOCK_FILE"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
+      "name": "readWrongIndexOwner"
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/service.ts",

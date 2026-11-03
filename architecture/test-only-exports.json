@@ -1514,11 +1514,17 @@
       "FAMILY_MATCH_SQL"
     ],
     "packages/tools/src/codebase-index/wrongindex/client.ts": [
+      "BASELINE_PROFILE_ID",
       "encodeFrame",
-      "FrameReader"
+      "FrameReader",
+      "MAX_FRAME_BYTES",
+      "PROTOCOL_MAJOR",
+      "PROTOCOL_MINOR"
     ],
     "packages/tools/src/codebase-index/wrongindex/owner-lock.ts": [
-      "OWNER_LOCK_FILE"
+      "OWNER_INFO_FILE",
+      "OWNER_LOCK_FILE",
+      "readWrongIndexOwner"
     ],
     "packages/tools/src/codebase-index/wrongindex/service.ts": [
       "resetWrongIndexConnection",
