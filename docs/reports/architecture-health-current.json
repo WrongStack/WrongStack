@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T20:07:26.102Z",
+  "generatedAt": "2026-11-03T20:13:18.311Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5954,
-    "testFiles": 4935,
-    "sourceLines": 1241384,
+    "sourceFiles": 5956,
+    "testFiles": 4936,
+    "sourceLines": 1241629,
     "workspaceEdges": 239,
-    "moduleEdges": 17300,
+    "moduleEdges": 17304,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 199,
+    "testsWithoutTypecheck": 200,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 396,
-      "testFiles": 199,
+      "sourceFiles": 398,
+      "testFiles": 200,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1320,6 +1320,12 @@
   },
   "testOwnership": {
     "runtimeAssignments": [
+      {
+        "file": "apps/desktop-v2/tests/agent-transcripts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
       {
         "file": "apps/desktop-v2/tests/appearance.test.ts",
         "projects": [
@@ -30934,6 +30940,13 @@
     "invalidRuntime": [],
     "withoutTypecheck": [
       {
+        "file": "apps/desktop-v2/tests/agent-transcripts.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/appearance.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32498,6 +32511,11 @@
     {
       "from": "packages/webui/src/main.tsx",
       "specifier": "./syntax-highlight.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/AgentTranscripts.tsx",
+      "specifier": "./agent-transcripts.css",
       "syntax": "import"
     },
     {

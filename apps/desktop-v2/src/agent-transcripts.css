@@ -1,0 +1,123 @@
+.agent-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 18px 0;
+}
+.agent-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.agent-tabs > button[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.agent-tabs small {
+  color: var(--subtle);
+}
+.agent-led {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--subtle);
+}
+.agent-led.running {
+  background: var(--accent);
+  animation: agent-led-pulse 1.4s ease-in-out infinite;
+}
+.agent-led.done {
+  background: color-mix(in srgb, var(--accent) 70%, var(--text));
+}
+.agent-led.failed {
+  background: var(--danger);
+}
+@keyframes agent-led-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-led.running {
+    animation: none;
+  }
+}
+.agent-transcript {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px 18px;
+  overflow: auto;
+}
+.agent-transcript > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.agent-transcript > header p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.agent-transcript > header .agent-transcript-note {
+  font-size: 11px;
+  color: var(--subtle);
+}
+.agent-step {
+  margin: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.agent-step.status,
+.agent-step.system {
+  color: var(--muted);
+}
+.agent-step.error {
+  padding: 6px 8px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: 5px;
+}
+.agent-step.tool,
+.agent-step.thinking {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.agent-step.tool.failed {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+.agent-step > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.agent-step > summary small {
+  margin-left: auto;
+}
+.agent-step pre {
+  max-height: 20rem;
+  margin: 6px 0 0;
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+/* The conversation stays mounted (its scroll place and find state) while an agent is shown. */
+.native-chat-messages[hidden] {
+  display: none;
+}

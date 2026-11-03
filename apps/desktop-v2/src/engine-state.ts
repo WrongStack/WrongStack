@@ -10,6 +10,7 @@ import {
   parseNextSteps,
   projectNextStepsToolInput,
 } from '@wrongstack/webui-protocol';
+import { type AgentTranscripts, reduceAgentTranscripts } from './agent-transcripts';
 import { type ComposerAttachment, transcriptAttachments } from './composer-attachments.js';
 import {
   type ContextUsage,
@@ -126,11 +127,14 @@ export interface EngineState {
   error: string;
   /** The latest frame time seen, for messages a token delta starts. */
   lastAt: number;
+  /** Each subagent's own transcript in this conversation. */
+  agents: AgentTranscripts;
 }
 /** Recent activity frames kept for the Activity view; streamed deltas are merged first. */
 export const ACTIVITY_LIMIT = 400;
 export const emptyEngineState: EngineState = {
   lastAt: 0,
+  agents: {},
   hydrating: false,
   synced: true,
   pendingUserMessages: {},
@@ -316,6 +320,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
       next.turnStats = {};
       next.runStartTotals = null;
       next.runStartAt = null;
+      next.agents = {};
       next.memoryRuns = [];
       next.memoryContext = null;
       next.notices = [];
@@ -579,6 +584,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
         : activity;
   }
   if (isRunTimelineEvent(event.type)) next.runTimeline = appendRunEvent(state.runTimeline, event);
+  next.agents = reduceAgentTranscripts(next.agents, event.type, p);
   if (event.type === 'iteration.started' && !state.runStartTotals) {
     next.runStartTotals = state.context.totals;
     next.runStartAt = event.at ?? null;

@@ -10,6 +10,7 @@ import {
   Square,
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAgentTabs } from './AgentTranscripts';
 import { ConversationNotices } from './ConversationNotices';
 import { useConversationShortcuts } from './ConversationShortcuts';
 import type { ComposerAttachment } from './composer-attachments';
@@ -255,9 +256,10 @@ export function EngineWorkspace({
   const navigate = (target: DesktopNavigation) =>
     'tab' in target ? setTab(target.tab) : onProject(target.page);
   const shortcuts = useConversationShortcuts(navigate);
+  const agentTabs = useAgentTabs(state.agents, openLink);
   const finder = useTranscriptFind({
     messages: state.messages,
-    enabled: tab === 'chat',
+    enabled: tab === 'chat' && !agentTabs.view,
     reveal: (index) => {
       following.current = false;
       if (index < hiddenMessages) setShownMessages(state.messages.length - index);
@@ -378,9 +380,12 @@ export function EngineWorkspace({
               </button>
             </div>
           )}
+          {agentTabs.bar}
+          {agentTabs.view}
           {finder.bar}
           <div
             ref={chatPane}
+            hidden={agentTabs.view !== null}
             className="native-chat-messages"
             aria-live="polite"
             onScroll={(event) => {

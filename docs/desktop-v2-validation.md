@@ -6619,3 +6619,23 @@ copies, starting with SAGE memory.
   ("Jump to latest · 3 new"), as the WebUI's jump button counts unread messages.
 - Checks: typecheck and Biome clean; the count lives in the conversation view, which the node
   test runner cannot render (it needs the native engine bridge), so it has no unit test.
+
+### Subagent transcripts (2026-11-03)
+
+- Once a conversation has subagents, a row of tabs over it switches between "Conversation" and
+  each agent, as the WebUI's agent tabs do. A tab shows the agent's name, its status (a pulsing
+  light while it runs, red when it failed or timed out) and its task on hover.
+- An agent's tab shows its own transcript, read only: its replies as Markdown, its thinking
+  folded, each tool call joined with its result (Running…, Completed or Failed, with the call and
+  the result text), errors and status changes. A note says that what you send goes to the
+  conversation's leader. The conversation stays mounted underneath, so going back keeps its
+  scroll place and Find.
+- The transcripts come from the engine's `agent.timeline.message` and `agent.status_changed`
+  frames, folded as the WebUI's fleet store folds them (streamed text of one iteration joins into
+  one entry; each agent keeps its newest 600 entries). They are in the conversation's journal, so
+  reopening a conversation rebuilds them; a context reset clears them.
+- Not ported: the WebUI tab bar's per-agent stop (the WebUI's button stops the whole session's
+  run, which the desktop's Stop already does).
+- Checks: desktop tests pass (768, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean. Not verified in the native window, for the disconnected-engine
+  reason above.
