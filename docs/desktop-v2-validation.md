@@ -6266,3 +6266,28 @@ copies, starting with SAGE memory.
   must be rewritten.
 - Checks: desktop 696 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
   WebUI and the desktop.
+
+### Session Story in the desktop (2026-11-03)
+
+- A conversation's Tools menu opens "Session story", the WebUI's Session Story view: the
+  agent lanes and activity chart, the replayable timeline with filters, the context window over
+  time, model performance and evidence, tool and file tables and the team constellation, read
+  from the conversation's Chronicle history.
+- `packages/project-surfaces/src/story` holds the view, its dashboards, the story model and
+  statistics, the context timeline and the Chronicle view types; `lib/dashboard-primitives`
+  moved with them, and the WebUI keeps its old paths as re-exports. The view reads a
+  `StoryFeed` from the host: the conversation and its start, the project root, whether a turn
+  is running, the latest request, sub-agents, mail, memory-injector runs, a pending request to
+  open the context timeline, an abortable Chronicle query, a mailbox refresh and the way back.
+  The history hook keeps its 15-second reply limit and now abandons a query it stops waiting
+  for, so a reply that never arrives no longer leaves a listener behind.
+- Desktop: `SessionStory` reads the conversation's engine state through a React context
+  (`desktopStoryFeed`): the start time and Chronicle capability from `session.start`, mail from
+  the `mailbox.messages` reply and memory runs from the conversation. Chronicle queries run as
+  engine commands; sub-agent lanes come from the Chronicle records.
+- Seen in the native window on build `b67b706729fb-c5436fe756a5`, light and dark, on a new
+  WrongMemory conversation: the story header and cards, Overview, Timeline, Context, Models and
+  Tools; the Chronicle query answered without error (an empty conversation has no events). No
+  page errors.
+- Checks: desktop 702 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.

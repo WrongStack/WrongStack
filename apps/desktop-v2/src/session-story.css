@@ -1,0 +1,15 @@
+/* The shared Session Story fills the conversation's workspace below its tabs. */
+.engine-workspace > .ws-surface-frame.is-fill {
+  flex: 1;
+  min-height: 0;
+}
+.session-story-surface {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.session-story-surface > * {
+  flex: 1;
+  min-width: 0;
+}

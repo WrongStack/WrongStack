@@ -9,6 +9,7 @@ import {
 import type { AtlasHost } from './atlas/atlas-host';
 import type { KanbanHost } from './kanban/kanban-host';
 import type { OfficeFeed } from './office/feed-types';
+import type { StoryFeed } from './story/story-host';
 
 /**
  * A server frame as a surface handler receives it. Payloads are the engine's own reply shapes;
@@ -114,6 +115,8 @@ export interface SurfaceHost {
   kanban?: KanbanHost | undefined;
   /** What the application adds to the Code Atlas (its code-assist panel, views and evidence). */
   atlas?: AtlasHost | undefined;
+  /** What the Session Story reads; hosts without one leave it out. */
+  story?: StoryFeed | undefined;
   /** Renders a message's markdown the way the application renders its own messages. */
   Markdown?: ComponentType<{ children: string }> | undefined;
 }

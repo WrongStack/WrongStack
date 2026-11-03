@@ -1279,6 +1279,9 @@
       "AGENT_COLS",
       "layoutClientXs"
     ],
+    "packages/project-surfaces/src/story/StoryInsights.tsx": [
+      "observedOverlap"
+    ],
     "packages/providers/src/ai-gateway.ts": [
       "resolveGatewayWireBaseUrl"
     ],
@@ -2016,9 +2019,6 @@
     ],
     "packages/webui/src/components/SearchOverlay.tsx": [
       "messageSearchText"
-    ],
-    "packages/webui/src/components/session-story/StoryInsights.tsx": [
-      "observedOverlap"
     ],
     "packages/webui/src/components/SessionsDashboard.tsx": [
       "sessionApiError"

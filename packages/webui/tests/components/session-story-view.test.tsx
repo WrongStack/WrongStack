@@ -1,5 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+// The story lives in the shared package and translates with the app's i18next instance.
+import '../../src/i18n';
 import { SessionStoryView } from '../../src/components/SessionStoryView';
 import { useUIStore } from '../../src/stores/ui-store';
 import type { ChronicleEventView } from '../../src/types';
@@ -38,11 +40,12 @@ const event = (id: string, actor: string, type: string): ChronicleEventView => (
   correlation: {},
   attributes: type === 'tool.executed' ? { toolName: 'read' } : { subagentId: actor, name: actor },
 });
-function reply(events: ChronicleEventView[], requestId?: string) {
+/** Answers the latest history query; the story applies the reply after a microtask. */
+async function reply(events: ChronicleEventView[], requestId?: string) {
   const sent = harness.send.mock.calls
     .filter(([message]) => message.type === 'chronicle.query')
     .at(-1)?.[0];
-  act(() =>
+  await act(async () =>
     harness.handlers.get('chronicle.query_result')?.({
       type: 'chronicle.query_result',
       payload: {
@@ -91,9 +94,9 @@ describe('Session Story', () => {
     expect(useUIStore.getState().storyContextRequested).toBe(false);
   });
 
-  it('compares models and opens the diagnostic event evidence', () => {
+  it('compares models and opens the diagnostic event evidence', async () => {
     render(<SessionStoryView />);
-    reply([
+    await reply([
       {
         ...event('attempt', 'leader', 'provider.attempt.failed'),
         runtime: { providerId: 'p', modelId: 'bad-model' },
@@ -120,9 +123,9 @@ describe('Session Story', () => {
       'true',
     );
   });
-  it('renders parallel subagent lanes, density, replay, filters and evidence', () => {
+  it('renders parallel subagent lanes, density, replay, filters and evidence', async () => {
     render(<SessionStoryView />);
-    reply([
+    await reply([
       event('spawn-a', 'Worker A', 'subagent.spawned'),
       event('spawn-b', 'Worker B', 'subagent.spawned'),
       event('tool', 'Worker A', 'tool.executed'),
@@ -147,21 +150,21 @@ describe('Session Story', () => {
     });
     expect(screen.getByRole('slider').getAttribute('value')).toBe('0');
   });
-  it('rejects stale replies and other-tab records after switching tabs', () => {
+  it('rejects stale replies and other-tab records after switching tabs', async () => {
     const view = render(<SessionStoryView />);
     const old = harness.send.mock.calls.find(([message]) => message.type === 'chronicle.query')?.[0]
       .payload.requestId;
-    reply([event('old', 'Old Worker', 'subagent.spawned')]);
+    await reply([event('old', 'Old Worker', 'subagent.spawned')]);
     harness.sessionId = 'tab-b';
     view.rerender(<SessionStoryView />);
-    reply([event('late', 'Old Worker', 'subagent.spawned')], old);
+    await reply([event('late', 'Old Worker', 'subagent.spawned')], old);
     expect(screen.queryByText('Old Worker')).toBeNull();
-    reply([event('wrong-session', 'Other Worker', 'subagent.spawned')]);
+    await reply([event('wrong-session', 'Other Worker', 'subagent.spawned')]);
     expect(screen.queryByText('Other Worker')).toBeNull();
   });
-  it('keeps dense details behind dashboard tabs and supports keyboard navigation and effects opt-out', () => {
+  it('keeps dense details behind dashboard tabs and supports keyboard navigation and effects opt-out', async () => {
     render(<SessionStoryView />);
-    reply([
+    await reply([
       {
         ...event('start', 'Worker A', 'tool.started'),
         correlation: { toolCallId: 't1' },

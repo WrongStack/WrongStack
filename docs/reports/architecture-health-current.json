@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T14:43:02.892Z",
+  "generatedAt": "2026-11-03T15:35:31.453Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5867,
-    "testFiles": 4914,
-    "sourceLines": 1237325,
+    "sourceFiles": 5887,
+    "testFiles": 4915,
+    "sourceLines": 1237701,
     "workspaceEdges": 238,
-    "moduleEdges": 17071,
+    "moduleEdges": 17118,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 182,
+    "testsWithoutTypecheck": 183,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1038
   },
@@ -388,8 +388,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 369,
-      "testFiles": 182,
+      "sourceFiles": 371,
+      "testFiles": 183,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -734,7 +734,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 181,
+      "sourceFiles": 198,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1107,7 +1107,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 777,
+      "sourceFiles": 778,
       "testFiles": 514,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1571,6 +1571,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-office-feed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-story-feed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31106,6 +31112,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/desktop-story-feed.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/draft-merge.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32168,6 +32181,11 @@
       "syntax": "import"
     },
     {
+      "from": "packages/project-surfaces/src/story/SessionStoryView.tsx",
+      "specifier": "./story-motion.css",
+      "syntax": "import"
+    },
+    {
       "from": "packages/project-surfaces/src/ui/empty-state.tsx",
       "specifier": "./terminal-motifs.css",
       "syntax": "import"
@@ -32200,11 +32218,6 @@
     {
       "from": "packages/webui/src/components/MessageBubble/ToolLedgerCard.tsx",
       "specifier": "./ledger.css",
-      "syntax": "import"
-    },
-    {
-      "from": "packages/webui/src/components/SessionStoryView.tsx",
-      "specifier": "./session-story/story-motion.css",
       "syntax": "import"
     },
     {
@@ -32645,6 +32658,11 @@
     {
       "from": "apps/desktop-v2/src/SessionStatusBar.tsx",
       "specifier": "./session-status.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SessionStory.tsx",
+      "specifier": "./session-story.css",
       "syntax": "import"
     },
     {
@@ -35571,6 +35589,10 @@
       "name": "layoutClientXs"
     },
     {
+      "file": "packages/project-surfaces/src/story/StoryInsights.tsx",
+      "name": "observedOverlap"
+    },
+    {
       "file": "packages/providers/src/ai-gateway.ts",
       "name": "resolveGatewayWireBaseUrl"
     },
@@ -36849,10 +36871,6 @@
     {
       "file": "packages/webui/src/components/SearchOverlay.tsx",
       "name": "messageSearchText"
-    },
-    {
-      "file": "packages/webui/src/components/session-story/StoryInsights.tsx",
-      "name": "observedOverlap"
     },
     {
       "file": "packages/webui/src/components/SessionsDashboard.tsx",

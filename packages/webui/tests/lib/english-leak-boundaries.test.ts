@@ -165,7 +165,11 @@ describe('English-leak boundaries', () => {
     const oldHits = scanSource('SessionStoryView.tsx (pre-i18n 670737358)', preI18n);
     expect(oldHits.length).toBeGreaterThan(0);
 
-    const current = readFileSync(path.join(SRC_ROOT, 'SessionStoryView.tsx'), 'utf8');
+    // The view lives in the shared project-surfaces package; the WebUI path re-exports it.
+    const current = readFileSync(
+      path.resolve(SRC_ROOT, '../../../project-surfaces/src/story/SessionStoryView.tsx'),
+      'utf8',
+    );
     expect(scanSource('SessionStoryView.tsx', current)).toEqual([]);
   });
 });

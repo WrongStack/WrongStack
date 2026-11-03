@@ -63,6 +63,9 @@ const SessionPlanTemplates = lazy(() =>
 const SessionUsage = lazy(() =>
   import('./SessionUsage').then((module) => ({ default: module.SessionUsage })),
 );
+const SessionStory = lazy(() =>
+  import('./SessionStory').then((module) => ({ default: module.SessionStory })),
+);
 export type EngineTab =
   | 'chat'
   | 'activity'
@@ -71,6 +74,7 @@ export type EngineTab =
   | 'processes'
   | 'side-effects'
   | 'usage'
+  | 'story'
   | 'plan'
   | 'files'
   | 'changes'
@@ -127,6 +131,7 @@ export function EngineWorkspace({
   const { state, send, command } = useEngine(id, onError);
   const [fileTarget, setFileTarget] = useState('');
   const [tab, setTab] = useState<EngineTab>('chat');
+  const backToChat = useCallback(() => setTab('chat'), []);
   const planDraftStorage = useMemo(() => sessionObjectDraftStorage(id, 'plan'), [id]);
   const refineDraftStorage = useMemo(() => sessionObjectDraftStorage(id, 'refine'), [id]);
   useEffect(() => {
@@ -241,6 +246,7 @@ export function EngineWorkspace({
               'processes',
               'side-effects',
               'usage',
+              'story',
               'plan',
             ].includes(tab)
               ? 'chosen-tab project-tools-button'
@@ -287,6 +293,10 @@ export function EngineWorkspace({
           }}
           onUsage={() => {
             setTab('usage');
+            setToolsOpen(false);
+          }}
+          onStory={() => {
+            setTab('story');
             setToolsOpen(false);
           }}
           onPlan={() => {
@@ -555,6 +565,18 @@ export function EngineWorkspace({
             command={command}
             onBack={() => setTab('chat')}
             delegations={state.delegations}
+          />
+        </Suspense>
+      ) : tab === 'story' ? (
+        <Suspense fallback={<p role="status">Opening the session story…</p>}>
+          <SessionStory
+            key={state.sessionId}
+            projectId={projectId}
+            projectRoot={projectRoot}
+            state={state}
+            send={send}
+            command={command}
+            onBack={backToChat}
           />
         </Suspense>
       ) : tab === 'processes' ? (

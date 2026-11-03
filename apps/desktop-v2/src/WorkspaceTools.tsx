@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   BookOpen,
+  BookOpenText,
   ClipboardList,
   Coins,
   Folder,
@@ -23,6 +24,7 @@ export function WorkspaceTools({
   onProcesses,
   onSideEffects,
   onUsage,
+  onStory,
   onPlan,
   onProject,
   onSettings,
@@ -35,6 +37,7 @@ export function WorkspaceTools({
   onProcesses: () => void;
   onSideEffects: () => void;
   onUsage: () => void;
+  onStory: () => void;
   onPlan: () => void;
   onProject: () => void;
   onSettings: () => void;
@@ -65,6 +68,16 @@ export function WorkspaceTools({
         </button>
       </header>
       <div className="session-tool-choices">
+        <button type="button" onClick={onStory}>
+          <BookOpenText size={21} />
+          <div>
+            <strong>Session story</strong>
+            <span>
+              Replay the conversation: agent lanes, context over time, models, tools and files.
+            </span>
+          </div>
+          <ArrowUpRight size={15} />
+        </button>
         <button type="button" onClick={onUsage}>
           <Coins size={21} />
           <div>

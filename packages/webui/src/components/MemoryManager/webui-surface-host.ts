@@ -25,6 +25,7 @@ import {
 } from '@/stores';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { useActiveSessionId } from '@/stores/session-lanes';
+import { webuiStoryFeed } from './webui-story-feed';
 import { WebuiSurfaceMarkdown } from './webui-surface-markdown';
 
 function useNavigateBack() {
@@ -94,6 +95,7 @@ export const webuiSurfaceHost: SurfaceHost = {
   office: webuiOfficeFeed,
   kanban: webuiKanbanHost,
   atlas: { CodeAssist: CodeAssistPanel },
+  story: webuiStoryFeed,
   Markdown: WebuiSurfaceMarkdown,
 };
 setDefaultSurfaceHost(webuiSurfaceHost);
