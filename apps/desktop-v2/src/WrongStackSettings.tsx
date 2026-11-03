@@ -56,8 +56,9 @@ import { RuntimeGate } from './RuntimeGate';
 import { reviewPolicyIssue } from './review-policy-model';
 import { SystemPromptPresets } from './SystemPromptPresets';
 import './review-policy.css';
+import { SettingRow } from './SettingRow';
 import { SkillLibrary } from './SkillLibrary';
-import { changedSettings, type SettingField, settingsSections } from './settings-fields';
+import { changedSettings, settingChange, settingsSections, settingValue } from './settings-fields';
 import type { DesktopController } from './useDesktop';
 import { useProfileEngine } from './useEngine';
 
@@ -508,8 +509,8 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                     <SettingRow
                       key={field.key}
                       field={field}
-                      value={draft[field.key]}
-                      onChange={(value) => change(field.key, value)}
+                      value={settingValue(draft, field.key)}
+                      onChange={(value) => change(...settingChange(draft, field.key, value))}
                     />
                   ))}
                   {section === 'routing' && (
@@ -588,111 +589,5 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
         </div>
       </div>
     </section>
-  );
-}
-function SettingRow({
-  field,
-  value,
-  onChange,
-}: {
-  field: SettingField;
-  value: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const options = field.options ?? [];
-  const labels: Record<string, string> = {
-    off: 'Off',
-    suggest: 'Suggest next steps',
-    auto: 'Automatic',
-    eternal: 'Continuous',
-    'eternal-parallel': 'Continuous, parallel',
-    hybrid: 'Hybrid',
-    intelligent: 'Intelligent',
-    selective: 'Selective',
-    balanced: 'Balanced',
-    frugal: 'Frugal',
-    deep: 'Deep',
-    lite: 'Compact',
-    default: 'Default',
-    pro: 'Full operating instructions',
-    '5m': '5 minutes',
-    '1h': '1 hour',
-  };
-  return (
-    <div className={`setting-row setting-${field.kind}`}>
-      <div>
-        <label htmlFor={`setting-${field.key}`}>{field.label}</label>
-        <p>{field.description}</p>
-        {value === undefined && <small>Not reported by this engine</small>}
-      </div>
-      <div className="setting-control">
-        {field.kind === 'toggle' ? (
-          <button
-            type="button"
-            id={`setting-${field.key}`}
-            role="switch"
-            aria-checked={value === true}
-            aria-label={field.label}
-            className="settings-switch"
-            onClick={() => onChange(value !== true)}
-          >
-            <span className="settings-switch-thumb" />
-          </button>
-        ) : field.kind === 'select' ? (
-          <select
-            id={`setting-${field.key}`}
-            value={typeof value === 'string' ? value : ''}
-            onChange={(event) => onChange(event.target.value)}
-          >
-            <option value="" disabled>
-              Choose a value
-            </option>
-            {[...new Set([...options, ...(typeof value === 'string' ? [value] : [])])].map(
-              (option) => (
-                <option key={option} value={option}>
-                  {labels[option] ?? option[0]!.toUpperCase() + option.slice(1)}
-                </option>
-              ),
-            )}
-          </select>
-        ) : field.kind === 'number' ? (
-          <span className="settings-number">
-            <input
-              id={`setting-${field.key}`}
-              type="number"
-              min={field.min ?? 0}
-              step={field.scale ? 'any' : undefined}
-              required
-              value={typeof value === 'number' ? value / (field.scale ?? 1) : ''}
-              onChange={(event) =>
-                onChange(
-                  event.target.value === ''
-                    ? undefined
-                    : field.scale
-                      ? Math.round(Number(event.target.value) * field.scale)
-                      : Number(event.target.value),
-                )
-              }
-            />
-            {field.unit && <span>{field.unit}</span>}
-          </span>
-        ) : (
-          <textarea
-            id={`setting-${field.key}`}
-            rows={5}
-            value={Array.isArray(value) ? value.join('\n') : ''}
-            onChange={(event) =>
-              onChange(
-                event.target.value
-                  .split('\n')
-                  .map((value) => value.trim())
-                  .filter(Boolean),
-              )
-            }
-            placeholder="One model identifier per line"
-          />
-        )}
-      </div>
-    </div>
   );
 }

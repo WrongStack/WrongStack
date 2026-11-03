@@ -1,3 +1,8 @@
+import {
+  STREAM_WATCHDOG_DEFAULTS,
+  STREAM_WATCHDOG_MAX_SECONDS,
+} from '@wrongstack/contracts/types/config/runtime';
+
 export interface SettingField {
   key: string;
   label: string;
@@ -8,6 +13,13 @@ export interface SettingField {
   /** Stored value per displayed unit: a millisecond setting shown in seconds has 1000. */
   scale?: number;
   min?: number;
+  max?: number;
+  /** Words for a select's options, before the shared labels. */
+  optionLabels?: Readonly<Record<string, string>>;
+  /** A select whose options are numbers stored as numbers. */
+  numeric?: boolean;
+  /** For a setting that may stay unset: what unset means. Such a number may be left empty. */
+  unsetNote?: string;
 }
 export const settingsSections = [
   {
@@ -61,6 +73,26 @@ export const settingsSections = [
         min: 0,
         unit: 'seconds',
         scale: 1000,
+      },
+      {
+        key: 'nextStepsMode',
+        label: 'Require next steps',
+        description:
+          'Every finished turn ends with next steps or a completion marker, so automatic continuation keeps going until the agent declares the work complete. The continuation budget still pauses it.',
+        kind: 'select',
+        options: ['optional', 'required'],
+        optionLabels: { optional: 'Optional', required: 'Required' },
+      },
+      {
+        key: 'fsAccess',
+        label: 'Filesystem access',
+        description: 'Scope of the file tools. Applies on the next session.',
+        kind: 'select',
+        options: ['unrestricted', 'project'],
+        optionLabels: {
+          unrestricted: 'Unrestricted — any path',
+          project: 'Project — confined to the project root',
+        },
       },
     ],
   },
@@ -186,6 +218,31 @@ export const settingsSections = [
         description: 'Prepare the codebase index when a project runtime starts.',
         kind: 'toggle',
       },
+      {
+        key: 'readSymbols',
+        label: 'Read symbols',
+        description: 'The read tool includes codebase-index symbols alongside file content.',
+        kind: 'toggle',
+      },
+      {
+        key: 'showSageMemoryInject',
+        label: 'Show SAGE memory injection',
+        description: 'Show the SAGE memory-injection blocks added to tool results.',
+        kind: 'toggle',
+      },
+      {
+        key: 'sageMemoryInjectThreshold',
+        label: 'SAGE memory injection threshold',
+        description: 'Minimum relation strength required for an injected SAGE memory.',
+        kind: 'select',
+        numeric: true,
+        options: ['0.72', '0.75', '0.85', '0.90', '0.95'],
+        optionLabels: {
+          '0.72': '0.72 (relaxed)',
+          '0.85': '0.85 (default)',
+          '0.95': '0.95 (strict)',
+        },
+      },
     ],
   },
   {
@@ -205,6 +262,34 @@ export const settingsSections = [
         label: 'Automatic model fallback',
         description: 'Try the configured fallback chain when a provider or model is unavailable.',
         kind: 'toggle',
+      },
+      {
+        key: 'favoriteModelsOnly',
+        label: 'Favorites only',
+        description:
+          'When automatic fallback derives a chain, restrict it to your favorite models.',
+        kind: 'toggle',
+      },
+      {
+        key: 'streamTimeouts.hangTimeoutMs',
+        label: 'Silence between chunks',
+        description:
+          'Longest pause allowed once a reply is streaming before the attempt is failed and retried. Raise it for models with long silent thinking phases. 0 turns it off.',
+        kind: 'number',
+        unit: 'seconds',
+        scale: 1000,
+        max: STREAM_WATCHDOG_MAX_SECONDS,
+        unsetNote: `Default: ${STREAM_WATCHDOG_DEFAULTS.hangTimeoutMs / 1000} s (${STREAM_WATCHDOG_DEFAULTS.slowBackendHangTimeoutMs / 1000} s for MiniMax and Z.AI)`,
+      },
+      {
+        key: 'streamTimeouts.headersTimeoutMs',
+        label: 'Wait for response headers',
+        description: 'How long to wait for the provider to start answering at all. 0 turns it off.',
+        kind: 'number',
+        unit: 'seconds',
+        scale: 1000,
+        max: STREAM_WATCHDOG_MAX_SECONDS,
+        unsetNote: `Default: ${STREAM_WATCHDOG_DEFAULTS.headersTimeoutMs / 1000} s (${STREAM_WATCHDOG_DEFAULTS.slowBackendHeadersTimeoutMs / 1000} s for MiniMax and Z.AI)`,
       },
       {
         key: 'cacheTtl',
@@ -258,4 +343,30 @@ export function changedSettings(
       ([key, value]) => JSON.stringify(value) !== JSON.stringify(base[key]),
     ),
   );
+}
+
+const group = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+/** A field's value; a dotted key (`streamTimeouts.hangTimeoutMs`) reads inside its setting. */
+export function settingValue(values: Record<string, unknown>, key: string): unknown {
+  const [top = key, inner] = key.split('.', 2);
+  return inner === undefined ? values[top] : group(values[top])[inner];
+}
+
+/**
+ * The top-level setting a field's new value changes: a dotted key rewrites its group, and an
+ * emptied field is dropped from it so the engine falls back to its default.
+ */
+export function settingChange(
+  values: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): [string, unknown] {
+  const [top = key, inner] = key.split('.', 2);
+  if (inner === undefined) return [top, value];
+  const { [inner]: _previous, ...rest } = group(values[top]);
+  return [top, value === undefined ? rest : { ...rest, [inner]: value }];
 }

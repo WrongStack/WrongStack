@@ -6747,3 +6747,20 @@ copies, starting with SAGE memory.
   `npx -y` runs on both surfaces.
 - Checks: tested in jsdom through the settings page (local and remote picks, saved payload, added
   servers); WebUI sync test passes (17); typecheck clean for the desktop, WebUI and package.
+
+### Engine settings the WebUI already offered (2026-11-04)
+
+- WrongStack settings gained the engine preferences that only the WebUI could change:
+  - Execution & permissions: "Require next steps" (`nextStepsMode`) and "Filesystem access"
+    (`fsAccess`, any path or the project root);
+  - Capabilities: "Read symbols", "Show SAGE memory injection" and the SAGE injection threshold
+    (0.72 relaxed to 0.95 strict, stored as a number);
+  - Agents & fallbacks: "Favorites only" for derived fallback chains, and the two stream
+    watchdogs (silence between chunks, wait for response headers) in seconds, where 0 turns one
+    off and an empty field shows and uses the built-in default.
+- The setting row moved out of `WrongStackSettings.tsx` into `SettingRow.tsx` and learned field
+  labels for select options, numeric selects, a maximum, and fields that may stay unset. A dotted
+  field key (`streamTimeouts.hangTimeoutMs`) edits one value inside its setting; clearing it drops
+  the value so the engine default applies.
+- Checks: new fields, nested-key read/write, the cleared-watchdog patch, the row's unset default,
+  numeric select and labels are tested (jsdom for the row); desktop tests pass; typecheck clean.

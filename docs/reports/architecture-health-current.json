@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T22:32:27.578Z",
+  "generatedAt": "2026-11-03T22:38:11.458Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5966,
-    "testFiles": 4944,
-    "sourceLines": 1242637,
+    "sourceFiles": 5967,
+    "testFiles": 4945,
+    "sourceLines": 1242768,
     "workspaceEdges": 239,
-    "moduleEdges": 17320,
+    "moduleEdges": 17322,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 208,
+    "testsWithoutTypecheck": 209,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 405,
-      "testFiles": 208,
+      "sourceFiles": 406,
+      "testFiles": 209,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2450,6 +2450,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-worklist.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/setting-row.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32305,6 +32311,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-worklist.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/setting-row.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
