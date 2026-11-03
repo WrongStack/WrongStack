@@ -43,3 +43,23 @@ describe('transcript message actions', () => {
     expect(render({ id: 'a', role: 'assistant', text: 'x' })).not.toContain('Ask again');
   });
 });
+
+describe('transcript message find marks', () => {
+  it('marks the current match apart from the others', () => {
+    const html = (mark: 'current' | 'match' | undefined) =>
+      renderToStaticMarkup(
+        createElement(TranscriptMessage, {
+          message: { id: 'm1', role: 'assistant', text: 'x' },
+          state: { turnActivity: {}, turnStats: {} },
+          onLink: () => {},
+          onOpenFile: () => {},
+          mark,
+        }),
+      );
+    expect(html('current')).toContain(
+      'class="chat-message assistant find-current" data-message-id="m1"',
+    );
+    expect(html('match')).toContain('chat-message assistant find-match');
+    expect(html(undefined)).toContain('class="chat-message assistant" data-message-id="m1"');
+  });
+});

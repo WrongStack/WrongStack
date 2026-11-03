@@ -29,6 +29,7 @@ export function TranscriptMessage({
   onOpenFile,
   edit,
   askAgain,
+  mark,
 }: {
   message: Message;
   state: Pick<EngineState, 'turnActivity' | 'turnStats'>;
@@ -38,12 +39,17 @@ export function TranscriptMessage({
   edit?: MessageAction | undefined;
   /** Sends the prompt that produced this answer again. */
   askAgain?: MessageAction | undefined;
+  /** How Find in conversation marks this message. */
+  mark?: 'current' | 'match' | undefined;
 }) {
   const [source, setSource] = useState(false);
   const user = message.role === 'user';
   const answer = !user && !message.council;
   return (
-    <article className={`chat-message ${message.role}`}>
+    <article
+      className={`chat-message ${message.role}${mark ? ` find-${mark}` : ''}`}
+      data-message-id={message.id}
+    >
       <header className={user ? 'user-chat-label' : undefined}>
         <span>{user ? 'You' : 'WrongStack'}</span>
         <span className="message-actions">

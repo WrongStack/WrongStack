@@ -6533,3 +6533,19 @@ copies, starting with SAGE memory.
 - Not verified in the native window, for the same disconnected-engine reason as above.
 - Checks: desktop tests pass (749, plus the graph-layout timing test, which passes alone);
   typecheck and Biome clean.
+
+### Find in conversation (2026-11-03)
+
+- Ctrl+F in the chat view opens "Find in conversation", the WebUI's chat search: it counts the
+  matching messages, Enter / Shift+Enter (or the arrows) step through them, matching messages
+  are outlined and the current one more strongly, and a match among the earlier messages that
+  are not rendered yet loads them before scrolling to it. Esc closes it. Match case is offered.
+- It searches each message's visible text (a prompt without its file-reference block), not tool
+  output.
+- It reuses the file viewer's find bar, which now takes the names it shows; the file viewer's
+  labels ("Find in read-only source", "N matches on M lines") are unchanged, so the native file
+  scenario still matches them.
+- Not verified in the native window, for the same disconnected-engine reason as above.
+- Checks: desktop tests pass (751, plus the graph-layout timing test, which passes alone and
+  now fails under full-suite load on this machine in every run of this session); typecheck and
+  Biome clean.

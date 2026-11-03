@@ -9,6 +9,24 @@ export interface ViewerFind {
   current: number;
 }
 
+/** The names a find bar uses for what it searches. */
+export interface FindScope {
+  region: string;
+  input: string;
+  /** One content line, and several. */
+  one: string;
+  many: string;
+  /** "3 matches on 2 lines". */
+  preposition: string;
+}
+const SOURCE_SCOPE: FindScope = {
+  region: 'Find in read-only source',
+  input: 'Find in source',
+  one: 'line',
+  many: 'lines',
+  preposition: 'on',
+};
+
 /**
  * Find for the read-only source view: matching lines are marked and stepped through. Nothing is
  * replaced here; editing the file offers find and replace.
@@ -17,11 +35,15 @@ export function ViewerFindBar({
   content,
   onChange,
   onClose,
+  scope = SOURCE_SCOPE,
 }: {
   content: string;
   onChange: (find: ViewerFind) => void;
   onClose: () => void;
+  /** What is searched and what one content line stands for. */
+  scope?: FindScope;
 }) {
+  const unit = [scope.one, scope.many] as const;
   const [query, setQuery] = useState(''),
     [caseSensitive, setCaseSensitive] = useState(false),
     [index, setIndex] = useState(-1);
@@ -46,9 +68,9 @@ export function ViewerFindBar({
   const count =
     matches.length >= MAX_MATCHES ? `${MAX_MATCHES.toLocaleString()}+` : String(matches.length);
   return (
-    <section className="editor-find-bar" aria-label="Find in read-only source">
+    <section className="editor-find-bar" aria-label={scope.region}>
       <input
-        aria-label="Find in source"
+        aria-label={scope.input}
         placeholder="Find"
         value={query}
         // biome-ignore lint/a11y/noAutofocus: the bar opens on an explicit Find request.
@@ -66,13 +88,13 @@ export function ViewerFindBar({
       />
       <span role="status" className="editor-find-count">
         {query
-          ? `${count} matches on ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}${index >= 0 ? ` · line ${lines[index]}` : ''}`
+          ? `${count} matches ${scope.preposition} ${lines.length} ${lines.length === 1 ? unit[0] : unit[1]}${index >= 0 ? ` · ${unit[0]} ${lines[index]}` : ''}`
           : ''}
       </span>
       <button
         type="button"
         className="icon-button"
-        aria-label="Previous matching line"
+        aria-label={`Previous matching ${unit[0]}`}
         onClick={() => go(-1)}
       >
         <ChevronUp size={13} />
@@ -80,7 +102,7 @@ export function ViewerFindBar({
       <button
         type="button"
         className="icon-button"
-        aria-label="Next matching line"
+        aria-label={`Next matching ${unit[0]}`}
         onClick={() => go(1)}
       >
         <ChevronDown size={13} />

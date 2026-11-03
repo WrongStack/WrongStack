@@ -21,3 +21,13 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.chat-message.find-match {
+  outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.chat-message.find-current {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}

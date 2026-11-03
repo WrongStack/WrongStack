@@ -40,6 +40,7 @@ import { SessionStatusBar } from './SessionStatusBar';
 import { SessionTodos } from './SessionTodos';
 import { SessionWorklist } from './SessionWorklist';
 import { ToolApprovalCard } from './ToolApprovalCard';
+import { useTranscriptFind } from './TranscriptFind';
 import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
 import { LiveRunActivity } from './TurnTools';
 import type { ProjectPage } from './useDesktop';
@@ -252,6 +253,16 @@ export function EngineWorkspace({
   const navigate = (target: DesktopNavigation) =>
     'tab' in target ? setTab(target.tab) : onProject(target.page);
   const shortcuts = useConversationShortcuts(navigate);
+  const finder = useTranscriptFind({
+    messages: state.messages,
+    enabled: tab === 'chat',
+    reveal: (index) => {
+      following.current = false;
+      if (index < hiddenMessages) setShownMessages(state.messages.length - index);
+      const target = `[data-message-id="${CSS.escape(state.messages[index]?.id ?? '')}"]`;
+      setTimeout(() => document.querySelector(target)?.scrollIntoView({ block: 'center' }), 50);
+    },
+  });
   return (
     <div className="engine-workspace" data-engine-session={state.sessionId}>
       {shortcuts}
@@ -365,6 +376,7 @@ export function EngineWorkspace({
               </button>
             </div>
           )}
+          {finder.bar}
           <div
             ref={chatPane}
             className="native-chat-messages"
@@ -418,6 +430,7 @@ export function EngineWorkspace({
                     onLink={openLink}
                     onOpenFile={openFile}
                     edit={editAction(message)}
+                    mark={finder.mark(message.id)}
                     askAgain={
                       index === shown.length - 1 && message.role === 'assistant'
                         ? askAgainAction()
