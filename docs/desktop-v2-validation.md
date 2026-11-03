@@ -6639,3 +6639,14 @@ copies, starting with SAGE memory.
 - Checks: desktop tests pass (768, plus the graph-layout timing test, which passes alone);
   typecheck and Biome clean. Not verified in the native window, for the disconnected-engine
   reason above.
+
+### Repository chip in the status bar (2026-11-03)
+
+- The conversation's status bar shows the WebUI dock's git chip: branch, commits ahead (↑) and
+  behind (↓), lines added and deleted, and untracked files (N?), each only when non-zero, read
+  with `git.info`. Outside a repository there is no chip.
+- The WebUI polls every 30 seconds. On the desktop every reply is also written to the
+  conversation's journal, so it reads once on opening and then every minute, and only while the
+  window is visible.
+- Checks: desktop tests pass (770, plus the graph-layout timing test, which passes alone); the
+  chip's test renders it in jsdom with a stand-in engine; typecheck and Biome clean.

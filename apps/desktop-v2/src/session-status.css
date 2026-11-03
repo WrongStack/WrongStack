@@ -90,3 +90,22 @@ strong.context-critical {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+.git-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.git-chip strong {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.git-chip .git-added {
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
+}
+.git-chip .git-deleted {
+  color: var(--danger);
+}

@@ -13,6 +13,7 @@ import { record } from './engine-values';
 import { SessionContextPanel } from './SessionContextPanel';
 import { inlineUsageEstimate } from './session-usage-model';
 import './session-status.css';
+import { GitChip } from './GitChip';
 
 const number = (value: unknown) => (typeof value === 'number' ? value : null);
 
@@ -86,6 +87,7 @@ export function SessionStatusBar({
           {limit ? ` of ${limit}` : ''}
         </span>
       )}
+      <GitChip command={command} connected={state.connected} />
       {input !== null && <span>{formatTokens(input)} in</span>}
       {output !== null && <span>{formatTokens(output)} out</span>}
       {typeof estimate === 'number' && <span>Estimated ${estimate.toFixed(4)}</span>}

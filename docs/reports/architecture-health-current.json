@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T20:13:18.311Z",
+  "generatedAt": "2026-11-03T20:16:42.122Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5956,
-    "testFiles": 4936,
-    "sourceLines": 1241629,
+    "sourceFiles": 5957,
+    "testFiles": 4937,
+    "sourceLines": 1241714,
     "workspaceEdges": 239,
-    "moduleEdges": 17304,
+    "moduleEdges": 17306,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 200,
+    "testsWithoutTypecheck": 201,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 398,
-      "testFiles": 200,
+      "sourceFiles": 399,
+      "testFiles": 201,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1796,6 +1796,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/generated-images.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/git-chip.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31494,6 +31500,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/generated-images.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/git-chip.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
