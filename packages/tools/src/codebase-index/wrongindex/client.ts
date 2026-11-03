@@ -211,13 +211,13 @@ export class WrongIndexClient {
     if (auth.status !== 'ok' || !auth.hello) {
       client.close();
       throw new WrongIndexRemoteError(
-        auth.error ?? { code: 'PROTOCOL', message: 'unexpected handshake reply' },
+        auth.error ?? { code: 'PROTOCOL_UNSUPPORTED', message: 'unexpected handshake reply' },
       );
     }
     if (auth.hello.protocolMajor !== PROTOCOL_MAJOR) {
       client.close();
       throw new WrongIndexRemoteError({
-        code: 'INCOMPATIBLE_PROTOCOL',
+        code: 'PROTOCOL_UNSUPPORTED',
         message: `daemon speaks protocol ${auth.hello.protocolMajor}, this client ${PROTOCOL_MAJOR}`,
       });
     }
