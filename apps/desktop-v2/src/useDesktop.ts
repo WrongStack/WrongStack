@@ -338,11 +338,21 @@ export function useDesktop() {
     }, 400);
     return () => clearTimeout(timer);
   }, [project, selected, openSessionIds, section, projectPage, restored, reportError]);
+  // Read by the key handler below, which is installed once.
+  const shortcutActions = useRef({ newSession: () => {}, openTab: (_index: number) => {} });
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setDialog((d) => (d === 'palette' ? null : 'palette'));
+      }
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        shortcutActions.current.newSession();
+      }
+      if (event.altKey && !event.ctrlKey && !event.metaKey && /^Digit[1-9]$/.test(event.code)) {
+        event.preventDefault();
+        shortcutActions.current.openTab(Number(event.code.slice(5)) - 1);
       }
       if (event.key === 'Escape') {
         setDialog(null);
@@ -428,6 +438,13 @@ export function useDesktop() {
     setProject(s.projectId);
     setSection('fleet');
     setDialog(null);
+  };
+  shortcutActions.current = {
+    newSession: () => newSession(),
+    openTab: (index) => {
+      const session = snapshot.sessions.find((s) => s.id === openSessionIds[index]);
+      if (session) jumpToSession(session);
+    },
   };
   const closeSessionTab = (id: string) => {
     const next = nextSessionAfterDetach(openSessionIds, selected, id);

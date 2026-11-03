@@ -750,6 +750,7 @@ export function SessionComposer({
               event.preventDefault();
               return;
             }
+            if (event.key === 'Escape' && state.running) return void stop();
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
               submit();

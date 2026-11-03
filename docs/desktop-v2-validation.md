@@ -6518,3 +6518,18 @@ copies, starting with SAGE memory.
   listing `/bughunt` with its usage on build `80febebbf29a-c5436fe756a5`.
 - Checks: desktop tests pass (745, plus the graph-layout timing test, which passes alone and
   fails only under full-suite load); typecheck and Biome clean.
+
+### Keyboard shortcuts (2026-11-03)
+
+- Function keys open the views the WebUI's F-key panels show, where the desktop has them: F2
+  live fleet, F3 roster, F4 worktrees, F5 plan, F8 processes, F9 goals, F10 recorded
+  conversations, F11 office. Each opens what its slash command opens (`/fleet`, `/roster`,
+  `/worktree`, `/plan`, `/processes`, `/goals`, `/sessions`, `/office`), so the two cannot drift.
+  F1, F6, F7 and F12 stay unbound: the desktop has no session side panel, todo panel, queue
+  panel or status-line picker of its own.
+- `?` (outside a text field) or F1 lists every shortcut. Ctrl+/ focuses the composer. Esc in
+  the composer stops a running turn (after closing an open popup). Ctrl+N starts a new session
+  and Alt+1…9 switches between open conversation tabs. Keys are ignored while a dialog is open.
+- Not verified in the native window, for the same disconnected-engine reason as above.
+- Checks: desktop tests pass (749, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean.

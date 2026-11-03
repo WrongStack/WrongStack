@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T19:27:23.644Z",
+  "generatedAt": "2026-11-03T19:33:06.747Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5946,
-    "testFiles": 4928,
-    "sourceLines": 1240608,
+    "sourceFiles": 5949,
+    "testFiles": 4929,
+    "sourceLines": 1240792,
     "workspaceEdges": 239,
-    "moduleEdges": 17274,
+    "moduleEdges": 17282,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 193,
+    "testsWithoutTypecheck": 194,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -389,8 +389,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 388,
-      "testFiles": 193,
+      "sourceFiles": 391,
+      "testFiles": 194,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1591,6 +1591,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-office-feed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-shortcuts.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31213,6 +31219,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/desktop-shortcuts.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/desktop-story-feed.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32856,6 +32869,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ShortcutsOverlay.tsx",
+      "specifier": "./shortcuts.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/surface-i18n.ts",
       "specifier": "../../../packages/webui/src/i18n/locales/en/activity.json",
       "syntax": "import"
@@ -33146,7 +33164,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1090,
+      "lines": 1091,
       "relativeImports": 37
     },
     {
@@ -33183,7 +33201,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1090,
+      "lines": 1091,
       "relativeImports": 37
     },
     {
@@ -33397,14 +33415,14 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/coordination/src/fleet-manager.ts",
+      "file": "apps/desktop-v2/src/useDesktop.ts",
       "lines": 700,
       "relativeImports": 9
     },
     {
-      "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
-      "lines": 699,
-      "relativeImports": 39
+      "file": "packages/coordination/src/fleet-manager.ts",
+      "lines": 700,
+      "relativeImports": 9
     }
   ],
   "testOnlyExports": [

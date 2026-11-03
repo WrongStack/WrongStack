@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConversationNotices } from './ConversationNotices';
+import { useConversationShortcuts } from './ConversationShortcuts';
 import type { ComposerAttachment } from './composer-attachments';
 import type { SubmitMode } from './composer-model';
 import {
@@ -19,6 +20,7 @@ import {
   splitReferenceMessage,
   withReference,
 } from './composer-resources-model';
+import type { DesktopNavigation } from './desktop-commands';
 import { EngineDataView } from './EngineDataView';
 import { FallbackPicker } from './FallbackPicker';
 import { failedRun } from './failed-run-model';
@@ -247,8 +249,12 @@ export function EngineWorkspace({
     },
     [send, onError],
   );
+  const navigate = (target: DesktopNavigation) =>
+    'tab' in target ? setTab(target.tab) : onProject(target.page);
+  const shortcuts = useConversationShortcuts(navigate);
   return (
     <div className="engine-workspace" data-engine-session={state.sessionId}>
+      {shortcuts}
       <nav className="workspace-tabs" aria-label="Agent workspace views">
         {(
           [
@@ -522,9 +528,7 @@ export function EngineWorkspace({
               projectRoot={projectRoot}
               planDraftStorage={planDraftStorage}
               refineDraftStorage={refineDraftStorage}
-              onNavigate={(target) =>
-                'tab' in target ? setTab(target.tab) : onProject(target.page)
-              }
+              onNavigate={navigate}
             />
           </div>
         </>
