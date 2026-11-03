@@ -27,6 +27,7 @@
     "@tauri-apps/api": "2.12.4",
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/kanban": "workspace:*",
     "@wrongstack/project-surfaces": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",

@@ -24,6 +24,7 @@
     "@tanstack/react-virtual": "^3.14.21",
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/kanban": "workspace:*",
     "@xyflow/react": "^12.11.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -2641,6 +2641,8 @@
     "targetBoard": "Quadro de destino",
     "boardPresence": "Presença no quadro",
     "liveBoardUsers": "Usuários ativos no quadro",
+    "presenceEarlier": "+{{count}} anteriores",
+    "presenceFewer": "Mostrar menos",
     "kanbanAgent": "Agente Kanban",
     "watchThisBoard": "Observar este quadro",
     "supervisorEngine": "Motor supervisor",

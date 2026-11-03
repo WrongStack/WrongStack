@@ -39,7 +39,9 @@ vi.mock('@/stores', () => {
     getState: () => baseState(),
   });
   return {
-    useConfigStore: Object.assign(() => ({ wsUrl: 'ws://localhost:0' }), {}),
+    useConfigStore: Object.assign(() => ({ wsUrl: 'ws://localhost:0' }), {
+      getState: () => ({ wsUrl: 'ws://localhost:0' }),
+    }),
     useSessionStore: () => ({ session: { id: 'test-session' } }),
     useFleetStore: Object.assign(
       (selector: (s: { agents: Map<string, unknown> }) => unknown) =>
@@ -51,6 +53,13 @@ vi.mock('@/stores', () => {
 });
 
 vi.mock('@/stores/kanban-store', () => {
+  const useKanbanStore = Object.assign(() => baseState(), {
+    getState: () => baseState(),
+  });
+  return { useKanbanStore };
+});
+
+vi.mock('@wrongstack/project-surfaces/kanban/kanban-store', () => {
   const useKanbanStore = Object.assign(() => baseState(), {
     getState: () => baseState(),
   });
@@ -79,11 +88,25 @@ vi.mock('@/hooks/useKanbanMeta', () => ({
   }),
 }));
 
+vi.mock('@wrongstack/project-surfaces/kanban/useKanbanMeta', () => ({
+  useKanbanMeta: () => ({
+    tools: [],
+    skills: [],
+    fallbackProfiles: {},
+    sessionProvider: '',
+    sessionModel: '',
+  }),
+}));
+
 vi.mock('@/hooks/useScrollPosition', () => ({
   useScrollPosition: () => ({ current: null }),
 }));
 
 vi.mock('@/lib/kanban-cleaner', () => ({
+  auditKanbanBoard: () => null,
+}));
+
+vi.mock('@wrongstack/project-surfaces/kanban/kanban-cleaner', () => ({
   auditKanbanBoard: () => null,
 }));
 

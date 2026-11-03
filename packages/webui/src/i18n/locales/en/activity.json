@@ -2703,6 +2703,8 @@
     "targetBoard": "Target board",
     "boardPresence": "Board presence",
     "liveBoardUsers": "Live board users",
+    "presenceEarlier": "+{{count}} earlier",
+    "presenceFewer": "Show fewer",
     "kanbanAgent": "Kanban Agent",
     "watchThisBoard": "Watch this board",
     "supervisorEngine": "Supervisor engine",

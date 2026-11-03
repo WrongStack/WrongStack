@@ -11,6 +11,7 @@
 @import "../../../packages/webui/src/pages.css";
 @import "../../../packages/webui/src/interactions.css";
 @import "../../../packages/webui/src/components-layer.css";
+@import "../../../packages/project-surfaces/src/kanban/kanban.css";
 @source "../../../packages/project-surfaces/src";
 
 .ws-surfaces {

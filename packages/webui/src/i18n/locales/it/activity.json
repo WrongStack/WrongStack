@@ -2641,6 +2641,8 @@
     "targetBoard": "Board di destinazione",
     "boardPresence": "Presenza sulla board",
     "liveBoardUsers": "Utenti live sulla board",
+    "presenceEarlier": "+{{count}} precedenti",
+    "presenceFewer": "Mostra meno",
     "kanbanAgent": "Kanban Agent",
     "watchThisBoard": "Osserva questa board",
     "supervisorEngine": "Motore supervisore",

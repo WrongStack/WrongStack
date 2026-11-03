@@ -306,6 +306,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         <ProjectSage projectId={project.id} http={http} initialMemoryId={memoryTarget} />
       ) : vm.projectPage === 'kanban' ? (
         <ProjectKanban
+          projectId={project.id}
+          http={http}
           command={command}
           focus={kanbanFocus}
           onOpenSource={(source) => {

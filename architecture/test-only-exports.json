@@ -111,6 +111,9 @@
     "apps/desktop-v2/src/JevSettings.tsx": [
       "jevState"
     ],
+    "apps/desktop-v2/src/kanban-board-source.ts": [
+      "boardSource"
+    ],
     "apps/desktop-v2/src/KanbanBoardDialog.tsx": [
       "boardListTasks"
     ],
@@ -1228,6 +1231,30 @@
       "pruneWindow",
       "windowSpend"
     ],
+    "packages/project-surfaces/src/kanban/KanbanBoardChrome.tsx": [
+      "PRESENCE_RECENT_INACTIVE",
+      "visiblePresence"
+    ],
+    "packages/project-surfaces/src/kanban/KanbanBoundaryEditor.tsx": [
+      "formatBoundarySelectors",
+      "parseBoundarySelectors"
+    ],
+    "packages/project-surfaces/src/kanban/KanbanTaskInspectorChrome.tsx": [
+      "TASK_INSPECTOR_TABS"
+    ],
+    "packages/project-surfaces/src/kanban/KanbanView.tsx": [
+      "TASK_ACTIVITY_LOAD_LIMIT"
+    ],
+    "packages/project-surfaces/src/kanban/sdd-theme.ts": [
+      "SDD_PRIORITY",
+      "SDD_STATUS"
+    ],
+    "packages/project-surfaces/src/kanban/TaskExecutionAttempts.tsx": [
+      "buildTaskExecutionAttempts"
+    ],
+    "packages/project-surfaces/src/kanban/TaskIntelligencePanel.tsx": [
+      "deriveTaskIntelligence"
+    ],
     "packages/project-surfaces/src/office/AgentOfficeView/model.ts": [
       "shortModelName"
     ],
@@ -1969,16 +1996,6 @@
     "packages/webui/src/components/CustomRosterPanel.tsx": [
       "CustomRosterPanel"
     ],
-    "packages/webui/src/components/KanbanBoundaryEditor.tsx": [
-      "formatBoundarySelectors",
-      "parseBoundarySelectors"
-    ],
-    "packages/webui/src/components/KanbanTaskInspectorChrome.tsx": [
-      "TASK_INSPECTOR_TABS"
-    ],
-    "packages/webui/src/components/KanbanView.tsx": [
-      "TASK_ACTIVITY_LOAD_LIMIT"
-    ],
     "packages/webui/src/components/MessageBubble/FailedRunContinue.tsx": [
       "autoTriggerMsFor"
     ],
@@ -2020,12 +2037,6 @@
     ],
     "packages/webui/src/components/SystemHealthChip.tsx": [
       "summarizeSystemHealth"
-    ],
-    "packages/webui/src/components/TaskExecutionAttempts.tsx": [
-      "buildTaskExecutionAttempts"
-    ],
-    "packages/webui/src/components/TaskIntelligencePanel.tsx": [
-      "deriveTaskIntelligence"
     ],
     "packages/webui/src/components/toaster-helpers.ts": [
       "buildUndoToastEntry"
@@ -2181,10 +2192,6 @@
     "packages/webui/src/lib/sandbox-status.ts": [
       "initialSandboxEventState",
       "reduceSandboxEvent"
-    ],
-    "packages/webui/src/lib/sdd-theme.ts": [
-      "SDD_PRIORITY",
-      "SDD_STATUS"
     ],
     "packages/webui/src/lib/terminal-dock.ts": [
       "MAX_TERMINAL_HEIGHT",

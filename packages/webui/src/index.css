@@ -3,6 +3,7 @@
 @import "./pages.css";
 @import "./interactions.css";
 @import "./components-layer.css";
+@import "../../project-surfaces/src/kanban/kanban.css";
 @source "../../providers/src/provider-definitions.ts";
 @source "../../providers/src/trusted-presets.ts";
 
@@ -624,29 +625,6 @@
   background-color: hsl(var(--primary) / 0.6);
 }
 
-/* Kanban board — always show horizontal scrollbar so columns past the fold are reachable. */
-.kanban-scroll-area {
-  overflow-x: auto;
-  scrollbar-width: auto; /* Firefox: force visible track */
-}
-.kanban-scroll-area::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
-}
-.kanban-scroll-area::-webkit-scrollbar-track {
-  background: hsl(var(--muted-foreground) / 0.08);
-  border-radius: 0;
-}
-.kanban-scroll-area::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.35);
-  border-radius: 0;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.kanban-scroll-area::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--primary) / 0.6);
-}
-
 /* Hide the scrollbar entirely (used by the narrow ActivityBar, which scrolls
    on short viewports but is too thin to show a 9px track). */
 .no-scrollbar {
@@ -1078,144 +1056,6 @@
 /* kbds in editor shortcuts bar */
 kbd {
   @apply px-1 py-0.5 rounded bg-muted text-[9px] font-mono border;
-}
-
-/* ─────────────────────────────────────────────────────────────────────
-   SDD visual show — animated task-graph DAG (React Flow) + wizard reveal.
-   ───────────────────────────────────────────────────────────────────── */
-
-/* A running task node: breathing amber glow + a slow rotating conic ring. */
-@keyframes sddRunPulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px hsl(var(--warning) / 0.55),
-      0 0 16px 1px hsl(var(--warning) / 0.35);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px hsl(var(--warning) / 0.85),
-      0 0 28px 4px hsl(var(--warning) / 0.6);
-  }
-}
-.sdd-node-running {
-  animation: sddRunPulse 1.8s ease-in-out infinite;
-}
-
-/* Completion flash — a one-shot emerald burst when a task finishes. */
-@keyframes sddCompleteFlash {
-  0% {
-    box-shadow:
-      0 0 0 1px hsl(var(--success) / 0.9),
-      0 0 30px 6px hsl(var(--success) / 0.7);
-  }
-  100% {
-    box-shadow:
-      0 0 0 1px hsl(var(--success) / 0.5),
-      0 0 0 0 transparent;
-  }
-}
-.sdd-node-complete {
-  animation: sddCompleteFlash 0.9s ease-out;
-}
-
-/* Failure shake. */
-@keyframes sddFail {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20%,
-  60% {
-    transform: translateX(-3px);
-  }
-  40%,
-  80% {
-    transform: translateX(3px);
-  }
-}
-.sdd-node-failed {
-  animation: sddFail 0.45s ease-in-out;
-}
-
-/* Node pop-in when the graph first materializes (decomposition reveal). */
-@keyframes sddPopIn {
-  from {
-    opacity: 0;
-    transform: scale(0.82) translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-.sdd-node-enter {
-  animation: sddPopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-}
-
-/* Live agent dot — a pulsing presence ring around the worker avatar. */
-@keyframes sddAgentPing {
-  0% {
-    box-shadow: 0 0 0 0 hsl(var(--info) / 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 6px hsl(var(--info) / 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 hsl(var(--info) / 0);
-  }
-}
-.sdd-agent-live {
-  animation: sddAgentPing 1.6s ease-out infinite;
-}
-
-/* Conic sweep behind a running node's header (the "working" shimmer). */
-@keyframes sddConic {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.sdd-conic {
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    hsl(var(--warning) / 0.5) 40deg,
-    transparent 80deg
-  );
-  animation: sddConic 2.4s linear infinite;
-}
-
-/* Animated dependency edge — flowing dashes (React Flow strokeDashoffset). */
-@keyframes sddDash {
-  to {
-    stroke-dashoffset: -16;
-  }
-}
-.sdd-edge-flow {
-  stroke-dasharray: 6 6;
-  animation: sddDash 0.6s linear infinite;
-}
-
-/* Wizard phase panel transition. */
-@keyframes sddRise {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.sdd-rise {
-  animation: sddRise 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-}
-
-/* Gradient sheen header used across the SDD surfaces. */
-.sdd-sheen {
-  background:
-    radial-gradient(1200px 200px at 0% -40%, hsl(265 80% 60% / 0.18), transparent),
-    radial-gradient(800px 200px at 100% -40%, hsl(199 89% 55% / 0.16), transparent);
 }
 
 /* ── Parked views ────────────────────────────────────────────────────────

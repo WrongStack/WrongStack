@@ -1,0 +1,32 @@
+/* The shared Kanban board fills the project page. */
+.kanban-surface {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Desktop board and task tools inside the shared board. */
+.kanban-desktop-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+/* Sized like the board's own controls, so the row stays one line. */
+.kanban-desktop-tools .button {
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.kanban-desktop-task-tools {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid hsl(var(--border));
+}

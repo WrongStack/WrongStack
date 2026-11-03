@@ -25,12 +25,19 @@ const ISOLATED_COLOR_SURFACES = new Map<string, string>([
   // ---- webui ----
   ['webui/components/CommandPalette/export-utils.ts', 'Standalone exported HTML document.'],
   ['webui/components/DesignGalleryView.tsx', 'Previews arbitrary user-selected design-kit tokens.'],
-  ['webui/components/KanbanContractGraphDashboard.tsx', 'Rendered SVG contract graph nodes.'],
   [
-    'webui/components/KanbanContractGraphView.ts',
+    'project-surfaces/kanban/KanbanContractGraphDashboard.tsx',
+    'Rendered SVG contract graph nodes.',
+  ],
+  [
+    'project-surfaces/kanban/KanbanContractGraphView.ts',
     'Graph canvas node colors and canvas backgrounds.',
   ],
-  ['webui/components/KanbanWorkbench.tsx', 'Kanban status badge highlights.'],
+  ['project-surfaces/kanban/KanbanWorkbench.tsx', 'Kanban status badge highlights.'],
+  [
+    'project-surfaces/kanban/kanban.css',
+    'The SDD header sheen gradient (moved out of index.css with the Kanban surface).',
+  ],
   [
     'webui/components/RepositoryHistoryView.tsx',
     'Git topology graph lanes and branch/tag badge tones.',

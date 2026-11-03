@@ -146,10 +146,6 @@
       "lines": 2016,
       "relativeImports": 29
     },
-    "apps/desktop-v2/src/KanbanTaskInspector.tsx": {
-      "lines": 826,
-      "relativeImports": 8
-    },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
       "lines": 917,
       "relativeImports": 16
@@ -173,10 +169,6 @@
     "apps/desktop-v2/src/ProjectGoals.tsx": {
       "lines": 1019,
       "relativeImports": 9
-    },
-    "apps/desktop-v2/src/ProjectKanban.tsx": {
-      "lines": 748,
-      "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectMailbox.tsx": {
       "lines": 800,

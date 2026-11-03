@@ -1,3 +1,4 @@
+import type { ModelCandidate } from '@wrongstack/project-surfaces/kanban/kanban-host';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   isModelDisabled,
@@ -10,17 +11,7 @@ import { useConfigStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 
-export interface ModelCandidate {
-  provider: string;
-  /** Catalog provider type; `provider` remains the auth profile alias. */
-  providerType?: string | undefined;
-  model: string;
-  label: string;
-  description?: string | undefined;
-  contextWindow?: number | undefined;
-  outputModalities?: string[] | undefined;
-  isFavorite?: boolean | undefined;
-}
+export type { ModelCandidate } from '@wrongstack/project-surfaces/kanban/kanban-host';
 
 /**
  * Load the flat list of {provider, model} the user can assign to an SDD worker.

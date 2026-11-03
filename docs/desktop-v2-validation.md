@@ -6195,3 +6195,38 @@ copies, starting with SAGE memory.
   WebUI).
 - Checks: desktop 707 tests and WebUI 6,232 tests pass; typecheck clean for the package, the
   WebUI and the desktop; architecture health passes.
+
+### Kanban is the WebUI's own board (2026-11-03)
+
+- The desktop Kanban page renders the WebUI's board: the paged board sidebar with its
+  active/orphaned split, the Focus, Board, Tree, Contract Map and Verification views, the task
+  inspector (definition, execution, evidence, breakdown, history), the Kanban Agent supervisor
+  bar, queue health, run controls, decomposition approval and the board cleaner.
+- `packages/project-surfaces/src/kanban` holds those components, the Kanban store, the task
+  activity, risk, intelligence and verification panels, the SDD flow graph, and the shared
+  pickers and chips (`ui/ModelPicker`, `ChipMultiSelect`, `empty-state`, `hue-chip`,
+  `progress-ring`, `anchored-popover`); the WebUI keeps its old paths as re-exports. The surface
+  reads a `KanbanHost` from the host: requests and frames, the conversation that stamps writes,
+  fleet agents for the live-session split, model candidates, a default model, the live-run link
+  and two slots for an application's own board and task panels. `kanban.css` (the board
+  scrollbar and the SDD graph animations) is imported once by each application.
+- Desktop: `ProjectKanban` binds every Kanban frame (`bindKanbanFrames`, the store's 45 reply
+  types plus `kanban.task.activity.add` and `kanban.contract.configure`) and clears the store per
+  project; a run asking for its board selects it once the list has it. The desktop keeps its own
+  tools in the slots: contract map editing, task-graph export and a board from a list of tasks
+  (`KanbanBoardTools`), and chain, merge, metrics, copy or move to another board and releasing a
+  claim (`KanbanTaskTools`, in the inspector's Breakdown tab). The old desktop board, inspector,
+  execution, breakdown, boundary, queue-health, board-actions and field-conflict modules are
+  removed, and `kanban.css` keeps only the rules other pages still use.
+- Fixed for both apps: board history never loaded (the store marked the request in flight but
+  nothing sent `kanban.board.history`); a board's presence list showed every stale entry (30+
+  supervisor visits from 277 hours ago pushed the columns off screen), and now shows active
+  entries and the three most recent others with "+N earlier" (`kanban-board-presence.test.tsx`).
+- Seen in the native window on build `2c843ed29da3-c5436fe756a5`, light and dark: this
+  project's 151 boards, a 22-task board, a task's inspector and its Breakdown tab with the
+  desktop task tools, the supervisor reporting "checked 10s ago"; no page errors.
+- Open: the native harness `kanban` scenarios (`native-kanban-execution.mjs`,
+  `native-kanban-run.mjs`) drive the removed desktop board and must be rewritten.
+- Checks: desktop 697 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
+  WebUI and the desktop; architecture health passes except a hotspot in another session's
+  in-progress `packages/core` change.

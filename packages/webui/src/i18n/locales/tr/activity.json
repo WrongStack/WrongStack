@@ -2703,6 +2703,8 @@
     "targetBoard": "Hedef pano",
     "boardPresence": "Pano mevcudiyeti",
     "liveBoardUsers": "Canlı pano kullanıcıları",
+    "presenceEarlier": "+{{count}} önceki",
+    "presenceFewer": "Daha az göster",
     "kanbanAgent": "Kanban Ajanı",
     "watchThisBoard": "Bu panoyu izle",
     "supervisorEngine": "Denetleyici motoru",

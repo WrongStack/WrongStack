@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T10:15:17.528Z",
+  "generatedAt": "2026-11-03T11:03:08.856Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,21 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5790,
-    "testFiles": 4917,
-    "sourceLines": 1240577,
-    "workspaceEdges": 236,
-    "moduleEdges": 16919,
+    "sourceFiles": 5835,
+    "testFiles": 4914,
+    "sourceLines": 1237801,
+    "workspaceEdges": 238,
+    "moduleEdges": 17017,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 186,
+    "testsWithoutTypecheck": 182,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1034
+    "testOnlyExports": 1037
   },
-  "errors": [],
+  "errors": [
+    "packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -386,11 +388,12 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 376,
-      "testFiles": 186,
+      "sourceFiles": 368,
+      "testFiles": 182,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
+        "@wrongstack/kanban",
         "@wrongstack/project-surfaces",
         "@wrongstack/webui-protocol",
         "@wrongstack/webui-server"
@@ -731,11 +734,12 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 97,
+      "sourceFiles": 150,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
-        "@wrongstack/core"
+        "@wrongstack/core",
+        "@wrongstack/kanban"
       ],
       "tsconfigs": [
         {
@@ -1104,7 +1108,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 777,
-      "testFiles": 513,
+      "testFiles": 514,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1130,7 +1134,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 513
+          "testFiles": 514
         }
       ]
     },
@@ -1812,12 +1816,6 @@
         ]
       },
       {
-        "file": "apps/desktop-v2/tests/kanban-board-actions.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "apps/desktop-v2/tests/kanban-board-dialog.test.ts",
         "projects": [
           "root-node"
@@ -1830,19 +1828,7 @@
         ]
       },
       {
-        "file": "apps/desktop-v2/tests/kanban-boundary-model.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "apps/desktop-v2/tests/kanban-contract-map.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "apps/desktop-v2/tests/kanban-health.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2377,12 +2363,6 @@
       },
       {
         "file": "apps/desktop-v2/tests/system-prompt-presets.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "apps/desktop-v2/tests/task-definition-model.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28266,6 +28246,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/kanban-board-presence.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/kanban-boundary-editor.test.ts",
         "projects": [
           "webui-jsdom"
@@ -31400,13 +31386,6 @@
         "typecheckProjects": []
       },
       {
-        "file": "apps/desktop-v2/tests/kanban-board-actions.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
         "file": "apps/desktop-v2/tests/kanban-board-dialog.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31421,21 +31400,7 @@
         "typecheckProjects": []
       },
       {
-        "file": "apps/desktop-v2/tests/kanban-boundary-model.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
         "file": "apps/desktop-v2/tests/kanban-contract-map.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "apps/desktop-v2/tests/kanban-health.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32065,13 +32030,6 @@
         "typecheckProjects": []
       },
       {
-        "file": "apps/desktop-v2/tests/task-definition-model.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
         "file": "apps/desktop-v2/tests/techstack-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32155,6 +32113,51 @@
       "syntax": "import"
     },
     {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/types.js",
+      "syntax": "dynamic-import"
+    },
+    {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/types.js",
+      "syntax": "dynamic-import"
+    },
+    {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/types.js",
+      "syntax": "dynamic-import"
+    },
+    {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/types.js",
+      "syntax": "dynamic-import"
+    },
+    {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/types.js",
+      "syntax": "dynamic-import"
+    },
+    {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/supervision-types.js",
+      "syntax": "dynamic-import"
+    },
+    {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/supervision-types.js",
+      "syntax": "dynamic-import"
+    },
+    {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/task-policy-types.js",
+      "syntax": "dynamic-import"
+    },
+    {
+      "from": "packages/project-surfaces/src/kanban/KanbanTaskExecution.tsx",
+      "specifier": "../../../kanban/dist/task-policy-types.js",
+      "syntax": "dynamic-import"
+    },
+    {
       "from": "packages/project-surfaces/src/office/AgentOfficeView.tsx",
       "specifier": "./AgentOfficeView.css",
       "syntax": "import"
@@ -32162,6 +32165,11 @@
     {
       "from": "packages/project-surfaces/src/sage/vector/VectorMemoryPanel.tsx",
       "specifier": "./vector-memory-panel.css",
+      "syntax": "import"
+    },
+    {
+      "from": "packages/project-surfaces/src/ui/empty-state.tsx",
+      "specifier": "./terminal-motifs.css",
       "syntax": "import"
     },
     {
@@ -32190,51 +32198,6 @@
       "syntax": "import"
     },
     {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/types.js",
-      "syntax": "dynamic-import"
-    },
-    {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/types.js",
-      "syntax": "dynamic-import"
-    },
-    {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/types.js",
-      "syntax": "dynamic-import"
-    },
-    {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/types.js",
-      "syntax": "dynamic-import"
-    },
-    {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/types.js",
-      "syntax": "dynamic-import"
-    },
-    {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/supervision-types.js",
-      "syntax": "dynamic-import"
-    },
-    {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/supervision-types.js",
-      "syntax": "dynamic-import"
-    },
-    {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/task-policy-types.js",
-      "syntax": "dynamic-import"
-    },
-    {
-      "from": "packages/webui/src/components/KanbanTaskExecution.tsx",
-      "specifier": "../../../kanban/dist/task-policy-types.js",
-      "syntax": "dynamic-import"
-    },
-    {
       "from": "packages/webui/src/components/MessageBubble/ToolLedgerCard.tsx",
       "specifier": "./ledger.css",
       "syntax": "import"
@@ -32252,11 +32215,6 @@
     {
       "from": "packages/webui/src/components/StreamMeter/index.tsx",
       "specifier": "./stream-meter.css",
-      "syntax": "import"
-    },
-    {
-      "from": "packages/webui/src/components/ui/empty-state.tsx",
-      "specifier": "../terminal-motifs.css",
       "syntax": "import"
     },
     {
@@ -32555,6 +32513,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ProjectKanban.tsx",
+      "specifier": "./kanban-tools.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ProjectKit.tsx",
       "specifier": "./project-kit.css",
       "syntax": "import"
@@ -32800,7 +32763,7 @@
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
-      "lines": 707,
+      "lines": 709,
       "relativeImports": 12
     },
     {
@@ -32929,11 +32892,6 @@
       "relativeImports": 29
     },
     {
-      "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
-      "lines": 826,
-      "relativeImports": 8
-    },
-    {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
       "lines": 917,
       "relativeImports": 16
@@ -32962,11 +32920,6 @@
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
       "lines": 1019,
       "relativeImports": 9
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 748,
-      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
@@ -33071,11 +33024,6 @@
       "relativeImports": 13
     },
     {
-      "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
-      "lines": 826,
-      "relativeImports": 8
-    },
-    {
       "file": "packages/vibeui/src/lib/session.ts",
       "lines": 815,
       "relativeImports": 5
@@ -33124,11 +33072,6 @@
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 750,
       "relativeImports": 8
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectKanban.tsx",
-      "lines": 748,
-      "relativeImports": 11
     },
     {
       "file": "packages/coordination/src/sqlite-mailbox.ts",
@@ -33201,6 +33144,11 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/core/src/storage/file-session-writer.ts",
+      "lines": 709,
+      "relativeImports": 12
+    },
+    {
       "file": "packages/vibeui/src/components/memory-browser.tsx",
       "lines": 709,
       "relativeImports": 12
@@ -33214,11 +33162,6 @@
       "file": "packages/acp/src/client/acp-session.ts",
       "lines": 707,
       "relativeImports": 23
-    },
-    {
-      "file": "packages/core/src/storage/file-session-writer.ts",
-      "lines": 707,
-      "relativeImports": 12
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
@@ -33254,6 +33197,16 @@
       "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
+    },
+    {
+      "file": "packages/coordination/src/provider-status-tracker.ts",
+      "lines": 701,
+      "relativeImports": 4
+    },
+    {
+      "file": "packages/coordination/src/fleet-manager.ts",
+      "lines": 700,
+      "relativeImports": 9
     }
   ],
   "testOnlyExports": [
@@ -33440,6 +33393,10 @@
     {
       "file": "apps/desktop-v2/src/JevSettings.tsx",
       "name": "jevState"
+    },
+    {
+      "file": "apps/desktop-v2/src/kanban-board-source.ts",
+      "name": "boardSource"
     },
     {
       "file": "apps/desktop-v2/src/KanbanBoardDialog.tsx",
@@ -35526,6 +35483,46 @@
       "name": "windowSpend"
     },
     {
+      "file": "packages/project-surfaces/src/kanban/KanbanBoardChrome.tsx",
+      "name": "PRESENCE_RECENT_INACTIVE"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/KanbanBoardChrome.tsx",
+      "name": "visiblePresence"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/KanbanBoundaryEditor.tsx",
+      "name": "formatBoundarySelectors"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/KanbanBoundaryEditor.tsx",
+      "name": "parseBoundarySelectors"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/KanbanTaskInspectorChrome.tsx",
+      "name": "TASK_INSPECTOR_TABS"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/KanbanView.tsx",
+      "name": "TASK_ACTIVITY_LOAD_LIMIT"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/sdd-theme.ts",
+      "name": "SDD_PRIORITY"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/sdd-theme.ts",
+      "name": "SDD_STATUS"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/TaskExecutionAttempts.tsx",
+      "name": "buildTaskExecutionAttempts"
+    },
+    {
+      "file": "packages/project-surfaces/src/kanban/TaskIntelligencePanel.tsx",
+      "name": "deriveTaskIntelligence"
+    },
+    {
       "file": "packages/project-surfaces/src/office/AgentOfficeView/model.ts",
       "name": "shortModelName"
     },
@@ -36826,22 +36823,6 @@
       "name": "CustomRosterPanel"
     },
     {
-      "file": "packages/webui/src/components/KanbanBoundaryEditor.tsx",
-      "name": "formatBoundarySelectors"
-    },
-    {
-      "file": "packages/webui/src/components/KanbanBoundaryEditor.tsx",
-      "name": "parseBoundarySelectors"
-    },
-    {
-      "file": "packages/webui/src/components/KanbanTaskInspectorChrome.tsx",
-      "name": "TASK_INSPECTOR_TABS"
-    },
-    {
-      "file": "packages/webui/src/components/KanbanView.tsx",
-      "name": "TASK_ACTIVITY_LOAD_LIMIT"
-    },
-    {
       "file": "packages/webui/src/components/MessageBubble/FailedRunContinue.tsx",
       "name": "autoTriggerMsFor"
     },
@@ -36912,14 +36893,6 @@
     {
       "file": "packages/webui/src/components/SystemHealthChip.tsx",
       "name": "summarizeSystemHealth"
-    },
-    {
-      "file": "packages/webui/src/components/TaskExecutionAttempts.tsx",
-      "name": "buildTaskExecutionAttempts"
-    },
-    {
-      "file": "packages/webui/src/components/TaskIntelligencePanel.tsx",
-      "name": "deriveTaskIntelligence"
     },
     {
       "file": "packages/webui/src/components/toaster-helpers.ts",
@@ -37308,14 +37281,6 @@
     {
       "file": "packages/webui/src/lib/sandbox-status.ts",
       "name": "reduceSandboxEvent"
-    },
-    {
-      "file": "packages/webui/src/lib/sdd-theme.ts",
-      "name": "SDD_PRIORITY"
-    },
-    {
-      "file": "packages/webui/src/lib/sdd-theme.ts",
-      "name": "SDD_STATUS"
     },
     {
       "file": "packages/webui/src/lib/terminal-dock.ts",

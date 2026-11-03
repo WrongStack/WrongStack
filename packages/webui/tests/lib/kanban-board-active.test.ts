@@ -34,13 +34,12 @@ describe('isKanbanBoardActive — the single board-active predicate', () => {
     // The bug this pins: kanban-store.ts carried a private presence-only
     // copy while KanbanView filtered with the richer predicate, so the
     // sidebar heading counted a different set than the list below it.
-    const store = readFileSync(join(ROOT, 'src', 'stores', 'kanban-store.ts'), 'utf8');
-    expect(store).toContain("from '../lib/kanban-board-active.js'");
+    const kanban = join(ROOT, '..', 'project-surfaces', 'src', 'kanban');
+    const store = readFileSync(join(kanban, 'kanban-store.ts'), 'utf8');
+    expect(store).toContain("from './kanban-board-active'");
     expect(store).not.toMatch(/presence\?\.some\(\(entry\) => entry\.active\)/);
-    const boardState = readFileSync(join(ROOT, 'src', 'components', 'KanbanBoardState.ts'), 'utf8');
-    expect(boardState).toContain(
-      "export { isKanbanBoardActive } from '../lib/kanban-board-active.js'",
-    );
+    const boardState = readFileSync(join(kanban, 'KanbanBoardState.ts'), 'utf8');
+    expect(boardState).toContain("export { isKanbanBoardActive } from './kanban-board-active'");
   });
 
   it('matches the server-side twin in kanban-route-pagination.ts', () => {

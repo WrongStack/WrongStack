@@ -4,9 +4,11 @@ import {
   type SurfaceHost,
   setDefaultSurfaceHost,
 } from '@wrongstack/project-surfaces/host';
+import type { KanbanHost } from '@wrongstack/project-surfaces/kanban/kanban-host';
 import { type OfficeFeed, WEBUI_SELF } from '@wrongstack/project-surfaces/office/feed';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { confirmModal } from '@/components/ConfirmModal';
+import { useProviderModels } from '@/hooks/useProviderModels';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { sendRosterMessage } from '@/lib/roster-ws';
@@ -21,6 +23,7 @@ import {
   useVizStore,
 } from '@/stores';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
+import { useActiveSessionId } from '@/stores/session-lanes';
 import { WebuiSurfaceMarkdown } from './webui-surface-markdown';
 
 function useNavigateBack() {
@@ -43,6 +46,29 @@ const webuiOfficeFeed: OfficeFeed = {
   self: WEBUI_SELF,
 };
 
+const wsClient = () => getWSClient(useConfigStore.getState().wsUrl);
+
+/** The Kanban surfaces talk over the WebUI's WebSocket and read its session and fleet stores. */
+const webuiKanbanHost: KanbanHost = {
+  // The client is typed per message; the board sends the protocol's own kanban.* frames.
+  send: (type, payload) =>
+    wsClient().send((payload === undefined ? { type } : { type, payload }) as never),
+  on: (type, handler) => wsClient().on(type as never, handler as never),
+  useSessionId: () => {
+    const activeSessionId = useActiveSessionId();
+    const sessionRecordId = useSessionStore((state) => state.session?.id ?? null);
+    return activeSessionId ?? sessionRecordId;
+  },
+  useFleetAgents: () => useFleetStore((state) => state.agents),
+  useModelCandidates: useProviderModels,
+  useDefaultModel: () => {
+    const provider = useConfigStore((state) => state.provider);
+    const model = useConfigStore((state) => state.model);
+    return useMemo(() => ({ provider, model }), [provider, model]);
+  },
+  openRun: () => useUIStore.getState().setCurrentView('sddhub'),
+};
+
 /**
  * The WebUI side of the shared project surfaces: its WebSocket client, stores and confirm
  * modal. Registered as the default host, so the surfaces work wherever the WebUI mounts them.
@@ -54,7 +80,7 @@ export const webuiSurfaceHost: SurfaceHost = {
   getClient: () => getWSClient() as unknown as SurfaceClient,
   useConnected: () => useConfigStore((state) => state.wsConnected),
   useNavigateBack,
-  useScrollRestore: (key) => useScrollPosition(key),
+  useScrollRestore: (key, enabled) => useScrollPosition(key, enabled),
   useValidityReview: (memoryId) =>
     useMemoryInjectorTraceStore((state) => state.contextMemories[memoryId]?.validityReview),
   useCompanionReview: (memoryId) =>
@@ -65,6 +91,7 @@ export const webuiSurfaceHost: SurfaceHost = {
   fetch: (path, init) => globalThis.fetch(path, init),
   requestRoster: (type, payload, signal) => sendRosterMessage(type, payload, signal),
   office: webuiOfficeFeed,
+  kanban: webuiKanbanHost,
   Markdown: WebuiSurfaceMarkdown,
 };
 setDefaultSurfaceHost(webuiSurfaceHost);

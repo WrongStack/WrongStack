@@ -6,6 +6,7 @@ import {
   useContext,
   useLayoutEffect,
 } from 'react';
+import type { KanbanHost } from './kanban/kanban-host';
 import type { OfficeFeed } from './office/feed-types';
 
 /**
@@ -92,7 +93,7 @@ export interface SurfaceHost {
   /** Leaves the surface for the conversation, when the application has such a place. */
   useNavigateBack(): (() => void) | undefined;
   /** Keeps a scroll container's position across visits under `key`. */
-  useScrollRestore<T extends HTMLElement>(key: string): RefObject<T | null>;
+  useScrollRestore<T extends HTMLElement>(key: string, enabled?: boolean): RefObject<T | null>;
   /** The latest context check of a memory's validity conditions in the active conversation. */
   useValidityReview(memoryId: string): ValidityReview | undefined;
   /** The companion model's latest review of a memory. */
@@ -108,6 +109,8 @@ export interface SurfaceHost {
   ): Promise<unknown>;
   /** The live data the office surfaces render; hosts without an office leave it out. */
   office?: OfficeFeed | undefined;
+  /** What the Kanban surfaces need; hosts without a board leave it out. */
+  kanban?: KanbanHost | undefined;
   /** Renders a message's markdown the way the application renders its own messages. */
   Markdown?: ComponentType<{ children: string }> | undefined;
 }
