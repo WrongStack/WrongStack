@@ -9,6 +9,7 @@ import {
 import type { AtlasHost } from './atlas/atlas-host';
 import type { KanbanHost } from './kanban/kanban-host';
 import type { OfficeFeed } from './office/feed-types';
+import type { ProviderHost } from './providers/provider-host';
 import type { StoryFeed } from './story/story-host';
 
 /**
@@ -117,6 +118,8 @@ export interface SurfaceHost {
   atlas?: AtlasHost | undefined;
   /** What the Session Story reads; hosts without one leave it out. */
   story?: StoryFeed | undefined;
+  /** What the provider test and plan-quota pages read; hosts without them leave it out. */
+  providers?: ProviderHost | undefined;
   /** Renders a message's markdown the way the application renders its own messages. */
   Markdown?: ComponentType<{ children: string }> | undefined;
 }

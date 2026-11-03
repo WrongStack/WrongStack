@@ -1,0 +1,86 @@
+import type {
+  ConfirmOptions,
+  SurfaceClient,
+  SurfaceHost,
+  SurfaceMessage,
+} from '@wrongstack/project-surfaces/host';
+import type { ProviderClient } from '@wrongstack/project-surfaces/providers/provider-host';
+import { createSageSocket, type SurfaceSend } from '@wrongstack/project-surfaces/sage/socket';
+import { useRef } from 'react';
+import type { EngineHttp } from './engine-http';
+import { EngineHttpError } from './engine-http-error';
+import type { BackendStream } from './engine-stream';
+import { record } from './engine-values';
+
+/** Strings of a list preference; anything else reads as empty. */
+export function prefList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+/** The fallback profiles preference: chains of model references by name. */
+export function prefProfiles(value: unknown): Record<string, string[]> {
+  return Object.fromEntries(
+    Object.entries(record(value)).map(([name, chain]) => [name, prefList(chain)]),
+  );
+}
+
+/**
+ * The shared surfaces on the profile engine: requests go out on its connection and every frame
+ * it reads reaches the handlers registered for its type.
+ */
+export function profileSurfaceHost(
+  stream: BackendStream,
+  http: EngineHttp,
+  confirm: (options: ConfirmOptions) => Promise<boolean>,
+): { host: SurfaceHost; client: ProviderClient } {
+  const on = (type: string, handler: (message: SurfaceMessage) => void) =>
+    stream.listen((event) => {
+      if (event.type === type) handler({ type, payload: event.payload });
+    });
+  const send: SurfaceSend = (message) => {
+    void stream.send(message.type, { ...message.payload }).catch(() => undefined);
+  };
+  const surfaceClient: SurfaceClient = {
+    on,
+    findMemoriesForFile: (payload) =>
+      send({ type: 'memory.sage.forFile', payload: { ...(payload as Record<string, unknown>) } }),
+  };
+  const socket = createSageSocket(surfaceClient, send);
+  const host: SurfaceHost = {
+    useSageSocket: () => socket,
+    getClient: () => surfaceClient,
+    useConnected: () => true,
+    useNavigateBack: () => undefined,
+    useScrollRestore: <T extends HTMLElement>(_key: string) => useRef<T | null>(null),
+    useValidityReview: () => undefined,
+    useCompanionReview: () => undefined,
+    confirm,
+    fetch: async (path, init) => {
+      const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
+      try {
+        const data = await http(path, init?.method ?? 'GET', body);
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      } catch (error) {
+        if (!(error instanceof EngineHttpError)) throw error;
+        return new Response(JSON.stringify(error.data), {
+          status: error.status,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+    },
+    requestRoster: (type, payload) =>
+      stream.operations.request(type, payload, [type, 'list'], { timeoutMs: 15000 }),
+  };
+  return {
+    host,
+    client: {
+      send: (message) => send({ type: message.type, payload: { ...message.payload } }),
+      on,
+    },
+  };
+}

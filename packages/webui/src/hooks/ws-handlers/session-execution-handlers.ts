@@ -1,3 +1,4 @@
+import { applyQuotaFrame } from '@wrongstack/project-surfaces/providers/frames';
 import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import { toast } from '@/components/Toaster';
 import { streamCoalescer } from '@/lib/stream-coalescer';
@@ -11,7 +12,6 @@ import {
   useSessionTabStore,
 } from '@/stores';
 import { activeLaneId, type ChatLaneActions, readLane } from '@/stores/chat-lanes';
-import { type QuotaSnapshot, useProviderQuotaStore } from '@/stores/provider-quota-store';
 import { activeSessionLaneId, SESSION_DEFAULT_LANE_ID } from '@/stores/session-lanes';
 import { useVizStore } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
@@ -416,13 +416,7 @@ export function handleProviderStatusSnapshot(msg: WSServerMessage) {
  * covers the push and the catch-up.
  */
 export function handleProviderQuota(msg: WSServerMessage) {
-  const payload = msg.payload as { snapshots?: unknown; refreshed?: unknown };
-  if (!Array.isArray(payload?.snapshots)) return;
-  useProviderQuotaStore.getState().apply(payload.snapshots as QuotaSnapshot[]);
-  // Present only on the reply to this tab's own `provider.quota.refresh`.
-  if (Array.isArray(payload.refreshed)) {
-    useProviderQuotaStore.getState().applyRefreshes(payload.refreshed);
-  }
+  applyQuotaFrame(msg.payload);
 }
 
 /** `provider.audit.history` — durable block/open tail for the waiting room. */

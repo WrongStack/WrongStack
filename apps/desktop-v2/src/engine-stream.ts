@@ -5,6 +5,7 @@ import { request } from './platform';
 
 export type BackendScope = 'engine' | 'project' | 'profile';
 type EngineState = ReturnType<typeof replayEngineBatch>;
+type EngineEvent = NonNullable<ReturnType<typeof engineEvent>>;
 type Subscriber = { changed: () => void; onError: (error: unknown) => void };
 /** Readers kept with their state after their last view closed, most recently used last. */
 export const DORMANT_STREAM_LIMIT = 8;
@@ -21,6 +22,7 @@ export class BackendStream {
   state: EngineState = { ...emptyEngineState, hydrating: true, synced: false };
   readonly operations: EngineOperations;
   private subscribers = new Set<Subscriber>();
+  private listeners = new Set<(event: EngineEvent) => void>();
   private stopped = true;
   private run = 0;
   private offset = 0;
@@ -44,6 +46,16 @@ export class BackendStream {
   };
   private error(error: unknown) {
     for (const subscriber of this.subscribers) subscriber.onError(error);
+  }
+  /**
+   * Calls `listener` with every event this reader reads from now on, while a view keeps the
+   * reader running; returns the unsubscribe.
+   */
+  listen(listener: (event: EngineEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
   subscribe(subscriber: Subscriber): () => void {
     this.subscribers.add(subscriber);
@@ -78,7 +90,10 @@ export class BackendStream {
           result.hasMore ?? (result.events.length === 200 || result.offset - this.offset >= 262144);
         this.offset = result.offset;
         const events = result.events.map(engineEvent).filter((event) => event !== null);
-        for (const event of events) this.operations.receive(event);
+        for (const event of events) {
+          this.operations.receive(event);
+          for (const listener of this.listeners) listener(event);
+        }
         if (!hasMore) this.operations.caughtUp();
         if (this.scope === 'engine' && events.some((event) => event.type === 'run.result'))
           void this.send('stats.get').catch((error) => this.error(error));

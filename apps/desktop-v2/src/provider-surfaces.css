@@ -1,0 +1,13 @@
+/* The shared provider pages scroll inside the settings column instead of growing it. */
+.provider-surface {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 150px);
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+}
+.provider-surface > * {
+  flex: 1;
+  min-height: 0;
+}

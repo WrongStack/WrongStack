@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Check,
   Coins,
+  FlaskConical,
   Gauge,
   KeyRound,
   Layers3,
@@ -48,6 +49,7 @@ import { ModelVisibilitySettings } from './ModelVisibilitySettings';
 import { ProviderDiagnostics } from './ProviderDiagnostics';
 import { ProviderHealth } from './ProviderHealth';
 import { ProviderSettings } from './ProviderSettings';
+import { ProviderSurfaces } from './ProviderSurfaces';
 import { request } from './platform';
 import { ReviewPolicySettings } from './ReviewPolicySettings';
 import { RuntimeGate } from './RuntimeGate';
@@ -330,6 +332,8 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               { id: 'skills', title: 'Profile skills', Icon: BookOpen, group: 'Agents & tools' },
               { id: 'integrations', title: 'Connected tools', Icon: Plug, group: 'Agents & tools' },
               { id: 'health', title: 'Provider diagnostics', Icon: Gauge, group: 'Diagnostics' },
+              { id: 'quota', title: 'Plan quota', Icon: Gauge, group: 'Diagnostics' },
+              { id: 'model-tests', title: 'Model tests', Icon: FlaskConical, group: 'Diagnostics' },
               {
                 id: 'logging',
                 title: 'Logs & diagnostics',
@@ -439,6 +443,16 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                 Array.isArray(state.results['session.start']?.['protocolCapabilities'])
                   ? (state.results['session.start']['protocolCapabilities'] as unknown[])
                   : []
+              }
+            />
+          ) : section === 'quota' || section === 'model-tests' ? (
+            <ProviderSurfaces
+              page={section === 'quota' ? 'quota' : 'tests'}
+              state={state}
+              updatePrefs={(patch) =>
+                void command('prefs.update', { ...patch }, ['key.operation_result']).catch(
+                  vm.reportError,
+                )
               }
             />
           ) : section === 'health' ? (

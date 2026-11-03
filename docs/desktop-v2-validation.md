@@ -6309,3 +6309,29 @@ copies, starting with SAGE memory.
   the processes table and a healthy codebase-index server; no page errors.
 - Checks: desktop 702 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
   WebUI and the desktop.
+
+### Plan quota and model tests in the desktop settings (2026-11-03)
+
+- WrongStack settings gain two Diagnostics sections with the WebUI's pages on the profile engine.
+  "Plan quota" shows every metered account (subscription plans, gateway pools, prepaid balances)
+  with the profile's default model marked, refreshed on open, every few minutes and on demand.
+  "Model tests" picks a saved provider, lists its catalog models, runs the selected ones, and
+  marks favorites, re-enables or disables failing models (dropping them from favorites and
+  fallback chains). The desktop's own Provider diagnostics section is unchanged: its health
+  statuses, audit, manual model-ID test runs with timeout and token limits, and run history.
+- `packages/project-surfaces/src/providers` holds both pages, the quota model, cards and feed,
+  the quota store and the provider-test model; `lib/model-filter` (the WebUI's quick-model
+  filter) and `safeId` moved with them, and the WebUI keeps its old paths as re-exports. The
+  pages read a `ProviderHost`: the connection, whether it is up, the active model, the model
+  preferences with a writer, the models in use, and optional ways back and to settings.
+  `providers/frames.ts` applies `provider.quota` frames; the WebUI's socket handler uses it too.
+- Desktop: `BackendStream.listen` hands each read event to listeners, so a surface on the profile
+  engine receives its replies (`profileSurfaceHost`). Preferences come from `prefs.updated` and
+  save through `prefs.update`.
+- Not seen in the native window: on this machine the profile engine's connection dropped at
+  16:28 ("desktop.disconnected"), and since then no new window opens WrongStack settings ("Loading
+  your WrongStack profile…"), the build before this change included. Restarting the services
+  host would restore it. The engine build itself currently fails in another session's
+  in-progress `packages/core` change, so this build reused the last engine binary.
+- Checks: desktop 706 tests and WebUI tests pass; typecheck clean for the package, the WebUI and
+  the desktop.
