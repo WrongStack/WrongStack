@@ -65,7 +65,8 @@ export function useAppearance(
         next.mode === latest.current.mode &&
         next.accent === latest.current.accent &&
         next.contrast === latest.current.contrast &&
-        next.density === latest.current.density
+        next.density === latest.current.density &&
+        next.sound === latest.current.sound
       )
         return;
       latest.current = next;

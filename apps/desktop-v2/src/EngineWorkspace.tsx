@@ -31,6 +31,7 @@ import type { InputDraft } from './input-form-model';
 import { markdownTarget } from './markdown-target';
 import { ProjectSessionTools } from './ProjectSessionTools';
 import { openExternal, projectFormDraftStorage, sessionObjectDraftStorage } from './platform';
+import { useRunSounds } from './RunSounds';
 import { recoveryLog, recoveryLogKey, type SavedRecoveryLog } from './recovery-log';
 import type { ProjectFormDraftStorage } from './requirement-draft';
 import { SessionActivity } from './SessionActivity';
@@ -261,6 +262,7 @@ export function EngineWorkspace({
   const navigate = (target: DesktopNavigation) =>
     'tab' in target ? setTab(target.tab) : onProject(target.page);
   const shortcuts = useConversationShortcuts(navigate);
+  useRunSounds(state);
   const agentTabs = useAgentTabs(state.agents, openLink);
   const finder = useTranscriptFind({
     messages: state.messages,

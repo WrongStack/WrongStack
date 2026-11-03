@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T20:30:33.088Z",
+  "generatedAt": "2026-11-03T20:33:55.807Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5957,
-    "testFiles": 4939,
-    "sourceLines": 1241840,
+    "sourceFiles": 5959,
+    "testFiles": 4940,
+    "sourceLines": 1241915,
     "workspaceEdges": 239,
-    "moduleEdges": 17305,
+    "moduleEdges": 17307,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 203,
+    "testsWithoutTypecheck": 204,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 399,
-      "testFiles": 203,
+      "sourceFiles": 400,
+      "testFiles": 204,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -736,7 +736,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 237,
+      "sourceFiles": 238,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -2312,6 +2312,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/roster-runtime-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/run-sounds.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32114,6 +32120,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/roster-runtime-draft.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/run-sounds.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

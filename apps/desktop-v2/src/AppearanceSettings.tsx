@@ -1,3 +1,4 @@
+import { playCompletionChime } from '@wrongstack/project-surfaces/lib/chime';
 import { LANGUAGES } from '@wrongstack/project-surfaces/lib/languages';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
@@ -123,6 +124,36 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
             >
               <span>{label}</span>
               {appearance.density === id && <Check size={13} />}
+            </button>
+          ))}
+        </fieldset>
+      </div>
+      <div className="appearance-section">
+        <div>
+          <h3>Sounds</h3>
+          <p>
+            A soft chime when a run in the open conversation finishes. A request for your approval
+            always chimes, as in the WebUI.
+          </p>
+        </div>
+        <fieldset className="appearance-modes" aria-label="Sound when a run finishes">
+          {(
+            [
+              { id: undefined, label: 'Off' },
+              { id: 'on', label: 'Chime when done' },
+            ] as const
+          ).map(({ id, label }) => (
+            <button
+              type="button"
+              key={label}
+              aria-pressed={appearance.sound === id}
+              onClick={() => {
+                changeAppearance({ sound: id });
+                if (id) playCompletionChime();
+              }}
+            >
+              <span>{label}</span>
+              {appearance.sound === id && <Check size={13} />}
             </button>
           ))}
         </fieldset>

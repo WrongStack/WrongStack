@@ -6683,3 +6683,16 @@ copies, starting with SAGE memory.
 - Checks: Rust `engine::tests` pass (the page-limit test also checks `size`); the progress text
   and its reset on catching up are tested; desktop tests pass (one load-sensitive timing test
   aside, which passes alone); typecheck and Biome clean.
+
+### Run sounds (2026-11-03)
+
+- The WebUI's chimes: a soft two-note chime when a run in the open conversation finishes, if
+  Appearance > Sounds is "Chime when done" (off by default; choosing it plays the chime once),
+  and an insistent three-note chime whenever a tool asks for approval, always, as in the WebUI.
+  History read from the journal never chimes.
+- The synthesized chime (`chime.ts`, Web Audio, no asset) moved to
+  `@wrongstack/project-surfaces/lib/chime`; the WebUI keeps its path as a re-export.
+- Not ported: the WebUI's operating-system notifications when the window is hidden; on the
+  desktop they need a native notification plugin, which is a separate decision.
+- Checks: desktop tests pass (778); the sound hook is tested in jsdom with stand-in chimes; WebUI
+  tests that touch the chime pass (44); typecheck clean for the desktop, WebUI and package.
