@@ -6418,3 +6418,23 @@ copies, starting with SAGE memory.
   model list, start and save, a refused model) and by desktop tests of the model choice.
 - Checks: desktop 723 tests and WebUI 6,241 tests pass; typecheck clean for the package, the
   WebUI and the desktop.
+
+### Requirement intake against the WebUI's intake view (2026-11-03)
+
+- Compared field by field: the desktop's SDD → Requirements page already covers the WebUI's
+  `intake` view (file a request verbatim with title, type and priority, a retry-safe create
+  with an idempotency key, the record list, the original request, summary, business goal,
+  expected outcome, target users and constraints, and starting SDD from a record) and adds what
+  the WebUI does not have: editing, clarifying questions and answers, resources and
+  suggestions, status changes with reasons, search and status filter, and drafts that survive a
+  restart.
+- The two things only the WebUI showed are now in the desktop too: a copy action on the
+  original request, and the VIBE protocol marker (`isVibeMode`), as "VIBE" in the list and a
+  "Protocol" row in the record.
+- The record's request, summary, fields and lists moved into `RequirementSummary`, with the
+  field readers in `requirement-values.ts`; the page shrank by 40 lines and its hotspot ratchet
+  follows.
+- Not seen with a record in the native window: none of the projects on this machine has a
+  requirement, and none was created for the check. The empty page renders as before on build
+  `344812107029-c5436fe756a5`; `tests/requirement-summary.test.ts` renders the record part.
+- Checks: desktop tests pass; typecheck and Biome clean.

@@ -171,8 +171,8 @@
       "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {
-      "lines": 997,
-      "relativeImports": 10
+      "lines": 957,
+      "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectSdd.tsx": {
       "lines": 746,

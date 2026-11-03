@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T17:57:30.861Z",
+  "generatedAt": "2026-11-03T18:08:31.651Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5934,
-    "testFiles": 4921,
-    "sourceLines": 1239680,
+    "sourceFiles": 5936,
+    "testFiles": 4922,
+    "sourceLines": 1239708,
     "workspaceEdges": 239,
-    "moduleEdges": 17241,
+    "moduleEdges": 17245,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 186,
+    "testsWithoutTypecheck": 187,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -389,8 +389,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 379,
-      "testFiles": 186,
+      "sourceFiles": 381,
+      "testFiles": 187,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2179,6 +2179,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/requirement-record-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/requirement-summary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31857,6 +31863,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/requirement-summary.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/requirements.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33015,8 +33028,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 997,
-      "relativeImports": 10
+      "lines": 957,
+      "relativeImports": 12
     },
     {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
@@ -33082,8 +33095,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 997,
-      "relativeImports": 10
+      "lines": 957,
+      "relativeImports": 12
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",

@@ -12,6 +12,7 @@ import {
 } from './RequirementResources';
 import './project-requirements.css';
 import { RequirementRecordDraftNotice } from './RequirementRecordDraftNotice';
+import { RequirementSummary } from './RequirementSummary';
 import {
   blankRequirementFields as blankFields,
   hasRequirementDraft,
@@ -19,6 +20,7 @@ import {
   requirementSubmissionFingerprint,
 } from './requirement-draft';
 import type { RequirementRecordDraftStorageFactory } from './requirement-record-draft';
+import { isVibeIntake, readable, strings, text } from './requirement-values';
 import { useRequirementDraft } from './useRequirementDraft';
 import { useRequirementRecordDraft } from './useRequirementRecordDraft';
 
@@ -39,10 +41,6 @@ const TYPES = [
   'other',
 ];
 const PRIORITIES = ['unspecified', 'low', 'medium', 'high', 'critical'];
-const text = (value: unknown) => (typeof value === 'string' ? value : '');
-const strings = (value: unknown) =>
-  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-const readable = (value: unknown) => text(value).replaceAll('_', ' ') || 'Not reported';
 const unwrap = (value: unknown) => {
   const item = record(value);
   return record(item['record'] ?? item);
@@ -544,6 +542,7 @@ export function ProjectRequirements({
                 <strong>{text(item['title']) || 'Untitled request'}</strong>
                 <span>
                   {readable(item['status'])} · {readable(item['priority'])}
+                  {isVibeIntake(item) && ' · VIBE'}
                 </span>
               </button>
             ))
@@ -668,46 +667,7 @@ export function ProjectRequirements({
                   )}
                 </div>
               </div>
-              <h4>Original request</h4>
-              <p className="requirement-original">{text(detail['originalRequest'])}</p>
-              {text(detail['normalizedSummary']) &&
-                detail['normalizedSummary'] !== detail['originalRequest'] && (
-                  <>
-                    <h4>Summary</h4>
-                    <p>{text(detail['normalizedSummary'])}</p>
-                  </>
-                )}
-              <dl className="requirement-metadata">
-                {[
-                  ['Business goal', detail['businessGoal']],
-                  ['Expected outcome', detail['expectedOutcome']],
-                  ['Scope', detail['scopeNotes']],
-                  ['Requested by', detail['requestedBy']],
-                  ['Priority', readable(detail['priority'])],
-                ].map(([name, value]) => (
-                  <div key={String(name)}>
-                    <dt>{String(name)}</dt>
-                    <dd>{text(value) || 'Not recorded'}</dd>
-                  </div>
-                ))}
-              </dl>
-              {[
-                ['Target users', detail['targetUsers']],
-                ['Constraints', detail['constraints']],
-                ['Provided context', detail['providedContext']],
-              ].map(
-                ([name, value]) =>
-                  strings(value).length > 0 && (
-                    <div key={String(name)}>
-                      <h4>{String(name)}</h4>
-                      <ul>
-                        {strings(value).map((item, i) => (
-                          <li key={i}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ),
-              )}
+              <RequirementSummary detail={detail} />
               <RequirementEvidence
                 detail={detail}
                 busy={busy}
