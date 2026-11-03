@@ -1,4 +1,5 @@
-import { Wrench } from 'lucide-react';
+import { LoaderCircle, Wrench } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { formatTokens, type TurnStats } from './context-usage';
 import type { EngineEvent } from './engine-state';
 import { SessionActivity } from './SessionActivity';
@@ -46,7 +47,40 @@ function turnMeta(stats: TurnStats): string {
   if (stats.output) parts.push(`${formatTokens(stats.output)} output`);
   if (stats.prompt && stats.cacheRead)
     parts.push(`${Math.round((stats.cacheRead / stats.prompt) * 100)}% from cache`);
+  if (stats.durationMs !== undefined) parts.push(formatDuration(stats.durationMs));
   return parts.join(' · ');
+}
+/** "42 s", "3 min 05 s", "1 h 02 min". */
+function formatDuration(ms: number): string {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ${String(seconds % 60).padStart(2, '0')} s`;
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`;
+}
+/** The running turn's line under the conversation, with how long it has been running. */
+export function AgentWorking({
+  waiting,
+  since,
+}: {
+  /** The turn waits for answers to its questions. */
+  waiting: boolean;
+  /** When the turn's first iteration started; unknown in journals without frame times. */
+  since: number | null;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!since) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [since]);
+  return (
+    <div className="agent-working">
+      <LoaderCircle size={13} className="spin" />
+      {waiting ? 'Waiting for your answers…' : 'WrongStack is working…'}
+      {since ? <span className="agent-working-elapsed"> {formatDuration(now - since)}</span> : null}
+    </div>
+  );
 }
 /**
  * The running turn's work, open while it runs: every tool call so far, grouped by tool in the

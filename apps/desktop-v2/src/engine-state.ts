@@ -108,6 +108,8 @@ export interface EngineState {
   turnStats: Record<string, TurnStats>;
   /** Session token totals when the running turn started. */
   runStartTotals: TokenTotals | null;
+  /** When the running turn's first iteration started (frame time), for its duration. */
+  runStartAt: number | null;
   /** This conversation's SAGE injector runs, newest last, and the latest request's memories. */
   memoryRuns: MemoryInjectorRun[];
   memoryContext: MemoryContext | null;
@@ -156,6 +158,7 @@ export const emptyEngineState: EngineState = {
   turnActivity: {},
   turnStats: {},
   runStartTotals: null,
+  runStartAt: null,
   memoryRuns: [],
   memoryContext: null,
   notices: [],
@@ -312,6 +315,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
       next.turnActivity = {};
       next.turnStats = {};
       next.runStartTotals = null;
+      next.runStartAt = null;
       next.memoryRuns = [];
       next.memoryContext = null;
       next.notices = [];
@@ -511,10 +515,16 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     if (answer && !next.turnStats[answer.id])
       next.turnStats = {
         ...next.turnStats,
-        [answer.id]: turnStats(state.runStartTotals, next.context.totals, p['iterations']),
+        [answer.id]: turnStats(
+          state.runStartTotals,
+          next.context.totals,
+          p['iterations'],
+          state.runStartAt && event.at ? event.at - state.runStartAt : undefined,
+        ),
       };
     next.runTimeline = [];
     next.runStartTotals = null;
+    next.runStartAt = null;
     if (p['status'] === 'done') {
       const parsed = parseNextSteps(contentText(p['finalText'])).steps;
       const start = state.activity.findLastIndex((entry) => entry.type === 'run.result') + 1;
@@ -569,7 +579,9 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
         : activity;
   }
   if (isRunTimelineEvent(event.type)) next.runTimeline = appendRunEvent(state.runTimeline, event);
-  if (event.type === 'iteration.started' && !state.runStartTotals)
+  if (event.type === 'iteration.started' && !state.runStartTotals) {
     next.runStartTotals = state.context.totals;
+    next.runStartAt = event.at ?? null;
+  }
   return next;
 }

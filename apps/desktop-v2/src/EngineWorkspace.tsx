@@ -42,7 +42,7 @@ import { SessionWorklist } from './SessionWorklist';
 import { ToolApprovalCard } from './ToolApprovalCard';
 import { useTranscriptFind } from './TranscriptFind';
 import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
-import { LiveRunActivity } from './TurnTools';
+import { AgentWorking, LiveRunActivity } from './TurnTools';
 import type { ProjectPage } from './useDesktop';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
@@ -467,10 +467,7 @@ export function EngineWorkspace({
               />
             )}
             {state.running && (
-              <div className="agent-working">
-                <LoaderCircle size={13} className="spin" />
-                {state.inputs.length ? 'Waiting for your answers…' : 'WrongStack is working…'}
-              </div>
+              <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
             )}
             <div ref={end} />
           </div>

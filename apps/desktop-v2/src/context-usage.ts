@@ -152,11 +152,14 @@ export interface TurnStats {
   prompt: number;
   output: number;
   cacheRead: number;
+  /** From the turn's first iteration to its result, when the journal has both times. */
+  durationMs?: number;
 }
 export function turnStats(
   start: TokenTotals | null,
   end: TokenTotals,
   iterations: unknown,
+  durationMs?: number,
 ): TurnStats {
   const from = start ?? end;
   const input = end.input - from.input;
@@ -167,5 +170,6 @@ export function turnStats(
     prompt: input + cacheRead + cacheWrite,
     output: end.output - from.output,
     cacheRead,
+    ...(durationMs !== undefined && durationMs >= 0 ? { durationMs } : {}),
   };
 }

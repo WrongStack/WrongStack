@@ -86,3 +86,7 @@ strong.context-critical {
   color: var(--muted);
   font-size: 11px;
 }
+.agent-working-elapsed {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

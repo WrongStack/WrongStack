@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T19:47:37.012Z",
+  "generatedAt": "2026-11-03T19:51:12.683Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5950,
-    "testFiles": 4930,
-    "sourceLines": 1241001,
+    "testFiles": 4931,
+    "sourceLines": 1241052,
     "workspaceEdges": 239,
     "moduleEdges": 17288,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 195,
+    "testsWithoutTypecheck": 196,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -390,7 +390,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 392,
-      "testFiles": 195,
+      "testFiles": 196,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2467,6 +2467,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/transcript-window.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/turn-duration.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32241,6 +32247,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/transcript-window.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/turn-duration.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

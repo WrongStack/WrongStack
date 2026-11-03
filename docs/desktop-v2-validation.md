@@ -6574,3 +6574,12 @@ copies, starting with SAGE memory.
   message is still skipped before the allowlist applies, and the existing "does not execute
   HTML" test still passes.
 - Checks: desktop tests pass (758); typecheck and Biome clean.
+
+### Turn duration and running time (2026-11-03)
+
+- A finished turn's line under its answer now ends with how long it took ("2 iterations · …
+  · 1 min 03 s"), from its first iteration to its result, as the WebUI's run summary shows. The
+  times are the journal's frame times, so turns recorded before this build show no duration.
+- "WrongStack is working…" counts the running turn's time each second.
+- Checks: desktop tests pass (760, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean.
