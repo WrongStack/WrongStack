@@ -114,6 +114,22 @@ const DEFAULT_INTERVAL_MS = 10_000;
 const MIN_INTERVAL_MS = 2_000;
 const DEFAULT_AGENT_COOLDOWN_MS = 5 * 60_000;
 
+/**
+ * Every audit refreshes a board's snapshot, but an audit that found nothing new
+ * is not news. Broadcasting each one sent every connected client a status per
+ * board every ten seconds, and the desktop host journals every broadcast: on a
+ * project with 164 boards they were 92% of a 371 MB journal. An unchanged
+ * snapshot is re-sent at this pace so clients still see the supervisor alive;
+ * a client asking for a board's status always gets the latest audit.
+ */
+const UNCHANGED_REBROADCAST_MS = 5 * 60_000;
+
+/** A snapshot's content without the audit times every pass changes. */
+function broadcastKey(snapshot: KanbanSupervisorSnapshot): string {
+  const { lastAuditAt: _last, nextAuditAt: _next, ...content } = snapshot;
+  return JSON.stringify(content);
+}
+
 const DEFAULT_CONFIG: KanbanSupervisorConfig = {
   enabled: true,
   mode: 'agentic',
@@ -128,6 +144,8 @@ const DEFAULT_CONFIG: KanbanSupervisorConfig = {
  */
 export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSupervisor {
   const snapshots = new Map<string, KanbanSupervisorSnapshot>();
+  /** What each board's last broadcast said (audit times aside) and when it went out. */
+  const broadcasted = new Map<string, { key: string; at: number }>();
   const nextDue = new Map<string, number>();
   const agentLastRun = new Map<string, number>();
   const agentRunning = new Set<string>();
@@ -140,6 +158,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
 
   const forgetBoard = (boardId: string): void => {
     snapshots.delete(boardId);
+    broadcasted.delete(boardId);
     nextDue.delete(boardId);
     agentLastRun.delete(boardId);
     agentRunning.delete(boardId);
@@ -177,6 +196,11 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   const publish = (snapshot: KanbanSupervisorSnapshot) => {
     if (disposed) return;
     snapshots.set(snapshot.boardId, snapshot);
+    const key = broadcastKey(snapshot);
+    const last = broadcasted.get(snapshot.boardId);
+    const now = Date.now();
+    if (last?.key === key && now - last.at < UNCHANGED_REBROADCAST_MS) return;
+    broadcasted.set(snapshot.boardId, { key, at: now });
     deps.broadcast({
       type: 'kanban.supervisor.status',
       payload: { success: true, data: snapshot },
