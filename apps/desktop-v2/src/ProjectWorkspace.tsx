@@ -24,8 +24,8 @@ import { isLive, type Project } from './model';
 import { ProjectChronicle } from './ProjectChronicle';
 import { ProjectGoals } from './ProjectGoals';
 import { type KanbanFocus, ProjectKanban } from './ProjectKanban';
-import { ProjectKnowledge } from './ProjectKnowledge';
 import { ProjectMailbox } from './ProjectMailbox';
+import { ProjectSage } from './ProjectSage';
 import { ProjectSdd } from './ProjectSdd';
 import { ProjectWorktrees } from './ProjectWorktrees';
 import { PromptWorkspace } from './PromptWorkspace';
@@ -299,7 +299,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           }}
         />
       ) : vm.projectPage === 'memory' ? (
-        <ProjectKnowledge command={command} http={http} initialMemoryId={memoryTarget} />
+        <ProjectSage projectId={project.id} http={http} initialMemoryId={memoryTarget} />
       ) : vm.projectPage === 'kanban' ? (
         <ProjectKanban
           command={command}

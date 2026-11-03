@@ -65,7 +65,11 @@
       "pairEdit"
     ],
     "apps/desktop-v2/src/engine-state.ts": [
+      "ACTIVITY_LIMIT",
       "reduceEngine"
+    ],
+    "apps/desktop-v2/src/engine-stream.ts": [
+      "DORMANT_STREAM_LIMIT"
     ],
     "apps/desktop-v2/src/FallbackPicker.tsx": [
       "fallbackPending"
@@ -182,9 +186,6 @@
       "MAX_REVIEW_REPLIES",
       "parseReviewNotes"
     ],
-    "apps/desktop-v2/src/SageInjectionHistory.tsx": [
-      "readInjections"
-    ],
     "apps/desktop-v2/src/SddDependencyGraph.tsx": [
       "sddGraphElements"
     ],
@@ -207,10 +208,6 @@
     ],
     "apps/desktop-v2/src/usePersistedFields.tsx": [
       "fieldsCodec"
-    ],
-    "apps/desktop-v2/src/VectorMemoryEntries.tsx": [
-      "reindexOutcome",
-      "vectorTags"
     ],
     "apps/desktop-v2/src/word-diff.ts": [
       "MAX_DIFF_TOKENS"

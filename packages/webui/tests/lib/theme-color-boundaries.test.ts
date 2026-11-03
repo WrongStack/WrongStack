@@ -8,6 +8,11 @@ import { describe, expect, it } from 'vitest';
  */
 const SCAN_ROOTS = [
   { package: 'webui', root: path.resolve(import.meta.dirname, '../../src') },
+  // Surfaces the WebUI shares with the desktop app follow the same theme rules.
+  {
+    package: 'project-surfaces',
+    root: path.resolve(import.meta.dirname, '../../../project-surfaces/src'),
+  },
 ] as const;
 
 /**
@@ -44,8 +49,12 @@ const ISOLATED_COLOR_SURFACES = new Map<string, string>([
   ],
   ['webui/components/TerminalPanel.tsx', 'xterm owns a complete terminal ANSI palette.'],
   [
-    'webui/components/vector-memory-panel/index.tsx',
+    'project-surfaces/sage/vector/VectorMemoryPanel.tsx',
     'Data-viz heatmap: similarity scores map to an inline grayscale+blue-tint HSL ramp independent of the theme.',
+  ],
+  [
+    'project-surfaces/sage/vector/vector-memory-panel.css',
+    'The same heatmap ramp and its focus outlines (moved out of index.css with the panel).',
   ],
   ['webui/components/monaco-theme.ts', 'Monaco owns a complete editor/syntax palette.'],
   [

@@ -29,7 +29,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const WEBUI_SAGE_TYPES = path.resolve(HERE, '../../src/types/sage.ts');
+// The mirror moved to the surfaces package shared with the desktop app.
+const WEBUI_SAGE_TYPES = path.resolve(HERE, '../../../project-surfaces/src/sage/types.ts');
 const CANONICAL_SAGE_MODEL = path.resolve(HERE, '../../../sage/src/memory-model.ts');
 
 /**

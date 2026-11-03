@@ -6,7 +6,9 @@
     "types": ["node", "vitest/globals", "vite/client"],
     "paths": {
       "@/*": ["./src/*"],
-      "@wrongstack/webui-server/server/*": ["../webui-server/src/server/*"]
+      "@wrongstack/webui-server/server/*": ["../webui-server/src/server/*"],
+      "@wrongstack/project-surfaces/host": ["../project-surfaces/src/host.tsx"],
+      "@wrongstack/project-surfaces/*": ["../project-surfaces/src/*"]
     }
   },
   "include": ["src/**/*", "tests/**/*", "vitest.config.ts"],

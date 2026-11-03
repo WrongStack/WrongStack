@@ -39,11 +39,32 @@ vi.mock('@/i18n', () => {
     }),
   };
 });
+vi.mock('@wrongstack/project-surfaces/lib/i18n', () => {
+  // Catalog-backed: resolves real en values (the vector panel's t() keys are
+  // not enumerable here — it gained useAppTranslation in the i18n port), so
+  // assertions on translated chrome keep working as keys evolve.
+  const resolve = (key: string): string => {
+    if (!key.startsWith('activity:')) return key;
+    let cur: unknown = enCatalog;
+    for (const part of key.slice('activity:'.length).split('.')) {
+      cur = (cur as Record<string, unknown>)?.[part];
+    }
+    return typeof cur === 'string' ? cur : key;
+  };
+  return {
+    useAppTranslation: () => ({
+      t: (key: string) =>
+        ({
+          'activity:memoryManager.tabVectorMemory': 'Vector memory',
+        })[key] ?? resolve(key),
+    }),
+  };
+});
 
-vi.mock('../../src/components/MemoryManager/index.js', () => ({
+vi.mock('@wrongstack/project-surfaces/sage/MemoryManager', () => ({
   MemoryManager: () => <div>All-memories lens</div>,
 }));
-vi.mock('../../src/components/AudienceMemoryPanel.js', () => ({
+vi.mock('@wrongstack/project-surfaces/sage/audience/AudienceMemoryPanel', () => ({
   AudienceMemoryPanel: () => <div>Audience lens</div>,
 }));
 

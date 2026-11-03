@@ -28,7 +28,9 @@
     "declaration": true,
     "declarationMap": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@wrongstack/project-surfaces/host": ["../project-surfaces/src/host.tsx"],
+      "@wrongstack/project-surfaces/*": ["../project-surfaces/src/*"]
     }
   },
   "include": ["src/**/*"],

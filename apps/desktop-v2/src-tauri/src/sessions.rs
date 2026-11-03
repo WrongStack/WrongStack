@@ -72,6 +72,9 @@ impl HostState {
             ),
             "project.status" => self.project_runtime_status(field(p, "projectId")?),
             "project.events" => {
+                if p["tail"] == true {
+                    return self.project_journal_end(field(p, "projectId")?);
+                }
                 self.project_events(field(p, "projectId")?, p["offset"].as_u64().unwrap_or(0))
             }
             "project.send" => self.project_send(field(p, "projectId")?, p["message"].clone()),

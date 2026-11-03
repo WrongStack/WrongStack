@@ -1,0 +1,413 @@
+/* ===========================================================================
+   Vector memory panel — third SAGE lens inside SageTabs on the SAGE Memory
+   view. Tokens follow the WebUI HSL theme. Layout is in-flow (NOT position:fixed) — the tab content
+   area provides the padding and owns the vertical scrolling.
+   =========================================================================== */
+.vector-memory-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0;
+  background: hsl(var(--background) / 0.6);
+  color: hsl(var(--foreground));
+  font-size: 12px;
+}
+
+.vector-memory-panel > h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: hsl(var(--foreground));
+}
+
+.vector-memory-panel--error,
+.vector-memory-panel--loading,
+.vector-memory-panel--disabled,
+.vector-memory-panel__no-hits {
+  margin: 4px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.vector-memory-panel--error,
+.vector-memory-panel__error {
+  color: hsl(var(--destructive));
+}
+
+.vector-memory-panel__status {
+  display: grid;
+  grid-template-columns: minmax(110px, max-content) minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 4px;
+  margin: 0;
+}
+
+.vector-memory-panel__status dt {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vector-memory-panel__status dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+}
+
+.vector-memory-panel__status code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted) / 0.6);
+  padding: 1px 5px;
+  border-radius: 0;
+}
+
+.vector-memory-panel__search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 12px;
+}
+
+.vector-memory-panel__search > label {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vector-memory-panel__search input[type="text"] {
+  height: 34px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  padding: 0 10px;
+  border-radius: 0;
+  outline: none;
+}
+
+.vector-memory-panel__search input[type="text"]:focus-visible {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.35);
+}
+
+.vector-memory-panel__search input[type="number"] {
+  width: 72px;
+  height: 28px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 0 8px;
+  border-radius: 0;
+  outline: none;
+}
+
+.vector-memory-panel__search input[type="number"]:focus-visible {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.35);
+}
+
+.vector-memory-panel__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.vector-memory-panel__controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.vector-memory-panel__controls button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.vector-memory-panel__controls button:hover:not(:disabled) {
+  color: hsl(var(--accent-foreground));
+  background: hsl(var(--accent));
+}
+
+.vector-memory-panel__controls button:focus-visible {
+  outline: none;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.35);
+}
+
+.vector-memory-panel__controls button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.vector-memory-panel__hits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vector-memory-panel__hit {
+  border: 1px solid hsl(var(--border));
+  padding: 10px 12px;
+  border-radius: 0;
+  background: hsl(var(--card) / 0.5);
+}
+
+.vector-memory-panel__hit-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vector-memory-panel__hit-score {
+  color: hsl(var(--accent-foreground));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.vector-memory-panel__hit-summary {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.vector-memory-panel__hit-text {
+  margin: 6px 0 0;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.vector-memory-panel__hit-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 0;
+}
+
+.vector-memory-panel__hit-tag {
+  border: 1px solid hsl(var(--border));
+  padding: 1px 6px;
+  border-radius: 0;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* Inline expand — hit header toggles a detail region beneath the hit
+   (master-detail, mirroring the SAGE MemoryDetail convention). */
+.vector-memory-panel__hit--expanded {
+  background: hsl(var(--card));
+}
+
+.vector-memory-panel__hit--expanded .vector-memory-panel__hit-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.vector-memory-panel__hit-toggle {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vector-memory-panel__hit-toggle:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.7);
+  outline-offset: 2px;
+}
+
+.vector-memory-panel__hit-chevron {
+  align-self: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+  transition: transform 120ms ease-out;
+}
+
+.vector-memory-panel__hit-chevron--open {
+  transform: rotate(90deg);
+}
+
+.vector-memory-panel__hit-detail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed hsl(var(--border));
+}
+
+.vector-memory-panel__hit-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.vector-memory-panel__hit-fields dt {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vector-memory-panel__hit-fields dd {
+  margin: 0;
+  min-width: 0;
+  color: hsl(var(--foreground));
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.vector-memory-panel__hit-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.vector-memory-panel__forget {
+  border: 1px solid hsl(var(--destructive) / 0.5);
+  background: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.vector-memory-panel__forget:hover:not(:disabled) {
+  /* --destructive got brighter for dark-theme text AA (>=4.5:1), so the
+     hover flips to a tint-free treatment: destructive text + border on the
+     panel (~5:1) instead of white on the now-lighter fill (~3:1 at 10px). */
+  border-color: hsl(var(--destructive));
+  background: transparent;
+  color: hsl(var(--destructive));
+}
+
+.vector-memory-panel__forget:focus-visible {
+  outline: none;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.35);
+}
+
+.vector-memory-panel__forget:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ===========================================================================
+   Vector memory panel — pairwise similarity heatmap.
+   The grid is a CSS grid; each cell is colored by inline `background` style
+   (HSL with lightness mapped from cosine similarity) so the heatmap stays
+   a single source of truth and doesn't need a color palette file.
+   =========================================================================== */
+.vector-memory-panel__heatmap {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.6);
+}
+.vector-memory-panel__heatmap h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.vector-memory-panel__heatmap-hint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+}
+.vector-memory-panel__heatmap-grid {
+  display: grid;
+  gap: 2px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+.vector-memory-panel__heatmap-corner,
+.vector-memory-panel__heatmap-col-label,
+.vector-memory-panel__heatmap-row-label {
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  padding: 2px 0;
+}
+.vector-memory-panel__heatmap-cell {
+  text-align: center;
+  padding: 4px 2px;
+  border-radius: 2px;
+  color: hsl(220 30% 20%);
+  font-weight: 500;
+  cursor: default;
+  transition: transform 80ms ease-out;
+}
+.vector-memory-panel__heatmap-cell:hover {
+  transform: scale(1.1);
+  z-index: 1;
+  position: relative;
+  outline: 1px solid hsl(220 80% 50%);
+}
+.vector-memory-panel__heatmap-cell--diagonal {
+  outline: 1px solid hsl(220 60% 50% / 0.4);
+  font-weight: 700;
+}
+
+/* The chevron's rotation is a static state (0° collapsed / 90° expanded), not an animation:
+   reduced motion removes only its transition. */
+@media (prefers-reduced-motion: reduce) {
+  .vector-memory-panel__hit-chevron {
+    transition: none !important;
+  }
+}

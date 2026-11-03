@@ -102,7 +102,6 @@ export function SessionStatusBar({
         <SessionContextPanel
           command={command}
           running={state.running}
-          maxContext={usage.max}
           usage={usage}
           onClose={() => setDetails(false)}
           memoryRuns={state.memoryRuns}

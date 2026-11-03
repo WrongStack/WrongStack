@@ -1101,7 +1101,6 @@ export function SessionComposer({
         <SessionContextPanel
           command={command}
           running={state.running}
-          maxContext={state.context.max}
           usage={state.context}
           initialAction={contextPanel === 'inspect' ? undefined : contextPanel}
           onClose={() => setContextPanel(null)}

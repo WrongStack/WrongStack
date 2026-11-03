@@ -118,9 +118,9 @@
       "lines": 1098,
       "relativeImports": 0
     },
-    "packages/webui/src/components/MemoryManager/useMemoryManagerState.ts": {
-      "lines": 720,
-      "relativeImports": 9
+    "packages/project-surfaces/src/sage/useMemoryManagerState.ts": {
+      "lines": 718,
+      "relativeImports": 14
     },
     "packages/webui-server/src/server/completion-handlers.ts": {
       "lines": 737,
@@ -178,17 +178,9 @@
       "lines": 748,
       "relativeImports": 11
     },
-    "apps/desktop-v2/src/ProjectKnowledge.tsx": {
-      "lines": 927,
-      "relativeImports": 9
-    },
     "apps/desktop-v2/src/ProjectMailbox.tsx": {
       "lines": 800,
       "relativeImports": 10
-    },
-    "apps/desktop-v2/src/ProjectMemory.tsx": {
-      "lines": 824,
-      "relativeImports": 8
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {
       "lines": 997,

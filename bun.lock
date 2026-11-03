@@ -35,23 +35,32 @@
         "@tauri-apps/api": "2.12.4",
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/core": "workspace:*",
+        "@wrongstack/project-surfaces": "workspace:*",
         "@wrongstack/webui-protocol": "workspace:*",
         "@wrongstack/webui-server": "workspace:*",
         "@xterm/addon-fit": "0.11.0",
         "@xterm/xterm": "6.0.0",
         "@xyflow/react": "12.12.0",
+        "class-variance-authority": "0.7.1",
+        "clsx": "2.1.1",
+        "i18next": "26.5.4",
+        "i18next-resources-to-backend": "1.2.3",
         "lucide-react": "1.61.0",
         "react": "19.3.1",
         "react-dom": "19.3.1",
+        "react-i18next": "17.1.0",
         "react-markdown": "10.1.0",
         "remark-gfm": "4.0.1",
+        "tailwind-merge": "3.7.0",
       },
       "devDependencies": {
+        "@tailwindcss/vite": "4.3.3",
         "@tauri-apps/cli": "2.12.4",
         "@types/node": "^22.20.5",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
         "@vitejs/plugin-react": "6.1.2",
+        "tailwindcss": "4.3.3",
         "typescript": "^7.0.2",
         "vite": "8.3.5",
         "vitest": "5.0.5",
@@ -520,6 +529,35 @@
         "typescript": "^7.0.2",
       },
     },
+    "packages/project-surfaces": {
+      "name": "@wrongstack/project-surfaces",
+      "version": "1.4.0",
+      "dependencies": {
+        "@radix-ui/react-dialog": "^1.1.23",
+        "@radix-ui/react-slot": "^1.3.3",
+        "@radix-ui/react-tabs": "^1.1.21",
+        "@tanstack/react-virtual": "^3.14.21",
+        "@wrongstack/core": "workspace:*",
+        "@xyflow/react": "^12.11.6",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "lucide-react": "^1.61.0",
+        "react-i18next": "^17.1.0",
+        "tailwind-merge": "^3.7.0",
+      },
+      "devDependencies": {
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "i18next": "^26.5.4",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+        "typescript": "^7.0.2",
+      },
+      "peerDependencies": {
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+      },
+    },
     "packages/providers": {
       "name": "@wrongstack/providers",
       "version": "1.4.0",
@@ -846,6 +884,7 @@
         "@wrongstack/goal": "workspace:*",
         "@wrongstack/kanban": "workspace:*",
         "@wrongstack/plugins": "workspace:*",
+        "@wrongstack/project-surfaces": "workspace:*",
         "@wrongstack/providers": "workspace:*",
         "@wrongstack/tools": "workspace:*",
         "@wrongstack/webui-protocol": "workspace:*",
@@ -1788,6 +1827,8 @@
 
     "@wrongstack/primitives": ["@wrongstack/primitives@workspace:packages/primitives"],
 
+    "@wrongstack/project-surfaces": ["@wrongstack/project-surfaces@workspace:packages/project-surfaces"],
+
     "@wrongstack/providers": ["@wrongstack/providers@workspace:packages/providers"],
 
     "@wrongstack/requirement-intake": ["@wrongstack/requirement-intake@workspace:packages/requirement-intake"],
@@ -2705,6 +2746,8 @@
     "@wrongstack/plugins/@types/node": ["@types/node@26.6.5", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg=="],
 
     "@wrongstack/primitives/@types/node": ["@types/node@26.6.5", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg=="],
+
+    "@wrongstack/project-surfaces/lucide-react": ["lucide-react@1.65.0", "", { "peerDependencies": { "@types/react": "*", "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["@types/react"] }, "sha512-roSdtzudEY39i2hn5LLjA8toYfhF2z4S10WSqZF4ubXpHlOmNTvaxMxZLdJfQDi6pEifQWX+cRmYihKSsvAxfA=="],
 
     "@wrongstack/providers/@types/node": ["@types/node@26.6.5", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg=="],
 

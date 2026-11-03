@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T08:16:36.327Z",
+  "generatedAt": "2026-11-03T09:24:18.579Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,24 +11,20 @@
     ]
   },
   "summary": {
-    "packages": 47,
-    "sourceFiles": 5691,
-    "testFiles": 4919,
-    "sourceLines": 1242169,
-    "workspaceEdges": 232,
-    "moduleEdges": 16670,
+    "packages": 48,
+    "sourceFiles": 5740,
+    "testFiles": 4915,
+    "sourceLines": 1239754,
+    "workspaceEdges": 235,
+    "moduleEdges": 16816,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 188,
+    "testsWithoutTypecheck": 184,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1039
+    "testOnlyExports": 1036
   },
-  "errors": [
-    "apps/desktop-v2/src/SessionComposer.tsx: hotspot grew from 1150 to 1151 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/engine-state.ts: \"ACTIVITY_LIMIT\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/engine-stream.ts: \"DORMANT_STREAM_LIMIT\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -390,11 +386,12 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 377,
-      "testFiles": 188,
+      "sourceFiles": 372,
+      "testFiles": 184,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
+        "@wrongstack/project-surfaces",
         "@wrongstack/webui-protocol",
         "@wrongstack/webui-server"
       ],
@@ -728,6 +725,22 @@
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
           "testFiles": 20
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/project-surfaces",
+      "dir": "packages/project-surfaces",
+      "sourceFiles": 53,
+      "testFiles": 0,
+      "workspaceDependencies": [
+        "@wrongstack/core"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/project-surfaces/tsconfig.json",
+          "error": null,
+          "testFiles": 0
         }
       ]
     },
@@ -1089,7 +1102,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 774,
+      "sourceFiles": 775,
       "testFiles": 513,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1097,6 +1110,7 @@
         "@wrongstack/goal",
         "@wrongstack/kanban",
         "@wrongstack/plugins",
+        "@wrongstack/project-surfaces",
         "@wrongstack/providers",
         "@wrongstack/tools",
         "@wrongstack/webui-protocol"
@@ -1779,6 +1793,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/journal-tail.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-board-actions.test.ts",
         "projects": [
           "root-node"
@@ -2199,25 +2219,7 @@
         ]
       },
       {
-        "file": "apps/desktop-v2/tests/sage-injection-history.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "apps/desktop-v2/tests/sage-model.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "apps/desktop-v2/tests/sage-relation-model.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "apps/desktop-v2/tests/sage-validity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2398,18 +2400,6 @@
       },
       {
         "file": "apps/desktop-v2/tests/turn-tools.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "apps/desktop-v2/tests/vector-memory-entries.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "apps/desktop-v2/tests/vector-memory-reindex.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31376,6 +31366,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/journal-tail.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-board-actions.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31866,28 +31863,7 @@
         "typecheckProjects": []
       },
       {
-        "file": "apps/desktop-v2/tests/sage-injection-history.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
         "file": "apps/desktop-v2/tests/sage-model.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "apps/desktop-v2/tests/sage-relation-model.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "apps/desktop-v2/tests/sage-validity.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32104,20 +32080,6 @@
         "typecheckProjects": []
       },
       {
-        "file": "apps/desktop-v2/tests/vector-memory-entries.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "apps/desktop-v2/tests/vector-memory-reindex.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
         "file": "apps/desktop-v2/tests/word-diff.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32163,6 +32125,11 @@
     {
       "from": "packages/primitives/src/runtime-version.ts",
       "specifier": "../package.json",
+      "syntax": "import"
+    },
+    {
+      "from": "packages/project-surfaces/src/sage/vector/VectorMemoryPanel.tsx",
+      "specifier": "./vector-memory-panel.css",
       "syntax": "import"
     },
     {
@@ -32621,11 +32588,6 @@
       "syntax": "import"
     },
     {
-      "from": "apps/desktop-v2/src/SageRelationGraph.tsx",
-      "specifier": "./sage-flow.css",
-      "syntax": "import"
-    },
-    {
       "from": "apps/desktop-v2/src/SessionActivity.tsx",
       "specifier": "./session-activity.css",
       "syntax": "import"
@@ -32703,6 +32665,21 @@
     {
       "from": "apps/desktop-v2/src/SessionWorklist.tsx",
       "specifier": "./session-todos.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/surface-i18n.ts",
+      "specifier": "../../../packages/webui/src/i18n/locales/en/activity.json",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/surface-i18n.ts",
+      "specifier": "../../../packages/webui/src/i18n/locales/en/common.json",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SurfaceFrame.tsx",
+      "specifier": "./surfaces.css",
       "syntax": "import"
     },
     {
@@ -32810,6 +32787,11 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
+      "lines": 718,
+      "relativeImports": 14
+    },
+    {
       "file": "packages/sage/src/wrongmemory-port.ts",
       "lines": 1696,
       "relativeImports": 14
@@ -32885,11 +32867,6 @@
       "relativeImports": 0
     },
     {
-      "file": "packages/webui/src/components/MemoryManager/useMemoryManagerState.ts",
-      "lines": 720,
-      "relativeImports": 9
-    },
-    {
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 737,
       "relativeImports": 3
@@ -32960,19 +32937,9 @@
       "relativeImports": 11
     },
     {
-      "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
-      "lines": 927,
-      "relativeImports": 9
-    },
-    {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
       "lines": 800,
       "relativeImports": 10
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectMemory.tsx",
-      "lines": 824,
-      "relativeImports": 8
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
@@ -32996,7 +32963,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1151,
+      "lines": 1150,
       "relativeImports": 32
     },
     {
@@ -33033,7 +33000,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1151,
+      "lines": 1150,
       "relativeImports": 32
     },
     {
@@ -33050,11 +33017,6 @@
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
       "lines": 997,
       "relativeImports": 10
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectKnowledge.tsx",
-      "lines": 927,
-      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
@@ -33084,11 +33046,6 @@
     {
       "file": "apps/desktop-v2/src/KanbanTaskInspector.tsx",
       "lines": 826,
-      "relativeImports": 8
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectMemory.tsx",
-      "lines": 824,
       "relativeImports": 8
     },
     {
@@ -33192,9 +33149,9 @@
       "relativeImports": 5
     },
     {
-      "file": "packages/webui/src/components/MemoryManager/useMemoryManagerState.ts",
-      "lines": 720,
-      "relativeImports": 9
+      "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
+      "lines": 718,
+      "relativeImports": 14
     },
     {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
@@ -33260,6 +33217,16 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
+    },
+    {
+      "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
+      "lines": 703,
+      "relativeImports": 6
+    },
+    {
+      "file": "packages/tui/src/reducers/settings-value-cycle.ts",
+      "lines": 703,
+      "relativeImports": 6
     }
   ],
   "testOnlyExports": [
@@ -33564,10 +33531,6 @@
       "name": "parseReviewNotes"
     },
     {
-      "file": "apps/desktop-v2/src/SageInjectionHistory.tsx",
-      "name": "readInjections"
-    },
-    {
       "file": "apps/desktop-v2/src/SddDependencyGraph.tsx",
       "name": "sddGraphElements"
     },
@@ -33602,14 +33565,6 @@
     {
       "file": "apps/desktop-v2/src/usePersistedFields.tsx",
       "name": "fieldsCodec"
-    },
-    {
-      "file": "apps/desktop-v2/src/VectorMemoryEntries.tsx",
-      "name": "reindexOutcome"
-    },
-    {
-      "file": "apps/desktop-v2/src/VectorMemoryEntries.tsx",
-      "name": "vectorTags"
     },
     {
       "file": "apps/desktop-v2/src/word-diff.ts",

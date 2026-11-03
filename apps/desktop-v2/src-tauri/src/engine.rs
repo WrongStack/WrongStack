@@ -4,7 +4,7 @@ use crate::{err, now, Result};
 use serde_json::{json, Value};
 use std::{
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, Seek, SeekFrom, Write},
+    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     net::TcpStream,
     path::{Path, PathBuf},
     sync::{
@@ -109,6 +109,25 @@ mod tests {
         let tail = Engine::events(&path, first["offset"].as_u64().unwrap()).unwrap();
         assert_eq!(tail["events"].as_array().unwrap().len(), 1);
         assert_eq!(tail["hasMore"], false);
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn a_tail_reader_starts_after_the_last_complete_line() {
+        let path = std::env::temp_dir().join(format!("desktop-tail-{}.jsonl", Uuid::new_v4()));
+        assert_eq!(Engine::journal_end(&path).unwrap()["offset"], 0);
+        let line = format!("{}\n", json!({"type":"old","payload":{}}));
+        fs::write(&path, format!("{line}{line}{{\"type\":\"par")).unwrap();
+        let end = Engine::journal_end(&path).unwrap()["offset"].as_u64().unwrap();
+        assert_eq!(end, (line.len() * 2) as u64, "A half-written line is not skipped");
+        fs::write(
+            &path,
+            format!("{line}{line}{}\n", json!({"type":"new","payload":{}})),
+        )
+        .unwrap();
+        let next = Engine::events(&path, end).unwrap();
+        assert_eq!(next["events"].as_array().unwrap().len(), 1);
+        assert_eq!(next["events"][0]["type"], "new");
         fs::remove_file(path).unwrap();
     }
 }
@@ -254,6 +273,29 @@ impl Engine {
             .ok_or("Engine session is still starting")?;
         self.http
             .request(method, resource, body, session, operation_id)
+    }
+    /// The journal position after its last complete line, for a reader that follows only what
+    /// is written from now on instead of replaying the journal from its start.
+    pub fn journal_end(path: &Path) -> Result<Value> {
+        let mut file = match File::open(path) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(json!({"offset":0,"events":[],"hasMore":false,"tail":true}))
+            }
+            Err(e) => return Err(err(e)),
+        };
+        let len = file.metadata().map_err(err)?.len();
+        let start = len.saturating_sub(65536);
+        file.seek(SeekFrom::Start(start)).map_err(err)?;
+        let mut tail = Vec::new();
+        file.read_to_end(&mut tail).map_err(err)?;
+        // A line still being written is left for the next read.
+        let end = tail
+            .iter()
+            .take((len - start) as usize)
+            .rposition(|byte| *byte == b'\n')
+            .map_or(start, |at| start + at as u64 + 1);
+        Ok(json!({"offset":end,"events":[],"hasMore":false,"tail":true}))
     }
     pub fn events(path: &Path, offset: u64) -> Result<Value> {
         let file = match File::open(path) {

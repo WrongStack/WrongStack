@@ -16,16 +16,17 @@ import { SessionMemoryInjections } from './SessionMemoryInjections';
 export function SessionContextPanel({
   command,
   running,
-  maxContext,
+  usage,
+  maxContext = usage?.max ?? 0,
   initialAction,
   onClose,
   memoryRuns = [],
   memoryContext = null,
-  usage,
 }: {
   command: EngineCommand;
   running: boolean;
-  maxContext: number;
+  /** The model's context window; the reported usage's window when not given. */
+  maxContext?: number;
   initialAction?: 'compact' | 'compact-aggressive' | 'repair' | 'clear' | undefined;
   onClose: () => void;
   /** SAGE injector runs and the latest request's memories, as the engine reported them. */

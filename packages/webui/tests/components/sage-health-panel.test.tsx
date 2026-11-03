@@ -13,6 +13,7 @@ const translation = vi.hoisted(() => ({
     vars ? `${key} ${JSON.stringify(vars)}` : key,
 }));
 vi.mock('@/i18n', () => ({ useAppTranslation: () => translation }));
+vi.mock('@wrongstack/project-surfaces/lib/i18n', () => ({ useAppTranslation: () => translation }));
 afterEach(cleanup);
 
 const MEMORY_ID = '01JABCDEFGHJKMNPQRSTVWXYZ0';

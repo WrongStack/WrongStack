@@ -6096,3 +6096,43 @@ few tool calls of a turn stayed visible.
   iterations, prompt and output tokens and cache share (`turnStats`).
 - Checks: desktop 720 tests, typecheck and Biome clean; portable `7a3017e1ce23-fbbeb443a074`
   built. Not yet exercised in the native harness.
+
+### SAGE memory is the WebUI's own surface (2026-11-03)
+
+Owner decision: the desktop renders the WebUI's project surfaces instead of keeping its own
+copies, starting with SAGE memory.
+
+- `packages/project-surfaces` holds the WebUI SAGE page (library and relationship graph, review
+  queue, health, audience and vector lenses), the UI primitives it uses (button, dialog, tabs,
+  input, pagination, page motif) and a `SurfaceHost` interface: the WebSocket client and SAGE
+  requests, connection state, scroll restore, validity and companion reviews, confirm, HTTP and
+  roster requests. The WebUI keeps its old module paths as re-exports and registers its host
+  (`webui-surface-host.ts`); its 141 SAGE tests now mock the package modules. The vector panel's
+  CSS moved with the panel, and the workbench component layer of `index.css` is its own file
+  (`components-layer.css`) so the desktop can load it.
+- Desktop: `ProjectSage` mounts the shared `SageTabs` inside `SurfaceFrame`, which scopes the
+  WebUI theme tokens to `.ws-surfaces` (generated from the WebUI stylesheets by
+  `scripts/sync-surface-theme.ts`, following the desktop's mode and palette), provides the WebUI
+  catalogs through `react-i18next`, a dialog portal inside the theme scope and a confirm dialog.
+  Tailwind loads only its theme and utilities, scanning only the shared package; the desktop's
+  element resets moved into the `base` layer so they no longer override shared component classes.
+  The old desktop SAGE pages (`ProjectKnowledge`, `ProjectMemory`, `SageAudience`,
+  `SageRecordDetails`, `SageRelationGraph`, `SageValidityReview`, `VectorMemoryEntries`,
+  `SageInjectionHistory`) are removed.
+- Replies: a project journal holds every frame the engine sent (106 and 358 MB on this machine),
+  so a window that replays it from the start answered requests only minutes later. The session
+  host can now report the journal's end (`project.events` with `tail: true`, after the last
+  complete line; Rust test `a_tail_reader_starts_after_the_last_complete_line`), and the surfaces
+  read replies from there (`journal-tail.ts`): a reply reaches a surface when it carries a request
+  id the surface sent or none at all. A host from an older build is paged past without handing
+  anything on. Tests: `journal-tail.test.ts`.
+- Seen in the native window on build `29683fd1670d-fbbeb443a074` after restarting the project
+  services host: the WrongStack project's library (15,681 memories, 5,222 active, 1,362 stale or
+  contradicted, 15,477 graph edges), the review/deleted/health tabs and the vector lens.
+- Open: the native harness `sage` scope still drives the removed desktop pages and must be
+  rewritten for the shared surface. Project journals grow without a bound; every new window still
+  replays them for the project stream. Old project-services hosts from earlier engine builds keep
+  running (one from build `0e0eff651da9` was still up).
+- Checks: desktop 703 tests and WebUI 6,230 tests pass; typecheck clean for the desktop, the
+  WebUI and the package; test typecheck has no new diagnostics; architecture health passes; host
+  Rust tests 30 of 30.

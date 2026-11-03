@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { syncSurfaceTheme } from './sync-surface-theme';
 
 const app = fileURLToPath(new URL('../', import.meta.url));
 const root = resolve(app, '../..');
@@ -118,6 +119,7 @@ export function syncBrand() {
     mkdirSync(dirname(destination), { recursive: true });
     copyFileSync(join(root, source!), destination);
   }
+  syncSurfaceTheme();
   const format = spawnSync(
     process.execPath,
     [
@@ -128,6 +130,7 @@ export function syncBrand() {
       '--write',
       'apps/desktop-v2/src/brand-palettes.ts',
       'apps/desktop-v2/src/brand-tokens.css',
+      'apps/desktop-v2/src/surface-theme.css',
     ],
     { cwd: root, encoding: 'utf8' },
   );
