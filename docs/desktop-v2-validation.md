@@ -6441,3 +6441,23 @@ copies, starting with SAGE memory.
   requirement, and none was created for the check. The empty page renders as before on build
   `344812107029-c5436fe756a5`; `tests/requirement-summary.test.ts` renders the record part.
 - Checks: desktop tests pass; typecheck and Biome clean.
+
+### Display language for the shared pages (2026-11-03)
+
+- Appearance gains "Display language": English, Türkçe, Deutsch, Français, Italiano, Español
+  and Português (Brasil), each under its own name. It is the profile's shared `uiLocale`, the
+  same setting the WebUI and CLI use (saved with `prefs.update`), so choosing it in one place
+  changes it everywhere.
+- The pages shared with the WebUI (SAGE memory, Kanban, Code Atlas, the office, session story,
+  the context dashboard, engine diagnostics, plan quota, model tests and quick setup) follow it:
+  each surface frame reads the profile's `uiLocale` and switches the WebUI catalogs, which load
+  the other languages on demand. Without a chosen language they stay in English, as before.
+  The rest of the desktop is still English only; translating its own screens is the remaining
+  part of this gap.
+- The WebUI's language list and locale matching (`languages.ts`) moved to
+  `@wrongstack/project-surfaces/lib/languages`; the WebUI keeps its path as a re-export.
+- Seen in the native window on build `1091aa3e67f7-c5436fe756a5`: the picker with the seven
+  languages under Appearance. It is disabled there because the profile engine on this machine is
+  still disconnected; the setting was not changed for the check, since it is shared with the
+  WebUI and CLI.
+- Checks: desktop 730 tests pass; WebUI i18n tests pass; typecheck and Biome clean.

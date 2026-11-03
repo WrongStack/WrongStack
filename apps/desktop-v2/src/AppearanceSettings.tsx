@@ -1,6 +1,52 @@
+import { LANGUAGES } from '@wrongstack/project-surfaces/lib/languages';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
+import { useState } from 'react';
 import { accentThemes } from './appearance';
+import { SurfaceLanguageSync } from './SurfaceLanguageSync';
+import { displayLanguage } from './surface-i18n';
 import type { DesktopController } from './useDesktop';
+import { useProfileEngine } from './useEngine';
+
+/**
+ * The display language the profile shares with the WebUI and CLI (`Config.uiLocale`). Names are
+ * each language's own, so anyone can find theirs whatever is shown now.
+ */
+function DisplayLanguage({ reportError }: { reportError: (error: unknown) => void }) {
+  const { state, command } = useProfileEngine(reportError);
+  const [busy, setBusy] = useState(false);
+  const current = displayLanguage(state.results['prefs.updated']);
+  return (
+    <div className="appearance-section">
+      <SurfaceLanguageSync />
+      <div>
+        <h3>Display language</h3>
+        <p>
+          Shared with the WebUI and CLI. The pages shared with the WebUI (memory, Kanban, Code
+          Atlas, the office, session story, dashboards and setup) follow it; the rest of the desktop
+          is in English for now.
+        </p>
+      </div>
+      <select
+        className="display-language"
+        aria-label="Display language"
+        value={current}
+        disabled={!state.connected || busy}
+        onChange={(event) => {
+          setBusy(true);
+          void command('prefs.update', { uiLocale: event.target.value }, ['key.operation_result'])
+            .catch(reportError)
+            .finally(() => setBusy(false));
+        }}
+      >
+        {LANGUAGES.map((language) => (
+          <option key={language.code} value={language.code}>
+            {language.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export function AppearanceSettings({ vm }: { vm: DesktopController }) {
   const { appearance, changeAppearance } = vm;
@@ -91,6 +137,7 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
           ))}
         </div>
       </div>
+      <DisplayLanguage reportError={vm.reportError} />
       <div className="settings-host">
         <span className={`status-dot ${vm.connected ? 'running' : 'stopped'}`} />
         <span>{vm.connected ? 'Local workspace connected' : 'Connecting to your workspace'}</span>

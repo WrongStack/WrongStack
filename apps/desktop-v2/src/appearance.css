@@ -123,6 +123,11 @@ body {
   font-size: 14px;
   font-weight: 550;
 }
+.display-language {
+  justify-self: start;
+  align-self: start;
+  min-width: 220px;
+}
 .appearance-modes {
   border: 0;
   padding: 0;

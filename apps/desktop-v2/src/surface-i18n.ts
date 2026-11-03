@@ -1,12 +1,10 @@
+import { normalizeLocale, SUPPORTED_LNGS } from '@wrongstack/project-surfaces/lib/languages';
 import { createInstance, type i18n } from 'i18next';
 import resourcesToBackend from 'i18next-resources-to-backend';
 import { initReactI18next } from 'react-i18next';
 import activity from '../../../packages/webui/src/i18n/locales/en/activity.json';
 import common from '../../../packages/webui/src/i18n/locales/en/common.json';
 import setup from '../../../packages/webui/src/i18n/locales/en/setup.json';
-
-/** Languages the WebUI catalogs ship; English is bundled, the others load on demand. */
-export const surfaceLanguages = ['en', 'tr', 'de', 'fr', 'it', 'es', 'pt-BR'] as const;
 
 /** The WebUI namespaces the shared surfaces translate with; each must be listed here. */
 const surfaceNamespaces = ['common', 'activity', 'setup'] as const;
@@ -27,7 +25,8 @@ void surfaceI18n
   .init({
     lng: 'en',
     fallbackLng: 'en',
-    supportedLngs: [...surfaceLanguages],
+    // The languages the WebUI catalogs ship; English is bundled, the others load on demand.
+    supportedLngs: [...SUPPORTED_LNGS],
     ns: [...surfaceNamespaces],
     defaultNS: 'common',
     partialBundledLanguages: true,
@@ -36,3 +35,12 @@ void surfaceI18n
     react: { useSuspense: false },
     returnNull: false,
   });
+
+/**
+ * The display language the profile shares with the WebUI and CLI (`Config.uiLocale`), as one
+ * the catalogs ship; English while none is chosen.
+ */
+export function displayLanguage(prefs: Record<string, unknown> | undefined): string {
+  const stored = prefs?.['uiLocale'];
+  return typeof stored === 'string' && stored.trim() ? normalizeLocale(stored) : 'en';
+}

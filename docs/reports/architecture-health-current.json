@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T18:10:49.250Z",
+  "generatedAt": "2026-11-03T18:17:05.528Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5936,
-    "testFiles": 4923,
-    "sourceLines": 1239712,
+    "sourceFiles": 5938,
+    "testFiles": 4924,
+    "sourceLines": 1239802,
     "workspaceEdges": 239,
-    "moduleEdges": 17245,
+    "moduleEdges": 17251,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 188,
+    "testsWithoutTypecheck": 189,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -389,8 +389,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 381,
-      "testFiles": 188,
+      "sourceFiles": 382,
+      "testFiles": 189,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -735,7 +735,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 234,
+      "sourceFiles": 235,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1591,6 +1591,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-story-feed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/display-language.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31177,6 +31183,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-story-feed.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/display-language.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
