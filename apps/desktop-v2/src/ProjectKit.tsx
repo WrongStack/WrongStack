@@ -1,8 +1,9 @@
-import { Box, FileCode2, RefreshCw, Search, ShieldCheck } from 'lucide-react';
+import { Box, FileCode2, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CopyButton } from './CopyButton';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-values';
+import { KitCreateRequest } from './KitCreateRequest';
 import { KitParameterDraftNotice, useKitParameterBinding } from './KitParameterDraftNotice';
 import { KitParameterForm, KitSchemaDetails, KitValue } from './KitParameterForm';
 import { MarkdownContent } from './MarkdownContent';
@@ -37,6 +38,8 @@ export function ProjectKit({
   const [request, setRequest] = useState('');
   const [session, setSession] = useState('');
   const [busy, setBusy] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [projectRoot, setProjectRoot] = useState('');
   const sequence = useRef(0);
   const schema = useMemo(() => (kit ? (record(kit['inputSchema']) as KitSchema) : null), [kit]);
   const parameters = useKitParameterBinding(projectId, kit ? selected : '', schema, setInput);
@@ -52,6 +55,7 @@ export function ProjectKit({
       if (own === sequence.current) {
         setRows(entries(data['tools']));
         setInvalid(entries(data['invalid']));
+        setProjectRoot(typeof data['projectRoot'] === 'string' ? data['projectRoot'] : '');
       }
     } catch (e) {
       if (own === sequence.current) setError(e instanceof Error ? e.message : String(e));
@@ -139,6 +143,10 @@ export function ProjectKit({
           <RefreshCw size={14} />
           Refresh kits
         </button>
+        <button type="button" className="button primary" onClick={() => setCreating(true)}>
+          <Plus size={14} />
+          Create a kit
+        </button>
       </header>
       {error && (
         <p className="composer-error" role="alert">
@@ -201,6 +209,15 @@ export function ProjectKit({
           )}
         </aside>
         <article className="kit-detail" aria-label="Project Kit details">
+          {creating && (
+            <KitCreateRequest
+              projectRoot={projectRoot}
+              sessions={sessions}
+              onPrepare={onPrepare}
+              onNewSession={onNewSession}
+              onClose={() => setCreating(false)}
+            />
+          )}
           {reading ? (
             <p role="status">Reading guide and contracts…</p>
           ) : kit ? (

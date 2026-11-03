@@ -6773,3 +6773,12 @@ copies, starting with SAGE memory.
   only start them to stop them again; the WebUI transport and governance are never touched.
 - Checks: tested in jsdom with a stand-in engine (targets, order, partial failure); typecheck clean.
   No service was restarted for verification.
+
+### Create a kit from the Project Kit page (2026-11-04)
+
+- The Project Kit page has the WebUI's "Create kit": describe the capability, choose a project
+  conversation, and the WebUI's instruction (discover existing kits first, extend one where it
+  fits, add verification cases, verify the exact revision; with the project root the kit catalog
+  reports) goes into that conversation's draft. Sending it stays the user's action there. Without
+  an agent conversation it offers to start one.
+- Checks: tested in jsdom (instruction text, target choice, no-conversation case); typecheck clean.
