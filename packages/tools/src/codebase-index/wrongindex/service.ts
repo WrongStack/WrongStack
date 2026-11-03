@@ -109,9 +109,13 @@ export function setBeforeWrongIndexClaim(
 }
 
 async function registerAndClaim(projectRoot: string, indexDir: string): Promise<ProjectState> {
+  // `session`: the service watches the checkout while a WrongStack host
+  // holds a lease (`indexing.watchExternal`), and not otherwise. A project
+  // WrongIndex already knows keeps the policy set there.
   const reg = await call<{ project: { projectId: string } }>('project.register', null, {
     checkoutRoot: projectRoot,
     indexDir,
+    watchPolicy: 'session',
   });
   const projectId = reg.project.projectId;
   if (isOwnedByWrongIndex(indexDir)) return { projectId, claimed: true };
@@ -153,7 +157,8 @@ async function project(projectRoot: string, indexDirOverride?: string): Promise<
 
 // ─── Operations ─────────────────────────────────────────────────────────────
 
-interface JobRecord {
+/** `JobRecord` of WrongIndex's contracts, as far as this adapter reads it. */
+export interface WrongIndexJobRecord {
   jobId: string;
   state: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled';
   result?: Record<string, unknown> | null;
@@ -162,7 +167,7 @@ interface JobRecord {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms).unref?.());
 
-async function waitForJob(projectId: string, jobId: string, opts: CallOpts): Promise<JobRecord> {
+async function waitForJob(projectId: string, jobId: string, opts: CallOpts): Promise<WrongIndexJobRecord> {
   const deadline = Date.now() + opts.timeoutMs;
   let delay = 50;
   for (;;) {
@@ -172,7 +177,7 @@ async function waitForJob(projectId: string, jobId: string, opts: CallOpts): Pro
         ? opts.signal.reason
         : new Error('Indexing cancelled');
     }
-    const job = await call<JobRecord>('job.get', projectId, { jobId });
+    const job = await call<WrongIndexJobRecord>('job.get', projectId, { jobId });
     if (job.state === 'succeeded' || job.state === 'failed' || job.state === 'canceled') {
       return job;
     }
@@ -220,14 +225,19 @@ export async function callWrongIndex<O extends OpName>(
     const a = args as OpShapes['index']['args'];
     const files = a.files ?? [];
     const kind = files.length > 0 && !a.force ? 'incremental' : 'full';
-    const admission = await call<{ job: JobRecord }>('index.request', projectId, {
+    const admission = await call<{ job: WrongIndexJobRecord }>('index.request', projectId, {
       kind,
       paths: kind === 'incremental' ? files : [],
     });
     const job = await waitForJob(projectId, admission.job.jobId, opts);
     if (job.state !== 'succeeded') {
       throw new WrongIndexRemoteError(
-        job.error ?? { code: 'JOB_FAILED', message: `job ${job.jobId} ${job.state}` },
+        // Codes are WrongIndex's ErrorCode values, also when the service
+        // sent no error body.
+        job.error ?? {
+          code: job.state === 'canceled' ? 'CANCELED' : 'INTERNAL',
+          message: `job ${job.jobId} ${job.state}`,
+        },
       );
     }
     return toIndexResult(job.result) as OpShapes[O]['result'];
@@ -277,6 +287,14 @@ export async function acquireWrongIndexSession(
   );
   timer.unref?.();
   sessions.set(projectId, { sessionId: lease.sessionId, timer });
+}
+
+/** Register (and in `wrongindex` mode claim) the project, without a lease. */
+export async function registerWrongIndexProject(
+  projectRoot: string,
+  indexDir?: string,
+): Promise<void> {
+  await project(projectRoot, indexDir);
 }
 
 /** Release this process's leases only; the global daemon keeps running. */

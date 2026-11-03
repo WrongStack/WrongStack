@@ -82,6 +82,7 @@ import { isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
 import {
   acquireWrongIndexSession,
   releaseWrongIndexSessions,
+  registerWrongIndexProject,
   resolveIndexRoute,
   setBeforeWrongIndexClaim,
   WrongIndexUnavailableError,
@@ -621,9 +622,13 @@ export function ensureCodebaseIndexServer(options: {
 }): Promise<void> {
   if (resolveIndexRoute(options.projectRoot, options.indexDir) === 'wrongindex') {
     // The service watches the project while a session lease is held (policy
-    // `session`); the local detached server is not started for it - unless
-    // the service is unavailable and does not hold the index.
-    return acquireWrongIndexSession(options.projectRoot, options.indexDir).catch((err: unknown) => {
+    // `session`) - only when external watching is on, as the local server
+    // watches only then; the local detached server is not started for it -
+    // unless the service is unavailable and does not hold the index.
+    const attach = options.watchExternal
+      ? acquireWrongIndexSession(options.projectRoot, options.indexDir)
+      : registerWrongIndexProject(options.projectRoot, options.indexDir);
+    return attach.catch((err: unknown) => {
       const dir = resolveIndexDir(options.projectRoot, options.indexDir);
       if (!(err instanceof WrongIndexUnavailableError) || isOwnedByWrongIndex(dir)) throw err;
       return ensureLocalIndexServer(options);
