@@ -1101,7 +1101,8 @@ export function SessionComposer({
         <SessionContextPanel
           command={command}
           running={state.running}
-          maxContext={Number(state.results['session.start']?.['maxContext'] ?? 0)}
+          maxContext={state.context.max}
+          usage={state.context}
           initialAction={contextPanel === 'inspect' ? undefined : contextPanel}
           onClose={() => setContextPanel(null)}
           memoryRuns={state.memoryRuns}

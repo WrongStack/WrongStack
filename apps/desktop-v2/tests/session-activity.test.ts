@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { emptyEngineState, reduceEngine } from '../src/engine-state';
+import { ACTIVITY_LIMIT, emptyEngineState, reduceEngine } from '../src/engine-state';
 import { SessionActivity } from '../src/SessionActivity';
 import { activityRows } from '../src/session-activity-model';
 
@@ -97,7 +97,7 @@ describe('session activity', () => {
       type: 'session.start',
       payload: { sessionId: 'one' },
     });
-    for (let i = 0; i < 205; i++)
+    for (let i = 0; i < ACTIVITY_LIMIT + 5; i++)
       state = reduceEngine(state, {
         type: 'provider.retry',
         payload: { sessionId: 'one', providerId: 'fixture', attempt: i },
@@ -112,7 +112,7 @@ describe('session activity', () => {
         output: 'Command refused',
       },
     });
-    expect(state.activity).toHaveLength(200);
+    expect(state.activity).toHaveLength(ACTIVITY_LIMIT);
     expect(activityRows(state.activity).find((row) => row.id.endsWith(':failed'))).toMatchObject({
       status: 'failed',
       output: 'Command refused',

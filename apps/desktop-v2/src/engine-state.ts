@@ -6,6 +6,14 @@ import {
 } from '@wrongstack/webui-protocol';
 import { type ComposerAttachment, transcriptAttachments } from './composer-attachments.js';
 import {
+  type ContextUsage,
+  emptyContextUsage,
+  reduceContextUsage,
+  type TokenTotals,
+  type TurnStats,
+  turnStats,
+} from './context-usage.js';
+import {
   appendNotice,
   type ConversationNotice,
   conversationNotice,
@@ -20,6 +28,7 @@ import {
   memoryContextSnapshot,
   memoryInjectorRun,
 } from './memory-injections.js';
+import { appendRunEvent, isRunTimelineEvent } from './run-timeline.js';
 
 export { contentText, entries, record } from './engine-values.js';
 export interface EngineEvent {
@@ -42,6 +51,8 @@ export interface ProviderTestRun {
 }
 export interface EngineState {
   hydrating: boolean;
+  /** False until a reader first reaches the end of the journal; views wait for it. */
+  synced: boolean;
   pendingUserMessages: Record<string, ChatMessage>;
   queue: Array<{ id: string; text: string; addedAt: number; imageCount: number }>;
   drainedPromptIds: string[];
@@ -74,8 +85,16 @@ export interface EngineState {
   sddAgentText: string;
   specDetails: Record<string, Record<string, unknown>>;
   activity: EngineEvent[];
+  /** How full the conversation's context window is. */
+  context: ContextUsage;
+  /** The running turn's tool calls, thinking and retries, every one of them, oldest first. */
+  runTimeline: EngineEvent[];
   /** Each finished turn's tool events, by the id of the assistant message that ended it. */
   turnActivity: Record<string, EngineEvent[]>;
+  /** Each finished turn's iterations and token use, by the id of its answer. */
+  turnStats: Record<string, TurnStats>;
+  /** Session token totals when the running turn started. */
+  runStartTotals: TokenTotals | null;
   /** This conversation's SAGE injector runs, newest last, and the latest request's memories. */
   memoryRuns: MemoryInjectorRun[];
   memoryContext: MemoryContext | null;
@@ -89,10 +108,11 @@ export interface EngineState {
   results: Record<string, Record<string, unknown>>;
   error: string;
 }
-/** Tool events kept per finished turn for the inline record. */
-export const TURN_ACTIVITY_LIMIT = 120;
+/** Recent activity frames kept for the Activity view; streamed deltas are merged first. */
+export const ACTIVITY_LIMIT = 400;
 export const emptyEngineState: EngineState = {
   hydrating: false,
+  synced: true,
   pendingUserMessages: {},
   queue: [],
   drainedPromptIds: [],
@@ -113,7 +133,11 @@ export const emptyEngineState: EngineState = {
   sddAgentText: '',
   specDetails: {},
   activity: [],
+  context: emptyContextUsage,
+  runTimeline: [],
   turnActivity: {},
+  turnStats: {},
+  runStartTotals: null,
   memoryRuns: [],
   memoryContext: null,
   notices: [],
@@ -135,7 +159,11 @@ export function replayEngineBatch(
   events: readonly EngineEvent[],
   hasMore: boolean,
 ): EngineState {
-  return { ...events.reduce(reduceEngine, state), hydrating: hasMore };
+  return {
+    ...events.reduce(reduceEngine, state),
+    hydrating: hasMore,
+    synced: state.synced || !hasMore,
+  };
 }
 export function reduceEngine(state: EngineState, input: unknown): EngineState {
   const event = engineEvent(input);
@@ -165,6 +193,7 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   )
     return state;
   let next = { ...state, results: { ...state.results, [event.type]: p } };
+  next.context = reduceContextUsage(state.context, event);
   if (event.type === 'prefs.updated')
     next.results['prefs.updated'] = { ...state.results['prefs.updated'], ...p };
   if (event.type === 'goal.state' && typeof p['goalId'] === 'string')
@@ -243,7 +272,10 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
     };
     if (p['reset'] === true) {
       next.nextSteps = [];
+      next.runTimeline = [];
       next.turnActivity = {};
+      next.turnStats = {};
+      next.runStartTotals = null;
       next.memoryRuns = [];
       next.memoryContext = null;
       next.notices = [];
@@ -423,13 +455,18 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   if (event.type === 'run.result') {
     next.running = false;
     const answer = next.messages.findLast((message) => message.role === 'assistant');
-    const runStart = state.activity.findLastIndex((entry) => entry.type === 'run.result') + 1;
-    const tools = state.activity
-      .slice(runStart)
-      .filter((entry) => entry.type.startsWith('tool.'))
-      .slice(-TURN_ACTIVITY_LIMIT);
+    // Every tool call of the turn stays with its answer, not only those still in the
+    // Activity view's recent window.
+    const tools = state.runTimeline.filter((entry) => entry.type.startsWith('tool.'));
     if (answer && tools.length && !next.turnActivity[answer.id])
       next.turnActivity = { ...next.turnActivity, [answer.id]: tools };
+    if (answer && !next.turnStats[answer.id])
+      next.turnStats = {
+        ...next.turnStats,
+        [answer.id]: turnStats(state.runStartTotals, next.context.totals, p['iterations']),
+      };
+    next.runTimeline = [];
+    next.runStartTotals = null;
     if (p['status'] === 'done') {
       const parsed = parseNextSteps(contentText(p['finalText'])).steps;
       const start = state.activity.findLastIndex((entry) => entry.type === 'run.result') + 1;
@@ -476,7 +513,15 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
     event.type === 'provider.retry' ||
     event.type === 'user.input_resolved' ||
     event.type === 'run.result'
-  )
-    next.activity = [...state.activity.slice(-199), event];
+  ) {
+    const activity = appendRunEvent(state.activity, event);
+    next.activity =
+      activity.length > ACTIVITY_LIMIT
+        ? activity.slice(activity.length - ACTIVITY_LIMIT)
+        : activity;
+  }
+  if (isRunTimelineEvent(event.type)) next.runTimeline = appendRunEvent(state.runTimeline, event);
+  if (event.type === 'iteration.started' && !state.runStartTotals)
+    next.runStartTotals = state.context.totals;
   return next;
 }

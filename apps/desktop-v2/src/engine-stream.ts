@@ -6,18 +6,25 @@ import { request } from './platform';
 export type BackendScope = 'engine' | 'project' | 'profile';
 type EngineState = ReturnType<typeof replayEngineBatch>;
 type Subscriber = { changed: () => void; onError: (error: unknown) => void };
+/** Readers kept with their state after their last view closed, most recently used last. */
+export const DORMANT_STREAM_LIMIT = 8;
 
 /**
  * One journal reader per backend. Every view of the same project used to replay the whole
  * project journal on its own; they now share the reader, its state and its acknowledgements,
  * and a view that opens later starts from the state already read.
+ *
+ * A reader whose last view closed keeps its state and journal position, so going back to a
+ * conversation continues where it was instead of replaying it from its first message.
  */
 export class BackendStream {
-  state: EngineState = { ...emptyEngineState, hydrating: true };
+  state: EngineState = { ...emptyEngineState, hydrating: true, synced: false };
   readonly operations: EngineOperations;
   private subscribers = new Set<Subscriber>();
   private stopped = true;
   private run = 0;
+  private offset = 0;
+  private read = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(
     private scope: BackendScope,
@@ -54,19 +61,22 @@ export class BackendStream {
     this.registry.set(this.key(), this);
     // A quick unsubscribe and resubscribe (React StrictMode) must not leave two readers running.
     const run = ++this.run;
-    let offset = 0;
-    this.state = { ...emptyEngineState, hydrating: true };
+    if (!this.read) {
+      this.offset = 0;
+      this.state = { ...emptyEngineState, hydrating: true, synced: false };
+      this.read = true;
+    }
     this.operations.replaying();
     const poll = async () => {
       try {
         const result = await request<{ offset: number; events: unknown[]; hasMore?: boolean }>(
           `${this.scope}.events`,
-          { ...this.target(), offset },
+          { ...this.target(), offset: this.offset },
         );
         if (run !== this.run || this.stopped) return;
         const hasMore =
-          result.hasMore ?? (result.events.length === 200 || result.offset - offset >= 262144);
-        offset = result.offset;
+          result.hasMore ?? (result.events.length === 200 || result.offset - this.offset >= 262144);
+        this.offset = result.offset;
         const events = result.events.map(engineEvent).filter((event) => event !== null);
         for (const event of events) this.operations.receive(event);
         if (!hasMore) this.operations.caughtUp();
@@ -91,7 +101,13 @@ export class BackendStream {
     this.stopped = true;
     clearTimeout(this.timer);
     this.operations.clear();
-    if (this.registry.get(this.key()) === this) this.registry.delete(this.key());
+    if (this.registry.get(this.key()) !== this) return;
+    // Most recently closed last; the oldest closed readers beyond the limit are dropped.
+    this.registry.delete(this.key());
+    this.registry.set(this.key(), this);
+    const dormant = [...this.registry].filter(([, stream]) => stream.stopped);
+    for (const [key] of dormant.slice(0, Math.max(0, dormant.length - DORMANT_STREAM_LIMIT)))
+      this.registry.delete(key);
   }
 }
 

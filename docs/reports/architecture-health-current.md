@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-02T22:58:18.728Z
+**Generated:** 2026-11-03T08:16:36.327Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,20 +8,22 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 47 |
-| Production source files | 5687 |
-| Production source lines | 1241531 |
-| Test files | 4918 |
+| Production source files | 5691 |
+| Production source lines | 1242169 |
+| Test files | 4919 |
 | Workspace dependency edges | 232 |
-| Relative module edges | 16655 |
+| Relative module edges | 16670 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 187 |
+| Tests without TypeScript test-project coverage | 188 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- apps/desktop-v2/src/SessionComposer.tsx: hotspot grew from 1150 to 1151 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/engine-state.ts: "ACTIVITY_LIMIT" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- apps/desktop-v2/src/engine-stream.ts: "DORMANT_STREAM_LIMIT" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 
 ## Workspace packages
 
@@ -38,7 +40,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 184 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 639 | 696 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 373 | 187 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 377 | 188 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -93,7 +95,7 @@ None.
 | 1696 | `packages/sage/src/wrongmemory-port.ts` |
 | 1559 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
-| 1150 | `apps/desktop-v2/src/SessionComposer.tsx` |
+| 1151 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1098 | `packages/webui/src/components/codemap-model.ts` |
 | 1019 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
@@ -142,13 +144,13 @@ None.
 
 ## Exports only tests reference
 
-- 1037 runtime exports are referenced by tests and by no other production file.
+- 1039 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 187 test files are not included in a package TypeScript test project.
+- 188 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

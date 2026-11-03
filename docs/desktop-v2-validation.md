@@ -6067,3 +6067,32 @@ staged; the other session's edits stay untouched.
   in the harness's final process cleanup. `default`, `companion` and `composer` failed in the
   composer path (engine connection lost, a held run not finishing in time, a 16 s download
   through WebView2). These are recorded as unproven under load, not as passes.
+
+### Chat: every tool call, the context window and switching conversations (2026-11-03)
+
+Owner report: switching to a session looked like the conversation started over from its first
+message, the chat showed few figures compared with the WebUI (no context bar), and only the last
+few tool calls of a turn stayed visible.
+
+- Tool calls: a turn's tools were taken from the Activity view's last 200 frames, and every
+  thinking delta and progress line was one frame, so a long turn kept only its last few tools.
+  The running turn now has its own timeline (`run-timeline.ts`) that merges streamed thinking and
+  tool text into the frame they extend; a finished turn keeps every tool call with its answer, and
+  the live group stays open while the turn runs (`LiveRunActivity`). The Activity view keeps 400
+  merged frames. Test: 150 tool calls with 20 thinking deltas and 30 progress lines each keep all
+  150 (`turn-tools.test.ts`).
+- Switching: the journal reader of a conversation was dropped with its last view, so going back
+  replayed the journal from its start and drew the messages one by one. A closed view's reader now
+  keeps its state and journal position (the eight most recently closed are kept), and a
+  conversation read for the first time shows "Loading this conversation…" until the reader reaches
+  the end of the journal (`engine-stream.ts`, `synced`; `engine-stream.test.ts`). Detaching a tab
+  never stopped the session; Stop session does.
+- Context: a status bar under the chat shows the latest request's window use (warn from 60 %,
+  critical from 85 %), the share served from the provider's cache, a lowered provider limit, the
+  running iteration and session totals. It is folded from `ctx.pct`, `ctx.max_context`,
+  `token.threshold`, `provider.response` and `context.compacted` in event order
+  (`context-usage.ts`); a worker's own requests are not counted. The meter opens the context panel
+  (breakdown, compact, repair, clear) with the reported figures on top. Each answer shows its
+  iterations, prompt and output tokens and cache share (`turnStats`).
+- Checks: desktop 720 tests, typecheck and Biome clean; portable `7a3017e1ce23-fbbeb443a074`
+  built. Not yet exercised in the native harness.

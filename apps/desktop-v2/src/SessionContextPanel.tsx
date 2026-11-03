@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { ContextEditorDialog } from './ContextEditorDialog';
 import { ContextModes } from './ContextModes';
 import { ContextResidency } from './ContextResidency';
+import { ContextUsageSummary } from './ContextUsageSummary';
 import { type CompactionOutcome, compactionOutcome, reductionLabels } from './compaction-outcome';
+import type { ContextUsage } from './context-usage';
 import type { EngineCommand } from './engine-operations';
 import { contentText, entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -19,6 +21,7 @@ export function SessionContextPanel({
   onClose,
   memoryRuns = [],
   memoryContext = null,
+  usage,
 }: {
   command: EngineCommand;
   running: boolean;
@@ -28,6 +31,8 @@ export function SessionContextPanel({
   /** SAGE injector runs and the latest request's memories, as the engine reported them. */
   memoryRuns?: MemoryInjectorRun[] | undefined;
   memoryContext?: MemoryContext | null | undefined;
+  /** The usage the engine reported live, shown before the estimated breakdown loads. */
+  usage?: ContextUsage | undefined;
 }) {
   const [snapshot, setSnapshot] = useState<Record<string, unknown> | null>(null),
     [instructions, setInstructions] = useState<string | null>(null),
@@ -175,6 +180,7 @@ export function SessionContextPanel({
             {notice}
           </p>
         )}
+        {usage && <ContextUsageSummary usage={usage} />}
         {loading ? (
           <p role="status">
             <LoaderCircle size={14} className="spin" /> Reading context…

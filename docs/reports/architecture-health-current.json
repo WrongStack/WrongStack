@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T22:58:18.728Z",
+  "generatedAt": "2026-11-03T08:16:36.327Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,23 @@
   },
   "summary": {
     "packages": 47,
-    "sourceFiles": 5687,
-    "testFiles": 4918,
-    "sourceLines": 1241531,
+    "sourceFiles": 5691,
+    "testFiles": 4919,
+    "sourceLines": 1242169,
     "workspaceEdges": 232,
-    "moduleEdges": 16655,
+    "moduleEdges": 16670,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 187,
+    "testsWithoutTypecheck": 188,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1037
+    "testOnlyExports": 1039
   },
-  "errors": [],
+  "errors": [
+    "apps/desktop-v2/src/SessionComposer.tsx: hotspot grew from 1150 to 1151 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/engine-state.ts: \"ACTIVITY_LIMIT\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/engine-stream.ts: \"DORMANT_STREAM_LIMIT\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -386,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 373,
-      "testFiles": 187,
+      "sourceFiles": 377,
+      "testFiles": 188,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1500,6 +1504,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/context-residency-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/context-usage.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31051,6 +31061,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/context-usage.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/conversation-notices.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32339,6 +32356,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ContextUsageSummary.tsx",
+      "specifier": "./session-status.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ExecutionPolicySettings.tsx",
       "specifier": "./execution-policy.css",
       "syntax": "import"
@@ -32659,6 +32681,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/SessionStatusBar.tsx",
+      "specifier": "./session-status.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/SessionTodos.tsx",
       "specifier": "./session-todos.css",
       "syntax": "import"
@@ -32686,6 +32713,11 @@
     {
       "from": "apps/desktop-v2/src/ToolApprovalCard.tsx",
       "specifier": "./tool-approval.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/TurnTools.tsx",
+      "specifier": "./session-status.css",
       "syntax": "import"
     },
     {
@@ -32964,7 +32996,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1150,
+      "lines": 1151,
       "relativeImports": 32
     },
     {
@@ -33001,7 +33033,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1150,
+      "lines": 1151,
       "relativeImports": 32
     },
     {
@@ -33341,7 +33373,15 @@
     },
     {
       "file": "apps/desktop-v2/src/engine-state.ts",
+      "name": "ACTIVITY_LIMIT"
+    },
+    {
+      "file": "apps/desktop-v2/src/engine-state.ts",
       "name": "reduceEngine"
+    },
+    {
+      "file": "apps/desktop-v2/src/engine-stream.ts",
+      "name": "DORMANT_STREAM_LIMIT"
     },
     {
       "file": "apps/desktop-v2/src/FallbackPicker.tsx",

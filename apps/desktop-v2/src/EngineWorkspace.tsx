@@ -6,7 +6,6 @@ import {
   LoaderCircle,
   MessageSquare,
   PanelsTopLeft,
-  RefreshCw,
   Settings2,
   Square,
 } from 'lucide-react';
@@ -25,7 +24,6 @@ import {
   withReference,
 } from './composer-resources-model';
 import { EngineDataView } from './EngineDataView';
-import { type EngineState, record } from './engine-state';
 import { FallbackPicker } from './FallbackPicker';
 import { workspaceFilePath } from './file-model';
 import { InputRequestCard } from './InputRequestCard';
@@ -40,11 +38,11 @@ import { SessionActivity } from './SessionActivity';
 import { SessionBrowser } from './SessionBrowser';
 import { SessionComposer } from './SessionComposer';
 import { SessionRecovery } from './SessionRecovery';
+import { SessionStatusBar } from './SessionStatusBar';
 import { SessionTodos } from './SessionTodos';
 import { SessionWorklist } from './SessionWorklist';
-import { inlineUsageEstimate } from './session-usage-model';
 import { ToolApprovalCard } from './ToolApprovalCard';
-import { TurnTools } from './TurnTools';
+import { LiveRunActivity, TurnTools } from './TurnTools';
 import type { ProjectPage } from './useDesktop';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
@@ -196,15 +194,6 @@ export function EngineWorkspace({
   const perform = (type: string, payload?: Record<string, unknown>) => {
     void send(type, payload).catch(onError);
   };
-  const recentEvents = state.activity.slice(
-    state.activity.findLastIndex((event) => event.type === 'run.result') + 1,
-  );
-  const liveTools = new Set(
-    recentEvents
-      .filter((event) => event.type === 'tool.started' || event.type === 'tool.executed')
-      .map((event) => event.payload['id'])
-      .filter((id) => typeof id === 'string'),
-  ).size;
   const openLink = useCallback(
     (url: string) => {
       const target = markdownTarget(url);
@@ -361,13 +350,21 @@ export function EngineWorkspace({
               }
             }}
           >
-            {!state.messages.length && !state.inputs.length && (
+            {/* A conversation read for the first time appears once read to its end, not
+                message by message from its first prompt as if it were starting over. */}
+            {!state.synced && (
+              <div className="native-chat-welcome" role="status">
+                <LoaderCircle size={18} className="spin" />
+                <p>Loading this conversation…</p>
+              </div>
+            )}
+            {state.synced && !state.messages.length && !state.inputs.length && (
               <div className="native-chat-welcome">
                 <h2>What should we work on?</h2>
                 {!state.connected && <LoaderCircle size={18} className="spin" />}
               </div>
             )}
-            {(!state.inputs.length || showConversation) && hiddenMessages > 0 && (
+            {state.synced && (!state.inputs.length || showConversation) && hiddenMessages > 0 && (
               <button
                 type="button"
                 className="button secondary small chat-earlier"
@@ -381,7 +378,8 @@ export function EngineWorkspace({
                 {hiddenMessages} not shown)
               </button>
             )}
-            {(!state.inputs.length || showConversation) &&
+            {state.synced &&
+              (!state.inputs.length || showConversation) &&
               state.messages.slice(hiddenMessages).map((message) => (
                 <article className={`chat-message ${message.role}`} key={message.id}>
                   <header className={message.role === 'user' ? 'user-chat-label' : undefined}>
@@ -398,9 +396,10 @@ export function EngineWorkspace({
                       <AttachmentPreview items={message.attachments} />
                     )}
                   </div>
-                  {state.turnActivity[message.id] && (
+                  {(state.turnActivity[message.id] || state.turnStats[message.id]) && (
                     <TurnTools
-                      events={state.turnActivity[message.id]!}
+                      events={state.turnActivity[message.id] ?? []}
+                      stats={state.turnStats[message.id]}
                       onOpenFile={(path) => {
                         setFileTarget(path);
                         setTab('files');
@@ -427,31 +426,15 @@ export function EngineWorkspace({
                 connected={state.connected}
               />
             ))}
-            {state.running &&
-              !state.inputs.length &&
-              recentEvents.some(
-                (event) =>
-                  ['tool.started', 'tool.progress', 'tool.executed'].includes(event.type) ||
-                  event.type === 'provider.thinking_delta' ||
-                  event.type === 'provider.retry',
-              ) && (
-                <details className="chat-run-activity">
-                  <summary>
-                    Run activity
-                    {liveTools
-                      ? ` · ${liveTools} ${liveTools === 1 ? 'tool call' : 'tool calls'}`
-                      : ''}
-                  </summary>
-                  <SessionActivity
-                    compact
-                    events={recentEvents}
-                    onOpenFile={(path) => {
-                      setFileTarget(path);
-                      setTab('files');
-                    }}
-                  />
-                </details>
-              )}
+            {state.running && !state.inputs.length && (
+              <LiveRunActivity
+                events={state.runTimeline}
+                onOpenFile={(path) => {
+                  setFileTarget(path);
+                  setTab('files');
+                }}
+              />
+            )}
             {state.running && (
               <div className="agent-working">
                 <LoaderCircle size={13} className="spin" />
@@ -652,7 +635,7 @@ export function EngineWorkspace({
       ) : (
         <EngineDataView tab={tab} state={state} send={send} onError={onError} />
       )}
-      <EngineUsage state={state} refresh={() => perform('stats.get')} />
+      <SessionStatusBar state={state} command={command} refresh={() => perform('stats.get')} />
     </div>
   );
 }
@@ -669,26 +652,5 @@ function UserComposerMessage({ text }: { text: string }) {
         </section>
       )}
     </>
-  );
-}
-function EngineUsage({ state, refresh }: { state: EngineState; refresh: () => void }) {
-  const stats = state.results['stats.get'];
-  const usage = record(stats?.['usage']);
-  const estimate = inlineUsageEstimate(stats);
-  return (
-    <div className="native-usage">
-      <span>{state.running ? 'Working' : state.connected ? 'Ready' : 'Connecting'}</span>
-      {typeof usage['input'] === 'number' && <span>{usage['input'].toLocaleString()} in</span>}
-      {typeof usage['output'] === 'number' && <span>{usage['output'].toLocaleString()} out</span>}
-      {typeof estimate === 'number' && <span>Estimated ${estimate.toFixed(4)}</span>}
-      <button
-        type="button"
-        title="Refresh engine usage"
-        onClick={refresh}
-        disabled={!state.connected}
-      >
-        <RefreshCw size={12} />
-      </button>
-    </div>
   );
 }
