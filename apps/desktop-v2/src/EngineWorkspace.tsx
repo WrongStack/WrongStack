@@ -30,6 +30,7 @@ import { InputRequestCard } from './InputRequestCard';
 import type { InputDraft } from './input-form-model';
 import { markdownTarget } from './markdown-target';
 import { ProjectSessionTools } from './ProjectSessionTools';
+import { ProviderWaitingRoom } from './ProviderWaitingRoom';
 import { openExternal, projectFormDraftStorage, sessionObjectDraftStorage } from './platform';
 import { useRunSounds } from './RunSounds';
 import { recoveryLog, recoveryLogKey, type SavedRecoveryLog } from './recovery-log';
@@ -511,6 +512,7 @@ export function EngineWorkspace({
             }}
           />
           <FallbackPicker state={state} send={send} />
+          <ProviderWaitingRoom state={state} command={command} />
           <SessionTodos state={state} command={command} />
           <SessionWorklist state={state} command={command} />
           <SessionBrowser

@@ -1269,6 +1269,9 @@
     "packages/project-surfaces/src/lib/arrow-pane-registry.ts": [
       "resetArrowPaneRegistryForTests"
     ],
+    "packages/project-surfaces/src/lib/model-calendar.ts": [
+      "isCalendarRuleBlocking"
+    ],
     "packages/project-surfaces/src/office/AgentOfficeView/model.ts": [
       "shortModelName"
     ],
@@ -2161,9 +2164,6 @@
     ],
     "packages/webui/src/lib/global-shortcuts-section.ts": [
       "ACTIVITY_PANEL_DESC_KEY"
-    ],
-    "packages/webui/src/lib/model-calendar.ts": [
-      "isCalendarRuleBlocking"
     ],
     "packages/webui/src/lib/model-matrix-routes.ts": [
       "MODEL_MATRIX_PHASE_ROUTES",

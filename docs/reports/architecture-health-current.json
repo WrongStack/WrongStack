@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T20:38:26.085Z",
+  "generatedAt": "2026-11-03T22:25:49.293Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5960,
-    "testFiles": 4941,
-    "sourceLines": 1242033,
+    "sourceFiles": 5963,
+    "testFiles": 4942,
+    "sourceLines": 1242431,
     "workspaceEdges": 239,
-    "moduleEdges": 17310,
+    "moduleEdges": 17316,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 205,
+    "testsWithoutTypecheck": 206,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 401,
-      "testFiles": 205,
+      "sourceFiles": 403,
+      "testFiles": 206,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -736,7 +736,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 238,
+      "sourceFiles": 239,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -2222,6 +2222,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/provider-settings-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/provider-waiting.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32027,6 +32033,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/provider-waiting.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/recovery-log.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32946,6 +32959,11 @@
     {
       "from": "apps/desktop-v2/src/ProviderSurfaces.tsx",
       "specifier": "./provider-surfaces.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/ProviderWaitingRoom.tsx",
+      "specifier": "./provider-waiting-room.css",
       "syntax": "import"
     },
     {
@@ -35954,6 +35972,10 @@
       "name": "resetArrowPaneRegistryForTests"
     },
     {
+      "file": "packages/project-surfaces/src/lib/model-calendar.ts",
+      "name": "isCalendarRuleBlocking"
+    },
+    {
       "file": "packages/project-surfaces/src/office/AgentOfficeView/model.ts",
       "name": "shortModelName"
     },
@@ -37620,10 +37642,6 @@
     {
       "file": "packages/webui/src/lib/global-shortcuts-section.ts",
       "name": "ACTIVITY_PANEL_DESC_KEY"
-    },
-    {
-      "file": "packages/webui/src/lib/model-calendar.ts",
-      "name": "isCalendarRuleBlocking"
     },
     {
       "file": "packages/webui/src/lib/model-matrix-routes.ts",

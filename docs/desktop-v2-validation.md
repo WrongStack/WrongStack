@@ -6708,3 +6708,19 @@ copies, starting with SAGE memory.
   another session's unfinished change to the new-session dialog, which stays out of this commit.
 - Checks: the actions are tested in jsdom (listing, search, close-then-run, no project); desktop
   tests pass (one load-sensitive timing test aside, which passes alone); typecheck clean.
+
+### Waiting room above the composer (2026-11-04)
+
+- The WebUI's provider waiting room now sits above the desktop composer: provider/model pairs the
+  health tracker holds back until their limit resets (blocked or degraded, with the time left,
+  the reason and the sibling whose quota tripped a quarantine) and calendar blackouts in force
+  now. A pair opens to its last error, counters and error history, with "Release for next probe"
+  and "Clear tracking" (which asks first, as Settings > Provider health does). It is hidden while
+  nothing waits.
+- The room is folded from the conversation's `provider.status.snapshot` and
+  `provider.status_changed` frames; once the conversation is live it asks for a fresh snapshot,
+  since a replayed journal can still hold pairs that have recovered.
+- The calendar helper (`model-calendar.ts`) moved to `@wrongstack/project-surfaces/lib`; the
+  WebUI keeps its path as a re-export.
+- Checks: the frame folding, the room and the calendar row are tested (10, jsdom for the room);
+  WebUI calendar tests pass (55); typecheck clean for the desktop, WebUI and package.

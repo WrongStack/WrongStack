@@ -36,6 +36,7 @@ import {
   memoryContextSnapshot,
   memoryInjectorRun,
 } from './memory-injections.js';
+import { reduceWaitingRoom, type WaitingRoom } from './provider-waiting.js';
 import { appendRunEvent, isRunTimelineEvent } from './run-timeline.js';
 
 export { contentText, entries, record } from './engine-values.js';
@@ -129,6 +130,8 @@ export interface EngineState {
   lastAt: number;
   /** Each subagent's own transcript in this conversation. */
   agents: AgentTranscripts;
+  /** Provider/model pairs the engine's health tracker holds back until their limit resets. */
+  waiting: WaitingRoom;
   /** How much of the journal a first read has replayed, while it is still replaying. */
   replay: { read: number; total: number } | null;
 }
@@ -137,6 +140,7 @@ export const ACTIVITY_LIMIT = 400;
 export const emptyEngineState: EngineState = {
   lastAt: 0,
   agents: {},
+  waiting: {},
   replay: null,
   hydrating: false,
   synced: true,
@@ -590,6 +594,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   }
   if (isRunTimelineEvent(event.type)) next.runTimeline = appendRunEvent(state.runTimeline, event);
   next.agents = reduceAgentTranscripts(next.agents, event.type, p);
+  next.waiting = reduceWaitingRoom(state.waiting, event.type, p);
   if (event.type === 'iteration.started' && !state.runStartTotals) {
     next.runStartTotals = state.context.totals;
     next.runStartAt = event.at ?? null;
