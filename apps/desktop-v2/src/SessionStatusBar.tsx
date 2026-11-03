@@ -1,4 +1,4 @@
-import { AlertTriangle, Database, Gauge, RefreshCw, Repeat } from 'lucide-react';
+import { AlertTriangle, Brain, Database, Gauge, RefreshCw, Repeat } from 'lucide-react';
 import { useState } from 'react';
 import {
   type ContextUsage,
@@ -75,6 +75,15 @@ export function SessionStatusBar({
         >
           <Database size={11} /> Cache {hit}%
         </span>
+      )}
+      {!!state.memoryContext?.active.length && (
+        <button
+          type="button"
+          title="Memories the memory injector keeps in this conversation's context. Open context details."
+          onClick={() => setDetails(true)}
+        >
+          <Brain size={11} /> Memory {state.memoryContext.active.length}
+        </button>
       )}
       {usage.decreasedFrom > 0 && (
         <span className="context-limit-warning" title="The provider rejected a larger request">

@@ -6650,3 +6650,10 @@ copies, starting with SAGE memory.
   window is visible.
 - Checks: desktop tests pass (770, plus the graph-layout timing test, which passes alone); the
   chip's test renders it in jsdom with a stand-in engine; typecheck and Biome clean.
+
+### Memory count in the status bar (2026-11-03)
+
+- When the memory injector keeps memories in the conversation's context, the status bar shows
+  "Memory N" (the WebUI header's memory badge); it opens the context details, which list the
+  injector's runs and the memories that entered and left.
+- Checks: a status-bar test covers the count; desktop tests and typecheck pass.

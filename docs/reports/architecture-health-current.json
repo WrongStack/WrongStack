@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T20:16:42.122Z",
+  "generatedAt": "2026-11-03T20:18:48.420Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5957,
-    "testFiles": 4937,
-    "sourceLines": 1241714,
+    "testFiles": 4938,
+    "sourceLines": 1241723,
     "workspaceEdges": 239,
     "moduleEdges": 17306,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 201,
+    "testsWithoutTypecheck": 202,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 399,
-      "testFiles": 201,
+      "testFiles": 202,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2390,6 +2390,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-recovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-status-memory.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32193,6 +32199,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-recovery.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-status-memory.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
