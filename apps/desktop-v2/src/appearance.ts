@@ -4,6 +4,7 @@ import {
   brandNeutrals,
   brandPalettes,
 } from './brand-palettes';
+import './density.css';
 
 export const appearanceModes = ['system', 'light', 'dark'] as const;
 /** System follows the OS "more contrast" preference; "more" forces stronger text and borders. */
@@ -13,6 +14,8 @@ export interface Appearance {
   mode: (typeof appearanceModes)[number];
   accent: BrandPaletteId;
   contrast: (typeof contrastModes)[number];
+  /** The WebUI's compact chat density; unset is the comfortable default. */
+  density?: 'compact' | undefined;
 }
 export const defaultAppearance: Appearance = {
   mode: 'system',
@@ -39,6 +42,7 @@ export function parseAppearance(raw: string | null | undefined): Appearance {
       accent: accentThemes.find((theme) => theme.id === accent)?.id ?? defaultAppearance.accent,
       contrast:
         contrastModes.find((mode) => mode === candidate['contrast']) ?? defaultAppearance.contrast,
+      ...(candidate['density'] === 'compact' ? { density: 'compact' as const } : {}),
     };
   } catch {
     return defaultAppearance;
@@ -100,6 +104,8 @@ export function applyAppearance(appearance: Appearance, systemDark: boolean, sys
   root.dataset['mode'] = resolvedMode(appearance, systemDark);
   root.dataset['contrast'] = resolvedContrast(appearance, systemMore);
   root.dataset['accent'] = appearance.accent;
+  if (appearance.density === 'compact') root.dataset['density'] = 'compact';
+  else delete root.dataset['density'];
   if (appearance.accent === 'signal') delete root.dataset['palette'];
   else root.dataset['palette'] = appearance.accent;
   const colors = paletteColors(appearance, systemDark);

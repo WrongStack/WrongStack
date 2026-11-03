@@ -6666,3 +6666,11 @@ copies, starting with SAGE memory.
   `/yolo off|on|plus` does, and shows the engine's reported level.
 - Checks: the continuation-control test covers both selects; desktop tests pass (771, plus the
   graph-layout timing test, which passes alone); typecheck and Biome clean.
+
+### Compact conversation density (2026-11-03)
+
+- Appearance gains "Conversation density": Comfortable (as before) or Compact, the WebUI's
+  compact view: messages, their text and headings sit closer and the conversation's padding
+  shrinks. It is saved with the rest of the desktop's appearance (`settings.save appearance`), so
+  it follows every window.
+- Checks: parsing and applying it are tested (jsdom); desktop tests and typecheck pass.

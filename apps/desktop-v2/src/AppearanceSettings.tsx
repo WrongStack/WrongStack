@@ -105,6 +105,30 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
       </div>
       <div className="appearance-section">
         <div>
+          <h3>Conversation density</h3>
+          <p>Compact puts more of a conversation on screen, as the WebUI's compact view does.</p>
+        </div>
+        <fieldset className="appearance-modes" aria-label="Conversation density">
+          {(
+            [
+              { id: undefined, label: 'Comfortable' },
+              { id: 'compact', label: 'Compact' },
+            ] as const
+          ).map(({ id, label }) => (
+            <button
+              type="button"
+              key={label}
+              aria-pressed={appearance.density === id}
+              onClick={() => changeAppearance({ density: id })}
+            >
+              <span>{label}</span>
+              {appearance.density === id && <Check size={13} />}
+            </button>
+          ))}
+        </fieldset>
+      </div>
+      <div className="appearance-section">
+        <div>
           <h3>Color palette</h3>
           <p>WrongStack’s signature color pairs, tuned for light and dark.</p>
         </div>
@@ -130,8 +154,7 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
                 <i />
               </span>
               <span className="theme-label">
-                <strong>{theme.name}</strong>
-                {appearance.accent === theme.id && <Check size={14} />}
+                <strong>theme.name</strong>appearance.accent === theme.id && <Check size={14} />
               </span>
             </button>
           ))}

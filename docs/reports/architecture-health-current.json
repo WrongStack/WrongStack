@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T20:23:20.536Z",
+  "generatedAt": "2026-11-03T20:26:21.970Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5957,
-    "testFiles": 4938,
-    "sourceLines": 1241786,
+    "testFiles": 4939,
+    "sourceLines": 1241816,
     "workspaceEdges": 239,
     "moduleEdges": 17305,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 202,
+    "testsWithoutTypecheck": 203,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 399,
-      "testFiles": 202,
+      "testFiles": 203,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1322,6 +1322,12 @@
     "runtimeAssignments": [
       {
         "file": "apps/desktop-v2/tests/agent-transcripts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/appearance-density.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30959,6 +30965,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/appearance-density.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/appearance.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32542,6 +32555,11 @@
     {
       "from": "apps/desktop-v2/src/AgentTranscripts.tsx",
       "specifier": "./agent-transcripts.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/appearance.ts",
+      "specifier": "./density.css",
       "syntax": "import"
     },
     {
