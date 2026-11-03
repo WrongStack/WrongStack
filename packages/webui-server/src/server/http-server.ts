@@ -180,6 +180,13 @@ export interface CreateHttpServerOptions {
     | undefined;
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
+  /**
+   * The host's SAGE memory store, for the Memory Manager's ranked search and
+   * search-link routes (`/api/memory/search-page`, `/api/memory/resolve/:id`,
+   * `/api/memory/search`). When omitted they answer 503, which is what every
+   * host did while this option was missing from the resolved key set.
+   */
+  getMemoryStore?: (() => import('@wrongstack/contracts/types').MemoryPort | undefined) | undefined;
 }
 
 /**
@@ -241,6 +248,7 @@ export function resolveCreateHttpServerOptions(
     intakeService: input.intakeService,
     getVectorMemoryStore: input.getVectorMemoryStore,
     vectorMemoryModelCacheDir: input.vectorMemoryModelCacheDir,
+    getMemoryStore: input.getMemoryStore,
   };
 }
 

@@ -231,6 +231,8 @@ export interface StaticServeOptions {
   getVectorMemoryStore?: CreateHttpServerOptions['getVectorMemoryStore'];
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
+  /** SAGE memory store for the ranked memory search routes. */
+  getMemoryStore?: CreateHttpServerOptions['getMemoryStore'];
   /**
    * Extra origins added to the served page's `connect-src`. The WebUI topbar
    * probes the operator's HQ / WrongProxy endpoints from the browser, so this
@@ -491,6 +493,7 @@ export async function startStaticServe(
       getIntegrationTarget: opts.getIntegrationTarget,
       getVectorMemoryStore: opts.getVectorMemoryStore,
       vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir,
+      getMemoryStore: opts.getMemoryStore,
     }),
   );
 

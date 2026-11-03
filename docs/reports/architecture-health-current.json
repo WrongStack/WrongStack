@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T22:58:18.728Z",
+  "generatedAt": "2026-11-03T14:57:55.096Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 47,
     "sourceFiles": 5687,
-    "testFiles": 4918,
-    "sourceLines": 1241531,
+    "testFiles": 4919,
+    "sourceLines": 1241552,
     "workspaceEdges": 232,
     "moduleEdges": 16655,
     "nonCommandSlashImports": 0,
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 628,
-      "testFiles": 685,
+      "testFiles": 686,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 685
+          "testFiles": 686
         }
       ]
     },
@@ -7488,6 +7488,12 @@
       },
       {
         "file": "packages/cli/tests/webui-server/empty-session-sweep.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/webui-server/http-bridge-memory-search.test.ts",
         "projects": [
           "root-node"
         ]
