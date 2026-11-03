@@ -20,7 +20,11 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import { protocolAdvertisement } from '@wrongstack/webui-protocol';
 import { type WebSocket, WebSocketServer } from '../ws-runtime.js';
 import { resolveDistDir, warnFrontendUnavailable } from './frontend-static-serve.js';
-import { createHttpServer, resolveCreateHttpServerOptions } from './http-server.js';
+import {
+  type CreateHttpServerOptions,
+  createHttpServer,
+  resolveCreateHttpServerOptions,
+} from './http-server.js';
 import { createProjectIntakeService } from './intake-service.js';
 import { registerShutdownHandlers } from './lifecycle.js';
 import { resolveProviderModelMetadata } from './model-catalog.js';
@@ -533,6 +537,8 @@ export function startHttpServer(opts: {
     | undefined;
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
+  /** SAGE memory store for the ranked memory search routes. */
+  getMemoryStore?: CreateHttpServerOptions['getMemoryStore'];
   /** Extra `connect-src` origins for the served page (HQ / WrongProxy probes). */
   getExtraConnectSrc?: (() => readonly string[]) | undefined;
   /** Resolves the configured target for fixed, same-origin integration probes. */
@@ -582,6 +588,7 @@ export function startHttpServer(opts: {
       getIntegrationTarget: opts.getIntegrationTarget,
       getVectorMemoryStore: opts.getVectorMemoryStore,
       vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir,
+      getMemoryStore: opts.getMemoryStore,
     }),
   );
   return httpServer;

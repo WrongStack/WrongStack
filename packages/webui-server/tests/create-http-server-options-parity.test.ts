@@ -79,6 +79,7 @@ describe('startStaticServe / startHttpServer → createHttpServer key parity', (
       'executePackageOperation',
       'secureCookies',
       'enableWsCookie',
+      'getMemoryStore',
     ]) {
       expect(fromStatic).toContain(key);
     }
