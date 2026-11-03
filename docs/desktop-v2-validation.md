@@ -6734,3 +6734,16 @@ copies, starting with SAGE memory.
   (`@wrongstack/contracts/types/native-cloud`), so a value it would refuse is reported before
   anything is sent. Other providers show no form.
 - Checks: tested in jsdom (saved values, save, refusal, no form for other types); typecheck clean.
+
+### Recommended MCP servers in the add dialog (2026-11-04)
+
+- "Add MCP connection" now starts from the WebUI's recommended servers: picking one (filesystem,
+  GitHub, Context7, Brave Search, …) fills the name, transport, URL or command and arguments,
+  states the environment variables it needs, and saves its description, fixed environment and
+  tool allowlist with it, disabled, as the WebUI's Recommended tab does. Servers already
+  configured are listed as added and cannot be picked again.
+- The catalog moved to `@wrongstack/project-surfaces/lib/official-mcp-servers`; the WebUI path
+  re-exports it and keeps its config converter, so the core-preset sync test still guards what
+  `npx -y` runs on both surfaces.
+- Checks: tested in jsdom through the settings page (local and remote picks, saved payload, added
+  servers); WebUI sync test passes (17); typecheck clean for the desktop, WebUI and package.

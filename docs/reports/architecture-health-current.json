@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T22:28:53.991Z",
+  "generatedAt": "2026-11-03T22:32:27.578Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5964,
-    "testFiles": 4943,
-    "sourceLines": 1242543,
+    "sourceFiles": 5966,
+    "testFiles": 4944,
+    "sourceLines": 1242637,
     "workspaceEdges": 239,
-    "moduleEdges": 17319,
+    "moduleEdges": 17320,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 207,
+    "testsWithoutTypecheck": 208,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 404,
-      "testFiles": 207,
+      "sourceFiles": 405,
+      "testFiles": 208,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -736,7 +736,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 239,
+      "sourceFiles": 240,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1988,6 +1988,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/mcp-content-text.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/mcp-recommended.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31760,6 +31766,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/mcp-content-text.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/mcp-recommended.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

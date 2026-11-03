@@ -1,8 +1,10 @@
+import type { OfficialServer } from '@wrongstack/project-surfaces/lib/official-mcp-servers';
 import { Check, Link2, Plug, Plus, Power, RefreshCw, Server, Trash2, X } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { McpAuthorization } from './McpAuthorization';
+import { McpRecommendedPicker, recommendedExtras } from './McpRecommendedPicker';
 
 const McpContentBrowser = lazy(() =>
   import('./McpContentBrowser').then((module) => ({ default: module.McpContentBrowser })),
@@ -270,6 +272,7 @@ export function IntegrationSettings({
       {creating && (
         <IntegrationDialog
           busy={Boolean(busy)}
+          added={new Set(servers.map((server) => String(server['name'])))}
           onClose={() => setCreating(false)}
           onSave={(payload) => void action(String(payload['name']), 'mcp.add', payload)}
         />
@@ -305,10 +308,12 @@ export function IntegrationSettings({
 }
 function IntegrationDialog({
   busy,
+  added,
   onClose,
   onSave,
 }: {
   busy: boolean;
+  added: ReadonlySet<string>;
   onClose: () => void;
   onSave: (payload: Record<string, unknown>) => void;
 }) {
@@ -322,6 +327,16 @@ function IntegrationDialog({
     [command, setCommand] = useState(''),
     [args, setArgs] = useState('');
   const [allowPrivateNetworks, setAllowPrivateNetworks] = useState(false);
+  const [preset, setPreset] = useState<OfficialServer | null>(null);
+  const pick = (server: OfficialServer | null) => {
+    setPreset(server);
+    if (!server) return;
+    setName(server.name);
+    setMode(server.transport === 'stdio' ? 'local' : 'remote');
+    setUrl(server.url ?? '');
+    setCommand(server.command ?? '');
+    setArgs((server.args ?? []).join('\n'));
+  };
   return (
     <dialog ref={dialog} className="modal" aria-label="Add MCP connection" onCancel={onClose}>
       <header>
@@ -342,6 +357,7 @@ function IntegrationDialog({
         onSubmit={(event) => {
           event.preventDefault();
           onSave({
+            ...(preset ? recommendedExtras(preset) : {}),
             name: name.trim(),
             enabled: false,
             ...(mode === 'remote'
@@ -357,6 +373,7 @@ function IntegrationDialog({
           });
         }}
       >
+        <McpRecommendedPicker added={added} picked={preset} onPick={pick} />
         <label>
           Name
           <input
