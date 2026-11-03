@@ -1,6 +1,7 @@
 import { Brain, RefreshCw, Save } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrainPolicyEvidence } from './BrainPolicyEvidence';
+import { BrainRules } from './BrainRules';
 import { BrainTargetEditor } from './BrainTargetEditor';
 import {
   type BrainDraft,
@@ -219,6 +220,7 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
               council
             </span>
           </div>
+          <BrainRules snapshot={snapshot} />
           <nav className="brain-jump" aria-label="Brain policy groups">
             <span>Jump to section</span>
             {[

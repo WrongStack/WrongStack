@@ -6793,3 +6793,11 @@ copies, starting with SAGE memory.
   `ProjectSdd.tsx` (hotspot ratchet lowered to 743).
 - Checks: tested in jsdom (order, wording, empty feed, selected task); SDD board tests pass;
   typecheck clean.
+
+### Brain deterministic rules in Brain policy (2026-11-04)
+
+- Settings > Brain policy lists the configured deterministic rules, as the WebUI does: in
+  evaluation order, each with its action and an "off" mark when disabled, plus any rules the
+  loader dropped with its reason. The list is read-only; rules are edited in the global config
+  file. It reads the `rules` and `ruleErrors` already in `brain.config`.
+- Checks: tested in jsdom (order, action, off, dropped rules); typecheck clean.
