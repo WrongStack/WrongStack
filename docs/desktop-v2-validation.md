@@ -6291,3 +6291,21 @@ copies, starting with SAGE memory.
   page errors.
 - Checks: desktop 702 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
   WebUI and the desktop.
+
+### Engine diagnostics in the desktop (2026-11-03)
+
+- A project's "Engine diagnostics" page (project tools and the project overview) shows the
+  WebUI's debug dashboard for the project engine: file-watcher counters, process memory, heap,
+  V8 heap limit and uptime, the live WrongStack processes with their memory and workload, and
+  the codebase-index server's connection, health and queue. Both reads go through the host's
+  `fetch` (`/debug/system`, `/debug/watcher-metrics`), which the desktop bridge already allowed.
+- `packages/project-surfaces/src/diagnostics` holds the dashboard and its parts; the WebUI keeps
+  its old paths as re-exports. The Node memory and CPU reading types are declared locally, so the
+  package needs no Node types.
+- Not ported: the WebUI's analytics view reads an event buffer that no client fills (nothing
+  posts to `/api/analytics`), and its sessions and usage are already the desktop's Live fleet
+  and Usage pages; refresh-debug compares the WebUI's own browser stores.
+- Seen in the native window on build `eaf38d2a4d0c-c5436fe756a5` on WrongStack: engine PID 3140,
+  the processes table and a healthy codebase-index server; no page errors.
+- Checks: desktop 702 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.

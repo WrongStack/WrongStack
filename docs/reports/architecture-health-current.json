@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T15:35:31.453Z",
+  "generatedAt": "2026-11-03T15:45:43.066Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5887,
+    "sourceFiles": 5890,
     "testFiles": 4915,
-    "sourceLines": 1237701,
+    "sourceLines": 1237757,
     "workspaceEdges": 238,
-    "moduleEdges": 17118,
+    "moduleEdges": 17129,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -388,7 +388,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 371,
+      "sourceFiles": 372,
       "testFiles": 183,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -734,7 +734,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 198,
+      "sourceFiles": 200,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",

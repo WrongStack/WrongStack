@@ -8,6 +8,7 @@ import {
   Building2,
   CalendarClock,
   Folder,
+  Gauge,
   GitBranch,
   Mail,
   Network,
@@ -23,6 +24,7 @@ import { MailboxUnread } from './MailboxUnread';
 import { isLive, type Project } from './model';
 import { ProjectAtlas } from './ProjectAtlas';
 import { ProjectChronicle } from './ProjectChronicle';
+import { ProjectDiagnostics } from './ProjectDiagnostics';
 import { ProjectGoals } from './ProjectGoals';
 import { type KanbanFocus, ProjectKanban } from './ProjectKanban';
 import { ProjectMailbox } from './ProjectMailbox';
@@ -174,6 +176,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         <ProjectWorktrees key={project.id} state={state} send={send} />
       ) : vm.projectPage === 'office' ? (
         <ProjectOffice projectId={project.id} projectName={project.name} http={http} />
+      ) : vm.projectPage === 'diagnostics' ? (
+        <ProjectDiagnostics projectId={project.id} http={http} />
       ) : vm.projectPage === 'live-fleet' ? (
         <Suspense fallback={<p role="status">Opening live project fleet…</p>}>
           <ProjectLiveFleet
@@ -585,6 +589,14 @@ function ProjectOverview({
           <div>
             <strong>Agent office</strong>
             <span>Every session's agents at their desks: tools, mail, todos and the topology.</span>
+          </div>
+          <ArrowRight size={16} />
+        </button>
+        <button type="button" onClick={() => vm.setProjectPage('diagnostics')}>
+          <Gauge size={21} />
+          <div>
+            <strong>Engine diagnostics</strong>
+            <span>The engine's memory, CPU, code index server, processes and file watcher.</span>
           </div>
           <ArrowRight size={16} />
         </button>

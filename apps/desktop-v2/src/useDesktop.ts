@@ -84,6 +84,7 @@ export const PROJECT_PAGES = [
   'roster',
   'live-fleet',
   'office',
+  'diagnostics',
   'skills',
   'files',
   'changes',

@@ -7,6 +7,7 @@ import {
   FileCode2,
   Folder,
   FolderPlus,
+  Gauge,
   GitCompareArrows,
   History,
   LayoutGrid,
@@ -53,6 +54,7 @@ const TOOLS: Array<{ id: ProjectPage; label: string; Icon: typeof Brain }> = [
   { id: 'deadcode', label: 'Dead Code', Icon: ScanSearch },
   { id: 'design', label: 'Design Studio', Icon: Palette },
   { id: 'reviews', label: 'Chimera Reviews', Icon: ShieldCheck },
+  { id: 'diagnostics', label: 'Engine diagnostics', Icon: Gauge },
 ];
 
 function ToolsLauncher({
