@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T16:12:00.246Z",
+  "generatedAt": "2026-11-03T16:50:46.682Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5905,
-    "testFiles": 4916,
-    "sourceLines": 1238305,
+    "sourceFiles": 5915,
+    "testFiles": 4919,
+    "sourceLines": 1238728,
     "workspaceEdges": 238,
-    "moduleEdges": 17167,
+    "moduleEdges": 17200,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 184,
+    "testsWithoutTypecheck": 185,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1039
+    "testOnlyExports": 1042
   },
   "errors": [
     "packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change",
@@ -389,8 +389,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 374,
-      "testFiles": 184,
+      "sourceFiles": 376,
+      "testFiles": 185,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -735,7 +735,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 212,
+      "sourceFiles": 219,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1000,7 +1000,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 396,
-      "testFiles": 376,
+      "testFiles": 377,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1019,7 +1019,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 376
+          "testFiles": 377
         }
       ]
     },
@@ -1108,8 +1108,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 779,
-      "testFiles": 514,
+      "sourceFiles": 780,
+      "testFiles": 515,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1135,7 +1135,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 514
+          "testFiles": 515
         }
       ]
     },
@@ -1506,6 +1506,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/config-doctor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/context-dashboard-model.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22445,6 +22451,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/wrongindex-wire-contract.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/agent-swarm-panel-visibility.test.ts",
         "projects": [
           "root-node"
@@ -28061,6 +28073,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/context-dashboard.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/context-memory-monitor.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -31042,6 +31060,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/context-dashboard-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/context-editor-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32642,6 +32667,11 @@
     {
       "from": "apps/desktop-v2/src/SessionComposer.tsx",
       "specifier": "./composer-resources.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SessionContextDashboard.tsx",
+      "specifier": "./session-story.css",
       "syntax": "import"
     },
     {
@@ -36125,11 +36155,23 @@
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
+      "name": "BASELINE_PROFILE_ID"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
       "name": "FrameReader"
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
+      "name": "OWNER_INFO_FILE"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
       "name": "OWNER_LOCK_FILE"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
+      "name": "readWrongIndexOwner"
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/service.ts",

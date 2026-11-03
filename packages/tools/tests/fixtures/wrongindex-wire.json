@@ -1,0 +1,511 @@
+{
+  "enums": {
+    "Backend": [
+      "legacy",
+      "native",
+      "unsupported"
+    ],
+    "BackendPreference": [
+      "auto",
+      "native",
+      "legacy"
+    ],
+    "ErrorCode": [
+      {
+        "code": "UNAUTHENTICATED",
+        "retryable": false
+      },
+      {
+        "code": "FORBIDDEN",
+        "retryable": false
+      },
+      {
+        "code": "PROTOCOL_UNSUPPORTED",
+        "retryable": false
+      },
+      {
+        "code": "PROFILE_UNSUPPORTED",
+        "retryable": false
+      },
+      {
+        "code": "INDEX_IDENTITY_CONFLICT",
+        "retryable": false
+      },
+      {
+        "code": "OWNER_CONFLICT",
+        "retryable": false
+      },
+      {
+        "code": "PROJECT_UNAVAILABLE",
+        "retryable": false
+      },
+      {
+        "code": "PROJECT_NOT_FOUND",
+        "retryable": false
+      },
+      {
+        "code": "JOB_NOT_FOUND",
+        "retryable": false
+      },
+      {
+        "code": "INVALID_REQUEST",
+        "retryable": false
+      },
+      {
+        "code": "METHOD_NOT_FOUND",
+        "retryable": false
+      },
+      {
+        "code": "NOT_IMPLEMENTED",
+        "retryable": false
+      },
+      {
+        "code": "QUEUE_SATURATED",
+        "retryable": true
+      },
+      {
+        "code": "INDEX_DEGRADED",
+        "retryable": false
+      },
+      {
+        "code": "DATABASE_BUSY",
+        "retryable": true
+      },
+      {
+        "code": "DATABASE_CORRUPT",
+        "retryable": false
+      },
+      {
+        "code": "READ_ONLY",
+        "retryable": false
+      },
+      {
+        "code": "DISK_FULL",
+        "retryable": false
+      },
+      {
+        "code": "SHUTTING_DOWN",
+        "retryable": true
+      },
+      {
+        "code": "CANCELED",
+        "retryable": false
+      },
+      {
+        "code": "DEADLINE_EXCEEDED",
+        "retryable": true
+      },
+      {
+        "code": "INTERNAL",
+        "retryable": false
+      }
+    ],
+    "Freshness": [
+      "unknown",
+      "current",
+      "pending",
+      "degraded",
+      "unavailable"
+    ],
+    "JobKind": [
+      "check",
+      "incremental",
+      "full",
+      "reconcile",
+      "rebuild",
+      "restore"
+    ],
+    "JobState": [
+      "queued",
+      "running",
+      "succeeded",
+      "failed",
+      "canceled"
+    ],
+    "Ownership": [
+      "unowned",
+      "negotiating",
+      "owned",
+      "conflict",
+      "releasing",
+      "recovery_required"
+    ],
+    "WatchPolicy": [
+      "session",
+      "pinned",
+      "manual",
+      "disabled"
+    ]
+  },
+  "generator": "node scripts/contracts/export-wire-fixtures.mjs (cargo run -p wrongindexd --example wire_fixtures)",
+  "methods": [
+    "daemon.hello",
+    "daemon.health",
+    "daemon.shutdown",
+    "project.register",
+    "project.list",
+    "project.get",
+    "project.detach",
+    "index.request",
+    "index.check",
+    "index.query",
+    "index.backups",
+    "settings.get",
+    "settings.set",
+    "daemon.metrics",
+    "job.get",
+    "job.list",
+    "job.cancel",
+    "ownership.acquire",
+    "ownership.release",
+    "ownership.status",
+    "project.configure",
+    "session.acquire",
+    "session.heartbeat",
+    "session.release",
+    "events.subscribe",
+    "events.snapshot"
+  ],
+  "protocol": {
+    "baselineProfileId": "wrongstack-index-v5-baseline",
+    "major": 1,
+    "maxFrameBytes": 8388608,
+    "minor": 0
+  },
+  "schema": "wrongindex.wire-fixtures/1",
+  "types": {
+    "AuthRequest": {
+      "clientName": "wrongstack-tools",
+      "clientVersion": "0.0.0",
+      "protocolMajor": 1,
+      "protocolMinor": 0,
+      "supportedProfileIds": [
+        "wrongstack-index-v5-baseline"
+      ],
+      "token": "<runtime/token contents; never logged>"
+    },
+    "AuthResponseError": {
+      "error": {
+        "code": "UNAUTHENTICATED",
+        "message": "bad token",
+        "retryable": false
+      },
+      "status": "error"
+    },
+    "AuthResponseOk": {
+      "hello": {
+        "capabilities": [
+          "index.native",
+          "watch"
+        ],
+        "daemonInstanceId": "d_0123456789abcdef",
+        "daemonVersion": "0.1.0",
+        "limits": {
+          "maxFrameBytes": 8388608,
+          "maxInflight": 16,
+          "maxPageSize": 1000
+        },
+        "profileFingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+        "protocolMajor": 1,
+        "protocolMinor": 0,
+        "selectedProfileId": "wrongstack-index-v5-baseline",
+        "supportedProfileIds": [
+          "wrongstack-index-v5-baseline"
+        ]
+      },
+      "status": "ok"
+    },
+    "DaemonSettings": {
+      "backupKeep": 3,
+      "nativeMemoryMb": 0,
+      "parallelJobs": 2,
+      "paused": false,
+      "sessionGraceSeconds": 120,
+      "watchDebounceMs": 400,
+      "watchMaxWaitMs": 2000,
+      "watchParkAfterFailures": 8
+    },
+    "EndpointInfo": {
+      "daemonInstanceId": "d_0123456789abcdef",
+      "daemonVersion": "0.1.0",
+      "endpoint": "\\\\.\\pipe\\wrongindex-0123456789abcdef",
+      "pid": 4242,
+      "protocolMajor": 1,
+      "protocolMinor": 0,
+      "startedAtMs": 1793600000000
+    },
+    "ErrorBody": {
+      "code": "OWNER_CONFLICT",
+      "message": "owned by another process",
+      "retryable": false
+    },
+    "Health": {
+      "backendInventory": [
+        "native"
+      ],
+      "daemonInstanceId": "d_0123456789abcdef",
+      "daemonVersion": "0.1.0",
+      "draining": false,
+      "paused": false,
+      "pid": 4242,
+      "projectCount": 1,
+      "queuedJobs": 0,
+      "runningJobs": 1,
+      "settingsRevision": 2,
+      "sqliteVersion": "3.54.1",
+      "startedAtMs": 1793600000000,
+      "uptimeMs": 60000
+    },
+    "Hello": {
+      "capabilities": [
+        "index.native",
+        "watch"
+      ],
+      "daemonInstanceId": "d_0123456789abcdef",
+      "daemonVersion": "0.1.0",
+      "limits": {
+        "maxFrameBytes": 8388608,
+        "maxInflight": 16,
+        "maxPageSize": 1000
+      },
+      "profileFingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+      "protocolMajor": 1,
+      "protocolMinor": 0,
+      "selectedProfileId": "wrongstack-index-v5-baseline",
+      "supportedProfileIds": [
+        "wrongstack-index-v5-baseline"
+      ]
+    },
+    "IndexRequestParams": {
+      "kind": "full",
+      "paths": []
+    },
+    "JobAdmission": {
+      "deduplicated": false,
+      "job": {
+        "admittedAtMs": 1793600001000,
+        "attempt": 1,
+        "completedAtMs": null,
+        "error": null,
+        "jobId": "j_00000000000000000000000000000001",
+        "kind": "incremental",
+        "params": {
+          "fence": {
+            "configurationRevision": 3,
+            "ownerEpoch": 2
+          },
+          "kind": "incremental",
+          "paths": [
+            "C:\\work\\demo\\src\\greet.ts"
+          ]
+        },
+        "projectId": "p_0123456789abcdef0123456789abcdef",
+        "result": null,
+        "startedAtMs": null,
+        "state": "queued"
+      }
+    },
+    "JobRecordFailed": {
+      "admittedAtMs": 1793600001000,
+      "attempt": 1,
+      "completedAtMs": 1793600001050,
+      "error": {
+        "code": "PROJECT_UNAVAILABLE",
+        "message": "checkout root is unavailable",
+        "retryable": false
+      },
+      "jobId": "j_00000000000000000000000000000001",
+      "kind": "incremental",
+      "params": {
+        "fence": {
+          "configurationRevision": 3,
+          "ownerEpoch": 2
+        },
+        "kind": "incremental",
+        "paths": [
+          "C:\\work\\demo\\src\\greet.ts"
+        ]
+      },
+      "projectId": "p_0123456789abcdef0123456789abcdef",
+      "result": null,
+      "startedAtMs": 1793600001010,
+      "state": "failed"
+    },
+    "JobRecordSucceeded": {
+      "admittedAtMs": 1793600001000,
+      "attempt": 1,
+      "completedAtMs": 1793600001050,
+      "error": null,
+      "jobId": "j_00000000000000000000000000000001",
+      "kind": "incremental",
+      "params": {
+        "fence": {
+          "configurationRevision": 3,
+          "ownerEpoch": 2
+        },
+        "kind": "incremental",
+        "paths": [
+          "C:\\work\\demo\\src\\greet.ts"
+        ]
+      },
+      "projectId": "p_0123456789abcdef0123456789abcdef",
+      "result": {
+        "backend": "native",
+        "generation": 7,
+        "graphStamp": "1793664963814:1",
+        "native": {
+          "changedFiles": 1,
+          "durationMs": 40,
+          "filesEmpty": 0,
+          "filesIndexed": 1,
+          "graphStamp": "1793664963814:1",
+          "outcome": "updated",
+          "symbolsIndexed": 4,
+          "targets": 1
+        }
+      },
+      "startedAtMs": 1793600001010,
+      "state": "succeeded"
+    },
+    "OwnerInfo": {
+      "acquiredAtMs": 1793600000100,
+      "epoch": 2,
+      "instanceId": "d_0123456789abcdef",
+      "owner": "wrongindexd",
+      "pid": 4242,
+      "profileId": "wrongstack-index-v5-baseline"
+    },
+    "OwnershipStatus": {
+      "desired": true,
+      "ownerEpoch": 2,
+      "state": "owned"
+    },
+    "ProjectRecord": {
+      "backend": "native",
+      "backendPreference": "auto",
+      "canonicalCheckoutKey": "c:\\work\\demo",
+      "canonicalIndexKey": "c:\\users\\dev\\.wrongstack\\projects\\demo-1a2b3c4d",
+      "checkoutRoot": "C:\\work\\demo",
+      "compatibilityProfile": "wrongstack-index-v5-baseline",
+      "configurationRevision": 3,
+      "displayName": "demo",
+      "indexDir": "C:\\Users\\dev\\.wrongstack\\projects\\demo-1a2b3c4d",
+      "projectId": "p_0123456789abcdef0123456789abcdef",
+      "registeredAtMs": 1793600000000,
+      "repositoryIdentity": "git:4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+      "watchPolicy": "session"
+    },
+    "ProjectStatus": {
+      "activity": "dormant",
+      "consecutiveFailures": 8,
+      "freshness": "degraded",
+      "generation": 7,
+      "lastError": "PROJECT_UNAVAILABLE: checkout root is unavailable",
+      "lastIndexedMs": 1793600000500,
+      "lastJob": {
+        "admittedAtMs": 1793600001000,
+        "attempt": 1,
+        "completedAtMs": 1793600001050,
+        "error": {
+          "code": "PROJECT_UNAVAILABLE",
+          "message": "checkout root is unavailable",
+          "retryable": false
+        },
+        "jobId": "j_00000000000000000000000000000001",
+        "kind": "incremental",
+        "params": {
+          "fence": {
+            "configurationRevision": 3,
+            "ownerEpoch": 2
+          },
+          "kind": "incremental",
+          "paths": [
+            "C:\\work\\demo\\src\\greet.ts"
+          ]
+        },
+        "projectId": "p_0123456789abcdef0123456789abcdef",
+        "result": null,
+        "startedAtMs": 1793600001010,
+        "state": "failed"
+      },
+      "nextRetryMs": 1793600900000,
+      "ownership": "owned",
+      "parked": true,
+      "pendingPaths": 2,
+      "project": {
+        "backend": "native",
+        "backendPreference": "auto",
+        "canonicalCheckoutKey": "c:\\work\\demo",
+        "canonicalIndexKey": "c:\\users\\dev\\.wrongstack\\projects\\demo-1a2b3c4d",
+        "checkoutRoot": "C:\\work\\demo",
+        "compatibilityProfile": "wrongstack-index-v5-baseline",
+        "configurationRevision": 3,
+        "displayName": "demo",
+        "indexDir": "C:\\Users\\dev\\.wrongstack\\projects\\demo-1a2b3c4d",
+        "projectId": "p_0123456789abcdef0123456789abcdef",
+        "registeredAtMs": 1793600000000,
+        "repositoryIdentity": "git:4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+        "watchPolicy": "session"
+      },
+      "reconcileReason": null,
+      "sessions": 1,
+      "watchHealth": "parked"
+    },
+    "RegisterProjectParams": {
+      "checkoutRoot": "C:\\work\\demo",
+      "indexDir": "C:\\Users\\dev\\.wrongstack\\projects\\demo-1a2b3c4d",
+      "watchPolicy": "session"
+    },
+    "RegisterProjectResult": {
+      "created": true,
+      "project": {
+        "backend": "native",
+        "backendPreference": "auto",
+        "canonicalCheckoutKey": "c:\\work\\demo",
+        "canonicalIndexKey": "c:\\users\\dev\\.wrongstack\\projects\\demo-1a2b3c4d",
+        "checkoutRoot": "C:\\work\\demo",
+        "compatibilityProfile": "wrongstack-index-v5-baseline",
+        "configurationRevision": 3,
+        "displayName": "demo",
+        "indexDir": "C:\\Users\\dev\\.wrongstack\\projects\\demo-1a2b3c4d",
+        "projectId": "p_0123456789abcdef0123456789abcdef",
+        "registeredAtMs": 1793600000000,
+        "repositoryIdentity": "git:4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+        "watchPolicy": "session"
+      }
+    },
+    "Request": {
+      "idempotencyKey": "k1",
+      "method": "index.request",
+      "params": {
+        "kind": "incremental",
+        "paths": [
+          "src/greet.ts"
+        ]
+      },
+      "projectId": "p_0123456789abcdef0123456789abcdef",
+      "protocol": 1,
+      "requestId": "r1"
+    },
+    "ResponseError": {
+      "error": {
+        "code": "QUEUE_SATURATED",
+        "message": "job queue is full",
+        "retryable": true
+      },
+      "requestId": "r2"
+    },
+    "ResponseOk": {
+      "requestId": "r1",
+      "result": {
+        "ok": true
+      }
+    },
+    "SessionLease": {
+      "heartbeatMs": 15000,
+      "leaseMs": 60000,
+      "projectId": "p_0123456789abcdef0123456789abcdef",
+      "sessionId": "s_00000000000000000000000000000001"
+    }
+  }
+}
