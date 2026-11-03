@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T15:09:46.182Z",
+  "generatedAt": "2026-11-03T15:18:40.985Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 47,
     "sourceFiles": 5687,
-    "testFiles": 4919,
-    "sourceLines": 1241564,
+    "testFiles": 4920,
+    "sourceLines": 1241591,
     "workspaceEdges": 232,
     "moduleEdges": 16655,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 187,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1037
+    "testOnlyExports": 1038
   },
   "errors": [],
   "packageCycles": [],
@@ -830,7 +830,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 170,
-      "testFiles": 174,
+      "testFiles": 175,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -849,7 +849,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 174
+          "testFiles": 175
         }
       ]
     },
@@ -18347,6 +18347,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/middleware/path-remap-linked-worktree.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/middleware/path-remap-repeat-rename.test.ts",
         "projects": [
           "root-node"
@@ -35624,6 +35630,10 @@
     {
       "file": "packages/sage/src/middleware/memory-injector-agent.ts",
       "name": "memoryInjectorAgentCoverage"
+    },
+    {
+      "file": "packages/sage/src/middleware/path-remap.ts",
+      "name": "isLinkedWorktreeRoot"
     },
     {
       "file": "packages/sage/src/middleware/path-remap.ts",

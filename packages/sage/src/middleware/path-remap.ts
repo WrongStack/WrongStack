@@ -3,12 +3,18 @@
  * track code:
  * - bash/exec: `mv` / `git mv` / `Move-Item` → path remap
  * - `lsp_rename`: capture old identifier before apply, then symbol remap
+ *
+ * Not in a linked Git worktree: it shares its main checkout's memory, but a
+ * rename there exists only on that worktree's branch. Rewriting the shared
+ * anchors would point every other checkout at a path it does not have, so the
+ * main checkout would see the memory go stale for a change it never made.
  */
 
 import * as path from 'node:path';
 import type { Middleware } from '@wrongstack/contracts/kernel';
 import type { MemoryPort } from '@wrongstack/contracts/types';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
+import { canonicalProjectRoot } from '@wrongstack/core/utils';
 import { getSageSurface } from '../memory-port.js';
 import {
   memoryNeedsPathRemap,
@@ -85,6 +91,15 @@ const COMMAND_TOOLS = new Set([
   'execute_command',
 ]);
 
+/** A linked worktree's identity root is its main checkout, not itself. */
+export function isLinkedWorktreeRoot(projectRoot: string): boolean {
+  const own = path.resolve(projectRoot);
+  const identity = canonicalProjectRoot(own);
+  return process.platform === 'win32' || process.platform === 'darwin'
+    ? own.toLowerCase() !== identity.toLowerCase()
+    : own !== identity;
+}
+
 export function createSagePathRemapMiddleware(
   opts: SagePathRemapOptions,
 ): Middleware<ToolCallPipelinePayload> {
@@ -125,6 +140,12 @@ export function createSagePathRemapMiddleware(
         if (nextPayload.result.is_error) return nextPayload;
         const surface = getSageSurface(opts.memory);
         if (!surface?.listSage || !surface.updateSage) return nextPayload;
+        // Checked only when a remap would run: it reads the checkout's `.git`.
+        let linked: boolean | undefined;
+        const inLinkedWorktree = () => {
+          linked ??= isLinkedWorktreeRoot(nextPayload.ctx.projectRoot);
+          return linked;
+        };
 
         const name = nextPayload.toolUse.name;
 
@@ -151,7 +172,13 @@ export function createSagePathRemapMiddleware(
               nextPayload.ctx.cwd,
               parsed.to,
             );
-            if (from && to && from !== to && allow(`path:${from}->${to}`, maxPerHour)) {
+            if (
+              from &&
+              to &&
+              from !== to &&
+              !inLinkedWorktree() &&
+              allow(`path:${from}->${to}`, maxPerHour)
+            ) {
               const candidates = await surface.listSage(REMAP_STATUSES);
               for (const memory of candidates) {
                 if (!memoryNeedsPathRemap(memory, from)) continue;
@@ -165,7 +192,7 @@ export function createSagePathRemapMiddleware(
         }
 
         // ── Symbol remaps from lsp_rename ───────────────────────────
-        if (pendingSymbol) {
+        if (pendingSymbol && !inLinkedWorktree()) {
           const key = `sym:${pendingSymbol.path}#${pendingSymbol.oldSymbol}->${pendingSymbol.newSymbol}`;
           if (allow(key, maxPerHour)) {
             const candidates = await surface.listSage(REMAP_STATUSES);

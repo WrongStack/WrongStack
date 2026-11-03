@@ -1301,6 +1301,7 @@
       "memoryInjectorAgentCoverage"
     ],
     "packages/sage/src/middleware/path-remap.ts": [
+      "isLinkedWorktreeRoot",
       "replaceIdentifier"
     ],
     "packages/sage/src/middleware/tool-call-memory-breaker.ts": [
